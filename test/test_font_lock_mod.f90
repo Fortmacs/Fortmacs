@@ -37,7 +37,7 @@ module test_font_lock_mod
                              font_lock_highlight_type, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_fontify_buffer, font_lock_ensure, &
                              font_lock_add_keywords
-    use just_in_time_lock_mod, only: is_jit_lock_mode, jit_lock_fontify_now
+    use just_in_time_lock_mod, only: is_just_in_time_lock_mode, just_in_time_lock_fontify_now
     use glyph_matrices_mod, only: glyph_row_type, DEFAULT_FACE_ID
     use frame_mod, only: frame_type
     use faces_mod, only: initialize_faces
@@ -157,7 +157,7 @@ contains
         call buffer_with("*fl-keywords*", "a foo b foo", h)
         call set_foo_keywords(.true.)
         call minor_modes%font_lock_mode%enable(st)
-        call check(error, st%ok() .and. is_jit_lock_mode(), "jit-lock")
+        call check(error, st%ok() .and. is_just_in_time_lock_mode(), "jit-lock")
         if (allocated(error)) return
         call check(error, face_at(3_int64) == "", "not fontified yet")
         if (allocated(error)) return
@@ -166,7 +166,7 @@ contains
                    .and. face_at(6_int64) == "" .and. face_at(9_int64) == "font_lock_keyword_face", "both foos")
         if (allocated(error)) return
         call minor_modes%font_lock_mode%disable(st)
-        call check(error, face_at(3_int64) == "" .and. .not. is_jit_lock_mode(), "unfontified when off")
+        call check(error, face_at(3_int64) == "" .and. .not. is_just_in_time_lock_mode(), "unfontified when off")
         call close_buffer(h, st)
     end subroutine test_keywords
 
@@ -229,7 +229,7 @@ contains
         call buffer_with("*fl-change*", "foo"//achar(10)//"bar"//achar(10), h)
         call set_foo_keywords(.true.)
         call minor_modes%font_lock_mode%enable(st)
-        call jit_lock_fontify_now(st)
+        call just_in_time_lock_fontify_now(st)
         call get_text_property(6_int64, value_type(name="fontified"), v, st)
         call check(error, allocated(v%a), "fontified")
         if (allocated(error)) return
@@ -238,7 +238,7 @@ contains
         call get_text_property(6_int64, value_type(name="fontified"), v, st)
         call check(error,.not. allocated(v%a), "refontify the change")
         if (allocated(error)) return
-        call jit_lock_fontify_now(st)
+        call just_in_time_lock_fontify_now(st)
         call check(error, face_at(6_int64) == "font_lock_keyword_face", "fontified again")
         call close_buffer(h, st)
     end subroutine test_after_change
@@ -268,7 +268,7 @@ contains
 
         call layout_window(bi, 1_int64, point_maximum(), 10, rows, crow, ccol, end_position, at_end, f=f)
         call check(error, rows(1)%glyphs(1)%face_id == DEFAULT_FACE_ID .and. rows(1)%glyphs(3)%face_id /= DEFAULT_FACE_ID &
-                   .and. f%faces(rows(1)%glyphs(3)%face_id)%tty_bold_p, "foo in bold (mono keyword face)")
+                   .and. f%faces(rows(1)%glyphs(3)%face_id)%terminal_bold_p, "foo in bold (mono keyword face)")
         call close_buffer(h, st)
     end subroutine test_redisplay
 end module test_font_lock_mod

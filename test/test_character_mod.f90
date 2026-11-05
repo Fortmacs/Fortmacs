@@ -32,8 +32,8 @@ module test_character_mod
                              character_to_byte8, character_to_byte_safe, is_character_valid, &
                              variation_selector_number, count_size_as_multibyte, is_leading_code, &
                              maximum_character, maximum_multibyte_length, multibyte_characters_in_text, &
-                             multibyte_length, parse_str_as_multibyte, raw_previous_character_length, &
-                             str_as_multibyte, str_as_unibyte, str_to_multibyte, string_character, &
+                             multibyte_length, parse_string_as_multibyte, raw_previous_character_length, &
+                             string_as_multibyte, string_as_unibyte, string_to_multibyte, string_character, &
                              string_character_and_length, is_trailing_code, unibyte_to_character
     implicit none(type, external)
     private
@@ -204,7 +204,7 @@ contains
         call check(error,.not. st%ok(), "invalid text accepted")
         if (allocated(error)) return
         ! a, raw FF (2 bytes once converted), é
-        call parse_str_as_multibyte("a"//bytes([255, 195, 169]), nchars, nbytes)
+        call parse_string_as_multibyte("a"//bytes([255, 195, 169]), nchars, nbytes)
         call check(error, nchars, 3_int64)
         if (allocated(error)) return
         call check(error, nbytes, 5_int64)
@@ -215,18 +215,18 @@ contains
         integer(int64) :: nchars
         character(len=:), allocatable :: s
 
-        call str_as_multibyte("a"//bytes([255, 195, 169]), s, nchars)
-        call check(error, s == "a"//bytes([193, 191, 195, 169]), "str_as_multibyte")
+        call string_as_multibyte("a"//bytes([255, 195, 169]), s, nchars)
+        call check(error, s == "a"//bytes([193, 191, 195, 169]), "string_as_multibyte")
         if (allocated(error)) return
         call check(error, nchars, 3_int64)
         if (allocated(error)) return
         call check(error, count_size_as_multibyte("a"//bytes([233])), 3_int64)
         if (allocated(error)) return
-        call check(error, str_to_multibyte("a"//bytes([233])) == "a"//bytes([193, 169]), &
-                   "str_to_multibyte")
+        call check(error, string_to_multibyte("a"//bytes([233])) == "a"//bytes([193, 169]), &
+                   "string_to_multibyte")
         if (allocated(error)) return
-        call check(error, str_as_unibyte(bytes([193, 169])//"a"//bytes([195, 169])) == &
-                   bytes([233])//"a"//bytes([195, 169]), "str_as_unibyte")
+        call check(error, string_as_unibyte(bytes([193, 169])//"a"//bytes([195, 169])) == &
+                   bytes([233])//"a"//bytes([195, 169]), "string_as_unibyte")
     end subroutine test_conversion
 
     subroutine test_previous_length(error)

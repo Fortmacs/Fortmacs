@@ -53,7 +53,7 @@ module repeat_mod
     use minibuffer_reading_mod, only: minibuf_level
     use timer_mod, only: execute_with_idle_timer, destroy_timer, is_timer
     use display_engine_mod, only: message, message_nolog
-    use read_multiple_choice_mod, only: rmc_choice_type, rmc_add_key_description
+    use read_multiple_choice_mod, only: read_multiple_choice_choice_type, read_multiple_choice_add_key_description
     use editing_functions_mod, only: character_before
     implicit none(type, external)
     private
@@ -84,7 +84,7 @@ module repeat_mod
     type(command_type), pointer, public :: repeat_previous_repeated_command => null()
 
     !> Key that stops the modal repeating of keys in sequence.
-    !> For example, you can set it to <return> like `isearch_exit'.
+    !> For example, you can set it to <return> like `incremental_search_exit'.
     !> (Unallocated for none.)  Port of repeat.el repeat-exit-key.
     character(len=:), allocatable, public :: repeat_exit_key
 
@@ -614,7 +614,7 @@ contains
             type(value_type), allocatable :: events(:), key(:)
             type(value_type) :: binding
             type(command_type), pointer :: p
-            type(rmc_choice_type) :: choice
+            type(read_multiple_choice_choice_type) :: choice
             type(value_type) :: last
             integer :: k
 
@@ -639,11 +639,11 @@ contains
                         if (size(key) == 1 .and. vtag(last) == V_INTEGER) then
                             choice%key = int(xfixnum(last))
                             choice%name = trim(p%repeat_hint)
-                            part = rmc_add_key_description(choice)
+                            part = read_multiple_choice_add_key_description(choice)
                         else if (vtag(event_basic_type(last)) == V_INTEGER) then
                             choice%key = int(xfixnum(event_basic_type(last)))
                             choice%name = trim(p%repeat_hint)
-                            part = key_description(key)//" ("//rmc_add_key_description(choice)//")"
+                            part = key_description(key)//" ("//read_multiple_choice_add_key_description(choice)//")"
                         else
                             part = key_description(key)//" ("//trim(p%repeat_hint)//")"
                         end if

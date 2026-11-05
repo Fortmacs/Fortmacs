@@ -88,7 +88,7 @@ module spellcheck_mod
     use newcomment_mod, only: comment_start, comment_end, comment_normalize_variables
     use simple_mod, only: is_use_region, is_region_active, push_mark, newline, open_line
     use undo_mod, only: undo_boundary
-    use abbreviation_mod, only: global_abbrev_table
+    use abbreviation_mod, only: global_abbreviation_table
     use replace_mod, only: query_replace
     use minibuffer_reading_mod, only: read_string
     use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
@@ -102,8 +102,8 @@ module spellcheck_mod
                           display_buffer, window_body_width, window_resize, windows
     use interval_tree_mod, only: make_overlay, overlay_put, delete_overlay, move_overlay, is_overlay
     use faces_mod, only: named_face_type
-    use incremental_search_mod, only: isearch
-    use terminal_output_mod, only: is_tty_display_color
+    use incremental_search_mod, only: incremental_search
+    use terminal_output_mod, only: is_terminal_display_color
     use display_update_mod, only: ding, redraw_display
     use help_mod, only: substitute_command_keys
     use display_engine_mod, only: message, message_log_maximum, message_log_maximum_choice_setting_type
@@ -116,10 +116,10 @@ module spellcheck_mod
               spellcheck_comment_or_string_at_point, spellcheck_change_dictionary, spellcheck_kill_spellcheck, &
               spellcheck_pdict_save, &
               spellcheck_check_version, spellcheck_help, spellcheck_lookup_words, spellcheck_set_spellchecker_parameters, &
-              spellcheck_valid_dictionary_list, spellcheck_init_process, spellcheck_send_string, spellcheck_accept_output, &
+              spellcheck_valid_dictionary_list, spellcheck_initialize_process, spellcheck_send_string, spellcheck_accept_output, &
               spellcheck_filter, spellcheck_parse_output, spellcheck_get_word, is_spellcheck_correct, spellcheck_process_status, &
               spellcheck_add_per_file_word_list, spellcheck_buffer_local_words, spellcheck_buffer_local_dictionary, &
-              spellcheck_buffer_local_parsing, spellcheck_accept_buffer_local_defs, spellcheck_internal_change_dictionary, &
+              spellcheck_buffer_local_parsing, spellcheck_accept_buffer_local_definitions, spellcheck_internal_change_dictionary, &
               spellcheck_get_casechars, spellcheck_get_not_casechars, spellcheck_get_otherchars, spellcheck_get_many_otherchars, &
               spellcheck_get_coding_system, spellcheck_get_extended_character_mode, &
               prepend_spellcheck_buffer_session_localword, spellcheck_format_word_procedure, spellcheck_skip_procedure, &
@@ -226,7 +226,7 @@ module spellcheck_mod
     integer, parameter, public :: SPELLCHECK_HIGHLIGHT_BLOCK = 2
 
     !> Highlight spelling errors when true.
-    !> When set to SPELLCHECK_HIGHLIGHT_BLOCK, assumes a block cursor with TTY
+    !> When set to SPELLCHECK_HIGHLIGHT_BLOCK, assumes a block cursor with TERMINAL
     !> displays.  Port of ispell.el ispell-highlight-p.
     type(choice_setting_type), public :: spellcheck_highlight = &
                                          choice_setting_type(name="spellcheck_highlight", choice=SPELLCHECK_HIGHLIGHT_BLOCK)
@@ -235,7 +235,7 @@ module spellcheck_mod
     !> This variable can be set by the user to whatever face they desire.
     !> It's most convenient if the cursor color and highlight color are
     !> slightly different.  Port of ispell.el ispell-highlight-face.
-    type(named_face_type), pointer, public :: spellcheck_highlight_face => isearch
+    type(named_face_type), pointer, public :: spellcheck_highlight_face => incremental_search
 
     !> The `spellcheck_check_comments' value besides comments not checked
     !> (.false.) and checked (.true.): the only text checked.
@@ -261,7 +261,7 @@ module spellcheck_mod
     !> on a per-word basis by typing C-u immediately before selecting a
     !> replacement in the Ispell command loop.  Port of ispell.el
     !> ispell-save-corrections-as-abbrevs.
-    logical, public :: spellcheck_save_corrections_as_abbrevs = .false.
+    logical, public :: spellcheck_save_corrections_as_abbreviations = .false.
 
     !> Does not spell check `tib' bibliography references when true.
     !> Skips any text between strings matching regular expressions
@@ -497,7 +497,8 @@ module spellcheck_mod
 
     !> Hook run by `spellcheck_kill_spellcheck' (flyspell flushes its caches
     !> there).  Port of ispell.el ispell-kill-ispell-hook.
-    type(hook_type), target, public :: spellcheck_kill_spellcheck_hook = hook_type(name="spellcheck_kill_spellcheck_hook")
+    type(hook_type), target, public :: spellcheck_kill_spellcheck_hook_variable = hook_type( &
+                                       name="spellcheck_kill_spellcheck_hook_variable")
 
     !> Hook run after changing dictionary.  Port of ispell.el
     !> ispell-change-dictionary-hook.
@@ -636,7 +637,7 @@ module spellcheck_mod
     ! ispell-overlay.
     type(handle_type) :: spellcheck_overlay
     ! ispell--abbrev-saving-allowed and ispell--save-correction-as-abbrev.
-    logical :: spellcheck_abbrev_saving_allowed = .false., spellcheck_save_correction_as_abbrev = .false.
+    logical :: spellcheck_abbreviation_saving_allowed = .false., spellcheck_save_correction_as_abbreviation = .false.
 
     !> The words of a buffer's `spellcheck_buffer_session_localwords'.
     type :: session_localwords_type
@@ -1634,17 +1635,17 @@ contains
     end subroutine spellcheck_send_replacement
 
     !> Save MISSPELLED -> REPLACEMENT as an abbrev, if enabled.
-    !> This is controlled by `spellcheck_save_corrections_as_abbrevs' and C-u in
+    !> This is controlled by `spellcheck_save_corrections_as_abbreviations' and C-u in
     !> the command loop.  Port of
     !> ispell.el:ispell--maybe-save-correction-abbrev.
-    subroutine spellcheck_maybe_save_correction_abbrev(misspelled, replacement)
+    subroutine spellcheck_maybe_save_correction_abbreviation(misspelled, replacement)
         character(len=*), intent(in) :: misspelled, replacement
 
-        if (spellcheck_save_correction_as_abbrev) then
-            call global_abbrev_table%define(misspelled, replacement)
+        if (spellcheck_save_correction_as_abbreviation) then
+            call global_abbreviation_table%define(misspelled, replacement)
             call message(""""//misspelled//""" now expands to """//replacement//""" globally")
         end if
-    end subroutine spellcheck_maybe_save_correction_abbrev
+    end subroutine spellcheck_maybe_save_correction_abbreviation
 
     !> Send the string STRING to the Ispell process.  Port of
     !> ispell.el:ispell-send-string (asynchronous processes).
@@ -1933,7 +1934,7 @@ contains
 
     !> Check status of Ispell process and start if necessary.  Port of
     !> ispell.el:ispell-init-process.
-    recursive subroutine spellcheck_init_process(status)
+    recursive subroutine spellcheck_initialize_process(status)
         type(status_type), intent(out) :: status
         character(len=64) :: arguments(4)
         character(len=:), allocatable :: dictionary_bname, directory, home, libdir, coding, mode, text
@@ -2055,7 +2056,7 @@ contains
 
             has_version_line = string_match("^@(#) ", spellcheck_filter_variable(n)%text, s) > 0
         end function has_version_line
-    end subroutine spellcheck_init_process
+    end subroutine spellcheck_initialize_process
 
     ! Kill the Ispell process when the current buffer is closed (the
     ! procedure ispell-init-process adds to the buffer's own
@@ -2089,7 +2090,7 @@ contains
         status = status_type()
         ! This hook is typically used by flyspell to flush some variables
         ! used to optimize the common cases.
-        call spellcheck_kill_spellcheck_hook%execute(st)
+        call spellcheck_kill_spellcheck_hook_variable%execute(st)
 
         if (present(clear)) then
             if (clear) call clear_session_localwords()
@@ -2243,7 +2244,7 @@ contains
         call spellcheck_set_spellchecker_parameters(status)
         if (.not. status%ok()) return
         ! Use the correct dictionary.
-        call spellcheck_accept_buffer_local_defs(status)
+        call spellcheck_accept_buffer_local_definitions(status)
         if (.not. status%ok()) return
         ! Retain cursor location.
         cursor_location = point()
@@ -2272,8 +2273,8 @@ contains
                 call message(formatted_word(word)//" is incorrect")
             else
                 ! Prompt for correct word.
-                spellcheck_abbrev_saving_allowed = .true.
-                spellcheck_save_correction_as_abbrev = spellcheck_save_corrections_as_abbrevs
+                spellcheck_abbreviation_saving_allowed = .true.
+                spellcheck_save_correction_as_abbreviation = spellcheck_save_corrections_as_abbreviations
                 call make_marker(start_marker)
                 call set_marker(start_marker, start, st)
                 call make_marker(end_marker)
@@ -2281,7 +2282,7 @@ contains
                 call current_window_configuration(configuration)
                 call spellcheck_command_loop(positions%misses, positions%guesses, positions%word, start, end, replace, status)
                 call set_window_configuration(configuration)
-                spellcheck_abbrev_saving_allowed = .false.
+                spellcheck_abbreviation_saving_allowed = .false.
                 start = marked_position(start_marker)
                 end = marked_position(end_marker)
 
@@ -2296,7 +2297,7 @@ contains
                 else if (replace%kind /= REPLACE_KEEP) then
                     new_word = replace%word
                     cursor_location = cursor_location + (length_characters(word) - (end - start))
-                    call spellcheck_maybe_save_correction_abbrev(positions%word, new_word)
+                    call spellcheck_maybe_save_correction_abbreviation(positions%word, new_word)
 
                     if (new_word /= positions%word) then
                         call goto_character(start)
@@ -2698,15 +2699,15 @@ contains
         type(handle_type) :: choices_buffer, textwin, text_buffer
         type(value_type) :: key
         character(len=:), allocatable :: answer, prompt
-        logical :: abbrev_prefix, again, yes, highlighted
+        logical :: abbreviation_prefix, again, yes, highlighted
         type(status_type) :: st
 
         status = status_type()
         command_characters = [32, iachar("i"), iachar("a"), iachar("A"), iachar("r"), iachar("R"), iachar("?"), &
                               iachar("x"), iachar("X"), iachar("q"), iachar("l"), iachar("u"), iachar("m")]
-        if (spellcheck_abbrev_saving_allowed) command_characters = [command_characters, 21]
+        if (spellcheck_abbreviation_saving_allowed) command_characters = [command_characters, 21]
         choices = miss
-        abbrev_prefix = .false.
+        abbreviation_prefix = .false.
         text_buffer = current_buffer()
         ! Setup the *Choices* buffer with valid data.
         call get_or_make_buffer(spellcheck_choices_buffer, choices_buffer, st)
@@ -2747,8 +2748,8 @@ contains
             call undo_boundary()
             prompt = "C-h or ? for more options; SPC to leave unchanged, Character to replace word"
 
-            if (spellcheck_abbrev_saving_allowed .and. abbrev_prefix) then
-                if (spellcheck_save_correction_as_abbrev) then
+            if (spellcheck_abbreviation_saving_allowed .and. abbreviation_prefix) then
+                if (spellcheck_save_correction_as_abbreviation) then
                     prompt = prompt//" [won't save as abbrev]"
                 else
                     prompt = prompt//" [will save as abbrev]"
@@ -2771,16 +2772,17 @@ contains
             skipped = count_if_between(command_characters, int(char))
             number = int(char) - iachar("0") - skipped
 
-            if (abbrev_prefix .and. (char == iachar("r") .or. char == iachar("R") .or. (number >= 0 .and. number < count))) then
+            if (abbreviation_prefix .and. (char == iachar("r") .or. char == iachar("R") .or. (number >= 0 .and. number < count))) &
+                then
                 ! If the user typed `C-u' before this replacement command,
                 ! then toggle abbrev saving for this correction.
-                spellcheck_save_correction_as_abbrev = .not. spellcheck_save_correction_as_abbrev
-                abbrev_prefix = .false.
-            else if (abbrev_prefix .and. char /= 21) then
+                spellcheck_save_correction_as_abbreviation = .not. spellcheck_save_correction_as_abbreviation
+                abbreviation_prefix = .false.
+            else if (abbreviation_prefix .and. char /= 21) then
                 ! If the user typed `C-u' but not before a replacement
                 ! command, then nullify the effect of `C-u' for subsequent
                 ! commands.
-                abbrev_prefix = .false.
+                abbreviation_prefix = .false.
             end if
 
             result = replacement_type()
@@ -2899,8 +2901,8 @@ contains
             else if (char == 26) then
                 call execute_key_binding(26_int64, st)
                 again = .true.
-            else if (char == 21 .and. spellcheck_abbrev_saving_allowed) then
-                abbrev_prefix = .not. abbrev_prefix
+            else if (char == 21 .and. spellcheck_abbreviation_saving_allowed) then
+                abbreviation_prefix = .not. abbreviation_prefix
                 again = .true.
             else
                 call ding()
@@ -3051,7 +3053,7 @@ contains
         help_1 = "[r/R]eplace word; [a/A]ccept for this session; [i]nsert into personal dictionary"
         help_2 = "[l]ook a word up in alternate dictionary;  e[x/X]it;  [q]uit session"
         help_3 = "[u]ncapitalized insert into dict.  "
-        if (spellcheck_abbrev_saving_allowed) help_3 = help_3//"C-u toggles abbrev saving (next replacement)."
+        if (spellcheck_abbreviation_saving_allowed) help_3 = help_3//"C-u toggles abbrev saving (next replacement)."
         help_4 = "Type `x C-h f spellcheck_help' for more help"
         text = help_1//LF//help_2//LF//help_3//LF//help_4
         call current_window_configuration(configuration)
@@ -3097,7 +3099,7 @@ contains
         type(string_type), allocatable, intent(out) :: results(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: lookup_dictionary
-        character(len=:), allocatable :: dictionary, prog, arguments, pattern, line
+        character(len=:), allocatable :: dictionary, programming, arguments, pattern, line
         type(value_type) :: code, arglist
         type(handle_type) :: old, temporary
         logical :: wild, look, has_character
@@ -3136,11 +3138,11 @@ contains
         end if
 
         if (look) then
-            prog = spellcheck_look_command
+            programming = spellcheck_look_command
             arguments = spellcheck_look_options
             pattern = word
         else
-            prog = spellcheck_grep_command
+            programming = spellcheck_grep_command
             arguments = spellcheck_grep_options
             pattern = "^"//word
             ! When there are no wildcards, append one, for consistency with
@@ -3159,7 +3161,7 @@ contains
         end if
 
         call temporary_begin(old, temporary)
-        call message("Starting """//file_name_nondirectory(prog)//""" process...")
+        call message("Starting """//file_name_nondirectory(programming)//""" process...")
 
         if (len(arguments) > 0) then
             arglist = list(value_type(text=arguments), value_type(text=pattern), value_type(text=dictionary))
@@ -3169,12 +3171,12 @@ contains
             arglist = list(value_type(text="-e"), value_type(text=pattern), value_type(text=dictionary))
         end if
 
-        call spellcheck_execute_process(prog, arglist, code, status)
+        call spellcheck_execute_process(programming, arglist, code, status)
 
         if (status%ok() .and. vtag(code) == V_STRING) then
             ! `grep' returns status 1 and no output when word not found,
             ! which is a perfectly normal thing.
-            call set_error(status, GENERIC_ERROR_CODE, "Error: "//file_name_nondirectory(prog)//" exited with signal "// &
+            call set_error(status, GENERIC_ERROR_CODE, "Error: "//file_name_nondirectory(programming)//" exited with signal "// &
                            xstring(code))
         end if
 
@@ -3248,7 +3250,8 @@ contains
             if (refresh) return
         end if
 
-        if (is_tty_display_color(selected_frame%tty)) call spellcheck_highlight_spelling_error_overlay(start, end, highlight)
+        if (is_terminal_display_color(selected_frame%terminal)) call spellcheck_highlight_spelling_error_overlay(start, end, &
+                                                                                                                 highlight)
     end subroutine spellcheck_highlight_spelling_error
 
     !> Show BUFFER in new window above selected one.
@@ -3448,7 +3451,7 @@ contains
 
         ! Set up dictionary, local words, etc.
         if (.not. recheckp) then
-            call spellcheck_accept_buffer_local_defs(status)
+            call spellcheck_accept_buffer_local_definitions(status)
             if (.not. status%ok()) return
         end if
 
@@ -4040,8 +4043,8 @@ contains
                 call make_marker(line_start)
                 call set_marker(line_start, spellcheck_start, st)
                 recheck_region = .false.
-                spellcheck_abbrev_saving_allowed = .true.
-                spellcheck_save_correction_as_abbrev = spellcheck_save_corrections_as_abbrevs
+                spellcheck_abbreviation_saving_allowed = .true.
+                spellcheck_save_correction_as_abbreviation = spellcheck_save_corrections_as_abbreviations
                 word_position = marked_position(word_start)
                 call goto_character(word_position)
 
@@ -4070,7 +4073,7 @@ contains
                     call set_window_configuration(configuration)
                 end if
 
-                spellcheck_abbrev_saving_allowed = .false.
+                spellcheck_abbreviation_saving_allowed = .false.
 
                 if (.not. status%ok()) then
                     call release_markers()
@@ -4109,13 +4112,13 @@ contains
                         ! Insert dictionary word.
                         call insert(replace%word, st)
                         call spellcheck_send_replacement(positions%word, replace%word)
-                        call spellcheck_maybe_save_correction_abbrev(positions%word, replace%word)
+                        call spellcheck_maybe_save_correction_abbreviation(positions%word, replace%word)
                         call prepend_string(accept_list, replace%word)
                     else
                         ! Recheck hand entered replacement word.
                         call insert(replace%word, st)
                         call spellcheck_send_replacement(positions%word, replace%word)
-                        call spellcheck_maybe_save_correction_abbrev(positions%word, replace%word)
+                        call spellcheck_maybe_save_correction_abbreviation(positions%word, replace%word)
 
                         if (replace%kind == REPLACE_QUERY) then
                             call current_window_configuration(configuration)
@@ -4380,7 +4383,7 @@ contains
 
     !> Load all buffer-local information, restarting Ispell when necessary.
     !> Port of ispell.el:ispell-accept-buffer-local-defs.
-    recursive subroutine spellcheck_accept_buffer_local_defs(status)
+    recursive subroutine spellcheck_accept_buffer_local_definitions(status)
         type(status_type), intent(out) :: status
 
         ! May kill ispell-process.
@@ -4390,7 +4393,7 @@ contains
         call spellcheck_buffer_local_words(status)
         if (.not. status%ok()) return
         call spellcheck_buffer_local_parsing(status)
-    end subroutine spellcheck_accept_buffer_local_defs
+    end subroutine spellcheck_accept_buffer_local_definitions
 
     !> Place Ispell into parsing mode for this buffer.
     !> Overrides the default parsing mode.
@@ -4534,7 +4537,7 @@ contains
 
         ! Actually start a new ispell process, because we need to send
         ! commands now to specify the local words to it.
-        call spellcheck_init_process(status)
+        call spellcheck_initialize_process(status)
         if (.not. status%ok()) return
         k = session_slot()
 

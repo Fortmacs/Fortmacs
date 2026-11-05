@@ -1,7 +1,7 @@
 ! test_display_engine_mod.f90 -- tests for display_engine_mod, window_mod and fortmacs_mod: how
 ! buffer text is laid out on the screen, and the editor's main loop on a
 ! pty.
-! Own tests; upstream's xdisp-tests.el needs Lisp and GUI frames.
+! Own tests; upstream's xdisp-tests.el needs Lisp and GRAPHICAL_USER_INTERFACE frames.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -32,10 +32,10 @@ module test_display_engine_mod
     use glyph_matrices_mod, only: glyph_row_type, glyph_type, DEFAULT_FACE_ID
     use faces_mod, only: initialize_faces
     use face_realization_mod, only: initialize_frame_faces
-    use terminal_colors_mod, only: tty_color_clear, tty_register_colors
+    use terminal_colors_mod, only: terminal_color_clear, terminal_register_colors
     use terminfo_mod, only: terminfo_type, builtin_xterm
-    use terminal_output_mod, only: initialize_tty_entry
-    use terminal_state_mod, only: tty_take_output
+    use terminal_output_mod, only: initialize_terminal_entry
+    use terminal_state_mod, only: terminal_take_output
     use frame_mod, only: frame_type
     use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows, &
                           set_window_start, window_start, window_end, window_scroll_functions
@@ -47,9 +47,9 @@ module test_display_engine_mod
     use frame_mod, only: selected_frame, ensure_frame_windows
     use handle_mod, only: null_handle
     use editing_functions_mod, only: narrow_to_region, widen
-    use system_dependent_mod, only: open_pty, close_fd, set_tty_size, initialize_system_modes, &
+    use system_dependent_mod, only: open_pty, close_fd, set_terminal_size, initialize_system_modes, &
                                     reset_system_modes, fortmacs_write, fortmacs_read, input_available, &
-                                    fortmacs_tty_type
+                                    fortmacs_terminal_type
     use fortmacs_mod, only: fortmacs_main
     use value_mod, only: list, value_type, make_window_reference
     use text_properties_mod, only: string_put_text_property
@@ -245,7 +245,7 @@ contains
         call initialize_frame_faces(f, "dumb")
         call layout_window(bi, 1_int64, 3_int64, 8, rows, crow, ccol, end_position, at_end, 0_int64, 0_int64, f)
         region_id = rows(1)%glyphs(3)%face_id
-        call check(error, region_id /= DEFAULT_FACE_ID .and. f%faces(region_id)%tty_reverse_p, "in the region face")
+        call check(error, region_id /= DEFAULT_FACE_ID .and. f%faces(region_id)%terminal_reverse_p, "in the region face")
         if (allocated(error)) return
         call check(error, all(rows(1)%glyphs(3:5)%face_id == region_id) .and. &
                    all(rows(1)%glyphs(1:2)%face_id == DEFAULT_FACE_ID), "the space only")
@@ -415,7 +415,7 @@ contains
         region_id = rows(1)%glyphs(2)%face_id
         call check(error, region_id /= DEFAULT_FACE_ID, "the region face")
         if (allocated(error)) return
-        call check(error, f%faces(region_id)%tty_reverse_p, "in inverse video")
+        call check(error, f%faces(region_id)%terminal_reverse_p, "in inverse video")
         if (allocated(error)) return
         ! (On a monochrome terminal, the region doesn't extend.)
         call check(error, rows(1)%glyphs(1)%face_id == DEFAULT_FACE_ID .and. &
@@ -427,9 +427,9 @@ contains
                    all(rows(2)%glyphs(2:3)%face_id == DEFAULT_FACE_ID), "d only")
         if (allocated(error)) return
         ! An 8-color terminal: white on blue, extended to the end of the row.
-        f%tty%tn_maximum_colors = 8
-        call tty_color_clear()
-        call tty_register_colors(8, .false., st)
+        f%terminal%tn_maximum_colors = 8
+        call terminal_color_clear()
+        call terminal_register_colors(8, .false., st)
         call initialize_frame_faces(f, "dumb")
         call layout_window(bi, 1_int64, 1_int64, 8, rows, crow, ccol, end_position, at_end, 2_int64, 6_int64, f)
         region_id = rows(1)%glyphs(2)%face_id
@@ -438,8 +438,8 @@ contains
         if (allocated(error)) return
         call check(error, all(rows(1)%glyphs(2:8)%face_id == region_id) .and. rows(1)%used == 8, &
                    "region has :extend t")
-        call tty_color_clear()
-        f%tty%tn_maximum_colors = 0
+        call terminal_color_clear()
+        f%terminal%tn_maximum_colors = 0
         call initialize_frame_faces(f, "dumb")
         call close_buffer(h, st)
     end subroutine test_region
@@ -709,14 +709,14 @@ contains
 
         call buffer_with("*xdisp-big*", text, h, bi)
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         ! The selected window shows the buffer.
         call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
         ! Point at the start of line 60.
         call goto_character(line_start(60))
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         ! 22 text lines: point's line goes to row 22 / 2 = 11.
         call check(error, f%cursor_vertical_position == 11 .and. f%cursor_horizontal_position == 0, "cursor row")
         if (allocated(error)) return
@@ -772,12 +772,12 @@ contains
         call buffers(bi)%header_line_format%append("Name", align_to=2)
         call buffers(bi)%header_line_format%append("Size", "bold", align_to=10)
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
         call goto_character(1_int64)
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
 
         steps: block
             row = row_text(f%current_matrix%rows(0))
@@ -814,10 +814,10 @@ contains
 
         call buffer_with("*xdisp-echo*", "", h, bi)
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         last_message = "a"//achar(9)//"b"//achar(1)//char(230)//char(188)//char(162)//"c"//achar(10)//"second"
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         call check(error, row_text(f%current_matrix%rows(23)), "a       b^A?c")
         if (allocated(error)) return
         last_message = repeat("m", 100)
@@ -871,7 +871,7 @@ contains
     !> The whole editor on a pty: type, then C-x C-c.
     subroutine test_fortmacs_main(error)
         type(error_type), allocatable, intent(out) :: error
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(status_type) :: st
         integer(int32) :: master, slave
         character(len=4096) :: buffer
@@ -881,7 +881,7 @@ contains
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
-        call set_tty_size(slave, 40_int32, 8_int32, st)
+        call set_terminal_size(slave, 40_int32, 8_int32, st)
         ! Raw mode first, so C-c is not taken as an interrupt.
         call initialize_system_modes(slave, old, st)
         call fortmacs_write(master, "hi"//achar(24)//achar(3), st)
@@ -931,7 +931,7 @@ contains
 
         call buffer_with("*xdisp-forced*", text, h, bi)
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
         call goto_character(1_int64)
@@ -942,7 +942,7 @@ contains
         ! Lines of 9 characters: line 50 starts at 442.
         call set_window_start(windows(f%selected_window%index), 442_int64, st)
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         call check(error, pre_redisplay_calls == 1 .and. scroll_calls == 1 .and. scroll_start == 442, "hooks")
         if (allocated(error)) return
         ! 22 text lines: point on the 11th, line 60.
@@ -996,7 +996,7 @@ contains
 
         call buffer_with("*xdisp-split*", text, h, bi)
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         ! The selected window shows the buffer.
         call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
@@ -1006,7 +1006,7 @@ contains
         call split_window_internal(top_left, .false., 11, f%root_window, below, st)
         call split_window_internal(top_left, .true., 40, f%root_window, right, st)
         call redisplay_internal(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         row = row_text(f%current_matrix%rows(0))
         call check(error, row(1:6) == "line 1" .and. row(40:40) == "|" .and. row(41:46) == "line 1", row)
         if (allocated(error)) return

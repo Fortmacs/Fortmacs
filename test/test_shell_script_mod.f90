@@ -21,7 +21,7 @@
 
 !> Ports sh-script-tests.el (all 6 tests; `test_indentation' runs the
 !> cases of sh-indents.erts) and own tests of the feature tables, the
-!> here-document syntax and `sh_set_shell'.
+!> here-document syntax and `shell_set_shell'.
 module test_shell_script_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use execute_interactively_mod, only: prefix_argument_type
@@ -41,17 +41,17 @@ module test_shell_script_mod
     use font_lock_mod, only: font_lock_ensure
     use syntax_mod, only: parse_state_type, syntax_parser_state, ST_STRING_STYLE
     use data_mod, only: choice_state, setting_errors
-    use shell_script_mod, only: sh_mode, sh_indent_supported_here, sh_indent_for_continuation, &
-                                sh_indent_after_continuation, sh_smie_default_backward_token, sh_set_shell, &
-                                sh_builtins, sh_canonicalize_shell, sh_shell, &
-                                SH_PLUS_PLUS, &
-                                SH_INDENT_AFTER_CONTINUATION_ALWAYS, &
-                                sh_completion_at_point_function, sh_name_style, sh_load_style, sh_save_styles_to_buffer, &
-                                sh_styles, sh_basic_offset, sh_indent_for_do, SH_PLUS, sh_if, sh_for, sh_case, &
-                                sh_while_getopts, sh_while, sh_function, sh_indexed_loop, sh_modify, sh_variable_value, &
-                                sh_indent_for_fi, sh_indent_choice_setting_type, SH_MINUS, SH_STAR
+    use shell_script_mod, only: shell_script_mode, shell_indent_supported_here, shell_indent_for_continuation, &
+                                shell_indent_after_continuation, shell_indentation_engine_default_backward_token, shell_set_shell, &
+                                shell_builtins, shell_canonicalize_shell, shell_shell, SHELL_PLUS_PLUS, &
+                                SHELL_INDENT_AFTER_CONTINUATION_ALWAYS, shell_completion_at_point_function, shell_name_style, &
+                                shell_load_style, shell_save_styles_to_buffer, shell_styles, shell_basic_offset, &
+                                shell_indent_for_do, SHELL_PLUS, shell_if, shell_for, shell_case, shell_while_getopts, &
+                                shell_while, shell_function, shell_indexed_loop, shell_modify, shell_variable_value, &
+                                shell_indent_for_fi, shell_indent_choice_setting_type, SHELL_MINUS, SHELL_STAR
     use skeleton_mod, only: skeleton_element_type, skeleton_prompt, skeleton_text, SKELETON_END
-    use simple_minded_indentation_engine_mod, only: smie_configuration_show_indent, smie_configuration_guess
+    use simple_minded_indentation_engine_mod, only: simple_minded_indentation_engine_configuration_show_indent, &
+                                                    simple_minded_indentation_engine_configuration_guess
     use keyboard_mod, only: keyboard_store_bytes, discard_input, last_message
     use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, TABLE_FUNCTION, COMPLETE_ALL
     use value_mod, only: list_length, list_element, xstring, value_type
@@ -89,8 +89,8 @@ contains
                     new_unittest("sh-styles", test_styles), &
                     new_unittest("sh-var-value", test_variable_value), &
                     new_unittest("sh-skeletons", test_skeletons), &
-                    new_unittest("sh-modify", test_sh_modify), &
-                    new_unittest("smie-config", test_smie_configuration), &
+                    new_unittest("sh-modify", test_shell_modify), &
+                    new_unittest("smie-config", test_simple_minded_indentation_engine_configuration), &
                     new_unittest("display-buffer-overriding-action", test_overriding_action) &
                     ]
     end subroutine collect_shell_script_mod
@@ -115,7 +115,7 @@ contains
         type(status_type) :: st
 
         call temporary_buffer(text, h)
-        call sh_mode(st)
+        call shell_script_mode(st)
     end subroutine script
 
     subroutine leave(h)
@@ -135,7 +135,7 @@ contains
                     "             --with-x", h)
 
         checks: block
-            if (len(sh_indent_supported_here()) == 0) then
+            if (len(shell_indent_supported_here()) == 0) then
                 call skip_test(error, "sh-indent-supported-here")
                 exit checks
             end if
@@ -158,7 +158,7 @@ contains
         call script("myecho () {"//LF//"echo foo"//LF//"}"//LF, h)
 
         checks: block
-            if (len(sh_indent_supported_here()) == 0) then
+            if (len(shell_indent_supported_here()) == 0) then
                 call skip_test(error, "sh-indent-supported-here")
                 exit checks
             end if
@@ -179,7 +179,7 @@ contains
 
         call script(text, h)
 
-        if (len(sh_indent_supported_here()) == 0) then
+        if (len(shell_indent_supported_here()) == 0) then
             call skip_test(error, "sh-indent-supported-here")
         else
             call indent_region(point_minimum(), point_maximum(), st)
@@ -219,36 +219,36 @@ contains
         type(status_type) :: st
         type(choice_type) :: saved
 
-        saved = choice_state(sh_indent_after_continuation)
+        saved = choice_state(shell_indent_after_continuation)
         call script("for f \"//LF//"in a; do \"//LF//"toto; \"//LF//"done"//LF, h)
 
         checks: block
-            if (len(sh_indent_supported_here()) == 0) then
+            if (len(shell_indent_supported_here()) == 0) then
                 call skip_test(error, "sh-indent-supported-here")
                 exit checks
             end if
 
-            sh_indent_for_continuation = SH_PLUS_PLUS
-            sh_indent_after_continuation = .true.
+            shell_indent_for_continuation = SHELL_PLUS_PLUS
+            shell_indent_after_continuation = .true.
             call indent_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//"    toto; \"//LF//"    done"//LF)
             if (allocated(error)) exit checks
-            sh_indent_after_continuation = SH_INDENT_AFTER_CONTINUATION_ALWAYS
+            shell_indent_after_continuation = SHELL_INDENT_AFTER_CONTINUATION_ALWAYS
             call indent_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), "for f \"//LF//TAB//"in a; do \"//LF//TAB//"toto; \"//LF//TAB//"done"//LF)
             if (allocated(error)) exit checks
-            sh_indent_after_continuation = .false.
+            shell_indent_after_continuation = .false.
             call indent_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), "for f \"//LF//"in a; do \"//LF//"    toto; \"//LF//"done"//LF)
         end block checks
 
-        sh_indent_after_continuation = saved
+        shell_indent_after_continuation = saved
         call leave(h)
     end subroutine test_after_continuation
 
     ! (test-sh-back STRING): the default backward token from the end of
     ! STRING ends at its start.
-    logical function sh_back(string) result(ok)
+    logical function shell_back(string) result(ok)
         character(len=*), intent(in) :: string
         type(handle_type) :: h
         type(status_type) :: st
@@ -256,29 +256,29 @@ contains
 
         call script("", h)
         call insert(string, st)
-        call sh_smie_default_backward_token(token, st)
+        call shell_indentation_engine_default_backward_token(token, st)
         ok = point() == 1
         call leave(h)
-    end function sh_back
+    end function shell_back
 
     subroutine test_backward_token(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, sh_back("foo"), "foo")
+        call check(error, shell_back("foo"), "foo")
         if (allocated(error)) return
-        call check(error, sh_back("foo.bar"), "foo.bar")
+        call check(error, shell_back("foo.bar"), "foo.bar")
         if (allocated(error)) return
-        call check(error, sh_back("foo\1bar"), "foo\1bar")
+        call check(error, shell_back("foo\1bar"), "foo\1bar")
         if (allocated(error)) return
-        call check(error, sh_back("foo\"//LF//"bar"), "foo\ newline bar")
+        call check(error, shell_back("foo\"//LF//"bar"), "foo\ newline bar")
         if (allocated(error)) return
-        call check(error, sh_back("foo\"//LF//"\"//LF//"\"//LF//"bar"), "three continuations")
+        call check(error, shell_back("foo\"//LF//"\"//LF//"\"//LF//"bar"), "three continuations")
         if (allocated(error)) return
-        call check(error, sh_back("foo"), "foo again")
+        call check(error, shell_back("foo"), "foo again")
         if (allocated(error)) return
-        call check(error,.not. sh_back("foo;bar"), "foo;bar")
+        call check(error,.not. shell_back("foo;bar"), "foo;bar")
         if (allocated(error)) return
-        call check(error, sh_back("foo#zot"), "foo#zot")
+        call check(error, shell_back("foo#zot"), "foo#zot")
     end subroutine test_backward_token
 
     !> The face at point (the first of a list), "" if none.
@@ -329,8 +329,8 @@ contains
         call script("", h)
 
         checks: block
-            call sh_set_shell("bash", st)
-            call sh_builtins%current(b)
+            call shell_set_shell("bash", st)
+            call shell_builtins%current(b)
             call check(error, b(1)%text, ".")
             if (allocated(error)) exit checks
             call check(error, b(size(b))%text, "wait")
@@ -338,8 +338,8 @@ contains
             call check(error, any_is(b, "command"), "posix's command")
             if (allocated(error)) exit checks
             ! dash has no entry: ash, then sh.
-            call sh_set_shell("dash", st)
-            call sh_builtins%current(b)
+            call shell_set_shell("dash", st)
+            call shell_builtins%current(b)
             call check(error, b(1)%text, "hash")
             if (allocated(error)) exit checks
             call check(error,.not. any_is(b, "command"), "no command in dash")
@@ -384,15 +384,15 @@ contains
     subroutine test_canonicalize(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, sh_canonicalize_shell("/bin/bash"), "bash")
+        call check(error, shell_canonicalize_shell("/bin/bash"), "bash")
         if (allocated(error)) return
-        call check(error, sh_canonicalize_shell("/usr/bin/csh"), "tcsh")
+        call check(error, shell_canonicalize_shell("/usr/bin/csh"), "tcsh")
         if (allocated(error)) return
-        call check(error, sh_canonicalize_shell("/system/bin/sh"), "mksh")
+        call check(error, shell_canonicalize_shell("/system/bin/sh"), "mksh")
         if (allocated(error)) return
-        call check(error, sh_canonicalize_shell("/bin/ksh"), "pdksh")
+        call check(error, shell_canonicalize_shell("/bin/ksh"), "pdksh")
         if (allocated(error)) return
-        call check(error, len(sh_shell%name) > 0, "sh_shell")
+        call check(error, len(shell_shell%name) > 0, "shell_shell")
     end subroutine test_canonicalize
 
     ! Whether NAME is among the strings of the list V.
@@ -419,14 +419,14 @@ contains
         call goto_character(point_maximum())
 
         checks: block
-            call sh_completion_at_point_function(data, st)
+            call shell_completion_at_point_function(data, st)
             call check(error, data%found .and. data%start == point_maximum() - 1 .and. data%end == point_maximum(), "variable")
             if (allocated(error)) exit checks
             call check(error, in_list(data%table%list, "FOO") .and. in_list(data%table%list, "BAR"), "variables")
             if (allocated(error)) exit checks
             ! At a keyword position: variables with "=", commands, keywords.
             call insert(LF//"wh", st)
-            call sh_completion_at_point_function(data, st)
+            call shell_completion_at_point_function(data, st)
             call check(error, data%found .and. data%table%kind == TABLE_FUNCTION, "command")
             if (allocated(error)) exit checks
             call data%table%fn("wh", COMPLETE_ALL, all, st)
@@ -462,7 +462,7 @@ contains
         call leave(h)
     end subroutine test_subprogram
 
-    !> A fresh buffer in `sh_mode' for SHELL.
+    !> A fresh buffer in `shell_script_mode' for SHELL.
     subroutine shell_buffer(shell, h)
         character(len=*), intent(in) :: shell
         type(handle_type), intent(out) :: h
@@ -470,7 +470,7 @@ contains
 
         call script("", h)
         call discard_input()
-        call sh_set_shell(shell, st, .true., .false.)
+        call shell_set_shell(shell, st, .true., .false.)
     end subroutine shell_buffer
 
     !> The statement skeletons for bash and csh (the texts GNU Emacs
@@ -482,26 +482,26 @@ contains
 
         call shell_buffer("bash", h)
         call keyboard_store_bytes(CR)
-        call sh_if(st, string="true")
+        call shell_if(st, string="true")
         call check(error, buffer_string() == "if true; then"//LF//"    "//LF//"else"//LF//"    "//LF//"fi", &
                    "if: "//buffer_string())
         if (allocated(error)) return
         call check(error, point() == 19_int64, "if: point")
         if (allocated(error)) return
         call shell_buffer("bash", h)
-        call sh_for(st, string="i")
+        call shell_for(st, string="i")
         call check(error, buffer_string() == "for i in ; do"//LF//"    $i"//LF//"done", "for: "//buffer_string())
         if (allocated(error)) return
         call check(error, point() == 10_int64, "for: point")
         if (allocated(error)) return
         call shell_buffer("bash", h)
         call keyboard_store_bytes("a"//CR//"b"//CR//CR)
-        call sh_case(st, string="$x")
+        call shell_case(st, string="$x")
         call check(error, buffer_string() == "case $x in"//LF//"    a)"//LF//TAB//LF//TAB//";;"//LF//"    b)"//LF//TAB//LF// &
                    TAB//";;"//LF//"    *)"//LF//TAB//LF//"esac", "case: "//buffer_string())
         if (allocated(error)) return
         call shell_buffer("bash", h)
-        call sh_while_getopts(st, string="ab:")
+        call shell_while_getopts(st, string="ab:")
         call check(error, buffer_string() == "while getopts :ab: OPT; do"//LF//"    case $OPT in"//LF//TAB//"a|+a)"//LF// &
                    TAB//"    "//LF//TAB//"    ;;"//LF//TAB//"b|+b)"//LF//TAB//'    "$OPTARG"'//LF//TAB//"    ;;"//LF// &
                    TAB//"*)"//LF//TAB//'    echo "usage: ${0##*/} [+-ab ARG} [--] ARGS..."'//LF//TAB//"    exit 2"//LF// &
@@ -510,33 +510,33 @@ contains
         call check(error, point() == 57_int64, "getopts: point")
         if (allocated(error)) return
         call shell_buffer("csh", h)
-        call sh_while(st, string="x")
+        call shell_while(st, string="x")
         call check(error, buffer_string() == "while( x )"//LF//"    "//LF//"    end", "csh while: "//buffer_string())
         if (allocated(error)) return
         call shell_buffer("bash", h)
-        call sh_function(st, string="f")
+        call shell_function(st, string="f")
         call check(error, buffer_string() == "function f() {"//LF//"    "//LF//"}", "function: "//buffer_string())
         if (allocated(error)) return
         call shell_buffer("bash", h)
         call keyboard_store_bytes("10"//CR)
-        call sh_indexed_loop(st, string="i")
+        call shell_indexed_loop(st, string="i")
         call check(error, buffer_string() == "i=1"//LF//"while [ $i -le 10 ]; do"//LF//"    $i"//LF//"    i=$(( i + 1 ))"// &
                    LF//"done", "indexed loop: "//buffer_string())
         call leave(h)
     end subroutine test_skeletons
 
-    !> sh_modify replaces top-level elements (a sub-skeleton is one).
-    subroutine test_sh_modify(error)
+    !> shell_modify replaces top-level elements (a sub-skeleton is one).
+    subroutine test_shell_modify(error)
         type(error_type), allocatable, intent(out) :: error
         type(skeleton_element_type), allocatable :: out(:)
 
-        out = sh_modify([skeleton_prompt("p"), skeleton_text("a"), skeleton_prompt("q"), skeleton_text("b"), SKELETON_END, &
-                         skeleton_text("c")], [2, 3], [skeleton_text("x"), skeleton_text("y")])
+        out = shell_modify([skeleton_prompt("p"), skeleton_text("a"), skeleton_prompt("q"), skeleton_text("b"), SKELETON_END, &
+                            skeleton_text("c")], [2, 3], [skeleton_text("x"), skeleton_text("y")])
         call check(error, size(out) == 4, "four elements")
-    end subroutine test_sh_modify
+    end subroutine test_shell_modify
 
     !> smie-config: show, guess, local rules (the rules GNU Emacs guesses).
-    subroutine test_smie_configuration(error)
+    subroutine test_simple_minded_indentation_engine_configuration(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -545,71 +545,81 @@ contains
         call insert("if true; then"//LF//"  echo x"//LF//"fi"//LF//"while x; do"//LF//"  y"//LF//"done"//LF, st)
         call goto_character(1_int64)
         call goto_character(15_int64)
-        call smie_configuration_show_indent(.false., st)
-        call check(error, last_message == 'Rules used: SMIE_ELEMENT "basic" -> 4, SMIE_BEFORE "then" -> 0, '// &
-                   'SMIE_AFTER "then" -> SMIE_RULE_NONE', "show: "//last_message)
+        call simple_minded_indentation_engine_configuration_show_indent(.false., st)
+        call check(error, &
+                   last_message &
+         == 'Rules used: SIMPLE_MINDED_INDENTATION_ENGINE_ELEMENT "basic" -> 4, SIMPLE_MINDED_INDENTATION_ENGINE_BEFORE "then" '// &
+                   "-> 0, "// &
+                   'SIMPLE_MINDED_INDENTATION_ENGINE_AFTER "then" -> SIMPLE_MINDED_INDENTATION_ENGINE_RULE_NONE', &
+                   "show: "//last_message)
         if (allocated(error)) return
-        call smie_configuration_guess(st)
+        call simple_minded_indentation_engine_configuration_guess(st)
         call check(error, last_message == "Local rules set", "guess: "//last_message)
         if (allocated(error)) return
-        call smie_configuration_show_indent(.false., st)
-        call check(error, last_message == 'Rules used: SMIE_ELEMENT "basic" -> 4, SMIE_BEFORE "then" -> -2(via 0), '// &
-                   'SMIE_AFTER "then" -> SMIE_RULE_NONE', "show after: "//last_message)
+        call simple_minded_indentation_engine_configuration_show_indent(.false., st)
+        call check(error, &
+                   last_message &
+         == 'Rules used: SIMPLE_MINDED_INDENTATION_ENGINE_ELEMENT "basic" -> 4, SIMPLE_MINDED_INDENTATION_ENGINE_BEFORE "then" '// &
+                   "-> -2(via 0), "// &
+                   'SIMPLE_MINDED_INDENTATION_ENGINE_AFTER "then" -> SIMPLE_MINDED_INDENTATION_ENGINE_RULE_NONE', &
+                   "show after: "//last_message)
         if (allocated(error)) return
         call indent_region(point_minimum(), point_maximum(), st)
         call check(error, buffer_string() == "if true; then"//LF//"  echo x"//LF//"fi"//LF//"while x; do"//LF//"  y"//LF// &
                    "done"//LF, "indented: "//buffer_string())
         call leave(h)
-    end subroutine test_smie_configuration
+    end subroutine test_simple_minded_indentation_engine_configuration
 
     subroutine test_styles(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, out
         integer(int64) :: saved_offset
-        type(sh_indent_choice_setting_type) :: saved_do
+        type(shell_indent_choice_setting_type) :: saved_do
         character(len=:), allocatable :: text
         type(status_type) :: st
 
         call script("", h)
-        saved_offset = sh_basic_offset%value
-        saved_do = sh_indent_for_do
+        saved_offset = shell_basic_offset%value
+        saved_do = shell_indent_for_do
 
         checks: block
-            sh_basic_offset = 2
-            call sh_name_style("two", st)
-            call check(error, size(sh_styles) >= 1, "style created")
+            shell_basic_offset = 2
+            call shell_name_style("two", st)
+            call check(error, size(shell_styles) >= 1, "style created")
             if (allocated(error)) exit checks
-            call check(error, trim(sh_styles(1)%name), "two")
+            call check(error, trim(shell_styles(1)%name), "two")
             if (allocated(error)) exit checks
-            sh_basic_offset = 8
-            call sh_load_style("two", st)
-            call check(error, sh_basic_offset%value == 2, "style loaded")
+            shell_basic_offset = 8
+            call shell_load_style("two", st)
+            call check(error, shell_basic_offset%value == 2, "style loaded")
             if (allocated(error)) exit checks
-            call check(error, sh_indent_for_do%columns == 0, "columns loaded")
+            call check(error, shell_indent_for_do%columns == 0, "columns loaded")
             if (allocated(error)) exit checks
-            call sh_load_style("nonesuch", st)
+            call shell_load_style("nonesuch", st)
             call check(error,.not. st%ok(), "unknown style")
             if (allocated(error)) exit checks
-            sh_indent_for_do = SH_PLUS
-            call sh_name_style("two", st)
-            call sh_save_styles_to_buffer(" *sh-styles*", st)
+            shell_indent_for_do = SHELL_PLUS
+            call shell_name_style("two", st)
+            call shell_save_styles_to_buffer(" *sh-styles*", st)
             out = get_buffer(" *sh-styles*")
             call set_buffer(out, st)
             text = buffer_string()
-            call check(error, index(text, LF//"sh_styles = [sh_style_type(name=""two"", values=[sh_indent_type(columns=2), ") &
+            call check(error, index(text, &
+                                    LF//"shell_styles = [shell_style_type(name=""two"", values=[shell_indent_type(columns=2), ") &
                        == 1, "saved styles")
             if (allocated(error)) exit checks
-            call check(error, index(text, "sh_indent_type(choice=SH_PLUS)") > 0, "named constant")
+            call check(error, index(text, "shell_indent_type(choice=SHELL_PLUS)") > 0, "named constant")
             if (allocated(error)) exit checks
-            call sh_load_style("two", st)
-            call check(error, sh_indent_for_do%choice == SH_PLUS .and. sh_indent_for_do%columns < 0, "named constant loaded")
+            call shell_load_style("two", st)
+            call check(error, shell_indent_for_do%choice == SHELL_PLUS .and. shell_indent_for_do%columns < 0, &
+                       "named constant loaded")
             call close_buffer(out, st)
         end block checks
 
-        sh_basic_offset = saved_offset
-        sh_indent_for_do = saved_do
-        deallocate (sh_styles)
-        allocate (sh_styles(0))
+        shell_basic_offset = saved_offset
+        shell_indent_for_do = saved_do
+        deallocate (shell_styles)
+        allocate (shell_styles(0))
         call set_buffer(h, st)
         call leave(h)
     end subroutine test_styles
@@ -619,57 +629,57 @@ contains
     subroutine test_variable_value(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, other
-        type(sh_indent_choice_setting_type) :: saved
+        type(shell_indent_choice_setting_type) :: saved
         integer(int64) :: saved_offset
         type(status_type) :: st
 
         call temporary_buffer("", h)
-        saved = sh_indent_for_fi
-        saved_offset = sh_basic_offset%value
+        saved = shell_indent_for_fi
+        saved_offset = shell_basic_offset%value
 
         checks: block
-            sh_basic_offset = 4
-            sh_indent_for_fi%columns = 3
-            call check(error, sh_variable_value(sh_indent_for_fi), 3)
+            shell_basic_offset = 4
+            shell_indent_for_fi%columns = 3
+            call check(error, shell_variable_value(shell_indent_for_fi), 3)
             if (allocated(error)) exit checks
-            sh_indent_for_fi%columns = -2
-            call check(error, sh_variable_value(sh_indent_for_fi), -2)
+            shell_indent_for_fi%columns = -2
+            call check(error, shell_variable_value(shell_indent_for_fi), -2)
             if (allocated(error)) exit checks
-            sh_indent_for_fi = SH_MINUS
-            call check(error, sh_variable_value(sh_indent_for_fi), -4)
+            shell_indent_for_fi = SHELL_MINUS
+            call check(error, shell_variable_value(shell_indent_for_fi), -4)
             if (allocated(error)) exit checks
-            call check(error, sh_indent_for_fi%other_value(), "")
+            call check(error, shell_indent_for_fi%other_value(), "")
             if (allocated(error)) exit checks
-            sh_indent_for_fi = SH_STAR
-            call check(error, sh_variable_value(sh_indent_for_fi), 2)
+            shell_indent_for_fi = SHELL_STAR
+            call check(error, shell_variable_value(shell_indent_for_fi), 2)
             if (allocated(error)) exit checks
             ! A buffer-local number survives switching buffers.
-            call sh_indent_for_fi%make_local()
-            sh_indent_for_fi%columns = 5
+            call shell_indent_for_fi%make_local()
+            shell_indent_for_fi%columns = 5
             call get_or_make_buffer(" *sh-test-other*", other, st)
             call set_buffer(other, st)
-            call check(error, sh_indent_for_fi%choice == SH_STAR .and. sh_indent_for_fi%columns < 0, "default value")
+            call check(error, shell_indent_for_fi%choice == SHELL_STAR .and. shell_indent_for_fi%columns < 0, "default value")
             if (allocated(error)) exit checks
             call set_buffer(h, st)
-            call check(error, sh_indent_for_fi%other_value(), "%columns = 5")
+            call check(error, shell_indent_for_fi%other_value(), "%columns = 5")
             if (allocated(error)) exit checks
-            call sh_indent_for_fi%clear_local()
-            call check(error, sh_indent_for_fi%choice == SH_STAR, "local value cleared")
+            call shell_indent_for_fi%clear_local()
+            call check(error, shell_indent_for_fi%choice == SHELL_STAR, "local value cleared")
             if (allocated(error)) exit checks
             ! A plain number is not a value (panel 2026-11-04).
             if (allocated(setting_errors)) deallocate (setting_errors)
-            sh_indent_for_fi%choices_declared = .true.
-            sh_indent_for_fi = 0
-            call check(error, sh_indent_for_fi%choice == SH_STAR .and. size(setting_errors) == 1, "rejected")
+            shell_indent_for_fi%choices_declared = .true.
+            shell_indent_for_fi = 0
+            call check(error, shell_indent_for_fi%choice == SHELL_STAR .and. size(setting_errors) == 1, "rejected")
             if (allocated(error)) exit checks
-            call check(error, setting_errors(1)%text, "sh_indent_for_fi: 0 is not a value of this option; "// &
-                       "a number of columns is `sh_indent_for_fi%columns = 0'")
+            call check(error, setting_errors(1)%text, "shell_indent_for_fi: 0 is not a value of this option; "// &
+                       "a number of columns is `shell_indent_for_fi%columns = 0'")
             deallocate (setting_errors)
         end block checks
 
-        if (sh_indent_for_fi%local_p()) call sh_indent_for_fi%clear_local()
-        sh_indent_for_fi = saved
-        sh_basic_offset = saved_offset
+        if (shell_indent_for_fi%local_p()) call shell_indent_for_fi%clear_local()
+        shell_indent_for_fi = saved
+        shell_basic_offset = saved_offset
         if (is_buffer_live(other)) call close_buffer(other, st)
         call leave(h)
     end subroutine test_variable_value

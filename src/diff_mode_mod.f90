@@ -41,9 +41,9 @@
 !> ignoring whitespace in and refreshing hunks
 !> (C-c C-w, C-c C-l), `diff_copy_region' (w), Whitespace mode's
 !> settings (`diff_setup_whitespace'), outline support, the
-!> menu, mouse bindings, `undo_ignore_read_only', VC revisions of the old
+!> menu, mouse bindings, `undo_ignore_read_only', VERSION_CONTROL revisions of the old
 !> file, `diff_wiggle', `next_error_follow_minor_mode' (C-c C-f) and
-!> `vc_next_action' (v).  `diff_read_only_map' is
+!> `version_control_next_action' (v).  `diff_read_only_map' is
 !> `diff_mode_read_only_map' with `special_mode_map' as its parent
 !> (upstream composes the two).
 module diff_mode_mod
@@ -79,7 +79,7 @@ module diff_mode_mod
     use modes_mod, only: major_modes
     use add_log_mod, only: change_log_entry_type, add_log_current_subprogram_function, add_log_buffer_file_name_function
     use easy_minor_mode_mod, only: easy_mmode_next, easy_mmode_previous
-    use index_menu_mod, only: imenu_patterns, imenu_pattern_type
+    use index_menu_mod, only: index_menu_patterns, index_menu_pattern_type
     use string_type_mod, only: string_type, append_string
     use data_mod, only: string_to_number
     implicit none(type, external)
@@ -93,7 +93,7 @@ module diff_mode_mod
               diff_goto_source, diff_apply_buffer, diff_revert_and_cut_hunk, diff_sanity_check_hunk, &
               diff_beginning_of_file_and_junk, diff_delete_other_hunks, diff_delete_junk, diff_next_error, &
               diff_merge_strings, set_diff_default_directory, diff_source_location_type, diff_text_type, &
-              diff_buffer_type, set_diff_vc_backend, diff_vc_backend, diff_add_log_current_subprograms, &
+              diff_buffer_type, set_diff_version_control_backend, diff_version_control_backend, diff_add_log_current_subprograms, &
               diff_current_subprogram, add_diff_change_log_entries_other_window
 
     !> If true, `diff_mode' buffers default to being read-only.  Port of
@@ -120,7 +120,7 @@ module diff_mode_mod
     logical, public :: diff_valid_unified_empty_line = .true.
 
     !> Use relative file names when generating ChangeLog skeletons.
-    !> The files will be relative to the root directory of the VC
+    !> The files will be relative to the root directory of the VERSION_CONTROL
     !> repository.  This option affects the behavior of
     !> `diff_add_log_current_subprograms'.  Port of diff-mode.el
     !> diff-add-log-use-relative-names.
@@ -187,7 +187,7 @@ module diff_mode_mod
 
     !> Kinds of diff buffer (`diff_buffer_type'): a plain diff, Git's,
     !> Mercurial's.
-    integer, parameter, public :: DIFF_BUFFER_PLAIN = 0, DIFF_BUFFER_GIT = 1, DIFF_BUFFER_HG = 2
+    integer, parameter, public :: DIFF_BUFFER_PLAIN = 0, DIFF_BUFFER_GIT = 1, DIFF_BUFFER_MERCURIAL = 2
 
     !> Hunk styles (diff-hunk-style).
     integer, parameter, public :: DIFF_STYLE_NONE = 0, DIFF_STYLE_UNIFIED = 1, DIFF_STYLE_CONTEXT = 2, &
@@ -198,7 +198,7 @@ module diff_mode_mod
     !> Imenu generic expression for Diff mode (it prefers the second name,
     !> as the first is most likely to be a backup or version-control name).
     !> Port of diff-mode.el diff-imenu-generic-expression.
-    type(imenu_pattern_type), allocatable, public :: diff_imenu_patterns(:)
+    type(index_menu_pattern_type), allocatable, public :: diff_index_menu_patterns(:)
 
     !> Port of diff-mode.el diff-hunk-header-re-unified.
     character(len=*), parameter, public :: diff_hunk_header_regular_expression_unified = &
@@ -239,9 +239,9 @@ module diff_mode_mod
         type(remembered_type), allocatable :: remembered(:)
         logical :: apply_to_backup = .false.
         integer :: narrowed_to = 0
-        !> `diff_vc_backend' (the name of the VC backend that produced
-        !> the diff, unallocated for none) and `diff_vc_revisions'.
-        character(len=:), allocatable :: vc_backend, vc_rev1, vc_rev2
+        !> `diff_version_control_backend' (the name of the VERSION_CONTROL backend that produced
+        !> the diff, unallocated for none) and `diff_version_control_revisions'.
+        character(len=:), allocatable :: version_control_backend, version_control_rev1, version_control_rev2
     end type diff_locals_type
 
     type(diff_locals_type), allocatable :: diff_buffers(:)
@@ -353,7 +353,7 @@ module diff_mode_mod
         !> Return the subprogram names for the current diff, one entry per file:
         !> the FILE and the SUBPROGRAMS, a list of function names found in
         !> FILE.  If `diff_add_log_use_relative_names' is true, file names in
-        !> the entries are relative to the root directory of the VC
+        !> the entries are relative to the root directory of the VERSION_CONTROL
         !> repository.  Port of diff-mode.el:diff-add-log-current-defuns.
         !> (In diff_mode_add_log_mod.)
         recursive module subroutine diff_add_log_current_subprograms(entries, status)
@@ -1454,9 +1454,9 @@ contains
     !> Interactively, if the region is active, reverse-apply and cut all
     !> hunks that the region overlaps.
     !>
-    !> This command is useful in buffers generated by \[vc_diff] and
-    !> \[vc_root_diff], especially when preparing to commit the patch with
-    !> \[vc_next_action].  You can use \[diff_hunk_cut] to temporarily
+    !> This command is useful in buffers generated by \[version_control_diff] and
+    !> \[version_control_root_diff], especially when preparing to commit the patch with
+    !> \[version_control_next_action].  You can use \[diff_hunk_cut] to temporarily
     !> remove changes that you intend to include in a separate commit or
     !> commits, and you can use this command to permanently drop changes
     !> you didn't intend, or no longer want.
@@ -1673,7 +1673,7 @@ contains
 
         call diff_hunk_file_names(fs, o)
 
-        if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_HG) then
+        if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_MERCURIAL) then
             do k = 1, size(fs)
                 if (len(fs(k)%text) >= 2) then
                     if (index("icoawib", fs(k)%text(1:1)) > 0 .and. fs(k)%text(2:2) == "/") fs(k)%text = fs(k)%text(3:)
@@ -1720,7 +1720,7 @@ contains
                 end if
             end do
 
-            if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_HG) then
+            if (buffer_kind() == DIFF_BUFFER_GIT .or. buffer_kind() == DIFF_BUFFER_MERCURIAL) then
                 if (.not. o .and. size(files) >= 2) then
                     if (files(2)%text == "/dev/null") exit
                 end if
@@ -1825,7 +1825,7 @@ contains
         if (search_fwd("^diff --git") /= 0) then
             diff_buffers(k)%kind = DIFF_BUFFER_GIT
         else if (search_fwd("^diff -r ") /= 0) then
-            diff_buffers(k)%kind = DIFF_BUFFER_HG
+            diff_buffers(k)%kind = DIFF_BUFFER_MERCURIAL
         else
             diff_buffers(k)%kind = DIFF_BUFFER_PLAIN
         end if
@@ -1833,35 +1833,35 @@ contains
         call goto_character(saved)
     end subroutine diff_setup_buffer_type
 
-    !> Set the current buffer's `diff_vc_backend' to BACKEND (the VC
-    !> backend name; absent for none) and `diff_vc_revisions' to (REV1
+    !> Set the current buffer's `diff_version_control_backend' to BACKEND (the VERSION_CONTROL
+    !> backend name; absent for none) and `diff_version_control_revisions' to (REV1
     !> REV2).  Port of the buffer-local setting of diff-mode.el diff-vc-backend and
     !> diff-vc-revisions.
-    subroutine set_diff_vc_backend(backend, rev1, rev2)
+    subroutine set_diff_version_control_backend(backend, rev1, rev2)
         character(len=*), intent(in), optional :: backend, rev1, rev2
         integer :: k
 
         call make_current_entry(k)
-        if (allocated(diff_buffers(k)%vc_backend)) deallocate (diff_buffers(k)%vc_backend)
-        if (allocated(diff_buffers(k)%vc_rev1)) deallocate (diff_buffers(k)%vc_rev1)
-        if (allocated(diff_buffers(k)%vc_rev2)) deallocate (diff_buffers(k)%vc_rev2)
-        if (present(backend)) diff_buffers(k)%vc_backend = backend
-        if (present(rev1)) diff_buffers(k)%vc_rev1 = rev1
-        if (present(rev2)) diff_buffers(k)%vc_rev2 = rev2
-    end subroutine set_diff_vc_backend
+        if (allocated(diff_buffers(k)%version_control_backend)) deallocate (diff_buffers(k)%version_control_backend)
+        if (allocated(diff_buffers(k)%version_control_rev1)) deallocate (diff_buffers(k)%version_control_rev1)
+        if (allocated(diff_buffers(k)%version_control_rev2)) deallocate (diff_buffers(k)%version_control_rev2)
+        if (present(backend)) diff_buffers(k)%version_control_backend = backend
+        if (present(rev1)) diff_buffers(k)%version_control_rev1 = rev1
+        if (present(rev2)) diff_buffers(k)%version_control_rev2 = rev2
+    end subroutine set_diff_version_control_backend
 
-    !> The current buffer's `diff_vc_backend' ("" for none).  Not a port.
-    function diff_vc_backend() result(name)
+    !> The current buffer's `diff_version_control_backend' ("" for none).  Not a port.
+    function diff_version_control_backend() result(name)
         character(len=:), allocatable :: name
         integer :: k
 
         name = ""
         call make_current_entry(k)
-        if (allocated(diff_buffers(k)%vc_backend)) name = diff_buffers(k)%vc_backend
-    end function diff_vc_backend
+        if (allocated(diff_buffers(k)%version_control_backend)) name = diff_buffers(k)%version_control_backend
+    end function diff_version_control_backend
 
     !> The current buffer's `diff_buffer_type': DIFF_BUFFER_PLAIN,
-    !> DIFF_BUFFER_GIT or DIFF_BUFFER_HG.  Port of the buffer-local
+    !> DIFF_BUFFER_GIT or DIFF_BUFFER_MERCURIAL.  Port of the buffer-local
     !> diff-mode.el:diff-buffer-type.
     integer function diff_buffer_type() result(kind)
         integer :: k
@@ -1917,7 +1917,7 @@ contains
         if (.not. status%ok()) return
         call diff_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
-        call imenu_patterns%set_local(diff_imenu_patterns)
+        call index_menu_patterns%set_local(diff_index_menu_patterns)
         call set_next_error_function(diff_next_error)
         if (diff_default_read_only) buffers(current)%read_only = .true.
         if (buffers(current)%read_only) call diff_mode_read_only%set_local(.true.)
@@ -2407,14 +2407,15 @@ contains
 
         call define_faces()
 
-        if (.not. allocated(diff_imenu_patterns)) then
-            allocate (diff_imenu_patterns(2))
+        if (.not. allocated(diff_index_menu_patterns)) then
+            allocate (diff_index_menu_patterns(2))
             ! unidiffs
-            diff_imenu_patterns(1) = imenu_pattern_type(menu_title="", regular_expression="\+\+\+ \([^"//TAB//LF//"]+\)["// &
-                                                        TAB//LF//"]", subexpression=1)
+            diff_index_menu_patterns(1) = index_menu_pattern_type(menu_title="", &
+                                                                  regular_expression="\+\+\+ \([^"//TAB//LF//"]+\)["// &
+                                                                  TAB//LF//"]", subexpression=1)
             ! context diffs
-            diff_imenu_patterns(2) = imenu_pattern_type(menu_title="", regular_expression="^--- \([^"//TAB//LF//"]+\)"// &
-                                                        TAB//".*"//LF//"\*", subexpression=1)
+            diff_index_menu_patterns(2) = index_menu_pattern_type(menu_title="", regular_expression="^--- \([^"//TAB//LF//"]+\)"// &
+                                                                  TAB//".*"//LF//"\*", subexpression=1)
         end if
 
         call major_modes%diff_mode%define("diff_mode", "Diff", diff_mode, diff_mode_hook)

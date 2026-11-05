@@ -49,15 +49,19 @@ module test_version_control_mod
     use execute_process_mod, only: execute_process
     use process_mod, only: make_process, is_process_live, accept_process_output
     use bindings_mod, only: initialize_bindings
-    use version_control_hooks_mod, only: vc_backend, vc_registered, vc_state, vc_working_revision, &
-                                         vc_checkout_model, vc_file_clearprops, vc_backends, vc_backend_named, vc_clear_context, &
-                                       vc_handled_backends, VC_STATE_UNKNOWN, VC_UNREGISTERED, VC_ADDED, VC_UP_TO_DATE, VC_EDITED, &
-                                         VC_MODEL_IMPLICIT
-    use version_control_dispatcher_mod, only: vc_do_command, vc_exec_after, vc_action_type, VC_DESTINATION_CURRENT, &
-                                              VC_DESTINATION_DISCARD, VC_OKSTATUS_ASYNC
-    use version_control_mod, only: vc_fileset_type, vc_register, vc_responsible_backend, vc_rename_file, vc_create_repository, &
-                                   vc_diff_internal, vc_revert_files
-    use version_control_git_mod, only: vc_git_parse_program_version
+    use version_control_hooks_mod, only: version_control_backend, version_control_registered, version_control_state, &
+                                         version_control_working_revision, version_control_checkout_model, &
+                                         version_control_file_clearprops, version_control_backends, version_control_backend_named, &
+                                         version_control_clear_context, version_control_handled_backends, &
+                                         VERSION_CONTROL_STATE_UNKNOWN, VERSION_CONTROL_UNREGISTERED, VERSION_CONTROL_ADDED, &
+                                         VERSION_CONTROL_UP_TO_DATE, VERSION_CONTROL_EDITED, VERSION_CONTROL_MODEL_IMPLICIT
+    use version_control_dispatcher_mod, only: version_control_do_command, version_control_exec_after, version_control_action_type, &
+                                              VERSION_CONTROL_DESTINATION_CURRENT, VERSION_CONTROL_DESTINATION_DISCARD, &
+                                              VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS
+    use version_control_mod, only: version_control_fileset_type, version_control_register, version_control_responsible_backend, &
+                                   version_control_rename_file, version_control_create_repository, version_control_diff_internal, &
+                                   version_control_revert_files
+    use version_control_git_mod, only: version_control_git_parse_program_version
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
@@ -104,7 +108,7 @@ contains
                     new_unittest("vc-git-diff", test_diff), &
                     new_unittest("vc-git-print-log", test_print_log), &
                     new_unittest("vc-git-print-root-log", test_print_root_log), &
-                    new_unittest("vc-dir-git", test_vc_directory), &
+                    new_unittest("vc-dir-git", test_version_control_directory), &
                     new_unittest("vc-git-revert", test_revert), &
                     new_unittest("vc-git-test-branch-remotes", test_branch_remotes), &
                     new_unittest("vc-git-tags-and-branches", test_tags_and_branches), &
@@ -163,7 +167,7 @@ contains
     end function has_git
 
     !> A buffer in a fresh, empty test directory (`default_directory'),
-    !> made a Git repository with `vc_create_repository'; only Git is handled.
+    !> made a Git repository with `version_control_create_repository'; only Git is handled.
     subroutine setup(h, status)
         type(handle_type), intent(out) :: h
         type(status_type), intent(out) :: status
@@ -171,14 +175,14 @@ contains
 
         call initialize_bindings()
         call initialize_fileio()
-        call vc_clear_context()
-        vc_handled_backends = [character(len=8) :: "Git"]
+        call version_control_clear_context()
+        version_control_handled_backends = [character(len=8) :: "Git"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
         call temporary_buffer(h)
         buffers(current)%directory = tdir()
-        call vc_create_repository(vc_backend_named("Git"), status)
+        call version_control_create_repository(version_control_backend_named("Git"), status)
         call set_buffer(h, st)
     end subroutine setup
 
@@ -186,14 +190,14 @@ contains
     subroutine teardown(h)
         type(handle_type), intent(in) :: h
         type(status_type) :: st
-        type(handle_type) :: vc
+        type(handle_type) :: version_control
 
-        vc = get_buffer("*vc*")
-        if (is_buffer_live(vc)) call close_buffer(vc, st)
+        version_control = get_buffer("*vc*")
+        if (is_buffer_live(version_control)) call close_buffer(version_control, st)
         if (is_buffer_live(h)) call close_buffer(h, st)
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        vc_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
-        call vc_clear_context()
+        version_control_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
+        call version_control_clear_context()
     end subroutine teardown
 
     !> Write TEXT to FILE (write-region ... 'nomessage).
@@ -288,7 +292,7 @@ contains
 
     !> The Git backend's index.
     integer function git_b()
-        git_b = vc_backend_named("Git")
+        git_b = version_control_backend_named("Git")
     end function git_b
 
     ! ------------------------------------------------------------------
@@ -298,50 +302,50 @@ contains
     subroutine test_version_general(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, vc_git_parse_program_version("git version 2.30.1.0"), "2.30.1.0")
+        call check(error, version_control_git_parse_program_version("git version 2.30.1.0"), "2.30.1.0")
     end subroutine test_version_general
 
     subroutine test_version_windows(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, vc_git_parse_program_version("git version 2.30.1.1.windows.1"), "2.30.1.1")
+        call check(error, version_control_git_parse_program_version("git version 2.30.1.1.windows.1"), "2.30.1.1")
     end subroutine test_version_windows
 
     subroutine test_version_apple(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, vc_git_parse_program_version("git version 2.30.1.2 (Apple Git-130)"), "2.30.1.2")
+        call check(error, version_control_git_parse_program_version("git version 2.30.1.2 (Apple Git-130)"), "2.30.1.2")
     end subroutine test_version_apple
 
     subroutine test_version_other(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, vc_git_parse_program_version("git version 2.30.1.3.foo.bar"), "2.30.1.3")
+        call check(error, version_control_git_parse_program_version("git version 2.30.1.3.foo.bar"), "2.30.1.3")
     end subroutine test_version_other
 
     subroutine test_version_leading_string(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, vc_git_parse_program_version("git version foo.bar.2.30.1.4"), "0")
+        call check(error, version_control_git_parse_program_version("git version foo.bar.2.30.1.4"), "0")
     end subroutine test_version_leading_string
 
     subroutine test_version_leading_dot(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, vc_git_parse_program_version("git version .2.30.1.5"), "0")
+        call check(error, version_control_git_parse_program_version("git version .2.30.1.5"), "0")
     end subroutine test_version_leading_dot
 
     ! ------------------------------------------------------------------
     ! vc-test-misc.el
     ! ------------------------------------------------------------------
 
-    !> Run `vc_do_command' of sh -c "echo foo; echo >&2 bar" in a temporary
-    !> buffer: synchronously (or with ASYNC), the output in the buffer
+    !> Run `version_control_do_command' of sh -c "echo foo; echo >&2 bar" in a temporary
+    !> buffer: synchronously (or with ASYNCHRONOUS), the output in the buffer
     !> (TO_BUFFER), standard error mixed in (STDERR); gives the buffer's
     !> text.
-    function do_command(to_buffer, stderr, async) result(text)
+    function do_command(to_buffer, stderr, asynchronous) result(text)
         logical, intent(in) :: to_buffer, stderr
-        logical, intent(in), optional :: async
+        logical, intent(in), optional :: asynchronous
         character(len=:), allocatable :: text
         type(string_type) :: none(0)
         type(handle_type) :: h, process
@@ -351,18 +355,19 @@ contains
 
         call initialize_fileio()
         call temporary_buffer(h)
-        destination = VC_DESTINATION_DISCARD
-        if (to_buffer) destination = VC_DESTINATION_CURRENT
+        destination = VERSION_CONTROL_DESTINATION_DISCARD
+        if (to_buffer) destination = VERSION_CONTROL_DESTINATION_CURRENT
         okstatus = 0
 
-        if (present(async)) then
-            if (async) okstatus = VC_OKSTATUS_ASYNC
+        if (present(asynchronous)) then
+            if (asynchronous) okstatus = VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS
         end if
 
-        call vc_do_command(destination, okstatus, "sh", none, strings("-c", "echo foo; echo >&2 bar"), st, stderr=stderr, &
-                           process=process)
+        call version_control_do_command(destination, okstatus, "sh", none, strings("-c", "echo foo; echo >&2 bar"), st, &
+                                        stderr=stderr, &
+                                        process=process)
 
-        if (okstatus == VC_OKSTATUS_ASYNC) then
+        if (okstatus == VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS) then
             do k = 1, 600
                 if (.not. is_process_live(process)) exit
                 call accept_process_output(got, st, process, 0.05)
@@ -376,14 +381,14 @@ contains
         call close_buffer(h, st)
     end function do_command
 
-    !> Test `vc_do_command' synchronous, discarding stderr.
+    !> Test `version_control_do_command' synchronous, discarding stderr.
     subroutine test_do_command_1(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check(error, do_command(.true., .false.), "foo"//achar(10))
     end subroutine test_do_command_1
 
-    !> Test `vc_do_command' synchronous, keeping stderr.
+    !> Test `version_control_do_command' synchronous, keeping stderr.
     subroutine test_do_command_2(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
@@ -392,14 +397,14 @@ contains
         call check(error, index(text, "foo") > 0 .and. index(text, "bar") > 0, text)
     end subroutine test_do_command_2
 
-    !> Test `vc_do_command' synchronous, discarding both.
+    !> Test `version_control_do_command' synchronous, discarding both.
     subroutine test_do_command_3(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check(error, do_command(.false., .true.), "")
     end subroutine test_do_command_3
 
-    !> Test `vc_do_command' asynchronous, keeping stderr.
+    !> Test `version_control_do_command' asynchronous, keeping stderr.
     subroutine test_do_command_5(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
@@ -408,14 +413,14 @@ contains
         call check(error, index(text, "foo") > 0 .and. index(text, "bar") > 0, text)
     end subroutine test_do_command_5
 
-    !> Test `vc_do_command' asynchronous, discarding both.
+    !> Test `version_control_do_command' asynchronous, discarding both.
     subroutine test_do_command_6(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check(error, do_command(.false., .true., .true.), "")
     end subroutine test_do_command_6
 
-    !> Test `vc_do_command' setting up the buffer.
+    !> Test `version_control_do_command' setting up the buffer.
     subroutine test_do_command_7(error)
         type(error_type), allocatable, intent(out) :: error
         type(string_type) :: none(0)
@@ -426,8 +431,9 @@ contains
         call temporary_buffer(h)
         call get_or_make_buffer(generate_new_buffer_name(" *temp*"), buffer, st)
         call set_buffer(h, st)
-        call vc_do_command(VC_DESTINATION_CURRENT, 0, "sh", none, strings("-c", "echo foo; echo >&2 bar"), st, buffer=buffer, &
-                           stderr=.false.)
+        call version_control_do_command(VERSION_CONTROL_DESTINATION_CURRENT, 0, "sh", none, strings("-c", &
+                                                                                     "echo foo; echo >&2 bar"), st, buffer=buffer, &
+                                        stderr=.false.)
         call set_buffer(buffer, st)
         call check(error, buffer_string(), "foo"//achar(10))
         call close_buffer(buffer, st)
@@ -436,7 +442,7 @@ contains
 
     !> The action of the exec-after tests: set `success'.
     recursive subroutine set_success(action, status)
-        type(vc_action_type), intent(in) :: action
+        type(version_control_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
 
         status = status_type()
@@ -471,11 +477,11 @@ contains
         call accept_process_output(got, st, seconds=0.05)
     end subroutine exec_after_wait
 
-    !> Test `vc_exec_after' adding a sentinel.
+    !> Test `version_control_exec_after' adding a sentinel.
     subroutine test_exec_after_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, process
-        type(vc_action_type) :: action
+        type(version_control_action_type) :: action
         type(status_type) :: st
 
         call initialize_fileio()
@@ -483,7 +489,7 @@ contains
         call start_shell("sleep 0.2; echo hello", h, process)
         success = .false.
         action%execute => set_success
-        call vc_exec_after(action, st)
+        call version_control_exec_after(action, st)
         call check(error,.not. success, "not yet")
 
         if (.not. allocated(error)) then
@@ -494,11 +500,11 @@ contains
         call close_buffer(h, st)
     end subroutine test_exec_after_1
 
-    !> Test `vc_exec_after' executing the code immediately.
+    !> Test `version_control_exec_after' executing the code immediately.
     subroutine test_exec_after_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, process
-        type(vc_action_type) :: action
+        type(version_control_action_type) :: action
         type(status_type) :: st
 
         call initialize_fileio()
@@ -507,16 +513,16 @@ contains
         call exec_after_wait(process)
         success = .false.
         action%execute => set_success
-        call vc_exec_after(action, st)
+        call version_control_exec_after(action, st)
         call check(error, success)
         call close_buffer(h, st)
     end subroutine test_exec_after_2
 
-    !> Test OKSTATUS of `vc_exec_after'.
+    !> Test OKSTATUS of `version_control_exec_after'.
     subroutine test_exec_after_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, process
-        type(vc_action_type) :: action
+        type(version_control_action_type) :: action
         type(status_type) :: st
 
         call initialize_fileio()
@@ -525,7 +531,7 @@ contains
         success = .false.
         action%execute => set_success
         action%okstatus = 0
-        call vc_exec_after(action, st)
+        call version_control_exec_after(action, st)
         call exec_after_wait(process)
         call check(error, success, "true")
         call close_buffer(h, st)
@@ -533,7 +539,7 @@ contains
         call temporary_buffer(h)
         call start_shell("false", h, process)
         success = .false.
-        call vc_exec_after(action, st)
+        call version_control_exec_after(action, st)
         call exec_after_wait(process)
         call check(error,.not. success, "false")
         call close_buffer(h, st)
@@ -557,19 +563,19 @@ contains
             if (allocated(error)) exit body
             call check(error, is_file_directory(tdir()), "the directory")
             if (allocated(error)) exit body
-            call check(error, vc_responsible_backend(tdir(), st) == git_b(), "responsible backend")
+            call check(error, version_control_responsible_backend(tdir(), st) == git_b(), "responsible backend")
         end block body
 
         call teardown(h)
     end subroutine test_create_repository
 
     !> Register and unregister a file.
-    !> This checks also `vc_backend' and `vc_responsible_backend'.
+    !> This checks also `version_control_backend' and `version_control_responsible_backend'.
     subroutine test_register(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         character(len=:), allocatable :: temporary_name1, temporary_name2
 
         if (.not. has_git(error)) return
@@ -578,40 +584,51 @@ contains
         body: block
             call check(error, st%ok(), "create repo: "//format_error(st))
             if (allocated(error)) exit body
-            ! For file oriented backends CVS, RCS and SVN the backend is
+            ! For file oriented backends CONCURRENT_VERSIONS_SYSTEM, RCS and SUBVERSION the backend is
             ! returned, and the directory is registered already.
-            call check(error,.not. vc_registered(tdir()), "directory not registered")
+            call check(error,.not. version_control_registered(tdir()), "directory not registered")
             if (allocated(error)) exit body
-            call check(error, vc_responsible_backend(tdir(), st) == git_b(), "responsible backend")
+            call check(error, version_control_responsible_backend(tdir(), st) == git_b(), "responsible backend")
             if (allocated(error)) exit body
             temporary_name1 = tdir()//"foo"
             temporary_name2 = "bla"
             ! Register files.  Check for it.
             call write_file(temporary_name1, "foo")
-            call check(error, file_exists(temporary_name1) .and. vc_backend(temporary_name1) == 0 .and. &
-                       vc_responsible_backend(temporary_name1, st) == git_b() .and. .not. vc_registered(temporary_name1), "foo")
+            call check(error, file_exists(temporary_name1) .and. version_control_backend(temporary_name1) == 0 .and. &
+                       version_control_responsible_backend(temporary_name1, &
+                                                      st) == git_b() .and. .not. version_control_registered(temporary_name1), "foo")
             if (allocated(error)) exit body
             call write_file(tdir()//temporary_name2, "bla")
-            call check(error, vc_backend(temporary_name2) == 0 .and. vc_responsible_backend(temporary_name2, st) == git_b() .and. &
-                       .not. vc_registered(temporary_name2), "bla")
+            call check(error, &
+                       version_control_backend(temporary_name2) == 0 .and. version_control_responsible_backend(temporary_name2, &
+                                                                                                              st) == git_b() .and. &
+                       .not. version_control_registered(temporary_name2), "bla")
             if (allocated(error)) exit body
             fs%backend = git_b()
             fs%files = strings(temporary_name1, temporary_name2)
-            call vc_register(st, fs)
+            call version_control_register(st, fs)
             call check(error, st%ok(), "register: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, vc_backend(temporary_name1) == git_b() .and. vc_registered(temporary_name1), "foo registered")
+            call check(error, &
+                       version_control_backend(temporary_name1) == git_b() .and. version_control_registered(temporary_name1), &
+                       "foo registered")
             if (allocated(error)) exit body
-            call check(error, vc_backend(temporary_name2) == git_b() .and. vc_registered(temporary_name2), "bla registered")
+            call check(error, &
+                       version_control_backend(temporary_name2) == git_b() .and. version_control_registered(temporary_name2), &
+                       "bla registered")
             if (allocated(error)) exit body
             ! Unregister the files.
-            call vc_backends(git_b())%unregister(temporary_name1, st)
-            call vc_file_clearprops(temporary_name1)
-            call check(error, vc_backend(temporary_name1) == 0 .and. .not. vc_registered(temporary_name1), "foo unregistered")
+            call version_control_backends(git_b())%unregister(temporary_name1, st)
+            call version_control_file_clearprops(temporary_name1)
+            call check(error, &
+                       version_control_backend(temporary_name1) == 0 .and. .not. version_control_registered(temporary_name1), &
+                       "foo unregistered")
             if (allocated(error)) exit body
-            call vc_backends(git_b())%unregister(temporary_name2, st)
-            call vc_file_clearprops(temporary_name2)
-            call check(error, vc_backend(temporary_name2) == 0 .and. .not. vc_registered(temporary_name2), "bla unregistered")
+            call version_control_backends(git_b())%unregister(temporary_name2, st)
+            call version_control_file_clearprops(temporary_name2)
+            call check(error, &
+                       version_control_backend(temporary_name2) == 0 .and. .not. version_control_registered(temporary_name2), &
+                       "bla unregistered")
             if (allocated(error)) exit body
             ! The files should still exist.
             call check(error, file_exists(temporary_name1) .and. file_exists(tdir()//temporary_name2), "still there")
@@ -625,7 +642,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         character(len=:), allocatable :: temporary_name
         integer :: s
 
@@ -635,25 +652,27 @@ contains
         body: block
             temporary_name = tdir()//"foo"
             ! Check state of a nonexistent file.
-            call check(error, vc_state(temporary_name) == VC_STATE_UNKNOWN, "nonexistent")
+            call check(error, version_control_state(temporary_name) == VERSION_CONTROL_STATE_UNKNOWN, "nonexistent")
             if (allocated(error)) exit body
             ! Write a new file.  Check state.
             call write_file(temporary_name, "foo")
-            s = vc_state(temporary_name, git_b())
-            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_UNREGISTERED, "new file")
+            s = version_control_state(temporary_name, git_b())
+            call check(error, s == VERSION_CONTROL_STATE_UNKNOWN .or. s == VERSION_CONTROL_UNREGISTERED, "new file")
             if (allocated(error)) exit body
             ! Register a file.  Check state.
             fs%backend = git_b()
             fs%files = strings("foo")
-            call vc_register(st, fs)
-            s = vc_state(temporary_name)
-            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_ADDED .or. s == VC_UP_TO_DATE, "registered")
+            call version_control_register(st, fs)
+            s = version_control_state(temporary_name)
+            call check(error, &
+                       s == VERSION_CONTROL_STATE_UNKNOWN .or. s == VERSION_CONTROL_ADDED .or. s == VERSION_CONTROL_UP_TO_DATE, &
+                       "registered")
             if (allocated(error)) exit body
             ! Unregister the file.  Check state.
-            call vc_backends(git_b())%unregister(temporary_name, st)
-            call vc_file_clearprops(temporary_name)
-            s = vc_state(temporary_name, git_b())
-            call check(error, s == VC_STATE_UNKNOWN .or. s == VC_UNREGISTERED, "unregistered")
+            call version_control_backends(git_b())%unregister(temporary_name, st)
+            call version_control_file_clearprops(temporary_name)
+            s = version_control_state(temporary_name, git_b())
+            call check(error, s == VERSION_CONTROL_STATE_UNKNOWN .or. s == VERSION_CONTROL_UNREGISTERED, "unregistered")
         end block body
 
         call teardown(h)
@@ -664,7 +683,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         character(len=:), allocatable :: temporary_name, revision
         logical :: found
 
@@ -672,33 +691,33 @@ contains
         call setup(h, st)
 
         body: block
-            call vc_working_revision(tdir(), revision, found)
+            call version_control_working_revision(tdir(), revision, found)
             call check(error,.not. found .or. revision == "0", "repository")
             if (allocated(error)) exit body
             temporary_name = tdir()//"foo"
             ! Check initial working revision, should be nil until it's
             ! registered.
-            call vc_working_revision(temporary_name, revision, found)
+            call version_control_working_revision(temporary_name, revision, found)
             call check(error,.not. found, "nonexistent")
             if (allocated(error)) exit body
             ! Write a new file.  Check working revision.
             call write_file(temporary_name, "foo")
-            call vc_working_revision(temporary_name, revision, found)
+            call version_control_working_revision(temporary_name, revision, found)
             call check(error,.not. found, "new file")
             if (allocated(error)) exit body
             ! Register a file.  Check working revision.
             fs%backend = git_b()
             fs%files = strings("foo")
-            call vc_register(st, fs)
-            call vc_working_revision(temporary_name, revision, found)
-            ! nil is fine, at least in Git's case, because `vc_register'
+            call version_control_register(st, fs)
+            call version_control_working_revision(temporary_name, revision, found)
+            ! nil is fine, at least in Git's case, because `version_control_register'
             ! only makes the file `added' in this case.
             call check(error,.not. found, "registered")
             if (allocated(error)) exit body
             ! Unregister the file.  Check working revision.
-            call vc_backends(git_b())%unregister(temporary_name, st)
-            call vc_file_clearprops(temporary_name)
-            call vc_working_revision(temporary_name, revision, found)
+            call version_control_backends(git_b())%unregister(temporary_name, st)
+            call version_control_file_clearprops(temporary_name)
+            call version_control_working_revision(temporary_name, revision, found)
             call check(error,.not. found, "unregistered")
         end block body
 
@@ -710,29 +729,34 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         character(len=:), allocatable :: temporary_name
 
         if (.not. has_git(error)) return
         call setup(h, st)
 
         body: block
-            call check(error, vc_checkout_model(git_b(), strings(tdir())) == VC_MODEL_IMPLICIT, "repository")
+            call check(error, version_control_checkout_model(git_b(), strings(tdir())) == VERSION_CONTROL_MODEL_IMPLICIT, &
+                       "repository")
             if (allocated(error)) exit body
             temporary_name = tdir()//"foo"
-            call check(error, vc_checkout_model(git_b(), strings(temporary_name)) == VC_MODEL_IMPLICIT, "nonexistent")
+            call check(error, version_control_checkout_model(git_b(), strings(temporary_name)) == VERSION_CONTROL_MODEL_IMPLICIT, &
+                       "nonexistent")
             if (allocated(error)) exit body
             call write_file(temporary_name, "foo")
-            call check(error, vc_checkout_model(git_b(), strings(temporary_name)) == VC_MODEL_IMPLICIT, "new file")
+            call check(error, version_control_checkout_model(git_b(), strings(temporary_name)) == VERSION_CONTROL_MODEL_IMPLICIT, &
+                       "new file")
             if (allocated(error)) exit body
             fs%backend = git_b()
             fs%files = strings("foo")
-            call vc_register(st, fs)
-            call check(error, vc_checkout_model(git_b(), strings(temporary_name)) == VC_MODEL_IMPLICIT, "registered")
+            call version_control_register(st, fs)
+            call check(error, version_control_checkout_model(git_b(), strings(temporary_name)) == VERSION_CONTROL_MODEL_IMPLICIT, &
+                       "registered")
             if (allocated(error)) exit body
-            call vc_backends(git_b())%unregister(temporary_name, st)
-            call vc_file_clearprops(temporary_name)
-            call check(error, vc_checkout_model(git_b(), strings(temporary_name)) == VC_MODEL_IMPLICIT, "unregistered")
+            call version_control_backends(git_b())%unregister(temporary_name, st)
+            call version_control_file_clearprops(temporary_name)
+            call check(error, version_control_checkout_model(git_b(), strings(temporary_name)) == VERSION_CONTROL_MODEL_IMPLICIT, &
+                       "unregistered")
         end block body
 
         call teardown(h)
@@ -743,7 +767,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         character(len=:), allocatable :: temporary_name, new_name, new_directory, saved
 
         if (.not. has_git(error)) return
@@ -757,19 +781,19 @@ contains
             ! Register it.  Renaming can fail otherwise.
             fs%backend = git_b()
             fs%files = strings("foo")
-            call vc_register(st, fs)
-            ! Test that `vc_rename_file' isn't affected by
+            call version_control_register(st, fs)
+            ! Test that `version_control_rename_file' isn't affected by
             ! `default_directory' except for the meaning of OLD and NEW if
             ! they are relative file names.
             saved = buffers(current)%directory
             buffers(current)%directory = file_name_as_directory(fortmacs_wd)//"build/"
-            call vc_rename_file("test-vc/foo", "test-vc/bar", st)
+            call version_control_rename_file("test-vc/foo", "test-vc/bar", st)
             buffers(current)%directory = saved
             call check(error, st%ok(), "rename: "//format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. file_exists(temporary_name) .and. file_exists(new_name), "renamed")
             if (allocated(error)) exit body
-            call check(error, vc_state(new_name) == VC_ADDED, "added")
+            call check(error, version_control_state(new_name) == VERSION_CONTROL_ADDED, "added")
             if (allocated(error)) exit body
             ! Test OK-IF-ALREADY-EXISTS.
             temporary_name = tdir()//"qux"
@@ -777,11 +801,11 @@ contains
             call write_file(temporary_name, "qux")
             call write_file(new_name, "quuux")
             fs%files = strings("qux", "quuux")
-            call vc_register(st, fs)
-            call vc_rename_file(temporary_name, new_name, st)
+            call version_control_register(st, fs)
+            call version_control_rename_file(temporary_name, new_name, st)
             call check(error, condition_matches(st%code, FILE_ALREADY_EXISTS_CODE), "file-already-exists")
             if (allocated(error)) exit body
-            call vc_rename_file(temporary_name, new_name, st, ok_if_already_exists=.true.)
+            call version_control_rename_file(temporary_name, new_name, st, ok_if_already_exists=.true.)
             call check(error, st%ok(), "ok-if-already-exists: "//format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. file_exists(temporary_name) .and. file_exists(new_name), "replaced")
@@ -793,8 +817,8 @@ contains
             call create_directory_internal(new_directory, st)
             call write_file(temporary_name, "quux")
             fs%files = strings("dir1/", "quux")
-            call vc_register(st, fs)
-            call vc_rename_file(temporary_name, new_directory, st)
+            call version_control_register(st, fs)
+            call version_control_rename_file(temporary_name, new_directory, st)
             call check(error, st%ok(), "into a directory: "//format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. file_exists(temporary_name) .and. file_exists(new_name), "moved")
@@ -805,7 +829,7 @@ contains
 
     !> Check the diff version of a repository.
     subroutine test_version_diff(error)
-        use version_control_mod, only: vc_checkin, vc_version_diff
+        use version_control_mod, only: version_control_checkin, version_control_version_diff
         use log_edit_mod, only: log_edit_done
         use environment_mod, only: setenv
         type(error_type), allocatable, intent(out) :: error
@@ -814,7 +838,7 @@ contains
         character(len=*), parameter :: values(3) = [character(len=20) :: "joh.doe@example.com", "A", "C"]
         type(handle_type) :: h, buffer, diff
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         character(len=256) :: saved(3)
         integer :: saved_status(3), k
         character(len=:), allocatable :: temporary_name, rawtext
@@ -837,11 +861,11 @@ contains
             fs%files = strings("foo")
             ! Write and register a new file.
             call write_file(temporary_name, "originaltext")
-            call vc_register(st, fs)
+            call version_control_register(st, fs)
             call find_file_noselect(temporary_name, buffer, st)
             call set_buffer(buffer, st)
             ! Checkin file.
-            call vc_checkin(fs%files, fs%backend, st)
+            call version_control_checkin(fs%files, fs%backend, st)
             call check(error, st%ok(), "checkin: "//format_error(st))
             if (allocated(error)) exit body
             call insert("Testing vc-version-diff", st)
@@ -854,7 +878,7 @@ contains
             ! Modify file content.
             call write_file(temporary_name, "updatedtext")
             ! Check version diff.
-            call vc_version_diff("", "", st)
+            call version_control_version_diff("", "", st)
             call check(error, st%ok(), "version-diff: "//format_error(st))
             if (allocated(error)) exit body
             diff = get_buffer("*vc-diff*")
@@ -889,7 +913,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         character(len=:), allocatable :: temporary_directory, new_directory
 
         if (.not. has_git(error)) return
@@ -905,25 +929,25 @@ contains
             call write_file(temporary_directory//"bar", "bar")
             ! Register TMP-NAME1 but *not* TMP-NAME2.
             fs%files = strings("dir1/foo")
-            call vc_register(st, fs)
-            call vc_rename_file(tdir()//"dir1", tdir()//"dir2", st)
+            call version_control_register(st, fs)
+            call version_control_rename_file(tdir()//"dir1", tdir()//"dir2", st)
             call check(error, st%ok(), "mixed: "//format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. file_exists(temporary_directory//"foo") .and. .not. file_exists(temporary_directory//"bar") &
                        .and. &
-                       file_exists(new_directory//"foo") .and. vc_registered(new_directory//"foo") .and. &
-                       file_exists(new_directory//"bar") .and. .not. vc_registered(new_directory//"bar"), "mixed")
+                       file_exists(new_directory//"foo") .and. version_control_registered(new_directory//"foo") .and. &
+                       file_exists(new_directory//"bar") .and. .not. version_control_registered(new_directory//"bar"), "mixed")
             if (allocated(error)) exit body
             ! Test only unregistered files.
             temporary_directory = tdir()//"dir3/"
             new_directory = tdir()//"dir4/"
             call create_directory_internal(temporary_directory, st)
             call write_file(temporary_directory//"foo", "foo")
-            call vc_rename_file(tdir()//"dir3", tdir()//"dir4", st)
+            call version_control_rename_file(tdir()//"dir3", tdir()//"dir4", st)
             call check(error, st%ok(), "unregistered: "//format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. file_exists(temporary_directory//"foo") .and. file_exists(new_directory//"foo") .and. &
-                       .not. vc_registered(new_directory//"foo"), "unregistered")
+                       .not. version_control_registered(new_directory//"foo"), "unregistered")
             if (allocated(error)) exit body
             ! Test only registered files.
             temporary_directory = tdir()//"dir5/"
@@ -931,12 +955,12 @@ contains
             call create_directory_internal(temporary_directory, st)
             call write_file(temporary_directory//"foo", "foo")
             fs%files = strings("dir5/foo")
-            call vc_register(st, fs)
-            call vc_rename_file(tdir()//"dir5", tdir()//"dir6", st)
+            call version_control_register(st, fs)
+            call version_control_rename_file(tdir()//"dir5", tdir()//"dir6", st)
             call check(error, st%ok(), "registered: "//format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. file_exists(temporary_directory//"foo") .and. file_exists(new_directory//"foo") .and. &
-                       vc_registered(new_directory//"foo"), "registered")
+                       version_control_registered(new_directory//"foo"), "registered")
         end block body
 
         call teardown(h)
@@ -977,9 +1001,9 @@ contains
         body: block
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, allocated(buffers(current)%vc_mode), "vc_mode set")
+            call check(error, allocated(buffers(current)%version_control_mode), "version_control_mode set")
             if (allocated(error)) exit body
-            call check(error, buffers(current)%vc_mode, " Git-main")
+            call check(error, buffers(current)%version_control_mode, " Git-main")
             if (allocated(error)) exit body
             call check(error, buffers(current)%backup_inhibited, "backup-inhibited")
             if (allocated(error)) exit body
@@ -988,22 +1012,22 @@ contains
             call save_buffer(1_int64, .false., st)
             call check(error, st%ok(), "save: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, vc_state(buffers(current)%filename) == VC_EDITED, "edited")
+            call check(error, version_control_state(buffers(current)%filename) == VERSION_CONTROL_EDITED, "edited")
             if (allocated(error)) exit body
-            call check(error, buffers(current)%vc_mode, " Git:main")
+            call check(error, buffers(current)%version_control_mode, " Git:main")
         end block body
 
         if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         call teardown(h)
     end subroutine test_mode_line
 
-    !> `vc_diff_internal' of an edited file gives its diff in *vc-diff*, in
+    !> `version_control_diff_internal' of an edited file gives its diff in *vc-diff*, in
     !> Diff mode; none for an unchanged one.
     subroutine test_diff(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, d
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         character(len=:), allocatable :: text
         logical :: changes
 
@@ -1015,12 +1039,12 @@ contains
             if (allocated(error)) exit body
             fs%backend = git_b()
             fs%files = strings(tdir()//"a.txt")
-            call vc_diff_internal(.false., fs, changes, st)
+            call version_control_diff_internal(.false., fs, changes, st)
             call check(error, st%ok() .and. .not. changes, "unchanged: "//format_error(st))
             if (allocated(error)) exit body
             call write_file(tdir()//"a.txt", "one"//achar(10)//"three"//achar(10))
             call set_buffer(buffer, st)
-            call vc_diff_internal(.false., fs, changes, st)
+            call version_control_diff_internal(.false., fs, changes, st)
             call check(error, st%ok() .and. changes, "changed: "//format_error(st))
             if (allocated(error)) exit body
             d = get_buffer("*vc-diff*")
@@ -1038,7 +1062,7 @@ contains
     end subroutine test_diff
 
     !> Wait for the process of the log buffer BUFFER to finish (its
-    !> `vc_exec_after' actions run).
+    !> `version_control_exec_after' actions run).
     subroutine wait_buffer_process(buffer)
         use process_mod, only: get_buffer_process
         type(handle_type), intent(in) :: buffer
@@ -1075,7 +1099,7 @@ contains
     !> where n and p move between commits, d shows the diff of a commit,
     !> m marks it and w copies its revision.
     subroutine test_print_log(error)
-        use version_control_mod, only: vc_print_log
+        use version_control_mod, only: version_control_print_log
         use log_view_mod, only: log_view_message_next, log_view_message_previous, log_view_current_tag, log_view_diff, &
                                 log_view_mark_entry, log_view_get_marked, log_view_unmark_all_entries
         use font_lock_mod, only: font_lock_ensure
@@ -1094,7 +1118,7 @@ contains
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
             call set_buffer(buffer, st)
-            call vc_print_log(st, "", 500_int64)
+            call version_control_print_log(st, "", 500_int64)
             call check(error, st%ok(), "vc-print-log: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-change-log*")
@@ -1103,7 +1127,7 @@ contains
             call wait_buffer_process(log)
             call set_buffer(log, st)
             text = buffer_string()
-            call check(error, buffers(current)%major_mode, "vc_git_log_view_mode")
+            call check(error, buffers(current)%major_mode, "version_control_git_log_view_mode")
             if (allocated(error)) exit body
             call check(error, index(text, "    second") > 0 .and. index(text, "    init") > index(text, "    second"), text)
             if (allocated(error)) exit body
@@ -1164,7 +1188,7 @@ contains
     !> C-x v L shows the short log of the whole tree, whose entries RET
     !> expands to the full log message and collapses again.
     subroutine test_print_root_log(error)
-        use version_control_mod, only: vc_print_root_log
+        use version_control_mod, only: version_control_print_root_log
         use log_view_mod, only: log_view_message_regular_expression, log_view_toggle_entry_display
         use search_mod, only: regular_expression_search_forward
         type(error_type), allocatable, intent(out) :: error
@@ -1181,7 +1205,7 @@ contains
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
             call set_buffer(buffer, st)
-            call vc_print_root_log(st, 500_int64)
+            call version_control_print_root_log(st, 500_int64)
             call check(error, st%ok(), "vc-print-root-log: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-change-log*")
@@ -1223,8 +1247,8 @@ contains
     end subroutine test_print_root_log
 
     !> Wait for the status process of the VC-Dir buffer BUFFER to finish.
-    subroutine wait_vc_directory(buffer)
-        use version_control_directory_mod, only: vc_directory_busy
+    subroutine wait_version_control_directory(buffer)
+        use version_control_directory_mod, only: version_control_directory_busy
         type(handle_type), intent(in) :: buffer
         type(handle_type) :: old
         type(status_type) :: st
@@ -1235,28 +1259,29 @@ contains
 
         do k = 1, 600
             call set_buffer(buffer, st)
-            busy = vc_directory_busy()
+            busy = version_control_directory_busy()
             call set_buffer(old, st)
             if (.not. busy) exit
             call accept_process_output(got, st, seconds=0.05)
         end do
 
         call accept_process_output(got, st, seconds=0.05)
-    end subroutine wait_vc_directory
+    end subroutine wait_version_control_directory
 
     !> C-x v d lists the edited and unregistered files of a Git repository
-    !> under its headers; n moves to the files, m marks one, and the VC
+    !> under its headers; n moves to the files, m marks one, and the VERSION_CONTROL
     !> commands then act on the marked files.
-    subroutine test_vc_directory(error)
-        use version_control_directory_mod, only: vc_directory, vc_directory_next_line, vc_directory_mark, &
-                                                 vc_directory_marked_files, vc_directory_deduce_fileset, &
-                                                 vc_directory_current_file, vc_directory_mark_all_files, &
-                                                 vc_directory_unmark_all_files, vc_directory_hide_state
-        use version_control_mod, only: vc_deduce_fileset
+    subroutine test_version_control_directory(error)
+        use version_control_directory_mod, only: version_control_directory, version_control_directory_next_line, &
+                                                 version_control_directory_mark, version_control_directory_marked_files, &
+                                                 version_control_directory_deduce_fileset, version_control_directory_current_file, &
+                                                 version_control_directory_mark_all_files, &
+                                                 version_control_directory_unmark_all_files, version_control_directory_hide_state
+        use version_control_mod, only: version_control_deduce_fileset
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, directory
         type(status_type) :: st
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         type(string_type), allocatable :: marked(:)
         character(len=:), allocatable :: text, file
 
@@ -1271,16 +1296,16 @@ contains
             call create_directory_internal(tdir()//"sub", st)
             call write_file(tdir()//"sub/c.txt", "c"//achar(10))
             call set_buffer(h, st)
-            call vc_directory(tdir(), st)
+            call version_control_directory(tdir(), st)
             call check(error, st%ok(), "vc-dir: "//format_error(st))
             if (allocated(error)) exit body
             directory = get_buffer("*vc-dir*")
             call check(error, is_buffer_live(directory), "*vc-dir*")
             if (allocated(error)) exit body
-            call wait_vc_directory(directory)
+            call wait_version_control_directory(directory)
             call set_buffer(directory, st)
             text = buffer_string()
-            call check(error, buffers(current)%major_mode, "vc_directory_mode")
+            call check(error, buffers(current)%major_mode, "version_control_directory_mode")
             if (allocated(error)) exit body
             call check(error, index(text, "VC backend : Git"//achar(10)) == 1, text)
             if (allocated(error)) exit body
@@ -1296,51 +1321,51 @@ contains
             if (allocated(error)) exit body
             ! n from the headers goes past "./" to a.txt.
             call goto_character(point_minimum())
-            call vc_directory_next_line(1, st)
-            call vc_directory_current_file(file, st)
+            call version_control_directory_next_line(1, st)
+            call version_control_directory_current_file(file, st)
             call check(error, st%ok() .and. file == tdir()//"a.txt", "n: "//file)
             if (allocated(error)) exit body
             ! m marks a.txt and moves to b.txt.
-            call vc_directory_mark(st)
-            call vc_directory_marked_files(marked)
+            call version_control_directory_mark(st)
+            call version_control_directory_marked_files(marked)
             call check(error, size(marked) == 1, "one marked")
             if (allocated(error)) exit body
             call check(error, marked(1)%text, tdir()//"a.txt")
             if (allocated(error)) exit body
-            call vc_directory_current_file(file, st)
+            call version_control_directory_current_file(file, st)
             call check(error, file == tdir()//"b.txt", "m moves down: "//file)
             if (allocated(error)) exit body
             text = buffer_string()
             call check(error, index(text, "  *  edited              a.txt") > 0, text)
             if (allocated(error)) exit body
-            ! The VC commands act on the marked files.
-            call vc_deduce_fileset(fs, st, state_model_only_files=.true.)
+            ! The VERSION_CONTROL commands act on the marked files.
+            call version_control_deduce_fileset(fs, st, state_model_only_files=.true.)
             call check(error, st%ok() .and. size(fs%files) == 1, "fileset: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, fs%files(1)%text == tdir()//"a.txt" .and. fs%state == VC_EDITED, "fileset of a.txt")
+            call check(error, fs%files(1)%text == tdir()//"a.txt" .and. fs%state == VERSION_CONTROL_EDITED, "fileset of a.txt")
             if (allocated(error)) exit body
             ! M marks the files in the state of the current one.
-            call vc_directory_mark_all_files(.false., st)
-            call vc_directory_marked_files(marked)
+            call version_control_directory_mark_all_files(.false., st)
+            call version_control_directory_marked_files(marked)
             call check(error, st%ok() .and. size(marked) == 3, "M marks the unregistered files too")
             if (allocated(error)) exit body
-            call vc_directory_unmark_all_files(.true.)
-            call vc_directory_marked_files(marked)
+            call version_control_directory_unmark_all_files(.true.)
+            call version_control_directory_marked_files(marked)
             call check(error, size(marked) == 0, "C-u U unmarks all")
             if (allocated(error)) exit body
             ! v on a.txt commits it (with the author identity of
             ! vc-test--with-author-identity), and VC-Dir then shows it
             ! up-to-date; x hides it.
             call goto_character(point_minimum())
-            call vc_directory_next_line(1, st)
-            call commit_from_vc_directory(st)
+            call version_control_directory_next_line(1, st)
+            call commit_from_version_control_directory(st)
             call check(error, st%ok(), "commit: "//format_error(st))
             if (allocated(error)) exit body
             call set_buffer(directory, st)
             text = buffer_string()
             call check(error, index(text, "     up-to-date          a.txt") > 0, text)
             if (allocated(error)) exit body
-            call vc_directory_hide_state()
+            call version_control_directory_hide_state()
             text = buffer_string()
             call check(error, index(text, "a.txt") == 0 .and. index(text, "b.txt") > 0, text)
             if (allocated(error)) exit body
@@ -1349,12 +1374,12 @@ contains
 
         if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         call teardown(h)
-    end subroutine test_vc_directory
+    end subroutine test_version_control_directory
 
     !> C-x v v in a VC-Dir buffer on an edited file, with a log message:
     !> the commit, run with an author identity.
-    subroutine commit_from_vc_directory(status)
-        use version_control_mod, only: vc_next_action
+    subroutine commit_from_version_control_directory(status)
+        use version_control_mod, only: version_control_next_action
         use log_edit_mod, only: log_edit_done
         use environment_mod, only: setenv
         type(status_type), intent(out) :: status
@@ -1370,7 +1395,7 @@ contains
             call setenv(trim(names(k)), trim(values(k)))
         end do
 
-        call vc_next_action(.false., status)
+        call version_control_next_action(.false., status)
 
         if (status%ok()) then
             call insert("Commit from VC-Dir", st)
@@ -1384,9 +1409,9 @@ contains
                 call setenv(trim(names(k)))
             end if
         end do
-    end subroutine commit_from_vc_directory
+    end subroutine commit_from_version_control_directory
 
-    !> `vc_revert_files' puts back the committed text of a file.
+    !> `version_control_revert_files' puts back the committed text of a file.
     subroutine test_revert(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, chk
@@ -1397,7 +1422,7 @@ contains
 
         body: block
             call write_file(tdir()//"a.txt", "changed"//achar(10))
-            call vc_revert_files(git_b(), strings(tdir()//"a.txt"), st)
+            call version_control_revert_files(git_b(), strings(tdir()//"a.txt"), st)
             call check(error, st%ok(), "revert: "//format_error(st))
             if (allocated(error)) exit body
             ! Visit the file afresh: reverting its buffer is not ported.
@@ -1408,7 +1433,7 @@ contains
             call close_buffer(chk, st)
             call set_buffer(h, st)
             if (allocated(error)) exit body
-            call check(error, vc_state(tdir()//"a.txt") == VC_UP_TO_DATE, "up to date")
+            call check(error, version_control_state(tdir()//"a.txt") == VERSION_CONTROL_UP_TO_DATE, "up to date")
         end block body
 
         call teardown(h)
@@ -1435,11 +1460,11 @@ contains
     end subroutine type_text
 
     !> Port of vc-git-tests.el vc-git-test-branch-remotes: the remote
-    !> branches of `vc_git_branch_remotes' as the configuration changes.
+    !> branches of `version_control_git_branch_remotes' as the configuration changes.
     subroutine test_branch_remotes(error)
-        use version_control_git_mod, only: vc_git_branch_remotes, vc_git_branch_remotes_type
+        use version_control_git_mod, only: version_control_git_branch_remotes, version_control_git_branch_remotes_type
         type(error_type), allocatable, intent(out) :: error
-        type(vc_git_branch_remotes_type) :: remotes
+        type(version_control_git_branch_remotes_type) :: remotes
         type(handle_type) :: h, buffer
         type(status_type) :: st
 
@@ -1449,32 +1474,32 @@ contains
         body: block
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
-            call vc_git_branch_remotes(remotes)
+            call version_control_git_branch_remotes(remotes)
             call check(error,.not. allocated(remotes%upstream) .and. .not. allocated(remotes%push), "none")
             if (allocated(error)) exit body
             call git("config", "branch.main.remote", "origin")
-            call vc_git_branch_remotes(remotes)
+            call version_control_git_branch_remotes(remotes)
             call check(error,.not. allocated(remotes%upstream) .and. .not. allocated(remotes%push), "remote only")
             if (allocated(error)) exit body
             call git("config", "branch.main.merge", "main")
-            call vc_git_branch_remotes(remotes)
+            call version_control_git_branch_remotes(remotes)
             call check(error, allocated(remotes%upstream) .and. .not. allocated(remotes%push), "upstream")
             if (allocated(error)) exit body
             call git("config", "branch.main.pushRemote", "fork")
-            call vc_git_branch_remotes(remotes)
+            call version_control_git_branch_remotes(remotes)
             call check(error, allocated(remotes%upstream) .and. allocated(remotes%push), "push remote")
             if (allocated(error)) exit body
             call check(error, remotes%push, "fork/main")
             if (allocated(error)) exit body
             call git("config", "--unset", "branch.main.pushRemote")
             call git("config", "remote.pushDefault", "fork")
-            call vc_git_branch_remotes(remotes)
+            call version_control_git_branch_remotes(remotes)
             call check(error, allocated(remotes%upstream) .and. allocated(remotes%push), "push default")
             if (allocated(error)) exit body
             call check(error, remotes%push, "fork/main")
             if (allocated(error)) exit body
             call git("config", "remote.pushDefault", "origin")
-            call vc_git_branch_remotes(remotes)
+            call version_control_git_branch_remotes(remotes)
             call check(error, allocated(remotes%upstream) .and. .not. allocated(remotes%push), "push default origin")
         end block body
 
@@ -1487,8 +1512,9 @@ contains
     !> retrieves the tag; a tag is not made over modified files when the
     !> user says no.
     subroutine test_tags_and_branches(error)
-        use version_control_mod, only: vc_create_tag, vc_create_branch, vc_switch_branch, vc_retrieve_tag
-        use version_control_git_mod, only: vc_git_branches
+        use version_control_mod, only: version_control_create_tag, version_control_create_branch, version_control_switch_branch, &
+                                       version_control_retrieve_tag
+        use version_control_git_mod, only: version_control_git_branches
         use error_mod, only: USER_ERROR_CODE
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer
@@ -1503,7 +1529,7 @@ contains
             call check(error, st%ok(), "visit: "//format_error(st))
             if (allocated(error)) exit body
             call set_buffer(buffer, st)
-            call vc_create_tag(tdir(), "v1", .false., st)
+            call version_control_create_tag(tdir(), "v1", .false., st)
             call check(error, st%ok(), "create tag: "//format_error(st))
             if (allocated(error)) exit body
             call check(error, git_output("tag"), "v1")
@@ -1511,10 +1537,10 @@ contains
             tagged = git_output("rev-parse", "v1")
             ! C-x v b c: the start point defaults to the current branch.
             call type_text(achar(13))
-            call vc_create_branch(tdir(), "feature", st)
+            call version_control_create_branch(tdir(), "feature", st)
             call check(error, st%ok(), "create branch: "//format_error(st))
             if (allocated(error)) exit body
-            call vc_git_branches(branches)
+            call version_control_git_branches(branches)
             call check(error, allocated(branches(1)%text), "a current branch")
             if (allocated(error)) exit body
             call check(error, branches(1)%text, "feature")
@@ -1524,20 +1550,20 @@ contains
             call check(error, branches(2)%text, "main")
             if (allocated(error)) exit body
             ! C-x v b s.
-            call vc_switch_branch(tdir(), "main", st)
+            call version_control_switch_branch(tdir(), "main", st)
             call check(error, st%ok(), "switch branch: "//format_error(st))
             if (allocated(error)) exit body
-            call vc_git_branches(branches)
+            call version_control_git_branches(branches)
             call check(error, branches(1)%text, "main")
             if (allocated(error)) exit body
             ! A branch needs a name.
-            call vc_retrieve_tag(tdir(), "", st, .true.)
+            call version_control_retrieve_tag(tdir(), "", st, .true.)
             call check(error, condition_matches(st%code, USER_ERROR_CODE), "branch name required")
             if (allocated(error)) exit body
             ! A new commit, then C-x v r back to the tag.
             call write_file(tdir()//"a.txt", "one"//achar(10)//"four"//achar(10))
             call git("commit", "-q", "-a", "-m", "third")
-            call vc_retrieve_tag(tdir(), "v1", st)
+            call version_control_retrieve_tag(tdir(), "v1", st)
             call check(error, st%ok(), "retrieve tag: "//format_error(st))
             if (allocated(error)) exit body
             call check(error, git_output("rev-parse", "HEAD"), tagged)
@@ -1545,7 +1571,7 @@ contains
             ! Modified files: the tag is made only if the user says so.
             call write_file(tdir()//"a.txt", "changed"//achar(10))
             call type_text("n")
-            call vc_create_tag(tdir(), "v2", .false., st)
+            call version_control_create_tag(tdir(), "v2", .false., st)
             call check(error, condition_matches(st%code, USER_ERROR_CODE), "modified files: "//format_error(st))
             if (allocated(error)) exit body
             call check(error, git_output("tag"), "v1")
@@ -1558,7 +1584,7 @@ contains
     !> C-x v b L logs another branch from its tip; C-x v b l logs the
     !> current file on it.
     subroutine test_branch_logs(error)
-        use version_control_mod, only: vc_print_root_branch_log, vc_print_fileset_branch_log
+        use version_control_mod, only: version_control_print_root_branch_log, version_control_print_fileset_branch_log
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, log
         type(status_type) :: st
@@ -1574,7 +1600,7 @@ contains
             call write_file(tdir()//"a.txt", "one"//achar(10)//"four"//achar(10))
             call git("commit", "-q", "-a", "-m", "third")
             call set_buffer(buffer, st)
-            call vc_print_root_branch_log("other", st)
+            call version_control_print_root_branch_log("other", st)
             call check(error, st%ok(), "root branch log: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-change-log*")
@@ -1584,7 +1610,7 @@ contains
             call check(error, index(text, "second") > 0 .and. index(text, "third") == 0, text)
             if (allocated(error)) exit body
             call set_buffer(buffer, st)
-            call vc_print_fileset_branch_log("main", st)
+            call version_control_print_fileset_branch_log("main", st)
             call check(error, st%ok(), "fileset branch log: "//format_error(st))
             if (allocated(error)) exit body
             call wait_buffer_process(log)
@@ -1604,7 +1630,8 @@ contains
     !> C-x v I shows the commits pushed from the other clone and C-x v +
     !> pulls them.
     subroutine test_push_pull(error)
-        use version_control_mod, only: vc_root_log_outgoing, vc_root_log_incoming, vc_push, vc_pull
+        use version_control_mod, only: version_control_root_log_outgoing, version_control_root_log_incoming, version_control_push, &
+                                       version_control_pull
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, log, out
         type(status_type) :: st
@@ -1627,7 +1654,7 @@ contains
             call write_file(tdir()//"a.txt", "one"//achar(10)//"four"//achar(10))
             call git("commit", "-q", "-a", "-m", "third")
             call set_buffer(buffer, st)
-            call vc_root_log_outgoing(st)
+            call version_control_root_log_outgoing(st)
             call check(error, st%ok(), "outgoing: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-outgoing*")
@@ -1636,12 +1663,12 @@ contains
             text = buffer_string()
             call check(error, index(text, "third") > 0 .and. index(text, "second") == 0, text)
             if (allocated(error)) exit body
-            call check(error, buffers(current)%major_mode, "vc_git_log_view_mode")
+            call check(error, buffers(current)%major_mode, "version_control_git_log_view_mode")
             if (allocated(error)) exit body
             call close_buffer(log, st)
             ! C-x v P.
             call set_buffer(buffer, st)
-            call vc_push(.false., st)
+            call version_control_push(.false., st)
             call check(error, st%ok(), "push: "//format_error(st))
             if (allocated(error)) exit body
             out = get_buffer("*vc-git : "//tdir()//"*")
@@ -1652,7 +1679,7 @@ contains
             text = buffer_string()
             call check(error, index(text, "Running 'git push'...") == 1 .and. index(text, "Finished in ") > 0, text)
             if (allocated(error)) exit body
-            call check(error, buffers(current)%major_mode, "vc_compilation_mode")
+            call check(error, buffers(current)%major_mode, "version_control_compilation_mode")
             if (allocated(error)) exit body
             call check(error, buffers(current)%mode_name, "VC-Compilation")
             if (allocated(error)) exit body
@@ -1660,7 +1687,7 @@ contains
             if (allocated(error)) exit body
             ! Nothing outgoing now.
             call set_buffer(buffer, st)
-            call vc_root_log_outgoing(st)
+            call version_control_root_log_outgoing(st)
             log = get_buffer("*vc-outgoing*")
             call wait_buffer_process(log)
             call set_buffer(log, st)
@@ -1674,7 +1701,7 @@ contains
             call git_at(clone, junk, "commit", "-q", "-a", "-m", "fourth")
             call git_at(clone, junk, "push", "-q")
             call set_buffer(buffer, st)
-            call vc_root_log_incoming(st)
+            call version_control_root_log_incoming(st)
             call check(error, st%ok(), "incoming: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-incoming*")
@@ -1686,7 +1713,7 @@ contains
             call close_buffer(log, st)
             ! C-x v +.
             call set_buffer(buffer, st)
-            call vc_pull(.false., st)
+            call version_control_pull(.false., st)
             call check(error, st%ok(), "pull: "//format_error(st))
             if (allocated(error)) exit body
             call wait_buffer_process(out)

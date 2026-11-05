@@ -36,7 +36,7 @@
 module inotify_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, FILE_NOTIFY_ERROR_CODE
-    use system_dependent_mod, only: inotify_raw_event_type, fortmacs_inotify_init, fortmacs_inotify_add_watch, &
+    use system_dependent_mod, only: inotify_raw_event_type, fortmacs_inotify_initialize, fortmacs_inotify_add_watch, &
                                     fortmacs_inotify_rm_watch, fortmacs_inotify_read, fortmacs_strerror, close_fd, EINVAL, &
                                     IN_ACCESS, IN_MODIFY, IN_ATTRIBUTE, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
                                     IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
@@ -481,7 +481,7 @@ contains
     !>
     !> See inotify(7) and inotify_add_watch(2) for further information.  The
     !> inotify fd is managed internally and there is no corresponding
-    !> inotify_init.  Use `inotify_rm_watch' to remove a watch.
+    !> inotify_initialize.  Use `inotify_rm_watch' to remove a watch.
     !>
     !> The following inotify bit-masks cannot be used because descriptors are
     !> shared across different callers.
@@ -510,7 +510,7 @@ contains
         mask = ior(ior(imask, IN_MASK_ADD), IN_EXCL_UNLINK)
 
         if (inotifyfd < 0) then
-            err = fortmacs_inotify_init(inotifyfd)
+            err = fortmacs_inotify_initialize(inotifyfd)
 
             if (err /= 0) then
                 inotifyfd = -1

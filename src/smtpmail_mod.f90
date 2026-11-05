@@ -69,7 +69,7 @@ module smtpmail_mod
     use minibuffer_reading_mod, only: read_string
     use replace_mod, only: format_prompt
     use authentication_source_mod, only: read_password
-    use coding_mod, only: buffer_file_coding_system, coding_system_mime_charset, coding_system_for_write, &
+    use coding_mod, only: buffer_file_coding_system, coding_system_mime_character_set, coding_system_for_write, &
                           coding_system_for_read, coding_system_change_end_of_line_conversion, encode_coding_string, &
                           decode_coding_string, END_OF_LINE_UNIX
     use time_functions_mod, only: format_time_string
@@ -372,7 +372,8 @@ contains
     recursive subroutine send_mail_with_smtp(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline
-        character(len=:), allocatable :: saved_address, saved_conv, saved_sendmail_coding, conv, failure, charset, message_id, &
+        character(len=:), allocatable :: saved_address, saved_conv, saved_sendmail_coding, conv, failure, character_set, &
+                                         message_id, &
                                          sanitized
         logical :: had_address, had_conv, had_sendmail_coding, saved_fold, found, failed
         integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion, moved
@@ -529,11 +530,11 @@ contains
                     moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
 
                     if (point() /= point_maximum() .and. len(conv) > 0) then
-                        charset = coding_system_mime_charset(conv)
+                        character_set = coding_system_mime_character_set(conv)
 
-                        if (len(charset) > 0) then
+                        if (len(character_set) > 0) then
                             call goto_character(marked_position(delimline))
-                            call insert("MIME-version: 1.0"//LF//"Content-type: text/plain; charset="//charset// &
+                            call insert("MIME-version: 1.0"//LF//"Content-type: text/plain; charset="//character_set// &
                                         LF//"Content-Transfer-Encoding: 8bit"//LF, status)
                             if (.not. status%ok()) exit body
                         end if

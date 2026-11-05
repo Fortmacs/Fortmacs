@@ -31,10 +31,10 @@ module test_bidirectional_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, buffers, current
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: goto_character
-    use bidirectional_mod, only: bidi_it_type, bidi_init_it, bidi_paragraph_init, bidi_move_to_visually_next, bidi_get_type, &
-                                 bidi_mirror_character, L2R, R2L, NEUTRAL_DIRECTORY, STRONG_L, STRONG_R, STRONG_AL, WEAK_EN, &
-                                 WEAK_AN, NEUTRAL_ON, RLO, PDI
-    use display_engine_mod, only: bidi_find_overridden_directionality, current_bidi_paragraph_direction
+    use bidirectional_mod, only: bidirectional_it_type, bidirectional_initialize_iterator, bidirectional_paragraph_initialize, &
+                                 bidirectional_move_to_visually_next, bidirectional_get_type, bidirectional_mirror_character, L2R, &
+                                 R2L, NEUTRAL_DIRECTORY, STRONG_L, STRONG_R, STRONG_AL, WEAK_EN, WEAK_AN, NEUTRAL_ON, RLO, PDI
+    use display_engine_mod, only: bidirectional_find_overridden_directionality, current_bidirectional_paragraph_direction
     implicit none(type, external)
     private
 
@@ -81,14 +81,14 @@ contains
         integer(int64), intent(out) :: order(:)
         integer, intent(out) :: levels(:)
         integer, intent(out) :: n
-        type(bidi_it_type) :: it
+        type(bidirectional_it_type) :: it
 
-        call bidi_init_it(1_int64, 1_int64, .false., it)
-        call bidi_paragraph_init(directory, it, .false.)
+        call bidirectional_initialize_iterator(1_int64, 1_int64, .false., it)
+        call bidirectional_paragraph_initialize(directory, it, .false.)
         n = 0
 
         do while (n < size(order))
-            call bidi_move_to_visually_next(it)
+            call bidirectional_move_to_visually_next(it)
             if (it%character_position >= buffers(current)%end_of_accessible_portion .or. it%ch == 10) exit
             n = n + 1
             order(n) = it%character_position
@@ -100,47 +100,47 @@ contains
     subroutine test_classes(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, bidi_get_type(iachar("a", int32), NEUTRAL_DIRECTORY) == STRONG_L .and. &
-                   bidi_get_type(int(z'5D0', int32), NEUTRAL_DIRECTORY) == STRONG_R .and. &
-                   bidi_get_type(int(z'627', int32), NEUTRAL_DIRECTORY) == STRONG_AL .and. &
-                   bidi_get_type(iachar("1", int32), NEUTRAL_DIRECTORY) == WEAK_EN .and. &
-                   bidi_get_type(int(z'660', int32), NEUTRAL_DIRECTORY) == WEAK_AN .and. &
-                   bidi_get_type(iachar("!", int32), NEUTRAL_DIRECTORY) == NEUTRAL_ON .and. &
-                   bidi_get_type(int(z'202E', int32), NEUTRAL_DIRECTORY) == RLO .and. &
-                   bidi_get_type(int(z'2069', int32), NEUTRAL_DIRECTORY) == PDI, "classes")
+        call check(error, bidirectional_get_type(iachar("a", int32), NEUTRAL_DIRECTORY) == STRONG_L .and. &
+                   bidirectional_get_type(int(z'5D0', int32), NEUTRAL_DIRECTORY) == STRONG_R .and. &
+                   bidirectional_get_type(int(z'627', int32), NEUTRAL_DIRECTORY) == STRONG_AL .and. &
+                   bidirectional_get_type(iachar("1", int32), NEUTRAL_DIRECTORY) == WEAK_EN .and. &
+                   bidirectional_get_type(int(z'660', int32), NEUTRAL_DIRECTORY) == WEAK_AN .and. &
+                   bidirectional_get_type(iachar("!", int32), NEUTRAL_DIRECTORY) == NEUTRAL_ON .and. &
+                   bidirectional_get_type(int(z'202E', int32), NEUTRAL_DIRECTORY) == RLO .and. &
+                   bidirectional_get_type(int(z'2069', int32), NEUTRAL_DIRECTORY) == PDI, "classes")
         if (allocated(error)) return
         ! Unassigned code points get the defaults of their block.
-        call check(error, bidi_get_type(int(z'5FF', int32), NEUTRAL_DIRECTORY) == STRONG_R .and. &
-                   bidi_get_type(int(z'7BF', int32), NEUTRAL_DIRECTORY) == STRONG_AL .and. &
-                   bidi_get_type(int(z'E0080', int32), NEUTRAL_DIRECTORY) == STRONG_L, "defaults")
+        call check(error, bidirectional_get_type(int(z'5FF', int32), NEUTRAL_DIRECTORY) == STRONG_R .and. &
+                   bidirectional_get_type(int(z'7BF', int32), NEUTRAL_DIRECTORY) == STRONG_AL .and. &
+                   bidirectional_get_type(int(z'E0080', int32), NEUTRAL_DIRECTORY) == STRONG_L, "defaults")
         if (allocated(error)) return
         ! An override makes non-formatting characters strong.
-        call check(error, bidi_get_type(iachar("1", int32), R2L) == STRONG_R, "override")
+        call check(error, bidirectional_get_type(iachar("1", int32), R2L) == STRONG_R, "override")
         if (allocated(error)) return
-        call check(error, bidi_mirror_character(iachar("(", int32)) == iachar(")") .and. &
-                   bidi_mirror_character(iachar("a", int32)) == iachar("a"), "mirroring")
+        call check(error, bidirectional_mirror_character(iachar("(", int32)) == iachar(")") .and. &
+                   bidirectional_mirror_character(iachar("a", int32)) == iachar("a"), "mirroring")
     end subroutine test_classes
 
     !> current-bidi-paragraph-direction: from the first strong character
-    !> of the paragraph, or `bidi_paragraph_direction'.
+    !> of the paragraph, or `bidirectional_paragraph_direction'.
     subroutine test_paragraph_direction(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call buffer_with("  "//HEB//" abc"//LF//LF//"123 xyz"//LF, h)
-        call check(error, current_bidi_paragraph_direction() == R2L, "right to left")
+        call check(error, current_bidirectional_paragraph_direction() == R2L, "right to left")
         if (allocated(error)) return
         call goto_character(buffers(current)%end_of_accessible_portion)
-        call check(error, current_bidi_paragraph_direction() == L2R, "the second paragraph")
+        call check(error, current_bidirectional_paragraph_direction() == L2R, "the second paragraph")
         if (allocated(error)) return
-        buffers(current)%bidi_paragraph_direction = R2L
-        call check(error, current_bidi_paragraph_direction() == R2L, "forced")
+        buffers(current)%bidirectional_paragraph_direction = R2L
+        call check(error, current_bidirectional_paragraph_direction() == R2L, "forced")
         if (allocated(error)) return
-        buffers(current)%bidi_paragraph_direction = NEUTRAL_DIRECTORY
-        buffers(current)%bidi_display_reordering = .false.
+        buffers(current)%bidirectional_paragraph_direction = NEUTRAL_DIRECTORY
+        buffers(current)%bidirectional_display_reordering = .false.
         call goto_character(1_int64)
-        call check(error, current_bidi_paragraph_direction() == L2R, "no reordering")
+        call check(error, current_bidirectional_paragraph_direction() == L2R, "no reordering")
         call close_buffer(h, st)
     end subroutine test_paragraph_direction
 
@@ -194,7 +194,8 @@ contains
             "  /* end admins only ‮ { ⁦*/"//LF// &
             "  return 0;"//LF// &
             "}", h)
-        call check(error, bidi_find_overridden_directionality(1_int64, buffers(current)%end_of_accessible_portion, st) == 46, "46")
+        call check(error, bidirectional_find_overridden_directionality(1_int64, buffers(current)%end_of_accessible_portion, &
+                                                                       st) == 46, "46")
         call close_buffer(h, st)
     end subroutine test_overrides_1
 
@@ -216,7 +217,8 @@ contains
             '  printf ("luser: %d\n", is_restricted_user ("luser"));'//LF// &
             '  printf ("nobody: %d\n", is_restricted_user ("nobody"));'//LF// &
             "}", h)
-        call check(error, bidi_find_overridden_directionality(1_int64, buffers(current)%end_of_accessible_portion, st) == 138, &
+        call check(error, bidirectional_find_overridden_directionality(1_int64, buffers(current)%end_of_accessible_portion, &
+                                                                       st) == 138, &
                    "138")
         call close_buffer(h, st)
     end subroutine test_overrides_2
@@ -239,7 +241,8 @@ contains
             '  printf ("luser: %d\n", is_restricted_user ("luser"));'//LF// &
             '  printf ("nobody: %d\n", is_restricted_user ("nobody"));'//LF// &
             "}", h)
-        call check(error, bidi_find_overridden_directionality(1_int64, buffers(current)%end_of_accessible_portion, st) == 138, &
+        call check(error, bidirectional_find_overridden_directionality(1_int64, buffers(current)%end_of_accessible_portion, &
+                                                                       st) == 138, &
                    "138")
         call close_buffer(h, st)
     end subroutine test_overrides_3
@@ -249,8 +252,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call check(error, bidi_find_overridden_directionality(0_int64, 5_int64, st, "ab‮cd") == 3, "RLO")
+        call check(error, bidirectional_find_overridden_directionality(0_int64, 5_int64, st, "ab‮cd") == 3, "RLO")
         if (allocated(error)) return
-        call check(error, bidi_find_overridden_directionality(0_int64, 5_int64, st, "abcde") == -1, "none")
+        call check(error, bidirectional_find_overridden_directionality(0_int64, 5_int64, st, "abcde") == -1, "none")
     end subroutine test_overrides_string
 end module test_bidirectional_mod

@@ -25,7 +25,7 @@
 !> help_mode_mod through help_mod.
 !>
 !> The button types are upstream's, named as `button_mod' names button
-!> types: `help_xref' and its subtypes `help_function', `help_variable',
+!> types: `help_cross_reference' and its subtypes `help_function', `help_variable',
 !> `help_name', `help_back' and `help_forward'; a button's
 !> `button_data' is the name it describes.
 submodule(help_mode_mod) help_mode_cross_reference_mod
@@ -53,9 +53,9 @@ submodule(help_mode_mod) help_mode_cross_reference_mod
 
     !> The cross-reference button types.  Port of help-mode.el's
     !> define-button-type forms.
-    type(button_kind_type), target :: help_xref, help_function, help_variable, help_name, help_back, help_forward
+    type(button_kind_type), target :: help_cross_reference, help_function, help_variable, help_name, help_back, help_forward
 
-    !> The most items `help_setup_xref' leaves on `help_xref_stack' when
+    !> The most items `help_setup_cross_reference' leaves on `help_cross_reference_stack' when
     !> a command shows a page (upstream's (nthcdr 10 ...), whose tail it
     !> cuts after the 11th).
     integer, parameter :: STACK_LIMIT = 11
@@ -71,7 +71,7 @@ submodule(help_mode_mod) help_mode_cross_reference_mod
     !> The words preceding the quoted name can be used in doc strings to
     !> distinguish references to variables, functions and names.  Port of
     !> help-mode.el help-xref-symbol-regexp.
-    character(len=*), parameter :: help_xref_name_regular_expression = &
+    character(len=*), parameter :: help_cross_reference_name_regular_expression = &
                                    "\(\<\(\(variable\|option\)\|" &
                                    //"\(function\|command\|call\)\|" &
                                    //"\(face\)\|" &
@@ -92,48 +92,48 @@ contains
     ! Button types and actions
     ! ------------------------------------------------------------------
 
-    module procedure initialize_help_xref
+    module procedure initialize_help_cross_reference
     call initialize_button()
-    if (help_xref%index /= 0) return
-    help_xref%follow_link = .true.
-    call help_xref%define("help_xref")
+    if (help_cross_reference%index /= 0) return
+    help_cross_reference%follow_link = .true.
+    call help_cross_reference%define("help_cross_reference")
     help_function%help_echo = "mouse-2, RET: describe this function"
-    call help_function%define("help_function", supertype=help_xref)
+    call help_function%define("help_function", supertype=help_cross_reference)
     help_function%action => follow_function
     help_variable%help_echo = "mouse-2, RET: describe this variable"
-    call help_variable%define("help_variable", supertype=help_xref)
+    call help_variable%define("help_variable", supertype=help_cross_reference)
     help_variable%action => follow_variable
     help_name%help_echo = "mouse-2, RET: describe this name"
-    call help_name%define("help_name", supertype=help_xref)
+    call help_name%define("help_name", supertype=help_cross_reference)
     help_name%action => follow_name
     help_back%help_echo = "mouse-2, RET: go back to previous help buffer"
-    call help_back%define("help_back", supertype=help_xref)
+    call help_back%define("help_back", supertype=help_cross_reference)
     help_back%action => follow_back
     help_forward%help_echo = "mouse-2, RET: move forward to next help buffer"
-    call help_forward%define("help_forward", supertype=help_xref)
+    call help_forward%define("help_forward", supertype=help_cross_reference)
     help_forward%action => follow_forward
     commands%help_go_back%execute => help_go_back
     commands%help_go_forward%execute => help_go_forward
     commands%help_follow_name%execute => command_help_follow_name
     commands%help_goto_next_page%execute => help_goto_next_page
     commands%help_goto_previous_page%execute => help_goto_previous_page
-    end procedure initialize_help_xref
+    end procedure initialize_help_cross_reference
 
     !> Call the help cross-reference procedure DESCRIBE with ARGUMENT.
     !> Things are set up properly so that the resulting help buffer has a
     !> proper [back] button.  Port of help-mode.el:help-do-xref.
-    recursive subroutine help_do_xref(describe, argument, status)
-        procedure(help_xref_procedure) :: describe
+    recursive subroutine help_do_cross_reference(describe, argument, status)
+        procedure(help_cross_reference_procedure) :: describe
         character(len=*), intent(in) :: argument
         type(status_type), intent(out) :: status
         logical :: saved
 
         ! There is a reference at point.  Follow it.
-        saved = help_xref_following
-        help_xref_following = .true.
+        saved = help_cross_reference_following
+        help_cross_reference_following = .true.
         call describe(argument, status)
-        help_xref_following = saved
-    end subroutine help_do_xref
+        help_cross_reference_following = saved
+    end subroutine help_do_cross_reference
 
     !> The name a button describes: its `button_data'.  Not a port.
     function data_name(data) result(name)
@@ -151,7 +151,7 @@ contains
         type(value_type), intent(in) :: data
         type(status_type), intent(out) :: status
 
-        call help_do_xref(describe_function, data_name(data), status)
+        call help_do_cross_reference(describe_function, data_name(data), status)
     end subroutine follow_function
 
     !> The action of `help_variable' buttons.  Port of
@@ -161,7 +161,7 @@ contains
         type(value_type), intent(in) :: data
         type(status_type), intent(out) :: status
 
-        call help_do_xref(describe_variable, data_name(data), status)
+        call help_do_cross_reference(describe_variable, data_name(data), status)
     end subroutine follow_variable
 
     !> The action of `help_name' buttons.  Port of
@@ -171,7 +171,7 @@ contains
         type(value_type), intent(in) :: data
         type(status_type), intent(out) :: status
 
-        call help_do_xref(describe_name, data_name(data), status)
+        call help_do_cross_reference(describe_name, data_name(data), status)
     end subroutine follow_name
 
     !> The action of `help_back' buttons: go back from the buffer of the
@@ -183,10 +183,10 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        saved = help_xref_following
-        help_xref_following = .true.
-        call help_xref_go_back(current_buffer(), status)
-        help_xref_following = saved
+        saved = help_cross_reference_following
+        help_cross_reference_following = .true.
+        call help_cross_reference_go_back(current_buffer(), status)
+        help_cross_reference_following = saved
     end subroutine follow_back
 
     !> The action of `help_forward' buttons.  Port of
@@ -198,10 +198,10 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        saved = help_xref_following
-        help_xref_following = .true.
-        call help_xref_go_forward(current_buffer(), status)
-        help_xref_following = saved
+        saved = help_cross_reference_following
+        help_cross_reference_following = .true.
+        call help_cross_reference_go_forward(current_buffer(), status)
+        help_cross_reference_following = saved
     end subroutine follow_forward
 
     ! ------------------------------------------------------------------
@@ -210,14 +210,14 @@ contains
 
     !> Install xref info for the help buffer.  Port of
     !> help-mode.el:help-setup-xref.
-    recursive module subroutine help_setup_xref(interactive, status, describe, argument)
+    recursive module subroutine help_setup_cross_reference(interactive, status, describe, argument)
         logical, intent(in) :: interactive
         type(status_type), intent(out) :: status
-        procedure(help_xref_procedure), optional :: describe
+        procedure(help_cross_reference_procedure), optional :: describe
         character(len=*), intent(in), optional :: argument
         type(handle_type) :: previous, buffer
-        type(help_xref_item_type) :: item
-        type(help_xref_item_type), allocatable :: kept(:)
+        type(help_cross_reference_item_type) :: item
+        type(help_cross_reference_item_type), allocatable :: kept(:)
         type(status_type) :: st
         integer :: n
 
@@ -228,47 +228,47 @@ contains
         if (.not. status%ok()) return
         ! Re-enable major mode, killing all unrelated local vars.
         if (is_derived_mode(major_modes%help_mode)) call help_mode(status)
-        if (.not. allocated(help_xref_stack)) allocate (help_xref_stack(0))
-        if (.not. allocated(help_xref_forward_stack)) allocate (help_xref_forward_stack(0))
+        if (.not. allocated(help_cross_reference_stack)) allocate (help_cross_reference_stack(0))
+        if (.not. allocated(help_cross_reference_forward_stack)) allocate (help_cross_reference_forward_stack(0))
 
-        if (associated(help_xref_stack_item%describe)) then
-            item = help_xref_stack_item
+        if (associated(help_cross_reference_stack_item%describe)) then
+            item = help_cross_reference_stack_item
             item%position = point()
-            help_xref_stack = [help_xref_stack, item]
-            deallocate (help_xref_forward_stack)
-            allocate (help_xref_forward_stack(0))
+            help_cross_reference_stack = [help_cross_reference_stack, item]
+            deallocate (help_cross_reference_forward_stack)
+            allocate (help_cross_reference_forward_stack(0))
         end if
 
-        n = size(help_xref_stack)
+        n = size(help_cross_reference_stack)
 
         ! Truncate the stack.
         if (interactive .and. n > STACK_LIMIT) then
-            kept = help_xref_stack(n - STACK_LIMIT + 1:n)
-            call move_alloc(kept, help_xref_stack)
+            kept = help_cross_reference_stack(n - STACK_LIMIT + 1:n)
+            call move_alloc(kept, help_cross_reference_stack)
         end if
 
-        help_xref_stack_item%describe => null()
-        if (allocated(help_xref_stack_item%argument)) deallocate (help_xref_stack_item%argument)
+        help_cross_reference_stack_item%describe => null()
+        if (allocated(help_cross_reference_stack_item%argument)) deallocate (help_cross_reference_stack_item%argument)
 
         if (present(describe)) then
-            help_xref_stack_item%describe => describe
-            help_xref_stack_item%argument = ""
-            if (present(argument)) help_xref_stack_item%argument = argument
+            help_cross_reference_stack_item%describe => describe
+            help_cross_reference_stack_item%argument = ""
+            if (present(argument)) help_cross_reference_stack_item%argument = argument
         end if
 
         if (is_buffer_live(previous)) call set_buffer(previous, st)
-    end subroutine help_setup_xref
+    end subroutine help_setup_cross_reference
 
     !> Return to the page ITEM shows, from BUFFER, after recording the
-    !> current page as the top of ONTO: what help_xref_go_back and
-    !> help_xref_go_forward share.  FROM is the stack ITEM is the top of.
+    !> current page as the top of ONTO: what help_cross_reference_go_back and
+    !> help_cross_reference_go_forward share.  FROM is the stack ITEM is the top of.
     !> Not a port.
     recursive subroutine go_to_item(buffer, from, onto, status)
         type(handle_type), intent(in) :: buffer
-        type(help_xref_item_type), allocatable, intent(inout) :: from(:), onto(:)
+        type(help_cross_reference_item_type), allocatable, intent(inout) :: from(:), onto(:)
         type(status_type), intent(out) :: status
-        type(help_xref_item_type) :: item, current
-        type(help_xref_item_type), allocatable :: rest(:)
+        type(help_cross_reference_item_type) :: item, current
+        type(help_cross_reference_item_type), allocatable :: rest(:)
         type(handle_type) :: window
         integer :: n
 
@@ -276,7 +276,7 @@ contains
         if (.not. status%ok()) return
         if (.not. allocated(from)) allocate (from(0))
         if (.not. allocated(onto)) allocate (onto(0))
-        current = help_xref_stack_item
+        current = help_cross_reference_stack_item
         current%position = point()
         onto = [onto, current]
         n = size(from)
@@ -286,8 +286,8 @@ contains
         call move_alloc(rest, from)
         ! Clear the current item so that it won't get pushed by the
         ! function we're about to call.
-        help_xref_stack_item%describe => null()
-        if (allocated(help_xref_stack_item%argument)) deallocate (help_xref_stack_item%argument)
+        help_cross_reference_stack_item%describe => null()
+        if (allocated(help_cross_reference_stack_item%argument)) deallocate (help_cross_reference_stack_item%argument)
         if (.not. associated(item%describe)) return
         call item%describe(item%argument, status)
         if (.not. status%ok()) return
@@ -302,30 +302,30 @@ contains
         end if
     end subroutine go_to_item
 
-    module procedure help_xref_go_back
+    module procedure help_cross_reference_go_back
     type(handle_type) :: previous
     type(status_type) :: st
 
     previous = current_buffer()
-    call go_to_item(buffer, help_xref_stack, help_xref_forward_stack, status)
+    call go_to_item(buffer, help_cross_reference_stack, help_cross_reference_forward_stack, status)
     if (is_buffer_live(previous)) call set_buffer(previous, st)
-    end procedure help_xref_go_back
+    end procedure help_cross_reference_go_back
 
-    module procedure help_xref_go_forward
+    module procedure help_cross_reference_go_forward
     type(handle_type) :: previous
     type(status_type) :: st
 
     previous = current_buffer()
-    call go_to_item(buffer, help_xref_forward_stack, help_xref_stack, status)
+    call go_to_item(buffer, help_cross_reference_forward_stack, help_cross_reference_stack, status)
     if (is_buffer_live(previous)) call set_buffer(previous, st)
-    end procedure help_xref_go_forward
+    end procedure help_cross_reference_go_forward
 
     module procedure help_go_back
     status = status_type()
 
-    if (allocated(help_xref_stack)) then
-        if (size(help_xref_stack) > 0) then
-            call help_xref_go_back(current_buffer(), status)
+    if (allocated(help_cross_reference_stack)) then
+        if (size(help_cross_reference_stack) > 0) then
+            call help_cross_reference_go_back(current_buffer(), status)
             return
         end if
     end if
@@ -336,9 +336,9 @@ contains
     module procedure help_go_forward
     status = status_type()
 
-    if (allocated(help_xref_forward_stack)) then
-        if (size(help_xref_forward_stack) > 0) then
-            call help_xref_go_forward(current_buffer(), status)
+    if (allocated(help_cross_reference_forward_stack)) then
+        if (size(help_cross_reference_forward_stack) > 0) then
+            call help_cross_reference_go_forward(current_buffer(), status)
             return
         end if
     end if
@@ -354,9 +354,9 @@ contains
     !> MATCH_NUMBER is the subexpression of interest in the last matched
     !> regexp.  KIND is the type of button to use.  NAME is passed to
     !> the button's action when it is invoked.
-    !> See `help_make_xrefs'.  Port of help-mode.el:help-xref-button (no
+    !> See `help_make_cross_references'.  Port of help-mode.el:help-xref-button (no
     !> `help_clean_buttons').
-    recursive subroutine help_xref_button(match_number, kind, name, status)
+    recursive subroutine help_cross_reference_button(match_number, kind, name, status)
         integer, intent(in) :: match_number
         type(button_kind_type), intent(in), target :: kind
         character(len=*), intent(in) :: name
@@ -373,12 +373,12 @@ contains
         call button_at(beginning, button, found)
         if (found) return
         call make_text_button(beginning, end, button, status, kind=kind, button_data=value_type(text=name))
-    end subroutine help_xref_button
+    end subroutine help_cross_reference_button
 
     !> Insert STRING and make a hyperlink from cross-reference text on it.
     !> KIND is the type of button to use.
-    !> See `help_make_xrefs'.  Port of help-mode.el:help-insert-xref-button.
-    recursive subroutine help_insert_xref_button(string, kind, status)
+    !> See `help_make_cross_references'.  Port of help-mode.el:help-insert-xref-button.
+    recursive subroutine help_insert_cross_reference_button(string, kind, status)
         character(len=*), intent(in) :: string
         type(button_kind_type), intent(in), target :: kind
         type(status_type), intent(out) :: status
@@ -389,7 +389,7 @@ contains
         call button_at(point(), button, found)
         if (found) return
         call insert_text_button(string, button, status, kind=kind)
-    end subroutine help_insert_xref_button
+    end subroutine help_insert_cross_reference_button
 
     !> The match of subexpression N of the last search, or "" if it did not
     !> match.  Not a port.
@@ -405,20 +405,20 @@ contains
         if (beginning > 0 .and. end >= beginning) call buffer_substring_no_properties(beginning, end, text, st)
     end function match_string
 
-    module procedure help_make_xrefs
+    module procedure help_make_cross_references
     logical :: saved_read_only
 
     ! (let ((inhibit-read-only t)) ...): the buffer's own flag, cleared
     ! while the buttons are made.
     saved_read_only = buffers(current)%read_only
     buffers(current)%read_only = .false.
-    call make_xrefs(status)
+    call make_cross_references(status)
     buffers(current)%read_only = saved_read_only
-    end procedure help_make_xrefs
+    end procedure help_make_cross_references
 
-    !> The body of help_make_xrefs, the buffer writable.  Port of
+    !> The body of help_make_cross_references, the buffer writable.  Port of
     !> help-mode.el:help-make-xrefs.
-    recursive subroutine make_xrefs(status)
+    recursive subroutine make_cross_references(status)
         type(status_type), intent(out) :: status
         integer(int64) :: saved_point, start, found, left
         logical :: saved_fold
@@ -436,7 +436,7 @@ contains
 
         ! Quoted names.
         do
-            call regular_expression_search_forward(help_xref_name_regular_expression, found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(help_cross_reference_name_regular_expression, found, st, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found == 0) exit
             name = match_string(9)
             if (.not. (is_function_known(name) .or. is_variable_known(name))) cycle
@@ -445,16 +445,16 @@ contains
                 call delete_region(match_beginning(8, st), match_end(8, st), status)
             else if (len(match_string(3)) > 0) then
                 ! `variable' &c
-                if (is_variable_known(name)) call help_xref_button(9, help_variable, name, status)
+                if (is_variable_known(name)) call help_cross_reference_button(9, help_variable, name, status)
             else if (len(match_string(4)) > 0) then
                 ! `function' &c
-                if (is_function_known(name)) call help_xref_button(9, help_function, name, status)
+                if (is_function_known(name)) call help_cross_reference_button(9, help_function, name, status)
             else if (len(match_string(5)) > 0 .or. len(match_string(6)) > 0 .or. len(match_string(7)) > 0) then
                 ! Nothing for `face' (no face buttons yet), `symbol' and
                 ! `source of' (help-function-def is Deferred).
                 continue
             else
-                call help_xref_button(9, help_name, name, status)
+                call help_cross_reference_button(9, help_name, name, status)
             end if
 
             if (.not. status%ok()) exit
@@ -468,7 +468,7 @@ contains
                 call regular_expression_search_forward(M_X_REGULAR_EXPRESSION, found, st, noerror=SEARCH_NOERROR)
                 if (.not. st%ok() .or. found == 0) exit
                 name = match_string(1)
-                if (is_function_known(name)) call help_xref_button(1, help_function, name, status)
+                if (is_function_known(name)) call help_cross_reference_button(1, help_function, name, status)
                 if (.not. status%ok()) exit
             end do
         end if
@@ -487,7 +487,7 @@ contains
         if (.not. status%ok()) return
         call navigation_buttons(status)
         call goto_character(min(saved_point, point_maximum()))
-    end subroutine make_xrefs
+    end subroutine make_cross_references
 
     !> Insert the [back] and [forward] buttons at point, after an empty
     !> line.  Port of help-mode.el:help-xref--navigation-buttons.
@@ -498,8 +498,8 @@ contains
         status = status_type()
         back = .false.
         forward = .false.
-        if (allocated(help_xref_stack)) back = size(help_xref_stack) > 0
-        if (allocated(help_xref_forward_stack)) forward = size(help_xref_forward_stack) > 0
+        if (allocated(help_cross_reference_stack)) back = size(help_cross_reference_stack) > 0
+        if (allocated(help_cross_reference_forward_stack)) forward = size(help_cross_reference_forward_stack) > 0
 
         if (back .or. forward) then
             call ensure_empty_line(status)
@@ -508,14 +508,14 @@ contains
 
         ! Make a back-reference in this buffer if appropriate.
         if (back) then
-            call help_insert_xref_button(trim(help_back_label), help_back, status)
+            call help_insert_cross_reference_button(trim(help_back_label), help_back, status)
             if (.not. status%ok()) return
         end if
 
         ! Make a forward-reference in this buffer if appropriate.
         if (forward) then
             if (back) call insert(TAB, status)
-            call help_insert_xref_button(trim(help_forward_label), help_forward, status)
+            call help_insert_cross_reference_button(trim(help_forward_label), help_forward, status)
             if (.not. status%ok()) return
         end if
 
@@ -577,7 +577,7 @@ contains
     if (.not. status%ok()) return
 
     if (is_variable_known(name) .or. is_function_known(name)) then
-        call help_do_xref(describe_name, name, status)
+        call help_do_cross_reference(describe_name, name, status)
     else
         call set_error(status, USER_ERROR_CODE, "No name here")
     end if

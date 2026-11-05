@@ -34,7 +34,7 @@ module test_process_mod
     use system_worker_mod, only: on_main_thread, wait_for_worker_messages
     use system_dependent_mod, only: signal_disposition_type, default_signal, restore_signal, SIGHUP
     use process_mod, only: make_process, start_process, delete_process, destroy_process, &
-                           process_status, process_exit_status, is_process_live, process_name, process_tty_name, &
+                           process_status, process_exit_status, is_process_live, process_name, process_terminal_name, &
                            set_process_sentinel, set_process_filter, accept_process_output, stop_process, &
                            process_send_string, process_send_eof, get_buffer_process, get_process, process_list, &
                            process_shutdown, is_process, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, &
@@ -165,12 +165,12 @@ contains
     end subroutine drain
 
     !> The arguments `sh -c SCRIPT'.
-    subroutine sh_arguments(script, arguments)
+    subroutine shell_arguments(script, arguments)
         character(len=*), intent(in) :: script
         type(string_type), allocatable, intent(out) :: arguments(:)
 
         call append_string(arguments, "-c", script)
-    end subroutine sh_arguments
+    end subroutine shell_arguments
 
     !> Upstream's process-test-wait-for-sentinel on `bash -c "exit 20"`
     !> (sh here), waiting with accept-process-output.
@@ -195,7 +195,7 @@ contains
         type(status_type) :: st
 
         call reset_records()
-        call sh_arguments("exit 20", arguments)
+        call shell_arguments("exit 20", arguments)
         call start_process("test", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -291,11 +291,11 @@ contains
 
     !> The child's standard streams are terminals with a pty, pipes with
     !> a pipe (make-process/test-connection-type).
-    subroutine connection_type(error, ctype, expected, tty)
+    subroutine connection_type(error, ctype, expected, terminal)
         type(error_type), allocatable, intent(out) :: error
         integer, intent(in) :: ctype
         character(len=*), intent(in) :: expected
-        logical, intent(in) :: tty
+        logical, intent(in) :: terminal
         type(handle_type) :: process, buffer
         type(string_type), allocatable :: command(:)
         type(status_type) :: st
@@ -309,7 +309,7 @@ contains
                           sentinel=record_sentinel)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call check(error, len(process_tty_name(process)) > 0 .eqv. tty, "tty name")
+        call check(error, len(process_terminal_name(process)) > 0 .eqv. terminal, "tty name")
 
         if (.not. allocated(error)) then
             call wait_for_sentinel()
@@ -345,7 +345,7 @@ contains
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call erase_buffer(st)
-        call sh_arguments("echo one; echo two", arguments)
+        call shell_arguments("echo one; echo two", arguments)
         call start_process("printer", buffer, "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -368,7 +368,7 @@ contains
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call erase_buffer(st)
-        call sh_arguments("exit 3", arguments)
+        call shell_arguments("exit 3", arguments)
         call start_process("failing", buffer, "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -386,7 +386,7 @@ contains
         type(status_type) :: st
 
         call reset_records()
-        call sh_arguments("sleep 100", arguments)
+        call shell_arguments("sleep 100", arguments)
         call start_process("sleeper", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -411,7 +411,7 @@ contains
         type(status_type) :: st
 
         call reset_records()
-        call sh_arguments("sleep 100", arguments)
+        call shell_arguments("sleep 100", arguments)
         call start_process("doomed", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -441,7 +441,7 @@ contains
         call set_buffer(buffer, st)
         call erase_buffer(st)
         call reset_records()
-        call sh_arguments("printf hello", arguments)
+        call shell_arguments("printf hello", arguments)
         call start_process("hello", buffer, "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -472,7 +472,7 @@ contains
         type(status_type) :: st
 
         call reset_records()
-        call sh_arguments("printf '\303'; sleep 1; printf '\251'", arguments)
+        call shell_arguments("printf '\303'; sleep 1; printf '\251'", arguments)
         call start_process("split", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -520,7 +520,7 @@ contains
         type(string_type), allocatable :: arguments(:)
         type(status_type) :: st
 
-        call sh_arguments("sleep 100", arguments)
+        call shell_arguments("sleep 100", arguments)
         call start_process("twin", null_handle(), "sh", p1, st, arguments)
         call start_process("twin", null_handle(), "sh", p2, st, arguments)
         call check(error, process_name(p1), "twin")
@@ -545,7 +545,7 @@ contains
         call get_or_make_buffer("*process-test*", buffer, st)
         call set_buffer(buffer, st)
         call reset_records()
-        call sh_arguments("sleep 100", arguments)
+        call shell_arguments("sleep 100", arguments)
         call default_signal(SIGHUP, old_hup)
         call start_process("hup", buffer, "sh", process, st, arguments)
         call restore_signal(SIGHUP, old_hup)
@@ -591,7 +591,7 @@ contains
         integer :: k
         logical :: ready
 
-        call sh_arguments("exit 0", arguments)
+        call shell_arguments("exit 0", arguments)
 
         do k = 1, 100
             call start_process("short", null_handle(), "sh", process, st, arguments)
@@ -625,7 +625,7 @@ contains
         integer(int64) :: position
 
         call initialize_bindings()
-        call sh_arguments("sleep 30", arguments)
+        call shell_arguments("sleep 30", arguments)
         call start_process("fm-listed", null_handle(), "sh", process, st, arguments)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return

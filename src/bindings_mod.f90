@@ -40,15 +40,15 @@ module bindings_mod
     use page_mod, only: initialize_page
     use button_mod, only: initialize_button
     use keyboard_mod, only: local_function_key_map, initialize_macros_commands, initialize_keyboard_suspend_commands, help_events
-    use keyboard_macros_mod, only: initialize_kmacro, kmacro_keymap
+    use keyboard_macros_mod, only: initialize_keyboard_macro, keyboard_macro_keymap
     use editing_commands_mod, only: initialize_commands, forward_character, backward_character
     use display_update_mod, only: initialize_display_commands
     use simple_mod, only: initialize_simple, backward_word, region_bounds, is_region_noncontiguous
     use syntax_mod, only: initialize_syntax, forward_word
     use syntax_propertize_mod, only: initialize_syntax_propertize
-    use simple_minded_indentation_engine_mod, only: initialize_smie
+    use simple_minded_indentation_engine_mod, only: initialize_simple_minded_indentation_engine
     use executable_mod, only: initialize_executable
-    use shell_script_mod, only: initialize_sh_script
+    use shell_script_mod, only: initialize_shell_script
     use paragraphs_mod, only: initialize_paragraphs
     use expression_motion_mod, only: initialize_expression_motion
     use search_mod, only: initialize_search, begin_running_asynchronous_code, end_running_asynchronous_code
@@ -59,25 +59,25 @@ module bindings_mod
     use utility_functions_mod, only: initialize_functions
     use indent_mod, only: initialize_indent
     use fill_mod, only: initialize_fill
-    use incremental_search_mod, only: initialize_isearch
+    use incremental_search_mod, only: initialize_incremental_search
     use window_mod, only: initialize_window_commands
     use frame_mod, only: initialize_frame_commands
     use buffer_mod, only: initialize_buffer_commands
     use files_mod, only: initialize_files
-    use version_control_hooks_mod, only: initialize_vc_hooks
-    use version_control_mod, only: initialize_vc
-    use version_control_subversion_mod, only: initialize_vc_svn
-    use version_control_git_mod, only: initialize_vc_git
-    use version_control_mercurial_mod, only: initialize_vc_hg
+    use version_control_hooks_mod, only: initialize_version_control_hooks
+    use version_control_mod, only: initialize_version_control
+    use version_control_subversion_mod, only: initialize_version_control_subversion
+    use version_control_git_mod, only: initialize_version_control_git
+    use version_control_mercurial_mod, only: initialize_version_control_mercurial
     use log_view_mod, only: initialize_log_view
-    use version_control_directory_mod, only: initialize_vc_directory
+    use version_control_directory_mod, only: initialize_version_control_directory
     use project_mod, only: initialize_project
-    use version_control_annotate_mod, only: initialize_vc_annotate
+    use version_control_annotate_mod, only: initialize_version_control_annotate
     use autorevert_mod, only: initialize_autorevert
     use repeat_mod, only: initialize_repeat
     use help_mod, only: initialize_help, register_keymap_name, help_map
-    use multilingual_environment_mod, only: initialize_mule
-    use incremental_search_mod, only: isearch_mode_map
+    use multilingual_environment_mod, only: initialize_multilingual_environment
+    use incremental_search_mod, only: incremental_search_mode_map
     use text_mode_mod, only: text_mode_map
     use programming_mode_mod, only: programming_mode_map
     use simple_mod, only: special_mode_map
@@ -87,45 +87,45 @@ module bindings_mod
     use apropos_mod, only: initialize_apropos
     use minibuffer_reading_mod, only: initialize_minibuf, minibuffer_local_map
     use minibuffer_mod, only: initialize_minibuffer, completion_at_point
-    use basic_subprograms_mod, only: initialize_subr
+    use basic_subprograms_mod, only: initialize_basic_subprograms
     use text_mode_mod, only: initialize_text_mode
     use configuration_mode_mod, only: initialize_configuration_mode
     use make_mode_mod, only: initialize_make_mode
     use python_mod, only: initialize_python
     use css_mode_mod, only: initialize_css_mode
-    use javascript_mod, only: initialize_js
+    use javascript_mod, only: initialize_javascript
     use skeleton_mod, only: initialize_skeleton
     use sgml_mode_mod, only: initialize_sgml_mode
     use f90_mod, only: initialize_f90
     use programming_mode_mod, only: initialize_programming_mode
     use font_core_mod, only: initialize_font_core
     use font_lock_mod, only: initialize_font_lock
-    use just_in_time_lock_mod, only: initialize_jit_lock
-    use directory_editor_mode_mod, only: initialize_dired_mode, dired_mode_map
+    use just_in_time_lock_mod, only: initialize_just_in_time_lock
+    use directory_editor_mode_mod, only: initialize_directory_editor_mode, directory_editor_mode_map
     use view_mod, only: initialize_view
     use follow_mod, only: initialize_follow
     use process_mod, only: initialize_process, begin_asynchronous_code, end_asynchronous_code
     use compile_mod, only: initialize_compile, compilation_mode_map
     use grep_mod, only: initialize_grep
-    use cross_reference_mod, only: initialize_xref
-    use fortmacs_tags_mod, only: initialize_etags
+    use cross_reference_mod, only: initialize_cross_reference
+    use fortmacs_tags_mod, only: initialize_fortmacs_tags
     use diff_mode_mod, only: initialize_diff_mode
-    use simple_merge_mode_mod, only: initialize_smerge_mode
+    use simple_merge_mode_mod, only: initialize_simple_merge_mode
     use add_log_mod, only: initialize_add_log
     use diff_mod, only: initialize_diff
-    use fortmacs_diff_mod, only: initialize_ediff
-    use command_interpreter_mod, only: initialize_comint, comint_mode_map
-    use programmable_completion_mod, only: initialize_pcomplete
+    use fortmacs_diff_mod, only: initialize_fortmacs_diff
+    use command_interpreter_mod, only: initialize_command_interpreter, command_interpreter_mode_map
+    use programmable_completion_mod, only: initialize_programmable_completion
     use authentication_source_mod, only: initialize_authentication_source
     use ansi_color_mod, only: initialize_ansi_color
     use shell_mod, only: initialize_shell, shell_mode_map
     use rectangle_mod, only: initialize_rectangle
-    use save_history_mod, only: initialize_savehist
+    use save_history_mod, only: initialize_save_history
     use winner_mod, only: initialize_winner
     use tab_bar_mod, only: initialize_tab_bar
     use window_move_mod, only: initialize_windmove
     use saveplace_mod, only: initialize_saveplace
-    use recent_files_mod, only: initialize_recentf
+    use recent_files_mod, only: initialize_recent_files
     use tabulated_list_mod, only: initialize_tabulated_list
     use simple_mod, only: initialize_simple_process
     use bookmark_mod, only: initialize_bookmark, bookmark_map, bookmark_minibuffer_read_name_map
@@ -135,14 +135,14 @@ module bindings_mod
     use calendar_mod, only: initialize_calendar
     use holidays_mod, only: initialize_holidays
     use ibuffer_mod, only: initialize_ibuffer
-    use completing_read_multiple_mod, only: initialize_crm
+    use completing_read_multiple_mod, only: initialize_completing_read_multiple
     use register_mod, only: initialize_register
-    use abbreviation_mod, only: initialize_abbrev, edit_abbrevs_mode_map
-    use dynamic_abbreviation_mod, only: initialize_dabbrev
+    use abbreviation_mod, only: initialize_abbreviation, edit_abbreviations_mode_map
+    use dynamic_abbreviation_mod, only: initialize_dynamic_abbreviation
     use spellcheck_mod, only: initialize_spellcheck
     use spellcheck_mode_mod, only: initialize_spellcheck_mode
     use parenthesis_mod, only: initialize_parenthesis
-    use index_menu_mod, only: initialize_imenu
+    use index_menu_mod, only: initialize_index_menu
     use which_function_mod, only: initialize_which_function
     use electric_mod, only: initialize_electric
     use electric_pair_mod, only: initialize_electric_pair
@@ -179,7 +179,7 @@ module bindings_mod
     type(handle_type), public :: search_map
 
     !> bindings.el:abbrev-map (keymap for abbrev commands).
-    type(handle_type), public :: abbrev_map
+    type(handle_type), public :: abbreviation_map
 
     !> The repeat maps (keymaps to repeat commands in `repeat_mode'):
     !> bindings.el:undo-repeat-map (`undo'), buffer-navigation-repeat-map
@@ -332,14 +332,14 @@ contains
         if (is_keymap_live(goto_map)) call destroy_keymap(goto_map, status)
         if (is_keymap_live(narrow_map)) call destroy_keymap(narrow_map, status)
         if (is_keymap_live(search_map)) call destroy_keymap(search_map, status)
-        if (is_keymap_live(abbrev_map)) call destroy_keymap(abbrev_map, status)
+        if (is_keymap_live(abbreviation_map)) call destroy_keymap(abbreviation_map, status)
         if (is_keymap_live(undo_repeat_map)) call destroy_keymap(undo_repeat_map, status)
         if (is_keymap_live(buffer_navigation_repeat_map)) call destroy_keymap(buffer_navigation_repeat_map, status)
         if (is_keymap_live(next_error_repeat_map)) call destroy_keymap(next_error_repeat_map, status)
         if (is_keymap_live(page_navigation_repeat_map)) call destroy_keymap(page_navigation_repeat_map, status)
         if (is_keymap_live(other_window_repeat_map)) call destroy_keymap(other_window_repeat_map, status)
         ! First: bindings.el's minor-mode-alist starts with abbrev-mode.
-        call initialize_abbrev()
+        call initialize_abbreviation()
         call initialize_commands()
         call initialize_display_commands()
         call initialize_simple()
@@ -352,7 +352,7 @@ contains
         commands%left_word%execute => execute_left_word
         call initialize_syntax()
         call initialize_syntax_propertize()
-        call initialize_smie()
+        call initialize_simple_minded_indentation_engine()
         call initialize_paragraphs()
         call initialize_expression_motion()
         call initialize_search()
@@ -369,37 +369,37 @@ contains
         call initialize_newcomment()
         call initialize_novice()
         call initialize_text_mode()
-        call initialize_imenu()
+        call initialize_index_menu()
         call initialize_configuration_mode()
         call initialize_make_mode()
         call initialize_python()
         call initialize_css_mode()
-        call initialize_js()
+        call initialize_javascript()
         call initialize_skeleton()
         call initialize_sgml_mode()
         call initialize_f90()
         call initialize_programming_mode()
-        call initialize_jit_lock()
+        call initialize_just_in_time_lock()
         call initialize_font_core()
         call initialize_font_lock()
         call initialize_executable()
-        call initialize_sh_script()
+        call initialize_shell_script()
         call initialize_process()
-        call initialize_comint()
-        call initialize_pcomplete()
+        call initialize_command_interpreter()
+        call initialize_programmable_completion()
         call initialize_ansi_color()
         call initialize_shell()
         call initialize_compile()
         call initialize_occur()
         call initialize_diff_mode()
         call initialize_diff()
-        call initialize_ediff()
+        call initialize_fortmacs_diff()
         call initialize_rectangle()
-        call initialize_savehist()
+        call initialize_save_history()
         call initialize_winner()
         call initialize_windmove()
         call initialize_saveplace()
-        call initialize_recentf()
+        call initialize_recent_files()
         call initialize_tabulated_list()
         call initialize_simple_process()
         call initialize_bookmark()
@@ -412,8 +412,8 @@ contains
         call initialize_register()
         call initialize_macros_commands()
         call initialize_keyboard_suspend_commands()
-        call initialize_kmacro()
-        call initialize_dabbrev()
+        call initialize_keyboard_macro()
+        call initialize_dynamic_abbreviation()
         call initialize_spellcheck()
         call initialize_spellcheck_mode()
         ! subr.el: esc-map, ctl-x-map, global-map.
@@ -551,35 +551,35 @@ contains
         call bind(control_x_r_map, "b", "bookmark_jump")
         call bind(control_x_r_map, "m", "bookmark_set")
         call bind(control_x_r_map, "M", "bookmark_set_no_overwrite")
-        call bind(control_x_r_map, "l", "bookmark_bmenu_list")
+        call bind(control_x_r_map, "l", "bookmark_bookmark_menu_list")
         key(1) = value_type(int(iachar("r"), int64))
         call define_key(control_x_map, key, make_keymap_reference(control_x_r_map), status)
         ! kmacro.el (autoloads): keyboard macros.
-        call bind(control_x_map, "(", "kmacro_start_macro")
-        call bind(control_x_map, ")", "kmacro_end_macro")
-        call bind(control_x_map, "e", "kmacro_end_and_execute_macro")
-        call bind(global_map, "<f3>", "kmacro_start_macro_or_insert_counter")
-        call bind(global_map, "<f4>", "kmacro_end_or_execute_macro")
+        call bind(control_x_map, "(", "keyboard_macro_start_macro")
+        call bind(control_x_map, ")", "keyboard_macro_end_macro")
+        call bind(control_x_map, "e", "keyboard_macro_end_and_execute_macro")
+        call bind(global_map, "<f3>", "keyboard_macro_start_macro_or_insert_counter")
+        call bind(global_map, "<f4>", "keyboard_macro_end_or_execute_macro")
         key(1) = value_type(11_int64)
-        call define_key(control_x_map, key, make_keymap_reference(kmacro_keymap), status)
+        call define_key(control_x_map, key, make_keymap_reference(keyboard_macro_keymap), status)
         ! bindings.el: abbrev-map, and the abbrev keys.
-        call make_sparse_keymap(abbrev_map)
-        call bind(abbrev_map, "l", "add_mode_abbrev")
-        call bind(abbrev_map, "C-a", "add_mode_abbrev")
-        call bind(abbrev_map, "g", "add_global_abbrev")
-        call bind(abbrev_map, "+", "add_mode_abbrev")
-        call bind(abbrev_map, "i g", "inverse_add_global_abbrev")
-        call bind(abbrev_map, "i l", "inverse_add_mode_abbrev")
-        call bind(abbrev_map, "-", "inverse_add_global_abbrev")
-        call bind(abbrev_map, "e", "expand_abbrev")
-        call bind(abbrev_map, "'", "expand_abbrev")
+        call make_sparse_keymap(abbreviation_map)
+        call bind(abbreviation_map, "l", "add_mode_abbreviation")
+        call bind(abbreviation_map, "C-a", "add_mode_abbreviation")
+        call bind(abbreviation_map, "g", "add_global_abbreviation")
+        call bind(abbreviation_map, "+", "add_mode_abbreviation")
+        call bind(abbreviation_map, "i g", "inverse_add_global_abbreviation")
+        call bind(abbreviation_map, "i l", "inverse_add_mode_abbreviation")
+        call bind(abbreviation_map, "-", "inverse_add_global_abbreviation")
+        call bind(abbreviation_map, "e", "expand_abbreviation")
+        call bind(abbreviation_map, "'", "expand_abbreviation")
         key(1) = value_type(int(iachar("a"), int64))
-        call define_key(control_x_map, key, make_keymap_reference(abbrev_map), status)
-        call bind(escape_map, "'", "abbrev_prefix_mark")
-        call bind(control_x_map, "'", "expand_abbrev")
+        call define_key(control_x_map, key, make_keymap_reference(abbreviation_map), status)
+        call bind(escape_map, "'", "abbreviation_prefix_mark")
+        call bind(control_x_map, "'", "expand_abbreviation")
         ! dabbrev.el (autoloads).
-        call bind(escape_map, "/", "dabbrev_expand")
-        call bind(global_map, "C-M-/", "dabbrev_completion")
+        call bind(escape_map, "/", "dynamic_abbreviation_expand")
+        call bind(global_map, "C-M-/", "dynamic_abbreviation_completion")
         ! ispell.el (autoloads).
         call bind(escape_map, "$", "spellcheck_word")
         call bind(global_map, "C-?", "undo_redo")
@@ -690,7 +690,7 @@ contains
         call bind(escape_map, "C-%", "query_replace_regular_expression")
         call bind(escape_map, "!", "shell_command")
         call bind(escape_map, "|", "shell_command_on_region")
-        call bind(escape_map, "&", "async_shell_command")
+        call bind(escape_map, "&", "asynchronous_shell_command")
         call bind(control_x_map, "`", "next_error")
         call make_sparse_keymap(next_error_repeat_map)
         call bind(next_error_repeat_map, "n", "next_error")
@@ -710,7 +710,7 @@ contains
         call bind(goto_map, "g", "goto_line")
         call bind(goto_map, "M-g", "goto_line")
         call bind(goto_map, "TAB", "move_to_column")
-        call bind(goto_map, "i", "imenu")
+        call bind(goto_map, "i", "index_menu")
         key(1) = value_type(int(iachar("g"), int64))
         call define_key(escape_map, key, make_keymap_reference(goto_map), status)
         ! bindings.el: search-map (the keys of ported commands).
@@ -774,26 +774,26 @@ contains
         key(1) = value_type(int(iachar("t"), int64))
         call define_key(control_x_map, key, make_keymap_reference(tab_prefix_map), status)
         call initialize_tab_bar(tab_prefix_map)
-        call initialize_vc_hooks(control_x_map)
-        ! (After vc_hooks: `grep_find_ignored_directories' defaults to
-        ! `vc_directory_exclusions'.)
+        call initialize_version_control_hooks(control_x_map)
+        ! (After version_control_hooks: `grep_find_ignored_directories' defaults to
+        ! `version_control_directory_exclusions'.)
         call initialize_grep()
-        call initialize_xref(escape_map, control_x_4_map)
-        call initialize_etags()
-        call initialize_vc()
+        call initialize_cross_reference(escape_map, control_x_4_map)
+        call initialize_fortmacs_tags()
+        call initialize_version_control()
         call initialize_log_view()
-        call initialize_vc_directory()
+        call initialize_version_control_directory()
         call initialize_project(control_x_map)
         call initialize_autorevert()
         call initialize_repeat()
-        call initialize_vc_svn()
-        call initialize_smerge_mode()
-        call initialize_vc_git()
-        call initialize_vc_hg()
-        call initialize_vc_annotate()
+        call initialize_version_control_subversion()
+        call initialize_simple_merge_mode()
+        call initialize_version_control_git()
+        call initialize_version_control_mercurial()
+        call initialize_version_control_annotate()
         call initialize_view()
         call initialize_follow()
-        call initialize_dired_mode(control_x_map, control_x_4_map, control_x_5_map, tab_prefix_map)
+        call initialize_directory_editor_mode(control_x_map, control_x_4_map, control_x_5_map, tab_prefix_map)
         ! Mail: mail-utils.el, mail-extr.el, sendmail.el, smtpmail.el, mailabbrev.el and
         ! simple.el's compose-mail, with their keys from bindings.el.
         call initialize_mail_utilities()
@@ -806,15 +806,15 @@ contains
         call bind(control_x_4_map, "m", "compose_mail_other_window")
         ! add-log.el: (define-key ctl-x-4-map "a" 'add-change-log-entry-other-window)
         call initialize_add_log(control_x_4_map)
-        call initialize_isearch(global_map)
+        call initialize_incremental_search(global_map)
         ! The minibuffer: minibuffer-local-map's keys from minibuffer.el,
         ! then its keys from bindings.el.
         if (is_keymap_live(minibuffer_local_map)) call destroy_keymap(minibuffer_local_map, status)
         call initialize_minibuf()
         call initialize_minibuffer()
         call initialize_authentication_source()
-        call initialize_crm()
-        call initialize_subr()
+        call initialize_completing_read_multiple()
+        call initialize_basic_subprograms()
         call bind(minibuffer_local_map, "M-n", "next_history_element")
         call bind(minibuffer_local_map, "<next>", "next_history_element")
         call bind(minibuffer_local_map, "<down>", "next_line_or_history_element")
@@ -832,25 +832,25 @@ contains
         call initialize_button()
         call initialize_help_functions()
         call initialize_apropos()
-        call initialize_mule(global_map, control_x_map, help_map)
+        call initialize_multilingual_environment(global_map, control_x_map, help_map)
         ! The other keymap variables, for \<MAP> and help--binding-locus.
         call register_keymap_name("escape_map", escape_map)
         call register_keymap_name("control_x_map", control_x_map)
         call register_keymap_name("control_x_4_map", control_x_4_map)
         call register_keymap_name("control_x_5_map", control_x_5_map)
-        call register_keymap_name("dired_mode_map", dired_mode_map)
+        call register_keymap_name("directory_editor_mode_map", directory_editor_mode_map)
         call register_keymap_name("control_x_r_map", control_x_r_map)
-        call register_keymap_name("abbrev_map", abbrev_map)
-        call register_keymap_name("edit_abbrevs_mode_map", edit_abbrevs_mode_map)
-        call register_keymap_name("kmacro_keymap", kmacro_keymap)
+        call register_keymap_name("abbreviation_map", abbreviation_map)
+        call register_keymap_name("edit_abbreviations_mode_map", edit_abbreviations_mode_map)
+        call register_keymap_name("keyboard_macro_keymap", keyboard_macro_keymap)
         call register_keymap_name("bookmark_map", bookmark_map)
         call register_keymap_name("bookmark_minibuffer_read_name_map", bookmark_minibuffer_read_name_map)
-        call register_keymap_name("isearch_mode_map", isearch_mode_map)
+        call register_keymap_name("incremental_search_mode_map", incremental_search_mode_map)
         call register_keymap_name("text_mode_map", text_mode_map)
         call register_keymap_name("programming_mode_map", programming_mode_map)
         call register_keymap_name("special_mode_map", special_mode_map)
         call register_keymap_name("compilation_mode_map", compilation_mode_map)
-        call register_keymap_name("comint_mode_map", comint_mode_map)
+        call register_keymap_name("command_interpreter_mode_map", command_interpreter_mode_map)
         call register_keymap_name("shell_mode_map", shell_mode_map)
         call register_keymap_name("mail_mode_map", mail_mode_map)
         call register_keymap_name("goto_map", goto_map)

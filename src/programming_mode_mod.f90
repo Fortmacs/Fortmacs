@@ -26,14 +26,14 @@ module programming_mode_mod
     use error_mod, only: status_type
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
-    use abbreviation_mod, only: abbrev_table_type
+    use abbreviation_mod, only: abbreviation_table_type
     use handle_mod, only: handle_type
     use files_mod, only: set_require_final_newline_from_mode
     use syntax_mod, only: parse_expression_ignore_comments
     implicit none(type, external)
     private
 
-    public :: programming_mode, initialize_programming_mode, prog_first_column
+    public :: programming_mode, initialize_programming_mode, programming_first_column
 
     !> Normal hook run when entering programming modes.  Port of
     !> prog-mode.el prog-mode-hook.
@@ -45,7 +45,7 @@ module programming_mode_mod
 
     !> Abbrev table for `programming_mode'.  Port of prog-mode.el
     !> prog-mode-abbrev-table (made by define-derived-mode).
-    type(abbrev_table_type), target, public :: programming_mode_abbrev_table
+    type(abbreviation_table_type), target, public :: programming_mode_abbreviation_table
 
     !> The value of `programming_indentation_context': none (`active' .false.) or
     !> FIRST-COLUMN and REST.
@@ -58,7 +58,7 @@ module programming_mode_mod
     !>
     !> There are languages where part of the code is actually written in
     !> a sub language, e.g., a Yacc/Bison or ANTLR grammar can also include
-    !> JS or Python code.  This variable enables the primary mode of the
+    !> JAVASCRIPT or Python code.  This variable enables the primary mode of the
     !> main language to use the indentation engine of the sub-mode for
     !> lines in code chunks written in the sub-mode's language.
     !>
@@ -91,15 +91,15 @@ contains
     !> define-derived-mode takes as no parent.  Not a port.
     subroutine initialize_programming_mode()
         call major_modes%programming_mode%define("programming_mode", "Prog", programming_mode, programming_mode_hook, &
-                                                 abbrev_table=programming_mode_abbrev_table)
+                                                 abbreviation_table=programming_mode_abbreviation_table)
         programming_mode_map = major_modes%programming_mode%map
         commands%programming_mode%execute => programming_mode
     end subroutine initialize_programming_mode
 
     !> Return the indentation column normally used for top-level constructs.
     !> Port of prog-mode.el:prog-first-column.
-    integer function prog_first_column()
-        prog_first_column = 0
-        if (programming_indentation_context%active) prog_first_column = programming_indentation_context%first_column
-    end function prog_first_column
+    integer function programming_first_column()
+        programming_first_column = 0
+        if (programming_indentation_context%active) programming_first_column = programming_indentation_context%first_column
+    end function programming_first_column
 end module programming_mode_mod

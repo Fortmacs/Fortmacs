@@ -21,11 +21,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `check_region_skip' of `ediff_session_type': a submodule because the
+!> `check_region_skip' of `fortmacs_diff_session_type': a submodule because the
 !> merge states it tests come from fortmacs_diff_merging_mod, which uses
 !> fortmacs_diff_settings_mod.
 submodule(fortmacs_diff_settings_mod) fortmacs_diff_settings_skip_mod
-    use fortmacs_diff_merging_mod, only: is_ediff_merge_region_non_clash, is_ediff_merge_changed_from_default
+    use fortmacs_diff_merging_mod, only: is_fortmacs_diff_merge_region_non_clash, is_fortmacs_diff_merge_changed_from_default
     implicit none(type, external)
 
 contains
@@ -37,11 +37,11 @@ contains
     status = status_type()
     skip = .false.
     if (.not. self%merge_job) return
-    session_index = findloc(ediff_sessions%serial, self%serial, dim=1)
-    if (self%show_clashes_only) skip = is_ediff_merge_region_non_clash(session_index, difference)
+    session_index = findloc(fortmacs_diff_sessions%serial, self%serial, dim=1)
+    if (self%show_clashes_only) skip = is_fortmacs_diff_merge_region_non_clash(session_index, difference)
 
     if (self%skip_merge_regions_that_differ_from_default) then
-        call is_ediff_merge_changed_from_default(session_index, difference, changed, status, prefers_too=.true.)
+        call is_fortmacs_diff_merge_changed_from_default(session_index, difference, changed, status, prefers_too=.true.)
         if (.not. status%ok()) return
         skip = skip .or. changed
     end if

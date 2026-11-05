@@ -35,7 +35,7 @@ window-system frames (so far the tests' fake device): `gui_produce_glyphs` (char
 `estimate_mode_line_height`,
 the graphic mode line (mode-line-front-space " ", mode-line-frame-control "  ", no mode-line-end-spaces; display_string truncation and the space fill),
 `get_physical_cursor_geometry`,
-`gui_draw_vertical_border`,
+`graphical_user_interface_draw_vertical_border`,
 the selected window's filled box cursor,
 the echo area;
 `clear_garbaged_frames`; *Messages*: `message_dolog` (duplicates combined into "[N times]", progress messages ending in "..." replaced, `message-log-max` lines kept),
@@ -51,7 +51,7 @@ overlays' `window` property,
 the buffer identification in the mode line (a buffer's `mode_line_buffer_identification` segments, or the name padded to 12),
 display strings in their `face` (as overlay strings);
 step 42d: `bidi-find-overridden-directionality` (the buffer or a string),
-`current-bidi-paragraph-direction` (BVAR `bidi_display_reordering` and `bidi_paragraph_direction` in buffer_mod),
+`current-bidi-paragraph-direction` (BVAR `bidirectional_display_reordering` and `bidirectional_paragraph_direction` in buffer_mod),
 `bidi-inhibit-bpa` (bidirectional_mod);
 cited: `handle_invisible_prop`,
 `setup_for_ellipsis`,

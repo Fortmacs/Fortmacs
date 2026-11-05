@@ -47,7 +47,7 @@ module derived_mod
     use buffer_mod, only: buffers, current
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, keymap_parent, set_keymap_parent, use_local_map
     use basic_subprograms_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
-    use abbreviation_mod, only: abbrev_table_type, local_abbrev_table, abbrev_table_set_local
+    use abbreviation_mod, only: abbreviation_table_type, local_abbreviation_table, abbreviation_table_set_local
     implicit none(type, external)
     private
 
@@ -92,9 +92,9 @@ module derived_mod
         type(handle_type) :: map
         !> Its syntax table, or the null handle to keep the parent's.
         type(handle_type) :: syntax_table
-        !> Its abbrev table (`MODE_abbrev_table'), or null to keep the
+        !> Its abbrev table (`MODE_abbreviation_table'), or null to keep the
         !> parent's.
-        type(abbrev_table_type), pointer :: abbrev_table => null()
+        type(abbreviation_table_type), pointer :: abbreviation_table => null()
         !> Run after the mode is set up (`MODE-hook').
         !> (A pointer to the hook object, e.g. `text_mode_hook'; null for
         !> none.)
@@ -150,17 +150,17 @@ contains
     !> Define major mode SELF named NAME, shown as MODE_NAME, whose command
     !> is EXECUTE, derived from PARENT (none if absent: the body starts by
     !> cutting all local variables).  SYNTAX_TABLE, if present, is its
-    !> syntax table, ABBREV_TABLE its abbrev table (made known as
-    !> NAME_abbrev_table).  Its keymap inherits PARENT's.  Port of
+    !> syntax table, ABBREVIATION_TABLE its abbrev table (made known as
+    !> NAME_abbreviation_table).  Its keymap inherits PARENT's.  Port of
     !> derived.el:define-derived-mode.
-    subroutine major_mode_define(self, name, mode_name, execute, hook, parent, syntax_table, abbrev_table)
+    subroutine major_mode_define(self, name, mode_name, execute, hook, parent, syntax_table, abbreviation_table)
         class(major_mode_type), intent(inout), target :: self
         character(len=*), intent(in) :: name, mode_name
         procedure(command_procedure) :: execute
         type(hook_type), intent(inout), target, optional :: hook
         type(major_mode_type), intent(in), target, optional :: parent
         type(handle_type), intent(in), optional :: syntax_table
-        type(abbrev_table_type), intent(inout), target, optional :: abbrev_table
+        type(abbreviation_table_type), intent(inout), target, optional :: abbreviation_table
         type(major_mode_reference_type) :: reference
         type(status_type) :: st
 
@@ -176,9 +176,9 @@ contains
 
         if (present(syntax_table)) self%syntax_table = syntax_table
 
-        if (present(abbrev_table)) then
-            self%abbrev_table => abbrev_table
-            call abbrev_table%define_table(trim(name)//"_abbrev_table")
+        if (present(abbreviation_table)) then
+            self%abbreviation_table => abbreviation_table
+            call abbreviation_table%define_table(trim(name)//"_abbreviation_table")
         end if
 
         if (.not. is_keymap_live(self%map)) call make_sparse_keymap(self%map)
@@ -213,7 +213,7 @@ contains
         class(major_mode_type), intent(inout) :: self
         logical, intent(out) :: saved
         type(status_type), intent(out) :: status
-        type(abbrev_table_type), pointer :: local_table
+        type(abbreviation_table_type), pointer :: local_table
 
         status = status_type()
         saved = .false.
@@ -239,21 +239,21 @@ contains
             if (self%parent%special) self%special = .true.
         end if
 
-        if (associated(self%parent) .and. associated(self%abbrev_table)) then
-            local_table => local_abbrev_table()
+        if (associated(self%parent) .and. associated(self%abbreviation_table)) then
+            local_table => local_abbreviation_table()
 
-            if (.not. allocated(self%abbrev_table%parents)) then
+            if (.not. allocated(self%abbreviation_table%parents)) then
                 ! This can happen if the major mode defines the abbrev-table
                 ! to be its parent's.
-                if (.not. associated(self%abbrev_table, local_table)) call self%abbrev_table%append_parent(local_table)
-            else if (size(self%abbrev_table%parents) == 0) then
-                if (.not. associated(self%abbrev_table, local_table)) call self%abbrev_table%append_parent(local_table)
+                if (.not. associated(self%abbreviation_table, local_table)) call self%abbreviation_table%append_parent(local_table)
+            else if (size(self%abbreviation_table%parents) == 0) then
+                if (.not. associated(self%abbreviation_table, local_table)) call self%abbreviation_table%append_parent(local_table)
             end if
         end if
 
         call use_local_map(self%map, status)
         if (self%syntax_table%index /= 0) buffers(current)%syntax_table = self%syntax_table
-        if (associated(self%abbrev_table)) call abbrev_table_set_local(self%abbrev_table)
+        if (associated(self%abbreviation_table)) call abbreviation_table_set_local(self%abbreviation_table)
     end subroutine major_mode_begin
 
     !> End the body of the mode: end the delay and run its mode hooks.

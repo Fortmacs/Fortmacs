@@ -31,7 +31,7 @@
 module indent_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: prefix_argument_type
-    use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buffer_serial_live
+    use buffer_mod, only: buffers, current, buffer_fetch_character, buffer_next_character_length, buffer_serial_live
     use category_mod, only: character_has_category
     use marker_mod, only: character_to_byte
     use error_mod, only: status_type
@@ -590,7 +590,7 @@ contains
             end if
 
             byte = character_to_byte(scan)
-            c = buf_fetch_char(buffers(current), byte)
+            c = buffer_fetch_character(buffers(current), byte)
             if (c == 10) exit
             column = column + glyph_columns(c, int(column))
             scan = scan + 1
@@ -754,7 +754,7 @@ contains
         position = buffers(current)%end_of_accessible_portion
         call scan_for_column(position, column, reached, previous_position, previous_column)
         c = 0
-        if (previous_position < buffers(current)%end_of_accessible_portion) c = buf_fetch_char(buffers(current), &
+        if (previous_position < buffers(current)%end_of_accessible_portion) c = buffer_fetch_character(buffers(current), &
                                                                                                character_to_byte(previous_position))
         call goto_character(position)
         if (present(status)) status = status_type()
@@ -830,7 +830,7 @@ contains
         column = 0
 
         do while (byte < buffers(current)%end_of_accessible_portion_byte)
-            c = buf_fetch_char(buffers(current), byte)
+            c = buffer_fetch_character(buffers(current), byte)
 
             if (c == 32 .or. (c == int(o'240') .and. .not. buffers(current)%multibyte)) then
                 column = column + 1
@@ -844,7 +844,7 @@ contains
                 exit
             end if
 
-            byte = byte + buf_next_char_len(buffers(current), byte)
+            byte = byte + buffer_next_character_length(buffers(current), byte)
         end do
     end function current_indentation
 

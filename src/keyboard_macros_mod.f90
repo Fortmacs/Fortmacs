@@ -23,33 +23,33 @@
 !> macros_mod of keyboard_mod): C-x ( starts defining a macro, C-x ) ends
 !> it and C-x e calls it (then e repeats it); <f3> starts a macro or
 !> inserts the macro counter, <f4> ends or calls it; C-x C-k is
-!> `kmacro_keymap' (the counter, the macro ring, viewing and the commands
+!> `keyboard_macro_keymap' (the counter, the macro ring, viewing and the commands
 !> that repeat on their last key).
 !>
-!> A macro of the ring is a `kmacro_type' (upstream's `kmacro' oclosure:
+!> A macro of the ring is a `keyboard_macro_type' (upstream's `kmacro' oclosure:
 !> its keys, counter and format); calling one runs it with its own
 !> counter and format, as calling the oclosure does.  The head of the
-!> ring is `last_keyboard_macro' with `kmacro_counter' and
-!> `kmacro_counter_format_start'.
+!> ring is `last_keyboard_macro' with `keyboard_macro_counter' and
+!> `keyboard_macro_counter_format_start'.
 !>
 !> Fortran has no anonymous commands: the key that repeats a macro after
 !> C-x e (upstream an anonymous procedure in a transient keymap) runs the command
-!> `kmacro_execute_macro_repeat'.
+!> `keyboard_macro_execute_macro_repeat'.
 !>
-!> Deferred: editing macros (`kmacro_edit_macro', `kmacro_edit_macro_repeat',
-!> `kmacro_edit_lossage', `edit_keyboard_macro': C-x C-k C-e, RET, e and l),
-!> step editing (`kmacro_step_edit_macro', C-x C-k SPC,
-!> `kmacro_step_edit_mini_window_height'), naming and binding macros
-!> (`kmacro_name_last_macro', `kmacro_bind_to_key': C-x C-k n and b, the
-!> keyboard macros as commands they make), `kmacro_to_register' (C-x C-k
+!> Deferred: editing macros (`keyboard_macro_edit_macro', `keyboard_macro_edit_macro_repeat',
+!> `keyboard_macro_edit_lossage', `edit_keyboard_macro': C-x C-k C-e, RET, e and l),
+!> step editing (`keyboard_macro_step_edit_macro', C-x C-k SPC,
+!> `keyboard_macro_step_edit_mini_window_height'), naming and binding macros
+!> (`keyboard_macro_name_last_macro', `keyboard_macro_bind_to_key': C-x C-k n and b, the
+!> keyboard macros as commands they make), `keyboard_macro_to_register' (C-x C-k
 !> x: register values that are macros), `apply_macro_to_region_lines'
 !> (C-x C-k r) and `keyboard_macro_query' (C-x C-k q, C-x q) from macros.el,
 !> the Keyboard Macro Menu (`list_keyboard_macros'), mouse events
-!> (`kmacro_execute_mouse_event', S-mouse-3, the EVENT of
-!> `kmacro_end_and_execute_macro', `kmacro_end_call_mouse'), a key name as
-!> `kmacro_execute_repeat_key', repeat-mode, the obsolete
-!> `kmacro_lambda_form', `kmacro_extract_lambda' and
-!> `kmacro_exec_ring_item', and the obsolete list form of ring elements.
+!> (`keyboard_macro_execute_mouse_event', S-mouse-3, the EVENT of
+!> `keyboard_macro_end_and_execute_macro', `keyboard_macro_end_call_mouse'), a key name as
+!> `keyboard_macro_execute_repeat_key', repeat-mode, the obsolete
+!> `keyboard_macro_lambda_form', `keyboard_macro_extract_lambda' and
+!> `keyboard_macro_exec_ring_item', and the obsolete list form of ring elements.
 module keyboard_macros_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
@@ -77,51 +77,60 @@ module keyboard_macros_mod
                             REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
     use editing_functions_mod, only: styled_format, format_arguments_type
     use keyboard_macro_editor_mod, only: format_keyboard_macro
-    use simple_mod, only: kmacro_keyboard_quit_hook
+    use simple_mod, only: keyboard_macro_keyboard_quit_hook
     implicit none(type, external)
     private
 
-    public :: kmacro_insert_counter, kmacro_set_format, kmacro_display_counter, kmacro_set_counter, kmacro_add_counter, &
-              kmacro_reg_load_counter, kmacro_reg_save_counter, kmacro_reg_add_counter, kmacro_quit_counter, &
-              kmacro_loop_setup_function, kmacro_ring_head, kmacro_push_ring, kmacro_split_ring_element, &
-              kmacro_pop_ring1, kmacro_pop_ring, is_kmacro_ring_empty, kmacro_display, kmacro_repeat_on_last_key, &
-              kmacro_execute_ring_2nd, kmacro_execute_ring_2nd_repeat, kmacro_view_ring_2nd, kmacro_cycle_ring_next, &
-              kmacro_cycle_ring_previous, kmacro_swap_ring, kmacro_delete_ring_head, kmacro_start_macro, &
-              kmacro_end_macro, kmacro_execute_macro, kmacro_start_macro_or_insert_counter, kmacro_end_or_execute_macro, &
-              kmacro_end_or_execute_macro_repeat, kmacro_end_and_execute_macro, kmacro_view_macro, &
-              kmacro_view_macro_repeat, kmacro_redisplay, kmacro_keyboard_quit, kmacro_execute, kmacro, initialize_kmacro
+    public :: keyboard_macro_insert_counter, keyboard_macro_set_format, keyboard_macro_display_counter, &
+              keyboard_macro_set_counter, keyboard_macro_add_counter, &
+              keyboard_macro_reg_load_counter, keyboard_macro_reg_save_counter, keyboard_macro_reg_add_counter, &
+              keyboard_macro_quit_counter, &
+              keyboard_macro_loop_setup_function, keyboard_macro_ring_head, keyboard_macro_push_ring, &
+              keyboard_macro_split_ring_element, &
+              keyboard_macro_pop_ring1, keyboard_macro_pop_ring, is_keyboard_macro_ring_empty, keyboard_macro_display, &
+              keyboard_macro_repeat_on_last_key, &
+              keyboard_macro_execute_ring_2nd, keyboard_macro_execute_ring_2nd_repeat, keyboard_macro_view_ring_2nd, &
+              keyboard_macro_cycle_ring_next, &
+              keyboard_macro_cycle_ring_previous, keyboard_macro_swap_ring, keyboard_macro_delete_ring_head, &
+              keyboard_macro_start_macro, &
+              keyboard_macro_end_macro, keyboard_macro_execute_macro, keyboard_macro_start_macro_or_insert_counter, &
+              keyboard_macro_end_or_execute_macro, &
+              keyboard_macro_end_or_execute_macro_repeat, keyboard_macro_end_and_execute_macro, keyboard_macro_view_macro, &
+              keyboard_macro_view_macro_repeat, keyboard_macro_redisplay, keyboard_macro_keyboard_quit, keyboard_macro_execute, &
+              keyboard_macro, initialize_keyboard_macro
 
-    !> The setting `kmacro_execute_repeat_key': .false., .true. or a
-    !> character (R6-39: `kmacro_execute_repeat_key%char = iachar("e")';
+    !> The setting `keyboard_macro_execute_repeat_key': .false., .true. or a
+    !> character (R6-39: `keyboard_macro_execute_repeat_key%char = iachar("e")';
     !> negative when none is set).  Not a port.
-    type, extends(choice_setting_type), public :: kmacro_execute_repeat_key_choice_setting_type
+    type, extends(choice_setting_type), public :: keyboard_macro_execute_repeat_key_choice_setting_type
         integer :: char = -1
     contains
-        procedure :: clear_kinds => kmacro_execute_repeat_key_clear_kinds
-        procedure :: other_value => kmacro_execute_repeat_key_other_value
-        procedure :: kind_hint => kmacro_execute_repeat_key_kind_hint
-    end type kmacro_execute_repeat_key_choice_setting_type
+        procedure :: clear_kinds => keyboard_macro_execute_repeat_key_clear_kinds
+        procedure :: other_value => keyboard_macro_execute_repeat_key_other_value
+        procedure :: kind_hint => keyboard_macro_execute_repeat_key_kind_hint
+    end type keyboard_macro_execute_repeat_key_choice_setting_type
 
-    !> Values of `kmacro_reg_add_counter''s and `kmacro_quit_counter''s
+    !> Values of `keyboard_macro_reg_add_counter''s and `keyboard_macro_quit_counter''s
     !> TEST: =, < and >.
-    integer, parameter, public :: KMACRO_TEST_EQUAL = 0, KMACRO_TEST_LESS = 1, KMACRO_TEST_GREATER = 2
+    integer, parameter, public :: KEYBOARD_MACRO_TEST_EQUAL = 0, KEYBOARD_MACRO_TEST_LESS = 1, KEYBOARD_MACRO_TEST_GREATER = 2
 
-    !> Values of `kmacro_execute_macro''s NO_REPEAT: KMACRO_REPEAT_YES, KMACRO_REPEAT_NO and KMACRO_REPEAT_REPEATING.
-    integer, parameter, public :: KMACRO_REPEAT_YES = 0, KMACRO_REPEAT_NO = 1, KMACRO_REPEAT_REPEATING = 2
+    !> Values of `keyboard_macro_execute_macro''s NO_REPEAT: KEYBOARD_MACRO_REPEAT_YES, KEYBOARD_MACRO_REPEAT_NO and
+    !> KEYBOARD_MACRO_REPEAT_REPEATING.
+    integer, parameter, public :: KEYBOARD_MACRO_REPEAT_YES = 0, KEYBOARD_MACRO_REPEAT_NO = 1, KEYBOARD_MACRO_REPEAT_REPEATING = 2
 
     !> Keyboard macro: its KEYS, COUNTER and FORMAT (upstream's `kmacro'
     !> oclosure).  ID tells macros apart, as the identity of the
     !> oclosure does: running a macro updates its counter in the ring.
-    type, public :: kmacro_type
+    type, public :: keyboard_macro_type
         type(value_type), allocatable :: keys(:)
         integer(int64) :: counter = 0
         character(len=:), allocatable :: format
         integer(int64) :: id = 0
-    end type kmacro_type
+    end type keyboard_macro_type
 
     !> Maximum number of keyboard macros to save in macro ring.  Port of
     !> kmacro.el kmacro-ring-max.
-    integer(int64), public :: kmacro_ring_maximum = 8
+    integer(int64), public :: keyboard_macro_ring_maximum = 8
 
     !> Controls whether appending to a macro starts by executing the macro.
     !> If true, using a single \[universal_argument] prefix executes the macro
@@ -131,76 +140,77 @@ module keyboard_macros_mod
     !> macro, while more than one \[universal_argument] prefix causes the
     !> macro to be executed before appending to it.  Port of kmacro.el
     !> kmacro-execute-before-append.
-    logical, public :: kmacro_execute_before_append = .true.
+    logical, public :: keyboard_macro_execute_before_append = .true.
 
-    !> Allow repeating certain macro commands without entering the \[kmacro_keymap] prefix.
+    !> Allow repeating certain macro commands without entering the \[keyboard_macro_keymap] prefix.
     !> Port of kmacro.el kmacro-repeat-no-prefix.
-    logical, public :: kmacro_repeat_no_prefix = .true.
+    logical, public :: keyboard_macro_repeat_no_prefix = .true.
 
     !> Allow repeating macro call using last key or a specific key.
     !> .false. means no repeat key, .true. the last key, and
-    !> `kmacro_execute_repeat_key%char' a character.  Port of
+    !> `keyboard_macro_execute_repeat_key%char' a character.  Port of
     !> kmacro.el kmacro-call-repeat-key (a key name is Deferred).
-    type(kmacro_execute_repeat_key_choice_setting_type), public :: kmacro_execute_repeat_key = &
-                                       kmacro_execute_repeat_key_choice_setting_type(name="kmacro_execute_repeat_key", value=.true.)
+    type(keyboard_macro_execute_repeat_key_choice_setting_type), public :: keyboard_macro_execute_repeat_key = &
+                                                                           keyboard_macro_execute_repeat_key_choice_setting_type( &
+                                                                           name="keyboard_macro_execute_repeat_key", value=.true.)
 
     !> Repeat macro call with original arg when true; repeat once if false.
     !> Port of kmacro.el kmacro-call-repeat-with-arg.
-    logical, public :: kmacro_execute_repeat_with_argument = .false.
+    logical, public :: keyboard_macro_execute_repeat_with_argument = .false.
 
     !> Current keyboard macro counter.
     !>
     !> This is normally initialized to zero when the macro is defined,
     !> and incremented each time the value of the counter is inserted
-    !> into a buffer.  See `kmacro_start_macro_or_insert_counter' for
+    !> into a buffer.  See `keyboard_macro_start_macro_or_insert_counter' for
     !> more details.  Port of kmacro.el kmacro-counter.
-    integer(int64), public :: kmacro_counter = 0
+    integer(int64), public :: keyboard_macro_counter = 0
 
     !> The counter format of the macros defined from now on.  Port of
     !> kmacro.el kmacro-default-counter-format.
-    character(len=:), allocatable, public :: kmacro_default_counter_format
+    character(len=:), allocatable, public :: keyboard_macro_default_counter_format
 
     !> Current keyboard macro counter format.
     !>
-    !> Can be set directly via `kmacro_set_format', which see.  Port of
+    !> Can be set directly via `keyboard_macro_set_format', which see.  Port of
     !> kmacro.el kmacro-counter-format.
-    character(len=:), allocatable, public :: kmacro_counter_format
+    character(len=:), allocatable, public :: keyboard_macro_counter_format
 
     !> Macro format at start of macro execution.  Port of kmacro.el
     !> kmacro-counter-format-start.
-    character(len=:), allocatable, public :: kmacro_counter_format_start
+    character(len=:), allocatable, public :: keyboard_macro_counter_format_start
 
     !> Macro counter at start of macro execution.  Port of kmacro.el
     !> kmacro-counter-value-start.
-    integer(int64), public :: kmacro_counter_value_start = 0
+    integer(int64), public :: keyboard_macro_counter_value_start = 0
 
     !> Last counter inserted by key macro.  Port of kmacro.el
     !> kmacro-last-counter.
-    integer(int64), public :: kmacro_last_counter = 0
+    integer(int64), public :: keyboard_macro_last_counter = 0
 
     !> Initial counter value for the next keyboard macro to be defined.
     !> Not allocated for none.  Port of kmacro.el
     !> kmacro-initial-counter-value.
-    integer(int64), allocatable, public :: kmacro_initial_counter_value
+    integer(int64), allocatable, public :: keyboard_macro_initial_counter_value
 
     !> The keyboard macro ring.
-    !> Each element is a `kmacro_type'.  Actually, the head of
+    !> Each element is a `keyboard_macro_type'.  Actually, the head of
     !> the macro ring (when defining or executing) is not stored in the ring;
-    !> instead it is available in the variables `last_keyboard_macro', `kmacro_counter',
-    !> and `kmacro_counter_format'.  Port of kmacro.el kmacro-ring.
-    type(kmacro_type), allocatable, public :: kmacro_ring(:)
+    !> instead it is available in the variables `last_keyboard_macro', `keyboard_macro_counter',
+    !> and `keyboard_macro_counter_format'.  Port of kmacro.el kmacro-ring.
+    type(keyboard_macro_type), allocatable, public :: keyboard_macro_ring(:)
 
     !> Keymap for keyboard macro commands.  Port of kmacro.el kmacro-keymap.
-    type(handle_type), public :: kmacro_keymap
+    type(handle_type), public :: keyboard_macro_keymap
 
-    !> What `kmacro_view_macro' is looking at: element KMACRO_VIEW_LAST_ITEM
+    !> What `keyboard_macro_view_macro' is looking at: element KEYBOARD_MACRO_VIEW_LAST_ITEM
     !> of the ring onwards (0 for none, upstream's tail of the ring), the
-    !> KMACRO_VIEW_ITEM_NO'th previous macro.
-    integer :: kmacro_view_last_item = 0
-    integer(int64) :: kmacro_view_item_no = 0
+    !> KEYBOARD_MACRO_VIEW_ITEM_NO'th previous macro.
+    integer :: keyboard_macro_view_last_item = 0
+    integer(int64) :: keyboard_macro_view_item_no = 0
 
-    !> The last `kmacro_type' id given out.
-    integer(int64) :: last_kmacro_id = 0
+    !> The last `keyboard_macro_type' id given out.
+    integer(int64) :: last_keyboard_macro_id = 0
 
     !> The transient keymap of the repeat key, and the arguments of the
     !> call it repeats (the procedure's ARGUMENT and MACRO, if `repeat_has_macro').
@@ -210,7 +220,7 @@ module keyboard_macros_mod
     type(value_type), allocatable :: repeat_macro(:)
     logical :: repeat_has_macro = .false.
 
-    !> The `kmacro_repeat' property of the commands that repeat on their
+    !> The `keyboard_macro_repeat' property of the commands that repeat on their
     !> last key: `head', `ring' and `stop'.
     integer, parameter :: REPEAT_NONE = 0, REPEAT_HEAD = 1, REPEAT_RING = 2, REPEAT_STOP = 3
 
@@ -223,29 +233,30 @@ contains
     !> Give the format variables their standard values ("%d") the first
     !> time.  Not a port.
     subroutine ensure_formats()
-        if (.not. allocated(kmacro_default_counter_format)) kmacro_default_counter_format = "%d"
-        if (.not. allocated(kmacro_counter_format)) kmacro_counter_format = "%d"
-        if (.not. allocated(kmacro_counter_format_start)) kmacro_counter_format_start = kmacro_counter_format
+        if (.not. allocated(keyboard_macro_default_counter_format)) keyboard_macro_default_counter_format = "%d"
+        if (.not. allocated(keyboard_macro_counter_format)) keyboard_macro_counter_format = "%d"
+        if (.not. allocated(keyboard_macro_counter_format_start)) keyboard_macro_counter_format_start = &
+            keyboard_macro_counter_format
     end subroutine ensure_formats
 
-    !> Take up `kmacro_initial_counter_value', if set, as the counter.
+    !> Take up `keyboard_macro_initial_counter_value', if set, as the counter.
     !> Not a port.
     subroutine take_initial_counter_value()
-        if (allocated(kmacro_initial_counter_value)) then
-            kmacro_counter = kmacro_initial_counter_value
-            deallocate (kmacro_initial_counter_value)
+        if (allocated(keyboard_macro_initial_counter_value)) then
+            keyboard_macro_counter = keyboard_macro_initial_counter_value
+            deallocate (keyboard_macro_initial_counter_value)
         end if
     end subroutine take_initial_counter_value
 
-    !> Insert current value of `kmacro_counter', then increment it by ARGUMENT.
+    !> Insert current value of `keyboard_macro_counter', then increment it by ARGUMENT.
     !> Interactively, ARGUMENT defaults to 1.  With \[universal_argument], insert
-    !> the previous value of `kmacro_counter', and do not increment the
+    !> the previous value of `keyboard_macro_counter', and do not increment the
     !> current value.
     !>
     !> The previous value of the counter is the one it had before
     !> the last increment.  Port of kmacro.el:kmacro-insert-counter (ARGUMENT
     !> is the raw prefix argument).
-    recursive subroutine kmacro_insert_counter(argument, status)
+    recursive subroutine keyboard_macro_insert_counter(argument, status)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
@@ -255,18 +266,18 @@ contains
         call take_initial_counter_value()
 
         if (argument%kind == PREFIX_RAW) then
-            call arguments%append(kmacro_last_counter)
-            call styled_format(kmacro_counter_format, arguments, .false., text, status)
+            call arguments%append(keyboard_macro_last_counter)
+            call styled_format(keyboard_macro_counter_format, arguments, .false., text, status)
             if (status%ok()) call insert(text, status)
         else
-            call arguments%append(kmacro_counter)
-            call styled_format(kmacro_counter_format, arguments, .false., text, status)
+            call arguments%append(keyboard_macro_counter)
+            call styled_format(keyboard_macro_counter_format, arguments, .false., text, status)
             if (status%ok()) call insert(text, status)
-            if (status%ok()) call kmacro_add_counter(prefix_numeric_value(argument), status)
+            if (status%ok()) call keyboard_macro_add_counter(prefix_numeric_value(argument), status)
         end if
-    end subroutine kmacro_insert_counter
+    end subroutine keyboard_macro_insert_counter
 
-    !> Set the format of `kmacro_counter' to FORMAT.
+    !> Set the format of `keyboard_macro_counter' to FORMAT.
     !>
     !> The default format is "%d", which means to insert the number in
     !> decimal without any padding.  You can specify any format string
@@ -281,26 +292,26 @@ contains
     !>
     !> Do not put the format string inside double quotes when you insert
     !> it in the minibuffer.  Port of kmacro.el:kmacro-set-format.
-    subroutine kmacro_set_format(format)
+    subroutine keyboard_macro_set_format(format)
         character(len=*), intent(in) :: format
 
         call ensure_formats()
 
         if (len(format) == 0) then
-            kmacro_counter_format = "%d"
+            keyboard_macro_counter_format = "%d"
         else
-            kmacro_counter_format = format
+            keyboard_macro_counter_format = format
         end if
 
         ! Redefine initial macro counter if we are not executing a macro.
         if (.not. (is_defining_keyboard_macro() .or. is_executing_keyboard_macro())) then
-            kmacro_default_counter_format = kmacro_counter_format
+            keyboard_macro_default_counter_format = keyboard_macro_counter_format
         end if
-    end subroutine kmacro_set_format
+    end subroutine keyboard_macro_set_format
 
     !> Display current counter value (or VALUE).  Port of
     !> kmacro.el:kmacro-display-counter.
-    subroutine kmacro_display_counter(status, value)
+    subroutine keyboard_macro_display_counter(status, value)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: value
         character(len=:), allocatable :: text
@@ -309,84 +320,84 @@ contains
         type(format_arguments_type) :: arguments
 
         call ensure_formats()
-        v = kmacro_counter
+        v = keyboard_macro_counter
         if (present(value)) v = value
         call arguments%append(v)
-        call styled_format(kmacro_counter_format, arguments, .false., text, status)
+        call styled_format(keyboard_macro_counter_format, arguments, .false., text, status)
         write (value_text, '(" (", i0, ")")') v
         if (status%ok()) call message("New macro counter value: "//text//trim(value_text))
-    end subroutine kmacro_display_counter
+    end subroutine keyboard_macro_display_counter
 
-    !> Set the value of `kmacro_counter' to ARGUMENT, or prompt for value if no argument.
+    !> Set the value of `keyboard_macro_counter' to ARGUMENT, or prompt for value if no argument.
     !> With \[universal_argument] prefix, reset counter to its value prior to this iteration of the
     !> macro.  Port of kmacro.el:kmacro-set-counter.
-    subroutine kmacro_set_counter(argument, status)
+    subroutine keyboard_macro_set_counter(argument, status)
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
         status = status_type()
 
         if (.not. (is_defining_keyboard_macro() .or. is_executing_keyboard_macro())) then
-            kmacro_initial_counter_value = argument
-            call kmacro_display_counter(status, kmacro_initial_counter_value)
+            keyboard_macro_initial_counter_value = argument
+            call keyboard_macro_display_counter(status, keyboard_macro_initial_counter_value)
         else
-            kmacro_last_counter = kmacro_counter
+            keyboard_macro_last_counter = keyboard_macro_counter
 
             if (current_prefix_argument%kind == PREFIX_RAW) then
-                kmacro_counter = kmacro_counter_value_start
+                keyboard_macro_counter = keyboard_macro_counter_value_start
             else
-                kmacro_counter = argument
+                keyboard_macro_counter = argument
             end if
 
-            if (.not. is_executing_keyboard_macro()) call kmacro_display_counter(status)
+            if (.not. is_executing_keyboard_macro()) call keyboard_macro_display_counter(status)
         end if
-    end subroutine kmacro_set_counter
+    end subroutine keyboard_macro_set_counter
 
-    !> Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'.
+    !> Add the value of numeric prefix arg (prompt if missing) to `keyboard_macro_counter'.
     !> With \[universal_argument], restore previous counter value.  Port of
     !> kmacro.el:kmacro-add-counter.
-    recursive subroutine kmacro_add_counter(argument, status)
+    recursive subroutine keyboard_macro_add_counter(argument, status)
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: last
 
         status = status_type()
         call take_initial_counter_value()
-        last = kmacro_last_counter
-        kmacro_last_counter = kmacro_counter
+        last = keyboard_macro_last_counter
+        keyboard_macro_last_counter = keyboard_macro_counter
 
         if (current_prefix_argument%kind == PREFIX_RAW) then
-            kmacro_counter = last
+            keyboard_macro_counter = last
         else
-            kmacro_counter = kmacro_counter + argument
+            keyboard_macro_counter = keyboard_macro_counter + argument
         end if
 
-        if (.not. is_executing_keyboard_macro()) call kmacro_display_counter(status)
-    end subroutine kmacro_add_counter
+        if (.not. is_executing_keyboard_macro()) call keyboard_macro_display_counter(status)
+    end subroutine keyboard_macro_add_counter
 
-    !> Load the value of a REGISTER into `kmacro_counter'.  Port of
+    !> Load the value of a REGISTER into `keyboard_macro_counter'.  Port of
     !> kmacro.el:kmacro-reg-load-counter.
-    subroutine kmacro_reg_load_counter(register)
+    subroutine keyboard_macro_reg_load_counter(register)
         integer(int64), intent(in) :: register
         type(register_contents_type) :: v
 
         call get_register(register, v)
-        if (v%kind == REGISTER_NUMBER) kmacro_counter = v%number
-    end subroutine kmacro_reg_load_counter
+        if (v%kind == REGISTER_NUMBER) keyboard_macro_counter = v%number
+    end subroutine keyboard_macro_reg_load_counter
 
-    !> Save the value of `kmacro_counter' to a REGISTER.  Port of
+    !> Save the value of `keyboard_macro_counter' to a REGISTER.  Port of
     !> kmacro.el:kmacro-reg-save-counter.
-    subroutine kmacro_reg_save_counter(register)
+    subroutine keyboard_macro_reg_save_counter(register)
         integer(int64), intent(in) :: register
 
-        call set_register(register, kmacro_counter)
-    end subroutine kmacro_reg_save_counter
+        call set_register(register, keyboard_macro_counter)
+    end subroutine keyboard_macro_reg_save_counter
 
-    !> Increment `kmacro_counter' by ARGUMENT if TEST returns true.
-    !> TEST (KMACRO_TEST_EQUAL, KMACRO_TEST_LESS or KMACRO_TEST_GREATER) is
-    !> called with two arguments: `kmacro_counter' and REGISTER.  Port of
+    !> Increment `keyboard_macro_counter' by ARGUMENT if TEST returns true.
+    !> TEST (KEYBOARD_MACRO_TEST_EQUAL, KEYBOARD_MACRO_TEST_LESS or KEYBOARD_MACRO_TEST_GREATER) is
+    !> called with two arguments: `keyboard_macro_counter' and REGISTER.  Port of
     !> kmacro.el:kmacro-reg-add-counter.
-    recursive subroutine kmacro_reg_add_counter(test, register, argument, status)
+    recursive subroutine keyboard_macro_reg_add_counter(test, register, argument, status)
         integer, intent(in) :: test
         integer(int64), intent(in) :: register, argument
         type(status_type), intent(out) :: status
@@ -395,11 +406,11 @@ contains
         call register_to_number(register, n, status)
         if (.not. status%ok()) return
 
-        if (compare(test, kmacro_counter, n)) then
+        if (compare(test, keyboard_macro_counter, n)) then
             current_prefix_argument = prefix_argument_type()
-            call kmacro_add_counter(argument, status)
+            call keyboard_macro_add_counter(argument, status)
         end if
-    end subroutine kmacro_reg_add_counter
+    end subroutine keyboard_macro_reg_add_counter
 
     !> The contents of REGISTER as a number or marker position, as the
     !> arithmetic comparisons take them (else a `wrong_type_argument' error condition occurs).
@@ -475,9 +486,9 @@ contains
         integer(int64), intent(in) :: a, b
 
         select case (test)
-        case (KMACRO_TEST_LESS)
+        case (KEYBOARD_MACRO_TEST_LESS)
             compare = a < b
-        case (KMACRO_TEST_GREATER)
+        case (KEYBOARD_MACRO_TEST_GREATER)
             compare = a > b
         case default
             compare = a == b
@@ -485,11 +496,11 @@ contains
     end function compare
 
     !> Quit the keyboard macro if TEST returns true.
-    !> TEST (KMACRO_TEST_EQUAL, KMACRO_TEST_LESS or KMACRO_TEST_GREATER) is
-    !> called with two arguments: `kmacro_counter' and ARGUMENT.
+    !> TEST (KEYBOARD_MACRO_TEST_EQUAL, KEYBOARD_MACRO_TEST_LESS or KEYBOARD_MACRO_TEST_GREATER) is
+    !> called with two arguments: `keyboard_macro_counter' and ARGUMENT.
     !> ARGUMENT defaults to zero if there is no prefix argument.  Port of
     !> kmacro.el:kmacro-quit-counter.
-    recursive subroutine kmacro_quit_counter(test, argument, status)
+    recursive subroutine keyboard_macro_quit_counter(test, argument, status)
         integer, intent(in) :: test
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
@@ -500,52 +511,52 @@ contains
         a = argument
         if (current_prefix_argument%kind == PREFIX_NONE) a = 0
 
-        if (compare(test, kmacro_counter, a)) then
+        if (compare(test, keyboard_macro_counter, a)) then
             if (associated(commands%keyboard_quit%execute)) call commands%keyboard_quit%execute(status)
         end if
-    end subroutine kmacro_quit_counter
+    end subroutine keyboard_macro_quit_counter
 
     !> Function called prior to each iteration of macro.  Port of
     !> kmacro.el:kmacro-loop-setup-function.
-    logical function kmacro_loop_setup_function()
+    logical function keyboard_macro_loop_setup_function()
         call ensure_formats()
         ! Restore macro counter format to initial format, so it is ok to change
         ! counter format in the macro without restoring it.
-        kmacro_counter_format = kmacro_counter_format_start
+        keyboard_macro_counter_format = keyboard_macro_counter_format_start
         ! Save initial counter value so we can restore it with C-u kmacro-set-counter.
-        kmacro_counter_value_start = kmacro_counter
+        keyboard_macro_counter_value_start = keyboard_macro_counter
         ! Return true to continue execution.
-        kmacro_loop_setup_function = .true.
-    end function kmacro_loop_setup_function
+        keyboard_macro_loop_setup_function = .true.
+    end function keyboard_macro_loop_setup_function
 
     ! ------------------------------------------------------------------
     ! The macro ring
     ! ------------------------------------------------------------------
 
-    !> Create a `kmacro_type' for macro bound to name or key.
+    !> Create a `keyboard_macro_type' for macro bound to name or key.
     !> KEYS is an array of events; COUNTER defaults to 0 and FORMAT to
     !> "%d".  Port of kmacro.el:kmacro (KEYS a vector).
-    function kmacro(keys, counter, format) result(m)
+    function keyboard_macro(keys, counter, format) result(m)
         type(value_type), intent(in) :: keys(:)
         integer(int64), intent(in), optional :: counter
         character(len=*), intent(in), optional :: format
-        type(kmacro_type) :: m
+        type(keyboard_macro_type) :: m
 
         m%keys = keys
         m%counter = 0
         if (present(counter)) m%counter = counter
         m%format = "%d"
         if (present(format)) m%format = format
-        last_kmacro_id = last_kmacro_id + 1
-        m%id = last_kmacro_id
-    end function kmacro
+        last_keyboard_macro_id = last_keyboard_macro_id + 1
+        m%id = last_keyboard_macro_id
+    end function keyboard_macro
 
     !> Execute the keyboard macro M with ARGUMENT (a repeat count), with its own
     !> counter and format, and keep the counter it ends with in M (and
     !> in the ring element that is M).  Port of kmacro.el:kmacro (the
     !> function of its oclosure).
-    recursive subroutine kmacro_execute(m, argument, status)
-        type(kmacro_type), intent(inout) :: m
+    recursive subroutine keyboard_macro_execute(m, argument, status)
+        type(keyboard_macro_type), intent(inout) :: m
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
@@ -554,168 +565,168 @@ contains
 
         call ensure_formats()
         ! Use counter and format specific to the macro on the ring!
-        saved_counter = kmacro_counter
-        saved_format = kmacro_counter_format_start
-        kmacro_counter = m%counter
-        kmacro_counter_format_start = m%format
+        saved_counter = keyboard_macro_counter
+        saved_format = keyboard_macro_counter_format_start
+        keyboard_macro_counter = m%counter
+        keyboard_macro_counter_format_start = m%format
         keys = m%keys
-        call execute_keyboard_macro(keys, argument, status, kmacro_loop_setup_function)
+        call execute_keyboard_macro(keys, argument, status, keyboard_macro_loop_setup_function)
 
         if (status%ok()) then
-            m%counter = kmacro_counter
+            m%counter = keyboard_macro_counter
 
-            if (allocated(kmacro_ring)) then
-                where (kmacro_ring%id == m%id) kmacro_ring%counter = m%counter
+            if (allocated(keyboard_macro_ring)) then
+                where (keyboard_macro_ring%id == m%id) keyboard_macro_ring%counter = m%counter
             end if
         end if
 
-        kmacro_counter = saved_counter
-        kmacro_counter_format_start = saved_format
-    end subroutine kmacro_execute
+        keyboard_macro_counter = saved_counter
+        keyboard_macro_counter_format_start = saved_format
+    end subroutine keyboard_macro_execute
 
     !> Execute element K of the ring.  Not a port.
     recursive subroutine execute_ring_element(k, argument, status)
         integer, intent(in) :: k
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
-        type(kmacro_type) :: m
+        type(keyboard_macro_type) :: m
 
-        m = kmacro_ring(k)
-        call kmacro_execute(m, argument, status)
+        m = keyboard_macro_ring(k)
+        call keyboard_macro_execute(m, argument, status)
     end subroutine execute_ring_element
 
     !> Return pseudo head element in macro ring (`found' false if
     !> `last_keyboard_macro' is unallocated).  Port of kmacro.el:kmacro-ring-head.
-    subroutine kmacro_ring_head(head, found)
-        type(kmacro_type), intent(out) :: head
+    subroutine keyboard_macro_ring_head(head, found)
+        type(keyboard_macro_type), intent(out) :: head
         logical, intent(out) :: found
 
         call ensure_formats()
         found = allocated(last_keyboard_macro)
-        if (found) head = kmacro(last_keyboard_macro, kmacro_counter, kmacro_counter_format_start)
-    end subroutine kmacro_ring_head
+        if (found) head = keyboard_macro(last_keyboard_macro, keyboard_macro_counter, keyboard_macro_counter_format_start)
+    end subroutine keyboard_macro_ring_head
 
     !> The number of macros in the ring.  Not a port.
     integer function ring_size()
         ring_size = 0
-        if (allocated(kmacro_ring)) ring_size = size(kmacro_ring)
+        if (allocated(keyboard_macro_ring)) ring_size = size(keyboard_macro_ring)
     end function ring_size
 
     !> Whether macros A and B are `equal'.  Not a port.
-    logical function kmacro_equal(a, b)
-        type(kmacro_type), intent(in) :: a, b
+    logical function keyboard_macro_equal(a, b)
+        type(keyboard_macro_type), intent(in) :: a, b
         integer :: k
 
-        kmacro_equal = size(a%keys) == size(b%keys) .and. a%counter == b%counter .and. a%format == b%format
-        if (.not. kmacro_equal) return
+        keyboard_macro_equal = size(a%keys) == size(b%keys) .and. a%counter == b%counter .and. a%format == b%format
+        if (.not. keyboard_macro_equal) return
 
         do k = 1, size(a%keys)
             if (.not. value_eq(a%keys(k), b%keys(k))) then
-                kmacro_equal = .false.
+                keyboard_macro_equal = .false.
                 return
             end if
         end do
-    end function kmacro_equal
+    end function keyboard_macro_equal
 
-    !> Push ELEMENT or current macro onto `kmacro_ring'.  Port of
+    !> Push ELEMENT or current macro onto `keyboard_macro_ring'.  Port of
     !> kmacro.el:kmacro-push-ring (with subr.el add-to-history,
     !> `history_delete_duplicates' false).
-    subroutine kmacro_push_ring(element)
-        type(kmacro_type), intent(in), optional :: element
-        type(kmacro_type) :: e
-        type(kmacro_type), allocatable :: ring(:)
+    subroutine keyboard_macro_push_ring(element)
+        type(keyboard_macro_type), intent(in), optional :: element
+        type(keyboard_macro_type) :: e
+        type(keyboard_macro_type), allocatable :: ring(:)
         logical :: found
         integer :: n, k
 
         if (present(element)) then
             e = element
         else
-            call kmacro_ring_head(e, found)
+            call keyboard_macro_ring_head(e, found)
             if (.not. found) return
         end if
 
         n = ring_size()
 
         if (n > 0) then
-            if (kmacro_equal(kmacro_ring(1), e)) return
+            if (keyboard_macro_equal(keyboard_macro_ring(1), e)) return
         end if
 
-        if (kmacro_ring_maximum <= 0) then
+        if (keyboard_macro_ring_maximum <= 0) then
             allocate (ring(0))
         else
-            allocate (ring(min(int(kmacro_ring_maximum), n + 1)))
+            allocate (ring(min(int(keyboard_macro_ring_maximum), n + 1)))
             ring(1) = e
 
             do k = 2, size(ring)
-                ring(k) = kmacro_ring(k - 1)
+                ring(k) = keyboard_macro_ring(k - 1)
             end do
         end if
 
-        call move_alloc(ring, kmacro_ring)
-    end subroutine kmacro_push_ring
+        call move_alloc(ring, keyboard_macro_ring)
+    end subroutine keyboard_macro_push_ring
 
-    !> Make ELEMENT the head of the ring: `last_keyboard_macro', `kmacro_counter'
-    !> and `kmacro_counter_format_start'.  Port of
+    !> Make ELEMENT the head of the ring: `last_keyboard_macro', `keyboard_macro_counter'
+    !> and `keyboard_macro_counter_format_start'.  Port of
     !> kmacro.el:kmacro-split-ring-element.
-    subroutine kmacro_split_ring_element(element)
-        type(kmacro_type), intent(in) :: element
+    subroutine keyboard_macro_split_ring_element(element)
+        type(keyboard_macro_type), intent(in) :: element
 
         last_keyboard_macro = element%keys
-        kmacro_counter = element%counter
-        kmacro_counter_format_start = element%format
-    end subroutine kmacro_split_ring_element
+        keyboard_macro_counter = element%counter
+        keyboard_macro_counter_format_start = element%format
+    end subroutine keyboard_macro_split_ring_element
 
     !> Remove the first element of the ring.  Not a port.
     subroutine drop_first()
-        type(kmacro_type), allocatable :: ring(:)
+        type(keyboard_macro_type), allocatable :: ring(:)
         integer :: k, n
 
         n = ring_size()
         allocate (ring(max(0, n - 1)))
 
         do k = 2, n
-            ring(k - 1) = kmacro_ring(k)
+            ring(k - 1) = keyboard_macro_ring(k)
         end do
 
-        call move_alloc(ring, kmacro_ring)
+        call move_alloc(ring, keyboard_macro_ring)
     end subroutine drop_first
 
     !> Pop head element off macro ring (no check).
     !> True arg RAW means just return raw first element.  Port of
     !> kmacro.el:kmacro-pop-ring1.
-    subroutine kmacro_pop_ring1(raw)
+    subroutine keyboard_macro_pop_ring1(raw)
         logical, intent(in) :: raw
-        type(kmacro_type) :: first
+        type(keyboard_macro_type) :: first
 
         if (ring_size() == 0) then
             if (.not. raw) then
                 ! (kmacro-split-ring-element nil) sets the head to nil.
                 if (allocated(last_keyboard_macro)) deallocate (last_keyboard_macro)
-                kmacro_counter = 0
-                kmacro_counter_format_start = "%d"
+                keyboard_macro_counter = 0
+                keyboard_macro_counter_format_start = "%d"
             end if
 
             return
         end if
 
-        first = kmacro_ring(1)
-        if (.not. raw) call kmacro_split_ring_element(first)
+        first = keyboard_macro_ring(1)
+        if (.not. raw) call keyboard_macro_split_ring_element(first)
         call drop_first()
-    end subroutine kmacro_pop_ring1
+    end subroutine keyboard_macro_pop_ring1
 
     !> Pop head element off macro ring.
     !> True arg RAW means just return raw first element.  Port of
     !> kmacro.el:kmacro-pop-ring.
-    subroutine kmacro_pop_ring(raw)
+    subroutine keyboard_macro_pop_ring(raw)
         logical, intent(in) :: raw
 
-        if (.not. is_kmacro_ring_empty()) call kmacro_pop_ring1(raw)
-    end subroutine kmacro_pop_ring
+        if (.not. is_keyboard_macro_ring_empty()) call keyboard_macro_pop_ring1(raw)
+    end subroutine keyboard_macro_pop_ring
 
-    !> Tell user and return true if `last_keyboard_macro' is unallocated or `kmacro_ring' is empty.
+    !> Tell user and return true if `last_keyboard_macro' is unallocated or `keyboard_macro_ring' is empty.
     !> Check only `last_keyboard_macro' if optional arg NONE is true.  Port of
     !> kmacro.el:kmacro-ring-empty-p.
-    logical function is_kmacro_ring_empty(none)
+    logical function is_keyboard_macro_ring_empty(none)
         logical, intent(in), optional :: none
         logical :: only_last
 
@@ -723,26 +734,26 @@ contains
         if (present(none)) only_last = none
 
         do while (.not. allocated(last_keyboard_macro) .and. ring_size() > 0)
-            call kmacro_pop_ring1(.false.)
+            call keyboard_macro_pop_ring1(.false.)
         end do
 
-        is_kmacro_ring_empty = .true.
+        is_keyboard_macro_ring_empty = .true.
 
         if (.not. allocated(last_keyboard_macro)) then
             call message("No keyboard macro defined.")
         else if (.not. only_last .and. ring_size() == 0) then
             call message("Only one keyboard macro defined.")
         else
-            is_kmacro_ring_empty = .false.
+            is_keyboard_macro_ring_empty = .false.
         end if
-    end function is_kmacro_ring_empty
+    end function is_keyboard_macro_ring_empty
 
     !> Display a keyboard MACRO.
     !> Optional arg TRUNC true specifies to limit width of macro to 60 chars.
     !> Optional arg DESCRIPTION is descriptive text for macro; default is "Macro".
     !> Optional arg EMPTY is message to print if no macros are defined
     !> (MACRO not present).  Port of kmacro.el:kmacro-display.
-    recursive subroutine kmacro_display(status, macro, trunc, description, empty)
+    recursive subroutine keyboard_macro_display(status, macro, trunc, description, empty)
         type(status_type), intent(out) :: status
         type(value_type), intent(in), optional :: macro(:)
         logical, intent(in), optional :: trunc
@@ -763,9 +774,9 @@ contains
             if (present(description)) d = description
             counter_part = ""
 
-            if (kmacro_counter /= 0) then
-                call arguments%append(kmacro_counter)
-                call styled_format(kmacro_counter_format_start, arguments, .false., counter_part, status)
+            if (keyboard_macro_counter /= 0) then
+                call arguments%append(keyboard_macro_counter)
+                call styled_format(keyboard_macro_counter_format_start, arguments, .false., counter_part, status)
                 if (.not. status%ok()) return
                 counter_part = " ["//counter_part//"]"
             end if
@@ -780,9 +791,9 @@ contains
         else
             call message("No keyboard macros defined")
         end if
-    end subroutine kmacro_display
+    end subroutine keyboard_macro_display
 
-    !> `kmacro_display' of `last_keyboard_macro' (nothing if not allocated).
+    !> `keyboard_macro_display' of `last_keyboard_macro' (nothing if not allocated).
     !> Not a port.
     recursive subroutine display_last(status, trunc, description, empty)
         type(status_type), intent(out) :: status
@@ -792,26 +803,26 @@ contains
 
         if (allocated(last_keyboard_macro)) then
             macro = last_keyboard_macro
-            call kmacro_display(status, macro, trunc, description, empty)
+            call keyboard_macro_display(status, macro, trunc, description, empty)
         else
-            call kmacro_display(status, trunc=trunc, description=description, empty=empty)
+            call keyboard_macro_display(status, trunc=trunc, description=description, empty=empty)
         end if
     end subroutine display_last
 
-    !> The `kmacro_repeat' property of command COMMAND.  Not a port.
+    !> The `keyboard_macro_repeat' property of command COMMAND.  Not a port.
     integer function repeat_property(command)
         type(value_type), intent(in) :: command
 
         repeat_property = REPEAT_NONE
-        if (value_eq(command, value_type(name="kmacro_end_or_execute_macro_repeat"))) repeat_property = REPEAT_HEAD
-        if (value_eq(command, value_type(name="kmacro_execute_ring_2nd_repeat"))) repeat_property = REPEAT_HEAD
-        if (value_eq(command, value_type(name="kmacro_delete_ring_head"))) repeat_property = REPEAT_HEAD
-        if (value_eq(command, value_type(name="kmacro_cycle_ring_next"))) repeat_property = REPEAT_RING
-        if (value_eq(command, value_type(name="kmacro_cycle_ring_previous"))) repeat_property = REPEAT_RING
-        if (value_eq(command, value_type(name="kmacro_view_macro_repeat"))) repeat_property = REPEAT_RING
+        if (value_eq(command, value_type(name="keyboard_macro_end_or_execute_macro_repeat"))) repeat_property = REPEAT_HEAD
+        if (value_eq(command, value_type(name="keyboard_macro_execute_ring_2nd_repeat"))) repeat_property = REPEAT_HEAD
+        if (value_eq(command, value_type(name="keyboard_macro_delete_ring_head"))) repeat_property = REPEAT_HEAD
+        if (value_eq(command, value_type(name="keyboard_macro_cycle_ring_next"))) repeat_property = REPEAT_RING
+        if (value_eq(command, value_type(name="keyboard_macro_cycle_ring_previous"))) repeat_property = REPEAT_RING
+        if (value_eq(command, value_type(name="keyboard_macro_view_macro_repeat"))) repeat_property = REPEAT_RING
     end function repeat_property
 
-    !> Execute command COMMAND with no prefix argument and `kmacro_repeat_no_prefix'
+    !> Execute command COMMAND with no prefix argument and `keyboard_macro_repeat_no_prefix'
     !> .false., both saved and restored around the call.  Not a port.
     recursive subroutine execute_without_prefix(command, status)
         type(value_type), intent(in) :: command
@@ -821,19 +832,19 @@ contains
         type(command_type), pointer :: fn
 
         saved_argument = current_prefix_argument
-        saved_no_prefix = kmacro_repeat_no_prefix
+        saved_no_prefix = keyboard_macro_repeat_no_prefix
         current_prefix_argument = prefix_argument_type()
-        kmacro_repeat_no_prefix = .false.
+        keyboard_macro_repeat_no_prefix = .false.
         call find_function(command, fn, status)
         if (status%ok()) call fn%execute(status)
-        kmacro_repeat_no_prefix = saved_no_prefix
+        keyboard_macro_repeat_no_prefix = saved_no_prefix
         current_prefix_argument = saved_argument
     end subroutine execute_without_prefix
 
     !> Process kmacro commands keys immediately after cycling the ring.
     !> Port of kmacro.el:kmacro-repeat-on-last-key (at the end of input it
     !> returns).
-    recursive subroutine kmacro_repeat_on_last_key(keys, status)
+    recursive subroutine keyboard_macro_repeat_on_last_key(keys, status)
         type(value_type), intent(in) :: keys(:)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: k(:)
@@ -882,152 +893,152 @@ contains
             call clear_this_command_keys(keep_record=.true.)
             call unread_command_events([last_input_event])
         end if
-    end subroutine kmacro_repeat_on_last_key
+    end subroutine keyboard_macro_repeat_on_last_key
 
     !> The keys of the command, when they can be repeated by their last
     !> key (`found').  Port of kmacro.el:kmacro-get-repeat-prefix.
-    subroutine kmacro_get_repeat_prefix(keys, found)
+    subroutine keyboard_macro_get_repeat_prefix(keys, found)
         type(value_type), allocatable, intent(out) :: keys(:)
         logical, intent(out) :: found
 
         found = .false.
-        if (.not. kmacro_repeat_no_prefix) return
+        if (.not. keyboard_macro_repeat_no_prefix) return
         if (.not. allocated(this_command_keys)) return
         if (size(this_command_keys) <= 1) return
         keys = this_command_keys
         found = .true.
-    end subroutine kmacro_get_repeat_prefix
+    end subroutine keyboard_macro_get_repeat_prefix
 
     !> Execute second keyboard macro in macro ring.
     !> With numeric argument ARGUMENT, execute the macro that many times.
     !> Port of kmacro.el:kmacro-call-ring-2nd.
-    recursive subroutine kmacro_execute_ring_2nd(argument, status)
+    recursive subroutine keyboard_macro_execute_ring_2nd(argument, status)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. is_kmacro_ring_empty()) call execute_ring_element(1, argument, status)
-    end subroutine kmacro_execute_ring_2nd
+        if (.not. is_keyboard_macro_ring_empty()) call execute_ring_element(1, argument, status)
+    end subroutine keyboard_macro_execute_ring_2nd
 
     !> Execute second keyboard macro in macro ring.
-    !> This is like `kmacro_execute_ring_2nd', but allows repeating macro commands
+    !> This is like `keyboard_macro_execute_ring_2nd', but allows repeating macro commands
     !> without repeating the prefix.  Port of
     !> kmacro.el:kmacro-call-ring-2nd-repeat.
-    recursive subroutine kmacro_execute_ring_2nd_repeat(argument, status)
+    recursive subroutine keyboard_macro_execute_ring_2nd_repeat(argument, status)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         logical :: found
 
-        call kmacro_get_repeat_prefix(keys, found)
-        call kmacro_execute_ring_2nd(argument, status)
+        call keyboard_macro_get_repeat_prefix(keys, found)
+        call keyboard_macro_execute_ring_2nd(argument, status)
         if (.not. status%ok()) return
-        if (ring_size() > 0 .and. found) call kmacro_repeat_on_last_key(keys, status)
-    end subroutine kmacro_execute_ring_2nd_repeat
+        if (ring_size() > 0 .and. found) call keyboard_macro_repeat_on_last_key(keys, status)
+    end subroutine keyboard_macro_execute_ring_2nd_repeat
 
     !> Display the second macro in the keyboard macro ring.  Port of
     !> kmacro.el:kmacro-view-ring-2nd.
-    subroutine kmacro_view_ring_2nd(status)
+    subroutine keyboard_macro_view_ring_2nd(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
 
         status = status_type()
 
-        if (.not. is_kmacro_ring_empty()) then
-            keys = kmacro_ring(1)%keys
-            call kmacro_display(status, keys, description="2nd macro")
+        if (.not. is_keyboard_macro_ring_empty()) then
+            keys = keyboard_macro_ring(1)%keys
+            call keyboard_macro_display(status, keys, description="2nd macro")
         end if
-    end subroutine kmacro_view_ring_2nd
+    end subroutine keyboard_macro_view_ring_2nd
 
     !> Move to next keyboard macro in keyboard macro ring.
     !> Displays the selected macro in the echo area.  Port of
     !> kmacro.el:kmacro-cycle-ring-next.
-    recursive subroutine kmacro_cycle_ring_next(status)
+    recursive subroutine keyboard_macro_cycle_ring_next(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
-        type(kmacro_type), allocatable :: ring(:)
-        type(kmacro_type) :: element
+        type(keyboard_macro_type), allocatable :: ring(:)
+        type(keyboard_macro_type) :: element
         logical :: found
         integer :: n, k
 
         status = status_type()
-        if (is_kmacro_ring_empty()) return
-        call kmacro_push_ring()
-        call kmacro_get_repeat_prefix(keys, found)
+        if (is_keyboard_macro_ring_empty()) return
+        call keyboard_macro_push_ring()
+        call keyboard_macro_get_repeat_prefix(keys, found)
         n = ring_size()
 
         if (n < 2) then
             ! (kmacro-split-ring-element nil)
-            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(kmacro_type), got .false.")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(keyboard_macro_type), got .false.")
             return
         end if
 
-        element = kmacro_ring(n)
+        element = keyboard_macro_ring(n)
         allocate (ring(n - 1))
 
         do k = 1, n - 1
-            ring(k) = kmacro_ring(k)
+            ring(k) = keyboard_macro_ring(k)
         end do
 
-        call move_alloc(ring, kmacro_ring)
-        call kmacro_split_ring_element(element)
+        call move_alloc(ring, keyboard_macro_ring)
+        call keyboard_macro_split_ring_element(element)
         call display_last(status, trunc=.true.)
         if (.not. status%ok()) return
-        if (found) call kmacro_repeat_on_last_key(keys, status)
-    end subroutine kmacro_cycle_ring_next
+        if (found) call keyboard_macro_repeat_on_last_key(keys, status)
+    end subroutine keyboard_macro_cycle_ring_next
 
     !> Move to previous keyboard macro in keyboard macro ring.
     !> Displays the selected macro in the echo area.  Port of
     !> kmacro.el:kmacro-cycle-ring-previous.
-    recursive subroutine kmacro_cycle_ring_previous(status)
+    recursive subroutine keyboard_macro_cycle_ring_previous(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
-        type(kmacro_type) :: current
+        type(keyboard_macro_type) :: current
         logical :: found, have
 
         status = status_type()
-        if (is_kmacro_ring_empty()) return
-        call kmacro_get_repeat_prefix(keys, found)
-        call kmacro_ring_head(current, have)
-        call kmacro_pop_ring1(.false.)
-        if (.not. allocated(kmacro_ring)) allocate (kmacro_ring(0))
-        kmacro_ring = [kmacro_ring, current]
+        if (is_keyboard_macro_ring_empty()) return
+        call keyboard_macro_get_repeat_prefix(keys, found)
+        call keyboard_macro_ring_head(current, have)
+        call keyboard_macro_pop_ring1(.false.)
+        if (.not. allocated(keyboard_macro_ring)) allocate (keyboard_macro_ring(0))
+        keyboard_macro_ring = [keyboard_macro_ring, current]
         call display_last(status, trunc=.true.)
         if (.not. status%ok()) return
-        if (found) call kmacro_repeat_on_last_key(keys, status)
-    end subroutine kmacro_cycle_ring_previous
+        if (found) call keyboard_macro_repeat_on_last_key(keys, status)
+    end subroutine keyboard_macro_cycle_ring_previous
 
     !> Swap first two elements on keyboard macro ring.  Port of
     !> kmacro.el:kmacro-swap-ring.
-    subroutine kmacro_swap_ring(status)
+    subroutine keyboard_macro_swap_ring(status)
         type(status_type), intent(out) :: status
-        type(kmacro_type) :: current
+        type(keyboard_macro_type) :: current
         logical :: have
 
         status = status_type()
-        if (is_kmacro_ring_empty()) return
-        call kmacro_ring_head(current, have)
-        call kmacro_pop_ring1(.false.)
-        call kmacro_push_ring(current)
+        if (is_keyboard_macro_ring_empty()) return
+        call keyboard_macro_ring_head(current, have)
+        call keyboard_macro_pop_ring1(.false.)
+        call keyboard_macro_push_ring(current)
         call display_last(status, trunc=.true.)
-    end subroutine kmacro_swap_ring
+    end subroutine keyboard_macro_swap_ring
 
     !> Delete current macro from keyboard macro ring.  Port of
     !> kmacro.el:kmacro-delete-ring-head.
-    subroutine kmacro_delete_ring_head(status)
+    subroutine keyboard_macro_delete_ring_head(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (is_kmacro_ring_empty(.true.)) return
+        if (is_keyboard_macro_ring_empty(.true.)) return
 
         if (ring_size() == 0) then
             if (allocated(last_keyboard_macro)) deallocate (last_keyboard_macro)
         else
-            call kmacro_pop_ring(.false.)
+            call keyboard_macro_pop_ring(.false.)
         end if
 
         call display_last(status, trunc=.true., empty="Keyboard macro ring is now empty.")
-    end subroutine kmacro_delete_ring_head
+    end subroutine keyboard_macro_delete_ring_head
 
     ! ------------------------------------------------------------------
     ! Traditional bindings
@@ -1035,24 +1046,24 @@ contains
 
     !> Record subsequent keyboard input, defining a keyboard macro.
     !> The commands are recorded even as they are executed.
-    !> Use \[kmacro_end_macro] to finish recording and make the macro available.
-    !> Use \[kmacro_end_and_execute_macro] to execute the macro.
+    !> Use \[keyboard_macro_end_macro] to finish recording and make the macro available.
+    !> Use \[keyboard_macro_end_and_execute_macro] to execute the macro.
     !>
     !> True arg (prefix arg) means append to last macro defined.
     !>
     !> With \[universal_argument] prefix, append to last keyboard macro
-    !> defined.  Depending on `kmacro_execute_before_append', this may begin
+    !> defined.  Depending on `keyboard_macro_execute_before_append', this may begin
     !> by re-executing the last macro as if you typed it again.
     !>
-    !> Otherwise, it sets `kmacro_counter' to ARGUMENT or 0 if missing before
+    !> Otherwise, it sets `keyboard_macro_counter' to ARGUMENT or 0 if missing before
     !> defining the macro.
     !>
-    !> Use \[kmacro_insert_counter] to insert (and increment) the macro counter.
-    !> The counter value can be set or modified via \[kmacro_set_counter] and \[kmacro_add_counter].
-    !> The format of the counter can be modified via \[kmacro_set_format].
+    !> Use \[keyboard_macro_insert_counter] to insert (and increment) the macro counter.
+    !> The counter value can be set or modified via \[keyboard_macro_set_counter] and \[keyboard_macro_add_counter].
+    !> The format of the counter can be modified via \[keyboard_macro_set_format].
     !> Port of kmacro.el:kmacro-start-macro (ARGUMENT is the raw prefix
     !> argument; naming and binding the macro are not ported).
-    recursive subroutine kmacro_start_macro(argument, status)
+    recursive subroutine keyboard_macro_start_macro(argument, status)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         logical :: append, no_exec
@@ -1069,21 +1080,21 @@ contains
         append = argument%kind == PREFIX_RAW
 
         if (.not. append) then
-            if (allocated(last_keyboard_macro)) call kmacro_push_ring()
+            if (allocated(last_keyboard_macro)) call keyboard_macro_push_ring()
 
             if (argument%kind /= PREFIX_NONE) then
-                kmacro_counter = prefix_numeric_value(argument)
-            else if (allocated(kmacro_initial_counter_value)) then
-                kmacro_counter = kmacro_initial_counter_value
+                keyboard_macro_counter = prefix_numeric_value(argument)
+            else if (allocated(keyboard_macro_initial_counter_value)) then
+                keyboard_macro_counter = keyboard_macro_initial_counter_value
             else
-                kmacro_counter = 0
+                keyboard_macro_counter = 0
             end if
 
-            if (allocated(kmacro_initial_counter_value)) deallocate (kmacro_initial_counter_value)
-            kmacro_counter_value_start = kmacro_counter
-            kmacro_last_counter = kmacro_counter
-            kmacro_counter_format = kmacro_default_counter_format
-            kmacro_counter_format_start = kmacro_default_counter_format
+            if (allocated(keyboard_macro_initial_counter_value)) deallocate (keyboard_macro_initial_counter_value)
+            keyboard_macro_counter_value_start = keyboard_macro_counter
+            keyboard_macro_last_counter = keyboard_macro_counter
+            keyboard_macro_counter_format = keyboard_macro_default_counter_format
+            keyboard_macro_counter_format_start = keyboard_macro_default_counter_format
         end if
 
         no_exec = .false.
@@ -1091,7 +1102,7 @@ contains
         if (append) then
             n = prefix_numeric_value(argument)
 
-            if (kmacro_execute_before_append) then
+            if (keyboard_macro_execute_before_append) then
                 no_exec = n > 4
             else
                 no_exec = n == 4
@@ -1101,17 +1112,17 @@ contains
         call start_keyboard_macro(append, no_exec, status)
         if (.not. status%ok()) return
         if (is_defining_keyboard_macro() .and. append) defining_keyboard_macro = DEFINING_KEYBOARD_MACRO_APPEND
-    end subroutine kmacro_start_macro
+    end subroutine keyboard_macro_start_macro
 
     !> Finish defining a keyboard macro.
-    !> The definition was started by \[kmacro_start_macro].
-    !> The macro is now available for use via \[kmacro_execute_macro].
+    !> The definition was started by \[keyboard_macro_start_macro].
+    !> The macro is now available for use via \[keyboard_macro_execute_macro].
     !>
     !> With numeric ARGUMENT, repeat the macro that many times,
     !> counting the definition just completed as the first repetition.
     !> An argument of zero means repeat until error.  Port of
     !> kmacro.el:kmacro-end-macro (naming the macro is not ported).
-    recursive subroutine kmacro_end_macro(argument, status)
+    recursive subroutine keyboard_macro_end_macro(argument, status)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
 
@@ -1119,7 +1130,7 @@ contains
         ! Isearch may push the kmacro-end-macro key sequence onto the macro.
         ! Just ignore it when executing the macro.
         if (is_executing_keyboard_macro()) return
-        call end_keyboard_macro(argument, status, kmacro_loop_setup_function)
+        call end_keyboard_macro(argument, status, keyboard_macro_loop_setup_function)
         if (.not. status%ok()) return
 
         if (allocated(last_keyboard_macro)) then
@@ -1129,23 +1140,23 @@ contains
 
                 ! Don't call `kmacro-ring-empty-p' to avoid its messages.
                 do while (.not. allocated(last_keyboard_macro) .and. ring_size() > 0)
-                    call kmacro_pop_ring1(.false.)
+                    call keyboard_macro_pop_ring1(.false.)
                 end do
             end if
         end if
-    end subroutine kmacro_end_macro
+    end subroutine keyboard_macro_end_macro
 
-    !> Call the keyboard MACRO that you defined with \[kmacro_start_macro].
+    !> Call the keyboard MACRO that you defined with \[keyboard_macro_start_macro].
     !> A prefix argument serves as a repeat count.  Zero means repeat until error.
     !> MACRO defaults to `last_keyboard_macro'.
     !>
     !> When you call the macro, you can call the macro again by repeating
     !> just the last key in the key sequence that you used to call this
-    !> command.  See `kmacro_execute_repeat_key' and `kmacro_execute_repeat_with_argument'
+    !> command.  See `keyboard_macro_execute_repeat_key' and `keyboard_macro_execute_repeat_with_argument'
     !> for details on how to adjust or disable this behavior.  Port of
     !> kmacro.el:kmacro-call-macro (ARGUMENT is the prefix argument, raw or
-    !> numeric; REPEAT one of the KMACRO_REPEAT_ values).
-    recursive subroutine kmacro_execute_macro(argument, status, repeat, end_macro, macro)
+    !> numeric; REPEAT one of the KEYBOARD_MACRO_REPEAT_ values).
+    recursive subroutine keyboard_macro_execute_macro(argument, status, repeat, end_macro, macro)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: repeat
@@ -1161,21 +1172,21 @@ contains
         integer :: nr
 
         status = status_type()
-        nr = KMACRO_REPEAT_YES
+        nr = KEYBOARD_MACRO_REPEAT_YES
         if (present(repeat)) nr = repeat
         ending = .false.
         if (present(end_macro)) ending = end_macro
         repeat_key = value_type()
 
-        if (nr == KMACRO_REPEAT_REPEATING) then
+        if (nr == KEYBOARD_MACRO_REPEAT_REPEATING) then
             repeat_key = last_input_event
-        else if (nr == KMACRO_REPEAT_YES .and. allocated(this_command_keys)) then
+        else if (nr == KEYBOARD_MACRO_REPEAT_YES .and. allocated(this_command_keys)) then
             if (size(this_command_keys) > 1) repeat_key = last_input_event
         end if
 
         if (ending) then
             ! Modifies last-kbd-macro.
-            call kmacro_end_macro(argument, status)
+            call keyboard_macro_end_macro(argument, status)
             if (.not. status%ok()) return
         else
             ! (let ((last-kbd-macro (or macro last-kbd-macro))) ...)
@@ -1196,7 +1207,7 @@ contains
                 call set_error(status, GENERIC_ERROR_CODE, "No kbd macro has been defined")
             else
                 events = last_keyboard_macro
-                call execute_keyboard_macro(events, argument, status, kmacro_loop_setup_function)
+                call execute_keyboard_macro(events, argument, status, keyboard_macro_loop_setup_function)
                 if (status%ok()) this_command => last_command
             end if
 
@@ -1218,9 +1229,9 @@ contains
             if (a%value <= 0) return
         end if
 
-        if (kmacro_execute_repeat_key%char >= 0) then
-            repeat_key = value_type(int(kmacro_execute_repeat_key%char, int64))
-        else if (.not. kmacro_execute_repeat_key%value) then
+        if (keyboard_macro_execute_repeat_key%char >= 0) then
+            repeat_key = value_type(int(keyboard_macro_execute_repeat_key%char, int64))
+        else if (.not. keyboard_macro_execute_repeat_key%value) then
             repeat_key = value_type()
         end if
 
@@ -1230,7 +1241,7 @@ contains
         if (.not. is_current_message()) then
             times = ""
 
-            if (kmacro_execute_repeat_with_argument .and. a%kind == PREFIX_NUMBER) then
+            if (keyboard_macro_execute_repeat_with_argument .and. a%kind == PREFIX_NUMBER) then
                 if (a%value > 1) then
                     write (times_text, '(" ", i0, " times")') a%value
                     times = trim(times_text)
@@ -1242,7 +1253,7 @@ contains
         end if
 
         ! The repeat key's map: (kmacro-call-macro RA 'repeating nil M).
-        if (kmacro_execute_repeat_with_argument) then
+        if (keyboard_macro_execute_repeat_with_argument) then
             repeat_argument = a
         else
             repeat_argument = prefix_argument_type()
@@ -1272,10 +1283,10 @@ contains
         end if
 
         key(1) = repeat_key
-        call define_key(repeat_map, key, value_type(name="kmacro_execute_macro_repeat"), st)
+        call define_key(repeat_map, key, value_type(name="keyboard_macro_execute_macro_repeat"), st)
         repeat_key_bound = repeat_key
         call set_transient_map(repeat_map)
-    end subroutine kmacro_execute_macro
+    end subroutine keyboard_macro_execute_macro
 
     !> Whether the echo area shows a message (current-message).  Not a port.
     logical function is_current_message()
@@ -1290,83 +1301,84 @@ contains
     !> Record subsequent keyboard input, defining a keyboard macro.
     !> The commands are recorded even as they are executed.
     !>
-    !> Initializes the macro's `kmacro_counter' to ARGUMENT (or 0 if no prefix arg)
+    !> Initializes the macro's `keyboard_macro_counter' to ARGUMENT (or 0 if no prefix arg)
     !> before defining the macro.
     !>
     !> With \[universal_argument], appends to current keyboard macro (keeping
-    !> the current value of `kmacro_counter').
+    !> the current value of `keyboard_macro_counter').
     !>
     !> When used during defining/executing a macro, inserts the current value
-    !> of `kmacro_counter' and increments the counter value by ARGUMENT (or by 1 if no
+    !> of `keyboard_macro_counter' and increments the counter value by ARGUMENT (or by 1 if no
     !> prefix argument).  With just \[universal_argument], inserts the previous
-    !> value of `kmacro_counter', and does not modify the counter; this is
+    !> value of `keyboard_macro_counter', and does not modify the counter; this is
     !> different from incrementing the counter by zero.  (The previous value
     !> of the counter is the one it had before the last increment.)
     !>
-    !> The macro counter can be set directly via \[kmacro_set_counter] and \[kmacro_add_counter].
+    !> The macro counter can be set directly via \[keyboard_macro_set_counter] and \[keyboard_macro_add_counter].
     !> The format of the inserted value of the counter can be controlled
-    !> via \[kmacro_set_format].  Port of
+    !> via \[keyboard_macro_set_format].  Port of
     !> kmacro.el:kmacro-start-macro-or-insert-counter.
-    recursive subroutine kmacro_start_macro_or_insert_counter(argument, status)
+    recursive subroutine keyboard_macro_start_macro_or_insert_counter(argument, status)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
 
         if (is_defining_keyboard_macro() .or. is_executing_keyboard_macro()) then
-            call kmacro_insert_counter(argument, status)
+            call keyboard_macro_insert_counter(argument, status)
         else
-            call kmacro_start_macro(argument, status)
+            call keyboard_macro_start_macro(argument, status)
         end if
-    end subroutine kmacro_start_macro_or_insert_counter
+    end subroutine keyboard_macro_start_macro_or_insert_counter
 
     !> End kbd macro if currently being defined; else call last kbd macro.
     !> With numeric prefix ARGUMENT, repeat macro that many times.
     !> With \[universal_argument], call second macro in macro ring.  Port of
     !> kmacro.el:kmacro-end-or-call-macro.
-    recursive subroutine kmacro_end_or_execute_macro(argument, status, repeat)
+    recursive subroutine keyboard_macro_end_or_execute_macro(argument, status, repeat)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: repeat
         integer :: nr
 
-        nr = KMACRO_REPEAT_YES
+        nr = KEYBOARD_MACRO_REPEAT_YES
         if (present(repeat)) nr = repeat
         status = status_type()
 
         if (is_defining_keyboard_macro()) then
-            if (.not. kmacro_execute_repeat_key%is_off()) then
-                call kmacro_execute_macro(argument, status, nr, .true.)
+            if (.not. keyboard_macro_execute_repeat_key%is_off()) then
+                call keyboard_macro_execute_macro(argument, status, nr, .true.)
             else
-                call kmacro_end_macro(argument, status)
+                call keyboard_macro_end_macro(argument, status)
             end if
-        else if (associated(this_command, commands%kmacro_view_macro) .and. kmacro_view_last_item > 0) then
+        else if (associated(this_command, commands%keyboard_macro_view_macro) .and. keyboard_macro_view_last_item > 0) then
             ! We are in repeat mode!
-            if (kmacro_view_last_item <= ring_size()) call execute_ring_element(kmacro_view_last_item, argument, status)
+            if (keyboard_macro_view_last_item <= ring_size()) call execute_ring_element(keyboard_macro_view_last_item, argument, &
+                                                                                        status)
         else if (argument%kind == PREFIX_RAW) then
-            call kmacro_execute_ring_2nd(prefix_argument_type(PREFIX_NUMBER, 1_int64), status)
+            call keyboard_macro_execute_ring_2nd(prefix_argument_type(PREFIX_NUMBER, 1_int64), status)
         else
-            call kmacro_execute_macro(argument, status, nr)
+            call keyboard_macro_execute_macro(argument, status, nr)
         end if
-    end subroutine kmacro_end_or_execute_macro
+    end subroutine keyboard_macro_end_or_execute_macro
 
-    !> As `kmacro_end_or_execute_macro' but allow repeat without repeating prefix.
+    !> As `keyboard_macro_end_or_execute_macro' but allow repeat without repeating prefix.
     !> Port of kmacro.el:kmacro-end-or-call-macro-repeat.
-    recursive subroutine kmacro_end_or_execute_macro_repeat(argument, status)
+    recursive subroutine keyboard_macro_end_or_execute_macro_repeat(argument, status)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         logical :: found
 
-        call kmacro_get_repeat_prefix(keys, found)
-        call kmacro_end_or_execute_macro(argument, status, KMACRO_REPEAT_NO)
+        call keyboard_macro_get_repeat_prefix(keys, found)
+        call keyboard_macro_end_or_execute_macro(argument, status, KEYBOARD_MACRO_REPEAT_NO)
         if (.not. status%ok()) return
-        if (found) call kmacro_repeat_on_last_key(keys, status)
-    end subroutine kmacro_end_or_execute_macro_repeat
+        if (found) call keyboard_macro_repeat_on_last_key(keys, status)
+    end subroutine keyboard_macro_end_or_execute_macro_repeat
 
     !> Call last keyboard macro, ending it first if currently being defined.
     !> With numeric prefix ARGUMENT, repeat macro that many times.
     !> Zero argument means repeat until there is an error.  Port of
     !> kmacro.el:kmacro-end-and-call-macro (no mouse EVENT).
-    recursive subroutine kmacro_end_and_execute_macro(argument, status, repeat)
+    recursive subroutine keyboard_macro_end_and_execute_macro(argument, status, repeat)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: repeat
@@ -1374,12 +1386,12 @@ contains
         status = status_type()
 
         if (is_defining_keyboard_macro()) then
-            call kmacro_end_macro(prefix_argument_type(), status)
+            call keyboard_macro_end_macro(prefix_argument_type(), status)
             if (.not. status%ok()) return
         end if
 
-        call kmacro_execute_macro(argument, status, repeat)
-    end subroutine kmacro_end_and_execute_macro
+        call keyboard_macro_execute_macro(argument, status, repeat)
+    end subroutine keyboard_macro_end_and_execute_macro
 
     ! ------------------------------------------------------------------
     ! Viewing the ring
@@ -1388,7 +1400,7 @@ contains
     !> Display the last keyboard macro.
     !> If repeated, it shows previous elements in the macro ring.  Port of
     !> kmacro.el:kmacro-view-macro.
-    subroutine kmacro_view_macro(status)
+    subroutine keyboard_macro_view_macro(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         character(len=:), allocatable :: description
@@ -1396,62 +1408,62 @@ contains
 
         status = status_type()
 
-        if (is_kmacro_ring_empty()) then
-            kmacro_view_last_item = 0
-        else if (.not. associated(last_command, commands%kmacro_view_macro)) then
-            kmacro_view_last_item = 0
-        else if (kmacro_view_last_item == 0) then
-            kmacro_view_last_item = 1
-            kmacro_view_item_no = 2
+        if (is_keyboard_macro_ring_empty()) then
+            keyboard_macro_view_last_item = 0
+        else if (.not. associated(last_command, commands%keyboard_macro_view_macro)) then
+            keyboard_macro_view_last_item = 0
+        else if (keyboard_macro_view_last_item == 0) then
+            keyboard_macro_view_last_item = 1
+            keyboard_macro_view_item_no = 2
         else
-            kmacro_view_last_item = kmacro_view_last_item + 1
-            if (kmacro_view_last_item > ring_size()) kmacro_view_last_item = 0
-            kmacro_view_item_no = kmacro_view_item_no + 1
+            keyboard_macro_view_last_item = keyboard_macro_view_last_item + 1
+            if (keyboard_macro_view_last_item > ring_size()) keyboard_macro_view_last_item = 0
+            keyboard_macro_view_item_no = keyboard_macro_view_item_no + 1
         end if
 
-        this_command => commands%kmacro_view_macro
+        this_command => commands%keyboard_macro_view_macro
         ! In case we repeat.
         last_command => this_command
 
-        if (kmacro_view_last_item > 0) then
-            select case (kmacro_view_item_no)
+        if (keyboard_macro_view_last_item > 0) then
+            select case (keyboard_macro_view_item_no)
             case (2)
                 description = "2nd"
             case (3)
                 description = "3rd"
             case default
-                write (ordinal, '(i0, "th")') kmacro_view_item_no
+                write (ordinal, '(i0, "th")') keyboard_macro_view_item_no
                 description = trim(ordinal)
             end select
 
-            keys = kmacro_ring(kmacro_view_last_item)%keys
-            call kmacro_display(status, keys, description=description//" previous macro")
+            keys = keyboard_macro_ring(keyboard_macro_view_last_item)%keys
+            call keyboard_macro_display(status, keys, description=description//" previous macro")
         else
             call display_last(status, description="Last macro")
         end if
-    end subroutine kmacro_view_macro
+    end subroutine keyboard_macro_view_macro
 
     !> Display the last keyboard macro.
     !> If repeated, it shows previous elements in the macro ring.
     !> To execute the displayed macro ring item without changing the macro ring,
     !> just enter \`C-k'.
-    !> This is like `kmacro_view_macro', but allows repeating macro commands
+    !> This is like `keyboard_macro_view_macro', but allows repeating macro commands
     !> without repeating the prefix.  Port of
     !> kmacro.el:kmacro-view-macro-repeat.
-    recursive subroutine kmacro_view_macro_repeat(status)
+    recursive subroutine keyboard_macro_view_macro_repeat(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: keys(:)
         logical :: found
 
-        call kmacro_get_repeat_prefix(keys, found)
-        call kmacro_view_macro(status)
+        call keyboard_macro_get_repeat_prefix(keys, found)
+        call keyboard_macro_view_macro(status)
         if (.not. status%ok()) return
-        if (allocated(last_keyboard_macro) .and. found) call kmacro_repeat_on_last_key(keys, status)
-    end subroutine kmacro_view_macro_repeat
+        if (allocated(last_keyboard_macro) .and. found) call keyboard_macro_repeat_on_last_key(keys, status)
+    end subroutine keyboard_macro_view_macro_repeat
 
     !> Force redisplay during keyboard macro execution.  Port of
     !> kmacro.el:kmacro-redisplay.
-    subroutine kmacro_redisplay(status)
+    subroutine keyboard_macro_redisplay(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
@@ -1464,17 +1476,17 @@ contains
         if (is_executing_keyboard_macro()) then
             if (associated(redisplay_hook)) call redisplay_hook()
         end if
-    end subroutine kmacro_redisplay
+    end subroutine keyboard_macro_redisplay
 
     !> Called from `keyboard_quit': a macro being defined (not appended
     !> to) is dropped, and the previous one becomes the head of the ring
     !> again.  Port of kmacro.el:kmacro-keyboard-quit.
-    subroutine kmacro_keyboard_quit()
+    subroutine keyboard_macro_keyboard_quit()
         if (.not. is_defining_keyboard_macro()) return
         if (defining_keyboard_macro == DEFINING_KEYBOARD_MACRO_APPEND) return
-        if (is_kmacro_ring_empty()) return
-        call kmacro_pop_ring(.false.)
-    end subroutine kmacro_keyboard_quit
+        if (is_keyboard_macro_ring_empty()) return
+        call keyboard_macro_pop_ring(.false.)
+    end subroutine keyboard_macro_keyboard_quit
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -1498,62 +1510,63 @@ contains
 
     !> Record subsequent keyboard input, defining a keyboard macro.
     !> The commands are recorded even as they are executed.
-    !> Use \[kmacro_end_macro] to finish recording and make the macro available.
-    !> Use \[kmacro_end_and_execute_macro] to execute the macro.
+    !> Use \[keyboard_macro_end_macro] to finish recording and make the macro available.
+    !> Use \[keyboard_macro_end_and_execute_macro] to execute the macro.
     !>
     !> A true arg (prefix arg) means append to last macro defined.
     !>
     !> With \[universal_argument] prefix, append to last keyboard macro
-    !> defined.  Depending on `kmacro_execute_before_append', this may begin
+    !> defined.  Depending on `keyboard_macro_execute_before_append', this may begin
     !> by re-executing the last macro as if you typed it again.
     !>
-    !> Otherwise, it sets `kmacro_counter' to ARGUMENT or 0 if missing before
+    !> Otherwise, it sets `keyboard_macro_counter' to ARGUMENT or 0 if missing before
     !> defining the macro.
     !>
-    !> Use \[kmacro_insert_counter] to insert (and increment) the macro counter.
-    !> The counter value can be set or modified via \[kmacro_set_counter] and \[kmacro_add_counter].
-    !> The format of the counter can be modified via \[kmacro_set_format].
+    !> Use \[keyboard_macro_insert_counter] to insert (and increment) the macro counter.
+    !> The counter value can be set or modified via \[keyboard_macro_set_counter] and \[keyboard_macro_add_counter].
+    !> The format of the counter can be modified via \[keyboard_macro_set_format].
     !> Port of kmacro.el:kmacro-start-macro.
-    recursive subroutine execute_kmacro_start_macro(status)
+    recursive subroutine execute_keyboard_macro_start_macro(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_start_macro(current_prefix_argument, status)
-    end subroutine execute_kmacro_start_macro
+        call keyboard_macro_start_macro(current_prefix_argument, status)
+    end subroutine execute_keyboard_macro_start_macro
 
     !> Finish defining a keyboard macro.
-    !> The definition was started by \[kmacro_start_macro].
-    !> The macro is now available for use via \[kmacro_execute_macro].
+    !> The definition was started by \[keyboard_macro_start_macro].
+    !> The macro is now available for use via \[keyboard_macro_execute_macro].
     !>
     !> With numeric ARGUMENT, repeat the macro that many times,
     !> counting the definition just completed as the first repetition.
     !> An argument of zero means repeat until error.  Port of
     !> kmacro.el:kmacro-end-macro.
-    recursive subroutine execute_kmacro_end_macro(status)
+    recursive subroutine execute_keyboard_macro_end_macro(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_end_macro(prefix_argument_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_argument)), status)
-    end subroutine execute_kmacro_end_macro
+        call keyboard_macro_end_macro(prefix_argument_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_argument)), status)
+    end subroutine execute_keyboard_macro_end_macro
 
-    !> Call the keyboard MACRO that you defined with \[kmacro_start_macro].
+    !> Call the keyboard MACRO that you defined with \[keyboard_macro_start_macro].
     !> A prefix argument serves as a repeat count.  Zero means repeat until error.
     !> MACRO defaults to `last_keyboard_macro'.
     !>
     !> When you call the macro, you can call the macro again by repeating
     !> just the last key in the key sequence that you used to call this
-    !> command.  See `kmacro_execute_repeat_key' and `kmacro_execute_repeat_with_argument'
+    !> command.  See `keyboard_macro_execute_repeat_key' and `keyboard_macro_execute_repeat_with_argument'
     !> for details on how to adjust or disable this behavior.  Port of
     !> kmacro.el:kmacro-call-macro.
-    recursive subroutine execute_kmacro_execute_macro(status)
+    recursive subroutine execute_keyboard_macro_execute_macro(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_execute_macro(prefix_argument_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_argument)), status)
-    end subroutine execute_kmacro_execute_macro
+        call keyboard_macro_execute_macro(prefix_argument_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_argument)), &
+                                          status)
+    end subroutine execute_keyboard_macro_execute_macro
 
     !> Call the keyboard macro again, with the argument and macro of the
     !> call it repeats (the command of the repeat key after
-    !> \[kmacro_end_and_execute_macro]).  Upstream an anonymous command made
+    !> \[keyboard_macro_end_and_execute_macro]).  Upstream an anonymous command made
     !> by kmacro.el:kmacro-call-macro.
-    recursive subroutine execute_kmacro_execute_macro_repeat(status)
+    recursive subroutine execute_keyboard_macro_execute_macro_repeat(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: m(:)
         type(prefix_argument_type) :: ra
@@ -1562,72 +1575,72 @@ contains
 
         if (repeat_has_macro) then
             m = repeat_macro
-            call kmacro_execute_macro(ra, status, KMACRO_REPEAT_REPEATING, .false., m)
+            call keyboard_macro_execute_macro(ra, status, KEYBOARD_MACRO_REPEAT_REPEATING, .false., m)
         else
-            call kmacro_execute_macro(ra, status, KMACRO_REPEAT_REPEATING, .false.)
+            call keyboard_macro_execute_macro(ra, status, KEYBOARD_MACRO_REPEAT_REPEATING, .false.)
         end if
-    end subroutine execute_kmacro_execute_macro_repeat
+    end subroutine execute_keyboard_macro_execute_macro_repeat
 
     !> Record subsequent keyboard input, defining a keyboard macro.
     !> The commands are recorded even as they are executed.
     !>
-    !> Initializes the macro's `kmacro_counter' to ARGUMENT (or 0 if no prefix arg)
+    !> Initializes the macro's `keyboard_macro_counter' to ARGUMENT (or 0 if no prefix arg)
     !> before defining the macro.
     !>
     !> With \[universal_argument], appends to current keyboard macro (keeping
-    !> the current value of `kmacro_counter').
+    !> the current value of `keyboard_macro_counter').
     !>
     !> When used during defining/executing a macro, inserts the current value
-    !> of `kmacro_counter' and increments the counter value by ARGUMENT (or by 1 if no
+    !> of `keyboard_macro_counter' and increments the counter value by ARGUMENT (or by 1 if no
     !> prefix argument).  With just \[universal_argument], inserts the previous
-    !> value of `kmacro_counter', and does not modify the counter; this is
+    !> value of `keyboard_macro_counter', and does not modify the counter; this is
     !> different from incrementing the counter by zero.  (The previous value
     !> of the counter is the one it had before the last increment.)
     !>
-    !> The macro counter can be set directly via \[kmacro_set_counter] and \[kmacro_add_counter].
+    !> The macro counter can be set directly via \[keyboard_macro_set_counter] and \[keyboard_macro_add_counter].
     !> The format of the inserted value of the counter can be controlled
-    !> via \[kmacro_set_format].  Port of
+    !> via \[keyboard_macro_set_format].  Port of
     !> kmacro.el:kmacro-start-macro-or-insert-counter.
-    recursive subroutine execute_kmacro_start_macro_or_insert_counter(status)
+    recursive subroutine execute_keyboard_macro_start_macro_or_insert_counter(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_start_macro_or_insert_counter(current_prefix_argument, status)
-    end subroutine execute_kmacro_start_macro_or_insert_counter
+        call keyboard_macro_start_macro_or_insert_counter(current_prefix_argument, status)
+    end subroutine execute_keyboard_macro_start_macro_or_insert_counter
 
     !> End kbd macro if currently being defined; else call last kbd macro.
     !> With numeric prefix ARGUMENT, repeat macro that many times.
     !> With \[universal_argument], call second macro in macro ring.  Port of
     !> kmacro.el:kmacro-end-or-call-macro.
-    recursive subroutine execute_kmacro_end_or_execute_macro(status)
+    recursive subroutine execute_keyboard_macro_end_or_execute_macro(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_end_or_execute_macro(current_prefix_argument, status)
-    end subroutine execute_kmacro_end_or_execute_macro
+        call keyboard_macro_end_or_execute_macro(current_prefix_argument, status)
+    end subroutine execute_keyboard_macro_end_or_execute_macro
 
-    !> As `kmacro_end_or_execute_macro' but allow repeat without repeating prefix.
+    !> As `keyboard_macro_end_or_execute_macro' but allow repeat without repeating prefix.
     !> Port of kmacro.el:kmacro-end-or-call-macro-repeat.
-    recursive subroutine execute_kmacro_end_or_execute_macro_repeat(status)
+    recursive subroutine execute_keyboard_macro_end_or_execute_macro_repeat(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_end_or_execute_macro_repeat(current_prefix_argument, status)
-    end subroutine execute_kmacro_end_or_execute_macro_repeat
+        call keyboard_macro_end_or_execute_macro_repeat(current_prefix_argument, status)
+    end subroutine execute_keyboard_macro_end_or_execute_macro_repeat
 
     !> Call last keyboard macro, ending it first if currently being defined.
     !> With numeric prefix ARGUMENT, repeat macro that many times.
     !> Zero argument means repeat until there is an error.
     !>
     !> To give a macro a name, so you can call it even after defining other
-    !> macros, use \[kmacro_name_last_macro].  Port of
+    !> macros, use \[keyboard_macro_name_last_macro].  Port of
     !> kmacro.el:kmacro-end-and-call-macro.
-    recursive subroutine execute_kmacro_end_and_execute_macro(status)
+    recursive subroutine execute_keyboard_macro_end_and_execute_macro(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_end_and_execute_macro(current_prefix_argument, status)
-    end subroutine execute_kmacro_end_and_execute_macro
+        call keyboard_macro_end_and_execute_macro(current_prefix_argument, status)
+    end subroutine execute_keyboard_macro_end_and_execute_macro
 
-    !> Insert current value of `kmacro_counter', then increment it by ARGUMENT.
+    !> Insert current value of `keyboard_macro_counter', then increment it by ARGUMENT.
     !> Interactively, ARGUMENT defaults to 1.  With \[universal_argument], insert
-    !> the previous value of `kmacro_counter', and do not increment the
+    !> the previous value of `keyboard_macro_counter', and do not increment the
     !> current value.
     !>
     !> The previous value of the counter is the one it had before
@@ -1635,13 +1648,13 @@ contains
     !>
     !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-insert-counter.
-    recursive subroutine execute_kmacro_insert_counter(status)
+    recursive subroutine execute_keyboard_macro_insert_counter(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_insert_counter(current_prefix_argument, status)
-    end subroutine execute_kmacro_insert_counter
+        call keyboard_macro_insert_counter(current_prefix_argument, status)
+    end subroutine execute_keyboard_macro_insert_counter
 
-    !> Set the format of `kmacro_counter' to FORMAT.
+    !> Set the format of `keyboard_macro_counter' to FORMAT.
     !>
     !> The default format is "%d", which means to insert the number in
     !> decimal without any padding.  You can specify any format string
@@ -1659,60 +1672,60 @@ contains
     !>
     !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-set-format.
-    recursive subroutine execute_kmacro_set_format(status)
+    recursive subroutine execute_keyboard_macro_set_format(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: format
 
         call read_string("Macro Counter Format: ", format, status)
-        if (status%ok()) call kmacro_set_format(format)
-    end subroutine execute_kmacro_set_format
+        if (status%ok()) call keyboard_macro_set_format(format)
+    end subroutine execute_keyboard_macro_set_format
 
-    !> Set the value of `kmacro_counter' to ARGUMENT, or prompt for value if no argument.
+    !> Set the value of `keyboard_macro_counter' to ARGUMENT, or prompt for value if no argument.
     !> With \[universal_argument] prefix, reset counter to its value prior to this iteration of the
     !> macro.
     !>
     !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-set-counter.
-    recursive subroutine execute_kmacro_set_counter(status)
+    recursive subroutine execute_keyboard_macro_set_counter(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
         call read_n("Macro counter value: ", n, status)
-        if (status%ok()) call kmacro_set_counter(n, status)
-    end subroutine execute_kmacro_set_counter
+        if (status%ok()) call keyboard_macro_set_counter(n, status)
+    end subroutine execute_keyboard_macro_set_counter
 
-    !> Add the value of numeric prefix arg (prompt if missing) to `kmacro_counter'.
+    !> Add the value of numeric prefix arg (prompt if missing) to `keyboard_macro_counter'.
     !> With \[universal_argument], restore previous counter value.
     !>
     !> See Info node `(fortmacs) Keyboard Macro Counter' for more
     !> information.  Port of kmacro.el:kmacro-add-counter.
-    recursive subroutine execute_kmacro_add_counter(status)
+    recursive subroutine execute_keyboard_macro_add_counter(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
         call read_n("Add to macro counter: ", n, status)
-        if (status%ok()) call kmacro_add_counter(n, status)
-    end subroutine execute_kmacro_add_counter
+        if (status%ok()) call keyboard_macro_add_counter(n, status)
+    end subroutine execute_keyboard_macro_add_counter
 
-    !> Load the value of a REGISTER into `kmacro_counter'.  Port of
+    !> Load the value of a REGISTER into `keyboard_macro_counter'.  Port of
     !> kmacro.el:kmacro-reg-load-counter.
-    recursive subroutine execute_kmacro_reg_load_counter(status)
+    recursive subroutine execute_keyboard_macro_reg_load_counter(status)
         type(status_type), intent(out) :: status
         integer(int64) :: register
 
         call register_read_with_preview("Load register to counter: ", register, status)
-        if (status%ok()) call kmacro_reg_load_counter(register)
-    end subroutine execute_kmacro_reg_load_counter
+        if (status%ok()) call keyboard_macro_reg_load_counter(register)
+    end subroutine execute_keyboard_macro_reg_load_counter
 
-    !> Save the value of `kmacro_counter' to a REGISTER.  Port of
+    !> Save the value of `keyboard_macro_counter' to a REGISTER.  Port of
     !> kmacro.el:kmacro-reg-save-counter.
-    recursive subroutine execute_kmacro_reg_save_counter(status)
+    recursive subroutine execute_keyboard_macro_reg_save_counter(status)
         type(status_type), intent(out) :: status
         integer(int64) :: register
 
         call register_read_with_preview("Save counter to register: ", register, status)
-        if (status%ok()) call kmacro_reg_save_counter(register)
-    end subroutine execute_kmacro_reg_save_counter
+        if (status%ok()) call keyboard_macro_reg_save_counter(register)
+    end subroutine execute_keyboard_macro_reg_save_counter
 
     !> Read the register to compare and increment the counter by the
     !> numeric prefix if TEST holds.  Not a port.
@@ -1723,242 +1736,244 @@ contains
 
         argument = prefix_numeric_value(current_prefix_argument)
         call register_read_with_preview("Compare counter to register: ", register, status)
-        if (status%ok()) call kmacro_reg_add_counter(test, register, argument, status)
+        if (status%ok()) call keyboard_macro_reg_add_counter(test, register, argument, status)
     end subroutine reg_add_counter_command
 
     !> Increment counter by one if it is equal to register value.
     !> Prompt for the register to compare.
     !> Optional ARGUMENT (the prefix argument) specifies the increment.  Port of
     !> kmacro.el:kmacro-reg-add-counter-equal.
-    recursive subroutine execute_kmacro_reg_add_counter_equal(status)
+    recursive subroutine execute_keyboard_macro_reg_add_counter_equal(status)
         type(status_type), intent(out) :: status
 
-        call reg_add_counter_command(KMACRO_TEST_EQUAL, status)
-    end subroutine execute_kmacro_reg_add_counter_equal
+        call reg_add_counter_command(KEYBOARD_MACRO_TEST_EQUAL, status)
+    end subroutine execute_keyboard_macro_reg_add_counter_equal
 
     !> Increment counter by one if it is less than register value.
     !> Prompt for the register to compare.
     !> Optional ARGUMENT (the prefix argument) specifies increment.  Port of
     !> kmacro.el:kmacro-reg-add-counter-less.
-    recursive subroutine execute_kmacro_reg_add_counter_less(status)
+    recursive subroutine execute_keyboard_macro_reg_add_counter_less(status)
         type(status_type), intent(out) :: status
 
-        call reg_add_counter_command(KMACRO_TEST_LESS, status)
-    end subroutine execute_kmacro_reg_add_counter_less
+        call reg_add_counter_command(KEYBOARD_MACRO_TEST_LESS, status)
+    end subroutine execute_keyboard_macro_reg_add_counter_less
 
     !> Increment counter by one if it is greater than register value.
     !> Prompt for the register to compare.
     !> Optional ARGUMENT (the prefix argument) specifies increment.  Port of
     !> kmacro.el:kmacro-reg-add-counter-greater.
-    recursive subroutine execute_kmacro_reg_add_counter_greater(status)
+    recursive subroutine execute_keyboard_macro_reg_add_counter_greater(status)
         type(status_type), intent(out) :: status
 
-        call reg_add_counter_command(KMACRO_TEST_GREATER, status)
-    end subroutine execute_kmacro_reg_add_counter_greater
+        call reg_add_counter_command(KEYBOARD_MACRO_TEST_GREATER, status)
+    end subroutine execute_keyboard_macro_reg_add_counter_greater
 
     !> Quit the keyboard macro if the counter is equal to ARGUMENT.
     !> ARGUMENT defaults to zero if omitted (no prefix argument).  Port of
     !> kmacro.el:kmacro-quit-counter-equal.
-    recursive subroutine execute_kmacro_quit_counter_equal(status)
+    recursive subroutine execute_keyboard_macro_quit_counter_equal(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_quit_counter(KMACRO_TEST_EQUAL, prefix_numeric_value(current_prefix_argument), status)
-    end subroutine execute_kmacro_quit_counter_equal
+        call keyboard_macro_quit_counter(KEYBOARD_MACRO_TEST_EQUAL, prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_keyboard_macro_quit_counter_equal
 
     !> Quit the keyboard macro if the counter is less than ARGUMENTS.
     !> ARGUMENT defaults to zero if omitted (no prefix argument).  Port of
     !> kmacro.el:kmacro-quit-counter-less.
-    recursive subroutine execute_kmacro_quit_counter_less(status)
+    recursive subroutine execute_keyboard_macro_quit_counter_less(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_quit_counter(KMACRO_TEST_LESS, prefix_numeric_value(current_prefix_argument), status)
-    end subroutine execute_kmacro_quit_counter_less
+        call keyboard_macro_quit_counter(KEYBOARD_MACRO_TEST_LESS, prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_keyboard_macro_quit_counter_less
 
     !> Quit the keyboard macro if the counter is greater than ARGUMENT.
     !> ARGUMENT defaults to zero if omitted (no prefix argument).  Port of
     !> kmacro.el:kmacro-quit-counter-greater.
-    recursive subroutine execute_kmacro_quit_counter_greater(status)
+    recursive subroutine execute_keyboard_macro_quit_counter_greater(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_quit_counter(KMACRO_TEST_GREATER, prefix_numeric_value(current_prefix_argument), status)
-    end subroutine execute_kmacro_quit_counter_greater
+        call keyboard_macro_quit_counter(KEYBOARD_MACRO_TEST_GREATER, prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_keyboard_macro_quit_counter_greater
 
     !> Execute second keyboard macro in macro ring.
     !> With numeric argument ARGUMENT, execute the macro that many times.
     !> Port of kmacro.el:kmacro-call-ring-2nd.
-    recursive subroutine execute_kmacro_execute_ring_2nd(status)
+    recursive subroutine execute_keyboard_macro_execute_ring_2nd(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_execute_ring_2nd(prefix_argument_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_argument)), status)
-    end subroutine execute_kmacro_execute_ring_2nd
+        call keyboard_macro_execute_ring_2nd(prefix_argument_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_argument)), &
+                                             status)
+    end subroutine execute_keyboard_macro_execute_ring_2nd
 
     !> Execute second keyboard macro in macro ring.
-    !> This is like `kmacro_execute_ring_2nd', but allows repeating macro commands
+    !> This is like `keyboard_macro_execute_ring_2nd', but allows repeating macro commands
     !> without repeating the prefix.  Port of
     !> kmacro.el:kmacro-call-ring-2nd-repeat.
-    recursive subroutine execute_kmacro_execute_ring_2nd_repeat(status)
+    recursive subroutine execute_keyboard_macro_execute_ring_2nd_repeat(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_execute_ring_2nd_repeat(prefix_argument_type(PREFIX_NUMBER, prefix_numeric_value(current_prefix_argument)), &
-                                            status)
-    end subroutine execute_kmacro_execute_ring_2nd_repeat
+        call keyboard_macro_execute_ring_2nd_repeat(prefix_argument_type(PREFIX_NUMBER, &
+                                                                         prefix_numeric_value(current_prefix_argument)), &
+                                                    status)
+    end subroutine execute_keyboard_macro_execute_ring_2nd_repeat
 
     !> Display the second macro in the keyboard macro ring.  Port of
     !> kmacro.el:kmacro-view-ring-2nd.
-    recursive subroutine execute_kmacro_view_ring_2nd(status)
+    recursive subroutine execute_keyboard_macro_view_ring_2nd(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_view_ring_2nd(status)
-    end subroutine execute_kmacro_view_ring_2nd
+        call keyboard_macro_view_ring_2nd(status)
+    end subroutine execute_keyboard_macro_view_ring_2nd
 
     !> Move to next keyboard macro in keyboard macro ring.
     !> Displays the selected macro in the echo area.
     !> The ARGUMENT parameter is unused.  Port of
     !> kmacro.el:kmacro-cycle-ring-next.
-    recursive subroutine execute_kmacro_cycle_ring_next(status)
+    recursive subroutine execute_keyboard_macro_cycle_ring_next(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_cycle_ring_next(status)
-    end subroutine execute_kmacro_cycle_ring_next
+        call keyboard_macro_cycle_ring_next(status)
+    end subroutine execute_keyboard_macro_cycle_ring_next
 
     !> Move to previous keyboard macro in keyboard macro ring.
     !> Displays the selected macro in the echo area.
     !> The ARGUMENT parameter is unused.  Port of
     !> kmacro.el:kmacro-cycle-ring-previous.
-    recursive subroutine execute_kmacro_cycle_ring_previous(status)
+    recursive subroutine execute_keyboard_macro_cycle_ring_previous(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_cycle_ring_previous(status)
-    end subroutine execute_kmacro_cycle_ring_previous
+        call keyboard_macro_cycle_ring_previous(status)
+    end subroutine execute_keyboard_macro_cycle_ring_previous
 
     !> Swap first two elements on keyboard macro ring.  Port of
     !> kmacro.el:kmacro-swap-ring.
-    recursive subroutine execute_kmacro_swap_ring(status)
+    recursive subroutine execute_keyboard_macro_swap_ring(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_swap_ring(status)
-    end subroutine execute_kmacro_swap_ring
+        call keyboard_macro_swap_ring(status)
+    end subroutine execute_keyboard_macro_swap_ring
 
     !> Delete current macro from keyboard macro ring.
     !> The ARGUMENT parameter is unused.  Port of
     !> kmacro.el:kmacro-delete-ring-head.
-    recursive subroutine execute_kmacro_delete_ring_head(status)
+    recursive subroutine execute_keyboard_macro_delete_ring_head(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_delete_ring_head(status)
-    end subroutine execute_kmacro_delete_ring_head
+        call keyboard_macro_delete_ring_head(status)
+    end subroutine execute_keyboard_macro_delete_ring_head
 
     !> Display the last keyboard macro.
     !> If repeated, it shows previous elements in the macro ring.
     !> The ARGUMENT parameter is unused.  Port of kmacro.el:kmacro-view-macro.
-    recursive subroutine execute_kmacro_view_macro(status)
+    recursive subroutine execute_keyboard_macro_view_macro(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_view_macro(status)
-    end subroutine execute_kmacro_view_macro
+        call keyboard_macro_view_macro(status)
+    end subroutine execute_keyboard_macro_view_macro
 
     !> Display the last keyboard macro.
     !> If repeated, it shows previous elements in the macro ring.
     !> To execute the displayed macro ring item without changing the macro ring,
     !> just enter \`C-k'.
-    !> This is like `kmacro_view_macro', but allows repeating macro commands
+    !> This is like `keyboard_macro_view_macro', but allows repeating macro commands
     !> without repeating the prefix.  Port of
     !> kmacro.el:kmacro-view-macro-repeat.
-    recursive subroutine execute_kmacro_view_macro_repeat(status)
+    recursive subroutine execute_keyboard_macro_view_macro_repeat(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_view_macro_repeat(status)
-    end subroutine execute_kmacro_view_macro_repeat
+        call keyboard_macro_view_macro_repeat(status)
+    end subroutine execute_keyboard_macro_view_macro_repeat
 
     !> Force redisplay during keyboard macro execution.  Port of
     !> kmacro.el:kmacro-redisplay.
-    recursive subroutine execute_kmacro_redisplay(status)
+    recursive subroutine execute_keyboard_macro_redisplay(status)
         type(status_type), intent(out) :: status
 
-        call kmacro_redisplay(status)
-    end subroutine execute_kmacro_redisplay
+        call keyboard_macro_redisplay(status)
+    end subroutine execute_keyboard_macro_redisplay
 
-    !> Bind KEYS (kbd syntax) to command COMMAND in `kmacro_keymap'.  Not a port.
+    !> Bind KEYS (kbd syntax) to command COMMAND in `keyboard_macro_keymap'.  Not a port.
     subroutine bind(keys, command)
         character(len=*), intent(in) :: keys, command
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
 
         call key_parse(keys, key, st)
-        call define_key(kmacro_keymap, key, value_type(name=command), st)
+        call define_key(keyboard_macro_keymap, key, value_type(name=command), st)
     end subroutine bind
 
-    !> Register the commands, build `kmacro_keymap' (bindings_mod makes
+    !> Register the commands, build `keyboard_macro_keymap' (bindings_mod makes
     !> kmacro.el's autoloaded global keys: C-x (, C-x ), C-x e, <f3>, <f4>
     !> and C-x C-k), and show " Def" in the mode line while a macro is being
     !> defined (bindings.el's minor-mode-alist entry
     !> (defining-kbd-macro mode-line-defining-kbd-macro)).  Not a port.
-    subroutine initialize_kmacro()
+    subroutine initialize_keyboard_macro()
         type(status_type) :: st
 
         call ensure_formats()
-        commands%kmacro_start_macro%execute => execute_kmacro_start_macro
-        commands%kmacro_end_macro%execute => execute_kmacro_end_macro
-        commands%kmacro_execute_macro%execute => execute_kmacro_execute_macro
-        commands%kmacro_execute_macro_repeat%execute => execute_kmacro_execute_macro_repeat
-        commands%kmacro_start_macro_or_insert_counter%execute => execute_kmacro_start_macro_or_insert_counter
-        commands%kmacro_end_or_execute_macro%execute => execute_kmacro_end_or_execute_macro
-        commands%kmacro_end_or_execute_macro_repeat%execute => execute_kmacro_end_or_execute_macro_repeat
-        commands%kmacro_end_and_execute_macro%execute => execute_kmacro_end_and_execute_macro
-        commands%kmacro_insert_counter%execute => execute_kmacro_insert_counter
-        commands%kmacro_set_format%execute => execute_kmacro_set_format
-        commands%kmacro_set_counter%execute => execute_kmacro_set_counter
-        commands%kmacro_add_counter%execute => execute_kmacro_add_counter
-        commands%kmacro_reg_load_counter%execute => execute_kmacro_reg_load_counter
-        commands%kmacro_reg_save_counter%execute => execute_kmacro_reg_save_counter
-        commands%kmacro_reg_add_counter_equal%execute => execute_kmacro_reg_add_counter_equal
-        commands%kmacro_reg_add_counter_less%execute => execute_kmacro_reg_add_counter_less
-        commands%kmacro_reg_add_counter_greater%execute => execute_kmacro_reg_add_counter_greater
-        commands%kmacro_quit_counter_equal%execute => execute_kmacro_quit_counter_equal
-        commands%kmacro_quit_counter_less%execute => execute_kmacro_quit_counter_less
-        commands%kmacro_quit_counter_greater%execute => execute_kmacro_quit_counter_greater
-        commands%kmacro_execute_ring_2nd%execute => execute_kmacro_execute_ring_2nd
-        commands%kmacro_execute_ring_2nd_repeat%execute => execute_kmacro_execute_ring_2nd_repeat
-        commands%kmacro_view_ring_2nd%execute => execute_kmacro_view_ring_2nd
-        commands%kmacro_cycle_ring_next%execute => execute_kmacro_cycle_ring_next
-        commands%kmacro_cycle_ring_previous%execute => execute_kmacro_cycle_ring_previous
-        commands%kmacro_swap_ring%execute => execute_kmacro_swap_ring
-        commands%kmacro_delete_ring_head%execute => execute_kmacro_delete_ring_head
-        commands%kmacro_view_macro%execute => execute_kmacro_view_macro
-        commands%kmacro_view_macro_repeat%execute => execute_kmacro_view_macro_repeat
-        commands%kmacro_redisplay%execute => execute_kmacro_redisplay
-        kmacro_keyboard_quit_hook => kmacro_keyboard_quit
+        commands%keyboard_macro_start_macro%execute => execute_keyboard_macro_start_macro
+        commands%keyboard_macro_end_macro%execute => execute_keyboard_macro_end_macro
+        commands%keyboard_macro_execute_macro%execute => execute_keyboard_macro_execute_macro
+        commands%keyboard_macro_execute_macro_repeat%execute => execute_keyboard_macro_execute_macro_repeat
+        commands%keyboard_macro_start_macro_or_insert_counter%execute => execute_keyboard_macro_start_macro_or_insert_counter
+        commands%keyboard_macro_end_or_execute_macro%execute => execute_keyboard_macro_end_or_execute_macro
+        commands%keyboard_macro_end_or_execute_macro_repeat%execute => execute_keyboard_macro_end_or_execute_macro_repeat
+        commands%keyboard_macro_end_and_execute_macro%execute => execute_keyboard_macro_end_and_execute_macro
+        commands%keyboard_macro_insert_counter%execute => execute_keyboard_macro_insert_counter
+        commands%keyboard_macro_set_format%execute => execute_keyboard_macro_set_format
+        commands%keyboard_macro_set_counter%execute => execute_keyboard_macro_set_counter
+        commands%keyboard_macro_add_counter%execute => execute_keyboard_macro_add_counter
+        commands%keyboard_macro_reg_load_counter%execute => execute_keyboard_macro_reg_load_counter
+        commands%keyboard_macro_reg_save_counter%execute => execute_keyboard_macro_reg_save_counter
+        commands%keyboard_macro_reg_add_counter_equal%execute => execute_keyboard_macro_reg_add_counter_equal
+        commands%keyboard_macro_reg_add_counter_less%execute => execute_keyboard_macro_reg_add_counter_less
+        commands%keyboard_macro_reg_add_counter_greater%execute => execute_keyboard_macro_reg_add_counter_greater
+        commands%keyboard_macro_quit_counter_equal%execute => execute_keyboard_macro_quit_counter_equal
+        commands%keyboard_macro_quit_counter_less%execute => execute_keyboard_macro_quit_counter_less
+        commands%keyboard_macro_quit_counter_greater%execute => execute_keyboard_macro_quit_counter_greater
+        commands%keyboard_macro_execute_ring_2nd%execute => execute_keyboard_macro_execute_ring_2nd
+        commands%keyboard_macro_execute_ring_2nd_repeat%execute => execute_keyboard_macro_execute_ring_2nd_repeat
+        commands%keyboard_macro_view_ring_2nd%execute => execute_keyboard_macro_view_ring_2nd
+        commands%keyboard_macro_cycle_ring_next%execute => execute_keyboard_macro_cycle_ring_next
+        commands%keyboard_macro_cycle_ring_previous%execute => execute_keyboard_macro_cycle_ring_previous
+        commands%keyboard_macro_swap_ring%execute => execute_keyboard_macro_swap_ring
+        commands%keyboard_macro_delete_ring_head%execute => execute_keyboard_macro_delete_ring_head
+        commands%keyboard_macro_view_macro%execute => execute_keyboard_macro_view_macro
+        commands%keyboard_macro_view_macro_repeat%execute => execute_keyboard_macro_view_macro_repeat
+        commands%keyboard_macro_redisplay%execute => execute_keyboard_macro_redisplay
+        keyboard_macro_keyboard_quit_hook => keyboard_macro_keyboard_quit
         ! The keymap is rebuilt.
-        if (is_keymap_live(kmacro_keymap)) call destroy_keymap(kmacro_keymap, st)
-        call make_sparse_keymap(kmacro_keymap)
+        if (is_keymap_live(keyboard_macro_keymap)) call destroy_keymap(keyboard_macro_keymap, st)
+        call make_sparse_keymap(keyboard_macro_keymap)
         ! Start, end, execute macros
-        call bind("s", "kmacro_start_macro")
-        call bind("C-s", "kmacro_start_macro")
-        call bind("C-k", "kmacro_end_or_execute_macro_repeat")
-        call bind("d", "kmacro_redisplay")
+        call bind("s", "keyboard_macro_start_macro")
+        call bind("C-s", "keyboard_macro_start_macro")
+        call bind("C-k", "keyboard_macro_end_or_execute_macro_repeat")
+        call bind("d", "keyboard_macro_redisplay")
         ! macro ring
-        call bind("C-n", "kmacro_cycle_ring_next")
-        call bind("C-p", "kmacro_cycle_ring_previous")
-        call bind("C-v", "kmacro_view_macro_repeat")
-        call bind("C-d", "kmacro_delete_ring_head")
-        call bind("C-t", "kmacro_swap_ring")
-        call bind("C-l", "kmacro_execute_ring_2nd_repeat")
+        call bind("C-n", "keyboard_macro_cycle_ring_next")
+        call bind("C-p", "keyboard_macro_cycle_ring_previous")
+        call bind("C-v", "keyboard_macro_view_macro_repeat")
+        call bind("C-d", "keyboard_macro_delete_ring_head")
+        call bind("C-t", "keyboard_macro_swap_ring")
+        call bind("C-l", "keyboard_macro_execute_ring_2nd_repeat")
         ! macro counter
-        call bind("C-f", "kmacro_set_format")
-        call bind("C-c", "kmacro_set_counter")
-        call bind("C-i", "kmacro_insert_counter")
-        call bind("C-a", "kmacro_add_counter")
-        call bind("C-r l", "kmacro_reg_load_counter")
-        call bind("C-r s", "kmacro_reg_save_counter")
-        call bind("C-r a =", "kmacro_reg_add_counter_equal")
-        call bind("C-r a <", "kmacro_reg_add_counter_less")
-        call bind("C-r a >", "kmacro_reg_add_counter_greater")
-        call bind("C-q =", "kmacro_quit_counter_equal")
-        call bind("C-q <", "kmacro_quit_counter_less")
-        call bind("C-q >", "kmacro_quit_counter_greater")
+        call bind("C-f", "keyboard_macro_set_format")
+        call bind("C-c", "keyboard_macro_set_counter")
+        call bind("C-i", "keyboard_macro_insert_counter")
+        call bind("C-a", "keyboard_macro_add_counter")
+        call bind("C-r l", "keyboard_macro_reg_load_counter")
+        call bind("C-r s", "keyboard_macro_reg_save_counter")
+        call bind("C-r a =", "keyboard_macro_reg_add_counter_equal")
+        call bind("C-r a <", "keyboard_macro_reg_add_counter_less")
+        call bind("C-r a >", "keyboard_macro_reg_add_counter_greater")
+        call bind("C-q =", "keyboard_macro_quit_counter_equal")
+        call bind("C-q <", "keyboard_macro_quit_counter_less")
+        call bind("C-q >", "keyboard_macro_quit_counter_greater")
         call add_minor_mode_lighter("defining_keyboard_macro", " Def", face="font_lock_warning_face", &
                                     active=is_defining_keyboard_macro)
-    end subroutine initialize_kmacro
+    end subroutine initialize_keyboard_macro
 
     !> The number of characters of the UTF-8 text S.  Not a port.
     integer function nchars(s)
@@ -1995,18 +2010,18 @@ contains
         t = s
     end function first_characters
 
-    !> Forget the char of `kmacro_execute_repeat_key', as any assignment to it does.
+    !> Forget the char of `keyboard_macro_execute_repeat_key', as any assignment to it does.
     !> Not a port.
-    subroutine kmacro_execute_repeat_key_clear_kinds(self)
-        class(kmacro_execute_repeat_key_choice_setting_type), intent(inout) :: self
+    subroutine keyboard_macro_execute_repeat_key_clear_kinds(self)
+        class(keyboard_macro_execute_repeat_key_choice_setting_type), intent(inout) :: self
 
         self%char = -1
-    end subroutine kmacro_execute_repeat_key_clear_kinds
+    end subroutine keyboard_macro_execute_repeat_key_clear_kinds
 
-    !> The char of `kmacro_execute_repeat_key' as help shows it (`%char = N'); "" when
+    !> The char of `keyboard_macro_execute_repeat_key' as help shows it (`%char = N'); "" when
     !> none is set.  Not a port.
-    function kmacro_execute_repeat_key_other_value(self) result(text)
-        class(kmacro_execute_repeat_key_choice_setting_type), intent(in) :: self
+    function keyboard_macro_execute_repeat_key_other_value(self) result(text)
+        class(keyboard_macro_execute_repeat_key_choice_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
         character(len=32) :: component_text
 
@@ -2016,15 +2031,15 @@ contains
             write (component_text, '("%char = ", i0)') self%char
             text = trim(component_text)
         end if
-    end function kmacro_execute_repeat_key_other_value
+    end function keyboard_macro_execute_repeat_key_other_value
 
-    !> The assignment that sets the number or procedure `kmacro_execute_repeat_key' takes, for the error of a rejected
+    !> The assignment that sets the number or procedure `keyboard_macro_execute_repeat_key' takes, for the error of a rejected
     !> value.  Not a port.
-    function kmacro_execute_repeat_key_kind_hint(self, number) result(text)
-        class(kmacro_execute_repeat_key_choice_setting_type), intent(in) :: self
+    function keyboard_macro_execute_repeat_key_kind_hint(self, number) result(text)
+        class(keyboard_macro_execute_repeat_key_choice_setting_type), intent(in) :: self
         character(len=*), intent(in) :: number
         character(len=:), allocatable :: text
 
         text = "a character code is `"//trim(self%name)//"%char = "//number//"'"
-    end function kmacro_execute_repeat_key_kind_hint
+    end function keyboard_macro_execute_repeat_key_kind_hint
 end module keyboard_macros_mod

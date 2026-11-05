@@ -44,7 +44,7 @@ submodule(files_mod) files_directory_mod
     use error_mod, only: FILE_MISSING_CODE
     use search_mod, only: case_fold_search
     use editing_functions_mod, only: buffer_substring, delete_region, position_beginning_of_line
-    use buffer_mod, only: buf_fetch_char, buf_next_char_len
+    use buffer_mod, only: buffer_fetch_character, buffer_next_character_length
     use marker_mod, only: character_to_byte
     use file_input_output_mod, only: report_file_errno
     use string_type_mod, only: string_type
@@ -89,11 +89,11 @@ contains
 
     !> The shell `insert_directory' runs a wildcard listing with:
     !> `shell_file_name' (callproc.c).  Not a port.
-    function shell_name() result(sh)
-        character(len=:), allocatable :: sh
+    function shell_name() result(shell)
+        character(len=:), allocatable :: shell
 
         if (.not. allocated(shell_file_name%value)) call initialize_callproc()
-        sh = shell_file_name%value
+        shell = shell_file_name%value
     end function shell_name
 
     recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory)
@@ -216,10 +216,10 @@ contains
             call insert_file_contents(errfile, .false., inserted, status)
             call set_buffer(old, destination_name)
             if (.not. status%ok()) return
-            dired_ls_error_buffer = errbuf
+            directory_editor_ls_error_buffer = errbuf
         end if
 
-        dired_ls_error_file = errfile
+        directory_editor_ls_error_file = errfile
         call delete_file(errfile, status)
         if (.not. status%ok()) return
         call insert_directory_clean(beginning, switches, status)
@@ -241,7 +241,7 @@ contains
         if (.not. status%ok()) return
         ! The following overshoots by one line for an empty directory
         ! listed with "--dired", but without "-a" switch, where the ls
-        ! output contains a "//DIRED-OPTIONS//" line, but no "//DIRED//"
+        ! output contains a "//DIRED-OPTIONS//" line, but no "//DIRECTORY_EDITOR//"
         ! line.  We take care of that case later.
         shortage = forward_line(-2_int64)
         saved = case_fold_search%value
@@ -256,7 +256,7 @@ contains
             end = line_end_position()
             linebeg = point()
             call buffer_substring(linebeg, end, line, status)
-            ! Read the numeric positions of file names (after "//DIRED// "),
+            ! Read the numeric positions of file names (after "//DIRECTORY_EDITOR// "),
             ! as byte offsets from BEGINNING in the program's output: walk the text
             ! once, counting each character's bytes as the program wrote them
             ! (a raw byte as one).
@@ -279,7 +279,8 @@ contains
                 if (found) then
                     ! End is followed by \n or by output of -F.
                     if (index(achar(10)//" /*@%=|", achar(min(c, 127))) > 0 .and. c < 128) then
-                        call put_text_property(start, fend, value_type(name="dired_filename"), value_type(.true.), status)
+                        call put_text_property(start, fend, value_type(name="directory_editor_filename"), value_type(.true.), &
+                                               status)
                         if (.not. status%ok()) exit
                     end if
                 end if
@@ -290,7 +291,7 @@ contains
             call delete_region(point(), next_line_start(), status)
         else
             ! Take care of the case where the ls output contains a
-            ! "//DIRED-OPTIONS//"-line, but no "//DIRED//"-line and we went
+            ! "//DIRED-OPTIONS//"-line, but no "//DIRECTORY_EDITOR//"-line and we went
             ! one line too far back (see above).
             shortage = forward_line(1_int64)
         end if
@@ -305,10 +306,10 @@ contains
 
         !> The position after this line (forward-line 1).
         integer(int64) function next_line_start() result(p)
-            integer(int64) :: original_point, sh
+            integer(int64) :: original_point, shell
 
             original_point = point()
-            sh = forward_line(1_int64)
+            shell = forward_line(1_int64)
             p = point()
             call goto_character(original_point)
         end function next_line_start
@@ -321,8 +322,8 @@ contains
             offset = offset_in
 
             do while (byte < offset .and. position < buffers(current)%end_of_accessible_portion)
-                c = buf_fetch_char(buffers(current), character_to_byte(position))
-                n = buf_next_char_len(buffers(current), character_to_byte(position))
+                c = buffer_fetch_character(buffers(current), character_to_byte(position))
+                n = buffer_next_character_length(buffers(current), character_to_byte(position))
                 ext = n
                 if (is_character_byte8(c)) ext = 1
                 byte = byte + ext

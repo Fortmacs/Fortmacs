@@ -65,16 +65,16 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("completion-test--pcm-bug38458", test_pcm_bug38458), &
-                    new_unittest("completion-pcm-test-1", test_pcm_1), &
-                    new_unittest("completion-pcm-test-2", test_pcm_2), &
-                    new_unittest("completion-pcm-test-3", test_pcm_3), &
-                    new_unittest("completion-pcm-test-4", test_pcm_4), &
-                    new_unittest("completion-pcm-test-6", test_pcm_6), &
-                    new_unittest("completion-pcm-test-7", test_pcm_7), &
-                    new_unittest("completion-pcm-test-8", test_pcm_8), &
-                    new_unittest("completion-pcm-test-anydelim", test_pcm_anydelim), &
-                    new_unittest("completion-pcm-bug4219", test_pcm_bug4219), &
+                    new_unittest("completion-test--pcm-bug38458", test_partial_completion_mode_bug38458), &
+                    new_unittest("completion-pcm-test-1", test_partial_completion_mode_1), &
+                    new_unittest("completion-pcm-test-2", test_partial_completion_mode_2), &
+                    new_unittest("completion-pcm-test-3", test_partial_completion_mode_3), &
+                    new_unittest("completion-pcm-test-4", test_partial_completion_mode_4), &
+                    new_unittest("completion-pcm-test-6", test_partial_completion_mode_6), &
+                    new_unittest("completion-pcm-test-7", test_partial_completion_mode_7), &
+                    new_unittest("completion-pcm-test-8", test_partial_completion_mode_8), &
+                    new_unittest("completion-pcm-test-anydelim", test_partial_completion_mode_anydelim), &
+                    new_unittest("completion-pcm-bug4219", test_partial_completion_mode_bug4219), &
                     new_unittest("completion-substring-test-1", test_substring_1), &
                     new_unittest("completion-substring-test-2", test_substring_2), &
                     new_unittest("completion-substring-test-3", test_substring_3), &
@@ -174,15 +174,15 @@ contains
         call check(error, res%point == point, what//": point")
     end subroutine check_try
 
-    subroutine test_pcm_bug38458(error)
+    subroutine test_partial_completion_mode_bug38458(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
         call style_try("partial-completion", "tes", [character(len=7) :: "Testing", "testing"], 3_int64, res, .true.)
         call check_try(error, res, "testing", 7_int64, "tes")
-    end subroutine test_pcm_bug38458
+    end subroutine test_partial_completion_mode_bug38458
 
-    subroutine test_pcm_1(error)
+    subroutine test_partial_completion_mode_1(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
@@ -191,9 +191,9 @@ contains
         call style_all("partial-completion", "foo", [character(len=9) :: "hello", "world", "barfoobar"], 3_int64, &
                        n, first)
         call check(error, n == 0, "no match")
-    end subroutine test_pcm_1
+    end subroutine test_partial_completion_mode_1
 
-    subroutine test_pcm_2(error)
+    subroutine test_partial_completion_mode_2(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
@@ -202,18 +202,18 @@ contains
         call style_all("partial-completion", "foo", [character(len=9) :: "hello", "world", "barfoobar"], 0_int64, &
                        n, first)
         call check(error, first == "barfoobar", "got "//first)
-    end subroutine test_pcm_2
+    end subroutine test_partial_completion_mode_2
 
-    subroutine test_pcm_3(error)
+    subroutine test_partial_completion_mode_3(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
 
         call style_all("partial-completion", "R", [character(len=5) :: "R", "hello"], 1_int64, n, first)
         call check(error, n > 0, "a match")
-    end subroutine test_pcm_3
+    end subroutine test_partial_completion_mode_3
 
-    subroutine test_pcm_4(error)
+    subroutine test_partial_completion_mode_4(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
@@ -221,9 +221,9 @@ contains
         ! No match due to point being at the end.
         call style_all("partial-completion", "RO", [character(len=4) :: "RaOb"], 2_int64, n, first)
         call check(error, n == 0, "no match")
-    end subroutine test_pcm_4
+    end subroutine test_partial_completion_mode_4
 
-    subroutine test_pcm_6(error)
+    subroutine test_partial_completion_mode_6(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
@@ -235,9 +235,9 @@ contains
         call style_all("partial-completion", "li-pac*", [character(len=20) :: "do-not-list-packages"], 7_int64, &
                        n, first)
         call check(error, n == 0, "anchored")
-    end subroutine test_pcm_6
+    end subroutine test_partial_completion_mode_6
 
-    subroutine test_pcm_7(error)
+    subroutine test_partial_completion_mode_7(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
@@ -249,9 +249,9 @@ contains
         call style_try("partial-completion", "*/minibuf", [character(len=18) :: "lisp/minibuffer.el", "src/minibuf.c"], &
                        9_int64, res)
         call check_try(error, res, "*/minibuf", 9_int64, "*/minibuf")
-    end subroutine test_pcm_7
+    end subroutine test_partial_completion_mode_7
 
-    subroutine test_pcm_8(error)
+    subroutine test_partial_completion_mode_8(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
@@ -262,9 +262,9 @@ contains
         ! Even if point is at the end of the minibuffer.
         call style_try("partial-completion", "", [character(len=7) :: "fooxbar", "fooybar"], 0_int64, res)
         call check_try(error, res, "foobar", 3_int64, "empty")
-    end subroutine test_pcm_8
+    end subroutine test_partial_completion_mode_8
 
-    subroutine test_pcm_anydelim(error)
+    subroutine test_partial_completion_mode_anydelim(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
@@ -272,9 +272,9 @@ contains
         ! sequence of delimiters.
         call style_try("partial-completion", "-x", [character(len=4) :: "-_.x", "-__x"], 2_int64, res)
         call check_try(error, res, "-_x", 3_int64, "-x")
-    end subroutine test_pcm_anydelim
+    end subroutine test_partial_completion_mode_anydelim
 
-    subroutine test_pcm_bug4219(error)
+    subroutine test_partial_completion_mode_bug4219(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
@@ -300,7 +300,7 @@ contains
         ! case.
         call style_try("partial-completion", "Ab", [character(len=3) :: "abc", "ABD"], 1_int64, res, .true.)
         call check_try(error, res, "Ab", 2_int64, "Ab mixed")
-    end subroutine test_pcm_bug4219
+    end subroutine test_partial_completion_mode_bug4219
 
     subroutine test_substring_1(error)
         type(error_type), allocatable, intent(out) :: error

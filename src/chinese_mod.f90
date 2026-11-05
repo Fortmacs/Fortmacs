@@ -1,4 +1,4 @@
-! chinese_mod.f90 -- the chinese coding systems of type `charset', `big5'
+! chinese_mod.f90 -- the chinese coding systems of type `character_set', `big5'
 ! and `iso-2022'.
 ! Ported from GNU Emacs 31.1 lisp/language/chinese.el.
 !
@@ -27,7 +27,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset', `big5' and `iso-2022' that chinese.el defines, with their
+!> The coding systems of type `character_set', `big5' and `iso-2022' that chinese.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -37,106 +37,110 @@ submodule(coding_mod) chinese_mod
 
 contains
 
-    !> Port of the `charset', `big5' and `iso-2022' coding systems of chinese.el.
+    !> Port of the `character_set', `big5' and `iso-2022' coding systems of chinese.el.
     module subroutine initialize_chinese()
         call define_iso_2022_coding_system("iso-2022-cn", iachar("C"), &
                                            doc="ISO 2022 based 7bit encoding for Chinese GB and CNS (MIME:IS" &
                                            //"O-2022-CN).", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                                  "chinese-cns11643-2", "chinese-cns11643-1", "chinese-gb2312", &
-                                                                  "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                     "chinese-cns11643-2", "chinese-cns11643-1", "chinese-gb2312", &
+                                                                        "ascii"], &
                                            request_registers=[integer :: 2, 1, 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) :: &
                                                   "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation", "locking-shift", &
                                                   "single-shift", "init-at-bol"], &
-                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                          "ascii", "chinese-gb2312", "chinese-cns11643-1", &
-                                                          "chinese-cns11643-2"], &
-                                           mime_charset="iso-2022-cn", suitable_for_keyboard=.true.)
+                                           character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                "ascii", "chinese-gb2312", "chinese-cns11643-1", &
+                                                                "chinese-cns11643-2"], &
+                                           mime_character_set="iso-2022-cn", suitable_for_keyboard=.true.)
         call define_coding_system_alias("chinese-iso-7bit", "iso-2022-cn")
         call define_iso_2022_coding_system("iso-2022-cn-ext", iachar("C"), &
                                            doc="ISO 2022 based 7bit encoding for Chinese GB and CNS (MIME:IS" &
                                            //"O-2022-CN-EXT).", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                                  "chinese-cns11643-7", "chinese-cns11643-6", &
-                                                                  "chinese-cns11643-5", "chinese-cns11643-4", &
-                                                                  "chinese-cns11643-3", "chinese-cns11643-2", &
-                                                                  "chinese-cns11643-1", "chinese-gb2312", "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                        "chinese-cns11643-7", "chinese-cns11643-6", &
+                                                                        "chinese-cns11643-5", "chinese-cns11643-4", &
+                                                                        "chinese-cns11643-3", "chinese-cns11643-2", &
+                                                                        "chinese-cns11643-1", "chinese-gb2312", "ascii"], &
                                            request_registers=[integer :: 3, 3, 3, 3, 3, 2, 1, 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) :: &
                                                   "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation", "locking-shift", &
                                                   "single-shift", "init-at-bol"], &
-                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                          "ascii", "chinese-gb2312", "chinese-cns11643-1", "chinese-cns11643-2", &
-                                                          "chinese-cns11643-3", "chinese-cns11643-4", "chinese-cns11643-5", &
-                                                          "chinese-cns11643-6", "chinese-cns11643-7"], &
-                                           mime_charset="iso-2022-cn-ext", suitable_for_keyboard=.true.)
+                                           character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                            "ascii", "chinese-gb2312", "chinese-cns11643-1", "chinese-cns11643-2", &
+                                                                "chinese-cns11643-3", "chinese-cns11643-4", "chinese-cns11643-5", &
+                                                                "chinese-cns11643-6", "chinese-cns11643-7"], &
+                                           mime_character_set="iso-2022-cn-ext", suitable_for_keyboard=.true.)
         call define_iso_2022_coding_system("chinese-iso-8bit", iachar("c"), &
                                            doc="ISO 2022 based EUC encoding for Chinese GB2312 (MIME:GB2312)" &
                                            //".", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "chinese-gb2312", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "chinese-gb2312", &
-                                                                  "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "chinese-gb2312", "", &
+                                                    ""], &
+                                        request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "chinese-gb2312", &
+                                                                        "ascii"], &
                                            request_registers=[integer :: 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) ::], &
-                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "chinese-gb2312"], &
-                                           mime_charset="gb2312")
+                                           character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", &
+                                                                "chinese-gb2312"], &
+                                           mime_character_set="gb2312")
         call define_coding_system_alias("cn-gb-2312", "chinese-iso-8bit")
         call define_coding_system_alias("euc-china", "chinese-iso-8bit")
         call define_coding_system_alias("euc-cn", "chinese-iso-8bit")
         call define_coding_system_alias("cn-gb", "chinese-iso-8bit")
         call define_coding_system_alias("gb2312", "chinese-iso-8bit")
-        call define_charset_coding_system("chinese-big5", iachar("B"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "big5"], &
-                                          mime_charset="big5", &
-                                          doc="BIG5 8-bit encoding for Chinese (MIME:Big5)", &
-                                          ctype=CODING_BIG5)
+        call define_character_set_coding_system("chinese-big5", iachar("B"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "big5"], &
+                                                mime_character_set="big5", &
+                                                doc="BIG5 8-bit encoding for Chinese (MIME:Big5)", &
+                                                ctype=CODING_BIG5)
         call define_coding_system_alias("big5", "chinese-big5")
         call define_coding_system_alias("cn-big5", "chinese-big5")
         call define_coding_system_alias("cp950", "chinese-big5")
-        call define_charset_coding_system("chinese-big5-hkscs", iachar("B"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "big5-hkscs"], &
-                                          mime_charset="big5-hkscs", &
-                                          doc="BIG5-HKSCS 8-bit encoding for Chinese, Hong Kong supplement " &
-                                          //"(MIME:Big5-HKSCS)")
+        call define_character_set_coding_system("chinese-big5-hkscs", iachar("B"), &
+                                          character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "big5-hkscs"], &
+                                                mime_character_set="big5-hkscs", &
+                                                doc="BIG5-HKSCS 8-bit encoding for Chinese, Hong Kong supplement " &
+                                                //"(MIME:Big5-HKSCS)")
         call define_coding_system_alias("big5-hkscs", "chinese-big5-hkscs")
         call define_coding_system_alias("cn-big5-hkscs", "chinese-big5-hkscs")
         call define_iso_2022_coding_system("euc-tw", iachar("Z"), &
                                            doc="ISO 2022 based EUC encoding for Chinese CNS11643.", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
                                                     "ascii", "chinese-cns11643-1", "chinese-cns11643-1", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                                  "chinese-cns11643-7", "chinese-cns11643-6", &
-                                                                  "chinese-cns11643-5", "chinese-cns11643-4", &
-                                                                  "chinese-cns11643-3", "chinese-cns11643-2", &
-                                                                  "chinese-cns11643-1", "chinese-cns11643-1", "ascii"], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                        "chinese-cns11643-7", "chinese-cns11643-6", &
+                                                                        "chinese-cns11643-5", "chinese-cns11643-4", &
+                                                                        "chinese-cns11643-3", "chinese-cns11643-2", &
+                                                                        "chinese-cns11643-1", "chinese-cns11643-1", "ascii"], &
                                            request_registers=[integer :: 2, 2, 2, 2, 2, 2, 2, 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) ::], &
-                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                          "ascii", "chinese-cns11643-1", "chinese-cns11643-2", &
-                                                          "chinese-cns11643-3", "chinese-cns11643-4", "chinese-cns11643-5", &
-                                                          "chinese-cns11643-6", "chinese-cns11643-7"], &
-                                           mime_charset="euc-tw")
+                                           character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                "ascii", "chinese-cns11643-1", "chinese-cns11643-2", &
+                                                                "chinese-cns11643-3", "chinese-cns11643-4", "chinese-cns11643-5", &
+                                                                "chinese-cns11643-6", "chinese-cns11643-7"], &
+                                           mime_character_set="euc-tw")
         call define_coding_system_alias("euc-taiwan", "euc-tw")
-        call define_charset_coding_system("chinese-gbk", iachar("c"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "chinese-gbk"], &
-                                          mime_charset="gbk", &
-                                          doc="GBK encoding for Chinese (MIME:GBK).")
+        call define_character_set_coding_system("chinese-gbk", iachar("c"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", &
+                                                                     "chinese-gbk"], &
+                                                mime_character_set="gbk", &
+                                                doc="GBK encoding for Chinese (MIME:GBK).")
         call define_coding_system_alias("gbk", "chinese-gbk")
         call define_coding_system_alias("cp936", "chinese-gbk")
         call define_coding_system_alias("windows-936", "chinese-gbk")
-        call define_charset_coding_system("chinese-gb18030", iachar("c"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "gb18030-2-byte", &
-                                                         "gb18030-4-byte-bmp", &
-                                                         "gb18030-4-byte-smp", "gb18030-4-byte-ext-1", "gb18030-4-byte-ext-2"], &
-                                          mime_charset="gb18030", &
-                                          doc="GB18030 encoding for Chinese (MIME:GB18030).")
+        call define_character_set_coding_system("chinese-gb18030", iachar("c"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", &
+                                                                     "gb18030-2-byte", &
+                                                                     "gb18030-4-byte-bmp", &
+                                                            "gb18030-4-byte-smp", "gb18030-4-byte-ext-1", "gb18030-4-byte-ext-2"], &
+                                                mime_character_set="gb18030", &
+                                                doc="GB18030 encoding for Chinese (MIME:GB18030).")
         call define_coding_system_alias("gb18030", "chinese-gb18030")
     end subroutine initialize_chinese
 
@@ -144,7 +148,7 @@ contains
     module subroutine define_chinese_language_environments()
         call define_language_environment("Chinese-GB", &
                                          documentation="Support for Chinese GB2312 character set.", &
-                                         charsets=[character(len=40) :: "chinese-gb2312", "chinese-sisheng"], &
+                                         character_sets=[character(len=40) :: "chinese-gb2312", "chinese-sisheng"], &
                                          sample_text="Chinese (中文,普通话,汉语)"//achar(9)//"你好", &
                                          coding_systems=[character(len=40) :: "chinese-iso-8bit", "iso-2022-cn", "chinese-hz"], &
                       coding_system_order=[character(len=40) :: "chinese-iso-8bit", "chinese-gbk", "chinese-big5", "iso-2022-cn"], &
@@ -153,7 +157,7 @@ contains
                                          iso639_language="zh")
         call define_language_environment("Chinese-BIG5", &
                                          documentation="Support for Chinese Big5 character set.", &
-                                         charsets=[character(len=40) :: "chinese-big5-1", "chinese-big5-2"], &
+                                         character_sets=[character(len=40) :: "chinese-big5-1", "chinese-big5-2"], &
                                          sample_text="Cantonese (粵語,廣東話)"//achar(9)//"早晨, 你好", &
                                          coding_systems=[character(len=40) :: "chinese-big5", "chinese-iso-7bit"], &
                       coding_system_order=[character(len=40) :: "chinese-big5", "iso-2022-cn", "chinese-iso-8bit", "chinese-gbk"], &
@@ -164,7 +168,8 @@ contains
                                          documentation="Support for Chinese CNS character sets.  Note that the EUC-T" &
                                          //"W coding system"//achar(10)//"accepts Big5 for input also (which is then c" &
                                          //"onverted to CNS).", &
-                                  charsets=[character(len=40) :: "chinese-cns11643-1", "chinese-cns11643-2", "chinese-cns11643-3", &
+                                         character_sets=[character(len=40) :: "chinese-cns11643-1", "chinese-cns11643-2", &
+                                                         "chinese-cns11643-3", &
                                           "chinese-cns11643-4", "chinese-cns11643-5", "chinese-cns11643-6", "chinese-cns11643-7"], &
                                          coding_systems=[character(len=40) :: "iso-2022-cn", "euc-tw"], &
                             coding_system_order=[character(len=40) :: "iso-2022-cn", "euc-tw", "chinese-big5", "chinese-iso-8bit", &
@@ -175,9 +180,10 @@ contains
                                          documentation="Support for Chinese, preferring the EUC-TW character set.  N" &
                                          //"ote that"//achar(10)//"the EUC-TW coding system accepts Big5 for input als" &
                                          //"o (which is then"//achar(10)//"converted to CNS).", &
-                                  charsets=[character(len=40) :: "chinese-cns11643-1", "chinese-cns11643-2", "chinese-cns11643-3", &
+                                         character_sets=[character(len=40) :: "chinese-cns11643-1", "chinese-cns11643-2", &
+                                                         "chinese-cns11643-3", &
                                            "chinese-cns11643-4", "chinese-cns11643-5", "chinese-cns11643-6", "chinese-cns11643-7", &
-                                                   "chinese-big5-1", "chinese-big5-2"], &
+                                                         "chinese-big5-1", "chinese-big5-2"], &
                                          coding_systems=[character(len=40) :: "euc-tw", "iso-2022-cn"], &
                             coding_system_order=[character(len=40) :: "euc-tw", "chinese-big5", "iso-2022-cn", "chinese-iso-8bit", &
                                                               "chinese-gbk"], &
@@ -185,7 +191,7 @@ contains
                                          iso639_language="zh")
         call define_language_environment("Chinese-GBK", &
                                          documentation="Support for Chinese GBK character set.", &
-                                         charsets=[character(len=40) :: "chinese-gbk"], &
+                                         character_sets=[character(len=40) :: "chinese-gbk"], &
                                          sample_text="Chinese (中文,普通话,汉语) 妳好", &
                                          coding_systems=[character(len=40) :: "chinese-gbk"], &
                               coding_system_order=[character(len=40) :: "gbk", "iso-2022-cn", "chinese-big5", "chinese-iso-8bit"], &
@@ -194,7 +200,7 @@ contains
                                          iso639_language="zh")
         call define_language_environment("Chinese-GB18030", &
                                          documentation="Support for Chinese GB18030 character set.", &
-                                         charsets=[character(len=40) :: "gb18030"], &
+                                         character_sets=[character(len=40) :: "gb18030"], &
                                          sample_text="Chinese (中文,普通话,汉语) 你好", &
                                          coding_systems=[character(len=40) :: "chinese-gb18030"], &
                    coding_system_order=[character(len=40) :: "gb18030", "gbk", "iso-2022-cn", "chinese-big5", "chinese-iso-8bit"], &

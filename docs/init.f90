@@ -1,11 +1,11 @@
 ! init.f90 -- an example Fortmacs configuration.
 !
 ! Copy it to ~/.config/fortmacs/init.f90, change it, then run
-! `fortmacs --recompile`.  The module must be named `user_config` and
+! `fortmacs --recompile`.  The module must be named `user_configuration` and
 ! provide `configure`; everything else is up to you.  See the `fortmacs`
 ! module (src/fortmacs.f90) for what you can use.
 
-module user_config
+module user_configuration
     ! The whole API, so that settings and functions need no list.
     ! allow(use-all)
     use fortmacs
@@ -41,4 +41,4 @@ contains
         call date_and_time(date=date)
         call insert(date, status)
     end subroutine insert_date_stamp
-end module user_config
+end module user_configuration

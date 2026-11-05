@@ -24,7 +24,7 @@
 !> sha1_mod, sha256_mod, sha512_mod and sha3_mod.  A submodule can use
 !> coding_mod and file_input_output_mod, which a module below them cannot.
 submodule(utility_functions_mod) utility_functions_hash_mod
-    use buffer_mod, only: buf_bytes, set_buffer_internal
+    use buffer_mod, only: buffer_bytes, set_buffer_internal
     use marker_mod, only: character_to_byte
     use error_mod, only: CODING_SYSTEM_ERROR_CODE, FILE_ERROR_CODE
     use coding_mod, only: is_coding_system, coding_system_priority_list, coding_system_list_entry_type, &
@@ -356,7 +356,7 @@ contains
             end if
         end if
 
-        text = buf_bytes(buffers(b), character_to_byte(s), character_to_byte(e))
+        text = buffer_bytes(buffers(b), character_to_byte(s), character_to_byte(e))
         is_multibyte = buffers(b)%multibyte
         call set_buffer_internal(previous)
 

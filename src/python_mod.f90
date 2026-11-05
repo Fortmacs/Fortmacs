@@ -40,7 +40,7 @@
 !> PDB tracking, `python_interpreter' and `python_interpreter_arguments'),
 !> symbol completion (`python_completion_at_point'), the skeletons
 !> (skeleton.el), FFAP, `python_check', ElDoc, Hideshow,
-!> `python_imenu_create_flat_index', Outline mode's variables, `prettify_symbols',
+!> `python_index_menu_create_flat_index', Outline mode's variables, `prettify_symbols',
 !> Flymake, the import management commands (C-c C-i), tree-sitter
 !> (`python_ts_mode'), the menu,
 !> `python_utility_clone_local_variables' and the other utilities the shell
@@ -97,17 +97,17 @@ module python_mod
     use fill_mod, only: fill_paragraph, fill_paragraph_function, fill_comment_paragraph, fill_indent_according_to_mode
     use simple_mod, only: normal_auto_fill_function, do_auto_fill
     use electric_mod, only: electric_indent_inhibit, electric_indent_characters_value, electric_indent_characters_set_local
-    use programming_mode_mod, only: prog_first_column
+    use programming_mode_mod, only: programming_first_column
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use grep_mod, only: grep_files_aliases, grep_files_alias_type, grep_find_ignored_directories, grep_ignore_type
-    use index_menu_mod, only: imenu_create_index_function, imenu_index_type
+    use index_menu_mod, only: index_menu_create_index_function, index_menu_index_type
     use which_function_mod, only: which_function_functions
     use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
-    public :: create_python_imenu_index, format_python_imenu_item_label, format_python_imenu_parent_item_label, &
-              format_python_imenu_parent_item_jump_label, python_imenu_label_procedure
+    public :: create_python_index_menu_index, format_python_index_menu_item_label, format_python_index_menu_parent_item_label, &
+              format_python_index_menu_parent_item_jump_label, python_index_menu_label_procedure
     public :: initialize_python, python_base_mode, python_mode, python_syntax_context, python_syntax_context_type, &
               is_python_syntax_comment_or_string, is_python_syntax_closing_parenthesis, python_font_lock_syntactic_face_function, &
               python_syntax_count_quotes, python_syntax_stringify, python_indent_guess_indent_offset, &
@@ -392,37 +392,38 @@ module python_mod
     abstract interface
         !> A function formatting an Imenu label: LABEL gets the label of the
         !> subprogram of type TYPE named NAME.  Not a port.
-        subroutine python_imenu_label_procedure(type, name, label)
+        subroutine python_index_menu_label_procedure(type, name, label)
             implicit none(type, external)
             character(len=*), intent(in) :: type, name
             character(len=:), allocatable, intent(out) :: label
-        end subroutine python_imenu_label_procedure
+        end subroutine python_index_menu_label_procedure
     end interface
 
     !> Imenu function used to format an item label.
     !> It must be a function with two arguments: TYPE and NAME.  Port of
     !> python.el python-imenu-format-item-label-function.
-    procedure(python_imenu_label_procedure), pointer, public :: python_imenu_format_item_label_function => null()
+    procedure(python_index_menu_label_procedure), pointer, public :: python_index_menu_format_item_label_function => null()
 
     !> Imenu function used to format a parent item label.
     !> It must be a function with two arguments: TYPE and NAME.  Port of
     !> python.el python-imenu-format-parent-item-label-function.
-    procedure(python_imenu_label_procedure), pointer, public :: python_imenu_format_parent_item_label_function => null()
+    procedure(python_index_menu_label_procedure), pointer, public :: python_index_menu_format_parent_item_label_function => null()
 
     !> Imenu function used to format a parent jump item label.
     !> It must be a function with two arguments: TYPE and NAME.  Port of
     !> python.el python-imenu-format-parent-item-jump-label-function.
-    procedure(python_imenu_label_procedure), pointer, public :: python_imenu_format_parent_item_jump_label_function => null()
+    procedure(python_index_menu_label_procedure), pointer, public :: python_index_menu_format_parent_item_jump_label_function => &
+        null()
 
-    ! A node of the tree `create_python_imenu_index' builds: an item
+    ! A node of the tree `create_python_index_menu_index' builds: an item
     ! LABEL at POSITION, or (PARENT) a submenu LABEL holding its jump item
     ! JUMP_LABEL at POSITION and the nodes CHILDREN.
-    type :: imenu_node_type
+    type :: index_menu_node_type
         character(len=:), allocatable :: label, jump_label
         integer(int64) :: position = 0
         logical :: parent = .false.
         integer, allocatable :: children(:)
-    end type imenu_node_type
+    end type index_menu_node_type
     !> Keymap to repeat Python indentation commands.
     !> Used in `repeat_mode'.  Port of python.el python-indent-repeat-map.
     type(handle_type), public :: python_indent_repeat_map
@@ -464,9 +465,9 @@ module python_mod
 
     abstract interface
         ! A motion of `navigation_syntactically', true if it moved.
-        recursive logical function nav_motion_procedure()
+        recursive logical function navigation_motion_procedure()
             implicit none(type, external)
-        end function nav_motion_procedure
+        end function navigation_motion_procedure
     end interface
 
     integer, parameter :: NAVIGATION_BEGINNING_OF_BLOCK = 1, NAVIGATION_END_OF_BLOCK = 2
@@ -635,16 +636,16 @@ contains
         if (is_syntax_table_live(python_mode_syntax_table)) return
         call forward_setting(python_2_support)
 
-        if (.not. associated(python_imenu_format_item_label_function)) then
-            python_imenu_format_item_label_function => format_python_imenu_item_label
+        if (.not. associated(python_index_menu_format_item_label_function)) then
+            python_index_menu_format_item_label_function => format_python_index_menu_item_label
         end if
 
-        if (.not. associated(python_imenu_format_parent_item_label_function)) then
-            python_imenu_format_parent_item_label_function => format_python_imenu_parent_item_label
+        if (.not. associated(python_index_menu_format_parent_item_label_function)) then
+            python_index_menu_format_parent_item_label_function => format_python_index_menu_parent_item_label
         end if
 
-        if (.not. associated(python_imenu_format_parent_item_jump_label_function)) then
-            python_imenu_format_parent_item_jump_label_function => format_python_imenu_parent_item_jump_label
+        if (.not. associated(python_index_menu_format_parent_item_jump_label_function)) then
+            python_index_menu_format_parent_item_jump_label_function => format_python_index_menu_parent_item_jump_label
         end if
 
         call forward_setting(python_indent_offset)
@@ -696,7 +697,7 @@ contains
         call keymap_set(python_base_mode_map, "<backtab>", "python_indent_dedent_line", st)
         call keymap_set(python_base_mode_map, "C-c <", "python_indent_shift_left", st)
         call keymap_set(python_base_mode_map, "C-c >", "python_indent_shift_right", st)
-        call keymap_set(python_base_mode_map, "C-c C-j", "imenu", st)
+        call keymap_set(python_base_mode_map, "C-c C-j", "index_menu", st)
         ! Utilities
         call bind_remap("complete_name", "completion_at_point")
         call make_sparse_keymap(python_indent_repeat_map)
@@ -1581,7 +1582,7 @@ contains
     ! them, further in direction DIRECTORY (1 forward, -1 backward) than the
     ! previous place found.  Port of python.el:python-nav--syntactically.
     recursive integer(int64) function navigation_syntactically(fn, directory) result(found)
-        procedure(nav_motion_procedure) :: fn
+        procedure(navigation_motion_procedure) :: fn
         integer, intent(in) :: directory
         integer(int64) :: start_position, previous_position, newpos
         integer :: context
@@ -3802,12 +3803,12 @@ contains
         is_list = .false.
         call python_indent_context(kind, start)
         allocate (values(1))
-        values(1) = prog_first_column()
+        values(1) = programming_first_column()
 
         select case (kind)
         case (PYTHON_INDENT_NO_INDENT)
             ! usually 0
-            values(1) = prog_first_column()
+            values(1) = programming_first_column()
         case (PYTHON_INDENT_AFTER_LINE, PYTHON_INDENT_AFTER_COMMENT, PYTHON_INDENT_INSIDE_STRING, &
               PYTHON_INDENT_AFTER_BACKSLASH, PYTHON_INDENT_INSIDE_PARENTHESIS_CONTINUATION_LINE)
             ! Copy previous indentation.
@@ -3919,7 +3920,7 @@ contains
         end if
 
         n = 0
-        v = prog_first_column()
+        v = programming_first_column()
 
         if (python_indent_offset%value > 0) then
             do while (v <= indentation(1) - 1)
@@ -3929,7 +3930,7 @@ contains
         end if
 
         allocate (levels(n + 1))
-        v = prog_first_column()
+        v = programming_first_column()
 
         do i = 1, n
             levels(i) = v
@@ -3981,7 +3982,7 @@ contains
         else if (size(levels) > 0) then
             indentation = maxval(levels)
         else
-            indentation = prog_first_column()
+            indentation = programming_first_column()
         end if
     end function python_indent_calculate_indentation
 
@@ -4372,7 +4373,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(out) :: done
         integer, intent(in), optional :: justify
-        type(handle_type) :: string_start, string_line_start, str_end
+        type(handle_type) :: string_start, string_line_start, string_end
         character(len=:), allocatable :: text
         integer(int64) :: quote_count, f, beginning_of_accessible_portion, end_of_accessible_portion_from_end, start_newlines, &
                           end_newlines, q, moved, e
@@ -4391,10 +4392,10 @@ contains
         call goto_character(marked_position(string_start) + quote_count)
         call regular_expression_search_forward(STRING_DELIM_SYNTAX_REGULAR_EXPRESSION, f, st, noerror=SEARCH_NOERROR)
         if (.not. st%ok() .or. f <= 0) call goto_character(point_maximum())
-        call copy_marker_at(point(), str_end, .false., st)
+        call copy_marker_at(point(), string_end, .false., st)
         call goto_character(q)
         ! Docstring styles may vary for one-liners and multi-liners.
-        call buffer_substring(marked_position(string_start), marked_position(str_end), text, st)
+        call buffer_substring(marked_position(string_start), marked_position(string_end), text, st)
         multi_line_p = index(text, LF) > 0
         ! delimiters-style is a cons cell with the form
         ! (START-NEWLINES .  END-NEWLINES). When any of the expressions
@@ -4429,7 +4430,7 @@ contains
         ! (save-restriction (narrow-to-region ...) (fill-paragraph justify))
         beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
         end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
-        call narrow_to_region(marked_position(string_line_start), marked_position(str_end), status)
+        call narrow_to_region(marked_position(string_line_start), marked_position(string_end), status)
         if (status%ok()) call fill_paragraph(status, justify)
         call widen()
         call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
@@ -4452,10 +4453,10 @@ contains
 
             ! Add the number of newlines indicated by the selected style
             ! at the end of the docstring.
-            if (marked_position(str_end) /= point_maximum()) then
-                call goto_character(marked_position(str_end) - quote_count)
+            if (marked_position(string_end) /= point_maximum()) then
+                call goto_character(marked_position(string_end) - quote_count)
             else
-                call goto_character(marked_position(str_end))
+                call goto_character(marked_position(string_end))
             end if
 
             e = point()
@@ -4463,7 +4464,7 @@ contains
             call delete_region(point(), e, st)
 
             ! Add newlines only if string ends.
-            if (end_newlines > 0 .and. marked_position(str_end) /= point_maximum()) then
+            if (end_newlines > 0 .and. marked_position(string_end) /= point_maximum()) then
                 call newline(st, end_newlines)
                 ! Again indent only if a newline is added.
                 call indent_according_to_mode(st)
@@ -4473,7 +4474,7 @@ contains
         call goto_character(q)
         call destroy_marker(string_start, st)
         call destroy_marker(string_line_start, st)
-        call destroy_marker(str_end, st)
+        call destroy_marker(string_end, st)
     end subroutine python_fill_string
 
     !> Decorator fill function for `python_fill_paragraph'.
@@ -4705,7 +4706,7 @@ contains
         levels(4) = font_lock_keywords_level(python_font_lock_keywords_maximum_decoration)
         call font_lock_defaults%set_local(levels=levels, syntactic_face_function=python_font_lock_syntactic_face_function)
         call syntax_propertize_function%set_local(python_syntax_propertize_function)
-        call imenu_create_index_function%set_local(create_python_imenu_index)
+        call index_menu_create_index_function%set_local(create_python_index_menu_index)
         call which_function_functions%prepend(python_which_function_adapter, local=.true.)
         if (python_indent_guess_indent_offset_variable%value) call python_indent_guess_indent_offset()
         call major_modes%python_mode%end(saved, status)
@@ -4727,26 +4728,26 @@ contains
 
     !> Return Imenu label for single node using TYPE and NAME.  Port of
     !> python.el:python-imenu-format-item-label.
-    subroutine format_python_imenu_item_label(type, name, label)
+    subroutine format_python_index_menu_item_label(type, name, label)
         character(len=*), intent(in) :: type, name
         character(len=:), allocatable, intent(out) :: label
 
         label = name//" ("//type//")"
-    end subroutine format_python_imenu_item_label
+    end subroutine format_python_index_menu_item_label
 
     !> Return Imenu label for parent node using TYPE and NAME.  Port of
     !> python.el:python-imenu-format-parent-item-label.
-    subroutine format_python_imenu_parent_item_label(type, name, label)
+    subroutine format_python_index_menu_parent_item_label(type, name, label)
         character(len=*), intent(in) :: type, name
         character(len=:), allocatable, intent(out) :: label
 
-        call format_python_imenu_item_label(type, name, label)
+        call format_python_index_menu_item_label(type, name, label)
         label = label//"..."
-    end subroutine format_python_imenu_parent_item_label
+    end subroutine format_python_index_menu_parent_item_label
 
     !> Return Imenu label for parent node jump using TYPE and NAME.  Port of
     !> python.el:python-imenu-format-parent-item-jump-label.
-    subroutine format_python_imenu_parent_item_jump_label(type, name, label)
+    subroutine format_python_index_menu_parent_item_jump_label(type, name, label)
         character(len=*), intent(in) :: type, name
         character(len=:), allocatable, intent(out) :: label
 
@@ -4757,18 +4758,18 @@ contains
         else
             label = "*function definition*"
         end if
-    end subroutine format_python_imenu_parent_item_jump_label
+    end subroutine format_python_index_menu_parent_item_jump_label
 
     !> Return tree Imenu index for the current Python buffer.
-    !> Change `python_imenu_format_item_label_function',
-    !> `python_imenu_format_parent_item_label_function',
-    !> `python_imenu_format_parent_item_jump_label_function' to
+    !> Change `python_index_menu_format_item_label_function',
+    !> `python_index_menu_format_parent_item_label_function',
+    !> `python_index_menu_format_parent_item_jump_label_function' to
     !> customize how labels are formatted.  Port of
     !> python.el:python-imenu-create-index.
-    recursive subroutine create_python_imenu_index(index, status)
-        type(imenu_index_type), intent(out) :: index
+    recursive subroutine create_python_index_menu_index(index, status)
+        type(index_menu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
-        type(imenu_node_type), allocatable :: nodes(:)
+        type(index_menu_node_type), allocatable :: nodes(:)
         integer, allocatable :: top(:), none(:)
         integer :: tree, i
 
@@ -4796,7 +4797,7 @@ contains
             logical, intent(in) :: parent
             character(len=*), intent(in) :: jump_label
             integer, intent(in) :: children(:)
-            type(imenu_node_type) :: node
+            type(index_menu_node_type) :: node
 
             node%label = label
             node%jump_label = jump_label
@@ -4823,7 +4824,7 @@ contains
             ! Nothing found, probably near to is_beginning_of_buffer.
             if (position_value == 0) return
             call get_definition_type_name(type, name)
-            call python_imenu_format_item_label_function(type, name, label)
+            call python_index_menu_format_item_label_function(type, name, label)
             indent = current_indentation()
             children_indent_limit = python_indent_offset%value + minimum_indent
 
@@ -4834,7 +4835,7 @@ contains
                 if (size(tree) == 0) then
                     call make_node(k, label, position_value, .false., "", tree)
                 else
-                    call python_imenu_format_parent_item_jump_label_function(type, name, jump_label)
+                    call python_index_menu_format_parent_item_jump_label_function(type, name, jump_label)
                     call make_node(k, label, position_value, .true., jump_label, tree)
                 end if
             else if (indent <= children_indent_limit) then
@@ -4922,7 +4923,7 @@ contains
                 call index%append(nodes(k)%label, entry, position=nodes(k)%position, parent=parent)
             end if
         end subroutine append_node
-    end subroutine create_python_imenu_index
+    end subroutine create_python_index_menu_index
 
     ! ------------------------------------------------------------------
     ! Commands

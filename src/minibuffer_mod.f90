@@ -246,12 +246,12 @@ module minibuffer_mod
     !> In other words, if S is this string, then `[S]' must be a valid Emacs
     !> regular expression (not containing character ranges like `a-z').
     !> Port of minibuffer.el completion-pcm-word-delimiters.
-    character(len=:), allocatable, public :: completion_pcm_word_delimiters
+    character(len=:), allocatable, public :: completion_partial_completion_mode_word_delimiters
 
     !> If true, partial-completion behaves as if each word is preceded by
     !> wildcard.  If false, only the first word is not preceded by
     !> wildcard.  Port of minibuffer.el completion-pcm-leading-wildcard.
-    logical, public :: completion_pcm_leading_wildcard = .false.
+    logical, public :: completion_partial_completion_mode_leading_wildcard = .false.
 
     !> True if `flex' completion rejects spaces in search pattern.
     !> Port of minibuffer.el completion-flex-nospace.
@@ -2309,7 +2309,7 @@ contains
         type(status_type) :: status
         character(len=:), allocatable :: last_string
         integer(int64), allocatable :: widths(:)
-        integer(int64) :: length, columns, colwidth, column, cur_col, width, start
+        integer(int64) :: length, columns, colwidth, column, current_column, width, start
         integer :: k
         logical :: first
 
@@ -2327,7 +2327,7 @@ contains
         columns = min(max(1_int64, wwidth/(2 + length)), max(1_int64, int(size(strings), int64)/2))
         colwidth = wwidth/columns
         column = 0
-        cur_col = 0
+        current_column = 0
         first = .true.
 
         do k = 1, size(strings)
@@ -2344,11 +2344,11 @@ contains
                     ! No space for `string' at point, move to next line.
                     call insert(achar(10), status)
                     column = 0
-                    cur_col = 0
+                    current_column = 0
                 else
                     ! A space, then alignment to the column.
-                    call insert(" "//repeat(" ", int(max(0_int64, column - cur_col - 1))), status)
-                    cur_col = max(cur_col + 1, column)
+                    call insert(" "//repeat(" ", int(max(0_int64, column - current_column - 1))), status)
+                    current_column = max(current_column + 1, column)
                 end if
             end if
 
@@ -2365,7 +2365,7 @@ contains
                 end if
             end if
 
-            cur_col = cur_col + width
+            current_column = current_column + width
             ! Next column to align to.
             column = column + colwidth*((length + colwidth - 1)/colwidth)
         end do

@@ -63,7 +63,7 @@ module regular_expression_mod
     public :: regular_expression_wctype_parse, regular_expression_iswctype
 
     !> The opcodes of compiled patterns (regex-emacs.c regular_expression_opcode_t).
-    integer, parameter :: NO_OP = 0, SUCCEED = 1, EXACTN = 2, ANYCHAR = 3, CHARSET = 4, CHARSET_NOT = 5, &
+    integer, parameter :: NO_OP = 0, SUCCEED = 1, EXACTN = 2, ANYCHAR = 3, CHARACTER_SET = 4, CHARACTER_SET_NOT = 5, &
                           START_MEMORY = 6, STOP_MEMORY = 7, DUPLICATE = 8, BEGLINE = 9, ENDLINE = 10, &
                           BEGBUF = 11, ENDBUF = 12, JUMP = 13, ON_FAILURE_JUMP = 14, &
                           ON_FAILURE_KEEP_STRING_JUMP = 15, ON_FAILURE_JUMP_LOOP = 16, &
@@ -79,11 +79,18 @@ module regular_expression_mod
                           REG_EEND = 14, REG_ESIZE = 15, REG_ERPAREN = 16, REG_ERANGEX = 17, REG_ESIZEBR = 18
 
     !> Character classes (regex-emacs.h regular_expression_wctype_t).
-    integer, parameter, public :: RECC_ERROR = 0, RECC_ALNUM = 1, RECC_ALPHA = 2, RECC_WORD = 3, &
-                                  RECC_GRAPH = 4, RECC_PRINT = 5, RECC_LOWER = 6, RECC_UPPER = 7, &
-                                  RECC_PUNCT = 8, RECC_CNTRL = 9, RECC_DIGIT = 10, RECC_XDIGIT = 11, &
-                                  RECC_BLANK = 12, RECC_SPACE = 13, RECC_MULTIBYTE = 14, RECC_NONASCII = 15, &
-                                  RECC_ASCII = 16, RECC_UNIBYTE = 17
+    integer, parameter, public :: REGULAR_EXPRESSION_CHARACTER_CLASS_ERROR = 0, REGULAR_EXPRESSION_CHARACTER_CLASS_ALNUM = 1, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_ALPHA = 2, REGULAR_EXPRESSION_CHARACTER_CLASS_WORD = 3, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_GRAPH = 4, REGULAR_EXPRESSION_CHARACTER_CLASS_PRINT = 5, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_LOWER = 6, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_UPPER = 7, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_PUNCT = 8, REGULAR_EXPRESSION_CHARACTER_CLASS_CNTRL = 9, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_DIGIT = 10, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_XDIGIT = 11, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_BLANK = 12, REGULAR_EXPRESSION_CHARACTER_CLASS_SPACE = 13, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_MULTIBYTE = 14, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_NONASCII = 15, &
+                                  REGULAR_EXPRESSION_CHARACTER_CLASS_ASCII = 16, REGULAR_EXPRESSION_CHARACTER_CLASS_UNIBYTE = 17
 
     !> Bits of the range table for character classes of multibyte
     !> characters.
@@ -336,34 +343,34 @@ contains
         extract_character = ior(ior(buffer(at), ishft(buffer(at + 1), 8)), ishft(buffer(at + 2), 16))
     end function extract_character
 
-    !> The charset at `p' has a range table (CHARSET_RANGE_TABLE_EXISTS_P).
+    !> The charset at `p' has a range table (CHARACTER_SET_RANGE_TABLE_EXISTS_P).
     !> Port of regex-emacs.c:CHARSET_RANGE_TABLE_EXISTS_P.
-    pure logical function charset_range_table_exists(buffer, p)
+    pure logical function character_set_range_table_exists(buffer, p)
         integer, intent(in) :: buffer(0:)
         integer, intent(in) :: p
 
-        charset_range_table_exists = iand(buffer(p + 1), 128) /= 0
-    end function charset_range_table_exists
+        character_set_range_table_exists = iand(buffer(p + 1), 128) /= 0
+    end function character_set_range_table_exists
 
     !> Where the count of the range table of the charset at `p' is
-    !> (CHARSET_RANGE_TABLE).  Port of regex-emacs.c:CHARSET_RANGE_TABLE.
-    pure integer function charset_range_table(buffer, p)
+    !> (CHARACTER_SET_RANGE_TABLE).  Port of regex-emacs.c:CHARSET_RANGE_TABLE.
+    pure integer function character_set_range_table(buffer, p)
         integer, intent(in) :: buffer(0:)
         integer, intent(in) :: p
 
-        charset_range_table = p + 4 + iand(buffer(p + 1), 127)
-    end function charset_range_table
+        character_set_range_table = p + 4 + iand(buffer(p + 1), 127)
+    end function character_set_range_table
 
-    !> The class bits that start the range table (CHARSET_RANGE_TABLE_BITS).
+    !> The class bits that start the range table (CHARACTER_SET_RANGE_TABLE_BITS).
     !> Port of regex-emacs.c:CHARSET_RANGE_TABLE_BITS.
-    pure integer function charset_range_table_bits(buffer, p)
+    pure integer function character_set_range_table_bits(buffer, p)
         integer, intent(in) :: buffer(0:)
         integer, intent(in) :: p
         integer :: n
 
         n = iand(buffer(p + 1), 127)
-        charset_range_table_bits = buffer(p + 2 + n) + buffer(p + 3 + n)*256
-    end function charset_range_table_bits
+        character_set_range_table_bits = buffer(p + 2 + n) + buffer(p + 3 + n)*256
+    end function character_set_range_table_bits
 
     !> Syntax code for the character after \s or \S, or 255 for none
     !> (syntax.c syntax_specification_code).  Port of the syntax_specification_code table of
@@ -499,7 +506,8 @@ contains
     end function isword
 
     !> Parse a character class "[:name:]" at `string(p:pend-1)'.  If it is
-    !> one, advance `p' past it and return its RECC_ constant (RECC_ERROR
+    !> one, advance `p' past it and return its REGULAR_EXPRESSION_CHARACTER_CLASS_ constant
+    !> (REGULAR_EXPRESSION_CHARACTER_CLASS_ERROR
     !> for an unknown name); otherwise return -1.  Port of
     !> regex-emacs.c:re_wctype_parse.
     integer function regular_expression_wctype_parse(string, p, pend) result(cc)
@@ -521,7 +529,7 @@ contains
         end do
 
         p = it + 2
-        cc = RECC_ERROR
+        cc = REGULAR_EXPRESSION_CHARACTER_CLASS_ERROR
 
         ! The name must match exactly: Fortran's comparison would pad the
         ! shorter string with blanks, upstream compares the length first.
@@ -531,41 +539,41 @@ contains
 
         select case (string(beginning:it - 1))
         case ("word")
-            cc = RECC_WORD
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_WORD
         case ("alnum")
-            cc = RECC_ALNUM
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_ALNUM
         case ("alpha")
-            cc = RECC_ALPHA
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_ALPHA
         case ("space")
-            cc = RECC_SPACE
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_SPACE
         case ("digit")
-            cc = RECC_DIGIT
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_DIGIT
         case ("blank")
-            cc = RECC_BLANK
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_BLANK
         case ("upper")
-            cc = RECC_UPPER
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_UPPER
         case ("lower")
-            cc = RECC_LOWER
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_LOWER
         case ("punct")
-            cc = RECC_PUNCT
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_PUNCT
         case ("ascii")
-            cc = RECC_ASCII
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_ASCII
         case ("graph")
-            cc = RECC_GRAPH
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_GRAPH
         case ("print")
-            cc = RECC_PRINT
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_PRINT
         case ("cntrl")
-            cc = RECC_CNTRL
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_CNTRL
         case ("xdigit")
-            cc = RECC_XDIGIT
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_XDIGIT
         case ("unibyte")
-            cc = RECC_UNIBYTE
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_UNIBYTE
         case ("nonascii")
-            cc = RECC_NONASCII
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_NONASCII
         case ("multibyte")
-            cc = RECC_MULTIBYTE
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_MULTIBYTE
         case default
-            cc = RECC_ERROR
+            cc = REGULAR_EXPRESSION_CHARACTER_CLASS_ERROR
         end select
     end function regular_expression_wctype_parse
 
@@ -576,39 +584,39 @@ contains
         integer, intent(in) :: cc
 
         select case (cc)
-        case (RECC_ALNUM)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_ALNUM)
             regular_expression_iswctype = isalnum(ch)
-        case (RECC_ALPHA)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_ALPHA)
             regular_expression_iswctype = isalpha(ch)
-        case (RECC_BLANK)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_BLANK)
             regular_expression_iswctype = isblank(ch)
-        case (RECC_CNTRL)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_CNTRL)
             regular_expression_iswctype = ch < 32
-        case (RECC_DIGIT)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_DIGIT)
             regular_expression_iswctype = ch >= iachar("0") .and. ch <= iachar("9")
-        case (RECC_GRAPH)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_GRAPH)
             regular_expression_iswctype = isgraph(ch)
-        case (RECC_LOWER)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_LOWER)
             regular_expression_iswctype = is_lowercase(ch)
-        case (RECC_PRINT)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_PRINT)
             regular_expression_iswctype = isprint(ch)
-        case (RECC_PUNCT)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_PUNCT)
             regular_expression_iswctype = ispunct(ch)
-        case (RECC_SPACE)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_SPACE)
             regular_expression_iswctype = isspace(ch)
-        case (RECC_UPPER)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_UPPER)
             regular_expression_iswctype = is_uppercase(ch)
-        case (RECC_XDIGIT)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_XDIGIT)
             regular_expression_iswctype = character_hexdigit(ch) >= 0 .and. ch < 256
-        case (RECC_ASCII)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_ASCII)
             regular_expression_iswctype = ch < 128
-        case (RECC_NONASCII)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_NONASCII)
             regular_expression_iswctype = ch >= 128
-        case (RECC_UNIBYTE)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_UNIBYTE)
             regular_expression_iswctype = ch < 256
-        case (RECC_MULTIBYTE)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_MULTIBYTE)
             regular_expression_iswctype = ch >= 256
-        case (RECC_WORD)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_WORD)
             regular_expression_iswctype = isword(ch)
         case default
             regular_expression_iswctype = .false.
@@ -621,27 +629,27 @@ contains
         integer, intent(in) :: cc
 
         select case (cc)
-        case (RECC_NONASCII, RECC_MULTIBYTE)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_NONASCII, REGULAR_EXPRESSION_CHARACTER_CLASS_MULTIBYTE)
             regular_expression_wctype_to_bit = BIT_MULTIBYTE
-        case (RECC_ALPHA)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_ALPHA)
             regular_expression_wctype_to_bit = BIT_ALPHA
-        case (RECC_ALNUM)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_ALNUM)
             regular_expression_wctype_to_bit = BIT_ALNUM
-        case (RECC_WORD)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_WORD)
             regular_expression_wctype_to_bit = BIT_WORD
-        case (RECC_LOWER)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_LOWER)
             regular_expression_wctype_to_bit = BIT_LOWER
-        case (RECC_UPPER)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_UPPER)
             regular_expression_wctype_to_bit = BIT_UPPER
-        case (RECC_PUNCT)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_PUNCT)
             regular_expression_wctype_to_bit = BIT_PUNCT
-        case (RECC_SPACE)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_SPACE)
             regular_expression_wctype_to_bit = BIT_SPACE
-        case (RECC_GRAPH)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_GRAPH)
             regular_expression_wctype_to_bit = BIT_GRAPH
-        case (RECC_PRINT)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_PRINT)
             regular_expression_wctype_to_bit = BIT_PRINT
-        case (RECC_BLANK)
+        case (REGULAR_EXPRESSION_CHARACTER_CLASS_BLANK)
             regular_expression_wctype_to_bit = BIT_BLANK
         case default
             regular_expression_wctype_to_bit = 0
@@ -791,7 +799,7 @@ contains
                     ! Special case for compatibility: postfix ops after ^
                     ! become literals.
                     laststart = -1
-                    call buf_push(BEGLINE)
+                    call buffer_push(BEGLINE)
                 end if
             case (iachar("$"))
                 normal = p /= pend
@@ -799,7 +807,7 @@ contains
 
                 if (.not. normal) then
                     laststart = b
-                    call buf_push(ENDLINE)
+                    call buffer_push(ENDLINE)
                 end if
             case (iachar("+"), iachar("?"), iachar("*"))
                 ! If there is no previous pattern...
@@ -810,7 +818,7 @@ contains
                 end if
             case (iachar("."))
                 laststart = b
-                call buf_push(ANYCHAR)
+                call buffer_push(ANYCHAR)
             case (iachar("["))
                 call bracket()
             case (iachar("\"))
@@ -842,7 +850,7 @@ contains
 
         ! If we don't want backtracking, force success the first time we
         ! reach the end of the compiled pattern.
-        if (.not. posix_backtracking) call buf_push(SUCCEED)
+        if (.not. posix_backtracking) call buffer_push(SUCCEED)
         if (err /= REG_NOERROR) return
         bufp%used = b
 
@@ -889,24 +897,24 @@ contains
             call move_alloc(grown, bufp%buffer)
         end subroutine buffer_space
 
-        !> Append a byte (BUF_PUSH).
-        subroutine buf_push(byte)
+        !> Append a byte (BUFFER_PUSH).
+        subroutine buffer_push(byte)
             integer, intent(in) :: byte
 
             call buffer_space(1)
             bufp%buffer(b) = byte
             b = b + 1
-        end subroutine buf_push
+        end subroutine buffer_push
 
-        !> Append two bytes (BUF_PUSH_2).
-        subroutine buf_push_2(byte1, byte2)
+        !> Append two bytes (BUFFER_PUSH_2).
+        subroutine buffer_push_2(byte1, byte2)
             integer, intent(in) :: byte1, byte2
 
             call buffer_space(2)
             bufp%buffer(b) = byte1
             bufp%buffer(b + 1) = byte2
             b = b + 2
-        end subroutine buf_push_2
+        end subroutine buffer_push_2
 
         !> Store OP at LOCATION followed by the two-byte ARGUMENT (store_op1).
         subroutine store_op1(op, location, argument)
@@ -1151,7 +1159,7 @@ contains
                     ! The non-greedy multiple match looks like a
                     ! repeat..until: we only need a conditional jump at the
                     ! end of the loop.
-                    if (emptyp) call buf_push(NO_OP)
+                    if (emptyp) call buffer_push(NO_OP)
 
                     if (emptyp) then
                         call store_jump(ON_FAILURE_JUMP_NASTYLOOP, b, laststart)
@@ -1198,16 +1206,16 @@ contains
             laststart = b
 
             if (byte_of(p) == iachar("^")) then
-                call buf_push(CHARSET_NOT)
+                call buffer_push(CHARACTER_SET_NOT)
                 p = p + 1
             else
-                call buf_push(CHARSET)
+                call buffer_push(CHARACTER_SET)
             end if
 
             ! Remember the first position in the bracket expression.
             p1 = p
             ! Push the number of bytes in the bitmap and clear it.
-            call buf_push(32)
+            call buffer_push(32)
             bufp%buffer(b:b + 31) = 0
 
             ! Read in characters and ranges, setting map bits.
@@ -1224,7 +1232,7 @@ contains
                 cc = regular_expression_wctype_parse(source, p, pend)
 
                 if (cc /= -1) then
-                    if (cc == RECC_ERROR) then
+                    if (cc == REGULAR_EXPRESSION_CHARACTER_CLASS_ERROR) then
                         err = REG_ECTYPE
                         return
                     end if
@@ -1250,8 +1258,12 @@ contains
                     end do
 
                     rt_bits = ior(rt_bits, regular_expression_wctype_to_bit(cc))
+
                     ! SPACE and WORD use the syntax table.
-                    if (cc == RECC_SPACE .or. cc == RECC_WORD) bufp%used_syntax = .true.
+                    if (cc == REGULAR_EXPRESSION_CHARACTER_CLASS_SPACE .or. cc == REGULAR_EXPRESSION_CHARACTER_CLASS_WORD) then
+                        bufp%used_syntax = .true.
+                    end if
+
                     cycle
                 end if
 
@@ -1398,7 +1410,7 @@ contains
                 cs_regnum(cs_avail) = regnum
                 ! Do not push a start_memory for groups beyond the last
                 ! one we can represent in the compiled pattern.
-                if (regnum <= MAXIMUM_REGNUM .and. regnum > 0) call buf_push_2(START_MEMORY, regnum)
+                if (regnum <= MAXIMUM_REGNUM .and. regnum > 0) call buffer_push_2(START_MEMORY, regnum)
                 fixup_alt_jump = -1
                 laststart = -1
                 begalt = b
@@ -1418,7 +1430,7 @@ contains
                 pending_exact = -1
                 ! We're at the end of the group, so now we know how many
                 ! groups were inside this one.
-                if (reg <= MAXIMUM_REGNUM .and. reg > 0) call buf_push_2(STOP_MEMORY, reg)
+                if (reg <= MAXIMUM_REGNUM .and. reg > 0) call buffer_push_2(STOP_MEMORY, reg)
             case (iachar("|"))
                 ! Insert before the previous alternative a jump which jumps
                 ! to this alternative if the former fails.
@@ -1440,65 +1452,65 @@ contains
                 call interval()
             case (iachar("="))
                 laststart = b
-                call buf_push(AT_DOT)
+                call buffer_push(AT_DOT)
             case (iachar("s"))
                 laststart = b
                 call patfetch(c)
                 if (err /= REG_NOERROR) return
-                call buf_push_2(SYNTAXSPEC, syntax_specification_code(c))
+                call buffer_push_2(SYNTAXSPEC, syntax_specification_code(c))
             case (iachar("S"))
                 laststart = b
                 call patfetch(c)
                 if (err /= REG_NOERROR) return
-                call buf_push_2(NOTSYNTAXSPEC, syntax_specification_code(c))
+                call buffer_push_2(NOTSYNTAXSPEC, syntax_specification_code(c))
             case (iachar("c"))
                 laststart = b
                 call patfetch(c)
                 if (err /= REG_NOERROR) return
-                call buf_push_2(CATEGORYSPEC, iand(c, 255))
+                call buffer_push_2(CATEGORYSPEC, iand(c, 255))
             case (iachar("C"))
                 laststart = b
                 call patfetch(c)
                 if (err /= REG_NOERROR) return
-                call buf_push_2(NOTCATEGORYSPEC, iand(c, 255))
+                call buffer_push_2(NOTCATEGORYSPEC, iand(c, 255))
             case (iachar("w"))
                 laststart = b
-                call buf_push_2(SYNTAXSPEC, SWORD)
+                call buffer_push_2(SYNTAXSPEC, SWORD)
             case (iachar("W"))
                 laststart = b
-                call buf_push_2(NOTSYNTAXSPEC, SWORD)
+                call buffer_push_2(NOTSYNTAXSPEC, SWORD)
             case (iachar("<"))
                 laststart = b
-                call buf_push(WORDBEG)
+                call buffer_push(WORDBEG)
             case (iachar(">"))
                 laststart = b
-                call buf_push(WORDEND)
+                call buffer_push(WORDEND)
             case (iachar("_"))
                 laststart = b
                 call patfetch(c)
                 if (err /= REG_NOERROR) return
 
                 if (c == iachar("<")) then
-                    call buf_push(SYMBEG)
+                    call buffer_push(SYMBEG)
                 else if (c == iachar(">")) then
-                    call buf_push(SYMEND)
+                    call buffer_push(SYMEND)
                 else
                     err = REG_BADPAT
                 end if
             case (iachar("b"))
                 laststart = b
-                call buf_push(WORDBOUND)
+                call buffer_push(WORDBOUND)
             case (iachar("B"))
                 laststart = b
-                call buf_push(NOTWORDBOUND)
+                call buffer_push(NOTWORDBOUND)
             case (iachar("`"))
                 ! Special case for compatibility: postfix ops after \`
                 ! become literals, as for ^.
                 laststart = -1
-                call buf_push(BEGBUF)
+                call buffer_push(BEGBUF)
             case (iachar("'"))
                 laststart = b
-                call buf_push(ENDBUF)
+                call buffer_push(ENDBUF)
             case (iachar("1"):iachar("9"))
                 reg = c - iachar("0")
 
@@ -1510,7 +1522,7 @@ contains
                 end if
 
                 laststart = b
-                call buf_push_2(DUPLICATE, reg)
+                call buffer_push_2(DUPLICATE, reg)
             case default
                 ! You might think it would be useful for \ to mean not to
                 ! translate; but if we don't translate it it will never
@@ -1694,7 +1706,7 @@ contains
 
             if (new_exactn) then
                 laststart = b
-                call buf_push_2(EXACTN, 0)
+                call buffer_push_2(EXACTN, 0)
                 pending_exact = b - 1
             end if
 
@@ -1797,9 +1809,9 @@ contains
             continue
         case (EXACTN)
             q = q + buffer(q) + 1
-        case (CHARSET, CHARSET_NOT)
-            if (charset_range_table_exists(buffer, p)) then
-                q = charset_range_table(buffer, p)
+        case (CHARACTER_SET, CHARACTER_SET_NOT)
+            if (character_set_range_table_exists(buffer, p)) then
+                q = character_set_range_table(buffer, p)
                 mcnt = extract_number(buffer, q)
                 q = q + 2 + mcnt*2*3
             else
@@ -1847,7 +1859,7 @@ contains
             case (NO_OP)
                 p = p + 1
                 cycle
-            case (SUCCEED, EXACTN, CHARSET, CHARSET_NOT, ANYCHAR, SYNTAXSPEC, NOTSYNTAXSPEC, CATEGORYSPEC, &
+            case (SUCCEED, EXACTN, CHARACTER_SET, CHARACTER_SET_NOT, ANYCHAR, SYNTAXSPEC, NOTSYNTAXSPEC, CATEGORYSPEC, &
                   NOTCATEGORYSPEC)
                 ! Cases which stop the iteration.
                 safe = visit(bufp, p, data)
@@ -2046,8 +2058,8 @@ contains
                 ! We could put all the chars except for \n (and maybe \0)
                 ! but we don't bother since it is generally not worth it.
                 ok = .false.
-            case (CHARSET, CHARSET_NOT)
-                inverted = buffer(p) == CHARSET_NOT
+            case (CHARACTER_SET, CHARACTER_SET_NOT)
+                inverted = buffer(p) == CHARACTER_SET_NOT
 
                 if (inverted) then
                     ! Chars beyond end of bitmap are possible matches.
@@ -2071,8 +2083,8 @@ contains
                     end if
                 end do
 
-                if (inverted .or. (charset_range_table_exists(buffer, p) .and. &
-                                   charset_range_table_bits(buffer, p) /= 0)) then
+                if (inverted .or. (character_set_range_table_exists(buffer, p) .and. &
+                                   character_set_range_table_bits(buffer, p) /= 0)) then
                     ! Any leading code can possibly start a character which
                     ! doesn't match the specified set of characters; if we
                     ! can match a character class, we can match any
@@ -2081,11 +2093,11 @@ contains
                         fastmap(MINIMUM_MULTIBYTE_LEADING_CODE:MAXIMUM_MULTIBYTE_LEADING_CODE) = .true.
                         data%match_any_multibyte_characters = .true.
                     end if
-                else if (.not. inverted .and. charset_range_table_exists(buffer, p) .and. &
+                else if (.not. inverted .and. character_set_range_table_exists(buffer, p) .and. &
                          .not. data%match_any_multibyte_characters) then
                     ! Set fastmap[I] to 1 where I is a leading code of each
                     ! multibyte character in the range table.
-                    k = charset_range_table(buffer, p)
+                    k = character_set_range_table(buffer, p)
                     count = extract_number(buffer, k)
                     k = k + 2
 
@@ -2131,7 +2143,7 @@ contains
         integer, intent(in) :: p
 
         select case (buffer(p))
-        case (SUCCEED, DUPLICATE, EXACTN, ANYCHAR, CHARSET_NOT, CHARSET, SYNTAXSPEC, NOTSYNTAXSPEC, &
+        case (SUCCEED, DUPLICATE, EXACTN, ANYCHAR, CHARACTER_SET_NOT, CHARACTER_SET, SYNTAXSPEC, NOTSYNTAXSPEC, &
               CATEGORYSPEC, NOTCATEGORYSPEC)
             analyze_first_null = .true.
         case default
@@ -2173,7 +2185,7 @@ contains
     !> the character to test (after translation), CORIG the original one.
     !> `unibyte' says C is a unibyte character.  Port of
     !> regex-emacs.c:execute_charset.
-    logical function match_charset(buffer, p, c, corig, unibyte, canon) result(matched)
+    logical function match_character_set(buffer, p, c, corig, unibyte, canon) result(matched)
         integer, intent(in) :: buffer(0:)
         integer, intent(inout) :: p
         integer(int32), intent(in) :: c, corig
@@ -2182,11 +2194,11 @@ contains
         logical :: inverted
 
         p0 = p
-        inverted = buffer(p0) == CHARSET_NOT
+        inverted = buffer(p0) == CHARACTER_SET_NOT
         rtp = -1
 
-        if (charset_range_table_exists(buffer, p0)) then
-            rtp = charset_range_table(buffer, p0)
+        if (character_set_range_table_exists(buffer, p0)) then
+            rtp = character_set_range_table(buffer, p0)
             count = extract_number(buffer, rtp)
             rtp = rtp + 2
             p = rtp + count*2*3
@@ -2203,7 +2215,7 @@ contains
                 end if
             end if
         else if (rtp >= 0) then
-            class_bits = charset_range_table_bits(buffer, p0)
+            class_bits = character_set_range_table_bits(buffer, p0)
 
             if (iand(class_bits, BIT_MULTIBYTE) /= 0 .or. class_match()) then
                 matched = .not. inverted
@@ -2269,7 +2281,7 @@ contains
 
             class_match = .false.
         end function class_match
-    end function match_charset
+    end function match_character_set
 
     !> Case where `p2' points to an `exactn' or `endline'.  Port of
     !> regex-emacs.c:mutually_exclusive_exactn.
@@ -2290,17 +2302,17 @@ contains
         if (buffer(p1) == EXACTN) then
             call pchar(buffer, p1 + 2, c1, length)
             if (c /= c1) excl = .true.
-        else if (buffer(p1) == CHARSET .or. buffer(p1) == CHARSET_NOT) then
+        else if (buffer(p1) == CHARACTER_SET .or. buffer(p1) == CHARACTER_SET_NOT) then
             q = p1
-            if (.not. match_charset(buffer, q, c, c, is_ascii_character(c), .false.)) excl = .true.
+            if (.not. match_character_set(buffer, q, c, c, is_ascii_character(c), .false.)) excl = .true.
         else if (buffer(p1) == ANYCHAR .and. c == 10) then
             excl = .true.
         end if
     end function mutually_exclusive_exactn
 
-    !> Case where `p2' points to a `charset'.  Port of
+    !> Case where `p2' points to a `character_set'.  Port of
     !> regex-emacs.c:mutually_exclusive_charset.
-    logical function mutually_exclusive_charset(buffer, p1, p2) result(excl)
+    logical function mutually_exclusive_character_set(buffer, p1, p2) result(excl)
         integer, intent(in) :: buffer(0:)
         integer, intent(in) :: p1, p2
         integer :: index
@@ -2308,9 +2320,9 @@ contains
         excl = .false.
         ! It is hard to list up all the character in charset P2 if it
         ! includes multibyte character.  Give up in such case.
-        if (charset_range_table_exists(buffer, p2)) return
+        if (character_set_range_table_exists(buffer, p2)) return
 
-        if (buffer(p1) == CHARSET) then
+        if (buffer(p1) == CHARACTER_SET) then
             ! We win if the charset inside the loop has no overlap with
             ! the one after the loop.
             index = 0
@@ -2321,8 +2333,8 @@ contains
             end do
 
             if (index == buffer(p2 + 1) .or. index == iand(buffer(p1 + 1), 127)) excl = .true.
-        else if (buffer(p1) == CHARSET_NOT) then
-            ! We win if the charset_not inside the loop lists every
+        else if (buffer(p1) == CHARACTER_SET_NOT) then
+            ! We win if the character_set_not inside the loop lists every
             ! character listed in the charset after.
             index = 0
 
@@ -2337,7 +2349,7 @@ contains
 
             if (index == buffer(p2 + 1)) excl = .true.
         end if
-    end function mutually_exclusive_charset
+    end function mutually_exclusive_character_set
 
     !> Port of regex-emacs.c:mutually_exclusive_one.
     logical function mutually_exclusive_one(bufp, p2, data) result(excl)
@@ -2357,20 +2369,20 @@ contains
                 excl = constrain(mutually_exclusive_exactn(buffer, p1, p2))
             case (EXACTN)
                 excl = mutually_exclusive_exactn(buffer, p1, p2)
-            case (CHARSET)
+            case (CHARACTER_SET)
                 if (buffer(p1) == EXACTN) then
                     excl = mutually_exclusive_exactn(buffer, p2, p1)
                 else
-                    excl = mutually_exclusive_charset(buffer, p1, p2)
+                    excl = mutually_exclusive_character_set(buffer, p1, p2)
                 end if
-            case (CHARSET_NOT)
+            case (CHARACTER_SET_NOT)
                 select case (buffer(p1))
                 case (EXACTN)
                     excl = mutually_exclusive_exactn(buffer, p2, p1)
-                case (CHARSET)
-                    excl = mutually_exclusive_charset(buffer, p2, p1)
+                case (CHARACTER_SET)
+                    excl = mutually_exclusive_character_set(buffer, p2, p1)
                 case default
-                    ! When we have two charset_not, it's very unlikely that
+                    ! When we have two character_set_not, it's very unlikely that
                     ! they don't overlap.
                     excl = .false.
                 end select
@@ -2440,7 +2452,7 @@ contains
         integer(int64), intent(in) :: startpos_in, range_in, stop
         type(regular_expression_registers_type), intent(inout), optional :: regs
         integer(int64) :: startpos, range, total_size, endpos, irange, d
-        integer(int32) :: buf_ch, buf_charlen, length
+        integer(int32) :: buffer_ch, buffer_charlen, length
         logical :: anchored_start, skip
 
         startpos = startpos_in
@@ -2499,19 +2511,19 @@ contains
                     irange = range
 
                     do while (range > 0)
-                        call schar(subj, d, buf_ch, buf_charlen)
-                        if (bufp%translate) buf_ch = case_canon(buf_ch)
-                        if (bufp%fastmap(character_leading_code(buf_ch))) exit
-                        range = range - buf_charlen
-                        d = d + buf_charlen
+                        call schar(subj, d, buffer_ch, buffer_charlen)
+                        if (bufp%translate) buffer_ch = case_canon(buffer_ch)
+                        if (bufp%fastmap(character_leading_code(buffer_ch))) exit
+                        range = range - buffer_charlen
+                        d = d + buffer_charlen
                     end do
 
                     startpos = startpos + irange - range
                 else
                     ! Searching backwards.
-                    call schar(subj, d, buf_ch, length)
-                    if (bufp%translate) buf_ch = case_canon(buf_ch)
-                    if (.not. bufp%fastmap(character_leading_code(buf_ch))) skip = .true.
+                    call schar(subj, d, buffer_ch, length)
+                    if (bufp%translate) buffer_ch = case_canon(buffer_ch)
+                    if (.not. bufp%fastmap(character_leading_code(buffer_ch))) skip = .true.
                 end if
             end if
 
@@ -2589,7 +2601,7 @@ contains
         integer(int64) :: fs_avail, fs_frame
         ! Where each group matched (so far, and in the best match).
         integer(int64), allocatable :: regstart(:), regend(:), best_regstart(:), best_regend(:)
-        integer(int32) :: c, c1, c2, len1, len2, pattern_ch, pattern_charlen, buf_ch, buf_charlen, corig
+        integer(int32) :: c, c1, c2, len1, len2, pattern_ch, pattern_charlen, buffer_ch, buffer_charlen, corig
         integer :: s1, s2
         logical :: best_regs_set, best_match_p, do_fail, inverted, cycle_found, overflow, unibyte_character
 
@@ -2675,16 +2687,16 @@ contains
                         end if
 
                         call pchar(bufp%buffer, p, pattern_ch, pattern_charlen)
-                        call schar(subj, d, buf_ch, buf_charlen)
+                        call schar(subj, d, buffer_ch, buffer_charlen)
 
-                        if (tr(buf_ch) /= pattern_ch) then
+                        if (tr(buffer_ch) /= pattern_ch) then
                             d = dfail
                             do_fail = .true.
                             exit
                         end if
 
                         p = p + pattern_charlen
-                        d = d + buf_charlen
+                        d = d + buffer_charlen
                         mcnt = mcnt - pattern_charlen
                         if (mcnt <= 0) exit
                     end do
@@ -2693,29 +2705,29 @@ contains
                     if (d == stop) then
                         do_fail = .true.
                     else
-                        call schar(subj, d, buf_ch, buf_charlen)
+                        call schar(subj, d, buffer_ch, buffer_charlen)
 
-                        if (tr(buf_ch) == 10) then
+                        if (tr(buffer_ch) == 10) then
                             do_fail = .true.
                         else
-                            d = d + buf_charlen
+                            d = d + buffer_charlen
                         end if
                     end if
-                case (CHARSET, CHARSET_NOT)
+                case (CHARACTER_SET, CHARACTER_SET_NOT)
                     if (d == stop) then
                         do_fail = .true.
                     else
-                        call schar(subj, d, corig, buf_charlen)
+                        call schar(subj, d, corig, buffer_charlen)
                         c = tr(corig)
                         c1 = character_to_byte_safe(c)
                         unibyte_character = c1 >= 0
                         if (unibyte_character) c = c1
                         p = p - 1
 
-                        if (.not. match_charset(bufp%buffer, p, c, corig, unibyte_character, bufp%translate)) then
+                        if (.not. match_character_set(bufp%buffer, p, c, corig, unibyte_character, bufp%translate)) then
                             do_fail = .true.
                         else
-                            d = d + buf_charlen
+                            d = d + buffer_charlen
                         end if
                     end if
                 case (START_MEMORY)
@@ -3231,8 +3243,8 @@ contains
 
         !> Check that we are not stuck in an infinite loop
         !> (CHECK_INFINITE_LOOP).
-        subroutine check_infinite_loop(pat_cur)
-            integer, intent(in) :: pat_cur
+        subroutine check_infinite_loop(pattern_current)
+            integer, intent(in) :: pattern_current
             integer(int64) :: failure
 
             cycle_found = .false.
@@ -3241,7 +3253,7 @@ contains
             do while (failure > 0)
                 if (.not. (fs(failure - 2) == d .or. fs(failure - 2) == -1)) exit
 
-                if (fs(failure - 1) == pat_cur) then
+                if (fs(failure - 1) == pattern_current) then
                     cycle_found = .true.
                     exit
                 end if

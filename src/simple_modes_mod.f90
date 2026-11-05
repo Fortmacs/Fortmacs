@@ -115,7 +115,7 @@ contains
     ! can name it as their parent.
     call major_modes%fundamental_mode%define("fundamental_mode", "Fundamental", fundamental_mode)
     call major_modes%special_mode%define("special_mode", "Special", special_mode, special_mode_hook, &
-                                         abbrev_table=special_mode_abbrev_table)
+                                         abbreviation_table=special_mode_abbreviation_table)
     special_mode_map = major_modes%special_mode%map
     major_modes%special_mode%special = .true.
     call major_modes%messages_buffer_mode%define("messages_buffer_mode", "Messages", messages_buffer_mode, &

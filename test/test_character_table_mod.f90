@@ -195,7 +195,7 @@ contains
         type(handle_type) :: tbl
         type(status_type) :: status
 
-        call make_character_table(tbl, "foo", status, init=3_int64)
+        call make_character_table(tbl, "foo", status, initialize=3_int64)
         call check(error, character_table_reference(tbl, int(z'10000')) == 3)
         if (allocated(error)) return
         call set_character_table_range(tbl, 9_int64, status, all=.true.)

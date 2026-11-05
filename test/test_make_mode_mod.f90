@@ -42,7 +42,7 @@ module test_make_mode_mod
     use fill_mod, only: fill_paragraph
     use file_input_output_mod, only: make_temporary_name
     use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, COMPLETION_FINISHED
-    use make_mode_mod, only: makefile_mode, makefile_gmake_mode, makefile_next_dependency, makefile_previous_dependency, &
+    use make_mode_mod, only: makefile_mode, makefile_gnu_make_mode, makefile_next_dependency, makefile_previous_dependency, &
                              makefile_pickup_targets, makefile_pickup_macros, makefile_target_table, makefile_macro_table, &
                              makefile_has_prereqs, makefile_insert_target, makefile_insert_macro, &
                              makefile_format_macro_reference, makefile_do_macro_insertion, makefile_backslash_region, &
@@ -74,7 +74,7 @@ contains
         testsuite = [ &
                     new_unittest("make-mode-tests--bug17400", test_bug17400), &
                     new_unittest("make-mode-font-lock", test_font_lock), &
-                    new_unittest("make-mode-gmake-font-lock", test_gmake_font_lock), &
+                    new_unittest("make-mode-gmake-font-lock", test_gnu_make_font_lock), &
                     new_unittest("make-mode-dependency-motion", test_motion), &
                     new_unittest("make-mode-pickup", test_pickup), &
                     new_unittest("make-mode-insert", test_insert), &
@@ -217,12 +217,12 @@ contains
         call leave(h)
     end subroutine test_font_lock
 
-    subroutine test_gmake_font_lock(error)
+    subroutine test_gnu_make_font_lock(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         integer(int64) :: position
 
-        call fontified("ifneq ($(X),)"//LF//"Y := $(shell ls -l)"//LF//"endif"//LF, makefile_gmake_mode, h)
+        call fontified("ifneq ($(X),)"//LF//"Y := $(shell ls -l)"//LF//"endif"//LF, makefile_gnu_make_mode, h)
 
         checks: block
             call check(error, face_at(1_int64), "font_lock_keyword_face")
@@ -238,7 +238,7 @@ contains
         end block checks
 
         call leave(h)
-    end subroutine test_gmake_font_lock
+    end subroutine test_gnu_make_font_lock
 
     subroutine test_motion(error)
         type(error_type), allocatable, intent(out) :: error
@@ -497,7 +497,7 @@ contains
         checks: block
             buffers(current)%filename = "/tmp/x/Makefile"
             call set_auto_mode(st)
-            call check(error, buffers(current)%major_mode, "makefile_gmake_mode")
+            call check(error, buffers(current)%major_mode, "makefile_gnu_make_mode")
             if (allocated(error)) exit checks
             buffers(current)%filename = "/tmp/x/Makefile.am"
             call set_auto_mode(st)
@@ -513,7 +513,7 @@ contains
             if (allocated(error)) exit checks
             buffers(current)%filename = "/tmp/x/rules.mk"
             call set_auto_mode(st)
-            call check(error, buffers(current)%major_mode, "makefile_gmake_mode")
+            call check(error, buffers(current)%major_mode, "makefile_gnu_make_mode")
         end block checks
 
         deallocate (buffers(current)%filename)

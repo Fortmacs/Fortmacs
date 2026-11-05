@@ -1,4 +1,4 @@
-! hebrew_mod.f90 -- the hebrew coding systems of type `charset'.
+! hebrew_mod.f90 -- the hebrew coding systems of type `character_set'.
 ! Ported from GNU Emacs 31.1 lisp/language/hebrew.el.
 !
 ! Copyright (C) 2001-2026 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that hebrew.el defines, with their
+!> The coding systems of type `character_set' that hebrew.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -36,24 +36,24 @@ submodule(coding_mod) hebrew_mod
 
 contains
 
-    !> Port of the `charset' coding systems of hebrew.el.
+    !> Port of the `character_set' coding systems of hebrew.el.
     module subroutine initialize_hebrew()
-        call define_charset_coding_system("hebrew-iso-8bit", iachar("8"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "iso-8859-8"], &
-                                          mime_charset="iso-8859-8", &
-                                          doc="ISO 2022 based 8-bit encoding for Hebrew (MIME:ISO-8859-8).")
+        call define_character_set_coding_system("hebrew-iso-8bit", iachar("8"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-8"], &
+                                                mime_character_set="iso-8859-8", &
+                                                doc="ISO 2022 based 8-bit encoding for Hebrew (MIME:ISO-8859-8).")
         call define_coding_system_alias("iso-8859-8", "hebrew-iso-8bit")
         call define_coding_system_alias("iso-8859-8-e", "hebrew-iso-8bit")
         call define_coding_system_alias("iso-8859-8-i", "hebrew-iso-8bit")
-        call define_charset_coding_system("windows-1255", iachar("h"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "windows-1255"], &
-                                          mime_charset="windows-1255", &
-                                          doc="windows-1255 (Hebrew) encoding (MIME: WINDOWS-1255)")
+        call define_character_set_coding_system("windows-1255", iachar("h"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "windows-1255"], &
+                                                mime_character_set="windows-1255", &
+                                                doc="windows-1255 (Hebrew) encoding (MIME: WINDOWS-1255)")
         call define_coding_system_alias("cp1255", "windows-1255")
-        call define_charset_coding_system("cp862", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "cp862"], &
-                                          mime_charset="cp862", &
-                                          doc="DOS codepage 862 (Hebrew)")
+        call define_character_set_coding_system("cp862", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp862"], &
+                                                mime_character_set="cp862", &
+                                                doc="DOS codepage 862 (Hebrew)")
         call define_coding_system_alias("ibm862", "cp862")
     end subroutine initialize_hebrew
 
@@ -61,7 +61,7 @@ contains
     module subroutine define_hebrew_language_environments()
         call define_language_environment("Hebrew", &
                                          documentation="Bidirectional editing is supported.", &
-                                         charsets=[character(len=40) :: "iso-8859-8"], &
+                                         character_sets=[character(len=40) :: "iso-8859-8"], &
                                          sample_text="Hebrew"//achar(9)//"שלום", &
                                          coding_systems=[character(len=40) :: "hebrew-iso-8bit", "windows-1255", "cp862"], &
                                          coding_system_order=[character(len=40) :: "hebrew-iso-8bit"], &

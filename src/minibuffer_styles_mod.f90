@@ -31,7 +31,7 @@
 !> Patterns of partial-completion are arrays of elements: strings and the
 !> wildcards `star', `point', `any', `any-delim' and `prefix'.
 !>
-!> Deferred: the faces of `completion_pcm__hilit_commonality' (strings
+!> Deferred: the faces of `completion_partial_completion_mode__hilit_commonality' (strings
 !> carry no text properties), the shorthand style (Lisp symbol shorthands;
 !> it never matches here), styles that set variables while they run, the
 !> `completion-try-word' property that keeps a delimiter inserted by
@@ -47,10 +47,10 @@ submodule(minibuffer_mod) minibuffer_styles_mod
     ! Pattern elements.
     integer, parameter :: P_STRING = 0, P_STAR = 1, P_POINT = 2, P_ANY = 3, P_ANY_DELIM = 4, P_PREFIX = 5
 
-    type :: pat_elt_type
+    type :: pattern_element_type
         integer :: kind = P_STRING
         character(len=:), allocatable :: s
-    end type pat_elt_type
+    end type pattern_element_type
 
     !> A segment of a pattern: a fixed string and the wildcards after it.
     type :: segment_type
@@ -97,10 +97,10 @@ contains
 
     !> Append an element to the pattern P.  Not a port.
     subroutine append_element(p, kind, s)
-        type(pat_elt_type), allocatable, intent(inout) :: p(:)
+        type(pattern_element_type), allocatable, intent(inout) :: p(:)
         integer, intent(in) :: kind
         character(len=*), intent(in), optional :: s
-        type(pat_elt_type) :: element
+        type(pattern_element_type) :: element
 
         if (.not. allocated(p)) allocate (p(0))
         element%kind = kind
@@ -216,7 +216,8 @@ contains
     end if
 
     if (.not. allocated(completion_category_overrides)) allocate (completion_category_overrides(0))
-    if (.not. allocated(completion_pcm_word_delimiters)) completion_pcm_word_delimiters = "-_./:| "
+    if (.not. allocated(completion_partial_completion_mode_word_delimiters)) completion_partial_completion_mode_word_delimiters = &
+        "-_./:| "
 
 contains
 
@@ -311,7 +312,7 @@ contains
         case ("basic")
             call basic_try_completion(string, table, point, res, test)
         case ("partial-completion")
-            call pcm_try_completion(string, table, point, res, test)
+            call partial_completion_mode_try_completion(string, table, point, res, test)
         case ("substring")
             call substring_try_completion(string, table, point, res, test)
         case ("flex")
@@ -348,7 +349,7 @@ contains
         case ("basic")
             call basic_all_completions(string, table, point, all, base_size, test)
         case ("partial-completion")
-            call pcm_all_completions(string, table, point, all, base_size, test)
+            call partial_completion_mode_all_completions(string, table, point, all, base_size, test)
         case ("substring")
             call substring_all_completions(string, table, point, all, base_size, test)
         case ("flex")
@@ -459,7 +460,7 @@ contains
     subroutine basic_pattern(beforepoint, afterpoint, bstart, bend, p)
         character(len=*), intent(in) :: beforepoint, afterpoint
         integer(int64), intent(in) :: bstart, bend
-        type(pat_elt_type), allocatable, intent(out) :: p(:)
+        type(pattern_element_type), allocatable, intent(out) :: p(:)
 
         allocate (p(0))
         call append_element(p, P_STRING, substring(beforepoint, bstart))
@@ -477,7 +478,7 @@ contains
         character(len=:), allocatable :: beforepoint, afterpoint, suffix, prefix
         type(value_type) :: completion
         type(status_type) :: status
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: all(:)
         integer(int64) :: bstart, bend
 
@@ -503,7 +504,7 @@ contains
         prefix = substring(beforepoint, 0_int64, bstart)
         call basic_pattern(beforepoint, afterpoint, bstart, bend, pattern)
         call optimize_pattern(pattern)
-        call pcm_all(prefix, pattern, table, all, test)
+        call partial_completion_mode_all(prefix, pattern, table, all, test)
         if (minibuffer_completing_file_name) call filename_try_filter(all)
         call merge_try(pattern, all, prefix, suffix, res)
     end subroutine basic_try_completion
@@ -517,7 +518,7 @@ contains
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint, prefix
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: boxes(:)
         integer(int64) :: bstart, bend
 
@@ -527,7 +528,7 @@ contains
         prefix = substring(beforepoint, 0_int64, bstart)
         call basic_pattern(beforepoint, afterpoint, bstart, bend, pattern)
         call delete_empty(pattern)
-        call pcm_all(prefix, pattern, table, boxes, test)
+        call partial_completion_mode_all(prefix, pattern, table, boxes, test)
         all = from_boxes(boxes)
         base_size = bstart
     end subroutine basic_all_completions
@@ -538,8 +539,8 @@ contains
 
     !> Remove the empty strings of P.  Not a port.
     subroutine delete_empty(p)
-        type(pat_elt_type), allocatable, intent(inout) :: p(:)
-        type(pat_elt_type), allocatable :: q(:)
+        type(pattern_element_type), allocatable, intent(inout) :: p(:)
+        type(pattern_element_type), allocatable :: q(:)
         integer :: k
 
         allocate (q(0))
@@ -554,8 +555,8 @@ contains
 
     !> Port of minibuffer.el:completion-pcm--optimize-pattern.
     subroutine optimize_pattern(p)
-        type(pat_elt_type), allocatable, intent(inout) :: p(:)
-        type(pat_elt_type), allocatable :: n(:)
+        type(pattern_element_type), allocatable, intent(inout) :: p(:)
+        type(pattern_element_type), allocatable :: n(:)
         integer :: k
 
         ! Remove empty strings in a separate phase since otherwise a ""
@@ -582,7 +583,7 @@ contains
 
     !> Port of minibuffer.el:completion-pcm--pattern-trivial-p.
     logical function is_pattern_trivial(p)
-        type(pat_elt_type), intent(in) :: p(:)
+        type(pattern_element_type), intent(in) :: p(:)
         integer :: k
 
         is_pattern_trivial = .false.
@@ -614,8 +615,8 @@ contains
     recursive subroutine string_to_pattern(string, point, pattern)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: point
-        type(pat_elt_type), allocatable, intent(out) :: pattern(:)
-        type(pat_elt_type), allocatable :: tail(:)
+        type(pattern_element_type), allocatable, intent(out) :: pattern(:)
+        type(pattern_element_type), allocatable :: tail(:)
         character(len=:), allocatable :: regular_expression
         integer(int64) :: p, p0, n, mb1, me0
         integer :: pending, k
@@ -636,7 +637,7 @@ contains
             return
         end if
 
-        regular_expression = delim_regular_expression(completion_pcm_word_delimiters)
+        regular_expression = delim_regular_expression(completion_partial_completion_mode_word_delimiters)
         p0 = 0
         pending = -1
         p = 0
@@ -672,7 +673,7 @@ contains
 
                     ! `any-delim' is used so that "a-b" also finds
                     ! "array->beginning".
-                    if (completion_pcm_leading_wildcard) then
+                    if (completion_partial_completion_mode_leading_wildcard) then
                         pending = P_PREFIX
                     else
                         pending = P_ANY_DELIM
@@ -691,7 +692,7 @@ contains
             call append_element(pattern, P_STRING, substring(string, p0))
         end if
 
-        if (completion_pcm_leading_wildcard .and. size(pattern) > 0) then
+        if (completion_partial_completion_mode_leading_wildcard .and. size(pattern) > 0) then
             if (pattern(1)%kind == P_STRING) then
                 allocate (tail(0))
                 call append_element(tail, P_PREFIX)
@@ -708,7 +709,7 @@ contains
     !> Segment PATTERN into its fixed strings and the wildcards after
     !> each.  Port of minibuffer.el:completion-pcm--pattern->segments.
     subroutine pattern_to_segments(pattern, segs)
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         type(segment_type), allocatable, intent(out) :: segs(:)
         type(segment_type) :: seg
         integer :: k
@@ -755,7 +756,8 @@ contains
                 if (group) regular_expression = regular_expression//"\("
 
                 if (all(segs(k)%wildcards == P_ANY_DELIM)) then
-                    regular_expression = regular_expression//delim_regular_expression(completion_pcm_word_delimiters)//"*?"
+                    regular_expression = regular_expression//delim_regular_expression( &
+                                         completion_partial_completion_mode_word_delimiters)//"*?"
                 else
                     regular_expression = regular_expression//"[^z-a]*?"
                 end if
@@ -767,7 +769,7 @@ contains
 
     !> Port of minibuffer.el:completion-pcm--pattern->regex.
     function pattern_to_regular_expression(pattern, group) result(regular_expression)
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         logical, intent(in) :: group
         character(len=:), allocatable :: regular_expression
         type(segment_type), allocatable :: segs(:)
@@ -778,7 +780,7 @@ contains
 
     !> Port of minibuffer.el:completion-pcm--pattern->string.
     function pattern_to_string(pattern) result(s)
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         character(len=:), allocatable :: s
         integer :: k
 
@@ -801,9 +803,9 @@ contains
     !> PATTERN is as returned by `string_to_pattern'.  Port of
     !> minibuffer.el:completion-pcm--all-completions (the regexp filters
     !> the candidates, as completion-regexp-list does).
-    subroutine pcm_all(prefix, pattern, table, all, test)
+    subroutine partial_completion_mode_all(prefix, pattern, table, all, test)
         character(len=*), intent(in) :: prefix
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         type(completion_table_type), intent(in) :: table
         type(string_type), allocatable, intent(out) :: all(:)
         procedure(completion_test_procedure), optional :: test
@@ -836,7 +838,7 @@ contains
         do k = 1, size(cands)
             if (regular_expression_match(regular_expression, cands(k)%text) > 0) call append_string(all, cands(k)%text)
         end do
-    end subroutine pcm_all
+    end subroutine partial_completion_mode_all
 
     !> Find all completions for STRING at POINT in TABLE, satisfying TEST:
     !> the pattern, the completions, the prefix and the suffix.  FILTER, if
@@ -847,13 +849,13 @@ contains
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         logical, intent(in) :: filter
-        type(pat_elt_type), allocatable, intent(out) :: pattern(:)
+        type(pattern_element_type), allocatable, intent(out) :: pattern(:)
         type(string_type), allocatable, intent(out) :: all(:)
         character(len=:), allocatable, intent(out) :: prefix, suffix
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint, string, sub, subprefix, subsuffix, between, &
                                          newbeforepoint, separator
-        type(pat_elt_type), allocatable :: subpat(:), newpat(:)
+        type(pattern_element_type), allocatable :: subpat(:), newpat(:)
         type(string_type), allocatable :: suball(:), kept(:), more(:)
         type(value_type) :: tryv
         type(status_type) :: status
@@ -869,7 +871,7 @@ contains
         relpoint = point - bstart
         call string_to_pattern(string, relpoint, pattern)
         call optimize_pattern(pattern)
-        call pcm_all(prefix, pattern, table, all, test)
+        call partial_completion_mode_all(prefix, pattern, table, all, test)
         if (filter) call filename_try_filter(all)
         if (size(all) > 0 .or. bstart <= 0) return
         call try_completion(prefix, table, tryv, status, test)
@@ -912,7 +914,7 @@ contains
             end if
 
             do k = 1, size(kept)
-                call pcm_all(subprefix//kept(k)%text//between, pattern, table, more, test)
+                call partial_completion_mode_all(subprefix//kept(k)%text//between, pattern, table, more, test)
                 if (filter) call filename_try_filter(more)
 
                 do j = 1, size(more)
@@ -1012,9 +1014,9 @@ contains
     !> Port of minibuffer.el:completion-pcm--merge-completions.
     subroutine merge_completions(strings, pattern, res)
         type(string_type), intent(in) :: strings(:)
-        type(pat_elt_type), intent(in) :: pattern(:)
-        type(pat_elt_type), allocatable, intent(out) :: res(:)
-        type(pat_elt_type), allocatable :: pattern_text(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
+        type(pattern_element_type), allocatable, intent(out) :: res(:)
+        type(pattern_element_type), allocatable :: pattern_text(:)
         type(segment_type), allocatable :: segs(:)
         type(string_type), allocatable :: comps(:), chopped(:, :), rest(:)
         character(len=:), allocatable :: regular_expression, prefix, suffix
@@ -1165,11 +1167,11 @@ contains
 
     !> Port of minibuffer.el:completion-pcm--merge-try.
     subroutine merge_try(pattern, all, prefix, suffix_in, res)
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         type(string_type), intent(in) :: all(:)
         character(len=*), intent(in) :: prefix, suffix_in
         type(try_result_type), intent(out) :: res
-        type(pat_elt_type), allocatable :: merged_pattern(:)
+        type(pattern_element_type), allocatable :: merged_pattern(:)
         character(len=:), allocatable :: merged, suffix
         integer(int64) :: newpos
         integer :: at
@@ -1210,37 +1212,37 @@ contains
     ! ------------------------------------------------------------------
 
     !> Port of minibuffer.el:completion-pcm-try-completion.
-    subroutine pcm_try_completion(string, table, point, res, test)
+    subroutine partial_completion_mode_try_completion(string, table, point, res, test)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         type(try_result_type), intent(out) :: res
         procedure(completion_test_procedure), optional :: test
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: all(:)
         character(len=:), allocatable :: prefix, suffix
 
         call find_all_completions(string, table, point, minibuffer_completing_file_name, pattern, all, prefix, &
                                   suffix, test)
         call merge_try(pattern, all, prefix, suffix, res)
-    end subroutine pcm_try_completion
+    end subroutine partial_completion_mode_try_completion
 
     !> Port of minibuffer.el:completion-pcm-all-completions.
-    subroutine pcm_all_completions(string, table, point, all, base_size, test)
+    subroutine partial_completion_mode_all_completions(string, table, point, all, base_size, test)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         type(value_type), intent(out) :: all
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: boxes(:)
         character(len=:), allocatable :: prefix, suffix
 
         call find_all_completions(string, table, point, .false., pattern, boxes, prefix, suffix, test)
         all = from_boxes(boxes)
         base_size = count_characters(prefix)
-    end subroutine pcm_all_completions
+    end subroutine partial_completion_mode_all_completions
 
     !> Match the presumed substring STRING to the entries in TABLE:
     !> the completions, the pattern, the prefix and the suffix.  Port of
@@ -1250,11 +1252,11 @@ contains
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         type(string_type), allocatable, intent(out) :: all(:)
-        type(pat_elt_type), allocatable, intent(out) :: pattern(:)
+        type(pattern_element_type), allocatable, intent(out) :: pattern(:)
         character(len=:), allocatable, intent(out) :: prefix, suffix
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint
-        type(pat_elt_type), allocatable :: basic(:)
+        type(pattern_element_type), allocatable :: basic(:)
         integer(int64) :: bstart, bend
         integer :: k
 
@@ -1273,7 +1275,7 @@ contains
         end do
 
         call optimize_pattern(pattern)
-        call pcm_all(prefix, pattern, table, all, test)
+        call partial_completion_mode_all(prefix, pattern, table, all, test)
     end subroutine substring_all
 
     !> Port of minibuffer.el:completion-substring-try-completion.
@@ -1283,7 +1285,7 @@ contains
         integer(int64), intent(in) :: point
         type(try_result_type), intent(out) :: res
         procedure(completion_test_procedure), optional :: test
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: all(:)
         character(len=:), allocatable :: prefix, suffix
 
@@ -1300,7 +1302,7 @@ contains
         type(value_type), intent(out) :: all
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: boxes(:)
         character(len=:), allocatable :: prefix, suffix
 
@@ -1497,7 +1499,7 @@ contains
         type(string_type), allocatable :: all(:)
         integer, allocatable :: costs(:)
         character(len=:), allocatable :: pat2, prefix, suffix
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         integer(int64) :: point_index, i
 
         if (completion_flex_nospace .and. index(string, " ") > 0) return
@@ -1576,7 +1578,8 @@ contains
         if (n == 0) return
         ! Only check within the boundaries, since the boundary char (e.g.
         ! /) might be in delim-regexp.
-        if (regular_expression_match(delim_regular_expression(completion_pcm_word_delimiters), string, bstart + 1) > 0) return
+        if (regular_expression_match(delim_regular_expression(completion_partial_completion_mode_word_delimiters), string, &
+                                     bstart + 1) > 0) return
 
         if (bstart == 0) then
             do i = 0, n - 1
@@ -1613,7 +1616,8 @@ contains
         all = value_type()
         base_size = 0
         newstr = initials_expand(string, table, test)
-        if (len(newstr) > 0) call pcm_all_completions(newstr, table, count_characters(newstr), all, base_size, test)
+        if (len(newstr) > 0) call partial_completion_mode_all_completions(newstr, table, count_characters(newstr), all, base_size, &
+                                                                          test)
     end subroutine initials_all_completions
 
     !> Port of minibuffer.el:completion-initials-try-completion.
@@ -1625,6 +1629,6 @@ contains
         character(len=:), allocatable :: newstr
 
         newstr = initials_expand(string, table, test)
-        if (len(newstr) > 0) call pcm_try_completion(newstr, table, count_characters(newstr), res, test)
+        if (len(newstr) > 0) call partial_completion_mode_try_completion(newstr, table, count_characters(newstr), res, test)
     end subroutine initials_try_completion
 end submodule minibuffer_styles_mod

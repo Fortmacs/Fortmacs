@@ -50,10 +50,10 @@ module test_diff_mode_mod
     use modes_mod, only: minor_modes
     use font_lock_mod, only: font_lock_ensure
     use bindings_mod, only: initialize_bindings
-    use directory_editor_mode_mod, only: dired, dired_goto_file, dired_buffers_for_directory
+    use directory_editor_mode_mod, only: directory_editor, directory_editor_goto_file, directory_editor_buffers_for_directory
     use diff_mode_mod, only: diff_mode, diff_hunk_text, diff_text_type, diff_fixup_modifs, diff_hunk_file_names, &
                              diff_apply_hunk, diff_hunk_next, diff_beginning_of_hunk, diff_end_of_hunk, &
-                             diff_buffer_type, DIFF_BUFFER_PLAIN, DIFF_BUFFER_GIT, DIFF_BUFFER_HG
+                             diff_buffer_type, DIFF_BUFFER_PLAIN, DIFF_BUFFER_GIT, DIFF_BUFFER_MERCURIAL
     use diff_mod, only: diff_no_select, diff_operand_type
     use string_type_mod, only: string_type
     implicit none(type, external)
@@ -200,7 +200,7 @@ contains
                     new_unittest("diff-mode-test-bottommost-addition-undo", test_bottommost_addition_undo), &
                     new_unittest("diff-mode-test-setup-buffer-type", test_setup_buffer_type), &
                     new_unittest("diff-files", test_diff_files), &
-                    new_unittest("dired-diff", test_dired_diff) &
+                    new_unittest("dired-diff", test_directory_editor_diff) &
                     ]
     end subroutine collect_diff_mode_mod
 
@@ -230,7 +230,7 @@ contains
         integer :: k
 
         call discard_input()
-        buffers = dired_buffers_for_directory(tdir())
+        buffers = directory_editor_buffers_for_directory(tdir())
 
         do k = 1, size(buffers)
             call close_buffer(buffers(k), st)
@@ -592,19 +592,19 @@ contains
         integer(int64), intent(out) :: diff_beginning
         type(status_type), intent(out) :: status
         type(diff_operand_type) :: o, n
-        type(handle_type) :: res, old_buf
+        type(handle_type) :: res, old_buffer
         integer(int64) :: e
         character(len=:), allocatable :: directory
 
         call expand_file_name("test/diff-mode-resources/", directory, status, fortmacs_wd)
         if (.not. status%ok()) return
-        old_buf = current_buffer()
+        old_buffer = current_buffer()
         buffers(current)%directory = directory
         call get_or_make_buffer("*Diff*", h, status)
         o%file = old
         n%file = new
         call diff_no_select(o, n, res, status, "-u", .true., h)
-        call set_buffer(old_buf, status)
+        call set_buffer(old_buffer, status)
         buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         if (.not. status%ok()) return
         call set_buffer(h, status)
@@ -891,7 +891,7 @@ contains
         if (allocated(error)) return
         call temporary_buffer("*diff-test*", "diff -r 0123456789ab foo"//LF//"--- a/foo"//LF//"+++ b/foo"//LF, h, "/tmp/")
         call diff_mode(st)
-        call check(error, diff_buffer_type() == DIFF_BUFFER_HG, "hg")
+        call check(error, diff_buffer_type() == DIFF_BUFFER_MERCURIAL, "hg")
         call close_buffer(h, st)
         if (allocated(error)) return
         call temporary_buffer("*diff-test*", "--- foo"//LF//"+++ foo"//LF//"@@ -1 +1 @@"//LF//"-a"//LF//"+b"//LF, h, "/tmp/")
@@ -936,7 +936,7 @@ contains
     end subroutine test_diff_files
 
     !> Dired's = compares the file at point with its backup.
-    subroutine test_dired_diff(error)
+    subroutine test_directory_editor_diff(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -947,9 +947,9 @@ contains
         call setup()
         call make_file("a.txt", "alpha2"//LF)
         call make_file("a.txt~", "alpha"//LF)
-        call dired(tdir(), st)
+        call directory_editor(tdir(), st)
         call show_alone()
-        p = dired_goto_file(tdir()//"a.txt", st)
+        p = directory_editor_goto_file(tdir()//"a.txt", st)
         call keyboard_store_bytes("="//CR)
         call command_loop(st)
         h = get_buffer("*Diff*")
@@ -966,5 +966,5 @@ contains
 
         if (is_buffer_live(h)) call close_buffer(h, st)
         call teardown()
-    end subroutine test_dired_diff
+    end subroutine test_directory_editor_diff
 end module test_diff_mode_mod

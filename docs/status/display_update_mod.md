@@ -12,7 +12,7 @@ frame matrices (`adjust_frame_glyphs`, clear current/desired),
 `write_row` (prefix/suffix matching, character insertion and deletion by cost),
 `write_matrix` (last row first),
 `make_matrix_current`,
-`tty_set_cursor`,
+`terminal_set_cursor`,
 `update_frame` (terminal path; a window-system frame is flushed),
 `ding`;
 term.c `calculate_ins_delete_character_costs`;
@@ -24,7 +24,7 @@ step 42d: `redraw-frame`,
 `redisplay` (with xdisp.c's redisplay_preserve_echo_area),
 `send-string-to-terminal`,
 `internal-show-cursor`,
-`internal-show-cursor-p` (a window's `cursor_off_p`, read by tty_update_end);
+`internal-show-cursor-p` (a window's `cursor_off_p`, read by terminal_update_end);
 cited: `update_frame`,
 `combine_updates`,
 `flush_terminal`,

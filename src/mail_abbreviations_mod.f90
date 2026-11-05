@@ -22,14 +22,14 @@
 
 !> Mail aliases as abbrevs: the aliases of `mail_personal_alias_file'
 !> (a `.mailrc' file: "alias NAME DEFINITION", "group", "source FILE")
-!> become the abbrevs of the table `mail_abbrevs', which expand as you
+!> become the abbrevs of the table `mail_abbreviations', which expand as you
 !> type in the address fields of a Mail mode buffer (the fields
-!> `mail_abbrev_mode_regular_expression' matches).  Turn it on with
-!> `mail_abbrevs_mode', or put `set_up_mail_abbrevs' on `mail_mode_hook'.
+!> `mail_abbreviation_mode_regular_expression' matches).  Turn it on with
+!> `mail_abbreviations_mode', or put `set_up_mail_abbreviations' on `mail_mode_hook'.
 !> Aliases can refer to other aliases, and are resolved when expanded.
 !>
-!> `mail_abbrev_expand_wrapper' takes the place of upstream's wrapper
-!> around the buffer-local `abbrev_expand_function': `set_up_mail_abbrevs'
+!> `mail_abbreviation_expand_wrapper' takes the place of upstream's wrapper
+!> around the buffer-local `abbreviation_expand_function': `set_up_mail_abbreviations'
 !> marks the buffer, and the wrapper calls the previous function in the
 !> other buffers.
 module mail_abbreviations_mod
@@ -61,10 +61,10 @@ module mail_abbreviations_mod
     use system_dependent_mod, only: file_status_type
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use display_engine_mod, only: message
-    use simple_mod, only: rfc822_goto_eoh, next_line, end_of_buffer
-    use abbreviation_mod, only: abbrev_table_type, abbrev_reference_type, abbrev_mode, abbrevs_changed, abbrev_expand_function, &
-                                abbrev_expand_procedure, abbrev_default_expand, expand_abbrev, local_abbrev_table, &
-                                abbrev_table_set_local
+    use simple_mod, only: rfc822_goto_end_of_headers, next_line, end_of_buffer
+    use abbreviation_mod, only: abbreviation_table_type, abbreviation_reference_type, abbreviation_mode, abbreviations_changed, &
+                                abbreviation_expand_function, abbreviation_expand_procedure, abbreviation_default_expand, &
+                                expand_abbreviation, local_abbreviation_table, abbreviation_table_set_local
     use modes_mod, only: minor_modes
     use keymap_mod, only: keymap_set
     use minibuffer_reading_mod, only: completion_ignore_case
@@ -75,26 +75,29 @@ module mail_abbreviations_mod
     implicit none(type, external)
     private
 
-    public :: mail_abbrevs_mode, set_up_mail_abbrevs, enable_mail_abbrevs, disable_mail_abbrevs, build_mail_abbrevs, &
-              define_mail_abbrev, resolve_all_mail_aliases, mail_abbrev_expand_hook, is_mail_abbrev_in_expansion_header, &
-              mail_abbrev_expand_wrapper, merge_mail_abbrevs, rebuild_mail_abbrevs, insert_mail_abbrev_alias, &
-              complete_mail_abbrev_alias, mail_abbrev_next_line, mail_abbrev_end_of_buffer, initialize_mailabbrev
+    public :: mail_abbreviations_mode, set_up_mail_abbreviations, enable_mail_abbreviations, disable_mail_abbreviations, &
+              build_mail_abbreviations, &
+              define_mail_abbreviation, resolve_all_mail_aliases, mail_abbreviation_expand_hook, &
+              is_mail_abbreviation_in_expansion_header, &
+              mail_abbreviation_expand_wrapper, merge_mail_abbreviations, rebuild_mail_abbreviations, &
+              insert_mail_abbreviation_alias, &
+              complete_mail_abbreviation_alias, mail_abbreviation_next_line, mail_abbreviation_end_of_buffer, initialize_mailabbrev
 
     !> True means only mail abbrevs should expand automatically.
-    !> Other abbrevs expand only when you explicitly use `expand_abbrev'.
+    !> Other abbrevs expand only when you explicitly use `expand_abbreviation'.
     !> Port of mailabbrev.el mail-abbrevs-only.
-    logical, public :: mail_abbrevs_only = .false.
+    logical, public :: mail_abbreviations_only = .false.
 
     !> Word-abbrev table of mail address aliases.
-    !> Until `mail_abbrevs_built' is true, the aliases have not yet been
+    !> Until `mail_abbreviations_built' is true, the aliases have not yet been
     !> initialized and should be read from the .mailrc file.  (This is
     !> distinct from there being no aliases, which is represented by this
     !> being a table with no entries.)  Port of mailabbrev.el mail-abbrevs.
-    type(abbrev_table_type), target, public :: mail_abbrevs
+    type(abbreviation_table_type), target, public :: mail_abbreviations
 
-    !> Whether `mail_abbrevs' holds the aliases (upstream's mail-abbrevs
+    !> Whether `mail_abbreviations' holds the aliases (upstream's mail-abbrevs
     !> being an abbrev table, not unset).  Not a port.
-    logical, public :: mail_abbrevs_built = .false.
+    logical, public :: mail_abbreviations_built = .false.
 
     !> String inserted between addresses in multi-address mail aliases.
     !> This has to contain a comma, so ", " is a reasonable value.  You might
@@ -109,7 +112,7 @@ module mail_abbreviations_mod
     !> it will be turned off.  (You don't need to worry about continuation lines.)
     !> This should be set to match those mail fields in which you want abbreviations
     !> turned on.  Port of mailabbrev.el mail-abbrev-mode-regexp.
-    character(len=:), allocatable, public :: mail_abbrev_mode_regular_expression
+    character(len=:), allocatable, public :: mail_abbreviation_mode_regular_expression
 
     ! The modification time of your mail alias file when it was last
     ! examined (mail-abbrev-modtime; HAS_MODTIME false for nil).
@@ -122,12 +125,12 @@ module mail_abbreviations_mod
     ! it's necessary (mail-abbrev-aliases-need-to-be-resolved).
     logical :: aliases_need_to_be_resolved = .true.
 
-    ! The function the wrapper replaced as `abbrev_expand_function' (null:
-    ! `abbrev_default_expand').
-    procedure(abbrev_expand_procedure), pointer :: next_expand_function => null()
+    ! The function the wrapper replaced as `abbreviation_expand_function' (null:
+    ! `abbreviation_default_expand').
+    procedure(abbreviation_expand_procedure), pointer :: next_expand_function => null()
     logical :: wrapper_installed = .false.
 
-    ! The buffers where `set_up_mail_abbrevs' ran, with their
+    ! The buffers where `set_up_mail_abbreviations' ran, with their
     ! mail-abbrev-syntax-table (the null handle until made), by serial
     ! number.
     type :: local_type
@@ -187,13 +190,13 @@ contains
         text = string(a + 1:b)
     end function chars
 
-    ! The index of the abbrev NAME in `mail_abbrevs' (0 if none).
+    ! The index of the abbrev NAME in `mail_abbreviations' (0 if none).
     ! Not a port.
     integer function alias_index(name) result(k)
         character(len=*), intent(in) :: name
 
-        do k = 1, mail_abbrevs%n
-            if (mail_abbrevs%abbrevs(k)%name == name) return
+        do k = 1, mail_abbreviations%n
+            if (mail_abbreviations%abbreviations(k)%name == name) return
         end do
 
         k = 0
@@ -221,33 +224,33 @@ contains
     !>
     !> Mail Abbrevs mode is a global minor mode.  When enabled,
     !> abbrev-like expansion is performed when editing certain mail
-    !> headers (those specified by `mail_abbrev_mode_regular_expression'), based on
+    !> headers (those specified by `mail_abbreviation_mode_regular_expression'), based on
     !> the entries in your `mail_personal_alias_file'.  Port of
     !> mailabbrev.el:mail-abbrevs-mode.
-    recursive subroutine mail_abbrevs_mode(status)
+    recursive subroutine mail_abbreviations_mode(status)
         type(status_type), intent(out) :: status
 
-        call minor_modes%mail_abbrevs_mode%command(status)
-    end subroutine mail_abbrevs_mode
+        call minor_modes%mail_abbreviations_mode%command(status)
+    end subroutine mail_abbreviations_mode
 
     !> The body of Mail Abbrevs mode.  Port of
     !> mailabbrev.el:mail-abbrevs-mode (its body).
-    recursive subroutine mail_abbrevs_mode_body(enable, status)
+    recursive subroutine mail_abbreviations_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
 
         status = status_type()
 
         if (enable) then
-            call enable_mail_abbrevs()
+            call enable_mail_abbreviations()
         else
-            call disable_mail_abbrevs(status)
+            call disable_mail_abbreviations(status)
         end if
-    end subroutine mail_abbrevs_mode_body
+    end subroutine mail_abbreviations_mode_body
 
     ! Rebuild the aliases if the alias file changed since it was last
     ! examined.  Port of mailabbrev.el:mail-abbrevs-sync-aliases.
-    recursive subroutine synchronize_mail_abbrevs_aliases(status)
+    recursive subroutine synchronize_mail_abbreviations_aliases(status)
         type(status_type), intent(out) :: status
         integer(int64) :: second
         integer(int32) :: nsec
@@ -262,77 +265,77 @@ contains
             has_modtime = .true.
             modtime_second = second
             modtime_nsec = nsec
-            call build_mail_abbrevs(status)
+            call build_mail_abbreviations(status)
         end if
-    end subroutine synchronize_mail_abbrevs_aliases
+    end subroutine synchronize_mail_abbreviations_aliases
 
     !> Initialize use of the `mailabbrev' package.  Port of
     !> mailabbrev.el:mail-abbrevs-setup.
-    recursive subroutine set_up_mail_abbrevs(status)
+    recursive subroutine set_up_mail_abbreviations(status)
         type(status_type), intent(out) :: status
         logical :: found
         integer :: k
 
         status = status_type()
 
-        if (.not. mail_abbrevs_built .and. allocated(mail_personal_alias_file)) then
+        if (.not. mail_abbreviations_built .and. allocated(mail_personal_alias_file)) then
             if (file_exists(mail_personal_alias_file)) then
                 call file_modtime(mail_personal_alias_file, modtime_second, modtime_nsec, found)
                 has_modtime = found
-                call build_mail_abbrevs(status)
+                call build_mail_abbreviations(status)
                 if (.not. status%ok()) return
             end if
         end if
 
-        call synchronize_mail_abbrevs_aliases(status)
+        call synchronize_mail_abbreviations_aliases(status)
         if (.not. status%ok()) return
         ! (add-function :around (local 'abbrev-expand-function) ...)
         call install_wrapper()
         call make_local_entry(k)
         if (k > 0) locals(k)%set_up = .true.
-        call minor_modes%abbrev_mode%enable(status)
-    end subroutine set_up_mail_abbrevs
+        call minor_modes%abbreviation_mode%enable(status)
+    end subroutine set_up_mail_abbreviations
 
-    ! Make `mail_abbrev_expand_wrapper' the `abbrev_expand_function',
+    ! Make `mail_abbreviation_expand_wrapper' the `abbreviation_expand_function',
     ! remembering the function it replaces.  Not a port.
     subroutine install_wrapper()
         if (wrapper_installed) return
-        next_expand_function => abbrev_expand_function
-        abbrev_expand_function => mail_abbrev_expand_wrapper
+        next_expand_function => abbreviation_expand_function
+        abbreviation_expand_function => mail_abbreviation_expand_wrapper
         wrapper_installed = .true.
     end subroutine install_wrapper
 
     !> Turn on use of the `mailabbrev' package in Mail mode.  Port of
     !> mailabbrev.el:mail-abbrevs-enable.
-    subroutine enable_mail_abbrevs()
-        call mail_mode_hook%prepend(set_up_mail_abbrevs)
-    end subroutine enable_mail_abbrevs
+    subroutine enable_mail_abbreviations()
+        call mail_mode_hook%prepend(set_up_mail_abbreviations)
+    end subroutine enable_mail_abbreviations
 
     !> Turn off use of the `mailabbrev' package.  Port of
     !> mailabbrev.el:mail-abbrevs-disable.
-    recursive subroutine disable_mail_abbrevs(status)
+    recursive subroutine disable_mail_abbreviations(status)
         type(status_type), intent(out) :: status
         logical :: default
 
         status = status_type()
-        call mail_mode_hook%remove(set_up_mail_abbrevs)
+        call mail_mode_hook%remove(set_up_mail_abbreviations)
         ! (abbrev-mode (if (default-value 'abbrev-mode) 1 -1)): the value
         ! once the buffer's own is cleared is the default.
-        call abbrev_mode%clear_local()
-        default = abbrev_mode%value
+        call abbreviation_mode%clear_local()
+        default = abbreviation_mode%value
 
         if (default) then
-            call minor_modes%abbrev_mode%enable(status)
+            call minor_modes%abbreviation_mode%enable(status)
         else
-            call minor_modes%abbrev_mode%disable(status)
+            call minor_modes%abbreviation_mode%disable(status)
         end if
-    end subroutine disable_mail_abbrevs
+    end subroutine disable_mail_abbreviations
 
-    !> Read mail aliases from personal mail alias file and set `mail_abbrevs'.
+    !> Read mail aliases from personal mail alias file and set `mail_abbreviations'.
     !> By default this is the file specified by `mail_personal_alias_file'.
     !> RECURSIVE is true for a file named by a "source" line.  Port of
     !> mailabbrev.el:build-mail-abbrevs.
-    recursive subroutine build_mail_abbrevs(status, file_in, recursive)
+    recursive subroutine build_mail_abbreviations(status, file_in, recursive)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: file_in
         logical, intent(in), optional :: recursive
@@ -353,12 +356,12 @@ contains
 
         if (.not. status%ok()) return
 
-        if (.not. mail_abbrevs_built) then
-            saved_changed = abbrevs_changed
-            call mail_abbrevs%clear()
-            call mail_abbrevs%define_table("mail_abbrevs")
-            abbrevs_changed = saved_changed
-            mail_abbrevs_built = .true.
+        if (.not. mail_abbreviations_built) then
+            saved_changed = abbreviations_changed
+            call mail_abbreviations%clear()
+            call mail_abbreviations%define_table("mail_abbreviations")
+            abbreviations_changed = saved_changed
+            mail_abbreviations_built = .true.
         end if
 
         call message("Parsing "//file//"...")
@@ -424,7 +427,7 @@ contains
                 if (sourcing) then
                     sourced = match_string(1)
                     call end_of_line()
-                    call build_mail_abbrevs(status, substitute_in_file_name(sourced), .true.)
+                    call build_mail_abbreviations(status, substitute_in_file_name(sourced), .true.)
                     call set_buffer(temporary, status)
                     if (.not. status%ok()) exit body
                 else
@@ -436,7 +439,7 @@ contains
                     call end_of_line()
                     call buffer_substring(start, point(), definition, status)
                     if (.not. status%ok()) exit body
-                    call define_mail_abbrev(name, definition, status, .true.)
+                    call define_mail_abbreviation(name, definition, status, .true.)
                     if (.not. status%ok()) exit body
                 end if
             end do
@@ -450,7 +453,7 @@ contains
         call close_buffer(temporary, st)
         if (is_buffer_live(old)) call set_buffer(old, st)
         if (status%ok()) call message("Parsing "//file//"... done")
-    end subroutine build_mail_abbrevs
+    end subroutine build_mail_abbreviations
 
     !> Define NAME as a mail alias abbrev that translates to DEFINITION.
     !> If DEFINITION contains multiple addresses, separate them with commas.
@@ -459,7 +462,7 @@ contains
     !> from a mailrc file.  In that case, addresses are separated with
     !> spaces and addresses with embedded spaces are surrounded by
     !> double-quotes.  Port of mailabbrev.el:define-mail-abbrev.
-    recursive subroutine define_mail_abbrev(name, definition_in, status, from_mailrc_file)
+    recursive subroutine define_mail_abbreviation(name, definition_in, status, from_mailrc_file)
         character(len=*), intent(in) :: name, definition_in
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: from_mailrc_file
@@ -474,8 +477,8 @@ contains
         if (present(from_mailrc_file)) from_mailrc = from_mailrc_file
 
         ! Read the defaults first, if we have not done so.
-        if (.not. mail_abbrevs_built) then
-            call build_mail_abbrevs(status)
+        if (.not. mail_abbreviations_built) then
+            call build_mail_abbreviations(status)
             if (.not. status%ok()) return
         end if
 
@@ -558,9 +561,10 @@ contains
 
         aliases_need_to_be_resolved = .true.
         ! use an abbrev table instead of an alist for mail-abbrevs.
-        saved_changed = abbrevs_changed
-        call mail_abbrevs%define(downcase_string(name), joined, hook=mail_abbrev_expand_hook, count=0_int64, system=.true.)
-        abbrevs_changed = saved_changed
+        saved_changed = abbreviations_changed
+        call mail_abbreviations%define(downcase_string(name), joined, hook=mail_abbreviation_expand_hook, count=0_int64, &
+                                       system=.true.)
+        abbreviations_changed = saved_changed
 
     contains
 
@@ -611,7 +615,7 @@ contains
 
             string_characters_of = count_characters(text)
         end function string_characters_of
-    end subroutine define_mail_abbrev
+    end subroutine define_mail_abbreviation
 
     !> Resolve all forward references in the mail aliases table.  Port of
     !> mailabbrev.el:mail-resolve-all-aliases.
@@ -624,10 +628,10 @@ contains
         status = status_type()
         if (.not. aliases_need_to_be_resolved) return
 
-        if (mail_abbrevs_built) then
+        if (mail_abbreviations_built) then
             allocate (so_far(0))
 
-            do k = 1, mail_abbrevs%n
+            do k = 1, mail_abbreviations%n
                 call resolve_all_mail_aliases_1(k, so_far, value, status)
                 if (.not. status%ok()) return
             end do
@@ -654,18 +658,18 @@ contains
         status = status_type()
 
         if (any(so_far == k)) then
-            names = trim(mail_abbrevs%abbrevs(k)%name)
+            names = trim(mail_abbreviations%abbreviations(k)%name)
 
             do i = 1, size(so_far)
-                names = names//" <- "//trim(mail_abbrevs%abbrevs(so_far(i))%name)
+                names = names//" <- "//trim(mail_abbreviations%abbreviations(so_far(i))%name)
             end do
 
             call set_error(status, GENERIC_ERROR_CODE, "Mail alias loop detected: "//names)
             return
         end if
 
-        if (allocated(mail_abbrevs%abbrevs(k)%expansion)) then
-            definition = mail_abbrevs%abbrevs(k)%expansion
+        if (allocated(mail_abbreviations%abbreviations(k)%expansion)) then
+            definition = mail_abbreviations%abbreviations(k)%expansion
             resolved = ""
             first = .true.
             start = 1
@@ -697,18 +701,18 @@ contains
                 resolved = resolved//part
             end do
 
-            mail_abbrevs%abbrevs(k)%expansion = resolved
+            mail_abbreviations%abbreviations(k)%expansion = resolved
         end if
 
         if (allocated(value)) deallocate (value)
-        if (allocated(mail_abbrevs%abbrevs(k)%expansion)) value = mail_abbrevs%abbrevs(k)%expansion
+        if (allocated(mail_abbreviations%abbreviations(k)%expansion)) value = mail_abbreviations%abbreviations(k)%expansion
     end subroutine resolve_all_mail_aliases_1
 
-    !> The hook of the mail abbrevs (`define_mail_abbrev').
+    !> The hook of the mail abbrevs (`define_mail_abbreviation').
     !> After expanding a mail-abbrev, if Auto Fill mode is on and we're past the
     !> `fill_column', break the line at the previous comma, and indent the next line
     !> with a space.  Port of mailabbrev.el:mail-abbrev-expand-hook.
-    recursive subroutine mail_abbrev_expand_hook(value, status)
+    recursive subroutine mail_abbreviation_expand_hook(value, status)
         logical, intent(out) :: value
         type(status_type), intent(out) :: status
         integer(int64) :: p, found
@@ -759,7 +763,7 @@ contains
         call marker_position(here, found, st)
         call goto_character(found)
         call destroy_marker(here, st)
-    end subroutine mail_abbrev_expand_hook
+    end subroutine mail_abbreviation_expand_hook
 
     ! ------------------------------------------------------------------
     ! Syntax tables and abbrev-expansion
@@ -770,7 +774,7 @@ contains
     ! @ % ! . _ -, are word constituents.  Port of
     ! mailabbrev.el:mail-abbrev-make-syntax-table (for the ASCII
     ! characters; the other characters of identifier syntax are Deferred).
-    subroutine make_mail_abbrev_syntax_table(table)
+    subroutine make_mail_abbreviation_syntax_table(table)
         type(handle_type), intent(out) :: table
         type(handle_type) :: saved
         type(status_type) :: st
@@ -801,13 +805,13 @@ contains
         call modify_syntax_entry(iachar("_"), iachar("_"), "w", st, table)
         call modify_syntax_entry(iachar("-"), iachar("-"), "w", st, table)
         if (k > 0) locals(k)%syntax_table = table
-    end subroutine make_mail_abbrev_syntax_table
+    end subroutine make_mail_abbreviation_syntax_table
 
     !> Whether point is in a mail-address header field.  Port of
     !> mailabbrev.el:mail-abbrev-in-expansion-header-p.
-    recursive logical function is_mail_abbrev_in_expansion_header(status) result(in_header)
+    recursive logical function is_mail_abbreviation_in_expansion_header(status) result(in_header)
         type(status_type), intent(out) :: status
-        integer(int64) :: here, found, eoh
+        integer(int64) :: here, found, end_of_headers
         integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion
         logical :: saved_fold
 
@@ -819,7 +823,7 @@ contains
         if (.not. is_end_of_buffer()) call forward_character(status, 1_int64)
         call regular_expression_search_backward("^[^ "//TAB//"]", found, status, noerror=SEARCH_MOVE)
         ! are we at the front of an appropriate header line?
-        if (status%ok()) in_header = looking_at(mail_abbrev_mode_regular_expression, status)
+        if (status%ok()) in_header = looking_at(mail_abbreviation_mode_regular_expression, status)
         call goto_character(here)
 
         if (in_header .and. status%ok()) then
@@ -827,24 +831,24 @@ contains
             beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
             end_of_accessible_portion = buffers(current)%end_of_accessible_portion
             call widen()
-            call rfc822_goto_eoh(status)
-            eoh = point()
+            call rfc822_goto_end_of_headers(status)
+            end_of_headers = point()
             call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, status)
             call goto_character(here)
-            in_header = here < eoh
+            in_header = here < end_of_headers
         end if
 
         case_fold_search%value = saved_fold
-    end function is_mail_abbrev_in_expansion_header
+    end function is_mail_abbreviation_in_expansion_header
 
     !> Expand an abbrev with the mail aliases in the mail headers (the
-    !> wrapper upstream puts around `abbrev_expand_function' in buffers
-    !> where `set_up_mail_abbrevs' ran).  Port of
+    !> wrapper upstream puts around `abbreviation_expand_function' in buffers
+    !> where `set_up_mail_abbreviations' ran).  Port of
     !> mailabbrev.el:mail-abbrev-expand-wrapper.
-    recursive subroutine mail_abbrev_expand_wrapper(abbrev, status)
-        type(abbrev_reference_type), intent(out) :: abbrev
+    recursive subroutine mail_abbreviation_expand_wrapper(abbreviation, status)
+        type(abbreviation_reference_type), intent(out) :: abbreviation
         type(status_type), intent(out) :: status
-        type(abbrev_table_type), pointer :: saved_table
+        type(abbreviation_table_type), pointer :: saved_table
         type(handle_type) :: table, saved_syntax
         type(status_type) :: st
         logical :: in_header, skip
@@ -858,12 +862,12 @@ contains
 
         ! Not a Mail mode buffer set up for mail abbrevs, or no mail-abbrevs
         ! at all: do the normal thing.
-        if (skip .or. .not. mail_abbrevs_built) then
-            call expand(abbrev, status)
+        if (skip .or. .not. mail_abbreviations_built) then
+            call expand(abbreviation, status)
             return
         end if
 
-        in_header = is_mail_abbrev_in_expansion_header(status)
+        in_header = is_mail_abbreviation_in_expansion_header(status)
         if (.not. status%ok()) return
         ! Necessary for `message-read-from-minibuffer' to work.
         if (.not. in_header) in_header = is_window_minibuffer(status=st)
@@ -871,8 +875,8 @@ contains
         if (in_header) then
             ! We are in a To: (or Cc:, or whatever) header or a minibuffer,
             ! and should use word-abbrevs to expand mail aliases.
-            saved_table => local_abbrev_table()
-            call abbrev_table_set_local(mail_abbrevs)
+            saved_table => local_abbreviation_table()
+            call abbreviation_table_set_local(mail_abbreviations)
             ! Before anything else, resolve aliases if they need it.
             if (aliases_need_to_be_resolved) call resolve_all_mail_aliases(status)
 
@@ -888,7 +892,7 @@ contains
                 !      the purpose of abbrev expansion.
                 !   -  Then we call the expand function, to do
                 !      the abbrev expansion with the above syntax table.
-                call make_mail_abbrev_syntax_table(table)
+                call make_mail_abbreviation_syntax_table(table)
                 ! If the character just typed was non-alpha-identifier-syntax,
                 ! then don't expand the abbrev now (that is, don't expand
                 ! when the user types -.)  Check the character's syntax in
@@ -912,33 +916,33 @@ contains
                     ! Use this table so that abbrevs can have hyphens in them.
                     saved_syntax = syntax_table()
                     call set_syntax_table(table, st)
-                    call expand(abbrev, status)
+                    call expand(abbreviation, status)
                     call set_syntax_table(saved_syntax, st)
                 end if
             end if
 
-            call abbrev_table_set_local(saved_table)
-        else if (.not. mail_abbrevs_only .or. associated(this_command, commands%expand_abbrev)) then
+            call abbreviation_table_set_local(saved_table)
+        else if (.not. mail_abbreviations_only .or. associated(this_command, commands%expand_abbreviation)) then
             ! We're not in a mail header where mail aliases should
             ! be expanded, then use the normal mail-mode abbrev table
             ! (if any) and the normal mail-mode syntax table.
-            call expand(abbrev, status)
+            call expand(abbreviation, status)
         end if
 
     contains
 
         ! The function this one is around.
-        recursive subroutine expand(abbrev, status)
-            type(abbrev_reference_type), intent(out) :: abbrev
+        recursive subroutine expand(abbreviation, status)
+            type(abbreviation_reference_type), intent(out) :: abbreviation
             type(status_type), intent(out) :: status
 
             if (associated(next_expand_function)) then
-                call next_expand_function(abbrev, status)
+                call next_expand_function(abbreviation, status)
             else
-                call abbrev_default_expand(abbrev, status)
+                call abbreviation_default_expand(abbreviation, status)
             end if
         end subroutine expand
-    end subroutine mail_abbrev_expand_wrapper
+    end subroutine mail_abbreviation_expand_wrapper
 
     ! ------------------------------------------------------------------
     ! Utilities
@@ -946,16 +950,16 @@ contains
 
     !> Merge mail aliases from the given file with existing ones.  Port of
     !> mailabbrev.el:merge-mail-abbrevs.
-    recursive subroutine merge_mail_abbrevs(file, status)
+    recursive subroutine merge_mail_abbreviations(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
 
-        call build_mail_abbrevs(status, file)
-    end subroutine merge_mail_abbrevs
+        call build_mail_abbreviations(status, file)
+    end subroutine merge_mail_abbreviations
 
     !> Rebuild all the mail aliases from the given file (the visited file
     !> if FILE is absent).  Port of mailabbrev.el:rebuild-mail-abbrevs.
-    recursive subroutine rebuild_mail_abbrevs(status, file)
+    recursive subroutine rebuild_mail_abbreviations(status, file)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: file
         character(len=:), allocatable :: name
@@ -966,18 +970,18 @@ contains
             name = buffers(current)%filename
         end if
 
-        mail_abbrevs_built = .false.
+        mail_abbreviations_built = .false.
 
         if (allocated(name)) then
-            call build_mail_abbrevs(status, name)
+            call build_mail_abbreviations(status, name)
         else
-            call build_mail_abbrevs(status)
+            call build_mail_abbreviations(status)
         end if
-    end subroutine rebuild_mail_abbrevs
+    end subroutine rebuild_mail_abbreviations
 
     !> Prompt for and insert a mail alias.  Port of
     !> mailabbrev.el:mail-abbrev-insert-alias.
-    recursive subroutine insert_mail_abbrev_alias(status, alias)
+    recursive subroutine insert_mail_abbreviation_alias(status, alias)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: alias
         logical :: value
@@ -985,8 +989,8 @@ contains
 
         status = status_type()
 
-        if (.not. mail_abbrevs_built) then
-            call set_up_mail_abbrevs(status)
+        if (.not. mail_abbreviations_built) then
+            call set_up_mail_abbreviations(status)
             if (.not. status%ok()) return
         end if
 
@@ -994,19 +998,19 @@ contains
             k = alias_index(alias)
 
             if (k > 0) then
-                if (allocated(mail_abbrevs%abbrevs(k)%expansion)) then
-                    call insert(mail_abbrevs%abbrevs(k)%expansion, status)
+                if (allocated(mail_abbreviations%abbreviations(k)%expansion)) then
+                    call insert(mail_abbreviations%abbreviations(k)%expansion, status)
                     if (.not. status%ok()) return
                 end if
             end if
         end if
 
-        call mail_abbrev_expand_hook(value, status)
-    end subroutine insert_mail_abbrev_alias
+        call mail_abbreviation_expand_hook(value, status)
+    end subroutine insert_mail_abbreviation_alias
 
     !> Perform completion on alias preceding point.  Port of
     !> mailabbrev.el:mail-abbrev-complete-alias.
-    recursive subroutine complete_mail_abbrev_alias(status)
+    recursive subroutine complete_mail_abbreviation_alias(status)
         use simple_mod, only: backward_word
         type(status_type), intent(out) :: status
         type(handle_type) :: table, saved_syntax
@@ -1016,7 +1020,7 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        call make_mail_abbrev_syntax_table(table)
+        call make_mail_abbreviation_syntax_table(table)
         end = point()
         saved_syntax = syntax_table()
         call set_syntax_table(table, st)
@@ -1026,9 +1030,9 @@ contains
         call set_syntax_table(saved_syntax, st)
         call alias_table(collection)
         done = completion_in_region(beginning, end, collection)
-    end subroutine complete_mail_abbrev_alias
+    end subroutine complete_mail_abbreviation_alias
 
-    ! The names of `mail_abbrevs' as a completion table.  Not a port.
+    ! The names of `mail_abbreviations' as a completion table.  Not a port.
     subroutine alias_table(collection)
         type(completion_table_type), intent(out) :: collection
         type(value_type), allocatable :: names(:)
@@ -1037,9 +1041,9 @@ contains
 
         allocate (names(0))
 
-        do k = 1, mail_abbrevs%n
-            if (.not. allocated(mail_abbrevs%abbrevs(k)%expansion)) cycle
-            item = value_type(text=mail_abbrevs%abbrevs(k)%name)
+        do k = 1, mail_abbreviations%n
+            if (.not. allocated(mail_abbreviations%abbreviations(k)%expansion)) cycle
+            item = value_type(text=mail_abbreviations%abbreviations(k)%name)
             names = [names, item]
         end do
 
@@ -1053,7 +1057,7 @@ contains
     !>
     !> In terms of line motion, this behaves like `next_line', which see.
     !> Port of mailabbrev.el:mail-abbrev-next-line.
-    recursive subroutine mail_abbrev_next_line(argument, status)
+    recursive subroutine mail_abbreviation_next_line(argument, status)
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         logical :: at_end
@@ -1062,13 +1066,13 @@ contains
         if (.not. status%ok()) return
 
         if (at_end) then
-            call expand_abbrev(status)
+            call expand_abbreviation(status)
             if (.not. status%ok()) return
         end if
 
         this_command => commands%next_line
         call next_line(argument, status)
-    end subroutine mail_abbrev_next_line
+    end subroutine mail_abbreviation_next_line
 
     !> Expand a mail abbrev before point, then move to the end of the buffer.
     !> This only expands an abbrev (if one is present) if called with
@@ -1076,7 +1080,7 @@ contains
     !>
     !> In other respects, this behaves like `end_of_buffer', which see.
     !> Port of mailabbrev.el:mail-abbrev-end-of-buffer.
-    recursive subroutine mail_abbrev_end_of_buffer(argument, status)
+    recursive subroutine mail_abbreviation_end_of_buffer(argument, status)
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         logical :: at_end
@@ -1085,19 +1089,19 @@ contains
         if (.not. status%ok()) return
 
         if (at_end) then
-            call expand_abbrev(status)
+            call expand_abbreviation(status)
             if (.not. status%ok()) return
         end if
 
         this_command => commands%end_of_buffer
         call end_of_buffer(argument)
-    end subroutine mail_abbrev_end_of_buffer
+    end subroutine mail_abbreviation_end_of_buffer
 
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine execute_define_mail_abbrev(status)
+    recursive subroutine execute_define_mail_abbreviation(status)
         use minibuffer_reading_mod, only: read_string
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name, definition
@@ -1105,8 +1109,8 @@ contains
         call read_string("Define mail alias: ", name, status)
         if (.not. status%ok()) return
         call read_string("Define "//name//" as mail alias for: ", definition, status)
-        if (status%ok()) call define_mail_abbrev(name, definition, status)
-    end subroutine execute_define_mail_abbrev
+        if (status%ok()) call define_mail_abbreviation(name, definition, status)
+    end subroutine execute_define_mail_abbreviation
 
     ! The file name argument of merge-mail-abbrevs and
     ! rebuild-mail-abbrevs, read with PROMPT.  Not a port.
@@ -1125,48 +1129,48 @@ contains
                             mustmatch=REQUIRE_MATCH_YES)
     end subroutine read_alias_file
 
-    recursive subroutine execute_merge_mail_abbrevs(status)
+    recursive subroutine execute_merge_mail_abbreviations(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_alias_file("Read additional aliases from file", file, status)
-        if (status%ok()) call merge_mail_abbrevs(file, status)
-    end subroutine execute_merge_mail_abbrevs
+        if (status%ok()) call merge_mail_abbreviations(file, status)
+    end subroutine execute_merge_mail_abbreviations
 
-    recursive subroutine execute_rebuild_mail_abbrevs(status)
+    recursive subroutine execute_rebuild_mail_abbreviations(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_alias_file("Read mail aliases from file", file, status)
-        if (status%ok()) call rebuild_mail_abbrevs(status, file)
-    end subroutine execute_rebuild_mail_abbrevs
+        if (status%ok()) call rebuild_mail_abbreviations(status, file)
+    end subroutine execute_rebuild_mail_abbreviations
 
-    recursive subroutine execute_insert_mail_abbrev_alias(status)
+    recursive subroutine execute_insert_mail_abbreviation_alias(status)
         type(status_type), intent(out) :: status
         type(completion_table_type) :: collection
         character(len=:), allocatable :: alias
 
-        if (.not. mail_abbrevs_built) then
-            call set_up_mail_abbrevs(status)
+        if (.not. mail_abbreviations_built) then
+            call set_up_mail_abbreviations(status)
             if (.not. status%ok()) return
         end if
 
         call alias_table(collection)
         call completing_read("Expand alias: ", collection, alias, status, require_match=REQUIRE_MATCH_YES)
-        if (status%ok()) call insert_mail_abbrev_alias(status, alias)
-    end subroutine execute_insert_mail_abbrev_alias
+        if (status%ok()) call insert_mail_abbreviation_alias(status, alias)
+    end subroutine execute_insert_mail_abbreviation_alias
 
-    recursive subroutine execute_mail_abbrev_next_line(status)
+    recursive subroutine execute_mail_abbreviation_next_line(status)
         type(status_type), intent(out) :: status
 
-        call mail_abbrev_next_line(prefix_numeric_value(current_prefix_argument), status)
-    end subroutine execute_mail_abbrev_next_line
+        call mail_abbreviation_next_line(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_mail_abbreviation_next_line
 
-    recursive subroutine execute_mail_abbrev_end_of_buffer(status)
+    recursive subroutine execute_mail_abbreviation_end_of_buffer(status)
         type(status_type), intent(out) :: status
 
-        call mail_abbrev_end_of_buffer(current_prefix_argument, status)
-    end subroutine execute_mail_abbrev_end_of_buffer
+        call mail_abbreviation_end_of_buffer(current_prefix_argument, status)
+    end subroutine execute_mail_abbreviation_end_of_buffer
 
     !> Define Mail Abbrevs mode and register the commands; bind C-c C-a
     !> and M-TAB in `mail_mode_map' (upstream's eval-after-load of
@@ -1176,22 +1180,22 @@ contains
 
         if (.not. allocated(mail_alias_separator_string)) mail_alias_separator_string = ", "
 
-        if (.not. allocated(mail_abbrev_mode_regular_expression)) then
-            mail_abbrev_mode_regular_expression = "^\(Resent-\)?\(To\|From\|Cc\|Bcc\|Reply-To\|X-Debbugs-Cc\):"
+        if (.not. allocated(mail_abbreviation_mode_regular_expression)) then
+            mail_abbreviation_mode_regular_expression = "^\(Resent-\)?\(To\|From\|Cc\|Bcc\|Reply-To\|X-Debbugs-Cc\):"
         end if
 
-        call minor_modes%mail_abbrevs_mode%define("mail_abbrevs_mode", global=.true., body=mail_abbrevs_mode_body)
-        commands%mail_abbrevs_mode%execute => mail_abbrevs_mode
-        commands%define_mail_abbrev%execute => execute_define_mail_abbrev
-        commands%merge_mail_abbrevs%execute => execute_merge_mail_abbrevs
-        commands%rebuild_mail_abbrevs%execute => execute_rebuild_mail_abbrevs
-        commands%insert_mail_abbrev_alias%execute => execute_insert_mail_abbrev_alias
-        commands%complete_mail_abbrev_alias%execute => complete_mail_abbrev_alias
-        commands%mail_abbrev_next_line%execute => execute_mail_abbrev_next_line
-        commands%mail_abbrev_end_of_buffer%execute => execute_mail_abbrev_end_of_buffer
+        call minor_modes%mail_abbreviations_mode%define("mail_abbreviations_mode", global=.true., body=mail_abbreviations_mode_body)
+        commands%mail_abbreviations_mode%execute => mail_abbreviations_mode
+        commands%define_mail_abbreviation%execute => execute_define_mail_abbreviation
+        commands%merge_mail_abbreviations%execute => execute_merge_mail_abbreviations
+        commands%rebuild_mail_abbreviations%execute => execute_rebuild_mail_abbreviations
+        commands%insert_mail_abbreviation_alias%execute => execute_insert_mail_abbreviation_alias
+        commands%complete_mail_abbreviation_alias%execute => complete_mail_abbreviation_alias
+        commands%mail_abbreviation_next_line%execute => execute_mail_abbreviation_next_line
+        commands%mail_abbreviation_end_of_buffer%execute => execute_mail_abbreviation_end_of_buffer
         call initialize_sendmail()
-        call keymap_set(mail_mode_map, "C-c C-a", "insert_mail_abbrev_alias", st)
+        call keymap_set(mail_mode_map, "C-c C-a", "insert_mail_abbreviation_alias", st)
         ! like completion-at-point
-        call keymap_set(mail_mode_map, "M-TAB", "complete_mail_abbrev_alias", st)
+        call keymap_set(mail_mode_map, "M-TAB", "complete_mail_abbreviation_alias", st)
     end subroutine initialize_mailabbrev
 end module mail_abbreviations_mod

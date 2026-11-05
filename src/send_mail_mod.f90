@@ -64,13 +64,13 @@ module send_mail_mod
     use environment_mod, only: getenv
     use display_engine_mod, only: message
     use help_mod, only: substitute_command_keys
-    use simple_mod, only: rfc822_goto_eoh, push_mark, delete_horizontal_space, do_auto_fill, normal_auto_fill_function, &
+    use simple_mod, only: rfc822_goto_end_of_headers, push_mark, delete_horizontal_space, do_auto_fill, normal_auto_fill_function, &
                           fill_prefix
     use fill_mod, only: fill_region_as_paragraph, fill_paragraph_function
     use indent_mod, only: indent_rigidly, current_column
     use newcomment_mod, only: comment_start, comment_start_skip
     use paragraphs_mod, only: paragraph_separate, page_delimiter
-    use abbreviation_mod, only: expand_abbrev
+    use abbreviation_mod, only: expand_abbreviation
     use modes_mod, only: major_modes
     use keymap_mod, only: keymap_set
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_NONE
@@ -82,7 +82,7 @@ module send_mail_mod
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_YES
     use replace_mod, only: format_prompt
     use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
-    use coding_mod, only: buffer_file_coding_system, coding_system_mime_charset
+    use coding_mod, only: buffer_file_coding_system, coding_system_mime_character_set
     use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     use time_functions_mod, only: format_time_string
     use editing_functions_mod, only: user_full_name, user_login_name
@@ -938,7 +938,7 @@ contains
         mb = marker_at(beginning_of_accessible_portion)
         me = marker_at(end_of_accessible_portion, .true.)
         call widen()
-        call rfc822_goto_eoh(st)
+        call rfc822_goto_end_of_headers(st)
         position = point()
         call narrow_to_region(marker_end(mb), marker_end(me), st)
         call goto_character(here)
@@ -955,7 +955,7 @@ contains
         mb = marker_at(buffers(current)%beginning_of_accessible_portion)
         me = marker_at(buffers(current)%end_of_accessible_portion, .true.)
         call widen()
-        call rfc822_goto_eoh(st)
+        call rfc822_goto_end_of_headers(st)
         shortage = forward_line(1_int64)
         position = point()
         call narrow_to_region(marker_end(mb), marker_end(me), st)
@@ -971,7 +971,7 @@ contains
         type(status_type), intent(out) :: status
 
         position = 0
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
         if (.not. status%ok()) return
         call insert(mail_header_separator, status)
         position = point()
@@ -991,7 +991,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
     end subroutine undelimit_mail_sendmail_header
 
     !> Carry out Auto Fill for Mail mode.
@@ -1586,7 +1586,7 @@ contains
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline
         type(value_type) :: result, destination, item
         type(value_type), allocatable :: argv(:)
-        character(len=:), allocatable :: selected_coding, envelope_from, charset, errors, resend_to(:), part(:), merged(:), &
+        character(len=:), allocatable :: selected_coding, envelope_from, character_set, errors, resend_to(:), part(:), merged(:), &
                                          address
         type(restriction_type) :: restriction
         logical :: failed, fcc_was_found, multibyte, saved_fold, found, has_errbuf
@@ -1730,11 +1730,11 @@ contains
                     moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
 
                     if (point() /= point_maximum() .and. len(selected_coding) > 0) then
-                        charset = coding_system_mime_charset(selected_coding)
+                        character_set = coding_system_mime_character_set(selected_coding)
 
-                        if (len(charset) > 0) then
+                        if (len(character_set) > 0) then
                             call goto_character(marked_position(delimline))
-                            call insert("MIME-version: 1.0"//LF//"Content-type: text/plain; charset="//charset// &
+                            call insert("MIME-version: 1.0"//LF//"Content-type: text/plain; charset="//character_set// &
                                         LF//"Content-Transfer-Encoding: 8bit"//LF, status)
 
                             ! The character set we will actually use
@@ -2149,7 +2149,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (status%ok()) call position_mail_on_field("To", found, status)
     end subroutine mail_to
 
@@ -2159,7 +2159,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (status%ok()) call position_mail_on_field("Subject", found, status)
     end subroutine mail_subject
 
@@ -2196,13 +2196,13 @@ contains
     end subroutine mail_mail_followup_to
 
     ! (or (mail-position-on-field FIELD t) (progn (mail-position-on-field
-    ! "to") (insert "\nNAME: "))), after `expand_abbrev'.  Not a port.
+    ! "to") (insert "\nNAME: "))), after `expand_abbreviation'.  Not a port.
     recursive subroutine field_after_to(field, name, status)
         character(len=*), intent(in) :: field, name
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (.not. status%ok()) return
         call position_mail_on_field(field, found, status, soft=.true.)
         if (.not. status%ok() .or. found) return
@@ -2217,7 +2217,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (.not. status%ok()) return
         ! Put new field after exiting Fcc.
         call position_mail_on_field("fcc", found, status, soft=.true.)
@@ -2231,7 +2231,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (status%ok()) call position_mail_on_field("Reply-To", found, status)
     end subroutine mail_reply_to
 
@@ -2273,7 +2273,7 @@ contains
     recursive subroutine mail_text(status)
         type(status_type), intent(out) :: status
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (status%ok()) call goto_character(mail_text_start())
     end subroutine mail_text
 
@@ -2286,7 +2286,7 @@ contains
         logical :: found, narrowed
         type(status_type) :: st
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (.not. status%ok()) return
         here = marker_at(point())
         call position_mail_on_field("Disposition-Notification-To", found, status)
@@ -2439,7 +2439,7 @@ contains
         integer, intent(in), optional :: argument
         logical, intent(in), optional :: raw
         type(handle_type) :: original, mark
-        integer(int64) :: start, eoh, e
+        integer(int64) :: start, end_of_headers, e
         integer :: k, saved_spaces
         logical :: is_raw, has_mark
         type(status_type) :: st
@@ -2468,11 +2468,11 @@ contains
                 ! message's header.
                 call narrow_to_region(start, point_maximum(), status)
                 call goto_character(start)
-                call rfc822_goto_eoh(st)
-                eoh = point()
+                call rfc822_goto_end_of_headers(st)
+                end_of_headers = point()
                 call widen()
                 call goto_character(start)
-                call buffer_substring_no_properties(start, eoh, mail_citation_header, status)
+                call buffer_substring_no_properties(start, end_of_headers, mail_citation_header, status)
                 if (status%ok()) call mail_citation_hook%execute(status)
                 if (allocated(mail_citation_header)) deallocate (mail_citation_header)
             else
@@ -2651,7 +2651,7 @@ contains
         type(handle_type) :: buffer
         character(len=:), allocatable :: directory
         integer :: noerase
-        logical :: init, modified, proceed
+        logical :: initialize, modified, proceed
 
         noerase = MAIL_NOERASE_NO
         if (present(noerase_in)) noerase = noerase_in
@@ -2673,7 +2673,7 @@ contains
         if (status%ok() .and. file_exists(directory)) buffers(current)%directory = directory
         call mail_mode(status)
         if (.not. status%ok()) return
-        init = .false.
+        initialize = .false.
 
         if (.not. (noerase /= MAIL_NOERASE_NO .and. noerase /= MAIL_NOERASE_NEW)) then
             call is_buffer_modified(current_buffer(), modified, status)
@@ -2704,11 +2704,11 @@ contains
                 if (.not. status%ok()) return
                 call set_up_mail(status, to, subject, in_reply_to, cc, replybuffer)
                 if (.not. status%ok()) return
-                init = .true.
+                initialize = .true.
             end if
         end if
 
-        if (present(initialized)) initialized = init
+        if (present(initialized)) initialized = initialize
     end subroutine mail
 
     !> Like `mail' command, but display mail buffer in another window.

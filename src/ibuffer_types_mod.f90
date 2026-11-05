@@ -265,11 +265,11 @@ module ibuffer_types_mod
         character(len=IBUFFER_NAME_LENGTH) :: face = ""
     end type ibuffer_fontification_type
 
-    !> An element of `ibuffer_directory_abbrevs': FROM and TO.
-    type, public :: ibuffer_directory_abbrev_type
+    !> An element of `ibuffer_directory_abbreviations': FROM and TO.
+    type, public :: ibuffer_directory_abbreviation_type
         character(len=256) :: from = ""
         character(len=256) :: to = ""
-    end type ibuffer_directory_abbrev_type
+    end type ibuffer_directory_abbreviation_type
 
     !> The kinds of node of an `ibuffer_filter_type': a simple filter
     !> specification (a filter NAME with a QUALIFIER), (not FILTER-SPEC), (and

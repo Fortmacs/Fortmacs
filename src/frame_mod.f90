@@ -31,18 +31,18 @@
 !> Sizes are in pixels where upstream has them: FRAME_COLUMN_WIDTH and
 !> FRAME_LINE_HEIGHT are 1 on a terminal frame, the default font's width
 !> and height on a window-system frame (one with a redisplay interface,
-!> `rif', and a font driver).  Windows are sized in columns and lines
+!> `redisplay_interface', and a font driver).  Windows are sized in columns and lines
 !> (`frame_resize_pixelwise' and `window_resize_pixelwise' .false.), so their
 !> pixel edges are those times the frame's column width and line height.
 !> Window-system frames exist only in the tests (a fake device) until the
-!> GUI is ported.
+!> GRAPHICAL_USER_INTERFACE is ported.
 !>
 !> Frame parameters are typed components (`frame_parameters_type'): a
 !> frame's own in `parameters', those for new frames in `default_frame'.
 !> A terminal frame stores them but has no window dividers, so its divider
 !> widths stay 0, as upstream's.
 module frame_mod
-    use terminal_state_mod, only: tty_display_info_type
+    use terminal_state_mod, only: terminal_display_info_type
     use glyph_matrices_mod, only: glyph_matrix_type, face_type, redisplay_interface_type
     use font_mod, only: font_driver_type
     use handle_mod, only: handle_type, slot_table_type, null_handle
@@ -176,7 +176,7 @@ module frame_mod
 
     !> Port of the parts of frame.h:struct frame in use.
     type, public :: frame_type
-        type(tty_display_info_type) :: tty
+        type(terminal_display_info_type) :: terminal
         type(glyph_matrix_type) :: current_matrix, desired_matrix
         !> The root of the window tree, the minibuffer window and the
         !> selected window (frame.h root_window, minibuffer_window,
@@ -194,9 +194,9 @@ module frame_mod
         !> (frame.h:garbaged, set by frame.h:SET_FRAME_GARBAGED).
         logical :: needs_redraw = .true.
         logical :: glyphs_initialized_p = .false.
-        !> How redisplay draws on a window-system frame (FRAME_RIF); not
+        !> How redisplay draws on a window-system frame (FRAME_REDISPLAY_INTERFACE); not
         !> associated on a terminal frame.
-        class(redisplay_interface_type), pointer :: rif => null()
+        class(redisplay_interface_type), pointer :: redisplay_interface => null()
         !> The fonts of a window-system frame's faces (f->font_driver_list).
         class(font_driver_type), pointer :: font_driver => null()
         !> FRAME_COLUMN_WIDTH and FRAME_LINE_HEIGHT: the canonical
@@ -267,7 +267,7 @@ module frame_mod
     type(frame_pointer_type), allocatable :: frame_slots(:)
     type(handle_type), allocatable :: frame_order(:)
     !> The number of the last F<num> name given (frame.c:tty_frame_count).
-    integer(int64) :: tty_frame_count = 1
+    integer(int64) :: terminal_frame_count = 1
     !> The frame the terminal shows (termchar.h:top_frame): the selected
     !> frame, except while `select_frame_begin' has selected another one.
     type(handle_type) :: top_frame
@@ -514,10 +514,10 @@ contains
     integer function frame_lines(f)
         type(frame_type), intent(in) :: f
 
-        if (associated(f%rif)) then
+        if (associated(f%redisplay_interface)) then
             frame_lines = f%text_lines
         else
-            frame_lines = f%tty%wcm%cm_rows
+            frame_lines = f%terminal%wcm%cursor_motion_rows
         end if
     end function frame_lines
 
@@ -525,10 +525,10 @@ contains
     integer function frame_columns(f)
         type(frame_type), intent(in) :: f
 
-        if (associated(f%rif)) then
+        if (associated(f%redisplay_interface)) then
             frame_columns = f%text_columns
         else
-            frame_columns = f%tty%wcm%cm_columns
+            frame_columns = f%terminal%wcm%cursor_motion_columns
         end if
     end function frame_columns
 
@@ -577,7 +577,7 @@ contains
         type(frame_type), intent(in) :: f
         type(window_type), intent(in) :: w
 
-        if (associated(f%rif)) then
+        if (associated(f%redisplay_interface)) then
             window_body_pixel_width = window_pixel_width(f, w)
         else
             window_body_pixel_width = window_text_columns(w)
@@ -728,7 +728,7 @@ contains
         if (frame_table%count() > 0) return
         f => initial_frame
         call register_frame(f)
-        tty_frame_count = 1
+        terminal_frame_count = 1
         top_frame = f%handle
         f%name = "F1"
         f%explicit_name = .false.
@@ -909,8 +909,8 @@ contains
         character(len=24) :: digits
 
         do
-            tty_frame_count = tty_frame_count + 1
-            write (digits, "(i0)") tty_frame_count
+            terminal_frame_count = terminal_frame_count + 1
+            write (digits, "(i0)") terminal_frame_count
             name = "F"//trim(digits)
             if (.not. is_frame_live(find_frame(name))) return
         end do

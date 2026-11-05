@@ -1,4 +1,4 @@
-! version_control_branches_mod.f90 -- the tag, branch, pull and push commands of VC.
+! version_control_branches_mod.f90 -- the tag, branch, pull and push commands of VERSION_CONTROL.
 ! Ported from GNU Emacs 31.1 lisp/vc/vc.el.
 !
 ! Copyright (C) 1992-2026 Free Software Foundation, Inc.
@@ -28,8 +28,9 @@ submodule(version_control_mod) version_control_branches_mod
     use execute_interactively_mod, only: current_prefix_argument, PREFIX_NONE
     use minibuffer_mod, only: read_directory_name, REQUIRE_MATCH_YES
     use files_mod, only: abbreviate_file_name
-    use version_control_hooks_mod, only: VC_REVISION_GRANULARITY_REPOSITORY, vc_file_get_incoming_revision, &
-                                         vc_file_set_incoming_revision, vc_file_clear_incoming_revisions
+    use version_control_hooks_mod, only: VERSION_CONTROL_REVISION_GRANULARITY_REPOSITORY, &
+                                         version_control_file_get_incoming_revision, version_control_file_set_incoming_revision, &
+                                         version_control_file_clear_incoming_revisions
     implicit none(type, external)
 
 contains
@@ -55,12 +56,12 @@ contains
         integer :: b
 
         granular = .false.
-        b = vc_responsible_backend(buffer_directory(), status)
+        b = version_control_responsible_backend(buffer_directory(), status)
         if (.not. status%ok()) return
-        granular = vc_backends(b)%revision_granularity == VC_REVISION_GRANULARITY_REPOSITORY
+        granular = version_control_backends(b)%revision_granularity == VERSION_CONTROL_REVISION_GRANULARITY_REPOSITORY
     end function is_repository_granular
 
-    module procedure vc_create_tag
+    module procedure version_control_create_tag
     character(len=:), allocatable :: kind, tag_directory
     integer :: b
 
@@ -69,26 +70,26 @@ contains
     call message("Making "//kind//"... ")
     tag_directory = directory
     if (is_file_directory(tag_directory)) tag_directory = file_name_as_directory(tag_directory)
-    b = vc_responsible_backend(tag_directory, status)
+    b = version_control_responsible_backend(tag_directory, status)
     if (.not. status%ok()) return
 
-    if (.not. associated(vc_backends(b)%create_tag)) then
-        call vc_not_supported(status, "create-tag", b)
+    if (.not. associated(version_control_backends(b)%create_tag)) then
+        call version_control_not_supported(status, "create-tag", b)
         return
     end if
 
-    call vc_backends(b)%create_tag(tag_directory, name, is_branch, status)
+    call version_control_backends(b)%create_tag(tag_directory, name, is_branch, status)
     if (.not. status%ok()) return
-    call vc_resynch_buffer(tag_directory, tag_directory, status, .true., VC_NOQUERY_YES, .true.)
+    call version_control_resynch_buffer(tag_directory, tag_directory, status, .true., VERSION_CONTROL_NOQUERY_YES, .true.)
     if (.not. status%ok()) return
     call message("Making "//kind//"... done")
-    end procedure vc_create_tag
+    end procedure version_control_create_tag
 
-    module procedure vc_create_branch
-    call vc_create_tag(directory, name, .true., status)
-    end procedure vc_create_branch
+    module procedure version_control_create_branch
+    call version_control_create_tag(directory, name, .true., status)
+    end procedure version_control_create_branch
 
-    module procedure vc_retrieve_tag
+    module procedure version_control_retrieve_tag
     character(len=:), allocatable :: message_text, kind
     logical :: update, branching
     integer :: b
@@ -101,11 +102,11 @@ contains
         return
     end if
 
-    b = vc_responsible_backend(directory, status)
+    b = version_control_responsible_backend(directory, status)
     if (.not. status%ok()) return
     update = .false.
 
-    if (vc_backends(b)%update_on_retrieve_tag) then
+    if (version_control_backends(b)%update_on_retrieve_tag) then
         call read_yes_or_no("Update any affected buffers? ", update, status)
         if (.not. status%ok()) return
     end if
@@ -121,23 +122,23 @@ contains
 
     call message(message_text)
 
-    if (.not. associated(vc_backends(b)%retrieve_tag)) then
-        call vc_not_supported(status, "retrieve-tag", b)
+    if (.not. associated(version_control_backends(b)%retrieve_tag)) then
+        call version_control_not_supported(status, "retrieve-tag", b)
         return
     end if
 
-    call vc_backends(b)%retrieve_tag(directory, name, update, status)
+    call version_control_backends(b)%retrieve_tag(directory, name, update, status)
     if (.not. status%ok()) return
-    call vc_resynch_buffer(directory, directory, status, .true., VC_NOQUERY_YES, .true.)
+    call version_control_resynch_buffer(directory, directory, status, .true., VERSION_CONTROL_NOQUERY_YES, .true.)
     if (.not. status%ok()) return
-    call vc_retrieve_tag_hook%execute(status)
+    call version_control_retrieve_tag_hook%execute(status)
     if (.not. status%ok()) return
     call message(message_text//"done")
-    end procedure vc_retrieve_tag
+    end procedure version_control_retrieve_tag
 
-    module procedure vc_switch_branch
-    call vc_retrieve_tag(directory, name, status, .true.)
-    end procedure vc_switch_branch
+    module procedure version_control_switch_branch
+    call version_control_retrieve_tag(directory, name, status, .true.)
+    end procedure version_control_switch_branch
 
     !> The directory of the tag and branch commands: `default_directory'
     !> for a repository-granular backend, else read with PROMPT
@@ -154,10 +155,10 @@ contains
         directory = ""
 
         if (is_repository_granular(status)) then
-            ! For VC's that do not work at file level, it's pointless
+            ! For VERSION_CONTROL's that do not work at file level, it's pointless
             ! to ask for a directory, branches are created at repository level.
             if (root) then
-                call vc_root_directory(directory, found, status)
+                call version_control_root_directory(directory, found, status)
                 if (.not. status%ok()) return
                 call expand_file_name(directory, expanded, status)
                 if (.not. status%ok()) return
@@ -175,7 +176,7 @@ contains
         end if
     end subroutine read_tag_directory
 
-    module procedure execute_vc_create_tag
+    module procedure execute_version_control_create_tag
     character(len=:), allocatable :: directory, name
     logical :: branching
 
@@ -184,26 +185,26 @@ contains
     branching = current_prefix_argument%kind /= PREFIX_NONE
 
     if (branching) then
-        call read_string("New branch name: ", name, status, history="vc_revision_history")
+        call read_string("New branch name: ", name, status, history="version_control_revision_history")
     else
-        call read_string("New tag name: ", name, status, history="vc_revision_history")
+        call read_string("New tag name: ", name, status, history="version_control_revision_history")
     end if
 
     if (.not. status%ok()) return
-    call vc_create_tag(directory, name, branching, status)
-    end procedure execute_vc_create_tag
+    call version_control_create_tag(directory, name, branching, status)
+    end procedure execute_version_control_create_tag
 
-    module procedure execute_vc_create_branch
+    module procedure execute_version_control_create_branch
     character(len=:), allocatable :: directory, name
 
     call read_tag_directory(directory, status, .false., .true.)
     if (.not. status%ok()) return
-    call read_string("New branch name: ", name, status, history="vc_revision_history")
+    call read_string("New branch name: ", name, status, history="version_control_revision_history")
     if (.not. status%ok()) return
-    call vc_create_branch(directory, name, status)
-    end procedure execute_vc_create_branch
+    call version_control_create_branch(directory, name, status)
+    end procedure execute_version_control_create_branch
 
-    module procedure execute_vc_retrieve_tag
+    module procedure execute_version_control_retrieve_tag
     type(string_type), allocatable :: files(:)
     character(len=:), allocatable :: directory, name
     logical :: branching
@@ -215,20 +216,20 @@ contains
     if (.not. status%ok()) return
     branching = current_prefix_argument%kind /= PREFIX_NONE
     call append_string(files, directory)
-    b = vc_responsible_backend(directory, status)
+    b = version_control_responsible_backend(directory, status)
     if (.not. status%ok()) return
 
     if (branching) then
-        call vc_read_revision("Switch to branch: ", name, status, files, b)
+        call version_control_read_revision("Switch to branch: ", name, status, files, b)
     else
-        call vc_read_revision("Tag name to retrieve (default latest revisions): ", name, status, files, b)
+        call version_control_read_revision("Tag name to retrieve (default latest revisions): ", name, status, files, b)
     end if
 
     if (.not. status%ok()) return
-    call vc_retrieve_tag(directory, name, status, branching)
-    end procedure execute_vc_retrieve_tag
+    call version_control_retrieve_tag(directory, name, status, branching)
+    end procedure execute_version_control_retrieve_tag
 
-    module procedure execute_vc_switch_branch
+    module procedure execute_version_control_switch_branch
     type(string_type), allocatable :: files(:)
     character(len=:), allocatable :: directory, name
     integer :: b
@@ -236,12 +237,12 @@ contains
     call read_tag_directory(directory, status, .true., .false.)
     if (.not. status%ok()) return
     call append_string(files, directory)
-    b = vc_responsible_backend(directory, status)
+    b = version_control_responsible_backend(directory, status)
     if (.not. status%ok()) return
-    call vc_read_revision("Switch to branch: ", name, status, files, b)
+    call version_control_read_revision("Switch to branch: ", name, status, files, b)
     if (.not. status%ok()) return
-    call vc_switch_branch(directory, name, status)
-    end procedure execute_vc_switch_branch
+    call version_control_switch_branch(directory, name, status)
+    end procedure execute_version_control_switch_branch
 
     ! ------------------------------------------------------------------
     ! Pulling and pushing
@@ -256,18 +257,18 @@ contains
         character(len=:), allocatable :: root
         logical :: found
 
-        call vc_root_directory(root, found, st, backend)
-        if (found) call vc_file_clear_incoming_revisions(root)
+        call version_control_root_directory(root, found, st, backend)
+        if (found) call version_control_file_clear_incoming_revisions(root)
     end subroutine clear_incoming_revisions
 
-    module procedure vc_pull
-    type(vc_fileset_type) :: fs, retry
+    module procedure version_control_pull
+    type(version_control_fileset_type) :: fs, retry
     type(status_type) :: deduced, st
     type(handle_type) :: process
     integer :: b
 
     status = status_type()
-    call vc_deduce_fileset(fs, deduced, .true.)
+    call version_control_deduce_fileset(fs, deduced, .true.)
 
     if (deduced%ok()) then
         b = fs%backend
@@ -275,7 +276,7 @@ contains
         ! If `vc-deduce-fileset' failed then try again with
         ! ALLOW-UNREGISTERED true, but in this case we require a
         ! `pull' function because that doesn't need a list of files.
-        call vc_deduce_fileset(retry, st, .true., .true.)
+        call version_control_deduce_fileset(retry, st, .true., .true.)
         b = 0
         if (st%ok()) b = retry%backend
 
@@ -284,55 +285,55 @@ contains
             return
         end if
 
-        if (.not. associated(vc_backends(b)%pull)) then
+        if (.not. associated(version_control_backends(b)%pull)) then
             status = deduced
             return
         end if
     end if
 
     ! If a pull operation is defined, use it.
-    if (associated(vc_backends(b)%pull)) then
-        call vc_backends(b)%pull(prompt, status, process)
+    if (associated(version_control_backends(b)%pull)) then
+        call version_control_backends(b)%pull(prompt, status, process)
         if (.not. status%ok()) return
         ! FIXME: Ideally we would only clear out the stored value for the
         ! REMOTE-LOCATION from which we are pulling.
         call clear_incoming_revisions(b)
     else
-        call set_error(status, GENERIC_ERROR_CODE, "VC update is unsupported for `"//vc_backend_name(b)//"'")
+        call set_error(status, GENERIC_ERROR_CODE, "VC update is unsupported for `"//version_control_backend_name(b)//"'")
     end if
-    end procedure vc_pull
+    end procedure version_control_pull
 
-    module procedure vc_push
-    type(vc_fileset_type) :: fs
+    module procedure version_control_push
+    type(version_control_fileset_type) :: fs
     type(handle_type) :: process
 
-    call vc_deduce_fileset(fs, status, .true., .true.)
+    call version_control_deduce_fileset(fs, status, .true., .true.)
     if (.not. status%ok()) return
 
-    if (associated(vc_backends(fs%backend)%push)) then
-        call vc_backends(fs%backend)%push(prompt, status, process)
+    if (associated(version_control_backends(fs%backend)%push)) then
+        call version_control_backends(fs%backend)%push(prompt, status, process)
         if (.not. status%ok()) return
         ! FIXME: Ideally we would only clear out the
         ! REMOTE-LOCATION to which we are pushing.
         call clear_incoming_revisions(fs%backend)
     else
-        call set_error(status, USER_ERROR_CODE, "VC push is unsupported for `"//vc_backend_name(fs%backend)//"'")
+        call set_error(status, USER_ERROR_CODE, "VC push is unsupported for `"//version_control_backend_name(fs%backend)//"'")
     end if
-    end procedure vc_push
+    end procedure version_control_push
 
-    module procedure execute_vc_pull
-    call vc_pull(current_prefix_argument%kind /= PREFIX_NONE, status)
-    end procedure execute_vc_pull
+    module procedure execute_version_control_pull
+    call version_control_pull(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end procedure execute_version_control_pull
 
-    module procedure execute_vc_push
-    call vc_push(current_prefix_argument%kind /= PREFIX_NONE, status)
-    end procedure execute_vc_push
+    module procedure execute_version_control_push
+    call version_control_push(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end procedure execute_version_control_push
 
     ! ------------------------------------------------------------------
     ! The incoming revision
     ! ------------------------------------------------------------------
 
-    module procedure vc_incoming_revision
+    module procedure version_control_incoming_revision
     character(len=:), allocatable :: root
     logical :: refreshing, found, known
 
@@ -354,28 +355,28 @@ contains
     refreshing = .false.
     if (present(refresh)) refreshing = refresh
     revision = ""
-    call vc_root_directory(root, found, status, backend)
+    call version_control_root_directory(root, found, status, backend)
     if (.not. status%ok()) return
     known = .false.
     found = .false.
-    if (.not. refreshing) call vc_file_get_incoming_revision(root, upstream_location, revision, known, found)
+    if (.not. refreshing) call version_control_file_get_incoming_revision(root, upstream_location, revision, known, found)
 
     if (.not. known) then
-        if (.not. associated(vc_backends(backend)%incoming_revision)) then
-            call vc_not_supported(status, "incoming-revision", backend)
+        if (.not. associated(version_control_backends(backend)%incoming_revision)) then
+            call version_control_not_supported(status, "incoming-revision", backend)
             return
         end if
 
-        call vc_backends(backend)%incoming_revision(upstream_location, refreshing, revision, found, status)
+        call version_control_backends(backend)%incoming_revision(upstream_location, refreshing, revision, found, status)
         if (.not. status%ok()) return
 
         if (found) then
-            call vc_file_set_incoming_revision(root, upstream_location, revision)
+            call version_control_file_set_incoming_revision(root, upstream_location, revision)
         else
-            call vc_file_set_incoming_revision(root, upstream_location)
+            call version_control_file_set_incoming_revision(root, upstream_location)
         end if
     end if
 
     if (.not. found) call set_error(status, USER_ERROR_CODE, "No incoming revision -- local-only branch?")
-    end procedure vc_incoming_revision
+    end procedure version_control_incoming_revision
 end submodule version_control_branches_mod

@@ -1,4 +1,4 @@
-! cyrillic_mod.f90 -- the cyrillic coding systems of type `charset'.
+! cyrillic_mod.f90 -- the cyrillic coding systems of type `character_set'.
 ! Ported from GNU Emacs 31.1 lisp/language/cyrillic.el.
 !
 ! Copyright (C) 1997-1998, 2001-2026 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that cyrillic.el defines, with their
+!> The coding systems of type `character_set' that cyrillic.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -36,66 +36,66 @@ submodule(coding_mod) cyrillic_mod
 
 contains
 
-    !> Port of the `charset' coding systems of cyrillic.el.
+    !> Port of the `character_set' coding systems of cyrillic.el.
     module subroutine initialize_cyrillic()
-        call define_charset_coding_system("cyrillic-iso-8bit", iachar("5"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "iso-8859-5"], &
-                                          mime_charset="iso-8859-5", &
-                                          doc="ISO 2022 based 8-bit encoding for Cyrillic script (MIME:ISO-" &
-                                          //"8859-5).")
+        call define_character_set_coding_system("cyrillic-iso-8bit", iachar("5"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-5"], &
+                                                mime_character_set="iso-8859-5", &
+                                                doc="ISO 2022 based 8-bit encoding for Cyrillic script (MIME:ISO-" &
+                                                //"8859-5).")
         call define_coding_system_alias("iso-8859-5", "cyrillic-iso-8bit")
-        call define_charset_coding_system("cyrillic-koi8", iachar("R"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "koi8"], &
-                                          mime_charset="koi8-r", &
-                                          doc="KOI8 8-bit encoding for Cyrillic (MIME: KOI8-R).")
+        call define_character_set_coding_system("cyrillic-koi8", iachar("R"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "koi8"], &
+                                                mime_character_set="koi8-r", &
+                                                doc="KOI8 8-bit encoding for Cyrillic (MIME: KOI8-R).")
         call define_coding_system_alias("koi8-r", "cyrillic-koi8")
         call define_coding_system_alias("koi8", "cyrillic-koi8")
         call define_coding_system_alias("cp878", "cyrillic-koi8")
-        call define_charset_coding_system("koi8-u", 1059, &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "koi8-u"], &
-                                          mime_charset="koi8-u", &
-                                          doc="KOI8-U 8-bit encoding for Cyrillic (MIME: KOI8-U)")
-        call define_charset_coding_system("cyrillic-alternativnyj", iachar("A"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "alternativnyj"], &
-                                          doc="ALTERNATIVNYJ 8-bit encoding for Cyrillic.")
+        call define_character_set_coding_system("koi8-u", 1059, &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "koi8-u"], &
+                                                mime_character_set="koi8-u", &
+                                                doc="KOI8-U 8-bit encoding for Cyrillic (MIME: KOI8-U)")
+        call define_character_set_coding_system("cyrillic-alternativnyj", iachar("A"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "alternativnyj"], &
+                                                doc="ALTERNATIVNYJ 8-bit encoding for Cyrillic.")
         call define_coding_system_alias("alternativnyj", "cyrillic-alternativnyj")
-        call define_charset_coding_system("cp866", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ibm866"], &
-                                          mime_charset="cp866", &
-                                          doc="CP866 encoding for Cyrillic.")
-        call define_charset_coding_system("koi8-t", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "koi8-t"], &
-                                          mime_charset="koi8-t", &
-                                          doc="KOI8-T 8-bit encoding for Cyrillic")
-        call define_charset_coding_system("windows-1251", iachar("b"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "windows-1251"], &
-                                          mime_charset="windows-1251", &
-                                          doc="windows-1251 8-bit encoding for Cyrillic (MIME: WINDOWS-1251" &
-                                          //")")
+        call define_character_set_coding_system("cp866", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm866"], &
+                                                mime_character_set="cp866", &
+                                                doc="CP866 encoding for Cyrillic.")
+        call define_character_set_coding_system("koi8-t", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "koi8-t"], &
+                                                mime_character_set="koi8-t", &
+                                                doc="KOI8-T 8-bit encoding for Cyrillic")
+        call define_character_set_coding_system("windows-1251", iachar("b"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "windows-1251"], &
+                                                mime_character_set="windows-1251", &
+                                                doc="windows-1251 8-bit encoding for Cyrillic (MIME: WINDOWS-1251" &
+                                                //")")
         call define_coding_system_alias("cp1251", "windows-1251")
-        call define_charset_coding_system("cp1125", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "cp1125"], &
-                                          doc="cp1125 8-bit encoding for Cyrillic")
+        call define_character_set_coding_system("cp1125", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp1125"], &
+                                                doc="cp1125 8-bit encoding for Cyrillic")
         call define_coding_system_alias("ruscii", "cp1125")
         call define_coding_system_alias("cp866u", "cp1125")
-        call define_charset_coding_system("cp855", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "cp855"], &
-                                          mime_charset="cp855", &
-                                          doc="DOS codepage 855 (Russian)")
+        call define_character_set_coding_system("cp855", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp855"], &
+                                                mime_character_set="cp855", &
+                                                doc="DOS codepage 855 (Russian)")
         call define_coding_system_alias("ibm855", "cp855")
-        call define_charset_coding_system("mik", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "mik"], &
-                                          doc="Bulgarian DOS codepage")
-        call define_charset_coding_system("pt154", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "pt154"], &
-                                          doc="ParaType Asian Cyrillic codepage")
+        call define_character_set_coding_system("mik", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "mik"], &
+                                                doc="Bulgarian DOS codepage")
+        call define_character_set_coding_system("pt154", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "pt154"], &
+                                                doc="ParaType Asian Cyrillic codepage")
     end subroutine initialize_cyrillic
 
     !> Port of the language environments of cyrillic.el.
     module subroutine define_cyrillic_language_environments()
         call define_language_environment("Cyrillic-ISO", &
                                          documentation="Support for Cyrillic ISO-8859-5.", &
-                                         charsets=[character(len=40) :: "iso-8859-5"], &
+                                         character_sets=[character(len=40) :: "iso-8859-5"], &
                                          sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
                                          coding_systems=[character(len=40) :: "cyrillic-iso-8bit"], &
                                          coding_system_order=[character(len=40) :: "cyrillic-iso-8bit"], &
@@ -104,7 +104,7 @@ contains
                                          unibyte_display="cyrillic-iso-8bit")
         call define_language_environment("Cyrillic-KOI8", &
                                          documentation="Support for Cyrillic KOI8-R.", &
-                                         charsets=[character(len=40) :: "koi8"], &
+                                         character_sets=[character(len=40) :: "koi8"], &
                                          sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
                                          coding_systems=[character(len=40) :: "cyrillic-koi8"], &
                                          coding_system_order=[character(len=40) :: "cyrillic-koi8", "cyrillic-iso-8bit"], &
@@ -114,7 +114,7 @@ contains
         call define_language_environment("Russian", &
                                          documentation="Support for Russian using koi8-r and the russian-computer in" &
                                          //"put method.", &
-                                         charsets=[character(len=40) :: "cyrillic-iso8859-5"], &
+                                         character_sets=[character(len=40) :: "cyrillic-iso8859-5"], &
                                          sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
                                          coding_systems=[character(len=40) :: "cyrillic-koi8"], &
                                          coding_system_order=[character(len=40) :: "cyrillic-koi8", "cyrillic-iso-8bit"], &
@@ -123,7 +123,7 @@ contains
                                          tutorial="TUTORIAL.ru")
         call define_language_environment("Ukrainian", &
                                          documentation="Support for Ukrainian with koi8-u character set.", &
-                                         charsets=[character(len=40) :: "koi8-u"], &
+                                         character_sets=[character(len=40) :: "koi8-u"], &
                                          sample_text="Ukrainian (Українськ" &
                                          //"а)"//achar(9)//"Вітаю / Добрий день!" &
                                          //" / Привіт", &
@@ -134,7 +134,7 @@ contains
                                          tutorial="TUTORIAL.uk")
         call define_language_environment("Cyrillic-ALT", &
                                          documentation="Support for Cyrillic ALTERNATIVNYJ.", &
-                                         charsets=[character(len=40) :: "alternativnyj"], &
+                                         character_sets=[character(len=40) :: "alternativnyj"], &
                                          sample_text="Russian (Русский)"//achar(9)//"Здравствуйте!", &
                                          coding_systems=[character(len=40) :: "cyrillic-alternativnyj"], &
                                          coding_system_order=[character(len=40) :: "cyrillic-alternativnyj"], &
@@ -143,14 +143,14 @@ contains
                                          unibyte_display="cyrillic-alternativnyj")
         call define_language_environment("Tajik", &
                                          documentation="Support for Tajik using KOI8-T.", &
-                                         charsets=[character(len=40) :: "koi8-t"], &
+                                         character_sets=[character(len=40) :: "koi8-t"], &
                                          coding_systems=[character(len=40) :: "koi8-t"], &
                                          coding_system_order=[character(len=40) :: "koi8-t"], &
                                          nonascii_translation="cyrillic-koi8-t", &
                                          input_method="russian-typewriter")
         call define_language_environment("Bulgarian", &
                                          documentation="Support for Bulgarian with windows-1251 character set.", &
-                                         charsets=[character(len=40) :: "windows-1251"], &
+                                         character_sets=[character(len=40) :: "windows-1251"], &
                                          coding_systems=[character(len=40) :: "windows-1251"], &
                                          coding_system_order=[character(len=40) :: "windows-1251"], &
                                          nonascii_translation="windows-1251", &
@@ -158,7 +158,7 @@ contains
         call define_language_environment("Belarusian", &
                                         documentation="Support for Belarusian with windows-1251 character set."//achar(10)//"(The" &
                                          //" name Belarusian replaced Byelorussian in the early 1990s.)", &
-                                         charsets=[character(len=40) :: "windows-1251"], &
+                                         character_sets=[character(len=40) :: "windows-1251"], &
                                          coding_systems=[character(len=40) :: "windows-1251"], &
                                          coding_system_order=[character(len=40) :: "windows-1251"], &
                                          nonascii_translation="windows-1251", &

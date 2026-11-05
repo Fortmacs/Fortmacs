@@ -32,8 +32,8 @@ module test_read_multiple_choice_mod
     use bindings_mod, only: initialize_bindings
     use buffer_mod, only: get_or_make_buffer, set_buffer
     use handle_mod, only: handle_type
-    use read_multiple_choice_mod, only: rmc_choice_type, rmc_add_key_description, read_multiple_choice, generated_help, &
-                                        read_character_choice_use_read_key
+    use read_multiple_choice_mod, only: read_multiple_choice_choice_type, read_multiple_choice_add_key_description, &
+                                        read_multiple_choice, generated_help, read_character_choice_use_read_key
     implicit none(type, external)
     private
 
@@ -58,7 +58,7 @@ contains
         character, intent(in) :: key
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: description
-        type(rmc_choice_type) :: c
+        type(read_multiple_choice_choice_type) :: c
 
         c%key = iachar(key)
         c%name = name
@@ -79,16 +79,16 @@ contains
     subroutine test_add_key_description(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, rmc_add_key_description(choice("y", "yes")), "[Y]es")
+        call check(error, read_multiple_choice_add_key_description(choice("y", "yes")), "[Y]es")
         if (allocated(error)) return
-        call check(error, rmc_add_key_description(choice("n", "foo")), "n foo")
+        call check(error, read_multiple_choice_add_key_description(choice("n", "foo")), "n foo")
         if (allocated(error)) return
-        call check(error, rmc_add_key_description(choice(" ", "foo bar")), "SPC foo bar")
+        call check(error, read_multiple_choice_add_key_description(choice(" ", "foo bar")), "SPC foo bar")
     end subroutine test_add_key_description
 
     subroutine test_read(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rmc_choice_type) :: choices(2)
+        type(read_multiple_choice_choice_type) :: choices(2)
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer
@@ -116,7 +116,7 @@ contains
 
     subroutine test_help(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rmc_choice_type) :: choices(3)
+        type(read_multiple_choice_choice_type) :: choices(3)
         character(len=*), parameter :: LF = achar(10)
 
         choices(1) = choice("a", "aaa")
@@ -134,7 +134,7 @@ contains
     !> "[?]" for help.
     subroutine test_read_key(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rmc_choice_type) :: choices(2)
+        type(read_multiple_choice_choice_type) :: choices(2)
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer
@@ -155,7 +155,7 @@ contains
     !> LONG-FORM reads a name with completion.
     subroutine test_long_form(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rmc_choice_type) :: choices(2)
+        type(read_multiple_choice_choice_type) :: choices(2)
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer

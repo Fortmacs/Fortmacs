@@ -30,14 +30,14 @@ module paragraphs_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
-    use buffer_mod, only: buffers, current, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
+    use buffer_mod, only: buffers, current, buffer_fetch_character, transient_mark_mode, barf_if_buffer_read_only
     use marker_mod, only: character_to_byte
     use editing_functions_mod, only: point, goto_character, is_beginning_of_buffer, is_end_of_buffer, is_beginning_of_line, &
                                      point_minimum, point_maximum, constrain_to_field, narrow_to_region, widen, &
                                      inhibit_field_text_motion
     use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use indent_mod, only: current_column, move_to_left_margin, current_left_margin
-    use simple_mod, only: cut_region, set_mark, push_mark, transpose_subr, fill_prefix
+    use simple_mod, only: cut_region, set_mark, push_mark, transpose_subroutine, fill_prefix
     use editing_functions_mod, only: mark_position
     use data_mod, only: string_setting_type, logical_setting_type
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
@@ -158,7 +158,7 @@ contains
         character_at = -1
         if (position < buffers(current)%beginning_of_accessible_portion .or. position >= buffers( &
             current)%end_of_accessible_portion) return
-        character_at = buf_fetch_char(buffers(current), character_to_byte(position))
+        character_at = buffer_fetch_character(buffers(current), character_to_byte(position))
     end function character_at
 
     !> The first position from `position' on that is not one of `chars'
@@ -806,7 +806,7 @@ contains
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call transpose_subr(move_paragraphs, argument, status)
+        call transpose_subroutine(move_paragraphs, argument, status)
     end subroutine transpose_paragraphs
 
     !> Interchange the current sentence with the next one.
@@ -820,10 +820,10 @@ contains
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call transpose_subr(move_sentences, argument, status)
+        call transpose_subroutine(move_sentences, argument, status)
     end subroutine transpose_sentences
 
-    ! Move over N paragraphs, for `transpose_subr'.  Not a port.
+    ! Move over N paragraphs, for `transpose_subroutine'.  Not a port.
     subroutine move_paragraphs(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -833,7 +833,7 @@ contains
         left = forward_paragraph(n)
     end subroutine move_paragraphs
 
-    ! Move over N sentences, for `transpose_subr'.  Not a port.
+    ! Move over N sentences, for `transpose_subroutine'.  Not a port.
     subroutine move_sentences(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status

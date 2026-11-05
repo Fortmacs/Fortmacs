@@ -41,7 +41,7 @@ submodule(simple_mod) simple_fill_mod
     use search_mod, only: string_match
     use insert_delete_mod, only: insert_before_markers
     use modes_mod, only: minor_modes
-    use abbreviation_mod, only: abbrev_mode
+    use abbreviation_mod, only: abbreviation_mode
     use newcomment_mod, only: comment_start, comment_auto_fill_only_comments
     implicit none(type, external)
 
@@ -336,7 +336,7 @@ contains
     end subroutine newline_postproc
 
     module procedure open_line
-    logical :: do_fill_prefix, do_left_margin, saved_abbrev_mode
+    logical :: do_fill_prefix, do_left_margin, saved_abbreviation_mode
     integer(int64) :: k, position, column
     type(handle_type) :: location
     type(status_type) :: st
@@ -346,15 +346,15 @@ contains
     if (do_left_margin) do_left_margin = current_left_margin() > 0
     call point_marker(location)
     ! Don't expand an abbrev before point.
-    saved_abbrev_mode = .false.
+    saved_abbreviation_mode = .false.
 
-    if (associated(abbrev_mode)) then
-        saved_abbrev_mode = abbrev_mode%value
-        abbrev_mode%value = .false.
+    if (associated(abbreviation_mode)) then
+        saved_abbreviation_mode = abbreviation_mode%value
+        abbreviation_mode%value = .false.
     end if
 
     call newline(status, n)
-    if (associated(abbrev_mode)) abbrev_mode%value = saved_abbrev_mode
+    if (associated(abbreviation_mode)) abbreviation_mode%value = saved_abbreviation_mode
 
     if (status%ok()) then
         call marker_position(location, position, st)

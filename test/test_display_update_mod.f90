@@ -25,8 +25,8 @@ module test_display_update_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use error_mod, only: status_type
     use terminfo_mod, only: terminfo_type, builtin_xterm
-    use terminal_state_mod, only: tty_take_output
-    use terminal_output_mod, only: initialize_tty_entry, delete_tty, redraw_after_suspend
+    use terminal_state_mod, only: terminal_take_output
+    use terminal_output_mod, only: initialize_terminal_entry, delete_terminal, redraw_after_suspend
     use glyph_matrices_mod, only: glyph_type
     use frame_mod, only: frame_type
     use display_update_mod, only: adjust_frame_glyphs, set_desired_row, update_frame, internal_show_cursor, &
@@ -38,7 +38,7 @@ module test_display_update_mod
                           set_window_buffer_internal
     use buffer_mod, only: get_or_make_buffer
     use display_engine_mod, only: initialize_frame_windows
-    use system_dependent_mod, only: open_pty, close_fd, set_tty_size, fortmacs_tty_type, fortmacs_get_tty, &
+    use system_dependent_mod, only: open_pty, close_fd, set_terminal_size, fortmacs_terminal_type, fortmacs_get_terminal, &
                                     signal_disposition_type, &
                                     ignore_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, system_setpgid, SIGTSTP
     use keyboard_mod, only: suspend_fortmacs, suspend_hook, suspend_resume_hook, discard_input
@@ -48,7 +48,7 @@ module test_display_update_mod
     public :: collect_display_update_mod
 
     character, parameter :: ESC = achar(27)
-    !> What tty_update_end sends to show a hidden cursor.
+    !> What terminal_update_end sends to show a hidden cursor.
     !> The functions of suspend_hook and suspend_resume_hook that ran, in
     !> order, and what the terminal had been sent when each ran.
     character(len=:), allocatable :: suspend_trace
@@ -104,11 +104,11 @@ contains
         character(len=:), allocatable :: discarded
 
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
         call set_desired_row(f, 0, g(line))
         call update_frame(f, st)
-        discarded = tty_take_output(f%tty)
+        discarded = terminal_take_output(f%terminal)
     end subroutine frame_showing
 
     !> Output of updating `f` with row 0 changed to `line`.
@@ -120,7 +120,7 @@ contains
 
         call set_desired_row(f, 0, g(line))
         call update_frame(f, st)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
     end function update_row0
 
     subroutine test_first_update(error)
@@ -130,13 +130,13 @@ contains
         type(status_type) :: st
 
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
         call check(error, f%needs_redraw .and. f%current_matrix%nrows == 24, "needs_redraw")
         if (allocated(error)) return
         call set_desired_row(f, 0, g("hello"))
         call update_frame(f, st)
-        call check(error, tty_take_output(f%tty), ESC//"[H"//ESC//"[2J"//HIDE//"hello"// &
+        call check(error, terminal_take_output(f%terminal), ESC//"[H"//ESC//"[2J"//HIDE//"hello"// &
                    ESC//"[K"//SHOW)
         if (allocated(error)) return
         call check(error,.not. f%needs_redraw .and. f%current_matrix%rows(0)%used == 5, "current")
@@ -201,7 +201,7 @@ contains
         type(frame_type) :: f
 
         call frame_showing(f, "abcdef")
-        f%tty%character_ins_delete_ok = .false.
+        f%terminal%character_ins_delete_ok = .false.
         ! From column 6: CR and one right is cheapest to column 1.
         call check(error, update_row0(f, "aXcdYf"), achar(13)//ESC//"[C"//HIDE//"X"// &
                    ESC//"[1;5HY"//SHOW)
@@ -220,7 +220,7 @@ contains
         call update_frame(f, st)
         ! The echo area (last row) first, then the rest; the cursor ends up
         ! at row 1, column 1.
-        call check(error, tty_take_output(f%tty), ESC//"[24d"//HIDE//"echo"//ESC//"[K"// &
+        call check(error, terminal_take_output(f%terminal), ESC//"[24d"//HIDE//"echo"//ESC//"[K"// &
                    ESC//"[H"//achar(10)//"top"//ESC//"[K"//SHOW//achar(8)//achar(8))
     end subroutine test_order_cursor
 
@@ -240,7 +240,7 @@ contains
 
         call set_desired_row(f, 23, g(line))
         call update_frame(f, st)
-        call check(error, tty_take_output(f%tty), ESC//"[24d"//HIDE//line(2:80)//achar(13)// &
+        call check(error, terminal_take_output(f%terminal), ESC//"[24d"//HIDE//line(2:80)//achar(13)// &
                    ESC//"[1@"//line(1:1)//achar(8)//SHOW)
     end subroutine test_bottom_right
 
@@ -270,9 +270,9 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: out
 
-        out = tty_take_output(selected_frame%tty)
+        out = terminal_take_output(selected_frame%terminal)
         call send_string_to_terminal(ESC//"]0;title"//achar(7), st)
-        out = tty_take_output(selected_frame%tty)
+        out = terminal_take_output(selected_frame%terminal)
         call check(error, st%ok() .and. out == ESC//"]0;title"//achar(7), out)
     end subroutine test_send_string
 
@@ -285,7 +285,7 @@ contains
 
         call frame_showing(f, "abc")
         call redraw_frame(f)
-        out = tty_take_output(f%tty)
+        out = terminal_take_output(f%terminal)
         call check(error, index(out, ESC//"[H"//ESC//"[2J") > 0 .or. index(out, ESC//"[2J") > 0, "cleared")
         if (allocated(error)) return
         out = update_row0(f, "abc")
@@ -302,7 +302,7 @@ contains
         type(status_type) :: st
 
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
         call initialize_frame_windows(f)
         f%needs_redraw = .false.
@@ -352,7 +352,7 @@ contains
         character(len=8) :: label
 
         call builtin_xterm(ti)
-        call initialize_tty_entry(f%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
         call adjust_frame_glyphs(f)
         call initialize_frame_windows(f)
         call get_or_make_buffer("*scratch*", buffer, st)
@@ -409,18 +409,18 @@ contains
         call open_pty(master, slave, st)
         call check(error, st%ok(), "open_pty")
         if (allocated(error)) return
-        call set_tty_size(slave, 80_int32, 24_int32, st)
+        call set_terminal_size(slave, 80_int32, 24_int32, st)
         saved = selected_frame
         selected_frame%root_window = null_handle()
         selected_frame%selected_window = null_handle()
         selected_frame%minibuffer_window = null_handle()
         call builtin_xterm(ti)
-        call initialize_tty_entry(selected_frame%tty, ti, "xterm-256color", slave, st)
+        call initialize_terminal_entry(selected_frame%terminal, ti, "xterm-256color", slave, st)
         ! Output is collected, not written to the pty.
-        selected_frame%tty%output = -1
+        selected_frame%terminal%output = -1
         call adjust_frame_glyphs(selected_frame)
         call initialize_frame_windows(selected_frame)
-        call set_tty_size(slave, 72_int32, 20_int32, st)
+        call set_terminal_size(slave, 72_int32, 20_int32, st)
         call handle_window_change_signal()
         call check(error, is_frame_size_change_delayed(selected_frame) .and. frame_columns(selected_frame) == 80, &
                    "delayed")
@@ -435,7 +435,7 @@ contains
 
         call delete_window_tree(selected_frame%root_window)
         call delete_window_object(selected_frame%minibuffer_window)
-        call delete_tty(selected_frame%tty, st)
+        call delete_terminal(selected_frame%terminal, st)
         selected_frame = saved
         call close_fd(slave)
         call close_fd(master)
@@ -447,7 +447,7 @@ contains
 
         status = status_type()
         suspend_trace = suspend_trace//"suspend "
-        output_at_suspend = int(selected_frame%tty%olen)
+        output_at_suspend = int(selected_frame%terminal%olen)
     end subroutine on_suspend
 
     !> A function of suspend_resume_hook.
@@ -456,7 +456,7 @@ contains
 
         status = status_type()
         suspend_trace = suspend_trace//"resume"
-        output_at_resume = int(selected_frame%tty%olen)
+        output_at_resume = int(selected_frame%terminal%olen)
         needs_redraw_at_resume = selected_frame%needs_redraw
     end subroutine on_resume
 
@@ -472,7 +472,7 @@ contains
         type(terminfo_type) :: ti
         type(status_type) :: st, suspend_status, no_redraw_status
         type(signal_disposition_type) :: old_tstp
-        type(fortmacs_tty_type) :: original, now
+        type(fortmacs_terminal_type) :: original, now
         character(len=:), allocatable :: out, rmcup, smcup, first_trace
         integer(int32) :: pgrp, err, master, slave
         integer :: first_output
@@ -502,14 +502,14 @@ contains
             return
         end if
 
-        call set_tty_size(slave, 80_int32, 24_int32, st)
-        call fortmacs_get_tty(slave, original, st)
+        call set_terminal_size(slave, 80_int32, 24_int32, st)
+        call fortmacs_get_terminal(slave, original, st)
         saved = selected_frame
         call builtin_xterm(ti)
-        call initialize_tty_entry(selected_frame%tty, ti, "xterm-256color", slave, st)
+        call initialize_terminal_entry(selected_frame%terminal, ti, "xterm-256color", slave, st)
         ! Output is collected, not written to the pty.
-        selected_frame%tty%output = -1
-        out = tty_take_output(selected_frame%tty)
+        selected_frame%terminal%output = -1
+        out = terminal_take_output(selected_frame%terminal)
         call discard_input()
         suspend_trace = ""
         call suspend_hook%append(on_suspend)
@@ -518,15 +518,15 @@ contains
         call suspend_fortmacs(suspend_status)
         call suspend_hook%remove(on_suspend)
         call suspend_resume_hook%remove(on_resume)
-        out = tty_take_output(selected_frame%tty)
+        out = terminal_take_output(selected_frame%terminal)
         rmcup = "?"
         smcup = "?"
-        if (allocated(selected_frame%tty%ts_end_termcap_modes)) rmcup = selected_frame%tty%ts_end_termcap_modes
-        if (allocated(selected_frame%tty%ts_termcap_modes)) smcup = selected_frame%tty%ts_termcap_modes
-        call fortmacs_get_tty(slave, now, st)
+        if (allocated(selected_frame%terminal%ts_end_termcap_modes)) rmcup = selected_frame%terminal%ts_end_termcap_modes
+        if (allocated(selected_frame%terminal%ts_termcap_modes)) smcup = selected_frame%terminal%ts_termcap_modes
+        call fortmacs_get_terminal(slave, now, st)
         ! The modes saved again on resuming are the terminal's own.
-        call check(error, selected_frame%tty%modes_saved .and. &
-                   selected_frame%tty%old_tty%main%c_lflag == original%main%c_lflag .and. &
+        call check(error, selected_frame%terminal%modes_saved .and. &
+                   selected_frame%terminal%old_terminal%main%c_lflag == original%main%c_lflag .and. &
                    now%main%c_lflag /= original%main%c_lflag, "terminal modes")
         ! With redraw_after_suspend false, resuming does not redraw the frame.
         first_trace = suspend_trace
@@ -542,7 +542,7 @@ contains
         suspend_trace = first_trace
         needs_redraw_at_resume = first_needs_redraw
         output_at_resume = first_output
-        call delete_tty(selected_frame%tty, st)
+        call delete_terminal(selected_frame%terminal, st)
         selected_frame = saved
         call close_fd(slave)
         call close_fd(master)

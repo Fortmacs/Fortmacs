@@ -48,9 +48,9 @@ module test_spellcheck_mode_mod
     use text_properties_mod, only: put_text_property
     use spellcheck_mod, only: spellcheck_kill_spellcheck, spellcheck_program_name, spellcheck_dictionary, &
                               spellcheck_pdict_modified, spellcheck_words_keyword
-    use spellcheck_mode_mod, only: spellcheck_mode_word, spellcheck_mode_buffer, spellcheck_mode_region, &
-                                   goto_next_spellcheck_error, auto_correct_spellcheck_mode_word, spellcheck_post_command_hook, &
-                                   spellcheck_pre_command_hook, is_spellcheck_mode_overlay, is_spellcheck_programming_text, &
+    use spellcheck_mode_mod, only: spellcheck_word_highlight, spellcheck_buffer_highlight, spellcheck_region_highlight, &
+                                   goto_next_spellcheck_error, auto_correct_spellcheck_word, spellcheck_post_command_hook, &
+                                   spellcheck_pre_command_hook, is_spellcheck_overlay, is_spellcheck_programming_text, &
                                    spellcheck_large_region_variable, spellcheck_highlight_flag, spellcheck_issue_message_flag, &
                                    spellcheck_mark_duplications_flag, spellcheck_sort_corrections, spellcheck_incorrect, &
                                    spellcheck_duplicate, spellcheck_mode_line_string
@@ -83,7 +83,7 @@ contains
                     new_unittest("flyspell-mode", test_mode), &
                     new_unittest("flyspell-mode/post-command", test_post_command), &
                     new_unittest("flyspell-mode/lighter", test_lighter), &
-                    new_unittest("flyspell-generic-progmode-verify", test_prog_text) &
+                    new_unittest("flyspell-generic-progmode-verify", test_programming_text) &
                     ]
     end subroutine collect_spellcheck_mode_mod
 
@@ -170,7 +170,7 @@ contains
             best = 0
 
             do k = 1, size(found)
-                if (.not. is_spellcheck_mode_overlay(found(k))) cycle
+                if (.not. is_spellcheck_overlay(found(k))) cycle
                 if (overlay_start(found(k)) <= last) cycle
 
                 if (best == 0) then
@@ -202,8 +202,8 @@ contains
         logical :: correct
 
         call fresh("flyspell-test", "hello world", h)
-        call spellcheck_mode_word(st, correct=correct)
-        call check(error, st%ok(), "spellcheck_mode_word: "//detail(st))
+        call spellcheck_word_highlight(st, correct=correct)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, correct)
         if (.not. allocated(error)) call check(error, highlights(), "")
         call finish(h)
@@ -219,8 +219,8 @@ contains
 
         call fresh("flyspell-test", "this helo there", h)
         call goto_character(10_int64)
-        call spellcheck_mode_word(st, correct=correct)
-        call check(error, st%ok(), "spellcheck_mode_word: "//detail(st))
+        call spellcheck_word_highlight(st, correct=correct)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error,.not. correct)
         if (.not. allocated(error)) call check(error, highlights(), "6-10:"//trim(spellcheck_incorrect%name)//" ")
         if (.not. allocated(error)) call check(error, point() == 10_int64)
@@ -236,8 +236,8 @@ contains
 
         call fresh("flyspell-test", "see the the cat", h)
         call goto_character(12_int64)
-        call spellcheck_mode_word(st)
-        call check(error, st%ok(), "spellcheck_mode_word: "//detail(st))
+        call spellcheck_word_highlight(st)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "9-12:"//trim(spellcheck_duplicate%name)//" ")
         call finish(h)
     end subroutine test_word_duplicate
@@ -250,8 +250,8 @@ contains
 
         call fresh("flyspell-test", "so that that is", h)
         call goto_character(13_int64)
-        call spellcheck_mode_word(st)
-        call check(error, st%ok(), "spellcheck_mode_word: "//detail(st))
+        call spellcheck_word_highlight(st)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "")
         call finish(h)
     end subroutine test_word_exception
@@ -264,8 +264,8 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "helo you, helo", h)
-        call spellcheck_mode_word(st)
-        call check(error, st%ok(), "spellcheck_mode_word: "//detail(st))
+        call spellcheck_word_highlight(st)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "11-15:"//trim(spellcheck_duplicate%name)//" ")
         call finish(h)
     end subroutine test_word_duplicate_misspelling
@@ -279,8 +279,8 @@ contains
 
         call fresh("flyspell-test", "a helo", h)
         spellcheck_highlight_flag = .false.
-        call spellcheck_mode_word(st)
-        call check(error, st%ok(), "spellcheck_mode_word: "//detail(st))
+        call spellcheck_word_highlight(st)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "")
         if (.not. allocated(error)) call check(error, last_message, "misspelling "//LQ//"helo"//RQ//"  [""hello"", ""help""]")
         call finish(h)
@@ -297,8 +297,8 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "helo big wrld ok", h)
-        call spellcheck_mode_buffer(st)
-        call check(error, st%ok(), "spellcheck_mode_buffer: "//detail(st))
+        call spellcheck_buffer_highlight(st)
+        call check(error, st%ok(), "spellcheck_buffer_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "1-5:"//trim(spellcheck_incorrect%name)//" 10-14:"// &
                                                trim(spellcheck_incorrect%name)//" ")
         if (.not. allocated(error)) call check(error, last_message, "Spell Checking completed.")
@@ -313,8 +313,8 @@ contains
 
         call fresh("flyspell-test", "helo big wrld ok badworddd", h)
         spellcheck_large_region_variable%characters = 5
-        call spellcheck_mode_buffer(st)
-        call check(error, st%ok(), "spellcheck_mode_buffer: "//detail(st))
+        call spellcheck_buffer_highlight(st)
+        call check(error, st%ok(), "spellcheck_buffer_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "1-5:"//trim(spellcheck_incorrect%name)//" 10-14:"// &
                                                trim(spellcheck_incorrect%name)//" 18-27:"//trim(spellcheck_incorrect%name)//" ")
         call finish(h)
@@ -328,8 +328,8 @@ contains
 
         call fresh("flyspell-test", "helo big wrld"//LF//spellcheck_words_keyword//"helo"//LF, h)
         spellcheck_large_region_variable%characters = 5
-        call spellcheck_mode_buffer(st)
-        call check(error, st%ok(), "spellcheck_mode_buffer: "//detail(st))
+        call spellcheck_buffer_highlight(st)
+        call check(error, st%ok(), "spellcheck_buffer_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "10-14:"//trim(spellcheck_incorrect%name)//" ")
         call finish(h)
     end subroutine test_buffer_large_localwords
@@ -342,7 +342,7 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "ok helo big wrld ok", h)
-        call spellcheck_mode_buffer(st)
+        call spellcheck_buffer_highlight(st)
         call goto_character(1_int64)
         call goto_next_spellcheck_error(st)
         call check(error, point() == 4_int64, "first error")
@@ -371,7 +371,7 @@ contains
 
         call fresh("flyspell-test", "say helo", h)
         last_command => null()
-        call auto_correct_spellcheck_mode_word(st)
+        call auto_correct_spellcheck_word(st)
         call check(error, st%ok(), "auto-correct: "//detail(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "say hello")
         if (.not. allocated(error)) call check(error, last_message, "Corrections: hello hello help helo hello help helo "// &
@@ -382,17 +382,17 @@ contains
             return
         end if
 
-        last_command => commands%auto_correct_spellcheck_mode_word
-        call auto_correct_spellcheck_mode_word(st)
+        last_command => commands%auto_correct_spellcheck_word
+        call auto_correct_spellcheck_word(st)
         call check(error, buffer_string(), "say help")
 
         if (.not. allocated(error)) then
-            call auto_correct_spellcheck_mode_word(st)
+            call auto_correct_spellcheck_word(st)
             call check(error, buffer_string(), "say helo")
         end if
 
         if (.not. allocated(error)) then
-            call auto_correct_spellcheck_mode_word(st)
+            call auto_correct_spellcheck_word(st)
             call check(error, buffer_string(), "say hello")
         end if
 
@@ -423,7 +423,7 @@ contains
             return
         end if
 
-        call spellcheck_mode_word(st)
+        call spellcheck_word_highlight(st)
         call check(error, highlights() /= "", "highlighted")
         call minor_modes%spellcheck_mode%disable(st)
         if (.not. allocated(error)) call check(error, highlights(), "")
@@ -474,7 +474,7 @@ contains
 
     !> In programming modes only text in the string, comment and doc faces
     !> is checked.
-    subroutine test_prog_text(error)
+    subroutine test_programming_text(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -490,5 +490,5 @@ contains
         end if
 
         call finish(h)
-    end subroutine test_prog_text
+    end subroutine test_programming_text
 end module test_spellcheck_mode_mod

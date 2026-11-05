@@ -260,7 +260,7 @@ contains
         call check(error, id == DEFAULT_FACE_ID .and. endpos == 3, "up to the overlay")
         if (allocated(error)) return
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64)
-        call check(error, f%faces(id)%tty_bold_p .and. endpos == 6, "the overlay's face to its end")
+        call check(error, f%faces(id)%terminal_bold_p .and. endpos == 6, "the overlay's face to its end")
         if (allocated(error)) return
         ! A higher priority overlay wins over a lower one.
         call make_overlay(b, 4_int64, 6_int64, st)
@@ -268,22 +268,22 @@ contains
         call overlay_put(a, "face", list(value_type(name=":inverse_video"), value_type()), st)
         call overlay_put(a, "priority", value_type(10_int64), st)
         id = face_at_buffer_position(f, bi, 4_int64, endpos, 100_int64)
-        call check(error,.not. f%faces(id)%tty_reverse_p, "priority 10 over 0")
+        call check(error,.not. f%faces(id)%terminal_reverse_p, "priority 10 over 0")
         if (allocated(error)) return
         call overlay_put(a, "priority", value_type(), st)
         id = face_at_buffer_position(f, bi, 4_int64, endpos, 100_int64)
-        call check(error, f%faces(id)%tty_reverse_p, "equal priority: the one not covering the other")
+        call check(error, f%faces(id)%terminal_reverse_p, "equal priority: the one not covering the other")
         if (allocated(error)) return
         ! The region, priority (nil . 100), over a priority-0 overlay with
         ! the same bounds, under a priority-1000 one.
         call delete_overlay(b)
         call move_overlay(a, 3_int64, 6_int64, st)
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64, 3_int64, 6_int64)
-        call check(error, f%faces(id)%tty_reverse_p, "the region over priority 0")
+        call check(error, f%faces(id)%terminal_reverse_p, "the region over priority 0")
         if (allocated(error)) return
         call overlay_put(a, "priority", value_type(1000_int64), st)
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64, 3_int64, 6_int64)
-        call check(error,.not. f%faces(id)%tty_reverse_p, "priority 1000 over the region")
+        call check(error,.not. f%faces(id)%terminal_reverse_p, "priority 1000 over the region")
         call destroy_overlay(a)
         call destroy_overlay(b)
         call close_buffer(h, st)

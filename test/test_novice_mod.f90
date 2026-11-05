@@ -150,10 +150,10 @@ contains
         call create_directory_internal(path, st)
         path = path//"/init.f90"
         user_initialization_file = path
-        call write_text(user_initialization_file, "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
+        call write_text(user_initialization_file, "module user_configuration"//LF//"    use fortmacs"//LF//"contains"//LF// &
                         "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
                         "        commands%upcase_region%disabled = .true."//LF// &
-                        "    end subroutine configure"//LF//"end module user_config"//LF)
+                        "    end subroutine configure"//LF//"end module user_configuration"//LF)
         call enter(h)
         call enable_command("upcase_region", st)
         call check(error, st%ok(), "enable_command")
@@ -163,10 +163,10 @@ contains
         if (allocated(error)) return
         ! novice.el: the old line is replaced by one at the end.
         text = read_text(user_initialization_file)
-        call check(error, text == "module user_config"//LF//"    use fortmacs"//LF//"contains"//LF// &
+        call check(error, text == "module user_configuration"//LF//"    use fortmacs"//LF//"contains"//LF// &
                    "    subroutine configure(st)"//LF//"        type(status_type), intent(out) :: st"//LF// &
                    "        commands%upcase_region%disabled = .false."//LF// &
-                   "    end subroutine configure"//LF//"end module user_config"//LF, text)
+                   "    end subroutine configure"//LF//"end module user_configuration"//LF, text)
         if (allocated(error)) return
         call disable_command("upcase_region", st)
         call check(error, disabled("upcase_region"))

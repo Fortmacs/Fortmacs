@@ -45,9 +45,10 @@ module test_javascript_mod
     use modes_mod, only: minor_modes
     use expression_motion_mod, only: beginning_of_subprogram, end_of_subprogram
     use bindings_mod, only: initialize_bindings
-    use javascript_mod, only: js_mode, js_indent_line, js_syntactic_context, js_indent_level, js_chain_indent, &
-                              js_indent_align_list_continuation, js_indent_first_init, &
-                              JS_INDENT_FIRST_INIT_DYNAMIC, JS_CONTEXT_TOPLEVEL, JS_CONTEXT_FUNCTION
+    use javascript_mod, only: javascript_mode, javascript_indent_line, javascript_syntactic_context, javascript_indent_level, &
+                              javascript_chain_indent, javascript_indent_align_list_continuation, &
+                              javascript_indent_first_initializer, JAVASCRIPT_INDENT_FIRST_INITIALIZER_DYNAMIC, &
+                              JAVASCRIPT_CONTEXT_TOPLEVEL, JAVASCRIPT_CONTEXT_FUNCTION
     implicit none(type, external)
     private
 
@@ -56,7 +57,7 @@ module test_javascript_mod
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
 
     ! js-chain.js.
-    character(len=*), parameter :: R_JS_CHAIN = &
+    character(len=*), parameter :: R_JAVASCRIPT_CHAIN = &
                                    "// Normal chaining."//LF &
                                    //"let x = svg.mumble()"//LF &
                                    //"           .zzz;"//LF &
@@ -87,7 +88,7 @@ module test_javascript_mod
                                    //"// js-indent-level: 2"//LF &
                                    //"// End:"//LF
     ! js-indent-align-list-continuation-nil.js.
-    character(len=*), parameter :: R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION = &
+    character(len=*), parameter :: R_JAVASCRIPT_INDENT_NO_ALIGN_LIST_CONTINUATION = &
                                    "const funcAssignment = function (arg1,"//LF &
                                    //"    arg2,"//LF &
                                    //"    arg3) {"//LF &
@@ -109,7 +110,7 @@ module test_javascript_mod
                                    //"// js-indent-align-list-continuation: nil"//LF &
                                    //"// End:"//LF
     ! js-indent-init-dynamic.js.
-    character(len=*), parameter :: R_JS_INDENT_INIT_DYNAMIC = &
+    character(len=*), parameter :: R_JAVASCRIPT_INDENT_INITIALIZE_DYNAMIC = &
                                    "var foo = function() {"//LF &
                                    //"  return 7;"//LF &
                                    //"};"//LF &
@@ -141,7 +142,7 @@ module test_javascript_mod
                                    //"  ,"//LF &
                                    //"  bar = 8;"//LF
     ! js-indent-init-t.js.
-    character(len=*), parameter :: R_JS_INDENT_INIT_DONE = &
+    character(len=*), parameter :: R_JAVASCRIPT_INDENT_INITIALIZE_DONE = &
                                    "var foo = function() {"//LF &
                                    //"      return 7;"//LF &
                                    //"    };"//LF &
@@ -164,7 +165,7 @@ module test_javascript_mod
                                    //"// js-indent-first-init: t"//LF &
                                    //"// End:"//LF
     ! js.js.
-    character(len=*), parameter :: R_JS = &
+    character(len=*), parameter :: R_JAVASCRIPT = &
                                    "var a = 1;"//LF &
                                    //"b = 2;"//LF &
                                    //""//LF &
@@ -352,9 +353,9 @@ contains
                      new_unittest("js-mode-propertize-bug-2", test_propertize_bug_2), &
                      new_unittest("js-indent-test/js-chain.js", test_indent_chain), &
                      new_unittest("js-indent-test/js-indent-align-list-continuation-nil.js", test_indent_align_false), &
-                     new_unittest("js-indent-test/js-indent-init-dynamic.js", test_indent_init_dynamic), &
-                     new_unittest("js-indent-test/js-indent-init-t.js", test_indent_INIT_DONE), &
-                     new_unittest("js-indent-test/js.js", test_indent_js), &
+                     new_unittest("js-indent-test/js-indent-init-dynamic.js", test_indent_initialize_dynamic), &
+                     new_unittest("js-indent-test/js-indent-init-t.js", test_indent_INITIALIZE_DONE), &
+                     new_unittest("js-indent-test/js.js", test_indent_javascript), &
                      new_unittest("js-mode-beginning-of-defun", test_beginning_of_function), &
                      new_unittest("js-mode-end-of-defun", test_end_of_function), &
                      new_unittest("js-syntactic-context", test_syntactic_context), &
@@ -365,7 +366,7 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    ! A temporary buffer holding TEXT (in JavaScript mode if JS, before
+    ! A temporary buffer holding TEXT (in JavaScript mode if JAVASCRIPT, before
     ! TEXT is inserted when FIRST).
     subroutine temporary_buffer(text, first)
         character(len=*), intent(in) :: text
@@ -380,9 +381,9 @@ contains
         call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
-        if (first) call js_mode(st)
+        if (first) call javascript_mode(st)
         call insert(text, st)
-        if (.not. first) call js_mode(st)
+        if (.not. first) call javascript_mode(st)
     end subroutine temporary_buffer
 
     ! INSERT text at point.
@@ -468,16 +469,16 @@ contains
     end subroutine check_indent
 
     ! The file-local variables of the resource files.
-    subroutine set_locals(level, chain, align, first_init)
+    subroutine set_locals(level, chain, align, first_initializer)
         integer, intent(in) :: level
         logical, intent(in) :: chain, align
-        logical, intent(in) :: first_init
+        logical, intent(in) :: first_initializer
 
         call indent_tabs_mode%set_local(.false.)
-        call js_indent_level%set_local(level)
-        call js_chain_indent%set_local(chain)
-        call js_indent_align_list_continuation%set_local(align)
-        call js_indent_first_init%set_local(first_init)
+        call javascript_indent_level%set_local(level)
+        call javascript_chain_indent%set_local(chain)
+        call javascript_indent_align_list_continuation%set_local(align)
+        call javascript_indent_first_initializer%set_local(first_initializer)
     end subroutine set_locals
 
     ! ------------------------------------------------------------------
@@ -541,7 +542,7 @@ contains
         ! The bug previously was that requesting re-indentation on the "{"
         ! line here threw an exception.
         call ins("const TESTS = ["//LF//"{")
-        call js_indent_line(st)
+        call javascript_indent_line(st)
         ! Any success is ok here.
         call check(error, .true.)
     end subroutine test_indentation_error
@@ -598,43 +599,43 @@ contains
     subroutine test_indent_chain(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temporary_buffer(R_JS_CHAIN, .false.)
+        call temporary_buffer(R_JAVASCRIPT_CHAIN, .false.)
         call set_locals(2, .true., .true., .false.)
-        call check_indent(error, R_JS_CHAIN)
+        call check_indent(error, R_JAVASCRIPT_CHAIN)
     end subroutine test_indent_chain
 
     subroutine test_indent_align_false(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temporary_buffer(R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION, .false.)
+        call temporary_buffer(R_JAVASCRIPT_INDENT_NO_ALIGN_LIST_CONTINUATION, .false.)
         call set_locals(4, .false., .false., .false.)
-        call check_indent(error, R_JS_INDENT_NO_ALIGN_LIST_CONTINUATION)
+        call check_indent(error, R_JAVASCRIPT_INDENT_NO_ALIGN_LIST_CONTINUATION)
     end subroutine test_indent_align_false
 
-    subroutine test_indent_init_dynamic(error)
+    subroutine test_indent_initialize_dynamic(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temporary_buffer(R_JS_INDENT_INIT_DYNAMIC, .false.)
+        call temporary_buffer(R_JAVASCRIPT_INDENT_INITIALIZE_DYNAMIC, .false.)
         call set_locals(2, .false., .true., .false.)
-        call js_indent_first_init%set_local(JS_INDENT_FIRST_INIT_DYNAMIC)
-        call check_indent(error, R_JS_INDENT_INIT_DYNAMIC)
-    end subroutine test_indent_init_dynamic
+        call javascript_indent_first_initializer%set_local(JAVASCRIPT_INDENT_FIRST_INITIALIZER_DYNAMIC)
+        call check_indent(error, R_JAVASCRIPT_INDENT_INITIALIZE_DYNAMIC)
+    end subroutine test_indent_initialize_dynamic
 
-    subroutine test_indent_INIT_DONE(error)
+    subroutine test_indent_INITIALIZE_DONE(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temporary_buffer(R_JS_INDENT_INIT_DONE, .false.)
+        call temporary_buffer(R_JAVASCRIPT_INDENT_INITIALIZE_DONE, .false.)
         call set_locals(2, .false., .true., .true.)
-        call check_indent(error, R_JS_INDENT_INIT_DONE)
-    end subroutine test_indent_INIT_DONE
+        call check_indent(error, R_JAVASCRIPT_INDENT_INITIALIZE_DONE)
+    end subroutine test_indent_INITIALIZE_DONE
 
-    subroutine test_indent_js(error)
+    subroutine test_indent_javascript(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temporary_buffer(R_JS, .false.)
+        call temporary_buffer(R_JAVASCRIPT, .false.)
         call set_locals(2, .false., .true., .false.)
-        call check_indent(error, R_JS)
-    end subroutine test_indent_js
+        call check_indent(error, R_JAVASCRIPT)
+    end subroutine test_indent_javascript
 
     ! The buffer of the function motion tests.
     subroutine function_buffer()
@@ -689,10 +690,10 @@ contains
 
         call function_buffer()
         call goto_character(20_int64)
-        call check(error, js_syntactic_context(), JS_CONTEXT_FUNCTION)
+        call check(error, javascript_syntactic_context(), JAVASCRIPT_CONTEXT_FUNCTION)
         if (allocated(error)) return
         call goto_character(37_int64)
-        call check(error, js_syntactic_context(), JS_CONTEXT_TOPLEVEL)
+        call check(error, javascript_syntactic_context(), JAVASCRIPT_CONTEXT_TOPLEVEL)
     end subroutine test_syntactic_context
 
     ! Own: the function name, a keyword and a variable get their faces.

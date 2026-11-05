@@ -55,7 +55,8 @@ module basic_subprograms_mod
     private
 
     public :: read_key, read_y_or_n, query_replace_answer, add_to_history, history_length, history_delete_duplicates
-    public :: global_set_key, read_number, undefined, initialize_subr, defvar_false, forward_identifier, find_tag_default, &
+    public :: global_set_key, read_number, undefined, initialize_basic_subprograms, defvar_false, forward_identifier, &
+              find_tag_default, &
               find_tag_default_as_regular_expression, find_tag_default_as_identifier_regular_expression
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
     public :: replace_string_in_region, replace_regular_expression_in_region
@@ -356,9 +357,9 @@ module basic_subprograms_mod
 
         !> Set up subr.el's commands.  Not a port: upstream defines them where
         !> subr.el is loaded.
-        module subroutine initialize_subr()
+        module subroutine initialize_basic_subprograms()
             implicit none(type, external)
-        end subroutine initialize_subr
+        end subroutine initialize_basic_subprograms
 
         !> Read from the minibuffer and return a numeric value, prompting with PROMPT.
         !> DEFAULT specifies a default value to return if the user just types RET.
@@ -1261,7 +1262,7 @@ contains
     !> That is, the trailing ".0"s are insignificant.  Also, version "1"
     !> is higher (newer) than "1pre", which is higher than "1beta", which
     !> is higher than "1alpha", which is higher than "1snapshot".  Also,
-    !> "-GIT", "-CVS" and "-NNN" are treated as snapshot versions.  False
+    !> "-GIT", "-CONCURRENT_VERSIONS_SYSTEM" and "-NNN" are treated as snapshot versions.  False
     !> when either has invalid version syntax.  The operator `<' between
     !> two `version_type' values.  Port of subr.el:version< and
     !> version-list-<.
@@ -1309,7 +1310,7 @@ contains
     !> That is, the trailing ".0"s are insignificant.  Also, version "1"
     !> is higher (newer) than "1pre", which is higher than "1beta", which
     !> is higher than "1alpha", which is higher than "1snapshot".  Also,
-    !> "-GIT", "-CVS" and "-NNN" are treated as snapshot versions.  False
+    !> "-GIT", "-CONCURRENT_VERSIONS_SYSTEM" and "-NNN" are treated as snapshot versions.  False
     !> when either has invalid version syntax.  The operator `==' between
     !> two `version_type' values.  Port of subr.el:version= and
     !> version-list-=.

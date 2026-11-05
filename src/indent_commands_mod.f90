@@ -48,7 +48,7 @@ submodule(indent_mod) indent_commands_mod
     use editing_commands_mod, only: forward_line, beginning_of_line
     use text_properties_mod, only: get_text_property
     use syntax_mod, only: skip_characters_forward, skip_characters_backward, character_syntax
-    use abbreviation_mod, only: is_abbrev_mode, expand_abbrev
+    use abbreviation_mod, only: is_abbreviation_mode, expand_abbreviation
     use search_mod, only: looking_at, regular_expression_search_backward, regular_expression_search_forward, &
                           regular_expression_quote, SEARCH_NOERROR
     use keymap_mod, only: make_sparse_keymap, keymap_set_key => define_key, key_parse
@@ -309,8 +309,8 @@ contains
     count = prefix_numeric_value(argument)
     status = status_type()
 
-    if (is_abbrev_mode()) then
-        if (character_syntax(int(preceding_character())) == "w") call expand_abbrev(status)
+    if (is_abbreviation_mode()) then
+        if (character_syntax(int(preceding_character())) == "w") call expand_abbreviation(status)
         if (.not. status%ok()) return
     end if
 
@@ -410,17 +410,17 @@ contains
     end procedure indent_rigidly_right_to_tab_stop
 
     module procedure indent_line_to
-    integer(int64) :: cur_col, moved, from, column_number, tw
+    integer(int64) :: current_column_number, moved, from, column_number, tw
     type(status_type) :: st
 
     status = status_type()
     tw = sane_tab_width()
     call beginning_of_line(1_int64)
     moved = skip_characters_forward(" "//TAB, st)
-    cur_col = current_column()
+    current_column_number = current_column()
 
-    if (cur_col < column) then
-        if (column - (cur_col/tw)*tw >= tw) then
+    if (current_column_number < column) then
+        if (column - (current_column_number/tw)*tw >= tw) then
             from = point()
             moved = skip_characters_backward(" ", st)
             call delete_region(point(), from, status)
@@ -428,7 +428,7 @@ contains
         end if
 
         column_number = indent_to(column, status)
-    else if (cur_col > column) then
+    else if (current_column_number > column) then
         ! too far right (after tab?)
         call move_to_column(column, column_number, .true., status)
         if (.not. status%ok()) return
@@ -717,8 +717,8 @@ contains
     unindented = .false.
     if (present(unindented_ok)) unindented = unindented_ok
 
-    if (is_abbrev_mode()) then
-        if (character_syntax(int(preceding_character())) == "w") call expand_abbrev(status)
+    if (is_abbreviation_mode()) then
+        if (character_syntax(int(preceding_character())) == "w") call expand_abbreviation(status)
         if (.not. status%ok()) return
     end if
 
@@ -832,8 +832,8 @@ contains
 
     status = status_type()
 
-    if (is_abbrev_mode()) then
-        if (character_syntax(int(preceding_character())) == "w") call expand_abbrev(status)
+    if (is_abbreviation_mode()) then
+        if (character_syntax(int(preceding_character())) == "w") call expand_abbreviation(status)
         if (.not. status%ok()) return
     end if
 

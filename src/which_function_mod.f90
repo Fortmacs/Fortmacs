@@ -28,7 +28,7 @@
 !> not ported yet is listed in docs/status/which_function_mod.md.
 module which_function_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE, IMENU_UNAVAILABLE_CODE
+    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE, INDEX_MENU_UNAVAILABLE_CODE
     use handle_mod, only: handle_type, null_handle
     use data_mod, only: logical_setting_type, forward_setting
     use hooks_mod, only: hook_type, string_result_hook_type
@@ -46,14 +46,15 @@ module which_function_mod
     use frame_mod, only: selected_window
     use window_mod, only: window_buffer
     use add_log_mod, only: add_log_current_subprogram, add_log_current_subprogram_function
-    use index_menu_mod, only: imenu_index_type, imenu_create_index_procedure, imenu_create_index_function, make_imenu_index, &
-                              has_imenu_index, get_imenu_index, set_imenu_index, current_imenu_menubar_modified_tick
+    use index_menu_mod, only: index_menu_index_type, index_menu_create_index_procedure, index_menu_create_index_function, &
+                              make_index_menu_index, has_index_menu_index, get_index_menu_index, set_index_menu_index, &
+                              current_index_menu_menubar_modified_tick
     implicit none(type, external)
     private
 
     public :: initialize_which_function, which_function_mode, which_function, which_function_ff_hook, update_which_function, &
               update_which_function_window, try_to_enable_which_function, format_which_function, which_function_last_name
-    public :: which_function_imenu_joiner_procedure, which_function_cleanup_procedure
+    public :: which_function_index_menu_joiner_procedure, which_function_cleanup_procedure
 
     !> String to display in the mode line when current function is unknown.
     !> Port of which-func.el which-func-unknown.
@@ -97,17 +98,17 @@ module which_function_mod
     type(named_face_type), target, public :: which_function_face
 
     abstract interface
-        !> A `which_function_imenu_joiner_function': NAME gets the name to show
+        !> A `which_function_index_menu_joiner_function': NAME gets the name to show
         !> for the entry K of INDEX, from its name and those of the
         !> submenus holding it (the names of the menus we had to traverse to
         !> get to the item).  Not a port.
-        subroutine which_function_imenu_joiner_procedure(index, k, name)
-            import :: imenu_index_type
+        subroutine which_function_index_menu_joiner_procedure(index, k, name)
+            import :: index_menu_index_type
             implicit none(type, external)
-            type(imenu_index_type), intent(in) :: index
+            type(index_menu_index_type), intent(in) :: index
             integer, intent(in) :: k
             character(len=:), allocatable, intent(out) :: name
-        end subroutine which_function_imenu_joiner_procedure
+        end subroutine which_function_index_menu_joiner_procedure
 
         !> A `which_function_cleanup_function': transform NAME before it is
         !> displayed in the mode line.  Not a port.
@@ -123,7 +124,7 @@ module which_function_mod
     !> into a single string, the new name of the item.  By default the
     !> item's own name.  Port of which-func.el
     !> which-func-imenu-joiner-function.
-    procedure(which_function_imenu_joiner_procedure), pointer, public :: which_function_imenu_joiner_function => null()
+    procedure(which_function_index_menu_joiner_procedure), pointer, public :: which_function_index_menu_joiner_function => null()
 
     !> Function to transform a string before displaying it in the mode line.
     !> The function is called with one argument, the string to display.
@@ -143,10 +144,10 @@ module which_function_mod
     type(logical_setting_type), target, public :: which_function_mode_variable = logical_setting_type( &
                                                   name="which_function_mode_variable")
 
-    !> Locally .true. in a buffer if `make_imenu_index' found nothing there.
+    !> Locally .true. in a buffer if `make_index_menu_index' found nothing there.
     !> Port of which-func.el which-function-imenu-failed.
-    type(logical_setting_type), target, public :: which_function_imenu_failed = &
-                                                  logical_setting_type(name="which_function_imenu_failed")
+    type(logical_setting_type), target, public :: which_function_index_menu_failed = &
+                                                  logical_setting_type(name="which_function_index_menu_failed")
 
     !> List of functions for `which_function' to call with no arguments.
     !> It calls them sequentially, and if any returns a name,
@@ -180,12 +181,16 @@ contains
         integer, parameter :: C = FACE_CLASS_COLOR
 
         call forward_setting(which_function_mode_variable, local_if_set=.true.)
-        call forward_setting(which_function_imenu_failed)
+        call forward_setting(which_function_index_menu_failed)
         if (.not. allocated(which_function_unknown)) which_function_unknown = "n/a"
         if (.not. allocated(which_function_modes%modes)) allocate (which_function_modes%modes(0))
         if (.not. allocated(which_function_non_auto_modes)) allocate (which_function_non_auto_modes(0))
         if (.not. allocated(window_names)) allocate (window_names(0))
-        if (.not. associated(which_function_imenu_joiner_function)) which_function_imenu_joiner_function => which_function_last_name
+
+        if (.not. associated(which_function_index_menu_joiner_function)) then
+            which_function_index_menu_joiner_function => which_function_last_name
+        end if
+
         f => which_function_face
         call f%define("which_function_face", "Face used to highlight mode line function names.")
         call f%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[FACE_BACKGROUND_LIGHT]), &
@@ -208,11 +213,11 @@ contains
         call prepend_mode_line_miscellaneous_info(format_which_function)
     end subroutine initialize_which_function
 
-    !> The default `which_function_imenu_joiner_function': the name of entry K
+    !> The default `which_function_index_menu_joiner_function': the name of entry K
     !> of INDEX itself (the last of the names).  Port of which-func.el's
     !> default value of which-func-imenu-joiner-function.
     subroutine which_function_last_name(index, k, name)
-        type(imenu_index_type), intent(in) :: index
+        type(index_menu_index_type), intent(in) :: index
         integer, intent(in) :: k
         character(len=:), allocatable, intent(out) :: name
 
@@ -290,8 +295,8 @@ contains
     !> which-func.el:which-func-ff-hook.
     recursive subroutine which_function_ff_hook(status)
         type(status_type), intent(out) :: status
-        type(imenu_index_type) :: index
-        procedure(imenu_create_index_procedure), pointer :: create
+        type(index_menu_index_type) :: index
+        procedure(index_menu_create_index_procedure), pointer :: create
         integer(int64) :: here
         logical :: non_auto
 
@@ -303,18 +308,18 @@ contains
         if (non_auto) return
         if (.not. (buffers(current)%save_length < which_function_maxout .or. which_function_maxout == 0)) return
         here = point()
-        create => imenu_create_index_function%current()
+        create => index_menu_create_index_function%current()
         call create(index, status)
         call goto_character(here)
 
         if (status%ok()) then
             ! An empty index is none (upstream's nil).
             if (size(index%entries) > 0) then
-                call set_imenu_index(index)
+                call set_index_menu_index(index)
             else
-                call set_imenu_index()
+                call set_index_menu_index()
             end if
-        else if (status%code == IMENU_UNAVAILABLE_CODE) then
+        else if (status%code == INDEX_MENU_UNAVAILABLE_CODE) then
             call disable_which_function()
             status = status_type()
         else
@@ -453,7 +458,7 @@ contains
     recursive subroutine which_function(name, status)
         character(len=:), allocatable, intent(out) :: name
         type(status_type), intent(out) :: status
-        type(imenu_index_type) :: index
+        type(index_menu_index_type) :: index
         type(status_type) :: st
         integer(int64) :: minoffset, tick
 
@@ -469,16 +474,16 @@ contains
             call buffer_characters_modified_tick(current_buffer(), tick, st)
             if (.not. st%ok()) tick = 0
 
-            if (.not. which_function_imenu_failed%value) then
-                if (.not. has_imenu_index() .or. tick /= current_imenu_menubar_modified_tick()) then
-                    call make_imenu_index(index, st, noerror=.true.)
-                    if (.not. has_imenu_index()) call which_function_imenu_failed%set_local(.true.)
+            if (.not. which_function_index_menu_failed%value) then
+                if (.not. has_index_menu_index() .or. tick /= current_index_menu_menubar_modified_tick()) then
+                    call make_index_menu_index(index, st, noerror=.true.)
+                    if (.not. has_index_menu_index()) call which_function_index_menu_failed%set_local(.true.)
                 end if
             end if
 
             ! If we have an index, use it.
-            if (has_imenu_index()) then
-                call get_imenu_index(index)
+            if (has_index_menu_index()) then
+                call get_index_menu_index(index)
                 minoffset = point_maximum()
                 call closest(0)
             end if
@@ -508,8 +513,8 @@ contains
                     if (offset >= 0 .and. offset < minoffset) then
                         minoffset = offset
 
-                        if (associated(which_function_imenu_joiner_function)) then
-                            call which_function_imenu_joiner_function(index, list(i), name)
+                        if (associated(which_function_index_menu_joiner_function)) then
+                            call which_function_index_menu_joiner_function(index, list(i), name)
                         else
                             name = index%entries(list(i))%name
                         end if

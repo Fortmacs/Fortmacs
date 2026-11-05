@@ -39,7 +39,7 @@ module test_f90_mod
     use search_mod, only: string_match, match_beginning, match_end
     use bindings_mod, only: initialize_bindings
     use fill_mod, only: fill_paragraph
-    use regular_expression_optimization_mod, only: regular_expression_optimization, regular_expression_optimization_charset, &
+    use regular_expression_optimization_mod, only: regular_expression_optimization, regular_expression_optimization_character_set, &
                                                    regular_expression_unmatchable
     use f90_mod, only: f90_mode, f90_indent_region, f90_do_auto_fill, f90_indent_subprogram, f90_indent_line, &
                        f90_end_of_subprogram, f90_block_type, f90_smart_end, F90_SMART_END_NO_BLINK, &
@@ -75,7 +75,7 @@ contains
                     new_unittest("f90-test-bug25039", test_bug25039), &
                     new_unittest("f90-test-bug38415", test_bug38415), &
                     new_unittest("regexp-opt-longest-match", test_longest_match), &
-                    new_unittest("regexp-opt-charset", test_charset), &
+                    new_unittest("regexp-opt-charset", test_character_set), &
                     new_unittest("regexp-opt-groups", test_groups), &
                     new_unittest("f90-fill-comment", test_fill_comment) &
                     ]
@@ -419,45 +419,45 @@ contains
     end subroutine test_longest_match
 
     !> Port of regexp-opt-tests.el:regexp-opt-charset.
-    subroutine test_charset(error)
+    subroutine test_character_set(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, regular_expression_optimization_charset([97, 98, 97]), "[ab]")
+        call check(error, regular_expression_optimization_character_set([97, 98, 97]), "[ab]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([68, 100, 66, 97, 98, 67, 55, 97, 99, 65]), "[7A-Da-d]")
+        call check(error, regular_expression_optimization_character_set([68, 100, 66, 97, 98, 67, 55, 97, 99, 65]), "[7A-Da-d]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([97]), "a")
+        call check(error, regular_expression_optimization_character_set([97]), "a")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([94]), "\^")
+        call check(error, regular_expression_optimization_character_set([94]), "\^")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([45]), "-")
+        call check(error, regular_expression_optimization_character_set([45]), "-")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([93]), "]")
+        call check(error, regular_expression_optimization_character_set([93]), "]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([94, 93]), "[]^]")
+        call check(error, regular_expression_optimization_character_set([94, 93]), "[]^]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([94, 45]), "[-^]")
+        call check(error, regular_expression_optimization_character_set([94, 45]), "[-^]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([45, 93]), "[]-]")
+        call check(error, regular_expression_optimization_character_set([45, 93]), "[]-]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([45, 93, 94]), "[]^-]")
+        call check(error, regular_expression_optimization_character_set([45, 93, 94]), "[]^-]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([94, 97]), "[a^]")
+        call check(error, regular_expression_optimization_character_set([94, 97]), "[a^]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([45, 97]), "[a-]")
+        call check(error, regular_expression_optimization_character_set([45, 97]), "[a-]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([93, 97]), "[]a]")
+        call check(error, regular_expression_optimization_character_set([93, 97]), "[]a]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([94, 93, 97]), "[]a^]")
+        call check(error, regular_expression_optimization_character_set([94, 93, 97]), "[]a^]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([94, 45, 97]), "[a^-]")
+        call check(error, regular_expression_optimization_character_set([94, 45, 97]), "[a^-]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([45, 93, 97]), "[]a-]")
+        call check(error, regular_expression_optimization_character_set([45, 93, 97]), "[]a-]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([45, 93, 94, 97]), "[]a^-]")
+        call check(error, regular_expression_optimization_character_set([45, 93, 94, 97]), "[]a^-]")
         if (allocated(error)) return
-        call check(error, regular_expression_optimization_charset([integer(int32) ::]), regular_expression_unmatchable)
-    end subroutine test_charset
+        call check(error, regular_expression_optimization_character_set([integer(int32) ::]), regular_expression_unmatchable)
+    end subroutine test_character_set
 
     !> The groups regexp-opt makes for F90 mode's regexps.
     subroutine test_groups(error)

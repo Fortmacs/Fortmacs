@@ -16,7 +16,7 @@ basic face ids (`enum face_id`),
 `enum text_cursor_kinds`,
 `TTY_CAP_*`,
 the realized face's `lface`,
-`face_tty_specified_color`,
+`face_terminal_specified_color`,
 `struct redisplay_interface` as the abstract `redisplay_interface_type` (clear_frame, write_glyphs, clear_end_of_line, draw_vertical_window_border, draw_window_cursor, flush_display; frame pixel coordinates)
 
 ## Deferred

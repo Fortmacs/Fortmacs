@@ -357,7 +357,7 @@ contains
     logical :: saved
 
     ! Use a marker because the call to `newline' below could insert some
-    ! text, e.g., if `abbrev_mode' is turned on.
+    ! text, e.g., if `abbreviation_mode' is turned on.
     call point_marker(position)
     saved = minor_modes%electric_indent_mode%state%value
     minor_modes%electric_indent_mode%state%value = .false.

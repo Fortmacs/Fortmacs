@@ -2353,7 +2353,7 @@ contains
         logical, intent(in), optional :: block, lines, indent
         character(len=:), allocatable :: cs, ce, ccs, cce, ccs2, cce2
         logical :: no_empty, has_ce, has_ccs, has_cce, ce_sanitized, blk, lns, ind, has_tab
-        integer(int64) :: minimum_indent, maximum_indent, reached, bindent, original_point, found, column, sh, n
+        integer(int64) :: minimum_indent, maximum_indent, reached, bindent, original_point, found, column, shell, n
         type(handle_type) :: endm
         type(restriction_type) :: r
         type(status_type) :: st
@@ -2443,7 +2443,7 @@ contains
             call end_of_line(1_int64)
             maximum_indent = max(maximum_indent, current_column())
             if (is_end_of_buffer()) exit
-            sh = forward_line(1_int64)
+            shell = forward_line(1_int64)
         end do
 
         has_tab = .false.
@@ -2492,7 +2492,7 @@ contains
 
             call end_of_line(1_int64)
             if (is_end_of_buffer()) exit
-            sh = forward_line(1_int64)
+            shell = forward_line(1_int64)
         end do
 
         ! remove the bindent
@@ -3023,7 +3023,7 @@ contains
         integer(int64) :: compos, comin, original_point, point_value, saved_column, column, endp
         character(len=:), allocatable :: comstart, comend, saved_start, saved_end, saved_continue, rest
         logical :: soft_newline, inter, normalp, continuep, fwd, has_continue, noindent, own_line, had_local
-        type(handle_type) :: cm
+        type(handle_type) :: cursor_motion
         procedure(comment_indent_procedure), pointer :: saved_fn
         type(status_type) :: st
 
@@ -3185,7 +3185,7 @@ contains
 
         if (.not. status%ok()) return
         point_value = point()
-        cm = marker_at(point_value)
+        cursor_motion = marker_at(point_value)
         call end_of_line(1_int64)
         rest = text(point_value, point())
         ! The 1+ is to make sure we delete the \n inserted above.
@@ -3193,8 +3193,8 @@ contains
         if (.not. status%ok()) return
         call end_of_line(0_int64)
         call insert(rest, status)
-        call goto_character(marked_position(cm))
-        call unmark(cm)
+        call goto_character(marked_position(cursor_motion))
+        call unmark(cursor_motion)
     end subroutine comment_indent_new_line
 
     !> The indentation of a comment continuing one on its own line:
@@ -3238,7 +3238,7 @@ contains
     recursive subroutine comment_line(n_in, status)
         integer(int64), intent(in) :: n_in
         type(status_type), intent(out) :: status
-        integer(int64) :: n, b, e, a, z, sh
+        integer(int64) :: n, b, e, a, z, shell
 
         status = status_type()
         n = n_in
@@ -3260,7 +3260,7 @@ contains
         call goto_character(z)
         call comment_or_uncomment_region(min(a, z), max(a, z), status)
         if (.not. status%ok()) return
-        sh = forward_line(1_int64)
+        shell = forward_line(1_int64)
         call back_to_indentation()
         if (n < 0) this_command => comment_line_backward
     end subroutine comment_line

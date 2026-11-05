@@ -32,7 +32,7 @@
 !>      place(1)%file = "/home/v/notes.txt",
 !>      place(1)%position = 1234,
 !>      place(2)%file = "/home/v/src/",
-!>      place(2)%dired_filename = "/home/v/src/Fortmacs",
+!>      place(2)%directory_editor_filename = "/home/v/src/Fortmacs",
 !>     /
 !>
 !> Deferred: Hexl mode's addresses (hexl.el is not ported), and the
@@ -58,8 +58,9 @@ module saveplace_mod
     use configuration_mod, only: state_directory
     use coding_mod, only: coding_system_for_write
     use derived_mod, only: is_derived_mode
-    use directory_editor_mode_mod, only: dired_initial_position_hook, dired_current_directory, dired_get_filename, &
-                                         dired_goto_file, dired_subdirectory_directories
+    use directory_editor_mode_mod, only: directory_editor_initial_position_hook, directory_editor_current_directory, &
+                                         directory_editor_get_filename, directory_editor_goto_file, &
+                                         directory_editor_subdirectory_directories
     use search_mod, only: string_match
     use keyboard_mod, only: exit_fortmacs_hook
     use easy_minor_mode_mod, only: mode_called_interactively
@@ -71,28 +72,28 @@ module saveplace_mod
     private
 
     public :: save_place_mode, save_place_local_mode, save_place_store, save_place_forget_unreadable_files, &
-              save_places_to_file, save_places_store, save_place_find_file_hook, save_place_dired_hook, &
+              save_places_to_file, save_places_store, save_place_find_file_hook, save_place_directory_editor_hook, &
               save_place_load_places_from_file, save_place_exit_fortmacs_hook, initialize_saveplace
 
     !> An element of `save_places': FILE with the POSITION to go back
     !> to (upstream's (FILENAME . POSITION)), or a directory FILE ending
-    !> in a slash with the DIRED_FILENAME point was on in its Dired
+    !> in a slash with the DIRECTORY_EDITOR_FILENAME point was on in its Dired
     !> listing ((DIRECTORY (dired-filename . FILENAME))).
     type, public :: save_place_type
         character(len=:), allocatable :: file
         integer(int64) :: position = 0
         !> Unallocated for a position.
-        character(len=:), allocatable :: dired_filename
+        character(len=:), allocatable :: directory_editor_filename
     end type save_place_type
 
     !> Table of saved places to go back to when revisiting files.
     !> Each element gives a FILE and a POSITION; visiting file FILE goes
     !> automatically to position POSITION rather than the beginning of the
-    !> buffer.  An element can also give a DIRED_FILENAME, where FILE is
-    !> the name of a directory ending in a slash, and DIRED_FILENAME is the
+    !> buffer.  An element can also give a DIRECTORY_EDITOR_FILENAME, where FILE is
+    !> the name of a directory ending in a slash, and DIRECTORY_EDITOR_FILENAME is the
     !> name of a file in that directory.  This form is used for saving
-    !> places in Dired buffers, see the function `save_place_dired_hook';
-    !> the DIRED_FILENAME is the file where point was located in the Dired
+    !> places in Dired buffers, see the function `save_place_directory_editor_hook';
+    !> the DIRECTORY_EDITOR_FILENAME is the file where point was located in the Dired
     !> listing of the directory when the place in that buffer was recorded.
     !>
     !> This table is saved between Fortmacs sessions.  Port of
@@ -242,9 +243,9 @@ contains
                                 if (it%values(1)%kind == NAMELIST_STRING) places(index)%file = it%values(1)%string
                             case ("position")
                                 if (it%values(1)%kind == NAMELIST_INTEGER) places(index)%position = it%values(1)%integer
-                            case ("dired_filename")
+                            case ("directory_editor_filename")
                                 if (it%values(1)%kind == NAMELIST_STRING) then
-                                    places(index)%dired_filename = it%values(1)%string
+                                    places(index)%directory_editor_filename = it%values(1)%string
                                 end if
                             case default
                                 ! Not a component of a place.
@@ -309,7 +310,7 @@ contains
 
         call move_alloc(from%file, to%file)
         to%position = from%position
-        if (allocated(from%dired_filename)) call move_alloc(from%dired_filename, to%dired_filename)
+        if (allocated(from%directory_editor_filename)) call move_alloc(from%directory_editor_filename, to%directory_editor_filename)
     end subroutine move_place
 
     !> Keep the first N places.  Not a port.
@@ -367,8 +368,8 @@ contains
         do k = 1, size(save_places)
             save_places(k)%file = normal_name(save_places(k)%file)
 
-            if (allocated(save_places(k)%dired_filename)) then
-                save_places(k)%dired_filename = normal_name(save_places(k)%dired_filename)
+            if (allocated(save_places(k)%directory_editor_filename)) then
+                save_places(k)%directory_editor_filename = normal_name(save_places(k)%directory_editor_filename)
             end if
         end do
 
@@ -474,7 +475,7 @@ contains
 
         if (.not. add) return
         call find_file_hook%append(save_place_find_file_hook_adapter)
-        call dired_initial_position_hook%prepend(save_place_dired_hook_adapter)
+        call directory_editor_initial_position_hook%prepend(save_place_directory_editor_hook_adapter)
         call exit_fortmacs_hook%prepend(save_place_exit_fortmacs_hook_adapter)
         call close_buffer_hook%prepend(save_place_store_adapter)
     end subroutine save_place_setup_hooks
@@ -529,7 +530,7 @@ contains
             call set(value_type(name="save_place_mode"), value_type(), st)
         end if
 
-        if (.not. (allocated(buffers(current)%filename) .or. len(dired_directory()) > 0)) then
+        if (.not. (allocated(buffers(current)%filename) .or. len(directory_editor_directory()) > 0)) then
             call message("Buffer `"//buffers(current)%name//"' not visiting a file or directory")
         else
             call save_place_setup_hooks(enable)
@@ -538,18 +539,18 @@ contains
     end subroutine save_place_local_mode_body
 
     !> The current Dired directory of a Dired buffer, else "".  Not a port.
-    function dired_directory() result(directory)
+    function directory_editor_directory() result(directory)
         character(len=:), allocatable :: directory
         type(string_type), allocatable :: directories(:)
         type(status_type) :: st
 
         directory = ""
-        if (.not. is_derived_mode("dired_mode")) return
-        directories = dired_subdirectory_directories()
+        if (.not. is_derived_mode("directory_editor_mode")) return
+        directories = directory_editor_subdirectory_directories()
         if (size(directories) == 0) return
-        directory = dired_current_directory(st)
+        directory = directory_editor_current_directory(st)
         if (.not. st%ok()) directory = ""
-    end function dired_directory
+    end function directory_editor_directory
 
     !> Add current buffer filename and position to `save_places'.
     !> Put filename and point in a record at the front of the
@@ -566,7 +567,7 @@ contains
         integer :: k
 
         if (.not. save_place_loaded) call save_place_load_places_from_file()
-        directory = dired_directory()
+        directory = directory_editor_directory()
 
         if (allocated(buffers(current)%filename)) then
             item = buffers(current)%filename
@@ -584,12 +585,12 @@ contains
         place%file = item
         place%position = point()
 
-        if (is_derived_mode("dired_mode") .and. len(directory) > 0) then
-            call dired_get_filename(filename, found, st, no_error_if_not_filep=.true.)
+        if (is_derived_mode("directory_editor_mode") .and. len(directory) > 0) then
+            call directory_editor_get_filename(filename, found, st, no_error_if_not_filep=.true.)
 
             if (found) then
                 if (save_place_abbreviate_file_names) filename = abbreviate_file_name(filename)
-                place%dired_filename = filename
+                place%directory_editor_filename = filename
                 place%position = 0
             end if
         end if
@@ -598,7 +599,7 @@ contains
         if (k > 0) call delete_place(k)
 
         ! Optimize out the degenerate case.
-        if (save_place_mode_on() .and. .not. (.not. allocated(place%dired_filename) .and. place%position == 1)) then
+        if (save_place_mode_on() .and. .not. (.not. allocated(place%directory_editor_filename) .and. place%position == 1)) then
             save_places = [place, save_places]
         end if
     end subroutine save_place_store
@@ -670,10 +671,10 @@ contains
                 call item%append_string(save_places(k)%file)
                 call group%append(item)
 
-                if (allocated(save_places(k)%dired_filename)) then
-                    item = namelist_item_type(name="place", component="dired_filename", subscripted=.true., &
+                if (allocated(save_places(k)%directory_editor_filename)) then
+                    item = namelist_item_type(name="place", component="directory_editor_filename", subscripted=.true., &
                                               lower=k, upper=k)
-                    call item%append_string(save_places(k)%dired_filename)
+                    call item%append_string(save_places(k)%directory_editor_filename)
                 else
                     item = namelist_item_type(name="place", component="position", subscripted=.true., &
                                               lower=k, upper=k)
@@ -718,7 +719,7 @@ contains
         do k = 1, size(list)
             call set_buffer(list(k), st)
             if (.not. st%ok()) cycle
-            if (allocated(buffers(current)%filename) .or. len(dired_directory()) > 0) call save_place_store()
+            if (allocated(buffers(current)%filename) .or. len(directory_editor_directory()) > 0) call save_place_store()
         end do
 
         call set_buffer(old, st)
@@ -744,7 +745,7 @@ contains
         end if
 
         if (k > 0) then
-            if (.not. revert_buffer_in_progress .and. .not. allocated(save_places(k)%dired_filename)) then
+            if (.not. revert_buffer_in_progress .and. .not. allocated(save_places(k)%directory_editor_filename)) then
                 call goto_character(save_places(k)%position)
             end if
 
@@ -762,16 +763,16 @@ contains
     end subroutine save_place_find_file_hook_adapter
 
     !> Position point in a Dired buffer according to its saved place.
-    !> This is run via `dired_initial_position_hook', which see.  Port of
+    !> This is run via `directory_editor_initial_position_hook', which see.  Port of
     !> saveplace.el:save-place-dired-hook.
-    recursive subroutine save_place_dired_hook()
+    recursive subroutine save_place_directory_editor_hook()
         character(len=:), allocatable :: directory, item
         type(status_type) :: st
         integer(int64) :: position
         integer :: k
 
         if (.not. save_place_loaded) call save_place_load_places_from_file()
-        directory = dired_directory()
+        directory = directory_editor_directory()
         if (len(directory) == 0) return
         item = expand(directory)
         if (save_place_abbreviate_file_names) item = abbreviate_file_name(item)
@@ -779,23 +780,23 @@ contains
         if (k == 0) return
 
         if (.not. revert_buffer_in_progress) then
-            if (allocated(save_places(k)%dired_filename)) then
-                position = dired_goto_file(expand(save_places(k)%dired_filename), st)
+            if (allocated(save_places(k)%directory_editor_filename)) then
+                position = directory_editor_goto_file(expand(save_places(k)%directory_editor_filename), st)
             else
                 call goto_character(save_places(k)%position)
             end if
         end if
 
         call set(value_type(name="save_place_mode"), value_type(.true.), st)
-    end subroutine save_place_dired_hook
+    end subroutine save_place_directory_editor_hook
 
-    ! `save_place_dired_hook' as a hook function.  Not a port.
-    recursive subroutine save_place_dired_hook_adapter(status)
+    ! `save_place_directory_editor_hook' as a hook function.  Not a port.
+    recursive subroutine save_place_directory_editor_hook_adapter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call save_place_dired_hook()
-    end subroutine save_place_dired_hook_adapter
+        call save_place_directory_editor_hook()
+    end subroutine save_place_directory_editor_hook_adapter
 
     !> Port of saveplace.el:save-place-kill-emacs-hook.
     recursive subroutine save_place_exit_fortmacs_hook()

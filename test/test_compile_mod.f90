@@ -41,8 +41,8 @@ module test_compile_mod
     use value_mod, only: value_type, xsymbol, symbols, vtag, V_NULL, V_NAME
     use bindings_mod, only: initialize_bindings
     use process_mod, only: accept_process_output, get_buffer_process, number_processors
-    use compile_mod, only: compile, recompile, stop_compilation, compile_command, comint_carriage_motion, compilation_always_stop, &
-                           compilation_parse_errors, compilation_forget_errors, compilation_message_info, &
+    use compile_mod, only: compile, recompile, stop_compilation, compile_command, command_interpreter_carriage_motion, &
+                           compilation_always_stop, compilation_parse_errors, compilation_forget_errors, compilation_message_info, &
                            compilation_message_info_type, compilation_message_counts, compilation_error_count_found, &
                            compilation_warning_count_found, compilation_info_count_found, &
                            compilation_error_regular_expression_names, compilation_error_regular_expressions, &
@@ -76,7 +76,7 @@ contains
                     new_unittest("compile-test-functions", test_functions), &
                     new_unittest("compile-directory-tracking", test_directory_tracking), &
                     new_unittest("compile-next-error", test_next_error), &
-                    new_unittest("compile-comint", test_comint_compile) &
+                    new_unittest("compile-comint", test_command_interpreter_compile) &
                     ]
     end subroutine collect_compile_mod
 
@@ -297,7 +297,7 @@ contains
 
         call source_buffer(h, "/")
         call insert("abc"//achar(13)//"xy"//new_line("a")//"ab"//achar(8)//"c"//new_line("a")//"end"//achar(13), st)
-        call comint_carriage_motion(1_int64, point_maximum())
+        call command_interpreter_carriage_motion(1_int64, point_maximum())
         call check(error, buffer_string(), "xy"//new_line("a")//"ac"//new_line("a")//"end")
         call close_buffer(h, st)
     end subroutine test_carriage_motion
@@ -1637,7 +1637,7 @@ contains
     end function current_line_start_text
 
     !> C-u M-x compile: Comint mode with Compilation Shell minor mode.
-    subroutine test_comint_compile(error)
+    subroutine test_command_interpreter_compile(error)
         use modes_mod, only: minor_modes
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer
@@ -1646,13 +1646,13 @@ contains
 
         call initialize_bindings()
         call source_buffer(h, file_name_as_directory(temporary_file_directory()))
-        call compile("echo interactive", st, comint=.true.)
+        call compile("echo interactive", st, command_interpreter=.true.)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call wait_compilation()
         buffer = get_buffer("*compilation*")
         call set_buffer(buffer, st)
-        call check(error, buffers(current)%major_mode, "comint_mode")
+        call check(error, buffers(current)%major_mode, "command_interpreter_mode")
         if (.not. allocated(error)) call check(error, minor_modes%compilation_shell_minor_mode%enabled(), "minor mode")
         if (allocated(error)) return
         text = compilation_text()
@@ -1662,5 +1662,5 @@ contains
         if (.not. allocated(error)) call check(error, index(text, "Comint finished at ") > 0, text)
         call close_buffer(buffer, st)
         call close_buffer(h, st)
-    end subroutine test_comint_compile
+    end subroutine test_command_interpreter_compile
 end module test_compile_mod

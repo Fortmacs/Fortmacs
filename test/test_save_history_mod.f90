@@ -39,10 +39,10 @@ module test_save_history_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
     use editing_functions_mod, only: buffer_string
     use file_input_output_mod, only: insert_file_contents
-    use save_history_mod, only: savehist_file, savehist_save_minibuffer_history, savehist_loaded, &
-                                savehist_minibuffer_history_variables, savehist_additional_variables, &
-                                savehist_ignored_variables, savehist_variable_type, savehist_save, &
-                                savehist_minibuffer_hook
+    use save_history_mod, only: save_history_file, save_history_save_minibuffer_history, save_history_loaded, &
+                                save_history_minibuffer_history_variables, save_history_additional_variables, &
+                                save_history_ignored_variables, save_history_variable_type, save_history_save, &
+                                save_history_minibuffer_hook
     implicit none(type, external)
     private
 
@@ -68,25 +68,25 @@ contains
 
         call initialize_bindings()
         call create_temporary_file("savehist-test", tmpfile, st)
-        savehist_file = tmpfile
-        savehist_save_minibuffer_history = .true.
-        savehist_loaded = .false.
-        if (allocated(savehist_minibuffer_history_variables)) deallocate (savehist_minibuffer_history_variables)
-        allocate (savehist_minibuffer_history_variables(0))
-        savehist_additional_variables = [savehist_variable_type(name="savehist_tests_t2")]
+        save_history_file = tmpfile
+        save_history_save_minibuffer_history = .true.
+        save_history_loaded = .false.
+        if (allocated(save_history_minibuffer_history_variables)) deallocate (save_history_minibuffer_history_variables)
+        allocate (save_history_minibuffer_history_variables(0))
+        save_history_additional_variables = [save_history_variable_type(name="save_history_tests_t2")]
 
         if (ignore_t3) then
-            savehist_ignored_variables = [character(len=64) :: "t3"]
+            save_history_ignored_variables = [character(len=64) :: "t3"]
         else
-            if (allocated(savehist_ignored_variables)) deallocate (savehist_ignored_variables)
-            allocate (savehist_ignored_variables(0))
+            if (allocated(save_history_ignored_variables)) deallocate (save_history_ignored_variables)
+            allocate (save_history_ignored_variables(0))
         end if
 
-        call defvar_false("savehist_tests_t1")
-        call defvar_false("savehist_tests_t2")
+        call defvar_false("save_history_tests_t1")
+        call defvar_false("save_history_tests_t2")
         call defvar_false("t3")
-        call set(value_type(name="savehist_tests_t1"), list(value_type(text="t1-value")), st)
-        call set(value_type(name="savehist_tests_t2"), list(value_type(text="t2-value")), st)
+        call set(value_type(name="save_history_tests_t1"), list(value_type(text="t1-value")), st)
+        call set(value_type(name="save_history_tests_t2"), list(value_type(text="t2-value")), st)
         call set(value_type(name="t3"), list(value_type(text="t3-value")), st)
     end subroutine setup
 
@@ -94,31 +94,31 @@ contains
         character(len=*), intent(in) :: name
 
         minibuffer_history_variable = name
-        call savehist_minibuffer_hook()
+        call save_history_minibuffer_hook()
     end subroutine save_variable
 
     !> Force reloading the file.
     subroutine reload()
         type(status_type) :: st
 
-        call minor_modes%savehist_mode%disable(st)
-        savehist_loaded = .false.
-        call minor_modes%savehist_mode%enable(st)
+        call minor_modes%save_history_mode%disable(st)
+        save_history_loaded = .false.
+        call minor_modes%save_history_mode%enable(st)
     end subroutine reload
 
     subroutine teardown(tmpfile)
         character(len=*), intent(in) :: tmpfile
         type(status_type) :: st
 
-        call minor_modes%savehist_mode%disable(st)
+        call minor_modes%save_history_mode%disable(st)
         call delete_file(tmpfile, st)
-        if (allocated(savehist_additional_variables)) deallocate (savehist_additional_variables)
-        allocate (savehist_additional_variables(0))
-        if (allocated(savehist_ignored_variables)) deallocate (savehist_ignored_variables)
-        allocate (savehist_ignored_variables(0))
-        if (allocated(savehist_minibuffer_history_variables)) deallocate (savehist_minibuffer_history_variables)
-        allocate (savehist_minibuffer_history_variables(0))
-        savehist_loaded = .false.
+        if (allocated(save_history_additional_variables)) deallocate (save_history_additional_variables)
+        allocate (save_history_additional_variables(0))
+        if (allocated(save_history_ignored_variables)) deallocate (save_history_ignored_variables)
+        allocate (save_history_ignored_variables(0))
+        if (allocated(save_history_minibuffer_history_variables)) deallocate (save_history_minibuffer_history_variables)
+        allocate (save_history_minibuffer_history_variables(0))
+        save_history_loaded = .false.
     end subroutine teardown
 
     function value_of(name) result(v)
@@ -136,29 +136,29 @@ contains
         type(value_type) :: t1_copy, t2_copy
 
         call setup(tmpfile, .true.)
-        t1_copy = value_of("savehist_tests_t1")
-        t2_copy = value_of("savehist_tests_t2")
-        call minor_modes%savehist_mode%enable(st)
-        call save_variable("savehist_tests_t1")
-        call save_variable("savehist_tests_t2")
+        t1_copy = value_of("save_history_tests_t1")
+        t2_copy = value_of("save_history_tests_t2")
+        call minor_modes%save_history_mode%enable(st)
+        call save_variable("save_history_tests_t1")
+        call save_variable("save_history_tests_t2")
         ! Should be ignored.
         call save_variable("t3")
-        call savehist_save(st)
+        call save_history_save(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call set(value_type(name="savehist_tests_t1"), value_type(), st)
-        call set(value_type(name="savehist_tests_t2"), value_type(), st)
+        call set(value_type(name="save_history_tests_t1"), value_type(), st)
+        call set(value_type(name="save_history_tests_t2"), value_type(), st)
         call set(value_type(name="t3"), value_type(), st)
         call reload()
-        call check(error, value_equal(value_of("savehist_tests_t1"), t1_copy), "t1")
+        call check(error, value_equal(value_of("save_history_tests_t1"), t1_copy), "t1")
         if (allocated(error)) return
-        call check(error, value_equal(value_of("savehist_tests_t2"), t2_copy), "t2")
+        call check(error, value_equal(value_of("save_history_tests_t2"), t2_copy), "t2")
         if (allocated(error)) return
         call check(error, vtag(value_of("t3")) == V_NULL, "t3")
         call teardown(tmpfile)
     end subroutine test_saved_variables
 
-    !> `savehist_tests_t2' should not be saved twice.
+    !> `save_history_tests_t2' should not be saved twice.
     subroutine test_duplicated(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: tmpfile, text
@@ -168,10 +168,10 @@ contains
         integer :: n1, n2
 
         call setup(tmpfile, .false.)
-        call minor_modes%savehist_mode%enable(st)
-        call save_variable("savehist_tests_t1")
-        call save_variable("savehist_tests_t2")
-        call savehist_save(st)
+        call minor_modes%save_history_mode%enable(st)
+        call save_variable("save_history_tests_t1")
+        call save_variable("save_history_tests_t2")
+        call save_history_save(st)
         call reload()
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *savehist-test*"), h, st)
@@ -180,8 +180,8 @@ contains
         text = buffer_string()
         call close_buffer(h, st)
         call set_buffer(old, st)
-        n1 = count_lines_starting(text, " savehist_tests_t1(")
-        n2 = count_lines_starting(text, " savehist_tests_t2(")
+        n1 = count_lines_starting(text, " save_history_tests_t1(")
+        n2 = count_lines_starting(text, " save_history_tests_t2(")
         call check(error, n1 == 1 .and. n2 == 1, text)
         call teardown(tmpfile)
     end subroutine test_duplicated

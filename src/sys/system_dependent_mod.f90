@@ -69,16 +69,16 @@ module system_dependent_mod
     implicit none(type, external)
     private
 
-    !> Port of systty.h:struct emacs_tty.
-    type, public :: fortmacs_tty_type
+    !> Port of systty.h:struct emacs_terminal.
+    type, public :: fortmacs_terminal_type
         type(termios_type) :: main
-    end type fortmacs_tty_type
+    end type fortmacs_terminal_type
 
     !> The quit character, C-g (keyboard.c:quit_char).
     integer(c_signed_char), parameter, public :: QUIT_CHARACTER = 7_c_signed_char
 
-    public :: fortmacs_get_tty, fortmacs_set_tty, tty_raw_settings, initialize_system_modes, &
-              reset_system_modes, get_tty_size, set_tty_size, fortmacs_read, &
+    public :: fortmacs_get_terminal, fortmacs_set_terminal, terminal_raw_settings, initialize_system_modes, &
+              reset_system_modes, get_terminal_size, set_terminal_size, fortmacs_read, &
               fortmacs_full_write, fortmacs_write, input_available
     public :: install_window_change_handler, window_change_pending, clear_window_change
     public :: system_suspend, stuff_character, SIGTSTP, SIGHUP
@@ -97,16 +97,16 @@ module system_dependent_mod
     public :: fortmacs_spawn, wait_for_termination, fortmacs_pipe, fortmacs_strsignal, &
               fortmacs_readlink, fortmacs_execv, fortmacs_mkostemp, fortmacs_directory_entries, system_symlink, &
               fortmacs_statvfs
-    public :: fortmacs_get_tty_pgrp, fortmacs_tty_signal_character, fortmacs_environment
+    public :: fortmacs_get_terminal_pgrp, fortmacs_terminal_signal_character, fortmacs_environment
     public :: fortmacs_open_mode, system_link, system_rename_noreplace, system_set_file_times, system_futimens, fortmacs_umask, &
               fortmacs_set_umask, fortmacs_synchronize, &
               system_fchmod, system_chmod_at, system_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
     public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, O_APPEND, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
-    public :: fortmacs_spawn_async, child_setup_tty, fortmacs_kill, ignore_sigpipe, fortmacs_write_nonblock, &
+    public :: fortmacs_spawn_asynchronous, child_setup_terminal, fortmacs_kill, ignore_sigpipe, fortmacs_write_nonblock, &
               set_nonblocking, fortmacs_dup_cloexec, inputs_available, fortmacs_number_processors, &
               fortmacs_clock_realtime, fortmacs_clock_process_cputime, system_localtime, system_mktime, system_set_time_zone
-    public :: inotify_raw_event_type, fortmacs_inotify_init, fortmacs_inotify_add_watch, fortmacs_inotify_rm_watch, &
+    public :: inotify_raw_event_type, fortmacs_inotify_initialize, fortmacs_inotify_add_watch, fortmacs_inotify_rm_watch, &
               fortmacs_inotify_read
     public :: get_load_averages, fortmacs_getrandom
     public :: IN_ACCESS, IN_MODIFY, IN_ATTRIBUTE, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
@@ -187,21 +187,21 @@ contains
     end subroutine system_error
 
     !> Read the terminal modes of `fd'.  Port of sysdep.c:emacs_get_tty.
-    subroutine fortmacs_get_tty(fd, settings, status)
+    subroutine fortmacs_get_terminal(fd, settings, status)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type), intent(out) :: settings
+        type(fortmacs_terminal_type), intent(out) :: settings
         type(status_type), intent(out) :: status
 
         if (c_tcgetattr(fd, settings%main) /= 0) call system_error(status, "tcgetattr")
-    end subroutine fortmacs_get_tty
+    end subroutine fortmacs_get_terminal
 
     !> Set the terminal modes of `fd', discarding pending input if `flushp'.
     !> Reads the settings back and retries (up to 10 times) until they
     !> stick, as POSIX lets tcsetattr succeed partially.
     !> Port of sysdep.c:emacs_set_tty.
-    subroutine fortmacs_set_tty(fd, settings, flushp, status)
+    subroutine fortmacs_set_terminal(fd, settings, flushp, status)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type), intent(in) :: settings
+        type(fortmacs_terminal_type), intent(in) :: settings
         logical, intent(in) :: flushp
         type(status_type), intent(out) :: status
         type(termios_type) :: now
@@ -225,7 +225,7 @@ contains
                 now%c_lflag == settings%main%c_lflag .and. &
                 all(now%c_cc == settings%main%c_cc)) return
         end do
-    end subroutine fortmacs_set_tty
+    end subroutine fortmacs_set_terminal
 
     !> The modes Fortmacs runs a terminal in, derived from `old': no echo, no
     !> line editing, no CR/NEWLINE mapping, 8-bit input, reads of at least one
@@ -233,14 +233,14 @@ contains
     !> on the controlling terminal.  The termios part of
     !> sysdep.c:init_sys_modes, separated so it can be tested.
     !> Port of part of sysdep.c:init_sys_modes.
-    pure function tty_raw_settings(old, flow_control, meta_key, controlling) result(tty)
-        type(fortmacs_tty_type), intent(in) :: old
+    pure function terminal_raw_settings(old, flow_control, meta_key, controlling) result(terminal)
+        type(fortmacs_terminal_type), intent(in) :: old
         logical, intent(in) :: flow_control, meta_key, controlling
-        type(fortmacs_tty_type) :: tty
+        type(fortmacs_terminal_type) :: terminal
 
-        tty = old
+        terminal = old
 
-        associate (m => tty%main)
+        associate (m => terminal%main)
             m%c_iflag = ior(m%c_iflag, IGNBRK)          ! Ignore break condition
             m%c_iflag = iand(m%c_iflag, not(ICRNL))     ! No CR -> NEWLINE on input
             m%c_iflag = iand(m%c_iflag, not(INLCR))     ! No NEWLINE -> CR on input
@@ -289,13 +289,13 @@ contains
                 m%c_cc(VSTOP) = CDISABLE
             end if
         end associate
-    end function tty_raw_settings
+    end function terminal_raw_settings
 
     !> Save the modes of `fd' in `old' and switch it to Fortmacs's modes.
     !> Port of the termios part of sysdep.c:init_sys_modes.
     subroutine initialize_system_modes(fd, old, status, flow_control, meta_key, controlling)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type), intent(out) :: old
+        type(fortmacs_terminal_type), intent(out) :: old
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: flow_control, meta_key, controlling
         logical :: flow, meta, control
@@ -306,9 +306,9 @@ contains
         if (present(flow_control)) flow = flow_control
         if (present(meta_key)) meta = meta_key
         if (present(controlling)) control = controlling
-        call fortmacs_get_tty(fd, old, status)
+        call fortmacs_get_terminal(fd, old, status)
         if (.not. status%ok()) return
-        call fortmacs_set_tty(fd, tty_raw_settings(old, flow, meta, control), .false., status)
+        call fortmacs_set_terminal(fd, terminal_raw_settings(old, flow, meta, control), .false., status)
     end subroutine initialize_system_modes
 
     !> Restore the modes saved by `initialize_system_modes': wait until the output
@@ -318,7 +318,7 @@ contains
     !> not ported).
     subroutine reset_system_modes(fd, old, status)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type), intent(in) :: old
+        type(fortmacs_terminal_type), intent(in) :: old
         type(status_type), intent(out) :: status
         integer(c_int) :: r
 
@@ -330,7 +330,7 @@ contains
 
         r = c_fcntl_int(fd, F_GETFL, 0_c_int)
         if (r >= 0) r = c_fcntl_int(fd, F_SETFL, iand(r, not(O_NONBLOCK)))
-        call fortmacs_set_tty(fd, old, .false., status)
+        call fortmacs_set_terminal(fd, old, .false., status)
     end subroutine reset_system_modes
 
     !> Whether `fd' is a terminal.  The isatty check of emacs.c:main.
@@ -345,16 +345,16 @@ contains
     !> them to spaces).  Port of sysdep.c:tabs_safe_p.
     logical function is_tabs_safe(fd)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type) :: settings
+        type(fortmacs_terminal_type) :: settings
         type(status_type) :: status
 
-        call fortmacs_get_tty(fd, settings, status)
+        call fortmacs_get_terminal(fd, settings, status)
         is_tabs_safe = status%ok() .and. iand(settings%main%c_oflag, TABDLY) /= TAB3
     end function is_tabs_safe
 
     !> Width and height of the terminal on `fd'.
     !> Port of sysdep.c:get_tty_size.
-    subroutine get_tty_size(fd, width, height, status)
+    subroutine get_terminal_size(fd, width, height, status)
         integer(int32), intent(in) :: fd
         integer(int32), intent(out) :: width, height
         type(status_type), intent(out) :: status
@@ -370,11 +370,11 @@ contains
 
         width = int(window_size%ws_col, int32)
         height = int(window_size%ws_row, int32)
-    end subroutine get_tty_size
+    end subroutine get_terminal_size
 
     !> Set the size of the terminal on `fd' (used on pseudo-terminals).
     !> Port of sysdep.c:set_window_size.
-    subroutine set_tty_size(fd, width, height, status)
+    subroutine set_terminal_size(fd, width, height, status)
         integer(int32), intent(in) :: fd
         integer(int32), intent(in) :: width, height
         type(status_type), intent(out) :: status
@@ -388,7 +388,7 @@ contains
         window_size%ws_col = int(width, kind(window_size%ws_col))
         window_size%ws_row = int(height, kind(window_size%ws_row))
         if (c_ioctl_winsize(fd, TIOCSWINSZ, window_size) < 0) call system_error(status, "ioctl(TIOCSWINSZ)")
-    end subroutine set_tty_size
+    end subroutine set_terminal_size
 
     !> Read up to len(buffer) bytes from `fd' into `buffer', retrying on EINTR.
     !> `nread' is the count (0 at end of file).
@@ -1142,8 +1142,8 @@ contains
     !> empty), with the environment `environment' (the editor's own if absent).
     !> With `pty', its standard input, output and error are the slave of
     !> a new pseudo-terminal (its controlling terminal, set up by
-    !> `child_setup_tty'), named
-    !> `tty_name', and `to_child' and `from_child' are both the master;
+    !> `child_setup_terminal'), named
+    !> `terminal_name', and `to_child' and `from_child' are both the master;
     !> otherwise they are the editor's ends of a pipe to its standard input
     !> and of a pipe from its standard output and error.  All are
     !> close-on-exec; the caller closes them.  The child starts a new
@@ -1152,14 +1152,14 @@ contains
     !> errno of the failure.  Port of the part of process.c:create_process
     !> and callproc.c:emacs_spawn that runs the child (fork, with
     !> create_process's exec-monitor pipe carrying the exec error back).
-    integer(int32) function fortmacs_spawn_async(path, arguments, directory, pty, to_child, from_child, pid, tty_name, &
-                                                 environment) &
+    integer(int32) function fortmacs_spawn_asynchronous(path, arguments, directory, pty, to_child, from_child, pid, terminal_name, &
+                                                        environment) &
         result(err)
         character(len=*), intent(in) :: path, directory
         type(string_type), intent(in) :: arguments(:)
         logical, intent(in) :: pty
         integer(int32), intent(out) :: to_child, from_child, pid
-        character(len=:), allocatable, intent(out) :: tty_name
+        character(len=:), allocatable, intent(out) :: terminal_name
         !> The child's whole environment, "NAME=VALUE" entries (as
         !> execute_process_mod's `make_environment_block' makes it).
         type(string_type), intent(in), optional :: environment(:)
@@ -1170,7 +1170,7 @@ contains
         character(kind=c_char) :: code_characters(4)
         integer(c_long) :: n
         integer(c_int32_t) :: w
-        type(termios_type) :: tty
+        type(termios_type) :: terminal
         type(status_type) :: st
 
         call make_argv(arguments, argv)
@@ -1180,7 +1180,7 @@ contains
         to_child = -1
         from_child = -1
         pid = -1
-        tty_name = ""
+        terminal_name = ""
         inpipe = -1
         outpipe = -1
         master = -1
@@ -1196,7 +1196,7 @@ contains
 
             r = c_fcntl_int(master, F_SETFD, FD_CLOEXEC)
             r = c_fcntl_int(slave, F_SETFD, FD_CLOEXEC)
-            tty_name = c_string_to_fortran(c_ptsname(master))
+            terminal_name = c_string_to_fortran(c_ptsname(master))
             standard_in = slave
             standard_out = slave
         else
@@ -1240,9 +1240,9 @@ contains
                 ! Make the pty's terminal the controlling terminal.
                 r = c_ioctl_int(slave, TIOCSCTTY, 0_c_int)
 
-                if (c_tcgetattr(slave, tty) == 0) then
-                    tty = child_setup_tty(tty)
-                    r = c_tcsetattr(slave, TCSANOW, tty)
+                if (c_tcgetattr(slave, terminal) == 0) then
+                    terminal = child_setup_terminal(terminal)
+                    r = c_tcsetattr(slave, TCSANOW, terminal)
                 end if
             end if
 
@@ -1318,7 +1318,7 @@ contains
             if (master >= 0) rc = c_close(master)
             if (slave >= 0) rc = c_close(slave)
         end subroutine close_all
-    end function fortmacs_spawn_async
+    end function fortmacs_spawn_asynchronous
 
     !> Wait for child `pid' to exit.  `code' is its exit status, or -1 if
     !> it was killed by signal `signal' (0 otherwise).  Port of
@@ -1624,18 +1624,18 @@ contains
         call c_tzset()
     end subroutine system_set_time_zone
 
-    !> The terminal modes `tty' with the changes child_setup_tty makes for
+    !> The terminal modes `terminal' with the changes child_setup_terminal makes for
     !> the terminal at the other end of a pseudo-terminal that the editor
     !> controls an inferior through: no echo or line editing beyond
     !> ICANON (done in the editor), signals on, no padding, no NEWLINE to CR-NL
     !> mapping, 8-bit characters, ^D as EOF, ^C and ^\ as INTR and QUIT if
     !> they are disabled.  Port of sysdep.c:child_setup_tty (as a pure
     !> function; the caller reads and sets the modes).
-    pure function child_setup_tty(tty) result(s)
-        type(termios_type), intent(in) :: tty
+    pure function child_setup_terminal(terminal) result(s)
+        type(termios_type), intent(in) :: terminal
         type(termios_type) :: s
 
-        s = tty
+        s = terminal
         ! Enable output postprocessing, without mapping NEWLINE to CR-NL.
         s%c_oflag = ior(s%c_oflag, OPOST)
         s%c_oflag = iand(s%c_oflag, not(ONLCR))
@@ -1660,7 +1660,7 @@ contains
         ! Enable line editing and EOF processing, with C-d as EOF.
         s%c_lflag = ior(s%c_lflag, ICANON)
         s%c_cc(VEOF) = 4_c_signed_char
-    end function child_setup_tty
+    end function child_setup_terminal
 
     !> kill(2): send signal `signal' to process `pid' (a process group if
     !> negative).  Returns 0 or errno.  Not a port.
@@ -1674,21 +1674,21 @@ contains
     !> The foreground process group of the terminal `fd' (a pty master: its
     !> slave's), or -1.  The TIOCGPGRP part of process.c:emacs_get_tty_pgrp.
     !> Port of process.c:emacs_get_tty_pgrp (in part).
-    integer(int32) function fortmacs_get_tty_pgrp(fd) result(gid)
+    integer(int32) function fortmacs_get_terminal_pgrp(fd) result(gid)
         integer(int32), intent(in) :: fd
 
         gid = c_tcgetpgrp(fd)
-    end function fortmacs_get_tty_pgrp
+    end function fortmacs_get_terminal_pgrp
 
     !> The character that "types" signal SIGNO (SIGINT, SIGQUIT or
     !> SIGTSTP) on the terminal `fd': its INTR, QUIT or SUSP character, or
     !> -1 if it has none (disabled, or another signal).  The
     !> SIGNALS_VIA_CHARACTERS part of process.c:process_send_signal.
     !> Port of part of process.c:process_send_signal.
-    integer function fortmacs_tty_signal_character(fd, signo) result(c)
+    integer function fortmacs_terminal_signal_character(fd, signo) result(c)
         integer(int32), intent(in) :: fd
         integer, intent(in) :: signo
-        type(fortmacs_tty_type) :: t
+        type(fortmacs_terminal_type) :: t
         type(status_type) :: st
         integer :: k
 
@@ -1705,11 +1705,11 @@ contains
             return
         end select
 
-        call fortmacs_get_tty(fd, t, st)
+        call fortmacs_get_terminal(fd, t, st)
         if (.not. st%ok()) return
         if (t%main%c_cc(k) == CDISABLE) return
         c = iand(int(t%main%c_cc(k)), 255)
-    end function fortmacs_tty_signal_character
+    end function fortmacs_terminal_signal_character
 
     !> Ignore SIGPIPE, so that writing to a subprocess that has exited is
     !> an EPIPE error, not the editor's death (sysdep.c:init_signals; the
@@ -2240,13 +2240,13 @@ contains
 
     !> A new inotify instance, non-blocking and close-on-exec, in FD.
     !> The result is 0 or errno.  Not a port.
-    integer(int32) function fortmacs_inotify_init(fd) result(err)
+    integer(int32) function fortmacs_inotify_initialize(fd) result(err)
         integer(int32), intent(out) :: fd
 
         err = 0
         fd = c_inotify_init1(ior(O_NONBLOCK, O_CLOEXEC))
         if (fd < 0) err = errno()
-    end function fortmacs_inotify_init
+    end function fortmacs_inotify_initialize
 
     !> Watch FILE for the events in MASK on inotify instance FD, giving
     !> the watch descriptor in WD.  The result is 0 or errno.  Not a port.

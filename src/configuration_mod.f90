@@ -17,7 +17,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The user's configuration is a Fortran module, `user_config', in
+!> The user's configuration is a Fortran module, `user_configuration', in
 !> init.f90.  `fortmacs --recompile' compiles it with gfortran together
 !> with a small main program against the installed library
 !> (PREFIX/lib/libfortmacs.a and the module files in PREFIX/include) into a
@@ -168,7 +168,7 @@ contains
         text = "! Written by fortmacs --recompile."//newline// &
                "program fortmacs_user"//newline// &
                "    use fortmacs_mod, only: execute_editor"//newline// &
-               "    use user_config, only: configure"//newline// &
+               "    use user_configuration, only: configure"//newline// &
                "    implicit none(type, external)"//newline// &
                newline// &
                "    integer :: exit_code"//newline// &
@@ -223,7 +223,7 @@ contains
         character(len=:), allocatable, intent(out) :: log
         type(status_type), intent(out) :: status
         integer, intent(out), optional :: generation
-        character(len=:), allocatable :: init, cache, built, driver, library, gen
+        character(len=:), allocatable :: initialize, cache, built, driver, library, gen
         character(len=12) :: number
         integer, allocatable :: numbers(:)
         integer :: n
@@ -233,10 +233,10 @@ contains
         integer :: unit, ios
 
         log = ""
-        init = initialization_file_name()
+        initialize = initialization_file_name()
 
-        if (.not. is_file_readable(init)) then
-            call report_file_errno("Opening init file", init, ENOENT, status)
+        if (.not. is_file_readable(initialize)) then
+            call report_file_errno("Opening init file", initialize, ENOENT, status)
             return
         end if
 
@@ -270,7 +270,7 @@ contains
             return
         end if
 
-        ! gfortran -O2 -J CACHE -I PREFIX/include INIT DRIVER
+        ! gfortran -O2 -J CACHE -I PREFIX/include INITIALIZE DRIVER
         !     -L PREFIX/lib -lfortmacs -o GENERATION/fortmacs
         built = gen//"fortmacs"
         arguments(1) = value_type(text="-O2")
@@ -280,7 +280,7 @@ contains
         arguments(5) = value_type(text=prefix//"include")
         arguments(6) = value_type(text="-o")
         arguments(7) = value_type(text=built)
-        arguments(8) = value_type(text=init)
+        arguments(8) = value_type(text=initialize)
         arguments(9) = value_type(text=driver)
         arguments(10) = value_type(text="-L")
         arguments(11) = value_type(text=prefix//"lib")
@@ -308,7 +308,7 @@ contains
         if (vtag(result) /= V_INTEGER) then
             call set_error(status, GENERIC_ERROR_CODE, compiler//" was killed: "//xstring(result))
         else if (xfixnum(result) /= 0) then
-            call set_error(status, GENERIC_ERROR_CODE, "Compiling "//init//" failed")
+            call set_error(status, GENERIC_ERROR_CODE, "Compiling "//initialize//" failed")
         end if
 
         if (.not. status%ok()) then
@@ -318,7 +318,7 @@ contains
         end if
 
         ! The init file it was built from stays with it.
-        call copy_file(init, gen//"init.f90", status)
+        call copy_file(initialize, gen//"init.f90", status)
         if (.not. status%ok()) return
         call switch_generation(n, status)
         if (present(generation)) generation = n

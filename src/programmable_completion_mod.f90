@@ -19,34 +19,34 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Programmable completion: `pcomplete_completions_at_point' completes
+!> Programmable completion: `programmable_completion_completions_at_point' completes
 !> the argument at point with the completion function of the command:
-!> a function registered with `pcomplete_command_functions' for the
+!> a function registered with `programmable_completion_command_functions' for the
 !> command's name (pcomplete/NAME upstream), else
-!> `pcomplete_default_completion_function'; the command name itself is
-!> completed by `pcomplete_command_completion_function'.
+!> `programmable_completion_default_completion_function'; the command name itself is
+!> completed by `programmable_completion_command_completion_function'.
 !>
-!> A completion function walks the arguments with `pcomplete_here': it
+!> A completion function walks the arguments with `programmable_completion_here': it
 !> returns true and moves to the next argument while the final argument
 !> is not reached, and at the final argument gives the completion table
 !> of its FORM and returns false (upstream's return to
 !> `pcomplete-completions').  A completion function returns as soon as
-!> `pcomplete_here' returns false or `pcomplete_thrown' is true (no
+!> `programmable_completion_here' returns false or `programmable_completion_thrown' is true (no
 !> completions: upstream's return to `pcompleted').
 !>
-!> Deferred: pcomplete's own UI (`pcomplete', `pcomplete_reverse',
-!> `pcomplete_expand_and_complete', `pcomplete_continue',
-!> `pcomplete_expand', `pcomplete_help', `pcomplete_list', cycling,
-!> `pcomplete_show_completions', `pcomplete_insert_entry',
-!> `pcomplete_do_complete', `pcomplete_stub') and so
-!> `pcomplete_comint_setup' and `pcomplete_shell_setup', which install
-!> it; `pcomplete_option', `pcomplete_from_help',
-!> `pcomplete_here_using_help', `pcomplete_uniquify_list',
-!> `pcomplete_process_result' and host name completion, used by the
+!> Deferred: pcomplete's own UI (`programmable_completion', `programmable_completion_reverse',
+!> `programmable_completion_expand_and_complete', `programmable_completion_continue',
+!> `programmable_completion_expand', `programmable_completion_help', `programmable_completion_list', cycling,
+!> `programmable_completion_show_completions', `programmable_completion_insert_entry',
+!> `programmable_completion_do_complete', `programmable_completion_stub') and so
+!> `programmable_completion_command_interpreter_setup' and `programmable_completion_shell_setup', which install
+!> it; `programmable_completion_option', `programmable_completion_from_help',
+!> `programmable_completion_here_using_help', `programmable_completion_uniquify_list',
+!> `programmable_completion_process_result' and host name completion, used by the
 !> pcmpl-*.el command completions, which are not ported; argument lists
 !> computed by the parse function (Eshell's globs); the
-!> `pcomplete_annotation' and `pcomplete_help' properties of
-!> candidates; `pcomplete_compare_entry_function' (cycling is not
+!> `programmable_completion_annotation' and `programmable_completion_help' properties of
+!> candidates; `programmable_completion_compare_entry_function' (cycling is not
 !> ported); completion-table-case-fold.
 module programmable_completion_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -74,111 +74,123 @@ module programmable_completion_mod
                                              COMPLETE_BOUNDARIES, COMPLETION_FINISHED
     use minibuffer_reading_mod, only: complete_with_action, completion_table_subvert, completion_table_with_test
     use directory_editor_mod, only: completion_ignored_extensions
-    use command_interpreter_mod, only: comint_completion_file_name_table, comint_unquote_argument, comint_requote_argument, &
-                                       comint_beginning_of_line
+    use command_interpreter_mod, only: command_interpreter_completion_file_name_table, command_interpreter_unquote_argument, &
+                                       command_interpreter_requote_argument, command_interpreter_beginning_of_line
     use string_type_mod, only: string_type, prepend_string, append_string
     implicit none(type, external)
     private
 
-    public :: pcomplete_here, pcomplete_here_star, pcomplete_thrown, pcomplete_argument, pcomplete_actual_argument, &
-              pcomplete_begin, pcomplete_next_argument, pcomplete_command_name, pcomplete_match, pcomplete_match_string, &
-              pcomplete_test, pcomplete_parse_buffer_arguments, pcomplete_parse_comint_arguments, &
-              pcomplete_parse_arguments, pcomplete_entries, pcomplete_all_entries, pcomplete_directories, &
-              pcomplete_executables, pcomplete_directories_or_entries, pcomplete_find_completion_function, &
-              pcomplete_completions, pcomplete_completions_at_point, pcomplete_default_exit_function, &
-              pcomplete_ignore, initialize_pcomplete
-    public :: pcomplete_function_procedure, pcomplete_form_procedure, pcomplete_parse_procedure, pcomplete_name_procedure, &
-              pcomplete_norm_procedure, pcomplete_file_test_procedure
+    public :: programmable_completion_here, programmable_completion_here_star, programmable_completion_thrown, &
+              programmable_completion_argument, programmable_completion_actual_argument, &
+              programmable_completion_begin, programmable_completion_next_argument, programmable_completion_command_name, &
+              programmable_completion_match, programmable_completion_match_string, &
+              programmable_completion_test, programmable_completion_parse_buffer_arguments, &
+              programmable_completion_parse_command_interpreter_arguments, &
+              programmable_completion_parse_arguments, programmable_completion_entries, programmable_completion_all_entries, &
+              programmable_completion_directories, &
+              programmable_completion_executables, programmable_completion_directories_or_entries, &
+              programmable_completion_find_completion_function, &
+              programmable_completion_completions, programmable_completion_completions_at_point, &
+              programmable_completion_default_exit_function, &
+              programmable_completion_ignore, initialize_programmable_completion
+    public :: programmable_completion_function_procedure, programmable_completion_form_procedure, &
+              programmable_completion_parse_procedure, programmable_completion_name_procedure, &
+              programmable_completion_norm_procedure, programmable_completion_file_test_procedure
 
     abstract interface
         !> A completion function: pcomplete/NAME, and
-        !> `pcomplete_command_completion_function' and
-        !> `pcomplete_default_completion_function'.
-        recursive subroutine pcomplete_function_procedure(status)
+        !> `programmable_completion_command_completion_function' and
+        !> `programmable_completion_default_completion_function'.
+        recursive subroutine programmable_completion_function_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine pcomplete_function_procedure
+        end subroutine programmable_completion_function_procedure
 
-        !> The FORM of `pcomplete_here': the completion TABLE for the
+        !> The FORM of `programmable_completion_here': the completion TABLE for the
         !> final argument (FOUND .false. for none).
-        recursive subroutine pcomplete_form_procedure(table, found)
+        recursive subroutine programmable_completion_form_procedure(table, found)
             import :: completion_table_type
             implicit none(type, external)
             type(completion_table_type), intent(out) :: table
             logical, intent(out) :: found
-        end subroutine pcomplete_form_procedure
+        end subroutine programmable_completion_form_procedure
 
-        !> A `pcomplete_parse_arguments_function': the arguments ARGUMENTS
+        !> A `programmable_completion_parse_arguments_function': the arguments ARGUMENTS
         !> (their final values) and the positions BEGINS where they
         !> begin, unallocated ARGUMENTS for none.
-        recursive subroutine pcomplete_parse_procedure(arguments, begins)
+        recursive subroutine programmable_completion_parse_procedure(arguments, begins)
             import :: string_type, int64
             implicit none(type, external)
             type(string_type), allocatable, intent(out) :: arguments(:)
             integer(int64), allocatable, intent(out) :: begins(:)
-        end subroutine pcomplete_parse_procedure
+        end subroutine programmable_completion_parse_procedure
 
-        !> A `pcomplete_command_name_function': the current command NAME.
-        recursive subroutine pcomplete_name_procedure(name)
+        !> A `programmable_completion_command_name_function': the current command NAME.
+        recursive subroutine programmable_completion_name_procedure(name)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: name
-        end subroutine pcomplete_name_procedure
+        end subroutine programmable_completion_name_procedure
 
-        !> A paring function of `pcomplete_here': ARGUMENT normalized as NORM.
-        recursive subroutine pcomplete_norm_procedure(argument, norm)
+        !> A paring function of `programmable_completion_here': ARGUMENT normalized as NORM.
+        recursive subroutine programmable_completion_norm_procedure(argument, norm)
             implicit none(type, external)
             character(len=*), intent(in) :: argument
             character(len=:), allocatable, intent(out) :: norm
-        end subroutine pcomplete_norm_procedure
+        end subroutine programmable_completion_norm_procedure
 
-        !> A test on file names (`pcomplete_entries').
-        recursive logical function pcomplete_file_test_procedure(file)
+        !> A test on file names (`programmable_completion_entries').
+        recursive logical function programmable_completion_file_test_procedure(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
-        end function pcomplete_file_test_procedure
+        end function programmable_completion_file_test_procedure
     end interface
 
-    !> Values of PARING for `pcomplete_here': the argument is pared
+    !> Values of PARING for `programmable_completion_here': the argument is pared
     !> against previous arguments normalized with `file_truename' or the
-    !> PARING_FUNCTION (PCOMPLETE_PARING_DEFAULT); it does not participate in paring
-    !> (PCOMPLETE_PARING_NONE); all previous arguments seen are cleared (PCOMPLETE_PARING_CLEAR).
-    integer, parameter, public :: PCOMPLETE_PARING_DEFAULT = 0, PCOMPLETE_PARING_NONE = 1, PCOMPLETE_PARING_CLEAR = 2
+    !> PARING_FUNCTION (PROGRAMMABLE_COMPLETION_PARING_DEFAULT); it does not participate in paring
+    !> (PROGRAMMABLE_COMPLETION_PARING_NONE); all previous arguments seen are cleared (PROGRAMMABLE_COMPLETION_PARING_CLEAR).
+    integer, parameter, public :: PROGRAMMABLE_COMPLETION_PARING_DEFAULT = 0, PROGRAMMABLE_COMPLETION_PARING_NONE = 1, &
+                                  PROGRAMMABLE_COMPLETION_PARING_CLEAR = 2
 
-    !> Values of WHICH for `pcomplete_argument' and `pcomplete_begin': an
+    !> Values of WHICH for `programmable_completion_argument' and `programmable_completion_begin': an
     !> index relative to the current argument, or the special indices
     !> `first' and `last'.
-    integer, parameter, public :: PCOMPLETE_ARGUMENT_RELATIVE = 0, PCOMPLETE_ARGUMENT_FIRST = 1, PCOMPLETE_ARGUMENT_LAST = 2
+    integer, parameter, public :: PROGRAMMABLE_COMPLETION_ARGUMENT_RELATIVE = 0, PROGRAMMABLE_COMPLETION_ARGUMENT_FIRST = 1, &
+                                  PROGRAMMABLE_COMPLETION_ARGUMENT_LAST = 2
 
     ! What was thrown: nothing, `pcomplete-completions' or `pcompleted'.
     integer, parameter :: THROWN_NONE = 0, THROWN_COMPLETIONS = 1, THROWN_PCOMPLETED = 2
 
     !> A regexp of filenames to be disregarded during file completion
     !> (unallocated when unset).  Port of pcomplete.el pcomplete-file-ignore.
-    type(string_setting_type), target, public :: pcomplete_file_ignore = string_setting_type(name="pcomplete_file_ignore")
+    type(string_setting_type), target, public :: programmable_completion_file_ignore = string_setting_type( &
+                                                 name="programmable_completion_file_ignore")
 
     !> A regexp of names to be disregarded during directory completion
     !> (unallocated when unset).  Port of pcomplete.el pcomplete-dir-ignore.
-    type(string_setting_type), target, public :: pcomplete_directory_ignore = string_setting_type(name="pcomplete_directory_ignore")
+    type(string_setting_type), target, public :: programmable_completion_directory_ignore = string_setting_type( &
+                                                 name="programmable_completion_directory_ignore")
 
     !> Whether to ignore remote file names.  Port of pcomplete.el
     !> pcomplete-remote-file-ignore (remote files are not ported).
-    type(logical_setting_type), target, public :: pcomplete_remote_file_ignore = &
-                                                  logical_setting_type(name="pcomplete_remote_file_ignore", value=.false.)
+    type(logical_setting_type), target, public :: programmable_completion_remote_file_ignore = &
+                                                  logical_setting_type(name="programmable_completion_remote_file_ignore", &
+                                                                       value=.false.)
 
     !> If true, automatically list possibilities on partial completion.
     !> This mirrors the optional behavior of tcsh.  Port of pcomplete.el
     !> pcomplete-autolist.
-    type(logical_setting_type), target, public :: pcomplete_autolist = &
-                                                  logical_setting_type(name="pcomplete_autolist", value=.false.)
+    type(logical_setting_type), target, public :: programmable_completion_autolist = &
+                                                  logical_setting_type(name="programmable_completion_autolist", value=.false.)
 
     !> If true, use shortest completion if characters cannot be added.
     !> This mirrors the optional behavior of tcsh.
     !>
-    !> A true value is useful if `pcomplete_autolist' is true too.  Port
+    !> A true value is useful if `programmable_completion_autolist' is true too.  Port
     !> of pcomplete.el pcomplete-recexact.
-    type(logical_setting_type), target, public :: pcomplete_recexact = &
-                                                  logical_setting_type(name="pcomplete_recexact", value=.false.)
+    type(logical_setting_type), target, public :: programmable_completion_recexact = &
+                                                  logical_setting_type(name="programmable_completion_recexact", value=.false.)
 
     !> If true, expand the current argument before completing it.
     !> This means that typing something such as `$HOME/bi' followed by
@@ -186,26 +198,27 @@ module programmable_completion_mod
     !> first, and the resultant value that will be completed against to
     !> be inserted in the buffer.  Note that exactly what gets expanded
     !> and how is entirely up to the behavior of the
-    !> `pcomplete_parse_arguments_function'.  Port of pcomplete.el
+    !> `programmable_completion_parse_arguments_function'.  Port of pcomplete.el
     !> pcomplete-expand-before-complete.
-    type(logical_setting_type), target, public :: pcomplete_expand_before_complete = &
-                                                  logical_setting_type(name="pcomplete_expand_before_complete", value=.false.)
+    type(logical_setting_type), target, public :: programmable_completion_expand_before_complete = &
+                                                  logical_setting_type(name="programmable_completion_expand_before_complete", &
+                                                                       value=.false.)
 
-    !> If true, allow effects in `pcomplete_parse_arguments_function'.
+    !> If true, allow effects in `programmable_completion_parse_arguments_function'.
     !> For `completion_at_point_functions' this is false, and it tells
-    !> `pcomplete_parse_arguments_function' whether it can do
+    !> `programmable_completion_parse_arguments_function' whether it can do
     !> modifications to the buffer, like expanding variables and such,
     !> or whether it should refrain from doing so.  Port of pcomplete.el
     !> pcomplete-allow-modifications.
-    logical, public :: pcomplete_allow_modifications = .false.
+    logical, public :: programmable_completion_allow_modifications = .false.
 
     !> If true, pare alternatives that have already been used.
     !> If false, you will always see the completion set of possible
     !> options, no matter which of those options have already been used
     !> in previous command arguments.  Port of pcomplete.el
     !> pcomplete-use-paring.
-    type(logical_setting_type), target, public :: pcomplete_use_paring = &
-                                                  logical_setting_type(name="pcomplete_use_paring", value=.true.)
+    type(logical_setting_type), target, public :: programmable_completion_use_paring = &
+                                                  logical_setting_type(name="programmable_completion_use_paring", value=.true.)
 
     !> A string that is inserted after any completion or expansion.
     !> This is usually a space character, useful when completing lists of
@@ -214,42 +227,44 @@ module programmable_completion_mod
     !> already terminated by a character, this variable should be locally
     !> modified to be an empty string, or the desired separation string.
     !> Port of pcomplete.el pcomplete-termination-string.
-    type(string_setting_type), target, public :: pcomplete_termination_string = &
-                                                 string_setting_type(name="pcomplete_termination_string")
+    type(string_setting_type), target, public :: programmable_completion_termination_string = &
+                                                 string_setting_type(name="programmable_completion_termination_string")
 
     !> The name of the /etc/hosts file (unallocated for none).  Port of
     !> pcomplete.el pcomplete-hosts-file.
-    type(string_setting_type), target, public :: pcomplete_hosts_file = string_setting_type(name="pcomplete_hosts_file")
+    type(string_setting_type), target, public :: programmable_completion_hosts_file = string_setting_type( &
+                                                 name="programmable_completion_hosts_file")
 
     !> A list of functions which are called before completing an
     !> argument.  This can be used, for example, for completing things
     !> which might apply to all arguments, such as variable names after
     !> a $.  Port of pcomplete.el pcomplete-try-first-hook.
-    type(hook_type), target, public :: pcomplete_try_first_hook = hook_type(name="pcomplete_try_first_hook")
+    type(hook_type), target, public :: programmable_completion_try_first_hook = hook_type( &
+                                       name="programmable_completion_try_first_hook")
 
     !> A function variable of pcomplete: a default `value', and the
     !> buffers' own values set with `set_local'.
-    type, public :: pcomplete_function_variable_type
+    type, public :: programmable_completion_function_variable_type
         character(len=48) :: name = ""
-        procedure(pcomplete_function_procedure), pointer, nopass :: value => null()
+        procedure(programmable_completion_function_procedure), pointer, nopass :: value => null()
     contains
         !> Make FN the current buffer's value (set_local).
         procedure :: set_local => function_set_local
         !> The current buffer's value.
         procedure :: current => current_function
-    end type pcomplete_function_variable_type
+    end type programmable_completion_function_variable_type
 
-    !> The `pcomplete_parse_arguments_function' variable: a default
+    !> The `programmable_completion_parse_arguments_function' variable: a default
     !> `value', and the buffers' own values set with `set_local'.
-    type, public :: pcomplete_parse_variable_type
+    type, public :: programmable_completion_parse_variable_type
         character(len=48) :: name = ""
-        procedure(pcomplete_parse_procedure), pointer, nopass :: value => null()
+        procedure(programmable_completion_parse_procedure), pointer, nopass :: value => null()
     contains
         !> Make FN the current buffer's value (set_local).
         procedure, nopass :: set_local => parse_set_local
         !> The current buffer's value.
         procedure :: current => current_parse
-    end type pcomplete_parse_variable_type
+    end type programmable_completion_parse_variable_type
 
     !> A function to call to parse the current line's arguments.
     !> It should be called with no parameters, and with point at the
@@ -261,84 +276,87 @@ module programmable_completion_mod
     !> This establishes a relationship between the fully resolved value
     !> of the argument, and the textual representation of the argument.
     !> Port of pcomplete.el pcomplete-parse-arguments-function.
-    type(pcomplete_parse_variable_type), public :: pcomplete_parse_arguments_function = &
-                                                   pcomplete_parse_variable_type(name="pcomplete_parse_arguments_function")
+    type(programmable_completion_parse_variable_type), public :: programmable_completion_parse_arguments_function = &
+                                                                 programmable_completion_parse_variable_type( &
+                                                                 name="programmable_completion_parse_arguments_function")
 
     !> Function called for completing the initial command argument.
     !> Port of pcomplete.el pcomplete-command-completion-function.
-    type(pcomplete_function_variable_type), public :: pcomplete_command_completion_function = &
-                                                      pcomplete_function_variable_type( &
-                                                      name="pcomplete_command_completion_function")
+    type(programmable_completion_function_variable_type), public :: programmable_completion_command_completion_function = &
+                                                                    programmable_completion_function_variable_type( &
+                                                                    name="programmable_completion_command_completion_function")
 
     !> Function called when no completion rule can be found.
     !> This function is used to generate completions for every argument.
     !> Port of pcomplete.el pcomplete-default-completion-function.
-    type(pcomplete_function_variable_type), public :: pcomplete_default_completion_function = &
-                                                      pcomplete_function_variable_type( &
-                                                      name="pcomplete_default_completion_function")
+    type(programmable_completion_function_variable_type), public :: programmable_completion_default_completion_function = &
+                                                                    programmable_completion_function_variable_type( &
+                                                                    name="programmable_completion_default_completion_function")
 
     !> Function called for determining the current command name.  Port of
     !> pcomplete.el pcomplete-command-name-function.
-    procedure(pcomplete_name_procedure), pointer, public :: pcomplete_command_name_function => null()
+    procedure(programmable_completion_name_procedure), pointer, public :: programmable_completion_command_name_function => null()
 
     abstract interface
         !> An exit function: run after completion of STRING, FINISHED
         !> saying how (a COMPLETION_* value).
-        recursive subroutine pcomplete_exit_procedure(string, finished)
+        recursive subroutine programmable_completion_exit_procedure(string, finished)
             implicit none(type, external)
             character(len=*), intent(in) :: string
             integer, intent(in) :: finished
-        end subroutine pcomplete_exit_procedure
+        end subroutine programmable_completion_exit_procedure
     end interface
 
-    !> The exit function to call in `pcomplete_completions_at_point'.
+    !> The exit function to call in `programmable_completion_completions_at_point'.
     !>
-    !> This variable is bound in `pcomplete_completions_at_point', so you
+    !> This variable is bound in `programmable_completion_completions_at_point', so you
     !> can change it in order to adjust the behavior for a specific
-    !> completion, for example in a `pcomplete_try_first_hook' function.
+    !> completion, for example in a `programmable_completion_try_first_hook' function.
     !> Port of pcomplete.el pcomplete-exit-function.
-    procedure(pcomplete_exit_procedure), pointer, public :: pcomplete_exit_function => null()
+    procedure(programmable_completion_exit_procedure), pointer, public :: programmable_completion_exit_function => null()
 
     !> The function unquoting the argument being completed
     !> (pcomplete-unquote-argument-function).
-    procedure(completion_unquote_procedure), pointer, public :: pcomplete_unquote_argument_function => comint_unquote_argument
+    procedure(completion_unquote_procedure), pointer, public :: programmable_completion_unquote_argument_function => &
+        command_interpreter_unquote_argument
 
     !> The function requoting completions for the argument being
     !> completed (pcomplete-requote-argument-function).
-    procedure(completion_requote_procedure), pointer, public :: pcomplete_requote_argument_function => comint_requote_argument
+    procedure(completion_requote_procedure), pointer, public :: programmable_completion_requote_argument_function => &
+        command_interpreter_requote_argument
 
-    ! The exit function `pcomplete_completions_at_point' was called with.
-    procedure(pcomplete_exit_procedure), pointer :: completion_at_point_function_exit_function => null()
+    ! The exit function `programmable_completion_completions_at_point' was called with.
+    procedure(programmable_completion_exit_procedure), pointer :: completion_at_point_function_exit_function => null()
 
-    public :: pcomplete_exit_procedure
+    public :: programmable_completion_exit_procedure
 
     !> A completion function for a command (pcomplete/NAME), or for a
     !> command in a major mode (pcomplete/MODE/NAME).
-    type, public :: pcomplete_command_function_type
+    type, public :: programmable_completion_command_function_type
         character(len=64) :: command = ""
         character(len=64) :: mode = ""
-        procedure(pcomplete_function_procedure), pointer, nopass :: fn => null()
-    end type pcomplete_command_function_type
+        procedure(programmable_completion_function_procedure), pointer, nopass :: fn => null()
+    end type programmable_completion_command_function_type
 
     !> The completion functions of commands (upstream, the functions
     !> named pcomplete/NAME and pcomplete/MODE/NAME), added with `add'.
-    type, public :: pcomplete_command_functions_type
-        type(pcomplete_command_function_type), allocatable :: entries(:)
+    type, public :: programmable_completion_command_functions_type
+        type(programmable_completion_command_function_type), allocatable :: entries(:)
     contains
         !> Make FN the completion function of COMMAND (in major mode MODE).
         procedure :: append => command_functions_append
-    end type pcomplete_command_functions_type
+    end type programmable_completion_command_functions_type
 
     !> The completion functions of commands (pcomplete/NAME).
-    type(pcomplete_command_functions_type), public :: pcomplete_command_functions
+    type(programmable_completion_command_functions_type), public :: programmable_completion_command_functions
 
     ! The buffers' own function values.
     type :: local_functions_type
         integer(int64) :: serial = 0
         logical :: has_command = .false., has_default = .false., has_parse = .false.
-        procedure(pcomplete_function_procedure), pointer, nopass :: command => null()
-        procedure(pcomplete_function_procedure), pointer, nopass :: default => null()
-        procedure(pcomplete_parse_procedure), pointer, nopass :: parse => null()
+        procedure(programmable_completion_function_procedure), pointer, nopass :: command => null()
+        procedure(programmable_completion_function_procedure), pointer, nopass :: default => null()
+        procedure(programmable_completion_parse_procedure), pointer, nopass :: parse => null()
     end type local_functions_type
     type(local_functions_type), allocatable :: local_functions(:)
 
@@ -347,14 +365,14 @@ module programmable_completion_mod
     type(string_type), allocatable :: arguments(:)
     integer(int64), allocatable :: begins(:)
     !> The index of the last argument (pcomplete-last).
-    integer, public, protected :: pcomplete_last = 0
+    integer, public, protected :: programmable_completion_last = 0
     !> The index of the argument being examined: 1 is the first argument
     !> after the command name (pcomplete-index).
-    integer, public, protected :: pcomplete_index = 0
+    integer, public, protected :: programmable_completion_index = 0
     !> The text being completed (pcomplete-stub).
-    character(len=:), allocatable, public, protected :: pcomplete_stub
+    character(len=:), allocatable, public, protected :: programmable_completion_stub
     type(string_type), allocatable :: seen(:)
-    procedure(pcomplete_norm_procedure), pointer :: norm_function => null()
+    procedure(programmable_completion_norm_procedure), pointer :: norm_function => null()
 
     ! What was thrown, and the completion table thrown with
     ! `pcomplete-completions' (none if not `has_thrown_table').
@@ -362,24 +380,24 @@ module programmable_completion_mod
     type(completion_table_type) :: thrown_table
     logical :: has_thrown_table = .false.
 
-    ! The closures of the tables of `pcomplete_entries' (the last one
+    ! The closures of the tables of `programmable_completion_entries' (the last one
     ! made): its regexp, test and the ignore regexps it captured.
     character(len=:), allocatable :: entries_regular_expression, entries_file_ignore, entries_directory_ignore
     logical :: entries_has_regular_expression = .false., entries_has_file_ignore = .false., entries_has_directory_ignore = .false.
-    procedure(pcomplete_file_test_procedure), pointer :: entries_test => null()
-    ! The closure of `pcomplete_directories_or_entries'.
+    procedure(programmable_completion_file_test_procedure), pointer :: entries_test => null()
+    ! The closure of `programmable_completion_directories_or_entries'.
     character(len=:), allocatable :: doe_regular_expression
     logical :: doe_has_regular_expression = .false.
-    procedure(pcomplete_file_test_procedure), pointer :: doe_test => null()
+    procedure(programmable_completion_file_test_procedure), pointer :: doe_test => null()
 
-    ! The closure of the table of `pcomplete_completions_at_point': the
+    ! The closure of the table of `programmable_completion_completions_at_point': the
     ! completions, and whether they are subverted from S1 to S2.
     type(completion_table_type) :: completion_at_point_function_completions
     logical :: completion_at_point_function_subvert = .false.
     character(len=:), allocatable :: completion_at_point_function_s1, completion_at_point_function_s2
     ! The closure of its test: the arguments seen, normalized.
     type(string_type), allocatable :: completion_at_point_function_seen(:)
-    procedure(pcomplete_norm_procedure), pointer :: completion_at_point_function_norm_function => null()
+    procedure(programmable_completion_norm_procedure), pointer :: completion_at_point_function_norm_function => null()
 
     ! pcomplete--env-regexp.
     character(len=*), parameter :: ENVIRONMENT_REGULAR_EXPRESSION = &
@@ -420,23 +438,23 @@ contains
 
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
-    subroutine clear_pcomplete_locals()
+    subroutine clear_programmable_completion_locals()
         integer :: k
 
         k = local_slot()
         if (k > 0) local_functions(k) = local_functions_type()
-    end subroutine clear_pcomplete_locals
+    end subroutine clear_programmable_completion_locals
 
     ! Set SELF in the current buffer (setq-local).  Not a port.
     subroutine function_set_local(self, fn)
-        class(pcomplete_function_variable_type), intent(in) :: self
-        procedure(pcomplete_function_procedure) :: fn
+        class(programmable_completion_function_variable_type), intent(in) :: self
+        procedure(programmable_completion_function_procedure) :: fn
         integer :: k
 
         call make_local_slot(k)
         if (k == 0) return
 
-        if (self%name == "pcomplete_command_completion_function") then
+        if (self%name == "programmable_completion_command_completion_function") then
             local_functions(k)%command => fn
             local_functions(k)%has_command = .true.
         else
@@ -447,25 +465,25 @@ contains
 
     ! The current buffer's value of SELF.  Not a port.
     subroutine current_function(self, fn)
-        class(pcomplete_function_variable_type), intent(in) :: self
-        procedure(pcomplete_function_procedure), pointer, intent(out) :: fn
+        class(programmable_completion_function_variable_type), intent(in) :: self
+        procedure(programmable_completion_function_procedure), pointer, intent(out) :: fn
         integer :: k
 
         fn => self%value
         k = local_slot()
         if (k == 0) return
 
-        if (self%name == "pcomplete_command_completion_function") then
+        if (self%name == "programmable_completion_command_completion_function") then
             if (local_functions(k)%has_command) fn => local_functions(k)%command
         else
             if (local_functions(k)%has_default) fn => local_functions(k)%default
         end if
     end subroutine current_function
 
-    ! Set `pcomplete_parse_arguments_function' to FN in the current
+    ! Set `programmable_completion_parse_arguments_function' to FN in the current
     ! buffer (setq-local).  Not a port.
     subroutine parse_set_local(fn)
-        procedure(pcomplete_parse_procedure) :: fn
+        procedure(programmable_completion_parse_procedure) :: fn
         integer :: k
 
         call make_local_slot(k)
@@ -476,8 +494,8 @@ contains
 
     ! The current buffer's value of SELF.  Not a port.
     subroutine current_parse(self, fn)
-        class(pcomplete_parse_variable_type), intent(in) :: self
-        procedure(pcomplete_parse_procedure), pointer, intent(out) :: fn
+        class(programmable_completion_parse_variable_type), intent(in) :: self
+        procedure(programmable_completion_parse_procedure), pointer, intent(out) :: fn
         integer :: k
 
         fn => self%value
@@ -489,11 +507,11 @@ contains
     ! Add the completion function FN for COMMAND (in major mode MODE).
     ! Not a port.
     subroutine command_functions_append(self, command, fn, mode)
-        class(pcomplete_command_functions_type), intent(inout) :: self
+        class(programmable_completion_command_functions_type), intent(inout) :: self
         character(len=*), intent(in) :: command
-        procedure(pcomplete_function_procedure) :: fn
+        procedure(programmable_completion_function_procedure) :: fn
         character(len=*), intent(in), optional :: mode
-        type(pcomplete_command_function_type) :: entry
+        type(programmable_completion_command_function_type) :: entry
 
         if (.not. allocated(self%entries)) allocate (self%entries(0))
         entry%command = command
@@ -503,29 +521,29 @@ contains
     end subroutine command_functions_append
 
     !> Do nothing (#'ignore, as a completion function).  Not a port.
-    recursive subroutine pcomplete_ignore(status)
+    recursive subroutine programmable_completion_ignore(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-    end subroutine pcomplete_ignore
+    end subroutine programmable_completion_ignore
 
-    ! The default `pcomplete_command_completion_function'.  Port of
+    ! The default `programmable_completion_command_completion_function'.  Port of
     ! pcomplete.el:pcomplete-command-completion-function (its default).
     recursive subroutine default_command_completion(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (pcomplete_here(executables_form)) continue
+        if (programmable_completion_here(executables_form)) continue
     end subroutine default_command_completion
 
-    ! The default `pcomplete_default_completion_function'.  Port of
+    ! The default `programmable_completion_default_completion_function'.  Port of
     ! pcomplete.el:pcomplete-default-completion-function (its default).
     recursive subroutine default_default_completion(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
 
-        do while (pcomplete_here(entries_form))
+        do while (programmable_completion_here(entries_form))
         end do
     end subroutine default_default_completion
 
@@ -534,7 +552,7 @@ contains
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
 
-        call pcomplete_executables(table)
+        call programmable_completion_executables(table)
         found = .true.
     end subroutine executables_form
 
@@ -543,7 +561,7 @@ contains
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
 
-        call pcomplete_entries(table)
+        call programmable_completion_entries(table)
         found = .true.
     end subroutine entries_form
 
@@ -554,26 +572,26 @@ contains
     !> Whether completion was abandoned (upstream, `pcompleted' was
     !> returned) or its table given (`pcomplete-completions' returned): a
     !> completion function returns at once when this is true.  Not a port.
-    logical function pcomplete_thrown()
-        pcomplete_thrown = thrown /= THROWN_NONE
-    end function pcomplete_thrown
+    logical function programmable_completion_thrown()
+        programmable_completion_thrown = thrown /= THROWN_NONE
+    end function programmable_completion_thrown
 
     ! The 0-based argument index WHICH, INDEX and OFFSET denote.  Not a port.
     integer function argument_position(which, index, offset) result(n)
         integer, intent(in), optional :: which, index, offset
         integer :: w
 
-        w = PCOMPLETE_ARGUMENT_RELATIVE
+        w = PROGRAMMABLE_COMPLETION_ARGUMENT_RELATIVE
         if (present(which)) w = which
 
         select case (w)
-        case (PCOMPLETE_ARGUMENT_FIRST)
+        case (PROGRAMMABLE_COMPLETION_ARGUMENT_FIRST)
             n = 0
-        case (PCOMPLETE_ARGUMENT_LAST)
-            n = pcomplete_last
+        case (PROGRAMMABLE_COMPLETION_ARGUMENT_LAST)
+            n = programmable_completion_last
         case default
-            n = pcomplete_index
-            if (present(index)) n = pcomplete_index - index
+            n = programmable_completion_index
+            if (present(index)) n = programmable_completion_index - index
         end select
 
         if (present(offset)) n = n + offset
@@ -586,14 +604,14 @@ contains
     !> closer to the last argument.  The default value for INDEX is 0,
     !> meaning the current argument being examined.
     !>
-    !> WHICH PCOMPLETE_ARGUMENT_FIRST and PCOMPLETE_ARGUMENT_LAST give the special indices
+    !> WHICH PROGRAMMABLE_COMPLETION_ARGUMENT_FIRST and PROGRAMMABLE_COMPLETION_ARGUMENT_LAST give the special indices
     !> `first' and `last'.
     !>
     !> The OFFSET argument is added to/taken away from the index that will
     !> be used.  This is really only useful with `first' and `last', for
     !> accessing absolute argument positions.  Port of
     !> pcomplete.el:pcomplete-arg.
-    function pcomplete_argument(index, offset, which, found) result(argument)
+    function programmable_completion_argument(index, offset, which, found) result(argument)
         integer, intent(in), optional :: index, offset, which
         logical, intent(out), optional :: found
         character(len=:), allocatable :: argument
@@ -606,12 +624,12 @@ contains
         if (n < 0 .or. n >= size(arguments)) return
         argument = arguments(n + 1)%text
         if (present(found)) found = .true.
-    end function pcomplete_argument
+    end function programmable_completion_argument
 
     !> Return the beginning position of the INDEXth argument (0 if
-    !> none).  See the documentation for `pcomplete_argument'.  Port of
+    !> none).  See the documentation for `programmable_completion_argument'.  Port of
     !> pcomplete.el:pcomplete-begin.
-    integer(int64) function pcomplete_begin(index, offset, which) result(position)
+    integer(int64) function programmable_completion_begin(index, offset, which) result(position)
         integer, intent(in), optional :: index, offset, which
         integer :: n
 
@@ -620,46 +638,46 @@ contains
         n = argument_position(which, index, offset)
         if (n < 0 .or. n >= size(begins)) return
         position = begins(n + 1)
-    end function pcomplete_begin
+    end function programmable_completion_begin
 
     !> Return the actual text representation of the last argument.
-    !> This is different from `pcomplete_argument', which returns the textual
+    !> This is different from `programmable_completion_argument', which returns the textual
     !> value that the last argument evaluated to.  This function returns
     !> what the user actually typed in.  Port of
     !> pcomplete.el:pcomplete-actual-arg.
-    function pcomplete_actual_argument(index, offset, which) result(text)
+    function programmable_completion_actual_argument(index, offset, which) result(text)
         integer, intent(in), optional :: index, offset, which
         character(len=:), allocatable :: text
         type(status_type) :: st
 
-        call buffer_substring(pcomplete_begin(index, offset, which), point(), text, st)
-    end function pcomplete_actual_argument
+        call buffer_substring(programmable_completion_begin(index, offset, which), point(), text, st)
+    end function programmable_completion_actual_argument
 
     !> Move the various pointers to the next argument.  Port of
     !> pcomplete.el:pcomplete-next-arg.
-    recursive subroutine pcomplete_next_argument()
-        pcomplete_index = pcomplete_index + 1
-        pcomplete_stub = pcomplete_argument()
+    recursive subroutine programmable_completion_next_argument()
+        programmable_completion_index = programmable_completion_index + 1
+        programmable_completion_stub = programmable_completion_argument()
 
-        if (pcomplete_index > pcomplete_last) then
+        if (programmable_completion_index > programmable_completion_last) then
             call message("No completions")
             thrown = THROWN_PCOMPLETED
         end if
-    end subroutine pcomplete_next_argument
+    end subroutine programmable_completion_next_argument
 
     !> Return the command name of the first argument.  Port of
     !> pcomplete.el:pcomplete-command-name.
-    recursive subroutine pcomplete_command_name(name)
+    recursive subroutine programmable_completion_command_name(name)
         character(len=:), allocatable, intent(out) :: name
 
-        name = file_name_nondirectory(pcomplete_argument(which=PCOMPLETE_ARGUMENT_FIRST))
-    end subroutine pcomplete_command_name
+        name = file_name_nondirectory(programmable_completion_argument(which=PROGRAMMABLE_COMPLETION_ARGUMENT_FIRST))
+    end subroutine programmable_completion_command_name
 
     !> Like `string_match', but on the current completion argument:
     !> INDEX defaults to 1 (the previous argument).  Without such an
-    !> argument, completion is abandoned (see `pcomplete_thrown').
+    !> argument, completion is abandoned (see `programmable_completion_thrown').
     !> Port of pcomplete.el:pcomplete-match.
-    recursive logical function pcomplete_match(regular_expression, index, offset, start, which) result(matched)
+    recursive logical function programmable_completion_match(regular_expression, index, offset, start, which) result(matched)
         character(len=*), intent(in) :: regular_expression
         integer, intent(in), optional :: index, offset, which
         integer(int64), intent(in), optional :: start
@@ -671,7 +689,7 @@ contains
         matched = .false.
         i = 1
         if (present(index)) i = index
-        argument = pcomplete_argument(i, offset, which, found)
+        argument = programmable_completion_argument(i, offset, which, found)
 
         if (.not. found) then
             thrown = THROWN_PCOMPLETED
@@ -683,11 +701,11 @@ contains
         else
             matched = string_match(regular_expression, argument, st) > 0
         end if
-    end function pcomplete_match
+    end function programmable_completion_match
 
     !> Like `match_string', but on the current completion argument:
     !> INDEX defaults to 1.  Port of pcomplete.el:pcomplete-match-string.
-    recursive function pcomplete_match_string(which_group, index, offset, which) result(text)
+    recursive function programmable_completion_match_string(which_group, index, offset, which) result(text)
         integer, intent(in) :: which_group
         integer, intent(in), optional :: index, offset, which
         character(len=:), allocatable :: text
@@ -698,7 +716,7 @@ contains
         text = ""
         i = 1
         if (present(index)) i = index
-        argument = pcomplete_argument(i, offset, which, found)
+        argument = programmable_completion_argument(i, offset, which, found)
 
         if (.not. found) then
             thrown = THROWN_PCOMPLETED
@@ -706,14 +724,14 @@ contains
         end if
 
         text = match_string(which_group, argument)
-    end function pcomplete_match_string
+    end function programmable_completion_match_string
 
     !> Whether the current programmable argument (INDEX defaults to 1)
     !> satisfies TEST or matches one of REGULAR_EXPRESSIONS entirely.  Port of
     !> pcomplete.el:pcomplete-test (tests are a function or
-    !> regexps; t is TEST `pcomplete_always').
-    recursive logical function pcomplete_test(test, regular_expressions, index, offset, which) result(ok)
-        procedure(pcomplete_file_test_procedure), optional :: test
+    !> regexps; t is TEST `programmable_completion_always').
+    recursive logical function programmable_completion_test(test, regular_expressions, index, offset, which) result(ok)
+        procedure(programmable_completion_file_test_procedure), optional :: test
         character(len=*), intent(in), optional :: regular_expressions(:)
         integer, intent(in), optional :: index, offset, which
         character(len=:), allocatable :: argument
@@ -723,7 +741,7 @@ contains
         ok = .false.
         i = 1
         if (present(index)) i = index
-        argument = pcomplete_argument(i, offset, which)
+        argument = programmable_completion_argument(i, offset, which)
 
         if (present(test)) then
             ok = test(argument)
@@ -738,11 +756,11 @@ contains
                 end if
             end do
         end if
-    end function pcomplete_test
+    end function programmable_completion_test
 
     !> Parse whitespace separated arguments in the current region.
     !> Port of pcomplete.el:pcomplete-parse-buffer-arguments.
-    recursive subroutine pcomplete_parse_buffer_arguments(arguments, begins)
+    recursive subroutine programmable_completion_parse_buffer_arguments(arguments, begins)
         type(string_type), allocatable, intent(out) :: arguments(:)
         integer(int64), allocatable, intent(out) :: begins(:)
         type(status_type) :: st
@@ -762,12 +780,12 @@ contains
         end do
 
         call goto_character(original_point)
-    end subroutine pcomplete_parse_buffer_arguments
+    end subroutine programmable_completion_parse_buffer_arguments
 
     !> Parse whitespace separated arguments in the current region (from
     !> the beginning of the input to point).  Port of
     !> pcomplete.el:pcomplete-parse-comint-arguments.
-    recursive subroutine pcomplete_parse_comint_arguments(arguments, begins)
+    recursive subroutine programmable_completion_parse_command_interpreter_arguments(arguments, begins)
         type(string_type), allocatable, intent(out) :: arguments(:)
         integer(int64), allocatable, intent(out) :: begins(:)
         type(status_type) :: st
@@ -777,7 +795,7 @@ contains
         logical :: have
 
         original_point = point()
-        call comint_beginning_of_line(.false.)
+        call command_interpreter_beginning_of_line(.false.)
         begin = point()
         allocate (arguments(0), begins(0))
         call goto_character(begin)
@@ -800,7 +818,7 @@ contains
         end do
 
         call goto_character(original_point)
-    end subroutine pcomplete_parse_comint_arguments
+    end subroutine programmable_completion_parse_command_interpreter_arguments
 
     ! Add TEXT beginning at START to ARGUMENTS and BEGINS.  Not a port.
     subroutine append_argument(arguments, begins, text, start)
@@ -819,16 +837,16 @@ contains
     !> info.  Returns false when there are none.  Port of
     !> pcomplete.el:pcomplete-parse-arguments (no argument lists computed
     !> during parsing).
-    recursive logical function pcomplete_parse_arguments(expand_p) result(ok)
+    recursive logical function programmable_completion_parse_arguments(expand_p) result(ok)
         logical, intent(in) :: expand_p
-        procedure(pcomplete_parse_procedure), pointer :: fn
+        procedure(programmable_completion_parse_procedure), pointer :: fn
         type(string_type), allocatable :: parsed(:)
         integer(int64), allocatable :: parsed_begins(:)
         type(status_type) :: st
         integer(int64) :: begin
 
         ok = .false.
-        call pcomplete_parse_arguments_function%current(fn)
+        call programmable_completion_parse_arguments_function%current(fn)
         if (.not. associated(fn)) return
         call fn(parsed, parsed_begins)
         if (.not. allocated(parsed)) return
@@ -842,18 +860,18 @@ contains
         if (size(parsed_begins) == 0) parsed_begins = [point()]
         call move_alloc(parsed, arguments)
         call move_alloc(parsed_begins, begins)
-        pcomplete_last = size(arguments) - 1
-        pcomplete_index = 0
-        pcomplete_stub = pcomplete_argument(which=PCOMPLETE_ARGUMENT_LAST)
-        begin = pcomplete_begin(which=PCOMPLETE_ARGUMENT_LAST)
+        programmable_completion_last = size(arguments) - 1
+        programmable_completion_index = 0
+        programmable_completion_stub = programmable_completion_argument(which=PROGRAMMABLE_COMPLETION_ARGUMENT_LAST)
+        begin = programmable_completion_begin(which=PROGRAMMABLE_COMPLETION_ARGUMENT_LAST)
 
         if (expand_p .and. begin > 0) then
             call delete_region(begin, point(), st)
-            call insert(pcomplete_stub, st)
+            call insert(programmable_completion_stub, st)
         end if
 
         ok = .true.
-    end function pcomplete_parse_arguments
+    end function programmable_completion_parse_arguments
 
     ! ------------------------------------------------------------------
     ! File-system completion lists
@@ -868,66 +886,66 @@ contains
     !> component, `default_directory' is used as the basis for
     !> completion.  Port of pcomplete.el:pcomplete-entries (with
     !> pcomplete--entries).
-    recursive subroutine pcomplete_entries(table, regular_expression, test)
+    recursive subroutine programmable_completion_entries(table, regular_expression, test)
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regular_expression
-        procedure(pcomplete_file_test_procedure), optional :: test
+        procedure(programmable_completion_file_test_procedure), optional :: test
 
         ! Capture the values for later use.
         entries_has_regular_expression = present(regular_expression)
         if (present(regular_expression)) entries_regular_expression = regular_expression
         entries_test => null()
         if (present(test)) entries_test => test
-        entries_has_file_ignore = allocated(pcomplete_file_ignore%value)
-        if (entries_has_file_ignore) entries_file_ignore = pcomplete_file_ignore%value
-        entries_has_directory_ignore = allocated(pcomplete_directory_ignore%value)
-        if (entries_has_directory_ignore) entries_directory_ignore = pcomplete_directory_ignore%value
+        entries_has_file_ignore = allocated(programmable_completion_file_ignore%value)
+        if (entries_has_file_ignore) entries_file_ignore = programmable_completion_file_ignore%value
+        entries_has_directory_ignore = allocated(programmable_completion_directory_ignore%value)
+        if (entries_has_directory_ignore) entries_directory_ignore = programmable_completion_directory_ignore%value
         table = completion_function_table(entries_table, "file")
-    end subroutine pcomplete_entries
+    end subroutine programmable_completion_entries
 
-    !> Like `pcomplete_entries', but doesn't ignore any entries.  Port of
+    !> Like `programmable_completion_entries', but doesn't ignore any entries.  Port of
     !> pcomplete.el:pcomplete-all-entries.
-    recursive subroutine pcomplete_all_entries(table, regular_expression, test)
+    recursive subroutine programmable_completion_all_entries(table, regular_expression, test)
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regular_expression
-        procedure(pcomplete_file_test_procedure), optional :: test
+        procedure(programmable_completion_file_test_procedure), optional :: test
 
-        call pcomplete_entries(table, regular_expression, test)
+        call programmable_completion_entries(table, regular_expression, test)
         entries_has_file_ignore = .false.
         entries_has_directory_ignore = .false.
-    end subroutine pcomplete_all_entries
+    end subroutine programmable_completion_all_entries
 
     !> Complete amongst a list of directories.  Port of
     !> pcomplete.el:pcomplete-dirs.
-    recursive subroutine pcomplete_directories(table, regular_expression)
+    recursive subroutine programmable_completion_directories(table, regular_expression)
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regular_expression
 
-        call pcomplete_entries(table, regular_expression, is_directory)
-    end subroutine pcomplete_directories
+        call programmable_completion_entries(table, regular_expression, is_directory)
+    end subroutine programmable_completion_directories
 
     !> Complete amongst a list of directories and executables.  Port of
     !> pcomplete.el:pcomplete-executables.
-    recursive subroutine pcomplete_executables(table, regular_expression)
+    recursive subroutine programmable_completion_executables(table, regular_expression)
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regular_expression
 
-        call pcomplete_entries(table, regular_expression, is_executable)
-    end subroutine pcomplete_executables
+        call programmable_completion_entries(table, regular_expression, is_executable)
+    end subroutine programmable_completion_executables
 
     !> Return either directories, or qualified entries.  Port of
     !> pcomplete.el:pcomplete-dirs-or-entries.
-    recursive subroutine pcomplete_directories_or_entries(table, regular_expression, test)
+    recursive subroutine programmable_completion_directories_or_entries(table, regular_expression, test)
         type(completion_table_type), intent(out) :: table
         character(len=*), intent(in), optional :: regular_expression
-        procedure(pcomplete_file_test_procedure), optional :: test
+        procedure(programmable_completion_file_test_procedure), optional :: test
 
         doe_has_regular_expression = present(regular_expression)
         if (present(regular_expression)) doe_regular_expression = regular_expression
         doe_test => null()
         if (present(test)) doe_test => test
-        call pcomplete_entries(table, test=is_directory_or_entry)
-    end subroutine pcomplete_directories_or_entries
+        call programmable_completion_entries(table, test=is_directory_or_entry)
+    end subroutine programmable_completion_directories_or_entries
 
     ! `is_file_directory' as a file test.  Not a port.
     recursive logical function is_directory(file)
@@ -943,7 +961,7 @@ contains
         is_executable = is_file_executable(file)
     end function is_executable
 
-    ! The test of `pcomplete_directories_or_entries'.  Port of
+    ! The test of `programmable_completion_directories_or_entries'.  Port of
     ! pcomplete.el:pcomplete-dirs-or-entries, in part.
     recursive logical function is_directory_or_entry(file) result(ok)
         character(len=*), intent(in) :: file
@@ -963,7 +981,7 @@ contains
         end if
     end function is_directory_or_entry
 
-    ! The test of the table of `pcomplete_entries' (ign-pred,
+    ! The test of the table of `programmable_completion_entries' (ign-pred,
     ! reg-pred and TEST or `file_exists').  Port of
     ! pcomplete.el:pcomplete--entries, in part.
     recursive logical function entries_filter(element) result(ok)
@@ -995,7 +1013,7 @@ contains
         end if
     end function entries_filter
 
-    ! TEST of `pcomplete_entries' alone, as a completion test.
+    ! TEST of `programmable_completion_entries' alone, as a completion test.
     ! Not a port.
     recursive logical function entries_test_only(element)
         type(value_type), intent(in) :: element
@@ -1021,7 +1039,7 @@ contains
         ! `file_exists'.
         saved_extensions = completion_ignored_extensions
         completion_ignored_extensions = ""
-        table = completion_function_table(comint_completion_file_name_table)
+        table = completion_function_table(command_interpreter_completion_file_name_table)
 
         if (entries_has_regular_expression .or. entries_has_file_ignore .or. entries_has_directory_ignore) then
             call completion_table_with_test(table, entries_filter, .true., string, action, result, status, &
@@ -1037,7 +1055,7 @@ contains
         completion_ignored_extensions = saved_extensions
     end subroutine entries_inner_table
 
-    ! The table of `pcomplete_entries': environment variable references
+    ! The table of `programmable_completion_entries': environment variable references
     ! expanded, then pcomplete--entries.  Port of
     ! pcomplete.el:pcomplete-entries, in part.
     recursive subroutine entries_table(string, action, result, status, test, suffix)
@@ -1127,22 +1145,22 @@ contains
     !> (null if none): the one for COMMAND in the current major mode, else
     !> the one for COMMAND.  Port of
     !> pcomplete.el:pcomplete-find-completion-function.
-    recursive subroutine pcomplete_find_completion_function(command, fn)
+    recursive subroutine programmable_completion_find_completion_function(command, fn)
         character(len=*), intent(in) :: command
-        procedure(pcomplete_function_procedure), pointer, intent(out) :: fn
+        procedure(programmable_completion_function_procedure), pointer, intent(out) :: fn
         character(len=:), allocatable :: mode
         integer :: k
 
         fn => null()
-        if (.not. allocated(pcomplete_command_functions%entries)) return
+        if (.not. allocated(programmable_completion_command_functions%entries)) return
         mode = "fundamental_mode"
 
         if (current /= 0) then
             if (allocated(buffers(current)%major_mode)) mode = buffers(current)%major_mode
         end if
 
-        do k = 1, size(pcomplete_command_functions%entries)
-            associate (e => pcomplete_command_functions%entries(k))
+        do k = 1, size(programmable_completion_command_functions%entries)
+            associate (e => programmable_completion_command_functions%entries(k))
                 if (trim(e%command) == command .and. trim(e%mode) == mode) then
                     fn => e%fn
                     return
@@ -1150,25 +1168,25 @@ contains
             end associate
         end do
 
-        do k = 1, size(pcomplete_command_functions%entries)
-            associate (e => pcomplete_command_functions%entries(k))
+        do k = 1, size(programmable_completion_command_functions%entries)
+            associate (e => programmable_completion_command_functions%entries(k))
                 if (trim(e%command) == command .and. len_trim(e%mode) == 0) then
                     fn => e%fn
                     return
                 end if
             end associate
         end do
-    end subroutine pcomplete_find_completion_function
+    end subroutine programmable_completion_find_completion_function
 
     !> Return a list of completions for the current argument position:
     !> TABLE, FOUND false if there are none.  Port of
     !> pcomplete.el:pcomplete-completions.
-    recursive subroutine pcomplete_completions(table, found, status)
+    recursive subroutine programmable_completion_completions(table, found, status)
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
-        procedure(pcomplete_function_procedure), pointer :: fn
-        procedure(pcomplete_name_procedure), pointer :: name_fn
+        procedure(programmable_completion_function_procedure), pointer :: fn
+        procedure(programmable_completion_name_procedure), pointer :: name_fn
         character(len=:), allocatable :: name
 
         status = status_type()
@@ -1176,22 +1194,22 @@ contains
         thrown = THROWN_NONE
         has_thrown_table = .false.
 
-        if (pcomplete_parse_arguments(pcomplete_expand_before_complete%value)) then
-            if (pcomplete_index == pcomplete_last) then
-                call pcomplete_command_completion_function%current(fn)
+        if (programmable_completion_parse_arguments(programmable_completion_expand_before_complete%value)) then
+            if (programmable_completion_index == programmable_completion_last) then
+                call programmable_completion_command_completion_function%current(fn)
                 if (associated(fn)) call fn(status)
             else
-                name_fn => pcomplete_command_name_function
+                name_fn => programmable_completion_command_name_function
 
                 if (associated(name_fn)) then
                     call name_fn(name)
                 else
-                    call pcomplete_command_name(name)
+                    call programmable_completion_command_name(name)
                 end if
 
-                call pcomplete_find_completion_function(name, fn)
-                if (.not. associated(fn)) call pcomplete_default_completion_function%current(fn)
-                call pcomplete_next_argument()
+                call programmable_completion_find_completion_function(name, fn)
+                if (.not. associated(fn)) call programmable_completion_default_completion_function%current(fn)
+                call programmable_completion_next_argument()
                 if (thrown == THROWN_NONE .and. associated(fn)) call fn(status)
             end if
         end if
@@ -1200,7 +1218,7 @@ contains
             table = thrown_table
             found = .true.
         end if
-    end subroutine pcomplete_completions
+    end subroutine programmable_completion_completions
 
     !> Complete against the current argument, if at the end.
     !> If completion is to be done here, call FORM to generate the
@@ -1222,23 +1240,23 @@ contains
     !> substitute a different argument from the current argument, almost
     !> always for the sake of efficiency.
     !>
-    !> If PARING is PCOMPLETE_PARING_DEFAULT, this argument will be pared
+    !> If PARING is PROGRAMMABLE_COMPLETION_PARING_DEFAULT, this argument will be pared
     !> against previous arguments using the function `file_truename' (or
     !> PARING_FUNCTION) to normalize them.  If PARING is
-    !> PCOMPLETE_PARING_NONE, the argument dealt with by this call will
+    !> PROGRAMMABLE_COMPLETION_PARING_NONE, the argument dealt with by this call will
     !> not participate in argument paring.  If it is
-    !> PCOMPLETE_PARING_CLEAR, all previous arguments that have been seen
+    !> PROGRAMMABLE_COMPLETION_PARING_CLEAR, all previous arguments that have been seen
     !> will be cleared.
     !>
     !> If FORM_ONLY is true, only the result of FORM will be used to
     !> generate the completions list.  This means that the hook
-    !> `pcomplete_try_first_hook' will not be run.  Port of
+    !> `programmable_completion_try_first_hook' will not be run.  Port of
     !> pcomplete.el:pcomplete-here (with pcomplete--here).
-    recursive logical function pcomplete_here(form, stub, paring, paring_function, form_only) result(advanced)
-        procedure(pcomplete_form_procedure), optional :: form
+    recursive logical function programmable_completion_here(form, stub, paring, paring_function, form_only) result(advanced)
+        procedure(programmable_completion_form_procedure), optional :: form
         character(len=*), intent(in), optional :: stub
         integer, intent(in), optional :: paring
-        procedure(pcomplete_norm_procedure), optional :: paring_function
+        procedure(programmable_completion_norm_procedure), optional :: paring_function
         logical, intent(in), optional :: form_only
         character(len=:), allocatable :: argument, norm
         type(status_type) :: st
@@ -1247,14 +1265,14 @@ contains
 
         advanced = .false.
         if (thrown /= THROWN_NONE) return
-        p = PCOMPLETE_PARING_DEFAULT
+        p = PROGRAMMABLE_COMPLETION_PARING_DEFAULT
         if (present(paring)) p = paring
 
-        if (pcomplete_index < pcomplete_last) then
-            if (p == PCOMPLETE_PARING_CLEAR) then
+        if (programmable_completion_index < programmable_completion_last) then
+            if (p == PROGRAMMABLE_COMPLETION_PARING_CLEAR) then
                 if (allocated(seen)) deallocate (seen)
-            else if (p /= PCOMPLETE_PARING_NONE) then
-                argument = pcomplete_argument()
+            else if (p /= PROGRAMMABLE_COMPLETION_PARING_NONE) then
+                argument = programmable_completion_argument()
 
                 if (present(paring_function)) then
                     call paring_function(argument, norm)
@@ -1266,14 +1284,14 @@ contains
                 call prepend_string(seen, norm)
             end if
 
-            call pcomplete_next_argument()
+            call programmable_completion_next_argument()
             advanced = thrown == THROWN_NONE
             return
         end if
 
-        if (present(stub)) pcomplete_stub = stub
+        if (present(stub)) programmable_completion_stub = stub
 
-        if (p == PCOMPLETE_PARING_NONE .or. p == PCOMPLETE_PARING_CLEAR) then
+        if (p == PROGRAMMABLE_COMPLETION_PARING_NONE .or. p == PROGRAMMABLE_COMPLETION_PARING_CLEAR) then
             if (allocated(seen)) deallocate (seen)
         else if (present(paring_function)) then
             norm_function => paring_function
@@ -1283,7 +1301,7 @@ contains
 
         only = .false.
         if (present(form_only)) only = form_only
-        if (.not. only) call pcomplete_try_first_hook%execute(st)
+        if (.not. only) call programmable_completion_try_first_hook%execute(st)
         thrown = THROWN_COMPLETIONS
         has_thrown_table = .false.
 
@@ -1291,17 +1309,17 @@ contains
             call form(thrown_table, found)
             has_thrown_table = found
         end if
-    end function pcomplete_here
+    end function programmable_completion_here
 
-    !> An alternate form of `pcomplete_here' which does not participate
+    !> An alternate form of `programmable_completion_here' which does not participate
     !> in argument paring.  Port of pcomplete.el:pcomplete-here*.
-    recursive logical function pcomplete_here_star(form, stub, form_only) result(advanced)
-        procedure(pcomplete_form_procedure), optional :: form
+    recursive logical function programmable_completion_here_star(form, stub, form_only) result(advanced)
+        procedure(programmable_completion_form_procedure), optional :: form
         character(len=*), intent(in), optional :: stub
         logical, intent(in), optional :: form_only
 
-        advanced = pcomplete_here(form, stub, PCOMPLETE_PARING_NONE, form_only=form_only)
-    end function pcomplete_here_star
+        advanced = programmable_completion_here(form, stub, PROGRAMMABLE_COMPLETION_PARING_NONE, form_only=form_only)
+    end function programmable_completion_here_star
 
     ! `file_truename' as a paring function.  Not a port.
     recursive subroutine truename_norm(argument, norm)
@@ -1318,29 +1336,29 @@ contains
     ! ------------------------------------------------------------------
 
     !> The default exit function to use in
-    !> `pcomplete_completions_at_point'.  This just adds
-    !> `pcomplete_termination_string' after the completion if FINISHED
+    !> `programmable_completion_completions_at_point'.  This just adds
+    !> `programmable_completion_termination_string' after the completion if FINISHED
     !> is COMPLETION_FINISHED.  Port of
     !> pcomplete.el:pcomplete-default-exit-function.
-    recursive subroutine pcomplete_default_exit_function(string, finished)
+    recursive subroutine programmable_completion_default_exit_function(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
         type(status_type) :: st
 
         ! (STRING is unused.)
-        if (.not. allocated(pcomplete_termination_string%value)) return
-        if (len(pcomplete_termination_string%value) == 0) return
+        if (.not. allocated(programmable_completion_termination_string%value)) return
+        if (len(programmable_completion_termination_string%value) == 0) return
         if (finished /= COMPLETION_FINISHED) return
 
-        if (looking_at(regular_expression_quote(pcomplete_termination_string%value), st)) then
+        if (looking_at(regular_expression_quote(programmable_completion_termination_string%value), st)) then
             call goto_character(match_end(0, st))
         else
-            call insert(pcomplete_termination_string%value, st)
+            call insert(programmable_completion_termination_string%value, st)
         end if
-    end subroutine pcomplete_default_exit_function
+    end subroutine programmable_completion_default_exit_function
 
-    ! The `:exit_function' of `pcomplete_completions_at_point': the
-    ! `pcomplete_exit_function' it was called with.  Not a port.
+    ! The `:exit_function' of `programmable_completion_completions_at_point': the
+    ! `programmable_completion_exit_function' it was called with.  Not a port.
     recursive subroutine completion_at_point_function_exit(string, finished)
         character(len=*), intent(in) :: string
         integer, intent(in) :: finished
@@ -1366,7 +1384,7 @@ contains
         end do
     end function common_suffix
 
-    ! The table of `pcomplete_completions_at_point' (before quoting).
+    ! The table of `programmable_completion_completions_at_point' (before quoting).
     ! Port of pcomplete.el:pcomplete-completions-at-point, in part.
     recursive subroutine completion_at_point_function_table(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
@@ -1385,7 +1403,7 @@ contains
         end if
     end subroutine completion_at_point_function_table
 
-    ! The test of `pcomplete_completions_at_point': pare the
+    ! The test of `programmable_completion_completions_at_point': pare the
     ! arguments already seen.  Port of
     ! pcomplete.el:pcomplete-completions-at-point, in part.
     recursive logical function completion_at_point_function_pare(element) result(ok)
@@ -1406,14 +1424,14 @@ contains
     end function completion_at_point_function_pare
 
     !> Provide standard completion using pcomplete's completion tables.
-    !> Same as `pcomplete' but using the standard completion UI (for
+    !> Same as `programmable_completion' but using the standard completion UI (for
     !> `completion_at_point_functions').  Port of
     !> pcomplete.el:pcomplete-completions-at-point.
-    recursive subroutine pcomplete_completions_at_point(data, status)
+    recursive subroutine programmable_completion_completions_at_point(data, status)
         type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
         type(completion_table_type) :: completions
-        procedure(pcomplete_exit_procedure), pointer :: saved_exit
+        procedure(programmable_completion_exit_procedure), pointer :: saved_exit
         character(len=:), allocatable :: buftext, temporary, norm
         type(status_type) :: st
         integer(int64) :: argbeg, beginning, end, suffix_length
@@ -1424,24 +1442,24 @@ contains
         data = completion_at_point_function_data_type()
         ! FIXME: it only completes the text before point, whereas the
         ! standard UI may also consider text after point.
-        pcomplete_stub = ""
+        programmable_completion_stub = ""
         if (allocated(seen)) deallocate (seen)
         norm_function => null()
         if (allocated(arguments)) deallocate (arguments)
         if (allocated(begins)) deallocate (begins)
-        pcomplete_last = 0
-        pcomplete_index = 0
-        saved_exit => pcomplete_exit_function
-        ! Make sure the function obeys `pcomplete_allow_modifications'.
+        programmable_completion_last = 0
+        programmable_completion_index = 0
+        saved_exit => programmable_completion_exit_function
+        ! Make sure the function obeys `programmable_completion_allow_modifications'.
         saved_read_only = buffers(current)%read_only
-        if (.not. pcomplete_allow_modifications) buffers(current)%read_only = .true.
+        if (.not. programmable_completion_allow_modifications) buffers(current)%read_only = .true.
         ! pcomplete-completions is the core function that finds the chunk
-        ! of text to complete (returned indirectly in `pcomplete_stub')
+        ! of text to complete (returned indirectly in `programmable_completion_stub')
         ! and the set of possible completions.
-        call pcomplete_completions(completions, found, status)
+        call programmable_completion_completions(completions, found, status)
         buffers(current)%read_only = saved_read_only
-        completion_at_point_function_exit_function => pcomplete_exit_function
-        pcomplete_exit_function => saved_exit
+        completion_at_point_function_exit_function => programmable_completion_exit_function
+        programmable_completion_exit_function => saved_exit
 
         if (thrown == THROWN_PCOMPLETED .or. .not. status%ok()) then
             status = status_type()
@@ -1449,56 +1467,59 @@ contains
         end if
 
         ! Since we use minibuffer-complete, which doesn't know
-        ! `pcomplete_stub' and works from the buffer's text instead, we
-        ! need to trick minibuffer-complete into using `pcomplete_stub'
+        ! `programmable_completion_stub' and works from the buffer's text instead, we
+        ! need to trick minibuffer-complete into using `programmable_completion_stub'
         ! without its knowledge: completion-table-subvert constructs a
         ! completion table which expects strings using a prefix from the
         ! buffer's text but internally uses the corresponding prefix from
-        ! `pcomplete_stub'.
-        argbeg = pcomplete_begin()
-        beginning = max(point() - count_characters(pcomplete_stub), argbeg)
+        ! `programmable_completion_stub'.
+        argbeg = programmable_completion_begin()
+        beginning = max(point() - count_characters(programmable_completion_stub), argbeg)
         end = point()
 
         ! Try and improve our guess of `beginning' in case the difference
-        ! between `pcomplete_stub' and the buffer's text is simply due to
+        ! between `programmable_completion_stub' and the buffer's text is simply due to
         ! some chars removed by unquoting.
         do
             call buffer_substring(beginning, end, temporary, st)
-            call pcomplete_unquote_argument_function(temporary, buftext)
-            if (.not. (beginning > argbeg .and. count_characters(pcomplete_stub) > count_characters(buftext))) exit
-            beginning = max(argbeg, beginning - (count_characters(pcomplete_stub) - count_characters(buftext)))
+            call programmable_completion_unquote_argument_function(temporary, buftext)
+            if (.not. (beginning > argbeg .and. count_characters(programmable_completion_stub) > count_characters(buftext))) exit
+            beginning = max(argbeg, beginning - (count_characters(programmable_completion_stub) - count_characters(buftext)))
         end do
 
         ! Try and improve our guess of `end' in case it's not point.
-        do while (count_characters(buftext) < count_characters(pcomplete_stub) .and. end < point_maximum())
+        do while (count_characters(buftext) < count_characters(programmable_completion_stub) .and. end < point_maximum())
             call buffer_substring(beginning, end + 1, temporary, st)
-            call pcomplete_unquote_argument_function(temporary, norm)
-            if (.not. prefix_of(norm, pcomplete_stub)) exit
+            call programmable_completion_unquote_argument_function(temporary, norm)
+            if (.not. prefix_of(norm, programmable_completion_stub)) exit
             end = end + 1
             buftext = norm
         end do
 
         if (.not. found) return
         completion_at_point_function_completions = completions
-        completion_at_point_function_subvert = .not. (pcomplete_stub == buftext .and. len(pcomplete_stub) == len(buftext))
+        completion_at_point_function_subvert = .not. (programmable_completion_stub == buftext .and. len( &
+                                                      programmable_completion_stub) == len(buftext))
 
         if (completion_at_point_function_subvert) then
             ! This may not always be strictly right, but given the lack of
             ! any other info, it's about as good as it gets, and in
             ! practice it should work just fine (fingers crossed).
-            suffix_length = common_suffix(pcomplete_stub, buftext)
+            suffix_length = common_suffix(programmable_completion_stub, buftext)
             completion_at_point_function_s1 = substring(buftext, 0_int64, count_characters(buftext) - suffix_length)
-            completion_at_point_function_s2 = substring(pcomplete_stub, 0_int64, count_characters(pcomplete_stub) - suffix_length)
+            completion_at_point_function_s2 = substring(programmable_completion_stub, 0_int64, &
+                                                        count_characters(programmable_completion_stub) - suffix_length)
         end if
 
         data%found = .true.
         data%start = beginning
         data%end = end
-        data%table = completion_table_with_quoting(completion_at_point_function_table, pcomplete_unquote_argument_function, &
-                                                   pcomplete_requote_argument_function)
+        data%table = completion_table_with_quoting(completion_at_point_function_table, &
+                                                   programmable_completion_unquote_argument_function, &
+                                                   programmable_completion_requote_argument_function)
 
         ! Pare it down, if applicable.
-        if (pcomplete_use_paring%value .and. allocated(seen)) then
+        if (programmable_completion_use_paring%value .and. allocated(seen)) then
             if (size(seen) > 0) then
                 ! Capture the values for later use.
                 completion_at_point_function_norm_function => norm_function
@@ -1520,7 +1541,7 @@ contains
         end if
 
         data%exit_function => completion_at_point_function_exit
-    end subroutine pcomplete_completions_at_point
+    end subroutine programmable_completion_completions_at_point
 
     ! Whether PREFIX is a prefix of STRING (string-prefix-p).  Not a port.
     logical function prefix_of(prefix, string)
@@ -1532,16 +1553,16 @@ contains
     end function prefix_of
 
     !> Define pcomplete's settings and default functions.  Not a port.
-    subroutine initialize_pcomplete()
-        if (associated(pcomplete_command_completion_function%value)) return
-        if (.not. allocated(pcomplete_termination_string%value)) pcomplete_termination_string = " "
-        if (.not. allocated(pcomplete_hosts_file%value)) pcomplete_hosts_file = "/etc/hosts"
-        call forward_setting(pcomplete_termination_string)
-        call forward_setting(pcomplete_remote_file_ignore)
-        pcomplete_command_completion_function%value => default_command_completion
-        pcomplete_default_completion_function%value => default_default_completion
-        pcomplete_parse_arguments_function%value => pcomplete_parse_buffer_arguments
-        pcomplete_exit_function => pcomplete_default_exit_function
-        call append_locals_clearer(clear_pcomplete_locals)
-    end subroutine initialize_pcomplete
+    subroutine initialize_programmable_completion()
+        if (associated(programmable_completion_command_completion_function%value)) return
+        if (.not. allocated(programmable_completion_termination_string%value)) programmable_completion_termination_string = " "
+        if (.not. allocated(programmable_completion_hosts_file%value)) programmable_completion_hosts_file = "/etc/hosts"
+        call forward_setting(programmable_completion_termination_string)
+        call forward_setting(programmable_completion_remote_file_ignore)
+        programmable_completion_command_completion_function%value => default_command_completion
+        programmable_completion_default_completion_function%value => default_default_completion
+        programmable_completion_parse_arguments_function%value => programmable_completion_parse_buffer_arguments
+        programmable_completion_exit_function => programmable_completion_default_exit_function
+        call append_locals_clearer(clear_programmable_completion_locals)
+    end subroutine initialize_programmable_completion
 end module programmable_completion_mod

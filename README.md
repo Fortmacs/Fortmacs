@@ -30,7 +30,7 @@ also needs [fprettify](https://github.com/fortran-lang/fprettify) 0.3.7 and
 command, mode, face and help tables, not kept in git) and then runs fpm with
 its arguments.
 
-```sh
+```shell
 tools/build.sh                 # fpm build
 tools/build.sh run -- FILE     # edit FILE (C-x C-s saves, C-x C-c exits)
 tools/build.sh test            # all the tests (test -- SUITE for one)
@@ -45,13 +45,13 @@ weekly.
 ## Configuring
 
 Write your configuration in `~/.config/fortmacs/init.f90`
-([docs/init.f90](docs/init.f90) is an example): a module `user_config` whose
+([docs/init.f90](docs/init.f90) is an example): a module `user_configuration` whose
 `configure` subroutine runs at startup. Settings are variables
 (`tab_width = 4`), built-in commands are objects
 (`commands%upcase_region%disabled = .false.`), and keys are bound with
 `keymap_global_set("C-c d", "my_command", status)`.
 
-```sh
+```shell
 tools/build.sh install --profile release  # fortmacs, its library and modules, in ~/.local
 fortmacs --recompile                      # build init.f90 into a new generation
 fortmacs -q                               # start without your configuration
@@ -124,7 +124,7 @@ names, help and internals are Fortran-first.
   "One word per meaning", has the full list.
 - Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
   names the Fortran file a definition lives in.
-- Settings read plainly. `.true.` and `.false.` mean what the option's name says, with no knowledge of Emacs assumed: `dired_recursive_deletes = .true.` deletes directories recursively, where Emacs's `t` means "ask for each directory"; that state is the named constant `DIRED_RECURSIVE_ASK`. Options whose Emacs values hide their meaning are renamed so that their values read plainly.
+- Settings read plainly. `.true.` and `.false.` mean what the option's name says, with no knowledge of Emacs assumed: `directory_editor_recursive_deletes = .true.` deletes directories recursively, where Emacs's `t` means "ask for each directory"; that state is the named constant `DIRECTORY_EDITOR_RECURSIVE_ASK`. Options whose Emacs values hide their meaning are renamed so that their values read plainly.
 - There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
   `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
   configuration means rebuilding.

@@ -408,7 +408,7 @@ module files_mod
 
         !> After `ls' output inserted from BEGINNING to point, read the positions of
         !> file names that `--dired' (if SWITCHES has it) put at the end,
-        !> mark them with the `dired_filename' property and delete those
+        !> mark them with the `directory_editor_filename' property and delete those
         !> lines.  Port of files.el:insert-directory-clean.  (In files_directory_mod.)
         recursive module subroutine insert_directory_clean(beginning, switches, status)
             implicit none(type, external)
@@ -538,7 +538,7 @@ module files_mod
         !> Given a shell file name pattern WILDCARD, return an equivalent
         !> regexp.  The generated regexp will match a file name only if the
         !> file name matches that wildcard according to shell rules.  Only
-        !> wildcards known by `sh' are supported.  Port of
+        !> wildcards known by `shell' are supported.  Port of
         !> files.el:wildcard-to-regexp.  (In files_directory_mod.)
         pure module function wildcard_to_regular_expression(wildcard) result(regular_expression)
             implicit none(type, external)
@@ -732,21 +732,21 @@ module files_mod
     !> See `close_buffer'.  Port of files.el kill-buffer-hook.
     type(hook_type), target, public :: close_buffer_hook = hook_type(name="close_buffer_hook")
 
-    !> A procedure of the current buffer (vc-hooks.el's `vc_before_save'
-    !> and `vc_after_save', which `basic_save_buffer' calls directly).
+    !> A procedure of the current buffer (vc-hooks.el's `version_control_before_save'
+    !> and `version_control_after_save', which `basic_save_buffer' calls directly).
     abstract interface
         ! Not a port.
-        subroutine vc_save_procedure()
+        subroutine version_control_save_procedure()
             implicit none(type, external)
-        end subroutine vc_save_procedure
+        end subroutine version_control_save_procedure
     end interface
 
     !> vc-hooks.el:vc-before-save, set by version_control_hooks_mod (which is above
     !> files_mod).
-    procedure(vc_save_procedure), pointer, public :: vc_before_save_hook => null()
+    procedure(version_control_save_procedure), pointer, public :: version_control_before_save_hook => null()
 
     !> vc-hooks.el:vc-after-save, set by version_control_hooks_mod.
-    procedure(vc_save_procedure), pointer, public :: vc_after_save_hook => null()
+    procedure(version_control_save_procedure), pointer, public :: version_control_after_save_hook => null()
 
     !> Values of `mode_require_final_newline' besides .true. and .false.
     integer, parameter, public :: MODE_REQUIRE_FINAL_NEWLINE_VISIT = 2, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE = 3, &
@@ -994,20 +994,20 @@ module files_mod
     !> True means allow `find_file' to visit directories.
     !> To visit the directory, `find_file' runs `find_directory_functions'.
     !> Port of files.el find-file-run-dired.
-    logical, public :: find_file_run_dired = .true.
+    logical, public :: find_file_run_directory_editor = .true.
 
     !> Function to try to visit a directory.
     !> It is called with the directory name as the sole argument
     !> and should return either a buffer or the null handle.  Port of files.el
-    !> find-directory-functions (one function: `dired_noselect', which
+    !> find-directory-functions (one function: `directory_editor_noselect', which
     !> Dired installs; cvs-dired-noselect is not ported).
     procedure(find_directory_procedure), pointer, public :: find_directory_functions => null()
 
     !> Absolute or relative name of the `ls'-like program.
-    !> This is used by `insert_directory' and `dired_insert_directory'
-    !> (thus, also by `dired').  For Dired, this should ideally point to
+    !> This is used by `insert_directory' and `directory_editor_insert_directory'
+    !> (thus, also by `directory_editor').  For Dired, this should ideally point to
     !> GNU ls, or another version of ls that supports the "--dired"
-    !> flag.  See `dired_use_ls_dired'.
+    !> flag.  See `directory_editor_use_ls_directory_editor'.
     !>
     !> On GNU/Linux and other capable systems, the default is "ls".  Port of
     !> files.el insert-directory-program.
@@ -1021,12 +1021,12 @@ module files_mod
 
     !> When allocated, name of temporary file an `ls' error is written to.
     !> Port of dired.el dired--ls-error-file (set by `insert_directory').
-    character(len=:), allocatable, public :: dired_ls_error_file
+    character(len=:), allocatable, public :: directory_editor_ls_error_file
 
     !> Set if the current dired invocation yields an `ls' error: the
     !> buffer containing the error message (else the null handle).  Port of
     !> dired.el dired--ls-error-buffer (set by `insert_directory').
-    type(handle_type), public :: dired_ls_error_buffer
+    type(handle_type), public :: directory_editor_ls_error_buffer
 
 contains
 
@@ -1224,13 +1224,13 @@ contains
 
     !> `filename' with the home directory replaced by "~".  Port of
     !> files.el:abbreviate-file-name (upstream's directory-abbrev-alist is Deferred).
-    function abbreviate_file_name(filename) result(abbrev)
+    function abbreviate_file_name(filename) result(abbreviation)
         character(len=*), intent(in) :: filename
-        character(len=:), allocatable :: abbrev
+        character(len=:), allocatable :: abbreviation
         character(len=:), allocatable :: home
         integer :: n
 
-        abbrev = filename
+        abbreviation = filename
         home = directory_file_name(get_homedir())
         n = len(home)
         ! Don't abbreviate a home directory of "/" (abbreviated-home-dir).
@@ -1239,9 +1239,9 @@ contains
         if (filename(1:n) /= home) return
 
         if (len(filename) == n) then
-            abbrev = "~"
+            abbreviation = "~"
         else if (filename(n + 1:n + 1) == "/") then
-            abbrev = "~"//filename(n + 1:)
+            abbreviation = "~"//filename(n + 1:)
         end if
     end function abbreviate_file_name
 
@@ -1298,7 +1298,7 @@ contains
 
         if (is_file_directory(absname)) then
             ! find-directory-functions
-            if (find_file_run_dired .and. associated(find_directory_functions)) then
+            if (find_file_run_directory_editor .and. associated(find_directory_functions)) then
                 call find_directory_functions(abbreviate_file_name(absname), buffer, status)
                 if (.not. status%ok() .or. buffer%index /= 0) return
             end if
@@ -1708,8 +1708,8 @@ contains
             if (.not. status%ok()) return
         end if
 
-        ! Support VC version backups.
-        if (associated(vc_before_save_hook)) call vc_before_save_hook()
+        ! Support VERSION_CONTROL version backups.
+        if (associated(version_control_before_save_hook)) call version_control_before_save_hook()
         ! If a hook returned true, file is already "written".
         ! Otherwise, write it the usual way now.
         call write_file_functions%execute(written, status)
@@ -1786,8 +1786,8 @@ contains
         ! saving by binding it locally.
         if (allocated(last_coding_system_used%value)) call buffer_file_coding_system%set_local(last_coding_system_used%value)
         if (.not. written) call message(wrote)
-        ! Support VC `implicit' locking.
-        if (associated(vc_after_save_hook)) call vc_after_save_hook()
+        ! Support VERSION_CONTROL `implicit' locking.
+        if (associated(version_control_after_save_hook)) call version_control_after_save_hook()
         call after_save_hook%execute(status)
     end subroutine basic_save_buffer
 

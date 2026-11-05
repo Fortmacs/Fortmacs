@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The log-edit-tests.el tests: `log_edit_fill_entry' and
-!> `log_edit_done_strip_cvs_lines' as a `log_edit_done_hook'.
+!> `log_edit_done_strip_concurrent_versions_system_lines' as a `log_edit_done_hook'.
 module test_log_edit_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
@@ -29,9 +29,10 @@ module test_log_edit_mod
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string, goto_character, point_minimum
     use bindings_mod, only: initialize_bindings
-    use version_control_hooks_mod, only: register_vc_backend
-    use log_edit_mod, only: log_edit_fill_entry, log_edit_done, log_edit_done_hook, log_edit_done_strip_cvs_lines, &
-                            set_log_edit_callback, set_log_edit_vc_backend
+    use version_control_hooks_mod, only: register_version_control_backend
+    use log_edit_mod, only: log_edit_fill_entry, log_edit_done, log_edit_done_hook, &
+                            log_edit_done_strip_concurrent_versions_system_lines, set_log_edit_callback, &
+                            set_log_edit_version_control_backend
     implicit none(type, external)
     private
 
@@ -54,8 +55,8 @@ contains
                     new_unittest("log-edit-fill-entry-space-substitution", test_space_substitution), &
                     new_unittest("log-edit-fill-entry-initial-wrapping", test_initial_wrapping), &
                     new_unittest("log-edit-fill-entry-no-defun-list-wrapping", test_no_subprogram_list_wrapping), &
-                    new_unittest("log-edit-done-strip-cvs-lines-cvs", test_strip_cvs), &
-                    new_unittest("log-edit-done-strip-cvs-lines-non-cvs", test_strip_non_cvs), &
+                    new_unittest("log-edit-done-strip-cvs-lines-cvs", test_strip_concurrent_versions_system), &
+                    new_unittest("log-edit-done-strip-cvs-lines-non-cvs", test_strip_non_concurrent_versions_system), &
                     new_unittest("log-edit-done-strip-cvs-lines-only-cvs-colon-blank", test_strip_colon_blank), &
                     new_unittest("log-edit-done-strip-cvs-lines-only-cvs-colon", test_strip_colon) &
                     ]
@@ -320,7 +321,7 @@ contains
                               "`move', `vector_dot_product'.  Rename to `sfnt_graphics_state'."//LF// &
                               "(struct sfnt_interpreter, sfnt_mul_f26dot6): Stop doing rounding"//LF// &
                               "division."//LF// &
-                              "(sfnt_init_graphics_state, sfnt_make_interpreter, MOVE, SSW, RAW)"//LF// &
+                              "(sfnt_initialize_graphics_state, sfnt_make_interpreter, MOVE, SSW, RAW)"//LF// &
                               "(SDS, ADD, SUB, ABS, NEG, WCVTF, _MIN, S45ROUND, SVTCAx)"//LF// &
                               "(sfnt_set_srounding_state, sfnt_skip_code)"//LF// &
                               "(sfnt_interpret_unimplemented, sfnt_interpret_fdef)"//LF// &
@@ -396,7 +397,7 @@ contains
                             "(sfnt_mul_f26dot6):"//LF// &
                             "Stop doing rounding"//LF// &
                             "division."//LF// &
-                            "(sfnt_init_graphics_state)"//LF// &
+                            "(sfnt_initialize_graphics_state)"//LF// &
                             "(sfnt_make_interpreter)"//LF// &
                             "(MOVE, SSW, RAW, SDS)"//LF// &
                             "(ADD, SUB, ABS, NEG)"//LF// &
@@ -467,22 +468,22 @@ contains
         status = status_type()
     end subroutine no_callback
 
-    !> Tests that running log_edit_done_strip_cvs_lines as a log_edit_done_hook
+    !> Tests that running log_edit_done_strip_concurrent_versions_system_lines as a log_edit_done_hook
     !> produces the WANTED string when run on INITIAL_TEXT with
-    !> `log_edit_vc_backend' set to VC_BACKEND ("" for nil).
-    subroutine strip_cvs_lines_helper(error, initial_text, wanted, vc_backend)
+    !> `log_edit_version_control_backend' set to VERSION_CONTROL_BACKEND ("" for nil).
+    subroutine strip_concurrent_versions_system_lines_helper(error, initial_text, wanted, version_control_backend)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), intent(in) :: initial_text, wanted, vc_backend
+        character(len=*), intent(in) :: initial_text, wanted, version_control_backend
         type(handle_type) :: h
         type(status_type) :: st
         integer :: b
 
         call temporary_buffer("", h)
         b = 0
-        if (len(vc_backend) > 0) call register_vc_backend(vc_backend, b)
+        if (len(version_control_backend) > 0) call register_version_control_backend(version_control_backend, b)
         call log_edit_done_hook%clear()
-        call log_edit_done_hook%prepend(log_edit_done_strip_cvs_lines)
-        call set_log_edit_vc_backend(b)
+        call log_edit_done_hook%prepend(log_edit_done_strip_concurrent_versions_system_lines)
+        call set_log_edit_version_control_backend(b)
         call set_log_edit_callback(no_callback)
         call insert(initial_text, st)
         call log_edit_done(st)
@@ -490,42 +491,45 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string() == wanted, "got: "//buffer_string())
         call leave(h)
-    end subroutine strip_cvs_lines_helper
+    end subroutine strip_concurrent_versions_system_lines_helper
 
-    !> Strip lines beginning with "CVS:" when using CVS as VC backend.
-    subroutine test_strip_cvs(error)
+    !> Strip lines beginning with "CONCURRENT_VERSIONS_SYSTEM:" when using CONCURRENT_VERSIONS_SYSTEM as VERSION_CONTROL backend.
+    subroutine test_strip_concurrent_versions_system(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call strip_cvs_lines_helper(error, "summary line"//LF//"first line"//LF// &
-                                    "CVS: Please evaluate your changes and consider the following."//LF// &
-                                    "CVS: Abort checkin if you answer no."//LF, &
-                                    "summary line"//LF//"first line"//LF, "CVS")
-    end subroutine test_strip_cvs
+        call strip_concurrent_versions_system_lines_helper(error, "summary line"//LF//"first line"//LF// &
+                                                           "CVS: Please evaluate your changes and consider the following."//LF// &
+                                                           "CVS: Abort checkin if you answer no."//LF, &
+                                                           "summary line"//LF//"first line"//LF, "CVS")
+    end subroutine test_strip_concurrent_versions_system
 
-    !> Do not strip lines beginning with "CVS:" when not using CVS as VC backend.
-    subroutine test_strip_non_cvs(error)
+    !> Do not strip lines beginning with "CONCURRENT_VERSIONS_SYSTEM:" when not using CONCURRENT_VERSIONS_SYSTEM as VERSION_CONTROL
+    !> backend.
+    subroutine test_strip_non_concurrent_versions_system(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: string = "summary line"//LF//"first line"//LF// &
                                        "CVS: Please evaluate your changes and consider the following."//LF// &
                                        "CVS: Abort checkin if you answer no."//LF
 
-        call strip_cvs_lines_helper(error, string, string, "")
-    end subroutine test_strip_non_cvs
+        call strip_concurrent_versions_system_lines_helper(error, string, string, "")
+    end subroutine test_strip_non_concurrent_versions_system
 
-    !> Strip lines that contain solely "CVS: " when using CVS as VC backend.
+    !> Strip lines that contain solely "CONCURRENT_VERSIONS_SYSTEM: " when using CONCURRENT_VERSIONS_SYSTEM as VERSION_CONTROL
+    !> backend.
     subroutine test_strip_colon_blank(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call strip_cvs_lines_helper(error, "CVS: "//LF, "", "CVS")
+        call strip_concurrent_versions_system_lines_helper(error, "CVS: "//LF, "", "CVS")
     end subroutine test_strip_colon_blank
 
-    !> Strip lines that contain solely "CVS:" when using CVS as VC backend.
+    !> Strip lines that contain solely "CONCURRENT_VERSIONS_SYSTEM:" when using CONCURRENT_VERSIONS_SYSTEM as VERSION_CONTROL
+    !> backend.
     subroutine test_strip_colon(error)
         type(error_type), allocatable, intent(out) :: error
 
-        ! This test verifies that lines consisting only of "CVS:" (no blank
+        ! This test verifies that lines consisting only of "CONCURRENT_VERSIONS_SYSTEM:" (no blank
         ! after the colon) are stripped from the commit message.
-        ! CVS does this to accommodate editors that delete trailing whitespace.
-        call strip_cvs_lines_helper(error, "CVS:"//LF, "", "CVS")
+        ! CONCURRENT_VERSIONS_SYSTEM does this to accommodate editors that delete trailing whitespace.
+        call strip_concurrent_versions_system_lines_helper(error, "CVS:"//LF, "", "CVS")
     end subroutine test_strip_colon
 end module test_log_edit_mod

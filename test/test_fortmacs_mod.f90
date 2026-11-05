@@ -26,9 +26,9 @@ module test_fortmacs_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use buffer_mod, only: erase_buffer, buffers, current
     use editing_functions_mod, only: buffer_string
-    use system_dependent_mod, only: open_pty, close_fd, set_tty_size, initialize_system_modes, &
+    use system_dependent_mod, only: open_pty, close_fd, set_terminal_size, initialize_system_modes, &
                                     reset_system_modes, fortmacs_write, fortmacs_read, input_available, &
-                                    fortmacs_tty_type
+                                    fortmacs_terminal_type
     use keyboard_mod, only: last_message
     use value_mod, only: value_type, xstring
     use data_mod, only: symbol_value, value_eq
@@ -43,7 +43,7 @@ module test_fortmacs_mod
     use fortmacs, only: status_type, set_error, GENERIC_ERROR_CODE, command_type, &
                         keymap_global_set, insert, get_or_make_buffer, set_buffer, &
                         handle_type, tab_width, message_log_maximum, show_parenthesis_style, SHOW_PARENTHESIS_STYLE_PARENTHESIS, &
-                        sh_indent_for_fi, sh_indent_after_if, SH_MINUS, SH_PLUS
+                        shell_indent_for_fi, shell_indent_after_if, SHELL_MINUS, SHELL_PLUS
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -63,7 +63,7 @@ contains
                     new_unittest("sort-args", test_sort_arguments), &
                     new_unittest("init-file-configure", test_configure), &
                     new_unittest("init-file-skipped-with-q", test_no_initialization_file), &
-                    new_unittest("init-file-error", test_init_error), &
+                    new_unittest("init-file-error", test_initialize_error), &
                     new_unittest("init-file-rejected-choice", test_rejected_choice), &
                     new_unittest("scratch-fundamental-mode", test_scratch), &
                     new_unittest("initial-window-shows-scratch", test_initial_window), &
@@ -101,8 +101,8 @@ contains
 
         status = status_type()
         show_parenthesis_style = .true.
-        sh_indent_for_fi = 0
-        sh_indent_after_if = SH_MINUS
+        shell_indent_for_fi = 0
+        shell_indent_after_if = SHELL_MINUS
         message_log_maximum = 500
     end subroutine rejecting_configure
 
@@ -115,7 +115,7 @@ contains
         type(string_type), intent(in), optional :: arguments(:)
         procedure(sample_configure), optional :: configure
         integer(int32), intent(in), optional :: lines
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(handle_type) :: scratch
         type(status_type) :: ignore
         integer(int32) :: master, slave
@@ -129,9 +129,9 @@ contains
         if (.not. st%ok()) return
 
         if (present(lines)) then
-            call set_tty_size(slave, 40_int32, lines, ignore)
+            call set_terminal_size(slave, 40_int32, lines, ignore)
         else
-            call set_tty_size(slave, 40_int32, 8_int32, ignore)
+            call set_terminal_size(slave, 40_int32, 8_int32, ignore)
         end if
 
         ! Raw mode first, so C-c is not taken as an interrupt.
@@ -180,34 +180,34 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(string_type), allocatable :: rest(:)
         type(status_type) :: st
-        logical :: init
+        logical :: initialize
 
-        call command_line(argv([character(len=4) :: "-q", "+3", "file"]), rest, init, st)
-        call check(error, st%ok() .and. .not. init .and. joined(rest) == "+3 file", "-q")
+        call command_line(argv([character(len=4) :: "-q", "+3", "file"]), rest, initialize, st)
+        call check(error, st%ok() .and. .not. initialize .and. joined(rest) == "+3 file", "-q")
         if (allocated(error)) return
-        call command_line(argv([character(len=14) :: "--no-init-file", "+3", "file"]), rest, init, st)
-        call check(error, st%ok() .and. .not. init .and. joined(rest) == "+3 file", "--no-init-file")
+        call command_line(argv([character(len=14) :: "--no-init-file", "+3", "file"]), rest, initialize, st)
+        call check(error, st%ok() .and. .not. initialize .and. joined(rest) == "+3 file", "--no-init-file")
         if (allocated(error)) return
-        call command_line(argv([character(len=2) :: "-Q"]), rest, init, st)
-        call check(error,.not. init, "-Q")
+        call command_line(argv([character(len=2) :: "-Q"]), rest, initialize, st)
+        call check(error,.not. initialize, "-Q")
         if (allocated(error)) return
         ! Long options may be abbreviated.
-        call command_line(argv([character(len=6) :: "--no-i", "file"]), rest, init, st)
-        call check(error, st%ok() .and. .not. init .and. joined(rest) == "file", "--no-i")
+        call command_line(argv([character(len=6) :: "--no-i", "file"]), rest, initialize, st)
+        call check(error, st%ok() .and. .not. initialize .and. joined(rest) == "file", "--no-i")
         if (allocated(error)) return
-        call command_line(argv([character(len=5) :: "--no-", "file"]), rest, init, st)
+        call command_line(argv([character(len=5) :: "--no-", "file"]), rest, initialize, st)
         call check(error, format_error(st) == format_message("Option `--no-' is ambiguous"), format_error(st))
         if (allocated(error)) return
-        call command_line(argv([character(len=16) :: "--no-init-file=x"]), rest, init, st)
+        call command_line(argv([character(len=16) :: "--no-init-file=x"]), rest, initialize, st)
         call check(error, format_error(st) == format_message("Option `-no-init-file' doesn't allow an argument"), &
                    format_error(st))
         if (allocated(error)) return
         ! The options end at the first other argument.
-        call command_line(argv([character(len=4) :: "file", "-q"]), rest, init, st)
-        call check(error, init .and. joined(rest) == "file -q", "after a file")
+        call command_line(argv([character(len=4) :: "file", "-q"]), rest, initialize, st)
+        call check(error, initialize .and. joined(rest) == "file -q", "after a file")
         if (allocated(error)) return
-        call command_line(argv([character(len=1) ::]), rest, init, st)
-        call check(error, init .and. size(rest) == 0, "no arguments")
+        call command_line(argv([character(len=1) ::]), rest, initialize, st)
+        call check(error, initialize .and. size(rest) == 0, "no arguments")
     end subroutine test_command_line
 
     !> emacs.c:sort_args puts known options first, by priority.
@@ -264,7 +264,7 @@ contains
         if (.not. allocated(error)) call check(error, tab_width%value == 8)
     end subroutine test_no_initialization_file
 
-    subroutine test_init_error(error)
+    subroutine test_initialize_error(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
@@ -284,7 +284,7 @@ contains
         tab_width = 8
         ! Leave no init file name behind for other suites.
         if (allocated(user_initialization_file)) deallocate (user_initialization_file)
-    end subroutine test_init_error
+    end subroutine test_initialize_error
 
     !> Values a choice setting does not accept are errors of the init file
     !> (panel 2026-11-04); the settings keep their defaults, the accepted
@@ -300,12 +300,12 @@ contains
         if (allocated(error)) return
         call check(error, show_parenthesis_style%choice == SHOW_PARENTHESIS_STYLE_PARENTHESIS, "show_parenthesis_style kept")
         if (allocated(error)) return
-        call check(error, sh_indent_for_fi%other_value(), "%columns = 0")
+        call check(error, shell_indent_for_fi%other_value(), "%columns = 0")
         if (allocated(error)) return
         call check(error, message_log_maximum%lines == 1000, "message_log_maximum kept")
         if (allocated(error)) return
-        call check(error, sh_indent_after_if%choice == SH_MINUS, "accepted value")
-        sh_indent_after_if = SH_PLUS
+        call check(error, shell_indent_after_if%choice == SHELL_MINUS, "accepted value")
+        shell_indent_after_if = SHELL_PLUS
         if (allocated(user_initialization_file)) deallocate (user_initialization_file)
     end subroutine test_rejected_choice
 

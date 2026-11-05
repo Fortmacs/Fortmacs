@@ -29,16 +29,16 @@ module test_face_realization_mod
     use insert_delete_mod, only: insert
     use value_mod, only: list, value_type
     use text_properties_mod, only: put_text_property
-    use glyph_matrices_mod, only: DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, MODE_LINE_INACTIVE_FACE_ID, &
-                                  VERTICAL_BORDER_FACE_ID, FACE_TTY_DEFAULT_FOREGROUND_COLOR, FACE_TTY_DEFAULT_BACKGROUND_COLOR
+    use glyph_matrices_mod, only: DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, MODE_LINE_INACTIVE_FACE_ID, VERTICAL_BORDER_FACE_ID, &
+                                  FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR, FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR
     use faces_mod, only: face_attributes_type, initialize_faces, FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use frame_mod, only: frame_type, selected_frame
     use terminfo_mod, only: terminfo_type, builtin_xterm
-    use terminal_output_mod, only: initialize_tty_entry
-    use terminal_state_mod, only: tty_display_info_type
-    use terminal_colors_mod, only: tty_color_clear, tty_register_colors
+    use terminal_output_mod, only: initialize_terminal_entry
+    use terminal_state_mod, only: terminal_display_info_type
+    use terminal_colors_mod, only: terminal_color_clear, terminal_register_colors
     use face_realization_mod, only: initialize_frame_faces, merge_face_reference, lookup_named_face, merge_faces, lookup_face, &
-                                    face_at_buffer_position, is_tty_supports_face_attributes, frame_background_mode
+                                    face_at_buffer_position, is_terminal_supports_face_attributes, frame_background_mode
     implicit none(type, external)
     private
 
@@ -69,17 +69,17 @@ contains
 
         call initialize_faces()
         call initialize_frame_faces(f, "dumb")
-        call check(error,.not. f%faces(DEFAULT_FACE_ID)%tty_reverse_p .and. &
-                   f%faces(DEFAULT_FACE_ID)%foreground == FACE_TTY_DEFAULT_FOREGROUND_COLOR .and. &
-                   f%faces(DEFAULT_FACE_ID)%background == FACE_TTY_DEFAULT_BACKGROUND_COLOR, "default")
+        call check(error,.not. f%faces(DEFAULT_FACE_ID)%terminal_reverse_p .and. &
+                   f%faces(DEFAULT_FACE_ID)%foreground == FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR .and. &
+                   f%faces(DEFAULT_FACE_ID)%background == FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR, "default")
         if (allocated(error)) return
-        call check(error, f%faces(MODE_LINE_ACTIVE_FACE_ID)%tty_reverse_p .and. &
-                   f%faces(MODE_LINE_ACTIVE_FACE_ID)%foreground == FACE_TTY_DEFAULT_BACKGROUND_COLOR .and. &
-                   f%faces(MODE_LINE_ACTIVE_FACE_ID)%background == FACE_TTY_DEFAULT_FOREGROUND_COLOR, "mode line")
+        call check(error, f%faces(MODE_LINE_ACTIVE_FACE_ID)%terminal_reverse_p .and. &
+                   f%faces(MODE_LINE_ACTIVE_FACE_ID)%foreground == FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR .and. &
+                   f%faces(MODE_LINE_ACTIVE_FACE_ID)%background == FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR, "mode line")
         if (allocated(error)) return
-        call check(error, f%faces(MODE_LINE_INACTIVE_FACE_ID)%tty_reverse_p, "mode line inactive")
+        call check(error, f%faces(MODE_LINE_INACTIVE_FACE_ID)%terminal_reverse_p, "mode line inactive")
         if (allocated(error)) return
-        call check(error, f%faces(VERTICAL_BORDER_FACE_ID)%tty_reverse_p, "vertical border")
+        call check(error, f%faces(VERTICAL_BORDER_FACE_ID)%terminal_reverse_p, "vertical border")
         if (allocated(error)) return
         call check(error, f%faces(DEFAULT_FACE_ID)%lface%family == "default" .and. &
                    f%faces(DEFAULT_FACE_ID)%lface%weight == "normal", "fully specified default")
@@ -129,7 +129,7 @@ contains
         id = lookup_named_face(f, "bold_italic")
         call check(error, id >= 0, "bold_italic is a face")
         if (allocated(error)) return
-        call check(error, f%faces(id)%tty_bold_p .and. f%faces(id)%tty_italic_p, "bold and italic")
+        call check(error, f%faces(id)%terminal_bold_p .and. f%faces(id)%terminal_italic_p, "bold and italic")
         if (allocated(error)) return
         id2 = lookup_named_face(f, "bold_italic")
         call check(error, id2 == id, "the face cache")
@@ -137,7 +137,7 @@ contains
         call check(error, lookup_named_face(f, "no_such_face") == -1, "no face")
         if (allocated(error)) return
         id = merge_faces(f, "bold", 0_int32, MODE_LINE_ACTIVE_FACE_ID)
-        call check(error, f%faces(id)%tty_bold_p .and. f%faces(id)%tty_reverse_p, "bold mode line")
+        call check(error, f%faces(id)%terminal_bold_p .and. f%faces(id)%terminal_reverse_p, "bold mode line")
         if (allocated(error)) return
         call check(error, merge_faces(f, "no_such_face", 0_int32, MODE_LINE_ACTIVE_FACE_ID) == &
                    MODE_LINE_ACTIVE_FACE_ID, "merging no face")
@@ -154,13 +154,13 @@ contains
         logical :: ok
 
         call initialize_faces()
-        call tty_color_clear()
-        call tty_register_colors(8, .false., st)
-        f%tty%tn_maximum_colors = 8
+        call terminal_color_clear()
+        call terminal_register_colors(8, .false., st)
+        f%terminal%tn_maximum_colors = 8
         call initialize_frame_faces(f, "dumb")
         ! The error face: Red1 on dark backgrounds (8 colors: red).
         id = lookup_named_face(f, "error")
-        call check(error, f%faces(id)%foreground == 1 .and. f%faces(id)%tty_bold_p, "error is bold red")
+        call check(error, f%faces(id)%foreground == 1 .and. f%faces(id)%terminal_bold_p, "error is bold red")
         if (allocated(error)) return
         a = f%faces(DEFAULT_FACE_ID)%lface
         call merge_face_reference(list(value_type(name=":foreground"), value_type(text="green"), value_type(name=":background"), &
@@ -173,8 +173,8 @@ contains
         a%foreground = "no-such-color"
         a%inverse_video = .false.
         id = lookup_face(f, a)
-        call check(error, f%faces(id)%foreground == FACE_TTY_DEFAULT_FOREGROUND_COLOR, "an unknown color")
-        call tty_color_clear()
+        call check(error, f%faces(id)%foreground == FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR, "an unknown color")
+        call terminal_color_clear()
     end subroutine test_colors
 
     !> The face of buffer text: the `face' property, the region, and with
@@ -198,17 +198,17 @@ contains
         call check(error, id == DEFAULT_FACE_ID .and. endpos == 2, "plain text up to the property")
         if (allocated(error)) return
         id = face_at_buffer_position(f, bi, 2_int64, endpos, 100_int64)
-        call check(error, f%faces(id)%tty_bold_p .and. endpos == 4, "bold to its end")
+        call check(error, f%faces(id)%terminal_bold_p .and. endpos == 4, "bold to its end")
         if (allocated(error)) return
         id = face_at_buffer_position(f, bi, 2_int64, endpos, 100_int64, extend_only=.true.)
         call check(error, id == DEFAULT_FACE_ID, "bold doesn't extend")
         if (allocated(error)) return
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64, 3_int64, 6_int64)
-        call check(error, f%faces(id)%tty_bold_p .and. f%faces(id)%tty_reverse_p .and. endpos == 4, &
+        call check(error, f%faces(id)%terminal_bold_p .and. f%faces(id)%terminal_reverse_p .and. endpos == 4, &
                    "bold in the region")
         if (allocated(error)) return
         id = face_at_buffer_position(f, bi, 4_int64, endpos, 100_int64, 3_int64, 6_int64)
-        call check(error,.not. f%faces(id)%tty_bold_p .and. f%faces(id)%tty_reverse_p .and. endpos == 6, &
+        call check(error,.not. f%faces(id)%terminal_bold_p .and. f%faces(id)%terminal_reverse_p .and. endpos == 6, &
                    "the region to its end")
         if (allocated(error)) return
         id = face_at_buffer_position(f, bi, 1_int64, endpos, 100_int64, 3_int64, 6_int64)
@@ -220,35 +220,35 @@ contains
     !> without capabilities.
     subroutine test_supports(error)
         type(error_type), allocatable, intent(out) :: error
-        type(tty_display_info_type) :: saved
+        type(terminal_display_info_type) :: saved
         type(terminfo_type) :: ti
         type(face_attributes_type) :: a
         type(status_type) :: st
 
         call initialize_faces()
-        saved = selected_frame%tty
+        saved = selected_frame%terminal
         call builtin_xterm(ti)
-        call initialize_tty_entry(selected_frame%tty, ti, "xterm", -1_int32, st)
+        call initialize_terminal_entry(selected_frame%terminal, ti, "xterm", -1_int32, st)
         call initialize_frame_faces(selected_frame, "xterm")
         a%underline = .true.
-        call check(error, is_tty_supports_face_attributes(a), "xterm underlines")
+        call check(error, is_terminal_supports_face_attributes(a), "xterm underlines")
         if (allocated(error)) return
         a = face_attributes_type()
         a%weight = "bold"
-        call check(error, is_tty_supports_face_attributes(a), "xterm bold")
+        call check(error, is_terminal_supports_face_attributes(a), "xterm bold")
         if (allocated(error)) return
         a%family = "Monospace"
-        call check(error,.not. is_tty_supports_face_attributes(a), "no families")
+        call check(error,.not. is_terminal_supports_face_attributes(a), "no families")
         if (allocated(error)) return
         a = face_attributes_type()
         a%weight = "normal"
-        call check(error,.not. is_tty_supports_face_attributes(a), "same as default")
+        call check(error,.not. is_terminal_supports_face_attributes(a), "same as default")
         if (allocated(error)) return
         a = face_attributes_type()
         a%slant = "italic"
-        if (allocated(selected_frame%tty%ts_enter_italic_mode)) deallocate (selected_frame%tty%ts_enter_italic_mode)
-        call check(error,.not. is_tty_supports_face_attributes(a), "no italic capability")
-        selected_frame%tty = saved
+        if (allocated(selected_frame%terminal%ts_enter_italic_mode)) deallocate (selected_frame%terminal%ts_enter_italic_mode)
+        call check(error,.not. is_terminal_supports_face_attributes(a), "no italic capability")
+        selected_frame%terminal = saved
         call initialize_frame_faces(selected_frame, "dumb")
     end subroutine test_supports
 

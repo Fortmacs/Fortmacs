@@ -49,7 +49,7 @@
 !> `utf-16be-with-signature' (alias `utf-16-be'), plus the aliases
 !> `unix', `dos' and `mac' of `undecided''s subsidiaries.  The
 !> priorities are those of a UTF-8 locale in the English language
-!> environment: utf-8, iso-latin-1, raw-text, then the UTF-8 with BOM
+!> environment: utf-8, iso-latin-1, raw-text, then the UTF-8 with BYTE_ORDER_MARK
 !> and UTF-16 ones.
 !>
 !> Deferred: the ISO-2022 family (iso-2022-7bit, iso-2022-jp, ctext and
@@ -71,21 +71,23 @@ module coding_mod
     use character_mod, only: character_string, string_character_and_length, is_character_byte8, byte8_to_character, &
                              character_to_byte8, multibyte_length, MAXIMUM_MULTIBYTE_LENGTH, MAXIMUM_CHARACTER, &
                              MAXIMUM_UNICODE_CHARACTER, MAXIMUM_5_BYTE_CHARACTER
-    use character_mod, only: str_to_multibyte
+    use character_mod, only: string_to_multibyte
     use data_mod, only: logical_setting_type, string_setting_type
-    use buffer_mod, only: buffers, current, buf_bytes, temporary_set_point_both
+    use buffer_mod, only: buffers, current, buffer_bytes, temporary_set_point_both
     use marker_mod, only: character_to_byte
     use insert_delete_mod, only: insert, delete_range
     use characters_mod, only: characters_preferred_coding_systems
-    use character_set_mod, only: CHARSET_NAME_LENGTH, charsets, find_charset, check_charset, decode_character_id, &
-                                 encode_character_id, character_charset_id
-    use character_set_mod, only: find_iso_charset, iso_2022_charset_order, charset_ascii, charset_jisx0201_roman, &
-                                 charset_jisx0208_1978, charset_jisx0208
-    use character_set_mod, only: emacs_mule_charset_order, emacs_mule_charsets, emacs_mule_bytes, charset_eight_bit
+    use character_set_mod, only: CHARACTER_SET_NAME_LENGTH, character_sets, find_character_set, check_character_set, &
+                                 decode_character_id, encode_character_id, character_character_set_id
+    use character_set_mod, only: find_iso_character_set, iso_2022_character_set_order, character_set_ascii, &
+                                 character_set_jisx0201_roman, character_set_jisx0208_1978, character_set_jisx0208
+    use character_set_mod, only: emacs_multilingual_environment_character_set_order, &
+                                 emacs_multilingual_environment_character_sets, emacs_multilingual_environment_bytes, &
+                                 character_set_eight_bit
     implicit none(type, external)
     private
 
-    public :: define_charset_coding_system, define_iso_2022_coding_system, define_language_environments
+    public :: define_character_set_coding_system, define_iso_2022_coding_system, define_language_environments
     public :: set_terminal_coding_system_internal, terminal_coding_system, set_keyboard_coding_system_internal, &
               keyboard_coding_system
     public :: initialize_coding, is_coding_system, check_coding_system, coding_system_id, coding_system_name, &
@@ -93,8 +95,9 @@ module coding_mod
               coding_system_mnemonic, coding_system_doc_string, coding_system_aliases, coding_system_equal, &
               coding_system_list, coding_system_priority_list, set_coding_system_priority, coding_system_category, &
               is_coding_system_iso_7_bit, is_coding_system_suitable_for_keyboard, &
-              is_coding_system_for_unibyte, is_coding_system_ascii_compatible, coding_system_mime_charset, &
-              coding_system_charset_list, coding_system_bom, coding_system_endian, is_coding_system_prefer_utf_8, &
+              is_coding_system_for_unibyte, is_coding_system_ascii_compatible, coding_system_mime_character_set, &
+              coding_system_character_set_list, coding_system_byte_order_mark, coding_system_endian, &
+              is_coding_system_prefer_utf_8, &
               coding_system_change_end_of_line_conversion, coding_system_change_text_conversion, &
               coding_system_end_of_line_type_mnemonic, coding_inherit_end_of_line_type, raw_text_coding_system, &
               detect_coding_bytes, decode_coding_bytes, encode_coding_text, is_character_encodable, &
@@ -104,18 +107,18 @@ module coding_mod
 
     !> Coding types (the `:coding-type' attribute).
     integer, parameter, public :: CODING_UNDECIDED = 0, CODING_UTF_8 = 1, CODING_UTF_16 = 2, &
-                                  CODING_CHARSET = 3, CODING_RAW_TEXT = 4, CODING_SJIS = 5, CODING_BIG5 = 6, &
-                                  CODING_ISO_2022 = 7, CODING_EMACS_MULE = 8
+                                  CODING_CHARACTER_SET = 3, CODING_RAW_TEXT = 4, CODING_SJIS = 5, CODING_BIG5 = 6, &
+                                  CODING_ISO_2022 = 7, CODING_EMACS_MULTILINGUAL_ENVIRONMENT = 8
     !> End-of-line types: `coding_system_end_of_line_type' returns one of the
     !> first three, or END_OF_LINE_UNDECIDED for a coding system that has
     !> subsidiaries (upstream's vector).
     integer, parameter, public :: END_OF_LINE_UNIX = 0, END_OF_LINE_DOS = 1, END_OF_LINE_MAC = 2, END_OF_LINE_UNDECIDED = -1
-    !> BOM handling of UTF coding systems (the `:bom' attribute: BOM_NONE, BOM_WITH
-    !> or BOM_DETECT, which chooses between two coding systems).
-    integer, parameter, public :: BOM_NONE = 0, BOM_WITH = 1, BOM_DETECT = 2
+    !> BYTE_ORDER_MARK handling of UTF coding systems (the `:bom' attribute: BYTE_ORDER_MARK_NONE, BYTE_ORDER_MARK_WITH
+    !> or BYTE_ORDER_MARK_DETECT, which chooses between two coding systems).
+    integer, parameter, public :: BYTE_ORDER_MARK_NONE = 0, BYTE_ORDER_MARK_WITH = 1, BYTE_ORDER_MARK_DETECT = 2
 
-    ! The charsets a coding system other than one of type `charset' can
-    ! encode (its `:charset-list'); those of type `charset' list theirs.
+    ! The charsets a coding system other than one of type `character_set' can
+    ! encode (its `:charset-list'); those of type `character_set' list theirs.
     integer, parameter :: CS_ASCII = 1, CS_UNICODE = 3, CS_EMACS = 4, CS_ANY = 5, CS_LIST = 6
 
     ! The `:flags' of an ISO-2022 coding system, by the bits of
@@ -124,7 +127,7 @@ module coding_mod
                           ISO_RESET_AT_CNTL = int(z'0004'), ISO_SEVEN_BITS = int(z'0008'), &
                           ISO_LOCKING_SHIFT = int(z'0010'), ISO_SINGLE_SHIFT = int(z'0020'), &
                           ISO_DESIGNATION = int(z'0040'), ISO_REVISION = int(z'0080'), ISO_DIRECTION = int(z'0100'), &
-                          ISO_INIT_AT_BEGINNING_OF_LINE = int(z'0200'), ISO_DESIGNATE_AT_BEGINNING_OF_LINE = int(z'0400'), &
+                          ISO_INITIALIZE_AT_BEGINNING_OF_LINE = int(z'0200'), ISO_DESIGNATE_AT_BEGINNING_OF_LINE = int(z'0400'), &
                           ISO_SAFE = int(z'0800'), &
                           ISO_LATIN_EXTRA = int(z'1000'), ISO_COMPOSITION = int(z'2000'), ISO_USE_ROMAN = int(z'8000'), &
                           ISO_USE_OLDJIS = int(z'10000'), ISO_LEVEL_4 = int(z'20000'), ISO_FULL_SUPPORT = int(z'100000')
@@ -142,8 +145,10 @@ module coding_mod
                           CATEGORY_ISO_7_ELSE = 4, CATEGORY_ISO_8_ELSE = 5, CATEGORY_UTF_8_AUTO = 6, CATEGORY_UTF_8_NOSIG = 7, &
                           CATEGORY_UTF_8_SIGNATURE = 8, CATEGORY_UTF_16_AUTO = 9, CATEGORY_UTF_16_BE = 10, &
                           CATEGORY_UTF_16_LE = 11, &
-                          CATEGORY_UTF_16_BE_NOSIG = 12, CATEGORY_UTF_16_LE_NOSIG = 13, CATEGORY_CHARSET = 14, CATEGORY_SJIS = 15, &
-                          CATEGORY_BIG5 = 16, CATEGORY_CCL = 17, CATEGORY_EMACS_MULE = 18, CATEGORY_RAW_TEXT = 19, &
+                          CATEGORY_UTF_16_BE_NOSIG = 12, CATEGORY_UTF_16_LE_NOSIG = 13, CATEGORY_CHARACTER_SET = 14, &
+                          CATEGORY_SJIS = 15, &
+                          CATEGORY_BIG5 = 16, CATEGORY_CCL = 17, CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT = 18, &
+                          CATEGORY_RAW_TEXT = 19, &
                           CATEGORY_UNDECIDED = 20, NCAT = 21
     integer, parameter :: MASK_ANY = 2**CATEGORY_RAW_TEXT - 1
     integer, parameter :: MASK_UTF_8 = 2**CATEGORY_UTF_8_AUTO + 2**CATEGORY_UTF_8_NOSIG + 2**CATEGORY_UTF_8_SIGNATURE
@@ -174,7 +179,7 @@ module coding_mod
 
     !> A coding system (coding.c's spec vector and attribute vector).
     type :: coding_type
-        character(len=:), allocatable :: name, doc, mime_charset
+        character(len=:), allocatable :: name, doc, mime_character_set
         !> The base coding system (itself for a base).
         integer :: base = 0
         integer :: ctype = CODING_UNDECIDED, category = CATEGORY_UNDECIDED
@@ -183,20 +188,20 @@ module coding_mod
         !> The -unix, -dos and -mac subsidiaries of a coding system whose
         !> end-of-line type is undecided.
         integer :: subsidiaries(0:2) = 0
-        integer :: bom = BOM_NONE
-        !> For BOM_DETECT: the coding systems with and without a BOM.
-        character(len=:), allocatable :: bom_with, bom_without
+        integer :: byte_order_mark = BYTE_ORDER_MARK_NONE
+        !> For BYTE_ORDER_MARK_DETECT: the coding systems with and without a BYTE_ORDER_MARK.
+        character(len=:), allocatable :: byte_order_mark_with, byte_order_mark_without
         logical :: big_endian = .true.
-        integer :: charset = CS_ASCII
-        !> For type `charset': the ids of its charsets, and for each first
+        integer :: character_set = CS_ASCII
+        !> For type `character_set': the ids of its charsets, and for each first
         !> byte the charsets it can start, by dimension (coding.c's
-        !> coding_attribute_charset_valids): those of byte B are the
-        !> `valid_charset_counts(B)' entries of `valid_charsets' from
-        !> `valid_charset_starts(B)' (see `valid_charset').
-        integer, allocatable :: charset_ids(:)
-        character(len=CHARSET_NAME_LENGTH), allocatable :: charset_names(:)
-        integer :: valid_charset_counts(0:255) = 0, valid_charset_starts(0:255) = 0
-        integer, allocatable :: valid_charsets(:)
+        !> coding_attribute_character_set_valids): those of byte B are the
+        !> `valid_character_set_counts(B)' entries of `valid_character_sets' from
+        !> `valid_character_set_starts(B)' (see `valid_character_set').
+        integer, allocatable :: character_set_ids(:)
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: character_set_names(:)
+        integer :: valid_character_set_counts(0:255) = 0, valid_character_set_starts(0:255) = 0
+        integer, allocatable :: valid_character_sets(:)
         !> For type `iso-2022': its flags, the charsets initially
         !> designated to G0..G3 (0 for none), the registers of the
         !> charsets of 94 and 96 characters (4 for none), the charsets that
@@ -205,7 +210,7 @@ module coding_mod
         integer :: iso_flags = 0
         integer :: iso_initial(0:3) = 0
         integer :: iso_register_94 = 4, iso_register_96 = 4
-        integer, allocatable :: iso_request_charsets(:), iso_request_registers(:)
+        integer, allocatable :: iso_request_character_sets(:), iso_request_registers(:)
         logical :: ascii_compatible = .false., for_unibyte = .false., prefer_utf_8 = .false.
         !> `:suitable-for-keyboard'.
         logical :: suitable_for_keyboard = .false.
@@ -404,58 +409,58 @@ module coding_mod
     character(len=:), allocatable :: terminal_coding, keyboard_coding
 
     interface
-        !> Define the `charset' coding systems of chinese.el (in chinese_mod).  Port of
-        !> chinese.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of chinese.el (in chinese_mod).  Port of
+        !> chinese.el's `character_set' coding systems.
         module subroutine initialize_chinese()
             implicit none(type, external)
         end subroutine initialize_chinese
-        !> Define the `charset' coding systems of cyrillic.el (in cyrillic_mod).  Port of
-        !> cyrillic.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of cyrillic.el (in cyrillic_mod).  Port of
+        !> cyrillic.el's `character_set' coding systems.
         module subroutine initialize_cyrillic()
             implicit none(type, external)
         end subroutine initialize_cyrillic
-        !> Define the `charset' coding systems of english.el (in english_mod).  Port of
-        !> english.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of english.el (in english_mod).  Port of
+        !> english.el's `character_set' coding systems.
         module subroutine initialize_english()
             implicit none(type, external)
         end subroutine initialize_english
-        !> Define the `charset' coding systems of european.el (in european_mod).  Port of
-        !> european.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of european.el (in european_mod).  Port of
+        !> european.el's `character_set' coding systems.
         module subroutine initialize_european()
             implicit none(type, external)
         end subroutine initialize_european
-        !> Define the `charset' coding systems of romanian.el (in romanian_mod).  Port of
-        !> romanian.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of romanian.el (in romanian_mod).  Port of
+        !> romanian.el's `character_set' coding systems.
         module subroutine initialize_romanian()
             implicit none(type, external)
         end subroutine initialize_romanian
-        !> Define the `charset' coding systems of greek.el (in greek_mod).  Port of
-        !> greek.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of greek.el (in greek_mod).  Port of
+        !> greek.el's `character_set' coding systems.
         module subroutine initialize_greek()
             implicit none(type, external)
         end subroutine initialize_greek
-        !> Define the `charset' coding systems of hebrew.el (in hebrew_mod).  Port of
-        !> hebrew.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of hebrew.el (in hebrew_mod).  Port of
+        !> hebrew.el's `character_set' coding systems.
         module subroutine initialize_hebrew()
             implicit none(type, external)
         end subroutine initialize_hebrew
-        !> Define the `charset' coding systems of japanese.el (in japanese_mod).  Port of
-        !> japanese.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of japanese.el (in japanese_mod).  Port of
+        !> japanese.el's `character_set' coding systems.
         module subroutine initialize_japanese()
             implicit none(type, external)
         end subroutine initialize_japanese
-        !> Define the `charset' coding systems of korean.el (in korean_mod).  Port of
-        !> korean.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of korean.el (in korean_mod).  Port of
+        !> korean.el's `character_set' coding systems.
         module subroutine initialize_korean()
             implicit none(type, external)
         end subroutine initialize_korean
-        !> Define the `charset' coding systems of lao.el (in lao_mod).  Port of
-        !> lao.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of lao.el (in lao_mod).  Port of
+        !> lao.el's `character_set' coding systems.
         module subroutine initialize_lao()
             implicit none(type, external)
         end subroutine initialize_lao
-        !> Define the `charset' coding systems of thai.el (in thai_mod).  Port of
-        !> thai.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of thai.el (in thai_mod).  Port of
+        !> thai.el's `character_set' coding systems.
         module subroutine initialize_thai()
             implicit none(type, external)
         end subroutine initialize_thai
@@ -464,18 +469,18 @@ module coding_mod
         module subroutine initialize_tibetan()
             implicit none(type, external)
         end subroutine initialize_tibetan
-        !> Define the `charset' coding systems of vietnamese.el (in vietnamese_mod).  Port of
-        !> vietnamese.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of vietnamese.el (in vietnamese_mod).  Port of
+        !> vietnamese.el's `character_set' coding systems.
         module subroutine initialize_vietnamese()
             implicit none(type, external)
         end subroutine initialize_vietnamese
-        !> Define the `charset' coding systems of misc-lang.el (in miscellaneous_language_mod).  Port of
-        !> misc-lang.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of misc-lang.el (in miscellaneous_language_mod).  Port of
+        !> misc-lang.el's `character_set' coding systems.
         module subroutine initialize_miscellaneous_language()
             implicit none(type, external)
         end subroutine initialize_miscellaneous_language
-        !> Define the `charset' coding systems of georgian.el (in georgian_mod).  Port of
-        !> georgian.el's `charset' coding systems.
+        !> Define the `character_set' coding systems of georgian.el (in georgian_mod).  Port of
+        !> georgian.el's `character_set' coding systems.
         module subroutine initialize_georgian()
             implicit none(type, external)
         end subroutine initialize_georgian
@@ -672,26 +677,26 @@ contains
         if (.not. allocated(buffer_file_coding_system%value)) buffer_file_coding_system%value = "utf-8-unix"
         id = define("no-conversion", CODING_RAW_TEXT, iachar("="), CATEGORY_RAW_TEXT, end_of_line=END_OF_LINE_UNIX, &
                     ascii_compatible=.true., &
-                    for_unibyte=.true., default_character=0, charset=CS_ANY, &
+                    for_unibyte=.true., default_character=0, character_set=CS_ANY, &
                     doc="Do no conversion."//achar(10)//achar(10)// &
                     "When you visit a file with this coding, the file is read into a"//achar(10)// &
                     "unibyte buffer as is, thus each byte of a file is treated as a"//achar(10)//"character.")
         id = define("undecided", CODING_UNDECIDED, iachar("-"), CATEGORY_UNDECIDED, ascii_compatible=.true., default_character=0, &
-                    charset=CS_ASCII, doc="No conversion on encoding, automatic conversion on decoding.")
+                    character_set=CS_ASCII, doc="No conversion on encoding, automatic conversion on decoding.")
         ! mule-conf.el.
         call define_coding_system_alias("binary", "no-conversion")
         call define_coding_system_alias("unix", "undecided-unix")
         call define_coding_system_alias("dos", "undecided-dos")
         call define_coding_system_alias("mac", "undecided-mac")
         id = define("prefer-utf-8", CODING_UNDECIDED, iachar("-"), CATEGORY_UNDECIDED, ascii_compatible=.true., &
-                    charset=CS_EMACS, prefer_utf_8=.true., &
+                    character_set=CS_EMACS, prefer_utf_8=.true., &
                     doc="Like `undecided' but prefer UTF-8 when appropriate."//achar(10)// &
                     "On decoding, if the source contains 8-bit codes and they all"//achar(10)// &
                     "are valid UTF-8 sequences, detect the source as UTF-8 encoding"//achar(10)// &
                     "regardless of the coding priority."//achar(10)// &
                     "On encoding, if the source contains non-ASCII characters, encode them"//achar(10)//"by UTF-8.")
         id = define("raw-text", CODING_RAW_TEXT, iachar("t"), CATEGORY_RAW_TEXT, ascii_compatible=.true., for_unibyte=.true., &
-                    charset=CS_ANY, &
+                    character_set=CS_ANY, &
                     doc="Raw text, which means text contains random 8-bit codes."//achar(10)// &
                     "Encoding text with this coding system produces the actual byte"//achar(10)// &
                     "sequence of the text in buffers and strings.  An exception is made for"//achar(10)// &
@@ -701,54 +706,65 @@ contains
                     "unibyte buffer as is (except for EOL format), thus each byte of a file"//achar(10)// &
                     "is treated as a character.")
         id = define("no-conversion-multibyte", CODING_RAW_TEXT, iachar("="), CATEGORY_RAW_TEXT, end_of_line=END_OF_LINE_UNIX, &
-                    ascii_compatible=.true., charset=CS_ANY, &
+                    ascii_compatible=.true., character_set=CS_ANY, &
                     doc="Like `no-conversion' but don't read a file into a unibyte buffer.")
-        id = define("iso-latin-1", CODING_CHARSET, iachar("1"), CATEGORY_CHARSET, &
-                    charset_names=[character(len=CHARSET_NAME_LENGTH) :: "iso-8859-1"], mime_charset="iso-8859-1", &
+        id = define("iso-latin-1", CODING_CHARACTER_SET, iachar("1"), CATEGORY_CHARACTER_SET, &
+                    character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-1"], &
+                    mime_character_set="iso-8859-1", &
                     doc="ISO 2022 based 8-bit encoding for Latin-1 (MIME:ISO-8859-1).")
         call define_coding_system_alias("iso-8859-1", "iso-latin-1")
         call define_coding_system_alias("latin-1", "iso-latin-1")
-        id = define("emacs-mule", CODING_EMACS_MULE, iachar("M"), CATEGORY_EMACS_MULE, ascii_compatible=.true., &
+        id = define("emacs-mule", CODING_EMACS_MULTILINGUAL_ENVIRONMENT, iachar("M"), CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT, &
+                    ascii_compatible=.true., &
                     doc="Emacs 21 internal format used in buffer and string.")
-        codings(id)%charset = CS_LIST
-        codings(id)%charset_names = [character(len=CHARSET_NAME_LENGTH) :: "emacs-mule"]
-        allocate (codings(id)%charset_ids(0))
+        codings(id)%character_set = CS_LIST
+        codings(id)%character_set_names = [character(len=CHARACTER_SET_NAME_LENGTH) :: "emacs-mule"]
+        allocate (codings(id)%character_set_ids(0))
 
         do k = 0, 2
-            codings(codings(id)%subsidiaries(k))%charset = CS_LIST
-            codings(codings(id)%subsidiaries(k))%charset_names = codings(id)%charset_names
-            allocate (codings(codings(id)%subsidiaries(k))%charset_ids(0))
+            codings(codings(id)%subsidiaries(k))%character_set = CS_LIST
+            codings(codings(id)%subsidiaries(k))%character_set_names = codings(id)%character_set_names
+            allocate (codings(codings(id)%subsidiaries(k))%character_set_ids(0))
         end do
 
-        id = define("utf-8", CODING_UTF_8, iachar("U"), CATEGORY_UTF_8_NOSIG, ascii_compatible=.true., charset=CS_UNICODE, &
-                    mime_charset="utf-8", doc="UTF-8 (no signature (BOM))")
-        id = define("utf-8-with-signature", CODING_UTF_8, iachar("U"), CATEGORY_UTF_8_SIGNATURE, bom=BOM_WITH, charset=CS_UNICODE, &
+        id = define("utf-8", CODING_UTF_8, iachar("U"), CATEGORY_UTF_8_NOSIG, ascii_compatible=.true., character_set=CS_UNICODE, &
+                    mime_character_set="utf-8", doc="UTF-8 (no signature (BOM))")
+        id = define("utf-8-with-signature", CODING_UTF_8, iachar("U"), CATEGORY_UTF_8_SIGNATURE, &
+                    byte_order_mark=BYTE_ORDER_MARK_WITH, character_set=CS_UNICODE, &
                     doc="UTF-8 (with signature (BOM))")
-        id = define("utf-8-auto", CODING_UTF_8, iachar("U"), CATEGORY_UTF_8_AUTO, bom=BOM_DETECT, charset=CS_UNICODE, &
-                    bom_with="utf-8-with-signature", bom_without="utf-8", doc="UTF-8 (auto-detect signature (BOM))")
+        id = define("utf-8-auto", CODING_UTF_8, iachar("U"), CATEGORY_UTF_8_AUTO, byte_order_mark=BYTE_ORDER_MARK_DETECT, &
+                    character_set=CS_UNICODE, &
+                    byte_order_mark_with="utf-8-with-signature", byte_order_mark_without="utf-8", &
+                    doc="UTF-8 (auto-detect signature (BOM))")
         call define_coding_system_alias("mule-utf-8", "utf-8")
         call define_coding_system_alias("cp65001", "utf-8")
-        id = define("utf-8-emacs", CODING_UTF_8, iachar("U"), CATEGORY_UTF_8_NOSIG, ascii_compatible=.true., charset=CS_EMACS, &
+        id = define("utf-8-emacs", CODING_UTF_8, iachar("U"), CATEGORY_UTF_8_NOSIG, ascii_compatible=.true., &
+                    character_set=CS_EMACS, &
                     doc="Support for all Emacs characters (including non-Unicode characters).")
         call define_coding_system_alias("emacs-internal", "utf-8-emacs-unix")
-        id = define("utf-16le", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_LE_NOSIG, big_endian=.false., charset=CS_UNICODE, &
-                    mime_charset="utf-16le", doc="UTF-16LE (little endian, no signature (BOM)).")
-        id = define("utf-16be", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_BE_NOSIG, charset=CS_UNICODE, &
-                    mime_charset="utf-16be", doc="UTF-16BE (big endian, no signature (BOM)).")
-        id = define("utf-16le-with-signature", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_LE, bom=BOM_WITH, &
-                    big_endian=.false., charset=CS_UNICODE, mime_charset="utf-16", &
+        id = define("utf-16le", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_LE_NOSIG, big_endian=.false., &
+                    character_set=CS_UNICODE, &
+                    mime_character_set="utf-16le", doc="UTF-16LE (little endian, no signature (BOM)).")
+        id = define("utf-16be", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_BE_NOSIG, character_set=CS_UNICODE, &
+                    mime_character_set="utf-16be", doc="UTF-16BE (big endian, no signature (BOM)).")
+        id = define("utf-16le-with-signature", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_LE, &
+                    byte_order_mark=BYTE_ORDER_MARK_WITH, &
+                    big_endian=.false., character_set=CS_UNICODE, mime_character_set="utf-16", &
                     doc="UTF-16 (little endian, with signature (BOM)).")
-        id = define("utf-16be-with-signature", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_BE, bom=BOM_WITH, &
-                    charset=CS_UNICODE, mime_charset="utf-16", doc="UTF-16 (big endian, with signature (BOM)).")
-        id = define("utf-16", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_AUTO, bom=BOM_DETECT, charset=CS_UNICODE, &
-                    bom_with="utf-16le-with-signature", bom_without="utf-16be-with-signature", mime_charset="utf-16", &
+        id = define("utf-16be-with-signature", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_BE, &
+                    byte_order_mark=BYTE_ORDER_MARK_WITH, &
+                    character_set=CS_UNICODE, mime_character_set="utf-16", doc="UTF-16 (big endian, with signature (BOM)).")
+        id = define("utf-16", CODING_UTF_16, iachar("U"), CATEGORY_UTF_16_AUTO, byte_order_mark=BYTE_ORDER_MARK_DETECT, &
+                    character_set=CS_UNICODE, &
+                    byte_order_mark_with="utf-16le-with-signature", byte_order_mark_without="utf-16be-with-signature", &
+                    mime_character_set="utf-16", &
                     doc="UTF-16 (detect endian on decoding, use big endian on encoding with BOM).")
         call define_coding_system_alias("utf-16-le", "utf-16le-with-signature")
         call define_coding_system_alias("utf-16-be", "utf-16be-with-signature")
         call define_iso_2022_coding_system("iso-2022-7bit", iachar("J"), &
                                            doc="ISO 2022 based 7-bit encoding using only G0.", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii"], &
                                            request_registers=[integer :: 0], &
                                            register_usage=[0, 0], &
                                            flags=[character(len=16) :: &
@@ -756,8 +772,8 @@ contains
                                                   "composition"])
         call define_iso_2022_coding_system("iso-2022-7bit-ss2", iachar("$"), &
                                            doc="ISO 2022 based 7-bit encoding using SS2 for 96-charset.", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii"], &
                                            request_registers=[integer :: 0], &
                                            register_usage=[0, 2], &
                                            flags=[character(len=16) :: &
@@ -765,8 +781,8 @@ contains
                                                   "single-shift", "composition"])
         call define_iso_2022_coding_system("iso-2022-7bit-lock", iachar("&"), &
                                            doc="ISO-2022 coding system using Locking-Shift for 96-charset.", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii"], &
                                            request_registers=[integer :: 0], &
                                            register_usage=[0, 1], &
                                            flags=[character(len=16) :: &
@@ -775,29 +791,29 @@ contains
         call define_coding_system_alias("iso-2022-int-1", "iso-2022-7bit-lock")
         call define_iso_2022_coding_system("iso-2022-7bit-lock-ss2", iachar("i"), &
                                            doc="Mixture of ISO-2022-JP, ISO-2022-KR, and ISO-2022-CN.", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                                  "chinese-cns11643-7", "chinese-cns11643-6", &
-                                                                  "chinese-cns11643-5", "chinese-cns11643-4", &
-                                                                  "chinese-cns11643-3", "chinese-cns11643-2", &
-                                                                  "chinese-cns11643-1", "chinese-gb2312", "korean-ksc5601", &
-                                                                  "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                        "chinese-cns11643-7", "chinese-cns11643-6", &
+                                                                        "chinese-cns11643-5", "chinese-cns11643-4", &
+                                                                        "chinese-cns11643-3", "chinese-cns11643-2", &
+                                                                        "chinese-cns11643-1", "chinese-gb2312", "korean-ksc5601", &
+                                                                        "ascii"], &
                                            request_registers=[integer :: 3, 3, 3, 3, 3, 2, 1, 1, 1, 0], &
                                            register_usage=[0, 1], &
                                            flags=[character(len=16) :: &
                                                   "short", "ascii-at-eol", "ascii-at-cntl", "7-bit", "locking-shift", &
                                                   "single-shift", "init-bol"], &
-                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                          "ascii", "japanese-jisx0208", "japanese-jisx0208-1978", &
-                                                          "latin-jisx0201", "korean-ksc5601", "chinese-gb2312", &
-                                                          "chinese-cns11643-1", "chinese-cns11643-2", "chinese-cns11643-3", &
-                                                          "chinese-cns11643-4", "chinese-cns11643-5", "chinese-cns11643-6", &
-                                                          "chinese-cns11643-7"])
+                                           character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                "ascii", "japanese-jisx0208", "japanese-jisx0208-1978", &
+                                                                "latin-jisx0201", "korean-ksc5601", "chinese-gb2312", &
+                                                                "chinese-cns11643-1", "chinese-cns11643-2", "chinese-cns11643-3", &
+                                                                "chinese-cns11643-4", "chinese-cns11643-5", "chinese-cns11643-6", &
+                                                                "chinese-cns11643-7"])
         call define_coding_system_alias("iso-2022-cjk", "iso-2022-7bit-lock-ss2")
         call define_iso_2022_coding_system("iso-2022-8bit-ss2", iachar("@"), &
                                            doc="ISO 2022 based 8-bit encoding using SS2 for 96-charset.", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii"], &
                                            request_registers=[integer :: 0], &
                                            register_usage=[0, 2], &
                                            flags=[character(len=16) :: &
@@ -808,31 +824,33 @@ contains
                                            //"an extension of X's ""Compound Text Encoding""."//achar(10)//"It encodes man" &
                                            //"y characters using the normal ISO-2022 designation sequences" &
                                            //","//achar(10)//"but it doesn't support extended segments of CTEXT.", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "latin-iso8859-1", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                                  "katakana-jisx0201", "latin-iso8859-1", "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "latin-iso8859-1", "", &
+                                                    ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                        "katakana-jisx0201", "latin-iso8859-1", "ascii"], &
                                            request_registers=[integer :: 1, 1, 0], &
                                            register_usage=[0, 1], &
                                            flags=[character(len=16) :: &
                                                   "ascii-at-eol", "ascii-at-cntl", "long-form", "designation", "locking-shift", &
                                                   "single-shift", "composition"], &
-                                           mime_charset="x-ctext")
+                                           mime_character_set="x-ctext")
         call define_coding_system_alias("x-ctext", "compound-text")
         call define_coding_system_alias("ctext", "compound-text")
         call define_iso_2022_coding_system("ctext-no-compositions", iachar("x"), &
                                            doc="Compound text based generic encoding."//achar(10)//achar(10) &
                                            //"Like `compound-text', but does not produce escape sequences for compositions.", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "latin-iso8859-1", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: &
-                                                                  "katakana-jisx0201", "latin-iso8859-1", "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "latin-iso8859-1", "", &
+                                                    ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: &
+                                                                        "katakana-jisx0201", "latin-iso8859-1", "ascii"], &
                                            request_registers=[integer :: 1, 1, 0], &
                                            register_usage=[0, 1], &
                                            flags=[character(len=16) :: &
                                                   "ascii-at-eol", "ascii-at-cntl", "designation", "locking-shift", &
                                                   "single-shift"])
-        id = define("us-ascii", CODING_CHARSET, iachar("-"), CATEGORY_CHARSET, &
-                    charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii"], default_character=iachar("?"), &
-                    mime_charset="us-ascii", &
+        id = define("us-ascii", CODING_CHARACTER_SET, iachar("-"), CATEGORY_CHARACTER_SET, &
+                    character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii"], default_character=iachar("?"), &
+                    mime_character_set="us-ascii", &
                     doc="Encode ASCII as-is and encode non-ASCII characters to `?'.")
         call define_coding_system_alias("iso-safe", "us-ascii")
         call define_coding_system_alias("ascii", "us-ascii")
@@ -868,8 +886,8 @@ contains
         ! reset-language-environment: utf-8, iso-2022-7bit, iso-latin-1,
         ! iso-2022-7bit-lock, iso-2022-8bit-ss2, emacs-mule, raw-text
         ! first, the other categories in coding.c's order.
-        priorities = [CATEGORY_UTF_8_NOSIG, CATEGORY_ISO_7, CATEGORY_CHARSET, CATEGORY_ISO_7_ELSE, CATEGORY_ISO_8_ELSE, &
-                      CATEGORY_EMACS_MULE, &
+        priorities = [CATEGORY_UTF_8_NOSIG, CATEGORY_ISO_7, CATEGORY_CHARACTER_SET, CATEGORY_ISO_7_ELSE, CATEGORY_ISO_8_ELSE, &
+                      CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT, &
                       CATEGORY_RAW_TEXT, CATEGORY_ISO_7_TIGHT, CATEGORY_ISO_8_1, CATEGORY_ISO_8_2, CATEGORY_UTF_8_AUTO, &
                       CATEGORY_UTF_8_SIGNATURE, &
                       CATEGORY_UTF_16_AUTO, CATEGORY_UTF_16_BE, CATEGORY_UTF_16_LE, CATEGORY_UTF_16_BE_NOSIG, &
@@ -877,30 +895,31 @@ contains
                       CATEGORY_SJIS, CATEGORY_BIG5, CATEGORY_CCL, CATEGORY_UNDECIDED]
         category_id(CATEGORY_UTF_8_NOSIG) = coding_system_id("utf-8")
         category_id(CATEGORY_ISO_7) = coding_system_id("iso-2022-7bit")
-        category_id(CATEGORY_CHARSET) = coding_system_id("iso-latin-1")
+        category_id(CATEGORY_CHARACTER_SET) = coding_system_id("iso-latin-1")
         category_id(CATEGORY_ISO_7_ELSE) = coding_system_id("iso-2022-7bit-lock")
         category_id(CATEGORY_ISO_8_ELSE) = coding_system_id("iso-2022-8bit-ss2")
-        category_id(CATEGORY_EMACS_MULE) = coding_system_id("emacs-mule")
+        category_id(CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT) = coding_system_id("emacs-mule")
         category_id(CATEGORY_RAW_TEXT) = coding_system_id("raw-text")
     end subroutine initialize_coding
 
     !> Define a base coding system and, unless END_OF_LINE is given, its three
-    !> subsidiaries; return its id, 0 when a name of CHARSET_NAMES is no
+    !> subsidiaries; return its id, 0 when a name of CHARACTER_SET_NAMES is no
     !> charset (a `wrong_type_argument' error in STATUS).  The first
     !> coding system of a category becomes the category's.  Port of
     !> coding.c:Fdefine_coding_system_internal.
     recursive integer function define(name, ctype, mnemonic, category, end_of_line, ascii_compatible, for_unibyte, prefer_utf_8, &
-                                      default_character, charset, bom, bom_with, bom_without, big_endian, mime_charset, doc, &
-                                      charset_names, status) result(id)
+                                      default_character, character_set, byte_order_mark, byte_order_mark_with, &
+                                      byte_order_mark_without, big_endian, mime_character_set, doc, &
+                                      character_set_names, status) result(id)
         character(len=*), intent(in) :: name
         integer, intent(in) :: ctype, mnemonic, category
-        integer, intent(in), optional :: end_of_line, default_character, charset, bom
+        integer, intent(in), optional :: end_of_line, default_character, character_set, byte_order_mark
         logical, intent(in), optional :: ascii_compatible, for_unibyte, prefer_utf_8, big_endian
-        character(len=*), intent(in), optional :: bom_with, bom_without, mime_charset, doc
-        character(len=*), intent(in), optional :: charset_names(:)
+        character(len=*), intent(in), optional :: byte_order_mark_with, byte_order_mark_without, mime_character_set, doc
+        character(len=*), intent(in), optional :: character_set_names(:)
         type(status_type), intent(out), optional :: status
         type(coding_type) :: c
-        type(status_type) :: charset_status
+        type(status_type) :: character_set_status
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
         integer :: i, sub
 
@@ -915,21 +934,21 @@ contains
         if (present(for_unibyte)) c%for_unibyte = for_unibyte
         if (present(prefer_utf_8)) c%prefer_utf_8 = prefer_utf_8
         if (present(default_character)) c%default_character = default_character
-        if (present(charset)) c%charset = charset
-        if (present(bom)) c%bom = bom
-        if (present(bom_with)) c%bom_with = bom_with
-        if (present(bom_without)) c%bom_without = bom_without
+        if (present(character_set)) c%character_set = character_set
+        if (present(byte_order_mark)) c%byte_order_mark = byte_order_mark
+        if (present(byte_order_mark_with)) c%byte_order_mark_with = byte_order_mark_with
+        if (present(byte_order_mark_without)) c%byte_order_mark_without = byte_order_mark_without
         if (present(big_endian)) c%big_endian = big_endian
-        c%mime_charset = ""
-        if (present(mime_charset)) c%mime_charset = mime_charset
+        c%mime_character_set = ""
+        if (present(mime_character_set)) c%mime_character_set = mime_character_set
         c%doc = ""
         if (present(doc)) c%doc = doc
 
-        if (present(charset_names)) then
-            call set_valid_charsets(c, charset_names, charset_status)
+        if (present(character_set_names)) then
+            call set_valid_character_sets(c, character_set_names, character_set_status)
 
-            if (charset_status%code /= OK_CODE) then
-                if (present(status)) status = charset_status
+            if (character_set_status%code /= OK_CODE) then
+                if (present(status)) status = character_set_status
                 return
             end if
         end if
@@ -952,80 +971,80 @@ contains
         if (category_id(category) == 0) category_id(category) = id
     end function define
 
-    ! The charsets of a coding system of type `charset' and the charsets
+    ! The charsets of a coding system of type `character_set' and the charsets
     ! each first byte can start, smaller dimensions first; it is ASCII
-    ! compatible when one of them is; without WITH_VALID_CHARSETS (an
+    ! compatible when one of them is; without WITH_VALID_CHARACTER_SETS (an
     ! ISO-2022 coding system) only its charsets.  A name that is no charset
-    ! is a `wrong_type_argument' error (CHECK_CHARSET_GET_ID).  Port of the
-    ! `charset' part of coding.c:Fdefine_coding_system_internal.
-    subroutine set_valid_charsets(c, charset_names, status, with_valid_charsets)
+    ! is a `wrong_type_argument' error (CHECK_CHARACTER_SET_GET_ID).  Port of the
+    ! `character_set' part of coding.c:Fdefine_coding_system_internal.
+    subroutine set_valid_character_sets(c, character_set_names, status, with_valid_character_sets)
         type(coding_type), intent(inout) :: c
-        character(len=*), intent(in) :: charset_names(:)
+        character(len=*), intent(in) :: character_set_names(:)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: with_valid_charsets
-        integer :: k, b, j, m, charset, dimension, low, high, start, total
+        logical, intent(in), optional :: with_valid_character_sets
+        integer :: k, b, j, m, character_set, dimension, low, high, start, total
 
         status = status_type()
-        c%charset = CS_LIST
-        c%charset_names = charset_names
-        allocate (c%charset_ids(size(charset_names)))
+        c%character_set = CS_LIST
+        c%character_set_names = character_set_names
+        allocate (c%character_set_ids(size(character_set_names)))
 
-        do k = 1, size(charset_names)
-            c%charset_ids(k) = check_charset(trim(charset_names(k)), status)
+        do k = 1, size(character_set_names)
+            c%character_set_ids(k) = check_character_set(trim(character_set_names(k)), status)
             if (status%code /= OK_CODE) return
         end do
 
         ! An ISO-2022 coding system keeps only its charsets.
-        if (present(with_valid_charsets)) then
-            if (.not. with_valid_charsets) return
+        if (present(with_valid_character_sets)) then
+            if (.not. with_valid_character_sets) return
         end if
 
         ! Count the charsets each first byte starts, to place each byte's
-        ! entries in `valid_charsets'.
-        c%valid_charset_counts = 0
+        ! entries in `valid_character_sets'.
+        c%valid_character_set_counts = 0
 
-        do k = 1, size(c%charset_ids)
-            call first_byte_range(c%charset_ids(k), low, high)
-            c%valid_charset_counts(low:high) = c%valid_charset_counts(low:high) + 1
+        do k = 1, size(c%character_set_ids)
+            call first_byte_range(c%character_set_ids(k), low, high)
+            c%valid_character_set_counts(low:high) = c%valid_character_set_counts(low:high) + 1
         end do
 
         total = 0
 
         do b = 0, 255
-            c%valid_charset_starts(b) = total + 1
-            total = total + c%valid_charset_counts(b)
+            c%valid_character_set_starts(b) = total + 1
+            total = total + c%valid_character_set_counts(b)
         end do
 
-        allocate (c%valid_charsets(total))
-        c%valid_charsets = 0
-        c%valid_charset_counts = 0
+        allocate (c%valid_character_sets(total))
+        c%valid_character_sets = 0
+        c%valid_character_set_counts = 0
 
-        do k = 1, size(c%charset_ids)
-            charset = c%charset_ids(k)
-            dimension = charsets(charset)%dimension
-            if (charsets(charset)%ascii_compatible) c%ascii_compatible = .true.
-            call first_byte_range(charset, low, high)
+        do k = 1, size(c%character_set_ids)
+            character_set = c%character_set_ids(k)
+            dimension = character_sets(character_set)%dimension
+            if (character_sets(character_set)%ascii_compatible) c%ascii_compatible = .true.
+            call first_byte_range(character_set, low, high)
 
             do b = low, high
-                ! Insert CHARSET before the first charset of a larger
+                ! Insert CHARACTER_SET before the first charset of a larger
                 ! dimension.
-                start = c%valid_charset_starts(b)
-                m = c%valid_charset_counts(b) + 1
+                start = c%valid_character_set_starts(b)
+                m = c%valid_character_set_counts(b) + 1
 
-                do j = 1, c%valid_charset_counts(b)
-                    if (dimension < charsets(c%valid_charsets(start + j - 1))%dimension) then
+                do j = 1, c%valid_character_set_counts(b)
+                    if (dimension < character_sets(c%valid_character_sets(start + j - 1))%dimension) then
                         m = j
                         exit
                     end if
                 end do
 
-                c%valid_charsets(start + m:start + c%valid_charset_counts(b)) = &
-                    c%valid_charsets(start + m - 1:start + c%valid_charset_counts(b) - 1)
-                c%valid_charsets(start + m - 1) = charset
-                c%valid_charset_counts(b) = c%valid_charset_counts(b) + 1
+                c%valid_character_sets(start + m:start + c%valid_character_set_counts(b)) = &
+                    c%valid_character_sets(start + m - 1:start + c%valid_character_set_counts(b) - 1)
+                c%valid_character_sets(start + m - 1) = character_set
+                c%valid_character_set_counts(b) = c%valid_character_set_counts(b) + 1
             end do
         end do
-    end subroutine set_valid_charsets
+    end subroutine set_valid_character_sets
 
     ! The smallest and largest first byte of a code point of charset ID
     ! (the bytes of its dimension in code_space).  Not a port.
@@ -1034,36 +1053,37 @@ contains
         integer, intent(out) :: low, high
         integer :: first_byte
 
-        first_byte = (charsets(id)%dimension - 1)*4
-        low = int(charsets(id)%code_space(first_byte))
-        high = int(charsets(id)%code_space(first_byte + 1))
+        first_byte = (character_sets(id)%dimension - 1)*4
+        low = int(character_sets(id)%code_space(first_byte))
+        high = int(character_sets(id)%code_space(first_byte + 1))
     end subroutine first_byte_range
 
     ! The K-th charset that byte B can start in coding system ID.
     ! Not a port.
-    integer function valid_charset(id, b, k)
+    integer function valid_character_set(id, b, k)
         integer, intent(in) :: id, b, k
 
-        valid_charset = codings(id)%valid_charsets(codings(id)%valid_charset_starts(b) + k - 1)
-    end function valid_charset
+        valid_character_set = codings(id)%valid_character_sets(codings(id)%valid_character_set_starts(b) + k - 1)
+    end function valid_character_set
 
-    !> Define NAME as a coding system of type `charset' (or CTYPE
-    !> CODING_SJIS or CODING_BIG5) for the charsets named CHARSET_NAMES,
+    !> Define NAME as a coding system of type `character_set' (or CTYPE
+    !> CODING_SJIS or CODING_BIG5) for the charsets named CHARACTER_SET_NAMES,
     !> with mnemonic character MNEMONIC (and its subsidiaries).  A name
     !> that is no charset is a `wrong_type_argument' error in STATUS, and
     !> nothing is defined.  Port of mule.el:define-coding-system for
-    !> `:coding-type' `charset', `shift-jis' and `big5'.
-    subroutine define_charset_coding_system(name, mnemonic, charset_names, doc, mime_charset, default_character, ctype, status)
+    !> `:coding-type' `character_set', `shift-jis' and `big5'.
+    subroutine define_character_set_coding_system(name, mnemonic, character_set_names, doc, mime_character_set, default_character, &
+                                                  ctype, status)
         character(len=*), intent(in) :: name
         integer, intent(in) :: mnemonic
-        character(len=*), intent(in) :: charset_names(:), doc
-        character(len=*), intent(in), optional :: mime_charset
+        character(len=*), intent(in) :: character_set_names(:), doc
+        character(len=*), intent(in), optional :: mime_character_set
         integer, intent(in), optional :: default_character, ctype
         type(status_type), intent(out), optional :: status
         integer :: id, actual_ctype, category
 
-        actual_ctype = CODING_CHARSET
-        category = CATEGORY_CHARSET
+        actual_ctype = CODING_CHARACTER_SET
+        category = CATEGORY_CHARACTER_SET
 
         if (present(ctype)) then
             select case (ctype)
@@ -1077,16 +1097,16 @@ contains
             end select
         end if
 
-        id = define(name, actual_ctype, mnemonic, category, charset_names=charset_names, doc=doc, &
-                    mime_charset=mime_charset, default_character=default_character, status=status)
-    end subroutine define_charset_coding_system
+        id = define(name, actual_ctype, mnemonic, category, character_set_names=character_set_names, doc=doc, &
+                    mime_character_set=mime_character_set, default_character=default_character, status=status)
+    end subroutine define_character_set_coding_system
 
     !> Define NAME as a coding system of type `iso-2022' with mnemonic
-    !> character MNEMONIC (and its subsidiaries).  CHARSET_NAMES is its
+    !> character MNEMONIC (and its subsidiaries).  CHARACTER_SET_NAMES is its
     !> `:charset-list' (omitted for `iso-2022': all ISO-2022 charsets).
     !> Its `:designation' is given as mule.el's define-coding-system turns
     !> it into the attributes: INITIAL, the charsets initially designated
-    !> to G0..G3 ("" for none); REQUEST_CHARSET_NAMES with
+    !> to G0..G3 ("" for none); REQUEST_CHARACTER_SET_NAMES with
     !> REQUEST_REGISTERS, the registers the charsets ask for, in the order
     !> of the designation table; and REGISTER_USAGE, the registers of the
     !> other charsets of 94 and 96 characters (4 for none).  FLAGS are
@@ -1095,20 +1115,21 @@ contains
     !> `iso-2022' and its part of coding.c:Fdefine_coding_system_internal.  A
     !> name that is no charset is a `wrong_type_argument' error in STATUS, and
     !> nothing is defined.
-    subroutine define_iso_2022_coding_system(name, mnemonic, doc, initial, request_charset_names, request_registers, &
-                                             register_usage, flags, charset_names, mime_charset, suitable_for_keyboard, &
+    subroutine define_iso_2022_coding_system(name, mnemonic, doc, initial, request_character_set_names, request_registers, &
+                                             register_usage, flags, character_set_names, mime_character_set, &
+                                             suitable_for_keyboard, &
                                              status)
         character(len=*), intent(in) :: name, doc
         integer, intent(in) :: mnemonic
-        character(len=*), intent(in) :: initial(0:3), request_charset_names(:), flags(:)
+        character(len=*), intent(in) :: initial(0:3), request_character_set_names(:), flags(:)
         integer, intent(in) :: request_registers(:), register_usage(2)
-        character(len=*), intent(in), optional :: charset_names(:), mime_charset
+        character(len=*), intent(in), optional :: character_set_names(:), mime_character_set
         logical, intent(in), optional :: suitable_for_keyboard
         type(status_type), intent(out), optional :: status
         type(coding_type) :: c
-        type(status_type) :: charset_status
+        type(status_type) :: character_set_status
         character(len=*), parameter :: SUFFIXES(0:2) = [character(len=5) :: "-unix", "-dos", "-mac"]
-        integer :: i, k, id, sub, category, g1_charset
+        integer :: i, k, id, sub, category, g1_character_set
 
         if (present(status)) status = status_type()
         c%name = name
@@ -1116,20 +1137,20 @@ contains
         c%mnemonic = mnemonic
         if (present(suitable_for_keyboard)) c%suitable_for_keyboard = suitable_for_keyboard
         c%doc = doc
-        c%mime_charset = ""
-        if (present(mime_charset)) c%mime_charset = mime_charset
+        c%mime_character_set = ""
+        if (present(mime_character_set)) c%mime_character_set = mime_character_set
 
-        if (present(charset_names)) then
-            call set_valid_charsets(c, charset_names, charset_status, with_valid_charsets=.false.)
+        if (present(character_set_names)) then
+            call set_valid_character_sets(c, character_set_names, character_set_status, with_valid_character_sets=.false.)
 
-            if (charset_status%code /= OK_CODE) then
-                if (present(status)) status = charset_status
+            if (character_set_status%code /= OK_CODE) then
+                if (present(status)) status = character_set_status
                 return
             end if
         else
-            c%charset = CS_LIST
-            allocate (c%charset_ids(0), c%charset_names(1))
-            c%charset_names(1) = "iso-2022"
+            c%character_set = CS_LIST
+            allocate (c%character_set_ids(0), c%character_set_names(1))
+            c%character_set_names(1) = "iso-2022"
             c%iso_flags = ISO_FULL_SUPPORT
         end if
 
@@ -1137,16 +1158,17 @@ contains
 
         do i = 0, 3
             c%iso_initial(i) = 0
-            if (len_trim(initial(i)) > 0) c%iso_initial(i) = find_charset(trim(initial(i)))
+            if (len_trim(initial(i)) > 0) c%iso_initial(i) = find_character_set(trim(initial(i)))
         end do
 
-        if (c%iso_initial(0) /= 0) c%ascii_compatible = charsets(c%iso_initial(0))%ascii_compatible
+        if (c%iso_initial(0) /= 0) c%ascii_compatible = character_sets(c%iso_initial(0))%ascii_compatible
         c%iso_register_94 = register_usage(1)
         c%iso_register_96 = register_usage(2)
-        allocate (c%iso_request_charsets(size(request_charset_names)), c%iso_request_registers(size(request_charset_names)))
+        allocate (c%iso_request_character_sets(size(request_character_set_names)), &
+                  c%iso_request_registers(size(request_character_set_names)))
 
-        do k = 1, size(request_charset_names)
-            c%iso_request_charsets(k) = find_charset(trim(request_charset_names(k)))
+        do k = 1, size(request_character_set_names)
+            c%iso_request_character_sets(k) = find_character_set(trim(request_character_set_names(k)))
             c%iso_request_registers(k) = request_registers(k)
         end do
 
@@ -1165,11 +1187,11 @@ contains
                 category = CATEGORY_ISO_7_TIGHT
             end if
         else
-            g1_charset = c%iso_initial(1)
+            g1_character_set = c%iso_initial(1)
 
-            if (iand(c%iso_flags, ior(ISO_LOCKING_SHIFT, ISO_FULL_SUPPORT)) /= 0 .or. g1_charset == 0) then
+            if (iand(c%iso_flags, ior(ISO_LOCKING_SHIFT, ISO_FULL_SUPPORT)) /= 0 .or. g1_character_set == 0) then
                 category = CATEGORY_ISO_8_ELSE
-            else if (charsets(g1_charset)%dimension == 1) then
+            else if (character_sets(g1_character_set)%dimension == 1) then
                 category = CATEGORY_ISO_8_1
             else
                 category = CATEGORY_ISO_8_2
@@ -1197,48 +1219,48 @@ contains
     ! The charsets of coding system ID: for an ISO-2022 coding system that
     ! supports all ISO-2022 charsets, Viso_2022_charset_list.  Port of
     ! coding.c:CODING_ATTR_CHARSET_LIST.
-    function coding_charset_ids(id) result(ids)
+    function coding_character_set_ids(id) result(ids)
         integer, intent(in) :: id
         integer, allocatable :: ids(:)
 
         if (iand(codings(id)%iso_flags, ISO_FULL_SUPPORT) /= 0) then
-            ids = iso_2022_charset_order
-        else if (codings(id)%ctype == CODING_EMACS_MULE) then
-            ids = emacs_mule_charset_order
+            ids = iso_2022_character_set_order
+        else if (codings(id)%ctype == CODING_EMACS_MULTILINGUAL_ENVIRONMENT) then
+            ids = emacs_multilingual_environment_character_set_order
         else
-            ids = codings(id)%charset_ids
+            ids = codings(id)%character_set_ids
         end if
-    end function coding_charset_ids
+    end function coding_character_set_ids
 
-    ! The register of CHARSET in the safe charsets of ISO-2022 coding
-    ! system ID, -1 if it may not use CHARSET.  The definition gives each
+    ! The register of CHARACTER_SET in the safe charsets of ISO-2022 coding
+    ! system ID, -1 if it may not use CHARACTER_SET.  The definition gives each
     ! charset of the coding system's `:charset-list' register 0; one with
     ! `:charset-list' `iso-2022' gets them from its requests and register
     ! usage once the charset priority has changed, as it has at startup.
-    ! Port of coding.c:CODING_ISO_REQUEST with setup_iso_safe_charsets.
-    integer function iso_request(id, charset) result(register)
-        integer, intent(in) :: id, charset
+    ! Port of coding.c:CODING_ISO_REQUEST with setup_iso_safe_character_sets.
+    integer function iso_request(id, character_set) result(register)
+        integer, intent(in) :: id, character_set
         integer, allocatable :: ids(:)
         integer :: k
 
         register = -1
-        if (charset <= 0) return
-        ids = coding_charset_ids(id)
-        if (.not. any(ids == charset)) return
+        if (character_set <= 0) return
+        ids = coding_character_set_ids(id)
+        if (.not. any(ids == character_set)) return
 
         if (iand(codings(id)%iso_flags, ISO_FULL_SUPPORT) == 0) then
             register = 0
             return
         end if
 
-        k = findloc(codings(id)%iso_request_charsets, charset, dim=1)
+        k = findloc(codings(id)%iso_request_character_sets, character_set, dim=1)
 
         if (k > 0) then
             register = codings(id)%iso_request_registers(k)
             return
         end if
 
-        if (charsets(charset)%iso_characters_96) then
+        if (character_sets(character_set)%iso_characters_96) then
             register = codings(id)%iso_register_96
         else
             register = codings(id)%iso_register_94
@@ -1247,13 +1269,13 @@ contains
         if (register >= 4) register = -1
     end function iso_request
 
-    ! Whether ISO-2022 coding system ID may use CHARSET.  Port of
+    ! Whether ISO-2022 coding system ID may use CHARACTER_SET.  Port of
     ! coding.c:SAFE_CHARSET_P.
-    logical function is_safe_charset(id, charset)
-        integer, intent(in) :: id, charset
+    logical function is_safe_character_set(id, character_set)
+        integer, intent(in) :: id, character_set
 
-        is_safe_charset = iso_request(id, charset) >= 0
-    end function is_safe_charset
+        is_safe_character_set = iso_request(id, character_set) >= 0
+    end function is_safe_character_set
 
     ! Not a port.
     integer function add_coding(c) result(id)
@@ -1434,7 +1456,7 @@ contains
             t = "utf-8"
         case (CODING_UTF_16)
             t = "utf-16"
-        case (CODING_CHARSET)
+        case (CODING_CHARACTER_SET)
             t = "charset"
         case (CODING_SJIS)
             t = "shift-jis"
@@ -1442,7 +1464,7 @@ contains
             t = "big5"
         case (CODING_ISO_2022)
             t = "iso-2022"
-        case (CODING_EMACS_MULE)
+        case (CODING_EMACS_MULTILINGUAL_ENVIRONMENT)
             t = "emacs-mule"
         case default
             t = "raw-text"
@@ -1475,19 +1497,19 @@ contains
     end function coding_system_doc_string
 
     !> The MIME charset of CODING_SYSTEM ("" if none).  Not a port.
-    function coding_system_mime_charset(coding_system) result(m)
+    function coding_system_mime_character_set(coding_system) result(m)
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: m
         integer :: id
 
         m = ""
         id = coding_system_id(coding_system)
-        if (id > 0) m = codings(id)%mime_charset
-    end function coding_system_mime_charset
+        if (id > 0) m = codings(id)%mime_character_set
+    end function coding_system_mime_character_set
 
     !> The charsets CODING_SYSTEM can encode, as describe-coding-system
     !> names them.  Port of mule.el:coding-system-charset-list.
-    function coding_system_charset_list(coding_system) result(s)
+    function coding_system_character_set_list(coding_system) result(s)
         character(len=*), intent(in) :: coding_system
         character(len=:), allocatable :: s
         integer :: id, k
@@ -1496,11 +1518,11 @@ contains
         id = coding_system_id(coding_system)
         if (id == 0) return
 
-        select case (codings(id)%charset)
+        select case (codings(id)%character_set)
         case (CS_LIST)
-            do k = 1, size(codings(id)%charset_names)
+            do k = 1, size(codings(id)%character_set_names)
                 if (k > 1) s = s//" "
-                s = s//trim(codings(id)%charset_names(k))
+                s = s//trim(codings(id)%character_set_names(k))
             end do
         case (CS_ASCII)
             s = "ascii"
@@ -1511,29 +1533,29 @@ contains
         case default
             s = ""
         end select
-    end function coding_system_charset_list
+    end function coding_system_character_set_list
 
-    !> The `:bom' attribute of CODING_SYSTEM (BOM_NONE, BOM_WITH or
-    !> BOM_DETECT), and for BOM_DETECT the coding systems with and without
-    !> a BOM.  Not a port.
-    subroutine coding_system_bom(coding_system, bom, with, without)
+    !> The `:bom' attribute of CODING_SYSTEM (BYTE_ORDER_MARK_NONE, BYTE_ORDER_MARK_WITH or
+    !> BYTE_ORDER_MARK_DETECT), and for BYTE_ORDER_MARK_DETECT the coding systems with and without
+    !> a BYTE_ORDER_MARK.  Not a port.
+    subroutine coding_system_byte_order_mark(coding_system, byte_order_mark, with, without)
         character(len=*), intent(in) :: coding_system
-        integer, intent(out) :: bom
+        integer, intent(out) :: byte_order_mark
         character(len=:), allocatable, intent(out), optional :: with, without
         integer :: id
 
-        bom = BOM_NONE
+        byte_order_mark = BYTE_ORDER_MARK_NONE
         if (present(with)) with = ""
         if (present(without)) without = ""
         id = coding_system_id(coding_system)
         if (id == 0) return
-        bom = codings(id)%bom
+        byte_order_mark = codings(id)%byte_order_mark
 
-        if (bom == BOM_DETECT) then
-            if (present(with)) with = codings(id)%bom_with
-            if (present(without)) without = codings(id)%bom_without
+        if (byte_order_mark == BYTE_ORDER_MARK_DETECT) then
+            if (present(with)) with = codings(id)%byte_order_mark_with
+            if (present(without)) without = codings(id)%byte_order_mark_without
         end if
-    end subroutine coding_system_bom
+    end subroutine coding_system_byte_order_mark
 
     !> Whether CODING_SYSTEM is a UTF-16 one that is big endian.
     !> Not a port.
@@ -1997,26 +2019,26 @@ contains
     ! ------------------------------------------------------------------
 
     !> Whether the text is UTF-8, counting characters and checking for a
-    !> BOM.  Port of coding.c:detect_coding_utf_8.
+    !> BYTE_ORDER_MARK.  Port of coding.c:detect_coding_utf_8.
     logical function detect_coding_utf_8(units, head_ascii, info) result(ok)
         integer, intent(in) :: units(:)
         integer(int64), intent(in) :: head_ascii
         type(detect_info_type), intent(inout) :: info
         integer(int64) :: source, source_base, nchars, n
         integer :: c, k, trail
-        logical :: bom_found, invalid
+        logical :: byte_order_mark_found, invalid
 
         n = size(units, kind=int64)
         info%checked = ior(info%checked, MASK_UTF_8)
         source = head_ascii + 1
         nchars = head_ascii
-        bom_found = .false.
+        byte_order_mark_found = .false.
         ok = .false.
 
-        ! BOM should be at the head, and is 3-byte long.
+        ! BYTE_ORDER_MARK should be at the head, and is 3-byte long.
         if (source == 1 .and. source + 3 <= n) then
             if (units(1) == int(z'EF') .and. units(2) == int(z'BB') .and. units(3) == int(z'BF')) then
-                bom_found = .true.
+                byte_order_mark_found = .true.
                 source = source + 3
                 nchars = nchars + 1
             end if
@@ -2087,8 +2109,8 @@ contains
             return
         end if
 
-        if (bom_found) then
-            ! The first character 0xFFFE doesn't necessarily mean a BOM.
+        if (byte_order_mark_found) then
+            ! The first character 0xFFFE doesn't necessarily mean a BYTE_ORDER_MARK.
             info%found = ior(info%found, 2**CATEGORY_UTF_8_AUTO + 2**CATEGORY_UTF_8_SIGNATURE + 2**CATEGORY_UTF_8_NOSIG)
         else
             info%rejected = ior(info%rejected, 2**CATEGORY_UTF_8_SIGNATURE)
@@ -2124,7 +2146,7 @@ contains
         sequence_cut = start + need - 1 > size(units, kind=int64)
     end function sequence_cut
 
-    !> Whether the text is UTF-16: a BOM decides; otherwise the spread of
+    !> Whether the text is UTF-16: a BYTE_ORDER_MARK decides; otherwise the spread of
     !> the even and odd bytes rejects the endianness that would make it
     !> binary data.  Port of coding.c:detect_coding_utf_16.
     logical function detect_coding_utf_16(units, info) result(ok)
@@ -2208,17 +2230,17 @@ contains
     !> an iso-8859 or iso-latin coding system rejects 0x80..0x9F except the
     !> bytes of latin-extra-code-table.  Port of
     !> coding.c:detect_coding_charset.
-    logical function detect_coding_charset(units, head_ascii, info) result(ok)
+    logical function detect_coding_character_set(units, head_ascii, info) result(ok)
         integer, intent(in) :: units(:)
         integer(int64), intent(in) :: head_ascii
         type(detect_info_type), intent(inout) :: info
-        integer :: id, c, found, k, charset, dimension, bytes_read
+        integer :: id, c, found, k, character_set, dimension, bytes_read
         integer(int64) :: source, unit_count
         logical :: check_latin_extra, matched, rejected
 
-        info%checked = ior(info%checked, 2**CATEGORY_CHARSET)
+        info%checked = ior(info%checked, 2**CATEGORY_CHARACTER_SET)
         ok = .false.
-        id = category_id(CATEGORY_CHARSET)
+        id = category_id(CATEGORY_CHARACTER_SET)
         check_latin_extra = index(codings(id)%name, "iso-8859-") == 1 .or. index(codings(id)%name, "iso-latin-") == 1
         unit_count = size(units, kind=int64)
         source = 1
@@ -2233,32 +2255,32 @@ contains
 
             if (c > 255) then
                 rejected = .true.
-            else if (codings(id)%valid_charset_counts(c) == 0) then
+            else if (codings(id)%valid_character_set_counts(c) == 0) then
                 rejected = .true.
             else if (c >= 128 .and. c < int(z'A0') .and. check_latin_extra .and. .not. any(LATIN_EXTRA == c)) then
                 rejected = .true.
             end if
 
             if (rejected) exit
-            if (c >= 128) found = 2**CATEGORY_CHARSET
+            if (c >= 128) found = 2**CATEGORY_CHARACTER_SET
             ! The other bytes of the code point, for one of the charsets.
             bytes_read = 1
             matched = .false.
 
-            do k = 1, codings(id)%valid_charset_counts(c)
-                charset = valid_charset(id, c, k)
-                dimension = charsets(charset)%dimension
+            do k = 1, codings(id)%valid_character_set_counts(c)
+                character_set = valid_character_set(id, c, k)
+                dimension = character_sets(character_set)%dimension
 
                 do while (bytes_read < dimension)
                     if (source > unit_count) then
-                        info%rejected = ior(info%rejected, 2**CATEGORY_CHARSET)
+                        info%rejected = ior(info%rejected, 2**CATEGORY_CHARACTER_SET)
                         return
                     end if
 
                     c = units(source)
                     source = source + 1
-                    if (c < charsets(charset)%code_space((dimension - 1 - bytes_read)*4) &
-                        .or. c > charsets(charset)%code_space((dimension - 1 - bytes_read)*4 + 1)) exit
+                    if (c < character_sets(character_set)%code_space((dimension - 1 - bytes_read)*4) &
+                        .or. c > character_sets(character_set)%code_space((dimension - 1 - bytes_read)*4 + 1)) exit
                     bytes_read = bytes_read + 1
                 end do
 
@@ -2275,13 +2297,13 @@ contains
         end do
 
         if (rejected) then
-            info%rejected = ior(info%rejected, 2**CATEGORY_CHARSET)
+            info%rejected = ior(info%rejected, 2**CATEGORY_CHARACTER_SET)
             return
         end if
 
         info%found = ior(info%found, found)
         ok = .true.
-    end function detect_coding_charset
+    end function detect_coding_character_set
 
     !> Whether the text is in one of the ISO-2022 coding systems of the ISO
     !> categories: designations of charsets they can use, single and
@@ -2292,7 +2314,7 @@ contains
         integer(int64), intent(in) :: head_ascii
         type(detect_info_type), intent(inout) :: info
         integer(int64) :: source, unit_count, source_base, length
-        integer :: c, final_character, charset, rejected, found, composition_count
+        integer :: c, final_character, character_set, rejected, found, composition_count
         logical :: single_shifting, ended
 
         info%checked = ior(info%checked, MASK_ISO)
@@ -2328,15 +2350,16 @@ contains
                     ! ESC <Fp> for start/end composition.
                     composition_count = 0
                 else
-                    charset = 0
+                    character_set = 0
 
                     if (c >= iachar("(") .and. c <= iachar("/")) then
                         ! Designation sequence for a charset of dimension 1.
                         if (.not. next_byte(final_character)) exit
-                        if (final_character >= 32 .and. final_character < 128) charset = find_iso_charset(1, c >= iachar(","), &
-                                                                                                          final_character)
+                        if (final_character >= 32 .and. final_character < 128) character_set = find_iso_character_set(1, &
+                                                                                                                 c >= iachar(","), &
+                                                                                                                    final_character)
 
-                        if (charset == 0) then
+                        if (character_set == 0) then
                             ! Invalid designation sequence.  Just ignore.
                             if (final_character >= 128) rejected = ior(rejected, ior(MASK_ISO_7BIT, 2**CATEGORY_ISO_7_ELSE))
                             cycle
@@ -2347,13 +2370,14 @@ contains
 
                         if (c >= iachar("@") .and. c <= iachar("B")) then
                             ! Designation for JISX0208.1978, GB2312, or JISX0208.
-                            charset = find_iso_charset(2, .false., c)
+                            character_set = find_iso_character_set(2, .false., c)
                         else if (c >= iachar("(") .and. c <= iachar("/")) then
                             if (.not. next_byte(final_character)) exit
-                            if (final_character >= 32 .and. final_character < 128) charset = find_iso_charset(2, c >= iachar(","), &
-                                                                                                              final_character)
+                            if (final_character >= 32 .and. final_character < 128) character_set = find_iso_character_set(2, &
+                                                                                                                 c >= iachar(","), &
+                                                                                                                    final_character)
 
-                            if (charset == 0) then
+                            if (character_set == 0) then
                                 if (final_character >= 128) rejected = ior(rejected, ior(MASK_ISO_7BIT, 2**CATEGORY_ISO_7_ELSE))
                                 cycle
                             end if
@@ -2368,12 +2392,12 @@ contains
                         cycle
                     end if
 
-                    ! We found a valid designation sequence for CHARSET.
+                    ! We found a valid designation sequence for CHARACTER_SET.
                     rejected = ior(rejected, MASK_ISO_8BIT)
-                    call found_or_rejected(CATEGORY_ISO_7, charset)
-                    call found_or_rejected(CATEGORY_ISO_7_TIGHT, charset)
-                    call found_or_rejected(CATEGORY_ISO_7_ELSE, charset)
-                    call found_or_rejected(CATEGORY_ISO_8_ELSE, charset)
+                    call found_or_rejected(CATEGORY_ISO_7, character_set)
+                    call found_or_rejected(CATEGORY_ISO_7_TIGHT, character_set)
+                    call found_or_rejected(CATEGORY_ISO_7_ELSE, character_set)
+                    call found_or_rejected(CATEGORY_ISO_8_ELSE, character_set)
                 end if
             case (ISO_CODE_SO, ISO_CODE_SI)
                 ! Locking shift out/in.
@@ -2486,12 +2510,12 @@ contains
             has_flag = iand(codings(category_id(category))%iso_flags, flag) /= 0
         end function has_flag
 
-        subroutine found_or_rejected(category, charset)
-            integer, intent(in) :: category, charset
+        subroutine found_or_rejected(category, character_set)
+            integer, intent(in) :: category, character_set
             logical :: safe
 
             safe = .false.
-            if (category_id(category) /= 0) safe = is_safe_charset(category_id(category), charset)
+            if (category_id(category) /= 0) safe = is_safe_character_set(category_id(category), character_set)
 
             if (safe) then
                 found = ior(found, 2**category)
@@ -2520,14 +2544,14 @@ contains
     !> the bytes of 0xA0 and above its length needs; 0x80 starts a
     !> composition of more than 4 bytes; ESC, SI and SO rule it out.
     !> Port of coding.c:detect_coding_emacs_mule.
-    logical function detect_coding_emacs_mule(units, head_ascii, info) result(ok)
+    logical function detect_coding_emacs_multilingual_environment(units, head_ascii, info) result(ok)
         integer, intent(in) :: units(:)
         integer(int64), intent(in) :: head_ascii
         type(detect_info_type), intent(inout) :: info
         integer(int64) :: source, unit_count, source_start
         integer :: c, found, more_bytes
 
-        info%checked = ior(info%checked, 2**CATEGORY_EMACS_MULE)
+        info%checked = ior(info%checked, 2**CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT)
         ok = .false.
         unit_count = size(units, kind=int64)
         ! A coding system of this category is always ASCII compatible.
@@ -2551,7 +2575,7 @@ contains
                         ! A source ending in the middle of a sequence is
                         ! rejected (the last block).
                         if (source > unit_count) then
-                            info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULE)
+                            info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT)
                             return
                         end if
 
@@ -2561,26 +2585,26 @@ contains
                     end do
 
                     if (source - source_start <= 4) then
-                        info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULE)
+                        info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT)
                         return
                     end if
 
-                    found = 2**CATEGORY_EMACS_MULE
+                    found = 2**CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT
                     if (c /= 128) exit
                 end do
             end if
 
             if (c < 128) then
                 if (c == ISO_CODE_ESCAPE .or. c == ISO_CODE_SI .or. c == ISO_CODE_SO) then
-                    info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULE)
+                    info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT)
                     return
                 end if
             else
-                more_bytes = emacs_mule_bytes(c) - 1
+                more_bytes = emacs_multilingual_environment_bytes(c) - 1
 
                 do while (more_bytes > 0)
                     if (source > unit_count) then
-                        info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULE)
+                        info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT)
                         return
                     end if
 
@@ -2597,17 +2621,17 @@ contains
                 end do
 
                 if (more_bytes /= 0) then
-                    info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULE)
+                    info%rejected = ior(info%rejected, 2**CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT)
                     return
                 end if
 
-                found = 2**CATEGORY_EMACS_MULE
+                found = 2**CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT
             end if
         end do
 
         info%found = ior(info%found, found)
         ok = .true.
-    end function detect_coding_emacs_mule
+    end function detect_coding_emacs_multilingual_environment
 
     !> Whether the text is in Shift-JIS: 0x81..0x9F and 0xE0..0xEF (0xFC
     !> with a fourth charset) start two bytes, 0xA1..0xDF are kana.  Port of
@@ -2622,7 +2646,7 @@ contains
         info%checked = ior(info%checked, 2**CATEGORY_SJIS)
         ok = .false.
         maximum_first_byte = int(z'EF')
-        if (size(codings(category_id(CATEGORY_SJIS))%charset_ids) > 3) maximum_first_byte = int(z'FC')
+        if (size(codings(category_id(CATEGORY_SJIS))%character_set_ids) > 3) maximum_first_byte = int(z'FC')
         unit_count = size(units, kind=int64)
         ! A coding system of this category is always ASCII compatible.
         source = head_ascii + 1
@@ -2716,12 +2740,12 @@ contains
             ok = detect_coding_utf_8(units, head_ascii, info)
         case (CATEGORY_UTF_16_AUTO, CATEGORY_UTF_16_BE, CATEGORY_UTF_16_LE, CATEGORY_UTF_16_BE_NOSIG, CATEGORY_UTF_16_LE_NOSIG)
             ok = detect_coding_utf_16(units, info)
-        case (CATEGORY_CHARSET)
-            ok = detect_coding_charset(units, head_ascii, info)
+        case (CATEGORY_CHARACTER_SET)
+            ok = detect_coding_character_set(units, head_ascii, info)
         case (CATEGORY_ISO_7, CATEGORY_ISO_7_TIGHT, CATEGORY_ISO_8_1, CATEGORY_ISO_8_2, CATEGORY_ISO_7_ELSE, CATEGORY_ISO_8_ELSE)
             ok = detect_coding_iso_2022(units, head_ascii, info)
-        case (CATEGORY_EMACS_MULE)
-            ok = detect_coding_emacs_mule(units, head_ascii, info)
+        case (CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT)
+            ok = detect_coding_emacs_multilingual_environment(units, head_ascii, info)
         case (CATEGORY_SJIS)
             ok = detect_coding_sjis(units, head_ascii, info)
         case (CATEGORY_BIG5)
@@ -3034,12 +3058,12 @@ contains
             call scan_head(source, head_ascii, null_byte_found, eight_bit_found, .true.)
 
             if (head_ascii == len(source, kind=int64)) then
-                found_id = coding_system_id(codings(id)%bom_without)
+                found_id = coding_system_id(codings(id)%byte_order_mark_without)
             else if (detect_coding_utf_8(units, 0_int64, info)) then
                 if (btest(info%found, CATEGORY_UTF_8_SIGNATURE)) then
-                    found_id = coding_system_id(codings(id)%bom_with)
+                    found_id = coding_system_id(codings(id)%byte_order_mark_with)
                 else
-                    found_id = coding_system_id(codings(id)%bom_without)
+                    found_id = coding_system_id(codings(id)%byte_order_mark_without)
                 end if
             end if
         else if (codings(id)%category == CATEGORY_UTF_16_AUTO) then
@@ -3047,9 +3071,9 @@ contains
 
             if (detect_coding_utf_16(units, info)) then
                 if (btest(info%found, CATEGORY_UTF_16_LE)) then
-                    found_id = coding_system_id(codings(id)%bom_with)
+                    found_id = coding_system_id(codings(id)%byte_order_mark_with)
                 else if (btest(info%found, CATEGORY_UTF_16_BE)) then
-                    found_id = coding_system_id(codings(id)%bom_without)
+                    found_id = coding_system_id(codings(id)%byte_order_mark_without)
                 end if
             end if
 
@@ -3062,7 +3086,7 @@ contains
     end function detect_for_decoding
 
     !> The coding system of the category found: for the auto categories,
-    !> the one with or without a BOM (or of the endianness) found.
+    !> the one with or without a BYTE_ORDER_MARK (or of the endianness) found.
     !> Not a port.
     integer function auto_choice(this, category, info) result(id)
         integer, intent(in) :: this, category
@@ -3071,19 +3095,19 @@ contains
         id = this
 
         if (category == CATEGORY_UTF_8_AUTO) then
-            if (codings(this)%bom == BOM_DETECT) then
+            if (codings(this)%byte_order_mark == BYTE_ORDER_MARK_DETECT) then
                 if (btest(info%found, CATEGORY_UTF_8_SIGNATURE)) then
-                    id = coding_system_id(codings(this)%bom_with)
+                    id = coding_system_id(codings(this)%byte_order_mark_with)
                 else
-                    id = coding_system_id(codings(this)%bom_without)
+                    id = coding_system_id(codings(this)%byte_order_mark_without)
                 end if
             end if
         else if (category == CATEGORY_UTF_16_AUTO) then
-            if (codings(this)%bom == BOM_DETECT) then
+            if (codings(this)%byte_order_mark == BYTE_ORDER_MARK_DETECT) then
                 if (btest(info%found, CATEGORY_UTF_16_LE)) then
-                    id = coding_system_id(codings(this)%bom_with)
+                    id = coding_system_id(codings(this)%byte_order_mark_with)
                 else if (btest(info%found, CATEGORY_UTF_16_BE)) then
-                    id = coding_system_id(codings(this)%bom_without)
+                    id = coding_system_id(codings(this)%byte_order_mark_without)
                 end if
             end if
         end if
@@ -3325,7 +3349,7 @@ contains
         nu = size(units, kind=int64)
         source = 1
 
-        if (codings(id)%bom /= BOM_NONE .and. nu >= 3) then
+        if (codings(id)%byte_order_mark /= BYTE_ORDER_MARK_NONE .and. nu >= 3) then
             if (units(1) == int(z'EF') .and. units(2) == int(z'BB') .and. units(3) == int(z'BF')) source = 4
         end if
 
@@ -3416,7 +3440,7 @@ contains
         source = 1
         surrogate = 0
 
-        if (codings(id)%bom == BOM_WITH .and. nu >= 2) then
+        if (codings(id)%byte_order_mark == BYTE_ORDER_MARK_WITH .and. nu >= 2) then
             if (units(1) >= 0 .and. units(2) >= 0) then
                 c = ior(ishft(units(1), 8), units(2))
                 if (big .and. c == int(z'FEFF') .or. .not. big .and. c == int(z'FFFE')) source = 3
@@ -3498,14 +3522,14 @@ contains
     !> that is not valid are decoded as raw bytes, as are those of an
     !> incomplete one at the end.  Port of coding.c:decode_coding_charset (with
     !> decode_coding's flushing of the rest).
-    subroutine decode_charset(id, units, chars, n, status)
+    subroutine decode_character_set(id, units, chars, n, status)
         integer, intent(in) :: id
         integer, intent(in) :: units(:)
         integer, allocatable, intent(inout) :: chars(:)
         integer(int64), intent(inout) :: n
         type(status_type), intent(inout) :: status
         integer(int64) :: source, source_base, unit_count, code
-        integer :: c, k, charset, dimension, byte_count
+        integer :: c, k, character_set, dimension, byte_count
         logical :: incomplete
 
         unit_count = size(units, kind=int64)
@@ -3518,15 +3542,15 @@ contains
             incomplete = .false.
 
             if (c >= 0 .and. c <= 255) then
-                if (codings(id)%valid_charset_counts(c) > 0) then
+                if (codings(id)%valid_character_set_counts(c) > 0) then
                     code = c
                     byte_count = 1
 
                     ! The charsets are sorted by dimension: read the bytes
                     ! each needs.
-                    do k = 1, codings(id)%valid_charset_counts(c)
-                        charset = valid_charset(id, c, k)
-                        dimension = charsets(charset)%dimension
+                    do k = 1, codings(id)%valid_character_set_counts(c)
+                        character_set = valid_character_set(id, c, k)
+                        dimension = character_sets(character_set)%dimension
 
                         do while (byte_count < dimension)
                             if (source > unit_count) then
@@ -3540,7 +3564,7 @@ contains
                         end do
 
                         if (incomplete) exit
-                        c = decode_character_id(charset, code, status)
+                        c = decode_character_id(character_set, code, status)
                         if (status%code /= 0) return
                         if (c >= 0) exit
                     end do
@@ -3564,7 +3588,7 @@ contains
             source = source_base + 1
             call append(chars, n, invalid_character(units(source_base)))
         end do
-    end subroutine decode_charset
+    end subroutine decode_character_set
 
     !> Decode Shift-JIS with the charsets of coding system ID (roman, kana,
     !> kanji and an optional second kanji charset).  Port of
@@ -3576,31 +3600,31 @@ contains
         integer(int64), intent(inout) :: n
         type(status_type), intent(inout) :: status
         integer(int64) :: source, unit_count
-        integer :: c, second_byte, charset, roman, kana, kanji, kanji2
+        integer :: c, second_byte, character_set, roman, kana, kanji, kanji2
 
-        roman = codings(id)%charset_ids(1)
-        kana = codings(id)%charset_ids(2)
-        kanji = codings(id)%charset_ids(3)
+        roman = codings(id)%character_set_ids(1)
+        kana = codings(id)%character_set_ids(2)
+        kanji = codings(id)%character_set_ids(3)
         kanji2 = 0
-        if (size(codings(id)%charset_ids) > 3) kanji2 = codings(id)%charset_ids(4)
+        if (size(codings(id)%character_set_ids) > 3) kanji2 = codings(id)%character_set_ids(4)
         unit_count = size(units, kind=int64)
         source = 1
 
         do while (source <= unit_count)
             c = units(source)
             source = source + 1
-            charset = 0
+            character_set = 0
 
             if (c < 0) then
-                charset = 0
+                character_set = 0
             else if (c < 128) then
-                charset = roman
+                character_set = roman
             else if (c == 128 .or. c == int(z'A0')) then
-                charset = 0
+                character_set = 0
             else if (c >= int(z'A1') .and. c <= int(z'DF')) then
                 ! SJIS -> JISX0201-Kana
                 c = iand(c, 127)
-                charset = kana
+                character_set = kana
             else if (c <= int(z'FC') .and. (c <= int(z'EF') .or. kanji2 /= 0)) then
                 ! An incomplete code at the end is left to the final
                 ! flushing as a raw byte.
@@ -3617,21 +3641,21 @@ contains
                     if (c <= int(z'EF')) then
                         ! SJIS -> JISX0208
                         c = sjis_to_jis(ior(ishft(c, 8), second_byte))
-                        charset = kanji
+                        character_set = kanji
                     else
                         ! SJIS -> JISX0213-2
                         c = sjis_to_jis2(ior(ishft(c, 8), second_byte))
-                        charset = kanji2
+                        character_set = kanji2
                     end if
                 end if
             end if
 
-            if (charset == 0) then
+            if (character_set == 0) then
                 call append(chars, n, invalid_character(units(source - 1)))
                 cycle
             end if
 
-            c = decode_character_id(charset, int(c, int64), status)
+            c = decode_character_id(character_set, int(c, int64), status)
             if (status%code /= 0) return
             call append(chars, n, c)
         end do
@@ -3646,7 +3670,7 @@ contains
         integer(int64), intent(inout) :: n
         type(status_type), intent(inout) :: status
         integer(int64) :: source, unit_count
-        integer :: c, second_byte, charset
+        integer :: c, second_byte, character_set
 
         unit_count = size(units, kind=int64)
         source = 1
@@ -3654,10 +3678,10 @@ contains
         do while (source <= unit_count)
             c = units(source)
             source = source + 1
-            charset = 0
+            character_set = 0
 
             if (c >= 0 .and. c < 128) then
-                charset = codings(id)%charset_ids(1)
+                character_set = codings(id)%character_set_ids(1)
             else if (c >= int(z'A1') .and. c <= int(z'FE')) then
                 if (source > unit_count) then
                     call append(chars, n, invalid_character(c))
@@ -3670,16 +3694,16 @@ contains
                            .or. second_byte > int(z'FE'))) then
                     source = source + 1
                     c = ior(ishft(c, 8), second_byte)
-                    charset = codings(id)%charset_ids(2)
+                    character_set = codings(id)%character_set_ids(2)
                 end if
             end if
 
-            if (charset == 0) then
+            if (character_set == 0) then
                 call append(chars, n, invalid_character(units(source - 1)))
                 cycle
             end if
 
-            c = decode_character_id(charset, int(c, int64), status)
+            c = decode_character_id(character_set, int(c, int64), status)
             if (status%code /= 0) return
             call append(chars, n, c)
         end do
@@ -3701,7 +3725,7 @@ contains
         type(status_type), intent(inout) :: status
         integer :: invocation(0:1), designation(0:3)
         integer(int64) :: source, source_base, unit_count, k
-        integer :: c, code, first_byte, second_byte, third_byte, charset, plane_0_charset, plane_1_charset, flags
+        integer :: c, code, first_byte, second_byte, third_byte, character_set, plane_0_character_set, plane_1_character_set, flags
         integer :: extended_segment_length, register, characters_96, dimension_byte, high_byte, low_byte, segment_size
         logical :: embedded_utf_8, ok
 
@@ -3710,8 +3734,8 @@ contains
         invocation(1) = merge(-1, 1, iand(flags, ISO_SEVEN_BITS) /= 0)
         designation = codings(id)%iso_initial
         where (designation == 0) designation = -1
-        plane_0_charset = invoked_charset(0)
-        plane_1_charset = invoked_charset(1)
+        plane_0_character_set = invoked_character_set(0)
+        plane_1_character_set = invoked_character_set(1)
         extended_segment_length = 0
         embedded_utf_8 = .false.
         unit_count = size(units, kind=int64)
@@ -3756,38 +3780,38 @@ contains
                 cycle main
             end if
 
-            charset = 0
+            character_set = 0
 
             ! We produce at most one character.
             if (first_byte == 32 .or. first_byte == 127) then
-                if (plane_0_charset < 0) then
-                    charset = charset_ascii
-                else if (.not. charsets(plane_0_charset)%iso_characters_96) then
+                if (plane_0_character_set < 0) then
+                    character_set = character_set_ascii
+                else if (.not. character_sets(plane_0_character_set)%iso_characters_96) then
                     ! This is SPACE or DEL.
-                    charset = charset_ascii
+                    character_set = character_set_ascii
                 else
-                    charset = plane_0_charset
+                    character_set = plane_0_character_set
                 end if
             else if (first_byte > 32 .and. first_byte < 127) then
-                charset = plane_0_charset
-                if (plane_0_charset < 0) charset = charset_ascii
+                character_set = plane_0_character_set
+                if (plane_0_character_set < 0) character_set = character_set_ascii
             else if (first_byte == int(z'A0') .or. first_byte == 255) then
-                if (plane_1_charset < 0) then
+                if (plane_1_character_set < 0) then
                     call invalid()
                     cycle main
-                else if (.not. charsets(plane_1_charset)%iso_characters_96 .or. iand(flags, ISO_SEVEN_BITS) /= 0) then
+                else if (.not. character_sets(plane_1_character_set)%iso_characters_96 .or. iand(flags, ISO_SEVEN_BITS) /= 0) then
                     call invalid()
                     cycle main
                 end if
 
-                charset = plane_1_charset
+                character_set = plane_1_character_set
             else if (first_byte > int(z'A0') .and. first_byte < 255) then
-                if (plane_1_charset < 0) then
+                if (plane_1_character_set < 0) then
                     call invalid()
                     cycle main
                 end if
 
-                charset = plane_1_charset
+                character_set = plane_1_character_set
             else if (first_byte == ISO_CODE_SO) then
                 if (iand(flags, ISO_LOCKING_SHIFT) == 0 .or. designation(1) < 0) then
                     call invalid()
@@ -3795,7 +3819,7 @@ contains
                 end if
 
                 invocation(0) = 1
-                plane_0_charset = invoked_charset(0)
+                plane_0_character_set = invoked_character_set(0)
                 cycle main
             else if (first_byte == ISO_CODE_SI) then
                 if (iand(flags, ISO_LOCKING_SHIFT) == 0) then
@@ -3804,7 +3828,7 @@ contains
                 end if
 
                 invocation(0) = 0
-                plane_0_charset = invoked_charset(0)
+                plane_0_character_set = invoked_character_set(0)
                 cycle main
             else if (first_byte == ISO_CODE_SS2_7 .or. first_byte == ISO_CODE_SS2) then
                 if (first_byte == ISO_CODE_SS2_7 .and. iand(flags, ISO_SEVEN_BITS) == 0) then
@@ -3841,20 +3865,20 @@ contains
                 if (.not. ok) cycle main
             else if (first_byte < 32) then
                 ! A control character (the line ends are decoded later).
-                charset = charset_ascii
+                character_set = character_set_ascii
             else
                 ! ISO_control_1.
                 call invalid()
                 cycle main
             end if
 
-            ! Now we know CHARSET and the first position code FIRST_BYTE of
+            ! Now we know CHARACTER_SET and the first position code FIRST_BYTE of
             ! a character.  Produce a decoded character while getting the
             ! second and third position codes SECOND_BYTE, THIRD_BYTE if
             ! necessary.
             code = first_byte
 
-            if (charsets(charset)%dimension > 1) then
+            if (character_sets(character_set)%dimension > 1) then
                 if (.not. next_byte(second_byte)) exit main
 
                 if (second_byte < 32 .or. (second_byte >= 128 .and. second_byte < int(z'A0')) &
@@ -3864,7 +3888,7 @@ contains
                     cycle main
                 end if
 
-                if (charsets(charset)%dimension == 2) then
+                if (character_sets(character_set)%dimension == 2) then
                     code = ior(ishft(first_byte, 8), second_byte)
                 else
                     if (.not. next_byte(third_byte)) exit main
@@ -3882,7 +3906,7 @@ contains
             end if
 
             code = iand(code, int(z'7F7F7F'))
-            c = decode_character_id(charset, int(code, int64), status)
+            c = decode_character_id(character_set, int(code, int64), status)
             if (status%code /= 0) return
 
             if (c < 0) then
@@ -3898,12 +3922,12 @@ contains
 
         ! The charset invoked to graphic PLANE, -1 for none.  Port of
         ! coding.c:CODING_ISO_INVOKED_CHARSET.
-        integer function invoked_charset(plane)
+        integer function invoked_character_set(plane)
             integer, intent(in) :: plane
 
-            invoked_charset = -1
-            if (invocation(plane) >= 0) invoked_charset = designation(invocation(plane))
-        end function invoked_charset
+            invoked_character_set = -1
+            if (invocation(plane) >= 0) invoked_character_set = designation(invocation(plane))
+        end function invoked_character_set
 
         ! ONE_MORE_BYTE: false at the end of the source, whose bytes from
         ! SOURCE_BASE on are then flushed as raw bytes.
@@ -3934,13 +3958,13 @@ contains
             source = source_base + 1
             call append(chars, n, invalid_character(units(source_base)))
             invocation(0) = 0
-            designation(0) = charset_ascii
-            plane_0_charset = charset_ascii
+            designation(0) = character_set_ascii
+            plane_0_character_set = character_set_ascii
         end subroutine invalid
 
         ! Handle the escape sequence (or SS2, SS3, CSI) whose final byte is
         ! FIRST_BYTE: false at the end of the source; OK false when it was
-        ! invalid or produced no character, else CHARSET is the charset of
+        ! invalid or produced no character, else CHARACTER_SET is the charset of
         ! the character whose first byte is then in FIRST_BYTE.
         recursive logical function escape_sequence(ok) result(more_source)
             logical, intent(out) :: ok
@@ -4016,8 +4040,8 @@ contains
                 end if
 
                 call decode_designation(register, 2, characters_96, first_byte)
-                if (register == 0) plane_0_charset = invoked_charset(0)
-                if (register == 1) plane_1_charset = invoked_charset(1)
+                if (register == 0) plane_0_character_set = invoked_character_set(0)
+                if (register == 1) plane_1_character_set = invoked_character_set(1)
                 if (characters_96 < 0) call invalid()
             case (iachar("n"), iachar("o"))
                 ! Invocation of locking-shift-2 or -3.
@@ -4029,7 +4053,7 @@ contains
                 end if
 
                 invocation(0) = register
-                plane_0_charset = invoked_charset(0)
+                plane_0_character_set = invoked_character_set(0)
             case (iachar("N"), iachar("O"))
                 ! Invocation of single-shift-2 or -3.
                 register = merge(2, 3, first_byte == iachar("N"))
@@ -4039,7 +4063,7 @@ contains
                     return
                 end if
 
-                charset = designation(register)
+                character_set = designation(register)
 
                 if (.not. next_byte(first_byte)) then
                     more_source = .false.
@@ -4174,8 +4198,8 @@ contains
                 end if
 
                 call decode_designation(register, 1, characters_96, first_byte)
-                if (register == 0) plane_0_charset = invoked_charset(0)
-                if (register == 1) plane_1_charset = invoked_charset(1)
+                if (register == 0) plane_0_character_set = invoked_character_set(0)
+                if (register == 1) plane_1_character_set = invoked_character_set(1)
                 if (characters_96 < 0) call invalid()
             end select
         end function escape_sequence
@@ -4192,7 +4216,7 @@ contains
             designated = 0
 
             if (final_character >= iachar("0") .and. final_character < 128) then
-                designated = find_iso_charset(dimension, characters_96 == 1, final_character)
+                designated = find_iso_character_set(dimension, characters_96 == 1, final_character)
             end if
 
             if (designated == 0) then
@@ -4201,7 +4225,7 @@ contains
                 return
             end if
 
-            if (.not. is_safe_charset(id, designated)) then
+            if (.not. is_safe_character_set(id, designated)) then
                 designation(register) = -2
                 characters_96 = -1
                 return
@@ -4209,32 +4233,32 @@ contains
 
             previous = designation(register)
 
-            if (designated == charset_jisx0201_roman) then
-                if (iand(flags, ISO_USE_ROMAN) /= 0) designated = charset_ascii
-            else if (designated == charset_jisx0208_1978) then
-                if (iand(flags, ISO_USE_OLDJIS) /= 0) designated = charset_jisx0208
+            if (designated == character_set_jisx0201_roman) then
+                if (iand(flags, ISO_USE_ROMAN) /= 0) designated = character_set_ascii
+            else if (designated == character_set_jisx0208_1978) then
+                if (iand(flags, ISO_USE_OLDJIS) /= 0) designated = character_set_jisx0208
             end if
 
             designation(register) = designated
             ! If there was an invalid designation to REGISTER previously, and
             ! this designation is ASCII to REGISTER, we should keep this
             ! designation sequence.
-            if (previous == -2 .and. designated == charset_ascii) characters_96 = -1
+            if (previous == -2 .and. designated == character_set_ascii) characters_96 = -1
         end subroutine decode_designation
     end subroutine decode_iso_2022
 
     !> Decode emacs-mule: a leading code (with the extended leading code of
     !> a private charset) and the position codes of 0xA0 and above.  The
     !> compositions 0x80 starts are Deferred: 0x80 decodes as a raw byte.
-    !> Port of coding.c:decode_coding_emacs_mule and emacs_mule_character (with
+    !> Port of coding.c:decode_coding_emacs_mule and emacs_multilingual_environment_character (with
     !> decode_coding's flushing of an incomplete sequence at the end).
-    subroutine decode_emacs_mule(units, chars, n, status)
+    subroutine decode_emacs_multilingual_environment(units, chars, n, status)
         integer, intent(in) :: units(:)
         integer, allocatable, intent(inout) :: chars(:)
         integer(int64), intent(inout) :: n
         type(status_type), intent(inout) :: status
         integer(int64) :: source, source_base, unit_count, k
-        integer :: c, charset, code
+        integer :: c, character_set, code
 
         unit_count = size(units, kind=int64)
         source = 1
@@ -4254,19 +4278,19 @@ contains
                 cycle main
             end if
 
-            ! emacs_mule_character.
-            charset = 0
+            ! emacs_multilingual_environment_character.
+            character_set = 0
 
             if (c == 128 .or. c >= int(z'A0')) then
                 call invalid()
                 cycle main
             end if
 
-            select case (emacs_mule_bytes(c))
+            select case (emacs_multilingual_environment_bytes(c))
             case (2)
-                charset = emacs_mule_charsets(c)
+                character_set = emacs_multilingual_environment_character_sets(c)
 
-                if (charset == 0) then
+                if (character_set == 0) then
                     call invalid()
                     cycle main
                 end if
@@ -4282,9 +4306,9 @@ contains
             case (3)
                 if (c == int(z'9A') .or. c == int(z'9B')) then
                     if (.not. next_byte(c)) exit main
-                    if (c >= int(z'A0')) charset = emacs_mule_charsets(c)
+                    if (c >= int(z'A0')) character_set = emacs_multilingual_environment_character_sets(c)
 
-                    if (charset == 0) then
+                    if (character_set == 0) then
                         call invalid()
                         cycle main
                     end if
@@ -4298,9 +4322,9 @@ contains
 
                     code = iand(c, 127)
                 else
-                    charset = emacs_mule_charsets(c)
+                    character_set = emacs_multilingual_environment_character_sets(c)
 
-                    if (charset == 0) then
+                    if (character_set == 0) then
                         call invalid()
                         cycle main
                     end if
@@ -4324,9 +4348,9 @@ contains
                 end if
             case (4)
                 if (.not. next_byte(c)) exit main
-                if (c >= 0) charset = emacs_mule_charsets(c)
+                if (c >= 0) character_set = emacs_multilingual_environment_character_sets(c)
 
-                if (charset == 0) then
+                if (character_set == 0) then
                     call invalid()
                     cycle main
                 end if
@@ -4349,10 +4373,10 @@ contains
                 code = ior(code, iand(c, 127))
             case default
                 code = c
-                charset = charset_eight_bit
+                character_set = character_set_eight_bit
             end select
 
-            c = decode_character_id(charset, int(code, int64), status)
+            c = decode_character_id(character_set, int(code, int64), status)
             if (status%code /= 0) return
 
             if (c < 0) then
@@ -4390,7 +4414,7 @@ contains
             source = source_base + 1
             call append(chars, n, invalid_character(units(source_base)))
         end subroutine invalid
-    end subroutine decode_emacs_mule
+    end subroutine decode_emacs_multilingual_environment
 
     ! Port of coding.h:SJIS_TO_JIS.
     integer function sjis_to_jis(code) result(jis_code)
@@ -4681,8 +4705,8 @@ contains
             call decode_utf_8(id, units, chars, n)
         case (CODING_UTF_16)
             call decode_utf_16(id, units, chars, n)
-        case (CODING_CHARSET)
-            call decode_charset(id, units, chars, n, status)
+        case (CODING_CHARACTER_SET)
+            call decode_character_set(id, units, chars, n, status)
             if (status%code /= 0) return
         case (CODING_SJIS)
             call decode_sjis(id, units, chars, n, status)
@@ -4693,8 +4717,8 @@ contains
         case (CODING_ISO_2022)
             call decode_iso_2022(id, units, chars, n, status)
             if (status%code /= 0) return
-        case (CODING_EMACS_MULE)
-            call decode_emacs_mule(units, chars, n, status)
+        case (CODING_EMACS_MULTILINGUAL_ENVIRONMENT)
+            call decode_emacs_multilingual_environment(units, chars, n, status)
             if (status%code /= 0) return
         case default
             call decode_raw_text(units, chars, n)
@@ -4776,7 +4800,7 @@ contains
     !> by coding system CODING ("" for no-conversion) into the bytes OUT.
     !> USED is the coding system used (`last_coding_system_used').  Port of
     !> coding.c:encode_coding_object and encode_coding, with the encoders
-    !> encode_coding_utf_8, encode_coding_utf_16, encode_coding_charset and
+    !> encode_coding_utf_8, encode_coding_utf_16, encode_coding_character_set and
     !> encode_coding_raw_text.
     subroutine encode_coding_text(text, coding, out, used, status, multibyte)
         character(len=*), intent(in) :: text, coding
@@ -4785,7 +4809,7 @@ contains
         logical, intent(in), optional :: multibyte
         integer, allocatable :: chars(:)
         integer(int64) :: n, k, q, code
-        integer :: id, end_of_line, c, u, charset, b
+        integer :: id, end_of_line, c, u, character_set, b
         logical :: mb
         character(len=MAXIMUM_MULTIBYTE_LENGTH) :: bytes
         integer(int32) :: nbytes
@@ -4816,7 +4840,8 @@ contains
 
         select case (codings(id)%ctype)
         case (CODING_UTF_8)
-            if (codings(id)%bom /= BOM_NONE) call emit(out, q, char(int(z'EF'))//char(int(z'BB'))//char(int(z'BF')))
+            if (codings(id)%byte_order_mark /= BYTE_ORDER_MARK_NONE) call emit(out, q, &
+                                                                               char(int(z'EF'))//char(int(z'BB'))//char(int(z'BF')))
 
             do k = 1, n
                 c = chars(k)
@@ -4831,7 +4856,7 @@ contains
                 end if
             end do
         case (CODING_UTF_16)
-            if (codings(id)%bom /= BOM_NONE) then
+            if (codings(id)%byte_order_mark /= BYTE_ORDER_MARK_NONE) then
                 if (codings(id)%big_endian) then
                     call emit(out, q, char(int(z'FE'))//char(int(z'FF')))
                 else
@@ -4851,8 +4876,8 @@ contains
                     call emit_16(iand(c, int(z'3FF')) + int(z'DC00'))
                 end if
             end do
-        case (CODING_CHARSET)
-            ! encode_coding_charset.
+        case (CODING_CHARACTER_SET)
+            ! encode_coding_character_set.
             do k = 1, n
                 c = chars(k)
 
@@ -4861,13 +4886,13 @@ contains
                 else if (is_character_byte8(c)) then
                     call emit(out, q, char(character_to_byte8(c)))
                 else
-                    charset = character_charset_id(c, code, status, codings(id)%charset_ids)
+                    character_set = character_character_set_id(c, code, status, codings(id)%character_set_ids)
                     if (status%code /= 0) return
 
-                    if (charset == 0) then
+                    if (character_set == 0) then
                         call emit(out, q, char(codings(id)%default_character))
                     else
-                        do b = charsets(charset)%dimension - 1, 0, -1
+                        do b = character_sets(character_set)%dimension - 1, 0, -1
                             call emit(out, q, char(int(iand(ishft(code, -8*b), 255_int64))))
                         end do
                     end if
@@ -4876,8 +4901,8 @@ contains
         case (CODING_ISO_2022)
             call encode_iso_2022(id, chars, n, end_of_line, out, q, status)
             if (status%code /= 0) return
-        case (CODING_EMACS_MULE)
-            ! encode_coding_emacs_mule (the preferred charsets of charset
+        case (CODING_EMACS_MULTILINGUAL_ENVIRONMENT)
+            ! encode_coding_emacs_multilingual_environment (the preferred charsets of charset
             ! annotations are Deferred).
             do k = 1, n
                 c = chars(k)
@@ -4887,10 +4912,10 @@ contains
                 else if (is_character_byte8(c)) then
                     call emit(out, q, char(character_to_byte8(c)))
                 else
-                    charset = character_charset_id(c, code, status, emacs_mule_charset_order)
+                    character_set = character_character_set_id(c, code, status, emacs_multilingual_environment_character_set_order)
                     if (status%code /= 0) return
 
-                    if (charset == 0) then
+                    if (character_set == 0) then
                         c = codings(id)%default_character
 
                         if (c < 128) then
@@ -4898,11 +4923,12 @@ contains
                             cycle
                         end if
 
-                        charset = character_charset_id(c, code, status, emacs_mule_charset_order)
+                        character_set = character_character_set_id(c, code, status, &
+                                                                   emacs_multilingual_environment_character_set_order)
                         if (status%code /= 0) return
                     end if
 
-                    call emit_emacs_mule(charset, code)
+                    call emit_emacs_multilingual_environment(character_set, code)
                 end if
             end do
         case (CODING_SJIS, CODING_BIG5)
@@ -4915,15 +4941,16 @@ contains
                 else if (is_character_byte8(c)) then
                     call emit(out, q, char(character_to_byte8(c)))
                 else
-                    charset = character_charset_id(c, code, status, codings(id)%charset_ids)
+                    character_set = character_character_set_id(c, code, status, codings(id)%character_set_ids)
                     if (status%code /= 0) return
 
-                    if (charset == 0) then
-                        charset = character_charset_id(codings(id)%default_character, code, status, codings(id)%charset_ids)
+                    if (character_set == 0) then
+                        character_set = character_character_set_id(codings(id)%default_character, code, status, &
+                                                                   codings(id)%character_set_ids)
                         if (status%code /= 0) return
                     end if
 
-                    call emit_sjis_big5(charset, int(code))
+                    call emit_sjis_big5(character_set, int(code))
                 end if
             end do
         case default
@@ -4950,25 +4977,25 @@ contains
 
     contains
 
-        ! Write the leading codes of CHARSET (EMACS_MULE_LEADING_CODES) and
+        ! Write the leading codes of CHARACTER_SET (EMACS_MULTILINGUAL_ENVIRONMENT_LEADING_CODES) and
         ! the position codes of CODE.  Port of the output of
         ! coding.c:encode_coding_emacs_mule.
-        subroutine emit_emacs_mule(charset, code)
-            integer, intent(in) :: charset
+        subroutine emit_emacs_multilingual_environment(character_set, code)
+            integer, intent(in) :: character_set
             integer(int64), intent(in) :: code
-            integer :: emacs_mule_id, leading_code, extended_code, position_codes
+            integer :: emacs_multilingual_environment_id, leading_code, extended_code, position_codes
 
-            emacs_mule_id = charsets(charset)%emacs_mule_id
-            extended_code = emacs_mule_id
+            emacs_multilingual_environment_id = character_sets(character_set)%emacs_multilingual_environment_id
+            extended_code = emacs_multilingual_environment_id
 
-            if (emacs_mule_id < int(z'A0')) then
-                leading_code = emacs_mule_id
+            if (emacs_multilingual_environment_id < int(z'A0')) then
+                leading_code = emacs_multilingual_environment_id
                 extended_code = 0
-            else if (emacs_mule_id < int(z'E0')) then
+            else if (emacs_multilingual_environment_id < int(z'E0')) then
                 leading_code = int(z'9A')
-            else if (emacs_mule_id < int(z'F0')) then
+            else if (emacs_multilingual_environment_id < int(z'F0')) then
                 leading_code = int(z'9B')
-            else if (emacs_mule_id < int(z'F5')) then
+            else if (emacs_multilingual_environment_id < int(z'F5')) then
                 leading_code = int(z'9C')
             else
                 leading_code = int(z'9D')
@@ -4977,35 +5004,35 @@ contains
             call emit(out, q, char(leading_code))
             if (extended_code /= 0) call emit(out, q, char(extended_code))
 
-            if (charsets(charset)%dimension == 1) then
+            if (character_sets(character_set)%dimension == 1) then
                 call emit(out, q, char(ior(int(code), 128)))
             else
                 position_codes = ior(int(code), int(z'8080'))
                 call emit(out, q, char(ishft(position_codes, -8))//char(iand(position_codes, 255)))
             end if
-        end subroutine emit_emacs_mule
+        end subroutine emit_emacs_multilingual_environment
 
-        ! Write CODE of CHARSET as Shift-JIS or Big5 bytes.  Port of the
+        ! Write CODE of CHARACTER_SET as Shift-JIS or Big5 bytes.  Port of the
         ! output of coding.c:encode_coding_sjis and encode_coding_big5.
-        subroutine emit_sjis_big5(charset, code)
-            integer, intent(in) :: charset, code
+        subroutine emit_sjis_big5(character_set, code)
+            integer, intent(in) :: character_set, code
             integer :: row, sjis_code, kanji2
 
             kanji2 = 0
-            if (size(codings(id)%charset_ids) > 3) kanji2 = codings(id)%charset_ids(4)
+            if (size(codings(id)%character_set_ids) > 3) kanji2 = codings(id)%character_set_ids(4)
 
             if (codings(id)%ctype == CODING_BIG5) then
-                if (charset == codings(id)%charset_ids(2)) then
+                if (character_set == codings(id)%character_set_ids(2)) then
                     call emit(out, q, char(ishft(code, -8))//char(iand(code, 255)))
                 else
                     call emit(out, q, char(iand(code, 127)))
                 end if
-            else if (charset == codings(id)%charset_ids(3)) then
+            else if (character_set == codings(id)%character_set_ids(3)) then
                 sjis_code = jis_to_sjis(code)
                 call emit(out, q, char(ishft(sjis_code, -8))//char(iand(sjis_code, 255)))
-            else if (charset == codings(id)%charset_ids(2)) then
+            else if (character_set == codings(id)%character_set_ids(2)) then
                 call emit(out, q, char(ior(code, 128)))
-            else if (kanji2 /= 0 .and. charset == kanji2) then
+            else if (kanji2 /= 0 .and. character_set == kanji2) then
                 row = ishft(code, -8)
 
                 if (row == int(z'21') .or. (row >= int(z'23') .and. row <= int(z'25')) .or. row == int(z'28') &
@@ -5044,14 +5071,14 @@ contains
         character(len=:), allocatable, intent(inout) :: out
         integer(int64), intent(inout) :: q
         type(status_type), intent(inout) :: status
-        integer, allocatable :: charset_ids(:)
+        integer, allocatable :: character_set_ids(:)
         integer :: invocation(0:1), designation(0:3), initial(0:3)
         integer(int64) :: k, code
-        integer :: c, charset, flags
+        integer :: c, character_set, flags
         logical :: ascii_compatible, single_shifting, beginning_of_line_designation
 
         flags = codings(id)%iso_flags
-        charset_ids = coding_charset_ids(id)
+        character_set_ids = coding_character_set_ids(id)
         initial = codings(id)%iso_initial
         where (initial == 0) initial = -1
         invocation(0) = 0
@@ -5076,7 +5103,7 @@ contains
             if (c < 32 .or. c == 127) then
                 if (c == 10 .or. (c == 13 .and. end_of_line == END_OF_LINE_MAC)) then
                     if (iand(flags, ISO_RESET_AT_END_OF_LINE) /= 0) call reset_plane_and_register()
-                    if (iand(flags, ISO_INIT_AT_BEGINNING_OF_LINE) /= 0) designation = initial
+                    if (iand(flags, ISO_INITIALIZE_AT_BEGINNING_OF_LINE) /= 0) designation = initial
                     beginning_of_line_designation = iand(flags, ISO_DESIGNATE_AT_BEGINNING_OF_LINE) /= 0
                 else if (iand(flags, ISO_RESET_AT_CNTL) /= 0) then
                     call reset_plane_and_register()
@@ -5087,26 +5114,26 @@ contains
                 if (ascii_compatible) then
                     call emit(out, q, char(c))
                 else
-                    call encode_iso_character(charset_ascii, c)
+                    call encode_iso_character(character_set_ascii, c)
                 end if
             else if (is_character_byte8(c)) then
                 call emit(out, q, char(character_to_byte8(c)))
             else
-                charset = character_charset_id(c, code, status, charset_ids)
+                character_set = character_character_set_id(c, code, status, character_set_ids)
                 if (status%code /= 0) return
 
-                if (charset == 0) then
+                if (character_set == 0) then
                     if (iand(flags, ISO_SAFE) /= 0) then
                         c = iachar("?")
-                        charset = charset_ascii
+                        character_set = character_set_ascii
                     else
                         c = codings(id)%default_character
-                        charset = character_charset_id(c, code, status, charset_ids)
+                        character_set = character_character_set_id(c, code, status, character_set_ids)
                         if (status%code /= 0) return
                     end if
                 end if
 
-                call encode_iso_character(charset, c)
+                call encode_iso_character(character_set, c)
             end if
         end do
 
@@ -5115,30 +5142,34 @@ contains
     contains
 
         ! Port of coding.c:ENCODE_ISO_CHARACTER.
-        subroutine encode_iso_character(charset, ch)
-            integer, intent(in) :: charset, ch
+        subroutine encode_iso_character(character_set, ch)
+            integer, intent(in) :: character_set, ch
             integer(int64) :: code
 
-            code = encode_character_id(charset, ch, status)
+            code = encode_character_id(character_set, ch, status)
 
-            if (charsets(charset)%dimension == 1) then
-                call encode_dimension(charset, 1, int(code), 0)
+            if (character_sets(character_set)%dimension == 1) then
+                call encode_dimension(character_set, 1, int(code), 0)
             else
-                call encode_dimension(charset, 2, int(ishft(code, -8)), int(iand(code, 255_int64)))
+                call encode_dimension(character_set, 2, int(ishft(code, -8)), int(iand(code, 255_int64)))
             end if
         end subroutine encode_iso_character
 
         ! Port of coding.c:ENCODE_ISO_CHARACTER_DIMENSION1 and _DIMENSION2.
-        subroutine encode_dimension(charset, dimension, first_byte, second_byte)
-            integer, intent(in) :: charset, dimension, first_byte, second_byte
-            integer :: used_charset
+        subroutine encode_dimension(character_set, dimension, first_byte, second_byte)
+            integer, intent(in) :: character_set, dimension, first_byte, second_byte
+            integer :: used_character_set
 
-            used_charset = charset
+            used_character_set = character_set
 
             if (dimension == 1) then
-                if (iand(flags, ISO_USE_ROMAN) /= 0 .and. used_charset == charset_ascii) used_charset = charset_jisx0201_roman
+                if (iand(flags, &
+                         ISO_USE_ROMAN) /= 0 .and. used_character_set &
+                    == character_set_ascii) used_character_set = character_set_jisx0201_roman
             else
-                if (iand(flags, ISO_USE_OLDJIS) /= 0 .and. used_charset == charset_jisx0208) used_charset = charset_jisx0208_1978
+                if (iand(flags, &
+                         ISO_USE_OLDJIS) /= 0 .and. used_character_set &
+                    == character_set_jisx0208) used_character_set = character_set_jisx0208_1978
             end if
 
             do
@@ -5151,18 +5182,18 @@ contains
 
                     single_shifting = .false.
                     return
-                else if (used_charset == invoked_charset(0)) then
+                else if (used_character_set == invoked_character_set(0)) then
                     call emit_codes(dimension, iand(first_byte, 127), iand(second_byte, 127))
                     return
-                else if (used_charset == invoked_charset(1)) then
+                else if (used_character_set == invoked_character_set(1)) then
                     call emit_codes(dimension, ior(first_byte, 128), ior(second_byte, 128))
                     return
                 else
-                    ! Since CHARSET is not yet invoked to any graphic
+                    ! Since CHARACTER_SET is not yet invoked to any graphic
                     ! planes, we must invoke it, or, at first, designate it
                     ! to some graphic register.  Then repeat the loop to
                     ! actually produce the character.
-                    call invocation_designation(used_charset)
+                    call invocation_designation(used_character_set)
                 end if
             end do
         end subroutine encode_dimension
@@ -5179,31 +5210,31 @@ contains
 
         ! The charset invoked to graphic PLANE, -1 for none.  Port of
         ! coding.c:CODING_ISO_INVOKED_CHARSET.
-        integer function invoked_charset(plane)
+        integer function invoked_character_set(plane)
             integer, intent(in) :: plane
 
-            invoked_charset = -1
-            if (invocation(plane) >= 0) invoked_charset = designation(invocation(plane))
-        end function invoked_charset
+            invoked_character_set = -1
+            if (invocation(plane) >= 0) invoked_character_set = designation(invocation(plane))
+        end function invoked_character_set
 
         ! Port of coding.c:encode_invocation_designation.
-        subroutine invocation_designation(charset)
-            integer, intent(in) :: charset
+        subroutine invocation_designation(character_set)
+            integer, intent(in) :: character_set
             integer :: register
 
             ! At first, check designations.
             do register = 0, 3
-                if (designation(register) == charset) exit
+                if (designation(register) == character_set) exit
             end do
 
             if (register >= 4) then
-                ! CHARSET is not yet designated to any graphic registers.
+                ! CHARACTER_SET is not yet designated to any graphic registers.
                 ! At first check the requested designation.
-                register = iso_request(id, charset)
-                ! Since CHARSET requests no special designation, designate
+                register = iso_request(id, character_set)
+                ! Since CHARACTER_SET requests no special designation, designate
                 ! it to graphic register 0.
                 if (register < 0) register = 0
-                call encode_designation(charset, register)
+                call encode_designation(character_set, register)
             end if
 
             if (invocation(0) /= register .and. invocation(1) /= register) then
@@ -5249,19 +5280,19 @@ contains
         end subroutine single_shift
 
         ! Port of coding.c:ENCODE_DESIGNATION.
-        subroutine encode_designation(charset, register)
-            integer, intent(in) :: charset, register
+        subroutine encode_designation(character_set, register)
+            integer, intent(in) :: character_set, register
             character(len=*), parameter :: INTERMEDIATES_94 = "()*+", INTERMEDIATES_96 = ",-./"
             integer :: final_character, revision
 
-            final_character = charsets(charset)%iso_final
+            final_character = character_sets(character_set)%iso_final
             revision = -1
-            if (iand(flags, ISO_REVISION) /= 0) revision = charsets(charset)%iso_revision
+            if (iand(flags, ISO_REVISION) /= 0) revision = character_sets(character_set)%iso_revision
             if (revision >= 0) call emit(out, q, char(ISO_CODE_ESCAPE)//"&"//char(iachar("@") + revision))
             call emit(out, q, char(ISO_CODE_ESCAPE))
 
-            if (charsets(charset)%dimension == 1) then
-                if (.not. charsets(charset)%iso_characters_96) then
+            if (character_sets(character_set)%dimension == 1) then
+                if (.not. character_sets(character_set)%iso_characters_96) then
                     call emit(out, q, INTERMEDIATES_94(register + 1:register + 1))
                 else
                     call emit(out, q, INTERMEDIATES_96(register + 1:register + 1))
@@ -5269,7 +5300,7 @@ contains
             else
                 call emit(out, q, "$")
 
-                if (.not. charsets(charset)%iso_characters_96) then
+                if (.not. character_sets(character_set)%iso_characters_96) then
                     if (iand(flags, ISO_LONG_FORM) /= 0 .or. register /= 0 .or. final_character < iachar("@") &
                         .or. final_character > iachar("B")) call emit(out, q, INTERMEDIATES_94(register + 1:register + 1))
                 else
@@ -5278,7 +5309,7 @@ contains
             end if
 
             call emit(out, q, char(final_character))
-            designation(register) = charset
+            designation(register) = character_set
         end subroutine encode_designation
 
         ! Port of coding.c:ENCODE_RESET_PLANE_AND_REGISTER.
@@ -5301,7 +5332,7 @@ contains
         ! for.  Port of coding.c:encode_designation_at_bol.
         subroutine designation_at_beginning_of_line(from)
             integer(int64), intent(in) :: from
-            integer :: requested(0:3), found, register, ch, charset
+            integer :: requested(0:3), found, register, ch, character_set
             integer(int64) :: j, code
 
             requested = -1
@@ -5312,14 +5343,14 @@ contains
                 ch = chars(j)
                 j = j + 1
                 if (ch == 10) exit
-                charset = character_charset_id(ch, code, status, charset_ids)
-                if (charset == 0) cycle
-                register = iso_request(id, charset)
+                character_set = character_character_set_id(ch, code, status, character_set_ids)
+                if (character_set == 0) cycle
+                register = iso_request(id, character_set)
 
                 if (register >= 0) then
                     if (requested(register) < 0) then
                         found = found + 1
-                        requested(register) = charset
+                        requested(register) = character_set
                     end if
                 end if
             end do
@@ -5345,7 +5376,7 @@ contains
         integer, intent(in) :: c
         character(len=*), intent(in) :: coding
         type(status_type), intent(out), optional :: status
-        type(status_type) :: charset_status
+        type(status_type) :: character_set_status
         integer(int64) :: code
         integer :: id
 
@@ -5354,16 +5385,17 @@ contains
         id = coding_system_id(coding)
         if (id == 0) return
 
-        select case (codings(id)%charset)
+        select case (codings(id)%character_set)
         case (CS_LIST)
             if (c < 128 .and. codings(id)%ascii_compatible) then
                 is_character_encodable = .true.
             else
-                is_character_encodable = character_charset_id(c, code, charset_status, coding_charset_ids(id)) /= 0
+                is_character_encodable = character_character_set_id(c, code, character_set_status, &
+                                                                    coding_character_set_ids(id)) /= 0
 
-                if (charset_status%code /= OK_CODE) then
+                if (character_set_status%code /= OK_CODE) then
                     is_character_encodable = .false.
-                    if (present(status)) status = charset_status
+                    if (present(status)) status = character_set_status
                 end if
             end if
         case (CS_ASCII)
@@ -5606,7 +5638,7 @@ contains
             return
         end if
 
-        bytes = buf_bytes(buffers(current), character_to_byte(from), character_to_byte(to))
+        bytes = buffer_bytes(buffers(current), character_to_byte(from), character_to_byte(to))
     end subroutine region_bytes
 
     !> Detect coding system of the text in the region between START and END.
@@ -5694,7 +5726,7 @@ contains
         if (encode) then
             call encode_coding_text(bytes, coding_system, text, used, status, multibyte=buffers(current)%multibyte)
             ! The bytes, as raw-byte characters in a multibyte buffer.
-            if (status%ok() .and. buffers(current)%multibyte) text = str_to_multibyte(text)
+            if (status%ok() .and. buffers(current)%multibyte) text = string_to_multibyte(text)
         else
             call decode_coding_bytes(bytes, coding_system, text, used, status, source_multibyte=buffers(current)%multibyte, &
                                      destination_multibyte=buffers(current)%multibyte)

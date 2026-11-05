@@ -1,4 +1,4 @@
-! vietnamese_mod.f90 -- the vietnamese coding systems of type `charset'.
+! vietnamese_mod.f90 -- the vietnamese coding systems of type `character_set'.
 ! Ported from GNU Emacs 31.1 lisp/language/vietnamese.el.
 !
 ! Copyright (C) 1998, 2001-2026 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that vietnamese.el defines, with their
+!> The coding systems of type `character_set' that vietnamese.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -36,24 +36,24 @@ submodule(coding_mod) vietnamese_mod
 
 contains
 
-    !> Port of the `charset' coding systems of vietnamese.el.
+    !> Port of the `character_set' coding systems of vietnamese.el.
     module subroutine initialize_vietnamese()
-        call define_charset_coding_system("vietnamese-viscii", iachar("V"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "viscii"], &
-                                          mime_charset="viscii", &
-                                          doc="8-bit encoding for Vietnamese VISCII 1.1 (MIME:VISCII).")
+        call define_character_set_coding_system("vietnamese-viscii", iachar("V"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "viscii"], &
+                                                mime_character_set="viscii", &
+                                                doc="8-bit encoding for Vietnamese VISCII 1.1 (MIME:VISCII).")
         call define_coding_system_alias("viscii", "vietnamese-viscii")
-        call define_charset_coding_system("vietnamese-vscii", iachar("v"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "vscii"], &
-                                          doc="8-bit encoding for Vietnamese VSCII-1 (TCVN-5712).")
+        call define_character_set_coding_system("vietnamese-vscii", iachar("v"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "vscii"], &
+                                                doc="8-bit encoding for Vietnamese VSCII-1 (TCVN-5712).")
         call define_coding_system_alias("vscii", "vietnamese-vscii")
         call define_coding_system_alias("vietnamese-tcvn", "vietnamese-vscii")
         call define_coding_system_alias("tcvn", "vietnamese-vscii")
         call define_coding_system_alias("tcvn-5712", "vietnamese-vscii")
-        call define_charset_coding_system("windows-1258", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "windows-1258"], &
-                                          mime_charset="windows-1258", &
-                                          doc="windows-1258 encoding for Vietnamese (MIME: WINDOWS-1258)")
+        call define_character_set_coding_system("windows-1258", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "windows-1258"], &
+                                                mime_character_set="windows-1258", &
+                                                doc="windows-1258 encoding for Vietnamese (MIME: WINDOWS-1258)")
         call define_coding_system_alias("cp1258", "windows-1258")
     end subroutine initialize_vietnamese
 
@@ -68,7 +68,7 @@ contains
                                          //" prefer VSCII-1,"//achar(10)//"please do: (prefer-coding-system 'vietnames" &
                                          //"e-vscii).  There are"//achar(10)//"two Vietnamese input methods: VIQR and " &
                                          //"Telex, VIQR is the default"//achar(10)//"setting.", &
-                                         charsets=[character(len=40) :: "viscii"], &
+                                         character_sets=[character(len=40) :: "viscii"], &
                                          sample_text="Vietnamese (Tiếng Việt)"//achar(9)//"Chào bạn", &
                                   coding_systems=[character(len=40) :: "vietnamese-viscii", "vietnamese-vscii", "vietnamese-viqr", &
                                                          "windows-1258"], &

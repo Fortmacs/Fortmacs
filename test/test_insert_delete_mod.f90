@@ -32,9 +32,9 @@ module test_insert_delete_mod
     use data_mod, only: value_eq
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, &
-                          set_buffer, current_buffer, is_buffer_live, buf_bytes, &
-                          temporary_set_point_both, set_buffer_read_only, buf_fetch_char
-    use marker_mod, only: character_to_byte, byte_to_character, buf_charpos_to_bytepos
+                          set_buffer, current_buffer, is_buffer_live, buffer_bytes, &
+                          temporary_set_point_both, set_buffer_read_only, buffer_fetch_character
+    use marker_mod, only: character_to_byte, byte_to_character, buffer_character_position_to_byte_position
     use insert_delete_mod, only: delete_range, delete_range_1, delete_range_byte, insert, insert_character, make_gap, &
                                  move_gap_both, replace_range, before_change_functions, after_change_functions, &
                                  first_change_hook, inhibit_modification_hooks, combine_after_change_calls, &
@@ -124,7 +124,7 @@ contains
     function contents() result(s)
         character(len=:), allocatable :: s
 
-        s = buf_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte)
+        s = buffer_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte)
     end function contents
 
     !> Move point to char position `pos`.
@@ -212,9 +212,9 @@ contains
         call insert_character(int(iachar("x"), int32), st)
         call check(error, contents(), euro//"x")
         if (allocated(error)) return
-        call check(error, buf_fetch_char(buffers(current), 1_int64), int(z'20AC', int32))
+        call check(error, buffer_fetch_character(buffers(current), 1_int64), int(z'20AC', int32))
         if (allocated(error)) return
-        call check(error, buf_fetch_char(buffers(current), 4_int64), int(iachar("x"), int32))
+        call check(error, buffer_fetch_character(buffers(current), 4_int64), int(iachar("x"), int32))
         call leave(h, old)
     end subroutine test_insert_character
 
@@ -369,7 +369,7 @@ contains
 
         ! The far end of the buffer, scanning backwards.
         call goto(1_int64)
-        call check(error, buf_charpos_to_bytepos(current, 5_int64), 8_int64)
+        call check(error, buffer_character_position_to_byte_position(current, 5_int64), 8_int64)
         call leave(h, old)
     end subroutine test_conversion
 

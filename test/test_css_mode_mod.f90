@@ -41,7 +41,7 @@ module test_css_mode_mod
     use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type
     use minibuffer_reading_mod, only: all_completions
     use bindings_mod, only: initialize_bindings
-    use terminal_colors_mod, only: tty_register_default_colors, tty_color_clear
+    use terminal_colors_mod, only: terminal_register_default_colors, terminal_color_clear
     use css_mode_mod, only: css_mode, scss_mode, css_property_values, css_value_class_lookup, css_property_value_cache_get, &
                             css_current_rule_name, css_completion_at_point, css_foreign_completions, css_class_list_function, &
                             css_id_list_function, css_color_to_4_dpc, css_format_hexadecimal, css_named_color_to_hexadecimal, &
@@ -836,7 +836,7 @@ contains
         integer :: i
 
         ! (The colors of the initial terminal frame in batch mode.)
-        call tty_register_default_colors()
+        call terminal_register_default_colors()
 
         do i = 1, 8
             call temporary_buffer()
@@ -846,7 +846,7 @@ contains
             if (allocated(error)) return
         end do
 
-        call tty_color_clear()
+        call terminal_color_clear()
     end subroutine test_hexadecimal_to_rgb
 
     subroutine test_rgb_to_named_color_or_hexadecimal(error)
@@ -872,7 +872,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call tty_register_default_colors()
+        call terminal_register_default_colors()
         call temporary_buffer()
         call ins("black")
         call css_cycle_color_format(st)
@@ -883,7 +883,7 @@ contains
         if (allocated(error)) return
         call css_cycle_color_format(st)
         call check(error, buffer_string(), "black")
-        call tty_color_clear()
+        call terminal_color_clear()
     end subroutine test_cycle_color_format
 
     subroutine test_join_nested_selectors(error)

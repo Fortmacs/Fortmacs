@@ -60,7 +60,7 @@ contains
         testsuite = [ &
                     new_unittest("syntax-class-character-test", test_class_character), &
                     new_unittest("standard-syntax-table-ascii", test_standard_ascii), &
-                    new_unittest("standard-syntax-table-characters-el", test_characters_el), &
+                    new_unittest("standard-syntax-table-characters-el", test_characters_element), &
                     new_unittest("string-to-syntax", test_string_to_syntax), &
                     new_unittest("syntax-table-inheritance", test_inheritance), &
                     new_unittest("char-script", test_character_script), &
@@ -169,7 +169,7 @@ contains
     end subroutine test_standard_ascii
 
     !> A sample of the entries characters.el makes.
-    subroutine test_characters_el(error)
+    subroutine test_characters_element(error)
         type(error_type), allocatable, intent(out) :: error
         integer, parameter :: cs(*) = [int(z'A1'), int(z'A9'), int(z'AB'), int(z'A0'), int(z'B5'), int(z'DF'), &
                                        int(z'E9'), int(z'F7'), int(z'2014'), int(z'2190'), int(z'3001'), &
@@ -188,7 +188,7 @@ contains
 
         ! 「 is an open paren matching 」.
         call check(error, matching_parenthesis(int(z'300C')) == int(z'300D'))
-    end subroutine test_characters_el
+    end subroutine test_characters_element
 
     subroutine test_string_to_syntax(error)
         type(error_type), allocatable, intent(out) :: error

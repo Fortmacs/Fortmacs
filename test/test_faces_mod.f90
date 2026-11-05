@@ -24,9 +24,9 @@ module test_faces_mod
                          FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK, &
                          FACE_UNSPECIFIED, FACE_NO, FACE_YES, FACE_PLIST, FACE_LIST, &
                          line_number, line_number_major_tick, fill_column_indicator, show_parenthesis_match, &
-                         tty_menu_selected_face, tty_menu_disabled_face, read_multiple_choice_face, tool_bar, &
+                         terminal_menu_selected_face, terminal_menu_disabled_face, read_multiple_choice_face, tool_bar, &
                          glyphless_character, tab_line, menu, cursor, region, FACE_COLOR
-    use command_interpreter_mod, only: comint_highlight_input_face
+    use command_interpreter_mod, only: command_interpreter_highlight_input_face
     use fortmacs, only: faces, face_underline, face_box, FACE_STYLE_WAVE, FACE_STYLE_LINE, FACE_BOX_RELEASED_BUTTON
     implicit none(type, external)
     private
@@ -72,8 +72,8 @@ contains
                                                    "tool_bar", "tab_bar", "tab_line", "tab_line_active", &
                                                    "tab_line_inactive", "menu", "help_argument_name", &
                                                    "help_key_binding", "glyphless_character", "error", "warning", &
-                                                   "success", "read_multiple_choice_face", "tty_menu_enabled_face", &
-                                                   "tty_menu_disabled_face", "tty_menu_selected_face", &
+                                                   "success", "read_multiple_choice_face", "terminal_menu_enabled_face", &
+                                                   "terminal_menu_disabled_face", "terminal_menu_selected_face", &
                                                    "show_parenthesis_match", "show_parenthesis_match_expression", &
                                                    "show_parenthesis_mismatch"]
         type(named_face_type), pointer :: face
@@ -113,13 +113,13 @@ contains
         if (allocated(error)) return
         call check(error, show_parenthesis_match%lface%background, "turquoise")
         if (allocated(error)) return
-        call check(error, tty_menu_selected_face%lface%background, "red")
+        call check(error, terminal_menu_selected_face%lface%background, "red")
         if (allocated(error)) return
-        call check(error, tty_menu_selected_face%lface%inverse_video%state, FACE_UNSPECIFIED)
+        call check(error, terminal_menu_selected_face%lface%inverse_video%state, FACE_UNSPECIFIED)
         if (allocated(error)) return
-        call check(error, tty_menu_disabled_face%lface%foreground, "lightgray")
+        call check(error, terminal_menu_disabled_face%lface%foreground, "lightgray")
         if (allocated(error)) return
-        call check(error, tty_menu_disabled_face%lface%background, "blue")
+        call check(error, terminal_menu_disabled_face%lface%background, "blue")
         if (allocated(error)) return
         call check(error, read_multiple_choice_face%lface%weight, "bold")
         if (allocated(error)) return
@@ -154,7 +154,7 @@ contains
         call check(error, show_parenthesis_match%lface%background, "steelblue3")
         if (allocated(error)) return
         ! tty-menu-disabled-face: (min-colors 16) fails.
-        call check(error, tty_menu_disabled_face%lface%foreground, "white")
+        call check(error, terminal_menu_disabled_face%lface%foreground, "white")
         if (allocated(error)) return
         ! tab-line: (min-colors 88) fails, (class mono) too.
         call check(error, tab_line%lface%inverse_video%state, FACE_YES)
@@ -176,11 +176,11 @@ contains
         if (allocated(error)) return
         call check(error, trim(line_number_major_tick%lface%inherit%names(1)), "line_number")
         if (allocated(error)) return
-        call check(error, tty_menu_selected_face%lface%inverse_video%state, FACE_YES)
+        call check(error, terminal_menu_selected_face%lface%inverse_video%state, FACE_YES)
         if (allocated(error)) return
-        call check(error, allocated(tty_menu_selected_face%lface%background), .false.)
+        call check(error, allocated(terminal_menu_selected_face%lface%background), .false.)
         if (allocated(error)) return
-        call check(error, trim(tty_menu_disabled_face%lface%inherit%names(1)), "shadow")
+        call check(error, trim(terminal_menu_disabled_face%lface%inherit%names(1)), "shadow")
         if (allocated(error)) return
         ! show-paren-match: (min-colors 4) fails with 2 colors.
         call check(error, allocated(show_parenthesis_match%lface%background), .false.)
@@ -234,7 +234,7 @@ contains
         if (allocated(error)) return
         call check(error, region%background == "blue", "background set")
         if (allocated(error)) return
-        call check(error, associated(faces%comint_highlight_input, comint_highlight_input_face), &
+        call check(error, associated(faces%command_interpreter_highlight_input, command_interpreter_highlight_input_face), &
                    "a face whose variable has another name")
         if (allocated(error)) return
         faces%link%underline = .true.

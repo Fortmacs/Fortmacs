@@ -72,7 +72,7 @@ p(a)rameter ABCparameterXYZ 3 12 4 5
 [pq](a)rameter ABCparameterXYZ 3 12 4 5
 
 ; now try escaped brackets:
-- match_default bk_parentheses REG_BASIC
+- match_default bk_parens REG_BASIC
 \(a\) zzzaazz 3 4 3 4
 \(\) zzz 0 0 0 0
 \(\) "" 0 0 0 0
@@ -259,7 +259,7 @@ a[[:alphabet:]] !
 ^ab xxabxx -1 -1
 ab$ ab 0 2
 ab$ abxx -1 -1
-- match_default match_not_beginning_of_line match_not_end_of_line normal REG_EXTENDED REG_NOTBOL REG_NOTEOL
+- match_default match_not_bol match_not_eol normal REG_EXTENDED REG_NOTBOL REG_NOTEOL
 ^ab ab -1 -1
 ^ab xxabxx -1 -1
 ab$ ab -1 -1

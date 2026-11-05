@@ -1249,12 +1249,12 @@ contains
 
     !> Cursor motion to `column', `row' (0-based): the terminfo library's
     !> tgoto, which takes its arguments column first.  Not a port.
-    function tgoto(cm, column, row) result(out)
-        character(len=*), intent(in) :: cm
+    function tgoto(cursor_motion, column, row) result(out)
+        character(len=*), intent(in) :: cursor_motion
         integer(int64), intent(in) :: column, row
         character(len=:), allocatable :: out
 
-        out = tparm(cm, row, column)
+        out = tparm(cursor_motion, row, column)
     end function tgoto
 
     !> `s' without $<...> padding specifications.  Modern terminals need no

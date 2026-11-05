@@ -68,7 +68,7 @@ contains
     module procedure read_number
     character(len=:), allocatable :: full, string, histvar, def1
     character(len=20) :: digits
-    type(string_type), allocatable :: defs(:)
+    type(string_type), allocatable :: definitions(:)
     integer :: k, ndefs
     logical :: have, first_false
 
@@ -87,7 +87,7 @@ contains
         ndefs = 1
     end if
 
-    allocate (defs(ndefs))
+    allocate (definitions(ndefs))
 
     do k = 1, ndefs
         if (present(defaults)) then
@@ -96,11 +96,11 @@ contains
             write (digits, "(i0)") default
         end if
 
-        defs(k)%text = trim(digits)
+        definitions(k)%text = trim(digits)
     end do
 
     if (ndefs > 0 .and. .not. first_false) then
-        def1 = defs(1)%text
+        def1 = definitions(1)%text
         ! (string-match "\\(\\):[ \t]*\\'" prompt): before the last colon
         ! followed only by whitespace, else in place of the trailing
         ! whitespace.
@@ -118,7 +118,7 @@ contains
     end if
 
     do
-        call read_from_minibuffer(full, string, status, history=histvar, defaults=defs)
+        call read_from_minibuffer(full, string, status, history=histvar, defaults=definitions)
         if (.not. status%ok()) return
 
         if (len(string) == 0) then
@@ -622,7 +622,7 @@ contains
         size_now = lossage_size(int(n), status)
     end subroutine execute_lossage_size
 
-    module procedure initialize_subr
+    module procedure initialize_basic_subprograms
     type(status_type) :: st
 
     commands%undefined%execute => undefined
@@ -643,7 +643,7 @@ contains
     commands%read_character_from_minibuffer_insert_other%execute => read_character_from_minibuffer_insert_other
     commands%help_procedure_show%execute => help_procedure_show
     if (is_keymap_live(read_character_from_minibuffer_map)) call destroy_keymap(read_character_from_minibuffer_map, st)
-    end procedure initialize_subr
+    end procedure initialize_basic_subprograms
 
     !> Make `read_character_from_minibuffer_map': minibuffer-local-map's keys,
     !> with the minibuffer's own recentering and scrolling commands, and

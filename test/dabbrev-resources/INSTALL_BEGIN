@@ -9,7 +9,7 @@ are building an Emacs release tarball on a Unix or a GNU system, the
 instructions in this file should be sufficient.  For other
 configurations, we have additional specialized files:
 
-  . INSTALL.REPOSITORY if you build from a Git checkout
+  . INSTALL.REPO if you build from a Git checkout
   . nt/INSTALL if you build for MS-Windows
   . nextstep/INSTALL if you build for GNUstep/macOS
   . java/INSTALL if you build for Android

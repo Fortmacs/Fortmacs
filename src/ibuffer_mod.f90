@@ -78,7 +78,7 @@ module ibuffer_mod
     use fill_mod, only: string_width
     use multilingual_environment_utilities_mod, only: truncate_string_to_width
     use shell_mod, only: list_buffers_directory
-    use directory_editor_mode_mod, only: dired_directory_of
+    use directory_editor_mode_mod, only: directory_editor_directory_of
     use derived_mod, only: is_derived_mode
     use process_mod, only: get_buffer_process, process_status, process_name
     use frame_mod, only: selected_frame, selected_window, frame_lines, frame_columns
@@ -98,7 +98,7 @@ module ibuffer_mod
     use ibuffer_types_mod, only: ibuffer_column, ibuffer_text, ibuffer_formats_type, ibuffer_format_type, &
                                  ibuffer_column_specification_type, ibuffer_column_type, ibuffer_cell_type, ibuffer_sorter_type, &
                                  ibuffer_op_type, ibuffer_show_test_type, ibuffer_fontification_type, &
-                                 ibuffer_directory_abbrev_type, ibuffer_column_procedure, ibuffer_summarizer_procedure, &
+                                 ibuffer_directory_abbreviation_type, ibuffer_column_procedure, ibuffer_summarizer_procedure, &
                                  ibuffer_sorter_procedure, ibuffer_form_procedure, IBUFFER_ALIGN_LEFT, IBUFFER_ALIGN_CENTER, &
                                  IBUFFER_ALIGN_RIGHT, IBUFFER_OP_SKIPPED, IBUFFER_OP_DONE, IBUFFER_OP_REMOVE, IBUFFER_MODIFIER_NO, &
                                  IBUFFER_MODIFIER_YES, IBUFFER_MODIFIER_MAYBE, IBUFFER_NAME_LENGTH, ibuffer_filter_type, &
@@ -390,9 +390,9 @@ module ibuffer_mod
     !> ibuffer-filter-group-name-face.
     character(len=:), allocatable, public :: ibuffer_filter_group_name_face
 
-    !> An array of file name abbreviations like `directory_abbrevs'.
+    !> An array of file name abbreviations like `directory_abbreviations'.
     !> Port of ibuffer.el ibuffer-directory-abbrev-alist.
-    type(ibuffer_directory_abbrev_type), allocatable, public :: ibuffer_directory_abbrevs(:)
+    type(ibuffer_directory_abbreviation_type), allocatable, public :: ibuffer_directory_abbreviations(:)
 
     !> A list of tests (a regexp or function) for buffers not to
     !> display.  If a regexp, then it will be matched against the buffer's
@@ -575,9 +575,9 @@ module ibuffer_mod
     interface
         !> Whether BUFFER should be shown (ibuffer-ext-visible-p).  (In
         !> ibuffer_extensions_mod.)  Port of ibuf-ext.el:ibuffer-ext-visible-p.
-        recursive module logical function is_ibuffer_ext_visible(buffer, all, ibuffer_buf, status) result(visible)
+        recursive module logical function is_ibuffer_ext_visible(buffer, all, ibuffer_buffer, status) result(visible)
             implicit none(type, external)
-            type(handle_type), intent(in) :: buffer, ibuffer_buf
+            type(handle_type), intent(in) :: buffer, ibuffer_buffer
             logical, intent(in) :: all
             type(status_type), intent(out) :: status
         end function is_ibuffer_ext_visible
@@ -912,9 +912,9 @@ module ibuffer_mod
 
         !> Define ibuf-ext.el's commands, sorting methods and keys.  (In
         !> ibuffer_extensions_mod.)  Not a port.
-        module subroutine initialize_ibuf_ext()
+        module subroutine initialize_ibuffer_extensions()
             implicit none(type, external)
-        end subroutine initialize_ibuf_ext
+        end subroutine initialize_ibuffer_extensions
     end interface
 
 contains
@@ -1811,44 +1811,44 @@ contains
             end if
         end if
 
-        directory_name = dired_directory_of()
+        directory_name = directory_editor_directory_of()
         if (len(directory_name) > 0) call expand_file_name(directory_name, name, st)
     end function ibuffer_buffer_file_name
 
-    !> Abbreviate FILENAME using `ibuffer_directory_abbrevs'.  Port of
+    !> Abbreviate FILENAME using `ibuffer_directory_abbreviations'.  Port of
     !> ibuffer.el:ibuffer--abbreviate-file-name.
-    function ibuffer_abbreviate_file_name(filename) result(abbrev)
+    function ibuffer_abbreviate_file_name(filename) result(abbreviation)
         character(len=*), intent(in) :: filename
-        character(len=:), allocatable :: abbrev
+        character(len=:), allocatable :: abbreviation
         integer :: k
         integer(int64) :: m
         type(status_type) :: st
 
-        abbrev = filename
+        abbreviation = filename
 
-        if (allocated(ibuffer_directory_abbrevs)) then
-            do k = 1, size(ibuffer_directory_abbrevs)
-                m = string_match(trim(ibuffer_directory_abbrevs(k)%from), abbrev, st)
+        if (allocated(ibuffer_directory_abbreviations)) then
+            do k = 1, size(ibuffer_directory_abbreviations)
+                m = string_match(trim(ibuffer_directory_abbreviations(k)%from), abbreviation, st)
 
                 if (st%ok() .and. m == 1) then
-                    call apply_abbrev(k)
+                    call apply_abbreviation(k)
                 end if
             end do
         end if
 
-        abbrev = abbreviate_file_name(abbrev)
+        abbreviation = abbreviate_file_name(abbreviation)
 
     contains
 
-        subroutine apply_abbrev(i)
+        subroutine apply_abbreviation(i)
             use search_mod, only: match_end
             integer, intent(in) :: i
             integer(int64) :: e
             type(status_type) :: st2
 
             e = match_end(0, st2)
-            abbrev = trim(ibuffer_directory_abbrevs(i)%to)//abbrev(e:)
-        end subroutine apply_abbrev
+            abbreviation = trim(ibuffer_directory_abbreviations(i)%to)//abbreviation(e:)
+        end subroutine apply_abbreviation
     end function ibuffer_abbreviate_file_name
 
     ! ------------------------------------------------------------------
@@ -2731,7 +2731,7 @@ contains
         type(ibuffer_cell_type) :: cell
         type(handle_type) :: menu
         character(len=:), allocatable :: string, ellipsis_text
-        integer :: column, min, max, strlen, tmp1, tmp2, offset, ell_at, ell_length, str_len
+        integer :: column, min, max, strlen, tmp1, tmp2, offset, ell_at, ell_length, string_length
         integer(int64) :: beginning
         logical :: from_end_p, minimum_used, maximum_used
         type(status_type) :: st
@@ -2753,10 +2753,10 @@ contains
         if (.not. allocated(cell%text)) cell%text = ""
         if (.not. allocated(cell%face)) cell%face = ""
         string = cell%text
-        ! The original text is STRING(OFFSET+1:OFFSET+STR_LEN) of the result;
+        ! The original text is STRING(OFFSET+1:OFFSET+STRING_LENGTH) of the result;
         ! an ellipsis ELL_LENGTH long is at ELL_AT (0 for none).
         offset = 0
-        str_len = len(string)
+        string_length = len(string)
         ell_at = 0
         ell_length = 0
         minimum_used = min >= 0
@@ -2784,7 +2784,7 @@ contains
                 string = truncate_string_to_width(string, max, padding=" ")
             end if
 
-            str_len = len(string)
+            string_length = len(string)
             strlen = int(string_width(string))
 
             if (specification%elide .and. strlen > 5) then
@@ -2794,12 +2794,12 @@ contains
                     string = ellipsis_text//substring_after_width(string, int(string_width(ibuffer_eliding_string)))
                     ell_at = 1
                     offset = len(ellipsis_text)
-                    str_len = len(string) - offset
+                    string_length = len(string) - offset
                 else
                     string = truncate_string_to_width(string, strlen - int(string_width(ellipsis_text)), padding=".") &
                              //ellipsis_text
                     ell_at = len(string) - len(ellipsis_text) + 1
-                    str_len = ell_at - 1
+                    string_length = ell_at - 1
                 end if
 
                 ell_length = len(ellipsis_text)
@@ -2812,13 +2812,13 @@ contains
 
         ! The column's properties on its text (concat keeps them; the
         ! padding has none).
-        if (str_len > 0) then
-            if (len(cell%face) > 0) call put_text_property(beginning + offset, beginning + offset + str_len, &
+        if (string_length > 0) then
+            if (len(cell%face) > 0) call put_text_property(beginning + offset, beginning + offset + string_length, &
                                                            value_type(name="font_lock_face"), value_type(name=cell%face), st)
-            if (allocated(cell%mouse_face)) call put_text_property(beginning + offset, beginning + offset + str_len, &
+            if (allocated(cell%mouse_face)) call put_text_property(beginning + offset, beginning + offset + string_length, &
                                                                    value_type(name="mouse_face"), &
                                                                    value_type(name=cell%mouse_face), st)
-            if (cell%name_column) call put_text_property(beginning + offset, beginning + offset + str_len, &
+            if (cell%name_column) call put_text_property(beginning + offset, beginning + offset + string_length, &
                                                          value_type(name="ibuffer_name_column"), value_type(.true.), st)
         end if
 
@@ -3235,8 +3235,8 @@ contains
     end function buffer_matches_regular_expressions
 
     ! ibuffer-filter-buffers.  Port of ibuffer.el:ibuffer-filter-buffers.
-    recursive subroutine filter_buffers(ibuffer_buf, last, bmarklist, all, result, status)
-        type(handle_type), intent(in) :: ibuffer_buf, last
+    recursive subroutine filter_buffers(ibuffer_buffer, last, bmarklist, all, result, status)
+        type(handle_type), intent(in) :: ibuffer_buffer, last
         type(ibuffer_state_type), intent(in) :: bmarklist(:)
         logical, intent(in) :: all
         type(ibuffer_state_type), allocatable, intent(out) :: result(:)
@@ -3257,7 +3257,7 @@ contains
             end if
 
             if (.not. keep) then
-                keep = is_ibuffer_ext_visible(bmarklist(k)%buffer, all, ibuffer_buf, status)
+                keep = is_ibuffer_ext_visible(bmarklist(k)%buffer, all, ibuffer_buffer, status)
                 if (.not. status%ok()) return
             end if
 
@@ -4726,7 +4726,7 @@ contains
     !>   \[ibuffer_mark_dissociated_buffers] - Mark all buffers which have
     !>         an associated file, but that file doesn't currently exist.
     !>   \[ibuffer_mark_read_only_buffers] - Mark all read-only buffers.
-    !>   \[ibuffer_mark_dired_buffers] - Mark buffers in `dired_mode'.
+    !>   \[ibuffer_mark_directory_editor_buffers] - Mark buffers in `directory_editor_mode'.
     !>   \[ibuffer_mark_help_buffers] - Mark buffers in `help_mode', `apropos_mode', etc.
     !>   \[ibuffer_mark_old_buffers] - Mark buffers older than `ibuffer_old_time'.
     !>   \[ibuffer_mark_for_delete] - Mark the buffer at point for deletion.
@@ -5003,9 +5003,9 @@ contains
     end function form_help_mode
 
     ! Not a port.
-    recursive logical function form_dired()
-        form_dired = is_derived_mode("dired_mode")
-    end function form_dired
+    recursive logical function form_directory_editor()
+        form_directory_editor = is_derived_mode("directory_editor_mode")
+    end function form_directory_editor
 
     ! (and (boundp 'emacs-lock-mode) emacs-lock-mode): emacs-lock.el is
     ! not ported.  Not a port.
@@ -5039,7 +5039,7 @@ contains
             ibuffer_fontifications(3) = ibuffer_fontification_type(20, form_starred, "font_lock_keyword_face")
             ibuffer_fontifications(4) = ibuffer_fontification_type(25, hidden_current, "italic")
             ibuffer_fontifications(5) = ibuffer_fontification_type(30, form_help_mode, "font_lock_comment_face")
-            ibuffer_fontifications(6) = ibuffer_fontification_type(35, form_dired, "font_lock_function_name_face")
+            ibuffer_fontifications(6) = ibuffer_fontification_type(35, form_directory_editor, "font_lock_function_name_face")
             ibuffer_fontifications(7) = ibuffer_fontification_type(40, form_locked, "ibuffer_locked_buffer")
         end if
 
@@ -5063,7 +5063,7 @@ contains
         if (.not. allocated(ibuffer_deletion_face)) ibuffer_deletion_face = "ibuffer_deletion"
         if (.not. allocated(ibuffer_title_face)) ibuffer_title_face = "ibuffer_title"
         if (.not. allocated(ibuffer_filter_group_name_face)) ibuffer_filter_group_name_face = "ibuffer_filter_group_name"
-        if (.not. allocated(ibuffer_directory_abbrevs)) allocate (ibuffer_directory_abbrevs(0))
+        if (.not. allocated(ibuffer_directory_abbreviations)) allocate (ibuffer_directory_abbreviations(0))
         if (.not. allocated(ibuffer_never_show_tests)) allocate (ibuffer_never_show_tests(0))
         if (.not. allocated(ibuffer_always_show_tests)) allocate (ibuffer_always_show_tests(0))
 
@@ -5084,7 +5084,7 @@ contains
         end if
 
         if (.not. allocated(ibuffer_never_search_content_mode)) then
-            ibuffer_never_search_content_mode = [character(len=IBUFFER_NAME_LENGTH) :: "dired_mode"]
+            ibuffer_never_search_content_mode = [character(len=IBUFFER_NAME_LENGTH) :: "directory_editor_mode"]
         end if
 
         if (.not. allocated(ibuffer_saved_filters%entries)) then
@@ -5104,7 +5104,7 @@ contains
             call ibuffer_saved_filters%append("web", &
                                               ibuffer_or(ibuffer_derived_mode("sgml_mode"), &
                                                          ibuffer_derived_mode("css_base_mode"), &
-                                                         ibuffer_derived_mode("js_base_mode"), &
+                                                         ibuffer_derived_mode("javascript_base_mode"), &
                                                          ibuffer_derived_mode("typescript_ts_base_mode"), &
                                                          ibuffer_major_mode("js2_mode"), &
                                                          ibuffer_derived_mode("haml_mode"), &
@@ -5237,6 +5237,6 @@ contains
         call keymap_set(m, "v", "ibuffer_do_view", st)
         call keymap_set(m, "C-x v", "ibuffer_do_view_horizontally", st)
         call keymap_set(m, "C-x 4 RET", "ibuffer_visit_buffer_other_window", st)
-        call initialize_ibuf_ext()
+        call initialize_ibuffer_extensions()
     end subroutine initialize_ibuffer
 end module ibuffer_mod

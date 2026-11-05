@@ -191,7 +191,7 @@ contains
         type(handle_type), allocatable :: list(:)
         integer :: k
 
-        if (window_sides_reversed%choice /= WINDOW_SIDES_REVERSED_BIDI) then
+        if (window_sides_reversed%choice /= WINDOW_SIDES_REVERSED_BIDIRECTIONAL) then
             ! Reverse when `window_sides_reversed' is .true., do not
             ! reverse when it is .false.
             p = window_sides_reversed%value
@@ -208,7 +208,7 @@ contains
             if (windows(window%index)%mini) window = minibuffer_selected_window()
 
             if (is_window_live(window)) then
-                if (buffers(windows(window%index)%buffer%index)%bidi_paragraph_direction == 2) return
+                if (buffers(windows(window%index)%buffer%index)%bidirectional_paragraph_direction == 2) return
             end if
         end if
 
@@ -220,7 +220,7 @@ contains
         call walk_window_tree(window_main_window(), .false., list)
 
         do k = 1, size(list)
-            if (buffers(windows(list(k)%index)%buffer%index)%bidi_paragraph_direction == 1) then
+            if (buffers(windows(list(k)%index)%buffer%index)%bidirectional_paragraph_direction == 1) then
                 p = .false.
                 return
             end if

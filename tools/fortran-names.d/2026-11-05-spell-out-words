@@ -275,17 +275,33 @@ name	fm_void_variable	void_variable_code
 name	fm_wrong_number_of_arguments	wrong_number_of_arguments_code
 name	fm_wrong_type_argument	wrong_type_argument_code
 
-# Two names spelled out alike.  Flyspell's commands and internals that
-# would take an Ispell name are named after their module, spellcheck_mode
-# (flyspell.el); isearch-del-char (deletes the character at the end of
-# the search string) beside isearch-delete-char; the window_commands
-# submodule's setup beside window_scroll's initialize_window_commands
-# (a suffix names the role).
-name	flyspell_buffer	spellcheck_mode_buffer
-name	flyspell_region	spellcheck_mode_region
-name	flyspell_word	spellcheck_mode_word
-name	flyspell_overlay	spellcheck_mode_overlay
-name	flyspell_kill_ispell_hook	spellcheck_mode_kill_spellcheck_hook
+# Two names spelled out alike.  Flyspell's commands that would take an
+# Ispell name end in _highlight (panel, 2026-11-05): Ispell keeps the plain
+# names; Flyspell's other names take no infix, so the entries name the
+# longer ones that hold the command's run.  flyspell-overlay is
+# spellcheck_highlight_overlay beside ispell-overlay, and the hook
+# variable ispell-kill-ispell-hook takes the _variable suffix beside the
+# function flyspell-kill-ispell-hook (CLAUDE.md).  isearch-del-char
+# (deletes the character at the end of the search string) beside
+# isearch-delete-char; the window_commands submodule's setup beside
+# window_scroll's initialize_window_commands (a suffix names the role).
+name	flyspell_buffer	spellcheck_buffer_highlight
+name	flyspell_region	spellcheck_region_highlight
+name	flyspell_word	spellcheck_word_highlight
+name	flyspell_overlay	spellcheck_highlight_overlay
+name	auto_correct_flyspell_word	auto_correct_spellcheck_word
+name	auto_correct_previous_flyspell_word	auto_correct_previous_spellcheck_word
+name	check_previous_highlighted_flyspell_word	check_previous_highlighted_spellcheck_word
+name	get_flyspell_word	get_spellcheck_word
+name	search_flyspell_word_forward	search_spellcheck_word_forward
+name	search_flyspell_word_backward	search_spellcheck_word_backward
+name	accept_flyspell_buffer_local_defs	accept_spellcheck_buffer_local_definitions
+name	delete_flyspell_region_overlays	delete_spellcheck_region_overlays
+name	check_flyspell_region_doublons	check_spellcheck_region_doublons
+name	is_flyspell_overlay	is_spellcheck_overlay
+name	make_flyspell_overlay	make_spellcheck_overlay
+name	any_flyspell_overlay	any_spellcheck_overlay
+name	ispell_kill_ispell_hook	spellcheck_kill_spellcheck_hook_variable
 name	init_flyspell	initialize_spellcheck_mode
 name	isearch_del_char	isearch_delete_end_character
 name	init_window_cmds	initialize_window_commands_submodule
@@ -388,12 +404,10 @@ keep	"var_three"
 keep	"var_four"
 keep	"with_some_arg"
 keep	"def test_regexp"
-# The module of the user's init.f90 keeps its name, so existing
-# configurations still build.
-keep	user_config
 # gfortran 13 cannot parse procedure(character_...) :: x followed by another
 # declaration (it reads a character type): the interface is verb first.
 name	char_table_map_procedure	map_character_table_procedure
+name	charset_range_procedure	map_character_set_range_procedure
 name	cmds	isearch_commands	src/incremental_search_mod.f90
 # sh-var-list (sh_vars, 0-base) beside sh-variables.
 name	sh_vars	sh_indentation_variables
@@ -408,3 +422,113 @@ keep	"'CMD`"
 name	face_vec	face_state
 name	overlay_vec	overlay_handles	src/face_realization_mod.f90
 name	new_vec	new_items	src/ring_mod.f90
+
+# Package and Emacs words (owner, 2026-11-05: class B, for every name).
+# Standards keep theirs (iso, ascii, utf, ansi, html, css, xml, json, url,
+# mime, rgb, cns, big5, gbk, sjis, cp932, md5, sha*, f90, sgml, terminfo,
+# smtp, hkscs), and so do ibuffer (a package name), the module suffix mod,
+# POSIX utilities (ls, cd), the Tib bibliography program (tib) and cc,
+# which stands for several things (a cost, CC Mode, the Cc header).
+word	vc	version_control
+word	hg	mercurial
+word	svn	subversion
+word	cvs	concurrent_versions_system
+name	pcvs	parallel_cvs
+word	dired	directory_editor
+word	ediff	fortmacs_diff
+word	comint	command_interpreter
+word	sh	shell
+word	xref	cross_reference
+word	smie	simple_minded_indentation_engine
+word	isearch	incremental_search
+word	abbrev	abbreviation
+word	abbrevs	abbreviations
+word	dabbrev	dynamic_abbreviation
+word	dabbrevs	dynamic_abbreviations
+word	tty	terminal
+word	kmacro	keyboard_macro
+word	edmacro	keyboard_macro_editor
+word	imenu	index_menu
+word	bidi	bidirectional
+word	smerge	simple_merge
+word	js	javascript
+word	pcomplete	programmable_completion
+word	recentf	recent_files
+word	bmenu	bookmark_menu
+word	mule	multilingual_environment
+word	ewoc	fortmacs_widget_for_object_collections
+word	ewocs	fortmacs_widgets_for_object_collections
+word	savehist	save_history
+word	async	asynchronous
+word	asynch	asynchronous
+word	cm	cursor_motion
+word	etags	fortmacs_tags
+word	jit	just_in_time
+word	charset	character_set
+word	prog	programming
+word	crm	completing_read_multiple
+word	rmc	read_multiple_choice
+word	recc	regular_expression_character_class
+word	bnf	backus_naur_form
+word	bom	byte_order_mark
+word	gui	graphical_user_interface
+word	rif	redisplay_interface
+word	subr	basic_subprograms
+word	nts	nonterminals
+word	pcm	partial_completion_mode
+word	gmake	gnu_make
+word	eoh	end_of_headers
+word	eop	end_of_paragraph
+word	bmk	bookmark
+word	bmrk	bookmark
+word	io	input_output
+word	init	initialize
+# A word that stands for another word in some names: cpp is the C
+# preprocessor; transpose-subr's subr a subroutine; js-indent-first-init's
+# init an initializer, bidi_init_it initializes an iterator; Info's el an
+# element; the cal_move and ibuf_ext modules.  ios, an iostat result, is
+# the keyword's word.
+word	cpp	c_preprocessor
+name	transpose_subr	transpose_subroutine
+name	first_init	first_initializer
+name	bidi_init_it	bidi_initialize_iterator
+word	el	element
+name	cal_move	calendar_movement
+name	ibuf_ext	ibuffer_extensions
+keep	ios
+# Spelled-out names longer than Fortran's 63 characters, shortened
+# without an abbreviation (a repeated or least telling word left out).
+name	dynamic_abbreviation_abbreviation	dynamic_abbreviation
+name	tabulated_list_graphical_user_interface	tabulated_list_graphical
+name	shell_simple_minded_indentation_engine	shell_indentation_engine
+name	fortmacs_diff_default_filtering_regular_expression_string_setting_type	fortmacs_diff_default_filtering_setting_type
+name	version_control_directory_fortmacs_widget_for_object_collections	version_control_directory_widget_collection
+name	simple_minded_indentation_engine_set_is_hanging_end_of_line_function	set_simple_minded_indentation_engine_hanging_line_test
+name	simple_minded_indentation_engine_is_hanging_end_of_line_procedure	simple_minded_indentation_engine_hanging_line_procedure
+name	command_interpreter_history_incremental_search_backward_regular_expression	command_interpreter_history_search_backward_regular_expression
+name	directory_editor_create_destination_directories_on_trailing_dirsep	directory_editor_create_directories_on_trailing_separator
+name	version_control_mercurial_symbolic_revision_styles_active_bookmark	version_control_mercurial_revision_styles_active_bookmark
+name	version_control_mercurial_use_file_version_for_mode_line_version	version_control_mercurial_use_file_version_for_mode_line
+name	execute_simple_minded_indentation_engine_forward_expression_command	execute_simple_minded_indentation_engine_forward_expression
+name	execute_simple_minded_indentation_engine_backward_expression_command	execute_simple_minded_indentation_engine_backward_expression
+name	execute_simple_minded_indentation_engine_configuration_show_indent	execute_show_simple_minded_indentation_engine_indent
+name	execute_directory_editor_mark_files_containing_regular_expression	execute_directory_editor_mark_files_by_contents
+name	javascript_prototype_obsolete_class_declaration_regular_expression	javascript_prototype_obsolete_class_regular_expression
+name	javascript_prototype_objextend_class_declaration_regular_expression	javascript_prototype_objextend_class_regular_expression
+# sh-mode and its siblings beside shell.el's shell-mode, shell-mode-map,
+# ...: Shell-script mode (its mode name), as its module shell_script_mod.
+name	sh_mode	shell_script_mode
+name	sh_font_lock_keywords	shell_script_font_lock_keywords
+name	sh_dynamic_complete_functions	shell_script_dynamic_complete_functions
+name	clear_sh_locals	clear_shell_script_locals
+# defs are definitions.
+word	defs	definitions
+# Upstream test data, kept as upstream wrote it.
+keep	test/dabbrev-resources/INSTALL_BEGIN
+keep	test/ispell-resources/fake-aspell-new.bash
+keep	test/regex-resources/BOOST.tests
+keep	test/regex-resources/PTESTS
+name	simple_minded_indentation_engine_token_procedure	simple_minded_indentation_token_procedure
+name	version_control_mercurial_symbolic_revision_style_type	version_control_mercurial_revision_style_type
+# The new name holds stop_process (0-base): kept so it is not renamed again.
+keep	asynchronous_shell_command_buffer_confirm_stop_process

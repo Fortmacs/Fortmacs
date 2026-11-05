@@ -27,7 +27,7 @@
 !>
 !> A button type is a `button_kind_type' object, named after the
 !> symbol upstream keeps its properties in (`default_button' for the type
-!> `button', `help_xref_button' for `help_xref'): its `define' copies
+!> `button', `help_cross_reference_button' for `help_cross_reference'): its `define' copies
 !> the components of its supertype, and plain assignment changes them
 !> afterwards, as button-type-put does:
 !>

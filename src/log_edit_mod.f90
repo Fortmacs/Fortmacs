@@ -1,4 +1,4 @@
-! log_edit_mod.f90 -- Major mode for editing VC commit log messages.
+! log_edit_mod.f90 -- Major mode for editing VERSION_CONTROL commit log messages.
 ! Ported from GNU Emacs 31.1 lisp/vc/log-edit.el.
 !
 ! Copyright (C) 1999-2026 Free Software Foundation, Inc.
@@ -29,7 +29,7 @@
 !> generated from the diff (\[generate_log_edit_changelog_from_diff]).
 !>
 !> The variables that upstream's `log-edit' takes as PARAMETERS (the
-!> function listing the files, the diff function, the VC backend) are
+!> function listing the files, the diff function, the VERSION_CONTROL backend) are
 !> arguments of `log_edit' here; the caller's own buffer-local values
 !> are set by its SET_PARAMETERS procedure.
 !>
@@ -39,7 +39,7 @@
 !> `log_edit_parent_buffer', `log_edit_maybe_show_diff' (needing
 !> `display_buffer_overriding_action'), `log_edit_diff_patch' (patches),
 !> the menu and the tool bar,
-!> `font_lock_extra_managed_properties' and `jit_lock_contextually' as
+!> `font_lock_extra_managed_properties' and `just_in_time_lock_contextually' as
 !> buffer-local values, the help-echo texts of the GNU-style keywords,
 !> and `hack_directory_local_variables_non_file_buffer' (directory-local
 !> variables).
@@ -77,7 +77,7 @@ module log_edit_mod
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use minibuffer_reading_mod, only: read_string
     use help_mod, only: substitute_command_keys
-    use simple_mod, only: rfc822_goto_eoh, push_mark, special_mode, delete_horizontal_space, do_auto_fill, &
+    use simple_mod, only: rfc822_goto_end_of_headers, push_mark, special_mode, delete_horizontal_space, do_auto_fill, &
                           normal_auto_fill_function
     use indent_mod, only: current_indentation, indent_rigidly
     use fill_mod, only: string_width, fill_paragraph_function
@@ -95,7 +95,7 @@ module log_edit_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use pcvs_utilities_mod, only: cvs_insert_strings
+    use parallel_concurrent_versions_system_utilities_mod, only: concurrent_versions_system_insert_strings
     use add_log_mod, only: find_change_log, add_log_find_changelog_buffer, change_log_mode, change_log_default_name, &
                            add_log_full_name, add_log_mailing_address, add_log_time_format, &
                            add_log_dont_create_changelog_file
@@ -113,8 +113,9 @@ module log_edit_mod
               log_edit_remember_comment, log_edit_show_files, log_edit_show_diff, log_edit_insert_changelog, &
               log_edit_insert_message_template, log_edit_previous_comment, log_edit_next_comment, &
               log_edit_comment_search_backward, log_edit_comment_search_forward, log_edit_set_common_indentation, &
-              log_edit_font_lock_keywords, log_edit_vc_backend, log_edit_diff_fileset, &
-              log_edit_done_strip_cvs_lines, log_edit_fill_entry, set_log_edit_callback, set_log_edit_vc_backend, &
+              log_edit_font_lock_keywords, log_edit_version_control_backend, log_edit_diff_fileset, &
+              log_edit_done_strip_concurrent_versions_system_lines, log_edit_fill_entry, set_log_edit_callback, &
+              set_log_edit_version_control_backend, &
               generate_log_edit_changelog_from_diff, &
               initialize_log_edit
 
@@ -245,7 +246,7 @@ module log_edit_mod
     !> Port of log-edit.el log-edit-common-indent.
     integer, public :: log_edit_common_indent = 0
 
-    !> If true, highlight common failures to follow VC commit log conventions.
+    !> If true, highlight common failures to follow VERSION_CONTROL commit log conventions.
     !> The conventions checked are those described in the GNU coding standards
     !> document.  Port of log-edit.el log-edit-font-lock-gnu-style.
     logical, public :: log_edit_font_lock_gnu_style = .false.
@@ -265,7 +266,7 @@ module log_edit_mod
 
     !> The name of the buffer listing the files to be committed.  Port of
     !> log-edit.el log-edit-files-buf.
-    character(len=*), parameter, public :: LOG_EDIT_FILES_BUF = "*log-edit-files*"
+    character(len=*), parameter, public :: LOG_EDIT_FILES_BUFFER = "*log-edit-files*"
 
     !> Maximum number of saved commit comments in `log_edit_comment_ring'.
     !> Port of log-edit.el log-edit-maximum-comment-ring-size.
@@ -309,7 +310,7 @@ module log_edit_mod
         procedure(command_procedure), pointer, nopass :: callback => null()
         procedure(log_edit_listfun_procedure), pointer, nopass :: listfun => null()
         procedure(command_procedure), pointer, nopass :: diff_function => null()
-        integer :: vc_backend = 0
+        integer :: version_control_backend = 0
         logical :: has_initial_files = .false.
         type(string_type), allocatable :: initial_files(:)
         logical :: has_ring_index = .false.
@@ -352,7 +353,7 @@ module log_edit_mod
             type(status_type), intent(out) :: status
         end subroutine log_edit_mode_help
 
-        !> Insert a VC commit log message by looking at the current diffs.
+        !> Insert a VERSION_CONTROL commit log message by looking at the current diffs.
         !> This command is intended to be used in the "*vc-log*" buffer.
         !> This command will generate ChangeLog entries listing the modified
         !> files and functions changed in those files, based on the diffs
@@ -412,16 +413,16 @@ contains
         if (k > 0) locals(k) = local_type()
     end subroutine clear_log_edit_locals
 
-    !> The current buffer's `log_edit_vc_backend' (a VC backend index, 0
-    !> for none): the VC fileset backend corresponding to the current log.
+    !> The current buffer's `log_edit_version_control_backend' (a VERSION_CONTROL backend index, 0
+    !> for none): the VERSION_CONTROL fileset backend corresponding to the current log.
     !> Not a port.
-    integer function log_edit_vc_backend() result(b)
+    integer function log_edit_version_control_backend() result(b)
         integer :: k
 
         b = 0
         k = local_index()
-        if (k > 0) b = locals(k)%vc_backend
-    end function log_edit_vc_backend
+        if (k > 0) b = locals(k)%version_control_backend
+    end function log_edit_version_control_backend
 
     !> Set the current buffer's `log_edit_callback' (set_local): the
     !> command `log_edit_done' calls to perform the operation.  Not a port.
@@ -433,15 +434,15 @@ contains
         locals(k)%callback => callback
     end subroutine set_log_edit_callback
 
-    !> Set the current buffer's `log_edit_vc_backend' (set_local): B is
-    !> a VC backend index, 0 for none.  Not a port.
-    subroutine set_log_edit_vc_backend(b)
+    !> Set the current buffer's `log_edit_version_control_backend' (set_local): B is
+    !> a VERSION_CONTROL backend index, 0 for none.  Not a port.
+    subroutine set_log_edit_version_control_backend(b)
         integer, intent(in) :: b
         integer :: k
 
         call make_local_entry(k)
-        locals(k)%vc_backend = b
-    end subroutine set_log_edit_vc_backend
+        locals(k)%version_control_backend = b
+    end subroutine set_log_edit_version_control_backend
 
     ! The current value of log-edit-comment-ring-index (SET false for nil).
     ! Not a port.
@@ -617,7 +618,7 @@ contains
         end if
     end function log_edit_new_comment_index
 
-    !> Cycle backwards through VC commit comment history.
+    !> Cycle backwards through VERSION_CONTROL commit comment history.
     !> With a numeric prefix ARGUMENT, go back ARGUMENT comments.  Port of
     !> log-edit.el:log-edit-previous-comment.
     recursive subroutine log_edit_previous_comment(argument, status)
@@ -647,7 +648,7 @@ contains
         end if
     end subroutine log_edit_previous_comment
 
-    !> Cycle forwards through VC commit comment history.
+    !> Cycle forwards through VERSION_CONTROL commit comment history.
     !> With a numeric prefix ARGUMENT, go forward ARGUMENT comments.  Port of
     !> log-edit.el:log-edit-next-comment.
     recursive subroutine log_edit_next_comment(argument, status)
@@ -657,7 +658,7 @@ contains
         call log_edit_previous_comment(-argument, status)
     end subroutine log_edit_next_comment
 
-    !> Search backwards through VC commit comment history for a match of STRING.
+    !> Search backwards through VERSION_CONTROL commit comment history for a match of STRING.
     !> If the optional argument STRIDE is present, that is a step-width to use
     !> when going through the comment ring, `log_edit_comment_ring'.  Port of
     !> log-edit.el:log-edit-comment-search-backward.
@@ -701,7 +702,7 @@ contains
         call log_edit_previous_comment(0, status)
     end subroutine log_edit_comment_search_backward
 
-    !> Search forwards through VC commit comment history for a match of STRING.
+    !> Search forwards through VERSION_CONTROL commit comment history for a match of STRING.
     !> Port of log-edit.el:log-edit-comment-search-forward.
     recursive subroutine log_edit_comment_search_forward(string, status)
         character(len=*), intent(in) :: string
@@ -715,7 +716,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Port of log-edit.el:log-edit-match-to-eoh.
-    subroutine log_edit_match_to_eoh(limit, found, status)
+    subroutine log_edit_match_to_end_of_headers(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
@@ -724,10 +725,10 @@ contains
         found = .false.
         if (limit < 0) continue
         start = point()
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
         if (.not. status%ok()) return
         ! Typical situation: some temporary change causes the header to be
-        ! incorrect, so EOH comes earlier than intended: the last lines of the
+        ! incorrect, so END_OF_HEADERS comes earlier than intended: the last lines of the
         ! intended headers are now not considered part of the header any more,
         ! so they don't have the multiline property set.  When the change is
         ! completed and the header has its correct shape again, the lack of the
@@ -737,17 +738,17 @@ contains
         ! Here we disregard LIMIT so that we may extend the area again.
         call set_match_data([start, point()])
         found = .true.
-    end subroutine log_edit_match_to_eoh
+    end subroutine log_edit_match_to_end_of_headers
 
     !> Go to the end of the headers.  Port of log-edit.el:log-edit-goto-eoh.
-    subroutine log_edit_goto_eoh(status)
+    subroutine log_edit_goto_end_of_headers(status)
         type(status_type), intent(out) :: status
         logical :: found
 
         call goto_character(point_minimum())
         call regular_expression_search_forward("^\([^[:alpha:]]\|[[:alnum:]-]+[^[:alnum:]-]\)", found, status, noerror=SEARCH_MOVE)
         if (found) call goto_character(match_beginning(0, status))
-    end subroutine log_edit_goto_eoh
+    end subroutine log_edit_goto_end_of_headers
 
     ! Port of log-edit.el:log-edit--match-first-line.
     subroutine log_edit_match_first_line(limit, found, status)
@@ -759,7 +760,7 @@ contains
 
         found = .false.
         start = point()
-        call log_edit_goto_eoh(status)
+        call log_edit_goto_end_of_headers(status)
         if (.not. status%ok()) return
         moved = skip_characters_forward(achar(10), status)
         if (.not. (start < line_end_position())) return
@@ -771,7 +772,8 @@ contains
         if (summary) return
         if (.not. looking_at(".+", status)) return
         call goto_character(match_end(0, status))
-        call put_text_property(point_minimum(), point(), value_type(name="jit_lock_defer_multiline"), value_type(.true.), status)
+        call put_text_property(point_minimum(), point(), value_type(name="just_in_time_lock_defer_multiline"), value_type(.true.), &
+                               status)
         found = .true.
     end subroutine log_edit_match_first_line
 
@@ -901,7 +903,7 @@ contains
                                            true_properties=[character(len=28) :: "display_line_numbers_disable", &
                                                             "rear_nonsticky"])
         anchors(2) = font_lock_anchored(separator, regular_expression="^"//achar(10), pre_match_form=separator_pre_form)
-        keywords(1) = font_lock_keyword(highlights=anchors, matcher=log_edit_match_to_eoh)
+        keywords(1) = font_lock_keyword(highlights=anchors, matcher=log_edit_match_to_end_of_headers)
         first(1) = font_lock_highlight(0, face="log_edit_summary")
         keywords(2) = font_lock_keyword(highlights=first, matcher=log_edit_match_first_line)
         if (.not. log_edit_font_lock_gnu_style) return
@@ -929,7 +931,7 @@ contains
     ! The mode
     ! ------------------------------------------------------------------
 
-    !> Setup a buffer to enter a VC commit log message.
+    !> Setup a buffer to enter a VERSION_CONTROL commit log message.
     !> The buffer is put in mode MODE, or `log_edit_mode' if MODE is absent.
     !> If SETUP is true, erase the buffer and run `log_edit_hook'.
     !> Set mark and point around the entire contents of the buffer, so
@@ -942,21 +944,21 @@ contains
     !> returns the list of files that are concerned by the current operation
     !> (using relative names); DIFF_FUNCTION the function taking no
     !> arguments that displays a diff of the files concerned by the current
-    !> operation, VC_BACKEND the VC backend of the files, and SET_PARAMETERS a
+    !> operation, VERSION_CONTROL_BACKEND the VERSION_CONTROL backend of the files, and SET_PARAMETERS a
     !> procedure giving the caller's other buffer-local variables their
     !> values (PARAMETERS).
     !>
     !> This function uses the current buffer.  SETUP_FORCE is the SETUP
     !> `force', on which `log_edit_setup_invert' has no effect.  Port of
     !> log-edit.el:log-edit (no BUFFER argument).
-    recursive subroutine log_edit(callback, status, setup, setup_force, listfun, diff_function, vc_backend, &
+    recursive subroutine log_edit(callback, status, setup, setup_force, listfun, diff_function, version_control_backend, &
                                   set_parameters, mode)
         procedure(command_procedure) :: callback
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: setup, setup_force
         procedure(log_edit_listfun_procedure), optional :: listfun
         procedure(command_procedure), optional :: diff_function, set_parameters, mode
-        integer, intent(in), optional :: vc_backend
+        integer, intent(in), optional :: version_control_backend
         logical :: do_setup
         integer :: k
 
@@ -980,7 +982,7 @@ contains
         locals(k)%callback => callback
         if (present(listfun)) locals(k)%listfun => listfun
         if (present(diff_function)) locals(k)%diff_function => diff_function
-        if (present(vc_backend)) locals(k)%vc_backend = vc_backend
+        if (present(version_control_backend)) locals(k)%version_control_backend = version_control_backend
 
         if (present(set_parameters)) then
             call set_parameters(status)
@@ -1017,12 +1019,12 @@ contains
         end function option
     end subroutine log_edit
 
-    !> Major mode for editing version-control (VC) commit log messages.
+    !> Major mode for editing version-control (VERSION_CONTROL) commit log messages.
     !> When done editing the log entry, type \[log_edit_done], which will
     !> trigger the actual commit of the file(s).
     !> Several other handy support commands are provided, and the package
     !> from which this is used might also provide additional commands (under
-    !> the \[vc_prefix_map] prefix for VC commands, for example).
+    !> the \[version_control_prefix_map] prefix for VERSION_CONTROL commands, for example).
     !>
     !> \{log_edit_mode_map}
     !>
@@ -1053,20 +1055,20 @@ contains
     !> log-edit.el:log-edit-do-auto-fill.
     recursive subroutine log_edit_do_auto_fill(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: here, eoh
+        integer(int64) :: here, end_of_headers
 
         status = status_type()
         here = point()
-        call rfc822_goto_eoh(status)
-        eoh = point()
+        call rfc822_goto_end_of_headers(status)
+        end_of_headers = point()
         call goto_character(here)
         if (.not. status%ok()) return
-        if (.not. (eoh > here)) call do_auto_fill(status)
+        if (.not. (end_of_headers > here)) call do_auto_fill(status)
     end subroutine log_edit_do_auto_fill
 
-    !> Hide the buffer BUFFER (`log_edit_files_buf' if absent).  Port of
+    !> Hide the buffer BUFFER (`log_edit_files_buffer' if absent).  Port of
     !> log-edit.el:log-edit-hide-buf.
-    recursive subroutine log_edit_hide_buf(buffer_in)
+    recursive subroutine log_edit_hide_buffer(buffer_in)
         type(handle_type), intent(in), optional :: buffer_in
         type(handle_type) :: buffer, window
         type(status_type) :: st
@@ -1074,7 +1076,7 @@ contains
         if (present(buffer_in)) then
             buffer = buffer_in
         else
-            buffer = get_buffer(LOG_EDIT_FILES_BUF)
+            buffer = get_buffer(LOG_EDIT_FILES_BUFFER)
         end if
 
         if (.not. is_buffer_live(buffer)) return
@@ -1084,7 +1086,7 @@ contains
         window = get_buffer_window(buffer)
         if (window%index /= 0) call delete_window(window, st)
         call bury_buffer(st, buffer)
-    end subroutine log_edit_hide_buf
+    end subroutine log_edit_hide_buffer
 
     !> Remember COMMENT (the buffer's text if absent) in
     !> `log_edit_comment_ring', unless it is the latest comment there.
@@ -1116,7 +1118,7 @@ contains
         call log_edit_remember_comment()
     end subroutine log_edit_remember_comment_hook
 
-    !> Finish editing the VC commit log message, and commit the files.
+    !> Finish editing the VERSION_CONTROL commit log message, and commit the files.
     !> If you want to abort the commit, simply delete the buffer.  Port of
     !> log-edit.el:log-edit-done.
     recursive subroutine log_edit_done(status)
@@ -1185,7 +1187,7 @@ contains
         end if
 
         call log_edit_remember_comment()
-        window = get_buffer_window(get_buffer(LOG_EDIT_FILES_BUF))
+        window = get_buffer_window(get_buffer(LOG_EDIT_FILES_BUFFER))
         yes = .true.
 
         if (.not. log_edit_confirm%is_off()) then
@@ -1211,14 +1213,14 @@ contains
         end if
 
         if (.not. yes) then
-            if (window%index == 0) call log_edit_hide_buf()
+            if (window%index == 0) call log_edit_hide_buffer()
             call message("Oh, well!  Later maybe?")
             return
         end if
 
         call log_edit_done_hook%execute(status)
         if (.not. status%ok()) return
-        call log_edit_hide_buf()
+        call log_edit_hide_buffer()
         k = local_index()
 
         if (k == 0) then
@@ -1250,15 +1252,15 @@ contains
         end function same_files
     end subroutine log_edit_done
 
-    !> Close the current VC commit log buffer.
-    !> This command saves the contents of the log buffer in the VC commit
-    !> comment history, see `log_edit_comment_ring', and hides `log_edit_files_buf'.
+    !> Close the current VERSION_CONTROL commit log buffer.
+    !> This command saves the contents of the log buffer in the VERSION_CONTROL commit
+    !> comment history, see `log_edit_comment_ring', and hides `log_edit_files_buffer'.
     !> Port of log-edit.el:log-edit-kill-buffer.
     recursive subroutine log_edit_close_buffer(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer
 
-        call log_edit_hide_buf()
+        call log_edit_hide_buffer()
         buffer = current_buffer()
         call quit_windows_on(buffer, .false., status)
         if (.not. status%ok()) return
@@ -1293,7 +1295,7 @@ contains
 
         here = point()
         least = point_maximum()
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
         if (.not. status%ok()) return
 
         do while (point() < point_maximum())
@@ -1301,7 +1303,7 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
         if (status%ok()) call indent_rigidly(point(), point_maximum(), log_edit_common_indent - least, status)
         call goto_character(here)
     end subroutine log_edit_set_common_indentation
@@ -1337,12 +1339,12 @@ contains
         integer :: k, saved_dedicated
 
         call log_edit_files(files)
-        call get_or_make_buffer(LOG_EDIT_FILES_BUF, buffer, status)
+        call get_or_make_buffer(LOG_EDIT_FILES_BUFFER, buffer, status)
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        call log_edit_hide_buf(buffer)
+        call log_edit_hide_buffer(buffer)
         buffers(current)%read_only = .false.
         call erase_buffer(status)
 
@@ -1353,7 +1355,7 @@ contains
                 strings(k)%text = files(k)%text
             end do
 
-            call cvs_insert_strings(strings, status)
+            call concurrent_versions_system_insert_strings(strings, status)
         end if
 
         if (status%ok()) call special_mode(status)
@@ -1428,7 +1430,7 @@ contains
         call put_text_property(start, start + len(header) + 2, value_type(name="rear_nonsticky"), value_type(.true.), status)
     end subroutine insert_header_line
 
-    !> Insert the default VC commit log template with Summary and Author.
+    !> Insert the default VERSION_CONTROL commit log template with Summary and Author.
     !> INTERACTIVE is whether it was called as a command.  Port of
     !> log-edit.el:log-edit-insert-message-template.
     recursive subroutine log_edit_insert_message_template(status, interactive)
@@ -1466,10 +1468,10 @@ contains
         call log_edit_insert_message_template(status)
     end subroutine hook_insert_message_template
 
-    !> Insert the commit log template specified by the CVS administrator, if any.
-    !> This simply uses the local CVS/Template file.  Port of
+    !> Insert the commit log template specified by the CONCURRENT_VERSIONS_SYSTEM administrator, if any.
+    !> This simply uses the local CONCURRENT_VERSIONS_SYSTEM/Template file.  Port of
     !> log-edit.el:log-edit-insert-cvs-template.
-    recursive subroutine log_edit_insert_cvs_template(status, interactive)
+    recursive subroutine log_edit_insert_concurrent_versions_system_template(status, interactive)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
         character(len=:), allocatable :: template
@@ -1489,20 +1491,20 @@ contains
             call goto_character(point_maximum())
             call insert_file_contents(template, .false., inserted, status)
         end if
-    end subroutine log_edit_insert_cvs_template
+    end subroutine log_edit_insert_concurrent_versions_system_template
 
     ! log-edit-insert-cvs-template on `log_edit_hook'.  Not a port.
-    recursive subroutine hook_insert_cvs_template(status)
+    recursive subroutine hook_insert_concurrent_versions_system_template(status)
         type(status_type), intent(out) :: status
 
-        call log_edit_insert_cvs_template(status)
-    end subroutine hook_insert_cvs_template
+        call log_edit_insert_concurrent_versions_system_template(status)
+    end subroutine hook_insert_concurrent_versions_system_template
 
-    !> Insert the RCS commit log template from the CVS repository.
+    !> Insert the RCS commit log template from the CONCURRENT_VERSIONS_SYSTEM repository.
     !> This contacts the repository to get the rcstemplate file and
     !> can thus take some time.  Port of
     !> log-edit.el:log-edit-insert-cvs-rcstemplate.
-    recursive subroutine log_edit_insert_cvs_rcstemplate(status, interactive)
+    recursive subroutine log_edit_insert_concurrent_versions_system_rcstemplate(status, interactive)
         use value_mod, only: make_list, value_type
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: interactive
@@ -1526,7 +1528,7 @@ contains
             arguments(3) = value_type(text="CVSROOT/rcstemplate")
             call execute_process("cvs", result, st, destination=value_type(.true.), arguments=make_list(arguments))
         end if
-    end subroutine log_edit_insert_cvs_rcstemplate
+    end subroutine log_edit_insert_concurrent_versions_system_rcstemplate
 
     !> Insert the list of files that are to be committed.  Port of
     !> log-edit.el:log-edit-insert-filenames.
@@ -1582,7 +1584,7 @@ contains
         integer(int64) :: here
         logical :: found, newline
 
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
         if (.not. status%ok()) return
         here = point()
         call regular_expression_search_backward("^"//field//":\([ "//achar(9)//"]*\)$", found, status, noerror=SEARCH_NOERROR)
@@ -1603,7 +1605,7 @@ contains
         end if
     end subroutine log_edit_add_field
 
-    !> Insert a VC commit log message by looking at the ChangeLog.
+    !> Insert a VERSION_CONTROL commit log message by looking at the ChangeLog.
     !> The idea is to write your ChangeLog entries first, and then use this
     !> command to commit your changes with that log.
     !>
@@ -1623,19 +1625,19 @@ contains
         logical, intent(in), optional :: use_first
         type(string_type), allocatable :: files(:)
         character(len=:), allocatable :: fixes
-        integer(int64) :: here, eoh, start, end, shortage, moved
+        integer(int64) :: here, end_of_headers, start, end, shortage, moved
         logical :: found, saved_use_first, use
         type(status_type) :: st
 
         status = status_type()
         here = point()
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
         if (.not. status%ok()) return
-        eoh = point()
+        end_of_headers = point()
         call goto_character(here)
 
-        if (point() <= eoh) then
-            call goto_character(eoh)
+        if (point() <= end_of_headers) then
+            call goto_character(end_of_headers)
             if (looking_at(achar(10), status)) call forward_character(status, 1_int64)
         end if
 
@@ -1658,7 +1660,7 @@ contains
         ! Add a Fixes: field if applicable.
         if (status%ok() .and. allocated(log_edit_rewrite_fixes_regular_expression) .and. &
             allocated(log_edit_rewrite_fixes_replacement)) then
-            call rfc822_goto_eoh(status)
+            call rfc822_goto_end_of_headers(status)
             if (status%ok()) call regular_expression_search_forward(log_edit_rewrite_fixes_regular_expression, found, status, &
                                                                     noerror=SEARCH_NOERROR)
 
@@ -1672,7 +1674,7 @@ contains
         end if
 
         if (status%ok() .and. log_edit_strip_single_file_name) then
-            call rfc822_goto_eoh(status)
+            call rfc822_goto_end_of_headers(status)
             if (looking_at(achar(10), st)) call forward_character(st, 1_int64)
 
             if (looking_at("\*\s-+", st)) then
@@ -2216,7 +2218,7 @@ contains
                    /= buffers(current)%text%z
         rbeg = marker_at(buffers(current)%beginning_of_accessible_portion)
         rend = marker_at(buffers(current)%end_of_accessible_portion, .true.)
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
         if (status%ok()) call narrow_to_region(point_minimum(), point(), status)
 
         if (status%ok()) then
@@ -2248,7 +2250,7 @@ contains
             call destroy_marker(rend, st)
         end if
 
-        if (status%ok()) call rfc822_goto_eoh(status)
+        if (status%ok()) call rfc822_goto_end_of_headers(status)
         if (status%ok()) call delete_horizontal_space(.false., status)
 
         if (status%ok()) then
@@ -2258,7 +2260,7 @@ contains
         call goto_character(destroy_marker_position(here))
     end function log_edit_set_header
 
-    !> Extract headers from VC commit COMMENT to form command line arguments.
+    !> Extract headers from VERSION_CONTROL commit COMMENT to form command line arguments.
     !> HEADERS should be an array whose elements give a HEADER with a CMDARG
     !> or with a FUNCTION, associating headers to command line
     !> options, and the result is then MESSAGE and ARGUMENTS,
@@ -2314,7 +2316,7 @@ contains
         body: block
             call insert(comment, status)
             if (.not. status%ok()) exit body
-            call rfc822_goto_eoh(status)
+            call rfc822_goto_end_of_headers(status)
             if (.not. status%ok()) exit body
             call narrow_to_region(point_minimum(), point(), status)
             case_fold_search = .true.
@@ -2408,7 +2410,7 @@ contains
         here = marker_at(point())
 
         body: block
-            call rfc822_goto_eoh(status)
+            call rfc822_goto_end_of_headers(status)
             if (.not. status%ok()) exit body
             shortage = forward_line(1_int64)
             point_value = point()
@@ -2528,17 +2530,17 @@ contains
         call log_edit_insert_message_template(status, interactive=.true.)
     end subroutine execute_log_edit_insert_message_template
 
-    recursive subroutine execute_log_edit_insert_cvs_template(status)
+    recursive subroutine execute_log_edit_insert_concurrent_versions_system_template(status)
         type(status_type), intent(out) :: status
 
-        call log_edit_insert_cvs_template(status, interactive=.true.)
-    end subroutine execute_log_edit_insert_cvs_template
+        call log_edit_insert_concurrent_versions_system_template(status, interactive=.true.)
+    end subroutine execute_log_edit_insert_concurrent_versions_system_template
 
-    recursive subroutine execute_log_edit_insert_cvs_rcstemplate(status)
+    recursive subroutine execute_log_edit_insert_concurrent_versions_system_rcstemplate(status)
         type(status_type), intent(out) :: status
 
-        call log_edit_insert_cvs_rcstemplate(status, interactive=.true.)
-    end subroutine execute_log_edit_insert_cvs_rcstemplate
+        call log_edit_insert_concurrent_versions_system_rcstemplate(status, interactive=.true.)
+    end subroutine execute_log_edit_insert_concurrent_versions_system_rcstemplate
 
     recursive subroutine execute_log_edit_insert_filenames(status)
         type(status_type), intent(out) :: status
@@ -2794,49 +2796,49 @@ contains
         if (status%ok()) done = .true.
     end subroutine log_edit_fill_entry
 
-    !> Strip lines starting with "CVS:" from commit log message.
-    !> When not called interactively do this only when the VC backend is CVS.
-    !> This mimicks what CVS does when invoked as 'cvs commit [files...]'.
+    !> Strip lines starting with "CONCURRENT_VERSIONS_SYSTEM:" from commit log message.
+    !> When not called interactively do this only when the VERSION_CONTROL backend is CONCURRENT_VERSIONS_SYSTEM.
+    !> This mimicks what CONCURRENT_VERSIONS_SYSTEM does when invoked as 'cvs commit [files...]'.
     !> Port of log-edit.el:log-edit-done-strip-cvs-lines (this is the
     !> non-interactive call, for `log_edit_done_hook').
-    recursive subroutine log_edit_done_strip_cvs_lines(status)
+    recursive subroutine log_edit_done_strip_concurrent_versions_system_lines(status)
         type(status_type), intent(out) :: status
 
-        call strip_cvs_lines(.false., status)
-    end subroutine log_edit_done_strip_cvs_lines
+        call strip_concurrent_versions_system_lines(.false., status)
+    end subroutine log_edit_done_strip_concurrent_versions_system_lines
 
-    recursive subroutine execute_log_edit_done_strip_cvs_lines(status)
+    recursive subroutine execute_log_edit_done_strip_concurrent_versions_system_lines(status)
         type(status_type), intent(out) :: status
 
-        call strip_cvs_lines(.true., status)
-    end subroutine execute_log_edit_done_strip_cvs_lines
+        call strip_concurrent_versions_system_lines(.true., status)
+    end subroutine execute_log_edit_done_strip_concurrent_versions_system_lines
 
     ! Port of log-edit.el:log-edit-done-strip-cvs-lines (its body).
-    recursive subroutine strip_cvs_lines(interactive, status)
-        use version_control_hooks_mod, only: vc_backends
+    recursive subroutine strip_concurrent_versions_system_lines(interactive, status)
+        use version_control_hooks_mod, only: version_control_backends
         use search_mod, only: case_fold_search
         use replace_mod, only: flush_lines
         logical, intent(in) :: interactive
         type(status_type), intent(out) :: status
         integer(int64) :: count
-        logical :: cvs, saved_fold
+        logical :: concurrent_versions_system, saved_fold
         integer :: b
 
         status = status_type()
-        cvs = interactive
-        b = log_edit_vc_backend()
-        if (.not. cvs .and. b > 0) cvs = vc_backends(b)%name == "CVS"
-        if (.not. cvs) return
+        concurrent_versions_system = interactive
+        b = log_edit_version_control_backend()
+        if (.not. concurrent_versions_system .and. b > 0) concurrent_versions_system = version_control_backends(b)%name == "CVS"
+        if (.not. concurrent_versions_system) return
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
         call goto_character(point_minimum())
-        ! NB: While CVS defines CVSEDITPREFIX as "CVS: " it actually
-        ! checks only the first four characters of af a line, i.e. "CVS:"
+        ! NB: While CONCURRENT_VERSIONS_SYSTEM defines CVSEDITPREFIX as "CONCURRENT_VERSIONS_SYSTEM: " it actually
+        ! checks only the first four characters of af a line, i.e. "CONCURRENT_VERSIONS_SYSTEM:"
         ! to deal with editors that strip trailing whitespace.
         ! c.f. src/cvs.h and src/logmsg.c:do_editor()
         call flush_lines("^CVS:", count, status)
         case_fold_search%value = saved_fold
-    end subroutine strip_cvs_lines
+    end subroutine strip_concurrent_versions_system_lines
 
     !> Define Log Edit mode, its keymap, faces and hooks, and register the
     !> commands.  Not a port.
@@ -2851,7 +2853,8 @@ contains
         log_edit_mode_map = major_modes%log_edit_mode%map
         commands%log_edit_mode%execute => log_edit_mode
         commands%log_edit_done%execute => execute_log_edit_done
-        commands%log_edit_done_strip_cvs_lines%execute => execute_log_edit_done_strip_cvs_lines
+        commands%log_edit_done_strip_concurrent_versions_system_lines%execute => &
+            execute_log_edit_done_strip_concurrent_versions_system_lines
         commands%log_edit_insert_changelog%execute => execute_log_edit_insert_changelog
         commands%log_edit_show_diff%execute => execute_log_edit_show_diff
         commands%log_edit_show_files%execute => execute_log_edit_show_files
@@ -2862,8 +2865,10 @@ contains
         commands%log_edit_comment_search_forward%execute => execute_log_edit_comment_search_forward
         commands%log_edit_mode_help%execute => execute_log_edit_mode_help
         commands%log_edit_insert_message_template%execute => execute_log_edit_insert_message_template
-        commands%log_edit_insert_cvs_template%execute => execute_log_edit_insert_cvs_template
-        commands%log_edit_insert_cvs_rcstemplate%execute => execute_log_edit_insert_cvs_rcstemplate
+        commands%log_edit_insert_concurrent_versions_system_template%execute => &
+            execute_log_edit_insert_concurrent_versions_system_template
+        commands%log_edit_insert_concurrent_versions_system_rcstemplate%execute => &
+            execute_log_edit_insert_concurrent_versions_system_rcstemplate
         commands%log_edit_insert_filenames%execute => execute_log_edit_insert_filenames
         commands%log_edit_insert_filenames_without_changelog%execute => execute_log_edit_insert_filenames_without_changelog
         commands%log_edit_diff_fileset%execute => execute_log_edit_diff_fileset
@@ -2883,7 +2888,7 @@ contains
         if (log_edit_hook%empty()) then
             call log_edit_hook%prepend(log_edit_show_files_hook)
             call log_edit_hook%prepend(log_edit_insert_changelog_hook)
-            call log_edit_hook%prepend(hook_insert_cvs_template)
+            call log_edit_hook%prepend(hook_insert_concurrent_versions_system_template)
             call log_edit_hook%prepend(hook_insert_message_template)
         end if
 

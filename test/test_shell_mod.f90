@@ -39,10 +39,11 @@ module test_shell_mod
     use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use shell_mod, only: shell_mode, split_string_shell_command, shell_unquote_argument_internal, shell_cd, &
-                         shell_parse_pcomplete_arguments, &
+                         shell_parse_programmable_completion_arguments, &
                          shell_directory_tracker, list_buffers_directory, shell_input_autoexpand, &
                          SHELL_INPUT_AUTOEXPAND_INPUT, SHELL_INPUT_AUTOEXPAND_HISTORY
-    use command_interpreter_mod, only: comint_input_autoexpand, COMINT_INPUT_AUTOEXPAND_INPUT, COMINT_INPUT_AUTOEXPAND_HISTORY
+    use command_interpreter_mod, only: command_interpreter_input_autoexpand, COMMAND_INTERPRETER_INPUT_AUTOEXPAND_INPUT, &
+                                       COMMAND_INTERPRETER_INPUT_AUTOEXPAND_HISTORY
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -136,7 +137,7 @@ contains
         call close_buffer(h, st)
     end subroutine test_dirtrack_on
 
-    !> Shell mode gives `comint_input_autoexpand' the state of
+    !> Shell mode gives `command_interpreter_input_autoexpand' the state of
     !> `shell_input_autoexpand', each in its own named constants.  Not a
     !> port.
     subroutine test_input_autoexpand(error)
@@ -147,18 +148,18 @@ contains
         call initialize_bindings()
         call temporary_buffer(h, "/tmp/")
         call shell_mode(st)
-        call check(error, comint_input_autoexpand%choice == COMINT_INPUT_AUTOEXPAND_HISTORY, "history")
+        call check(error, command_interpreter_input_autoexpand%choice == COMMAND_INTERPRETER_INPUT_AUTOEXPAND_HISTORY, "history")
 
         if (.not. allocated(error)) then
             shell_input_autoexpand = SHELL_INPUT_AUTOEXPAND_INPUT
             call shell_mode(st)
-            call check(error, comint_input_autoexpand%choice == COMINT_INPUT_AUTOEXPAND_INPUT, "input")
+            call check(error, command_interpreter_input_autoexpand%choice == COMMAND_INTERPRETER_INPUT_AUTOEXPAND_INPUT, "input")
         end if
 
         if (.not. allocated(error)) then
             shell_input_autoexpand = .false.
             call shell_mode(st)
-            call check(error, comint_input_autoexpand%is_off(), "off")
+            call check(error, command_interpreter_input_autoexpand%is_off(), "off")
         end if
 
         shell_input_autoexpand = SHELL_INPUT_AUTOEXPAND_HISTORY
@@ -255,7 +256,7 @@ contains
         call shell_mode(st)
         call insert("cd ba;", st)
         call goto_character(point() - 1)
-        call shell_parse_pcomplete_arguments(arguments, begins)
+        call shell_parse_programmable_completion_arguments(arguments, begins)
         call check(error, show_parse(arguments, begins), "cd|ba 1 4")
         call close_buffer(h, st)
     end subroutine test_completion_before_semi
@@ -271,7 +272,7 @@ contains
         call temporary_buffer(h, "/tmp/")
         call shell_mode(st)
         call insert("cd ba;", st)
-        call shell_parse_pcomplete_arguments(arguments, begins)
+        call shell_parse_programmable_completion_arguments(arguments, begins)
         call check(error, show_parse(arguments, begins), "cd|ba| 1 4 7")
         call close_buffer(h, st)
     end subroutine test_completion_after_semi

@@ -55,7 +55,7 @@ module syntax_mod
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use character_mod, only: MAXIMUM_CHARACTER, string_character_and_length, unibyte_to_character
     use error_mod, only: format_message
-    use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buf_prev_char_len
+    use buffer_mod, only: buffers, current, buffer_fetch_character, buffer_next_character_length, buffer_previous_character_length
     use marker_mod, only: character_to_byte
     use editing_functions_mod, only: point, goto_character, constrain_to_field, character_to_string
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
@@ -1220,9 +1220,9 @@ contains
                     return
                 end if
 
-                ch0 = buf_fetch_char(buffers(current), from_byte)
+                ch0 = buffer_fetch_character(buffers(current), from_byte)
                 code = syntax_class_at(ch0, from)
-                from_byte = from_byte + buf_next_char_len(buffers(current), from_byte)
+                from_byte = from_byte + buffer_next_character_length(buffers(current), from_byte)
                 from = from + 1
                 if (is_word_code(code)) exit
             end do
@@ -1231,11 +1231,11 @@ contains
             ! position of the next character.
             do
                 if (from == end) exit
-                ch1 = buf_fetch_char(buffers(current), from_byte)
+                ch1 = buffer_fetch_character(buffers(current), from_byte)
                 code = syntax_class_at(ch1, from)
                 if (.not. is_word_code(code)) exit
                 if (is_word_boundary(ch0, ch1)) exit
-                from_byte = from_byte + buf_next_char_len(buffers(current), from_byte)
+                from_byte = from_byte + buffer_next_character_length(buffers(current), from_byte)
                 from = from + 1
                 ch0 = ch1
             end do
@@ -1250,9 +1250,9 @@ contains
                     return
                 end if
 
-                from_byte = from_byte - buf_prev_char_len(buffers(current), from_byte)
+                from_byte = from_byte - buffer_previous_character_length(buffers(current), from_byte)
                 from = from - 1
-                ch1 = buf_fetch_char(buffers(current), from_byte)
+                ch1 = buffer_fetch_character(buffers(current), from_byte)
                 code = syntax_class_at(ch1, from)
                 if (is_word_code(code)) exit
             end do
@@ -1261,13 +1261,13 @@ contains
             ! position of it.
             do
                 if (from == beginning) exit
-                from_byte = from_byte - buf_prev_char_len(buffers(current), from_byte)
+                from_byte = from_byte - buffer_previous_character_length(buffers(current), from_byte)
                 from = from - 1
-                ch0 = buf_fetch_char(buffers(current), from_byte)
+                ch0 = buffer_fetch_character(buffers(current), from_byte)
                 code = syntax_class_at(ch0, from)
 
                 if (.not. is_word_code(code) .or. is_word_boundary(ch0, ch1)) then
-                    from_byte = from_byte + buf_next_char_len(buffers(current), from_byte)
+                    from_byte = from_byte + buffer_next_character_length(buffers(current), from_byte)
                     from = from + 1
                     exit
                 end if
@@ -1444,7 +1444,7 @@ contains
             if (forwardp) then
                 do while (position < limit)
                     position_byte = character_to_byte(position)
-                    c = buf_fetch_char(b, position_byte)
+                    c = buffer_fetch_character(b, position_byte)
                     if (classes(syntax_class_at(int(c), position)) .eqv. negate) exit
                     position = position + 1
                 end do
@@ -1453,12 +1453,12 @@ contains
                     position_byte = character_to_byte(position)
 
                     if (b%multibyte) then
-                        position_byte = position_byte - buf_prev_char_len(b, position_byte)
+                        position_byte = position_byte - buffer_previous_character_length(b, position_byte)
                     else
                         position_byte = position_byte - 1
                     end if
 
-                    c = buf_fetch_char(b, position_byte)
+                    c = buffer_fetch_character(b, position_byte)
                     if (classes(syntax_class_at(int(c), position - 1)) .eqv. negate) exit
                     position = position - 1
                 end do
@@ -1529,12 +1529,12 @@ contains
             position_byte = character_to_byte(position)
 
             if (b%multibyte) then
-                position_byte = position_byte - buf_prev_char_len(b, position_byte)
+                position_byte = position_byte - buffer_previous_character_length(b, position_byte)
             else
                 position_byte = position_byte - 1
             end if
 
-            c = int(buf_fetch_char(b, position_byte))
+            c = int(buffer_fetch_character(b, position_byte))
         end associate
     end function get_character_before
 

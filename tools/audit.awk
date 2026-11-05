@@ -39,7 +39,7 @@
 #           (app/main.f90, test/main.f90 and docs/init.f90 excepted).
 #   suffix  a module or submodule is named with the `_mod' suffix
 #           (buffer_mod in buffer_mod.f90), except the API module
-#           `fortmacs' (docs/init.f90, with `user_config', is excepted).
+#           `fortmacs' (docs/init.f90, with `user_configuration', is excepted).
 #   doc     every public entity a module declares has a `!>' comment
 #           right above its declaration.
 #   port    in a ported source, every procedure of the module (not the
@@ -106,6 +106,11 @@ function check_file(    base, i, l) {
     for (l in cmdproc) delete cmdproc[l]
     for (i = 1; i <= nlines; i++) {
         l = tolower(lines[i])
+        # (`=> &' continues on the next line.)
+        if (l ~ /%execute[ \t]*=>[ \t]*&[ \t]*$/ && i < nlines) {
+            l = l " " tolower(lines[i + 1])
+            sub(/=>[ \t]*&[ \t]*/, "=> ", l)
+        }
         if (match(l, /%execute[ \t]*=>[ \t]*execute_[a-z0-9_]+/)) {
             l = substr(l, RSTART, RLENGTH)
             sub(/.*=>[ \t]*/, "", l)

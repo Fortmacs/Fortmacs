@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Ports of ediff-diff-tests.el: the arguments `execute_ediff_process'
+!> Ports of ediff-diff-tests.el: the arguments `execute_fortmacs_diff_process'
 !> passes (upstream records them by replacing call-process; here `echo'
 !> prints them), and own tests of the difference regions diff and diff3
 !> give for two and three buffers.
@@ -35,11 +35,11 @@ module test_fortmacs_diff_diff_mod
     use editing_functions_mod, only: buffer_string
     use keyboard_mod, only: discard_input
     use bindings_mod, only: initialize_bindings
-    use fortmacs_diff_settings_mod, only: ediff_sessions, ediff_session_index, EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B, &
-                                          EDIFF_BUFFER_TYPE_C
-    use fortmacs_diff_utilities_mod, only: get_ediff_diff_position, quit_ediff_session
-    use fortmacs_diff_diff_mod, only: execute_ediff_process
-    use fortmacs_diff_mod, only: ediff_buffers, ediff_buffers3
+    use fortmacs_diff_settings_mod, only: fortmacs_diff_sessions, fortmacs_diff_session_index, FORTMACS_DIFF_BUFFER_TYPE_A, &
+                                          FORTMACS_DIFF_BUFFER_TYPE_B, FORTMACS_DIFF_BUFFER_TYPE_C
+    use fortmacs_diff_utilities_mod, only: get_fortmacs_diff_diff_position, quit_fortmacs_diff_session
+    use fortmacs_diff_diff_mod, only: execute_fortmacs_diff_process
+    use fortmacs_diff_mod, only: fortmacs_diff_buffers, fortmacs_diff_buffers3
     implicit none(type, external)
     private
 
@@ -148,7 +148,7 @@ contains
         if (.not. has_program("echo", error)) return
         call setup()
         call temporary_buffer(" *ediff-exec-test*", "", h)
-        call execute_ediff_process("echo", h, "", st, file1="/:/a", file2="/:/b")
+        call execute_fortmacs_diff_process("echo", h, "", st, file1="/:/a", file2="/:/b")
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, text_of(h), "/a /b"//LF)
         call close_buffer(h, st)
@@ -163,7 +163,7 @@ contains
         if (.not. has_program("echo", error)) return
         call setup()
         call temporary_buffer(" *ediff-exec-test*", "", h)
-        call execute_ediff_process("echo", h, "", st, file1="foo", file3="")
+        call execute_fortmacs_diff_process("echo", h, "", st, file1="foo", file3="")
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, text_of(h), "foo"//LF)
         call close_buffer(h, st)
@@ -181,7 +181,7 @@ contains
         call setup()
         call temporary_buffer("ediff-a", "one"//LF//"two"//LF//"three"//LF, a)
         call temporary_buffer("ediff-b", "one"//LF//"TWO"//LF//"three"//LF//"four"//LF, b)
-        call ediff_buffers(a, b, st)
+        call fortmacs_diff_buffers(a, b, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -189,35 +189,35 @@ contains
             control = get_buffer("*Ediff Control Panel*")
             call check(error, is_buffer_live(control), "the control buffer exists")
             if (allocated(error)) exit body
-            k = ediff_session_index(control)
-            call check(error, ediff_sessions(k)%number_of_differences, 2)
+            k = fortmacs_diff_session_index(control)
+            call check(error, fortmacs_diff_sessions(k)%number_of_differences, 2)
             if (allocated(error)) exit body
-            call check(error, buffers(control%index)%major_mode, "ediff_mode")
+            call check(error, buffers(control%index)%major_mode, "fortmacs_diff_mode")
             if (allocated(error)) exit body
             ! "two" in A (5 to 9), "TWO" in B.
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., position, st, 0)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .false., position, st, 0)
             call check(error, position, 5_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .true., position, st, 0)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .true., position, st, 0)
             call check(error, position, 9_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .false., position, st, 0)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_B, .false., position, st, 0)
             call check(error, position, 5_int64)
             if (allocated(error)) exit body
             ! "four" added at the end of B: empty in A.
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., position, st, 1)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .false., position, st, 1)
             call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .true., position, st, 1)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .true., position, st, 1)
             call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .false., position, st, 1)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_B, .false., position, st, 1)
             call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_B, .true., position, st, 1)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_B, .true., position, st, 1)
             call check(error, position, 20_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_A, .false., position, st, 2)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .false., position, st, 2)
             call check(error,.not. st%ok(), "difference 3 is invalid")
         end block body
 
@@ -239,25 +239,25 @@ contains
         call temporary_buffer("ediff-a", "one"//LF//"two"//LF//"three"//LF, a)
         call temporary_buffer("ediff-b", "one"//LF//"two"//LF//"three"//LF, b)
         call temporary_buffer("ediff-c", "one"//LF//"2"//LF//"three"//LF, c)
-        call ediff_buffers3(a, b, c, st)
+        call fortmacs_diff_buffers3(a, b, c, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             control = get_buffer("*Ediff Control Panel*")
-            k = ediff_session_index(control)
+            k = fortmacs_diff_session_index(control)
             call check(error, k > 0, "a session")
             if (allocated(error)) exit body
-            call check(error, ediff_sessions(k)%number_of_differences, 1)
+            call check(error, fortmacs_diff_sessions(k)%number_of_differences, 1)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_C, .false., position, st, 0)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_C, .false., position, st, 0)
             call check(error, position, 5_int64)
             if (allocated(error)) exit body
-            call get_ediff_diff_position(k, EDIFF_BUFFER_TYPE_C, .true., position, st, 0)
+            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_C, .true., position, st, 0)
             call check(error, position, 7_int64)
             if (allocated(error)) exit body
             ! A and B agree: C is the one that differs.
-            call check(error, trim(ediff_sessions(k)%differences(EDIFF_BUFFER_TYPE_A, 1)%state_of_diff), "=diff(B)")
+            call check(error, trim(fortmacs_diff_sessions(k)%differences(FORTMACS_DIFF_BUFFER_TYPE_A, 1)%state_of_diff), "=diff(B)")
         end block body
 
         call quit_session()
@@ -275,7 +275,7 @@ contains
         control = get_buffer("*Ediff Control Panel*")
         if (.not. is_buffer_live(control)) return
         call set_buffer(control, st)
-        k = ediff_session_index(control)
-        if (k > 0) call quit_ediff_session(k, .false., st)
+        k = fortmacs_diff_session_index(control)
+        if (k > 0) call quit_fortmacs_diff_session(k, .false., st)
     end subroutine quit_session
 end module test_fortmacs_diff_diff_mod

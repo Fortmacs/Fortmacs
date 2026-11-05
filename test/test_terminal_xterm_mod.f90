@@ -29,7 +29,7 @@ module test_terminal_xterm_mod
     use keymap_mod, only: key_description
     use keyboard_mod, only: keyboard_store_bytes, read_key_sequence, discard_input
     use bindings_mod, only: initialize_bindings
-    use terminal_xterm_mod, only: terminal_init_xterm
+    use terminal_xterm_mod, only: terminal_initialize_xterm
     implicit none(type, external)
     private
 
@@ -69,7 +69,7 @@ contains
         type(status_type) :: st
 
         call initialize_bindings()
-        call terminal_init_xterm(st)
+        call terminal_initialize_xterm(st)
         call check(error, decoded(ESC//"[A"), "<up>")
         if (allocated(error)) return
         call check(error, decoded(ESC//"OH"), "<home>")
@@ -115,7 +115,7 @@ contains
         logical :: eof
 
         call initialize_bindings()
-        call terminal_init_xterm(st)
+        call terminal_initialize_xterm(st)
         call discard_input()
         call keyboard_store_bytes(ESC//"[C"//ESC//"[3~"//ESC//"5")
         call read_key_sequence(keys, binding, eof, st)

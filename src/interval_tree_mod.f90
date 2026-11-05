@@ -56,7 +56,7 @@ module interval_tree_mod
     use hooks_mod, only: execute_overlay_change_function
     use data_mod, only: value_eq
     use buffer_mod, only: buffers, current, is_buffer_live, buffer_handle, resolve_buffer, modiff_increment, &
-                          buf_compute_unchanged, BUFFER_BEGINNING => BEGINNING
+                          buffer_compute_unchanged, BUFFER_BEGINNING => BEGINNING
     use intervals_mod, only: textget
     implicit none(type, external)
     private
@@ -234,7 +234,7 @@ contains
 
         start = min(start_in, end_in)
         end = max(start_in, end_in)
-        call buf_compute_unchanged(buffers(b), start, end)
+        call buffer_compute_unchanged(buffers(b), start, end)
         buffers(b)%text%redisplay = .true.
         call modiff_increment(buffers(b)%text%overlay_modiff, 1_int64)
     end subroutine modify_overlay

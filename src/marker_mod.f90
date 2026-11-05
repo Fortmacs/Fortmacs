@@ -40,12 +40,12 @@ module marker_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
-    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buf_next_char_len, &
-                          buf_prev_char_len, resolve_buffer, buffer_handle
+    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buffer_next_character_length, &
+                          buffer_previous_character_length, resolve_buffer, buffer_handle
     implicit none(type, external)
     private
 
-    public :: buf_charpos_to_bytepos, buf_bytepos_to_charpos
+    public :: buffer_character_position_to_byte_position, buffer_byte_position_to_character_position
     public :: character_to_byte, byte_to_character, clear_character_position_cache
     public :: make_marker, destroy_marker, marker_buffer, marker_position, &
               marker_byte_position, marker_last_position, set_marker, &
@@ -90,7 +90,7 @@ contains
 
     !> Byte position of `character_position' in buffer slot `b'.
     !> Port of marker.c:buf_charpos_to_bytepos.
-    integer(int64) function buf_charpos_to_bytepos(b, character_position) result(byte_position)
+    integer(int64) function buffer_character_position_to_byte_position(b, character_position) result(byte_position)
         integer(int64), intent(in) :: b, character_position
         integer(int64) :: best_above, best_above_byte, best_below, best_below_byte
         integer(int64) :: distance, m
@@ -140,7 +140,7 @@ contains
             if (character_position - best_below < best_above - character_position) then
                 do while (best_below < character_position)
                     best_below = best_below + 1
-                    best_below_byte = best_below_byte + buf_next_char_len(buffer, best_below_byte)
+                    best_below_byte = best_below_byte + buffer_next_character_length(buffer, best_below_byte)
                 end do
 
                 call remember(best_below, best_below_byte)
@@ -148,7 +148,7 @@ contains
             else
                 do while (best_above > character_position)
                     best_above = best_above - 1
-                    best_above_byte = best_above_byte - buf_prev_char_len(buffer, best_above_byte)
+                    best_above_byte = best_above_byte - buffer_previous_character_length(buffer, best_above_byte)
                 end do
 
                 call remember(best_above, best_above_byte)
@@ -158,7 +158,7 @@ contains
 
     contains
 
-        !> The CONSIDER macro of buf_charpos_to_bytepos.
+        !> The CONSIDER macro of buffer_character_position_to_byte_position.
         subroutine consider(this_character_position, this_byte_position)
             integer(int64), intent(in) :: this_character_position, this_byte_position
             logical :: changed
@@ -196,11 +196,11 @@ contains
             cached_character_position = c
             cached_byte_position = buffer_position
         end subroutine remember
-    end function buf_charpos_to_bytepos
+    end function buffer_character_position_to_byte_position
 
     !> Character position of `byte_position' (a character boundary) in buffer
     !> slot `b'.  Port of marker.c:buf_bytepos_to_charpos.
-    integer(int64) function buf_bytepos_to_charpos(b, byte_position) result(character_position)
+    integer(int64) function buffer_byte_position_to_character_position(b, byte_position) result(character_position)
         integer(int64), intent(in) :: b, byte_position
         integer(int64) :: best_above, best_above_byte, best_below, best_below_byte
         integer(int64) :: distance, m
@@ -246,7 +246,7 @@ contains
             if (byte_position - best_below_byte < best_above_byte - byte_position) then
                 do while (best_below_byte < byte_position)
                     best_below = best_below + 1
-                    best_below_byte = best_below_byte + buf_next_char_len(buffer, best_below_byte)
+                    best_below_byte = best_below_byte + buffer_next_character_length(buffer, best_below_byte)
                 end do
 
                 call remember(best_below, best_below_byte)
@@ -254,7 +254,7 @@ contains
             else
                 do while (best_above_byte > byte_position)
                     best_above = best_above - 1
-                    best_above_byte = best_above_byte - buf_prev_char_len(buffer, best_above_byte)
+                    best_above_byte = best_above_byte - buffer_previous_character_length(buffer, best_above_byte)
                 end do
 
                 call remember(best_above, best_above_byte)
@@ -264,7 +264,7 @@ contains
 
     contains
 
-        !> The CONSIDER macro of buf_bytepos_to_charpos.
+        !> The CONSIDER macro of buffer_byte_position_to_character_position.
         subroutine consider(this_byte_position, this_character_position)
             integer(int64), intent(in) :: this_byte_position, this_character_position
             logical :: changed
@@ -301,20 +301,20 @@ contains
             cached_character_position = c
             cached_byte_position = buffer_position
         end subroutine remember
-    end function buf_bytepos_to_charpos
+    end function buffer_byte_position_to_character_position
 
     !> Port of buffer.h:CHAR_TO_BYTE (current buffer).
     integer(int64) function character_to_byte(character_position)
         integer(int64), intent(in) :: character_position
 
-        character_to_byte = buf_charpos_to_bytepos(current, character_position)
+        character_to_byte = buffer_character_position_to_byte_position(current, character_position)
     end function character_to_byte
 
     !> Port of buffer.h:BYTE_TO_CHAR (current buffer).
     integer(int64) function byte_to_character(byte_position)
         integer(int64), intent(in) :: byte_position
 
-        byte_to_character = buf_bytepos_to_charpos(current, byte_position)
+        byte_to_character = buffer_byte_position_to_character_position(current, byte_position)
     end function byte_to_character
 
     ! ------------------------------------------------------------------
@@ -537,7 +537,7 @@ contains
             end if
         end associate
 
-        byte_position = buf_charpos_to_bytepos(b, character_position)
+        byte_position = buffer_character_position_to_byte_position(b, character_position)
         call attach_marker(i, b, character_position, byte_position)
     end subroutine set_marker_position
 
@@ -589,7 +589,7 @@ contains
             character_position = clip(BEGINNING, markers(p)%character_position, buffers(b)%text%z)
 
             if (markers(p)%buffer /= b) then
-                byte_position = buf_charpos_to_bytepos(b, character_position)
+                byte_position = buffer_character_position_to_byte_position(b, character_position)
             else
                 byte_position = clip(BEGINNING_BYTE, markers(p)%byte_position, buffers(b)%text%z_byte)
             end if

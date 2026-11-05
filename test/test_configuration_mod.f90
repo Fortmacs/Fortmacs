@@ -160,7 +160,7 @@ contains
         integer :: b, e
 
         text = driver_source("/usr/local/")
-        call check(error, index(text, "use user_config, only: configure") > 0, "uses user_config")
+        call check(error, index(text, "use user_configuration, only: configure") > 0, "uses user_configuration")
         if (allocated(error)) return
         call check(error, index(text, 'call execute_editor(configure, exit_code, "/usr/local/")') > 0, text)
         if (allocated(error)) return

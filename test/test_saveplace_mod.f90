@@ -33,7 +33,7 @@ module test_saveplace_mod
     use editing_functions_mod, only: buffer_string
     use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, insert_file_contents, file_name_as_directory
     use files_mod, only: create_temporary_file, delete_file, find_file, file_truename
-    use directory_editor_mode_mod, only: dired
+    use directory_editor_mode_mod, only: directory_editor
     use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use saveplace_mod, only: save_places, save_place_type, save_place_loaded, save_place_file, &
@@ -107,7 +107,7 @@ contains
         location = resource_directory()
         old = current_buffer()
         call show_alone()
-        call dired(location, st)
+        call directory_editor(location, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call save_place_store()
@@ -115,9 +115,9 @@ contains
         if (allocated(error)) return
         call check(error, save_places(1)%file, location)
         if (allocated(error)) return
-        call check(error, allocated(save_places(1)%dired_filename), "a Dired place")
+        call check(error, allocated(save_places(1)%directory_editor_filename), "a Dired place")
         if (allocated(error)) return
-        call check(error, save_places(1)%dired_filename, location//"saveplace")
+        call check(error, save_places(1)%directory_editor_filename, location//"saveplace")
         call close_buffer(current_buffer(), st)
         call set_buffer(old, st)
     end subroutine test_to_table_directory
@@ -143,7 +143,7 @@ contains
         if (allocated(error)) return
         call check(error, save_places(1)%file, tmpfile)
         if (allocated(error)) return
-        call check(error, save_places(1)%position == 4 .and. .not. allocated(save_places(1)%dired_filename), &
+        call check(error, save_places(1)%position == 4 .and. .not. allocated(save_places(1)%directory_editor_filename), &
                    "at 4")
         h = current_buffer()
         call restore_buffer_modified(.false.)
@@ -206,13 +206,13 @@ contains
         if (allocated(error)) return
         call check(error, save_places(1)%file, "/home/skangas/.emacs.d/cache/recentf")
         if (allocated(error)) return
-        call check(error, save_places(1)%position == 1306 .and. .not. allocated(save_places(1)%dired_filename), &
+        call check(error, save_places(1)%position == 1306 .and. .not. allocated(save_places(1)%directory_editor_filename), &
                    "1306")
         if (allocated(error)) return
         call check(error, save_places(2)%file, "/home/skangas/wip/emacs/")
         if (allocated(error)) return
-        call check(error, allocated(save_places(2)%dired_filename), "a Dired place")
+        call check(error, allocated(save_places(2)%directory_editor_filename), "a Dired place")
         if (allocated(error)) return
-        call check(error, save_places(2)%dired_filename, "/home/skangas/wip/emacs/COPYING")
+        call check(error, save_places(2)%directory_editor_filename, "/home/skangas/wip/emacs/COPYING")
     end subroutine test_load_table
 end module test_saveplace_mod

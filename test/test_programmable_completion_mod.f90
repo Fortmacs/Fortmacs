@@ -17,7 +17,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Own tests: upstream's pcomplete-tests.el tests `pcomplete_from_help',
+!> Own tests: upstream's pcomplete-tests.el tests `programmable_completion_from_help',
 !> which is not ported.  Parsing arguments, completing with a command's
 !> completion function and with the default one (file names).
 module test_programmable_completion_mod
@@ -36,8 +36,10 @@ module test_programmable_completion_mod
                                      delete_directory_internal
     use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table
     use minibuffer_mod, only: completion_at_point, completion_at_point_functions
-    use programmable_completion_mod, only: pcomplete_parse_buffer_arguments, pcomplete_completions_at_point, pcomplete_here, &
-                                           pcomplete_command_functions, pcomplete_argument, pcomplete_parse_arguments
+    use programmable_completion_mod, only: programmable_completion_parse_buffer_arguments, &
+                                           programmable_completion_completions_at_point, programmable_completion_here, &
+                                           programmable_completion_command_functions, programmable_completion_argument, &
+                                           programmable_completion_parse_arguments
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -58,8 +60,8 @@ contains
     end subroutine collect_programmable_completion_mod
 
     !> A new buffer NAME in DIRECTORY, current, with
-    !> `pcomplete_completions_at_point' as its completion function.
-    subroutine pcomplete_buffer(name, directory, h)
+    !> `programmable_completion_completions_at_point' as its completion function.
+    subroutine programmable_completion_buffer(name, directory, h)
         character(len=*), intent(in) :: name, directory
         type(handle_type), intent(out) :: h
         type(status_type) :: st
@@ -69,8 +71,8 @@ contains
         call set_buffer(h, st)
         buffers(current)%directory = directory
         call show_alone()
-        call completion_at_point_functions%prepend(pcomplete_completions_at_point, local=.true.)
-    end subroutine pcomplete_buffer
+        call completion_at_point_functions%prepend(programmable_completion_completions_at_point, local=.true.)
+    end subroutine programmable_completion_buffer
 
     subroutine test_parse_buffer_arguments(error)
         type(error_type), allocatable, intent(out) :: error
@@ -79,9 +81,9 @@ contains
         type(string_type), allocatable :: arguments(:)
         integer(int64), allocatable :: begins(:)
 
-        call pcomplete_buffer(" pcomplete-parse", "/tmp/", h)
+        call programmable_completion_buffer(" pcomplete-parse", "/tmp/", h)
         call insert("ls  -l"//achar(9)//"dir", st)
-        call pcomplete_parse_buffer_arguments(arguments, begins)
+        call programmable_completion_parse_buffer_arguments(arguments, begins)
         call check(error, size(arguments) == 3, "three arguments")
 
         if (.not. allocated(error)) then
@@ -91,8 +93,8 @@ contains
         if (.not. allocated(error)) call check(error, begins(2) == 5 .and. begins(3) == 8, "where they begin")
 
         if (.not. allocated(error)) then
-            call check(error, pcomplete_parse_arguments(.false.), "parsed")
-            if (.not. allocated(error)) call check(error, pcomplete_argument(), "ls")
+            call check(error, programmable_completion_parse_arguments(.false.), "parsed")
+            if (.not. allocated(error)) call check(error, programmable_completion_argument(), "ls")
         end if
 
         call close_buffer(h, st)
@@ -104,7 +106,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (pcomplete_here(fruits)) continue
+        if (programmable_completion_here(fruits)) continue
     end subroutine complete_fruit
 
     recursive subroutine fruits(table, found)
@@ -122,8 +124,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call pcomplete_buffer(" pcomplete-command", "/tmp/", h)
-        call pcomplete_command_functions%append("fruit", complete_fruit)
+        call programmable_completion_buffer(" pcomplete-command", "/tmp/", h)
+        call programmable_completion_command_functions%append("fruit", complete_fruit)
         call insert("fruit ban", st)
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))
@@ -147,7 +149,7 @@ contains
         call set_buffer(temporary, st)
         call write_region(directory//"/notes.txt", .false., st)
         call close_buffer(temporary, st)
-        call pcomplete_buffer(" pcomplete-entries", directory//"/", h)
+        call programmable_completion_buffer(" pcomplete-entries", directory//"/", h)
         call insert("cat no", st)
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))

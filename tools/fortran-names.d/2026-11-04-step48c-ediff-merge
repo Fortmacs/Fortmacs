@@ -26,6 +26,6 @@ name	ediff_setup_windows_plain_merge	set_up_ediff_windows_plain_merge
 name	ediff_select_lowest_window	select_lowest_ediff_window
 name	ediff_compute_custom_diffs_maybe	compute_ediff_custom_diffs_maybe
 # The hook keeps its name (a hook, not the command quit_ediff).
-keep	ediff_quit_merge_hook
+name	ediff_quit_merge_hook	fortmacs_diff_quit_merge_hook
 # Both tests are one type-bound check of the Ediff session (panel 13).
 name	ediff_skip_merge_region_if_changed_from_default_p	check_region_skip

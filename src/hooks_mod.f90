@@ -122,7 +122,7 @@ module hooks_mod
         end subroutine window_position_procedure
 
         !> A function of a `region_hook_type' hook such as
-        !> `jit_lock_functions': do something to the text from BEGINNING to END,
+        !> `just_in_time_lock_functions': do something to the text from BEGINNING to END,
         !> giving in DONE_BEGINNING and DONE_END the part it actually did
         !> (upstream's return value (jit-lock-bounds BEGINNING . END); by default
         !> BEGINNING and END).  Not a port.
@@ -145,7 +145,7 @@ module hooks_mod
         end subroutine hook_error_procedure
 
         !> A function of a `string_hook_type' hook such as
-        !> `comint_output_filter_functions': STRING is the text it is
+        !> `command_interpreter_output_filter_functions': STRING is the text it is
         !> about.  Not a port.
         subroutine string_procedure(string, status)
             import :: status_type
@@ -155,7 +155,7 @@ module hooks_mod
         end subroutine string_procedure
 
         !> A function of a `string_filter_hook_type' hook such as
-        !> `comint_preoutput_filter_functions': RESULT is STRING
+        !> `command_interpreter_preoutput_filter_functions': RESULT is STRING
         !> transformed (perhaps STRING itself).  Not a port.
         subroutine string_filter_procedure(string, result, status)
             import :: status_type
@@ -375,7 +375,7 @@ module hooks_mod
     end type position_hook_type
 
     !> A hook of functions taking a region and telling what part of it
-    !> they did (`region_procedure'), like `jit_lock_functions'.
+    !> they did (`region_procedure'), like `just_in_time_lock_functions'.
     type, extends(hook_base_type), public :: region_hook_type
     contains
         !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
@@ -393,7 +393,7 @@ module hooks_mod
     end type region_hook_type
 
     !> A hook of functions taking a string (`string_procedure'), like
-    !> `comint_output_filter_functions'.
+    !> `command_interpreter_output_filter_functions'.
     type, extends(hook_base_type), public :: string_hook_type
     contains
         !> Add a function to the hook (subr.el's add-hook; depth 0 by default).
@@ -428,7 +428,7 @@ module hooks_mod
     end type window_position_hook_type
 
     !> A hook of functions each transforming a string
-    !> (`string_filter_procedure'), like `comint_preoutput_filter_functions'.
+    !> (`string_filter_procedure'), like `command_interpreter_preoutput_filter_functions'.
     type, extends(hook_base_type), public :: string_filter_hook_type
     contains
         !> Add a function to the hook (subr.el's add-hook; depth 0 by default).

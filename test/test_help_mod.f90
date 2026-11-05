@@ -46,7 +46,7 @@ module test_help_mod
     use display_engine_mod, only: tab_width
     use incremental_search_mod, only: search_upper_case, SEARCH_UPPER_CASE_NOT_PASTED
     use simple_mod, only: fill_prefix, do_auto_fill, copy_region_blink_test_function, is_region_indistinguishable
-    use help_mode_mod, only: help_xref_stack, help_xref_forward_stack, help_xref_stack_item
+    use help_mode_mod, only: help_cross_reference_stack, help_cross_reference_forward_stack, help_cross_reference_stack_item
     use help_mod, only: substitute_command_keys, with_help_window, describe_map_tree, lossage_comment_indent, &
                         make_separator_line, register_keymap_name
     use display_engine_mod, only: message, message_nolog
@@ -130,9 +130,9 @@ contains
         call switch_to_buffer("*scratch*", st)
         last_message = ""
         ! No pages to go back or forward to.
-        if (allocated(help_xref_stack)) deallocate (help_xref_stack)
-        if (allocated(help_xref_forward_stack)) deallocate (help_xref_forward_stack)
-        help_xref_stack_item%describe => null()
+        if (allocated(help_cross_reference_stack)) deallocate (help_cross_reference_stack)
+        if (allocated(help_cross_reference_forward_stack)) deallocate (help_cross_reference_forward_stack)
+        help_cross_reference_stack_item%describe => null()
     end subroutine fresh_scratch
 
     !> The text of *Help*.
@@ -733,7 +733,7 @@ contains
                                                                   "C-<tab>", "<XF86Back>", "<XF86Forward>", "<backtab>", "<down>", &
                                                                    "<next>", "<prior>", "<up>", "M-v", "M-<", "M-n", "M-p", "M-r", &
                                                                                                                    "M-s", "M-g M-c"]
-        character(len=40), parameter :: defs(21) = [character(len=40) :: "abort_minibuffers", "minibuffer_complete", &
+        character(len=40), parameter :: definitions(21) = [character(len=40) :: "abort_minibuffers", "minibuffer_complete", &
                                                                    "minibuffer_complete_and_exit", "minibuffer_complete_and_exit", &
                                                                          "minibuffer_complete_word", "minibuffer_completion_help", &
                                                                      "file_cache_minibuffer_complete", "previous_history_element", &
@@ -750,7 +750,7 @@ contains
         call make_sparse_keymap(map)
 
         do k = 1, size(keys)
-            call keymap_set(map, trim(keys(k)), value_type(name=trim(defs(k))), st)
+            call keymap_set(map, trim(keys(k)), value_type(name=trim(definitions(k))), st)
         end do
 
         call register_keymap_name("help_tests_test_keymap", map)

@@ -6,7 +6,7 @@
 
 ## Ported
 
-the coding systems of type `charset` (80),
+the coding systems of type `character_set` (80),
 `shift-jis` (2),
 `big5` (1) and `iso-2022` (13),
 with their aliases,

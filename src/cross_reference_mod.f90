@@ -20,17 +20,17 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Xref: finding definitions and references of identifiers.  A backend
-!> (`xref_backend_type', found through `xref_backend_functions', fortmacs_tags_mod's
-!> tags tables by default) finds the items (`xref_item_type': a summary and
-!> a location, `xref_location_type'); `find_xref_definitions' (M-.) goes to
+!> (`cross_reference_backend_type', found through `cross_reference_backend_functions', fortmacs_tags_mod's
+!> tags tables by default) finds the items (`cross_reference_item_type': a summary and
+!> a location, `cross_reference_location_type'); `find_cross_reference_definitions' (M-.) goes to
 !> the definition or lists the candidates in the *xref* buffer,
-!> `find_xref_references' (M-?) and `find_xref_apropos' (C-M-.) list what
-!> they find there, and `go_back_in_xref_history' (M-,) and `go_forward_in_xref_history' (C-M-,)
+!> `find_cross_reference_references' (M-?) and `find_cross_reference_apropos' (C-M-.) list what
+!> they find there, and `go_back_in_cross_reference_history' (M-,) and `go_forward_in_cross_reference_history' (C-M-,)
 !> move through the history of the places jumped from.
 !>
-!> `xref_matches_in_files' and `xref_matches_in_directory' search files
-!> with grep for other modules (project.el's commands), and `show_xrefs'
-!> shows what an `xref_fetcher_type' fetches.
+!> `cross_reference_matches_in_files' and `cross_reference_matches_in_directory' search files
+!> with grep for other modules (project.el's commands), and `show_cross_references'
+!> shows what an `cross_reference_fetcher_type' fetches.
 !>
 !> What is not ported yet is listed in docs/status/cross_reference_mod.md.
 module cross_reference_mod
@@ -92,69 +92,83 @@ module cross_reference_mod
     implicit none(type, external)
     private
 
-    public :: make_xref, make_xref_match, make_xref_file_location, make_xref_buffer_location, &
-              make_xref_bogus_location, append_xref_item, find_xref_backend, push_xref_marker_stack, &
-              clear_xref_marker_stack, is_xref_marker_stack_empty, is_xref_forward_history_empty, go_back_in_xref_history, &
-              go_forward_in_xref_history, pop_to_xref_location, show_xrefs, show_xref_buffer, show_xref_definitions_buffer, &
-              show_xref_definitions_completing_read, find_xref_definitions, find_xref_definitions_other_window, &
-              find_xref_references, find_xref_apropos, xref_apropos_regular_expression, xref_references_in_directory, &
-              xref_references_in_directory_grep, xref_matches_in_directory, xref_matches_in_files, &
-              read_xref_identifier, xref_group_name_for_display, xref_regular_expression_to_extended, xref_xref_buffer_mode, &
-              xref_transient_buffer_mode, xref_edit_mode, change_to_xref_edit_mode, save_xref_edit_changes, &
-              next_xref_line, previous_xref_line, next_xref_line_no_show, previous_xref_line_no_show, &
-              next_xref_group, previous_xref_group, goto_xref, quit_and_goto_xref, quit_and_pop_xref_marker_stack, &
-              show_xref_location_at_point, xref_etags_mode, xref_items_at, initialize_xref
+    public :: make_cross_reference, make_cross_reference_match, make_cross_reference_file_location, &
+              make_cross_reference_buffer_location, &
+              make_cross_reference_bogus_location, append_cross_reference_item, find_cross_reference_backend, &
+              push_cross_reference_marker_stack, &
+              clear_cross_reference_marker_stack, is_cross_reference_marker_stack_empty, is_cross_reference_forward_history_empty, &
+              go_back_in_cross_reference_history, &
+              go_forward_in_cross_reference_history, pop_to_cross_reference_location, show_cross_references, &
+              show_cross_reference_buffer, show_cross_reference_definitions_buffer, &
+              show_cross_reference_definitions_completing_read, find_cross_reference_definitions, &
+              find_cross_reference_definitions_other_window, &
+              find_cross_reference_references, find_cross_reference_apropos, cross_reference_apropos_regular_expression, &
+              cross_reference_references_in_directory, &
+              cross_reference_references_in_directory_grep, cross_reference_matches_in_directory, &
+              cross_reference_matches_in_files, &
+              read_cross_reference_identifier, cross_reference_group_name_for_display, &
+              cross_reference_regular_expression_to_extended, cross_reference_cross_reference_buffer_mode, &
+              cross_reference_transient_buffer_mode, cross_reference_edit_mode, change_to_cross_reference_edit_mode, &
+              save_cross_reference_edit_changes, &
+              next_cross_reference_line, previous_cross_reference_line, next_cross_reference_line_no_show, &
+              previous_cross_reference_line_no_show, &
+              next_cross_reference_group, previous_cross_reference_group, goto_cross_reference, quit_and_goto_cross_reference, &
+              quit_and_pop_cross_reference_marker_stack, &
+              show_cross_reference_location_at_point, cross_reference_fortmacs_tags_mode, cross_reference_items_at, &
+              initialize_cross_reference
 
     !> The name of the buffer to show xrefs.  Port of xref.el
     !> xref-buffer-name.
-    character(len=*), parameter, public :: XREF_BUFFER_NAME = "*xref*"
+    character(len=*), parameter, public :: CROSS_REFERENCE_BUFFER_NAME = "*xref*"
 
     !> The length of an item that is no match (an xref-item, not an
     !> xref-match-item).  Not a port.
-    integer(int64), parameter, public :: XREF_MATCH_LENGTH_NONE = -1
+    integer(int64), parameter, public :: CROSS_REFERENCE_MATCH_LENGTH_NONE = -1
 
-    !> The values of `xref_file_name_display': the full absolute file name
+    !> The values of `cross_reference_file_name_display': the full absolute file name
     !> (`abs'), only the nondirectory part (`nondirectory'), or relative to
     !> the current project's root (`project-relative').
-    integer, parameter, public :: XREF_FILE_NAME_DISPLAY_ABSOLUTE = 0, XREF_FILE_NAME_DISPLAY_NONDIRECTORY = 1, &
-                                  XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE = 2
+    integer, parameter, public :: CROSS_REFERENCE_FILE_NAME_DISPLAY_ABSOLUTE = 0, &
+                                  CROSS_REFERENCE_FILE_NAME_DISPLAY_NONDIRECTORY = 1, &
+                                  CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE = 2
 
-    !> Values of `xref_prompt_for_identifier' besides .true. (always prompt)
+    !> Values of `cross_reference_prompt_for_identifier' besides .true. (always prompt)
     !> and .false. (prompt only when there is no identifier at point):
     !> prompt in the commands of its `%commands' (upstream's list of
     !> commands), or in all the commands but those (upstream's list
     !> starting with `not').
-    integer, parameter, public :: XREF_PROMPT_FOR_IDENTIFIER_LISTED = 2, XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED = 3
+    integer, parameter, public :: CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED = 2, &
+                                  CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED = 3
 
-    !> Values of `xref_auto_jump_to_first_definition' and
-    !> `xref_auto_jump_to_first_xref' besides .true. (jump) and .false. (no
+    !> Values of `cross_reference_auto_jump_to_first_definition' and
+    !> `cross_reference_auto_jump_to_first_cross_reference' besides .true. (jump) and .false. (no
     !> auto-jump): show the first result's location but keep the focus on
     !> the Xref buffer's window, or only move point to the first result.
-    integer, parameter, public :: XREF_AUTO_JUMP_SHOW = 2, XREF_AUTO_JUMP_MOVE = 3
+    integer, parameter, public :: CROSS_REFERENCE_AUTO_JUMP_SHOW = 2, CROSS_REFERENCE_AUTO_JUMP_MOVE = 3
 
-    !> The setting `xref_prompt_for_identifier': .true., .false.,
-    !> XREF_PROMPT_FOR_IDENTIFIER_LISTED or
-    !> XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, with the commands those
+    !> The setting `cross_reference_prompt_for_identifier': .true., .false.,
+    !> CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED or
+    !> CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, with the commands those
     !> two states name in `%commands' (R6-39).  Not a port.
-    type, extends(choice_setting_type), public :: xref_prompt_for_identifier_choice_setting_type
+    type, extends(choice_setting_type), public :: cross_reference_prompt_for_identifier_choice_setting_type
         character(len=64), allocatable :: commands(:)
     contains
-        procedure :: other_value => xref_prompt_for_identifier_other_value
-    end type xref_prompt_for_identifier_choice_setting_type
+        procedure :: other_value => cross_reference_prompt_for_identifier_other_value
+    end type cross_reference_prompt_for_identifier_choice_setting_type
 
     !> Where a location is displayed (the DISPLAY_ACTION of
-    !> `xref_show_xrefs_function'): nothing chosen (the selected window), or
+    !> `cross_reference_show_cross_references_function'): nothing chosen (the selected window), or
     !> the other window.  (Upstream's `frame' is not ported.)
-    integer, parameter, public :: XREF_DISPLAY_ACTION_NONE = 0, XREF_DISPLAY_ACTION_WINDOW = 1
+    integer, parameter, public :: CROSS_REFERENCE_DISPLAY_ACTION_NONE = 0, CROSS_REFERENCE_DISPLAY_ACTION_WINDOW = 1
 
-    !> The value of `xref_truncation_width' that disables truncation.
-    integer, parameter, public :: XREF_TRUNCATION_WIDTH_NONE = 0
+    !> The value of `cross_reference_truncation_width' that disables truncation.
+    integer, parameter, public :: CROSS_REFERENCE_TRUNCATION_WIDTH_NONE = 0
 
-    !> The search programs of `xref_search_programs'.
-    integer, parameter, public :: XREF_SEARCH_PROGRAM_GREP = 1, XREF_SEARCH_PROGRAM_RIPGREP = 2, &
-                                  XREF_SEARCH_PROGRAM_UGREP = 3
+    !> The search programs of `cross_reference_search_programs'.
+    integer, parameter, public :: CROSS_REFERENCE_SEARCH_PROGRAM_GREP = 1, CROSS_REFERENCE_SEARCH_PROGRAM_RIPGREP = 2, &
+                                  CROSS_REFERENCE_SEARCH_PROGRAM_UGREP = 3
 
-    ! What a fetcher of `xref_backend_fetcher_type' asks the backend for.
+    ! What a fetcher of `cross_reference_backend_fetcher_type' asks the backend for.
     integer, parameter :: KIND_DEFINITIONS = 1, KIND_REFERENCES = 2, KIND_APROPOS = 3
 
     ! How `show_location' selects the window (its SELECT): not at all, select
@@ -162,14 +176,17 @@ module cross_reference_mod
     integer, parameter :: SELECT_NO = 0, SELECT_YES = 1, SELECT_QUIT = 2
 
     ! The text properties of the *xref* buffer.
-    character(len=*), parameter :: P_XREF_ITEM = "xref_item", P_XREF_GROUP = "xref_group", P_FACE = "face", &
+    character(len=*), parameter :: P_CROSS_REFERENCE_ITEM = "cross_reference_item", &
+                                   P_CROSS_REFERENCE_GROUP = "cross_reference_group", P_FACE = "face", &
                                    P_MOUSE_FACE = "mouse_face", P_HELP_ECHO = "help_echo", P_INVISIBLE = "invisible", &
                                    P_READ_ONLY = "read_only", P_FRONT_STICKY = "front_sticky", &
                                    P_REAR_NONSTICKY = "rear_nonsticky", P_OCCUR_PREFIX = "occur_prefix", &
                                    P_OCCUR_TARGET = "occur_target"
     ! Faces and other names the *xref* buffer's properties take as values.
-    character(len=*), parameter :: FACE_XREF_FILE_HEADER = "xref_file_header", FACE_XREF_LINE_NUMBER = "xref_line_number", &
-                                   FACE_XREF_MATCH = "xref_match", FACE_SHADOW = "shadow", FACE_HIGHLIGHT = "highlight", &
+    character(len=*), parameter :: FACE_CROSS_REFERENCE_FILE_HEADER = "cross_reference_file_header", &
+                                   FACE_CROSS_REFERENCE_LINE_NUMBER = "cross_reference_line_number", &
+                                   FACE_CROSS_REFERENCE_MATCH = "cross_reference_match", FACE_SHADOW = "shadow", &
+                                   FACE_HIGHLIGHT = "highlight", &
                                    FACE_ERROR = "error", INVISIBLE_ELLIPSIS = "ellipsis"
 
     character(len=*), parameter :: LF = achar(10), NUL = achar(0), CR = achar(13)
@@ -178,80 +195,80 @@ module cross_reference_mod
     !> message).  Backends extend it (fortmacs_tags_mod's tag locations).  Port of
     !> xref.el's location generics (`xref-location-marker',
     !> `xref-location-group', `xref-location-line').
-    type, abstract, public :: xref_location_type
+    type, abstract, public :: cross_reference_location_type
     contains
         !> A marker at the location (the caller destroys it).  Port of
         !> xref.el:xref-location-marker.
-        procedure(xref_location_marker_procedure), deferred :: marker
+        procedure(cross_reference_location_marker_procedure), deferred :: marker
         !> A string used to group a set of locations.  This is typically a
         !> file name, but can also be a package name, or some other label.
         !> When it is a file name, it should be the "expanded" version.
         !> Port of xref.el:xref-location-group.
-        procedure(xref_location_group_procedure), deferred :: group
+        procedure(cross_reference_location_group_procedure), deferred :: group
         !> The line number corresponding to the location (0 for none).
         !> Port of xref.el:xref-location-line.
-        procedure :: line_number => xref_location_line
-    end type xref_location_type
+        procedure :: line_number => cross_reference_location_line
+    end type cross_reference_location_type
 
     abstract interface
         !> A marker at location THIS.  Not a port.
-        recursive subroutine xref_location_marker_procedure(this, marker, status)
-            import :: xref_location_type, handle_type, status_type
+        recursive subroutine cross_reference_location_marker_procedure(this, marker, status)
+            import :: cross_reference_location_type, handle_type, status_type
             implicit none(type, external)
-            class(xref_location_type), intent(in) :: this
+            class(cross_reference_location_type), intent(in) :: this
             type(handle_type), intent(out) :: marker
             type(status_type), intent(out) :: status
-        end subroutine xref_location_marker_procedure
+        end subroutine cross_reference_location_marker_procedure
 
         !> The group of location THIS.  Not a port.
-        function xref_location_group_procedure(this) result(group)
-            import :: xref_location_type
+        function cross_reference_location_group_procedure(this) result(group)
+            import :: cross_reference_location_type
             implicit none(type, external)
-            class(xref_location_type), intent(in) :: this
+            class(cross_reference_location_type), intent(in) :: this
             character(len=:), allocatable :: group
-        end function xref_location_group_procedure
+        end function cross_reference_location_group_procedure
     end interface
 
-    public :: xref_location_marker_procedure, xref_location_group_procedure
+    public :: cross_reference_location_marker_procedure, cross_reference_location_group_procedure
 
     !> A file location is a file/line/column triple.
     !> Line numbers start from 1 and columns from 0.  Port of xref.el
     !> xref-file-location.
-    type, extends(xref_location_type), public :: xref_file_location_type
+    type, extends(cross_reference_location_type), public :: cross_reference_file_location_type
         character(len=:), allocatable :: file
         integer(int64) :: line = 0
         integer(int64) :: column = 0
     contains
         !> Port of xref.el:xref-location-marker (of an xref-file-location).
-        procedure :: marker => xref_file_location_marker
+        procedure :: marker => cross_reference_file_location_marker
         !> Port of xref.el:xref-location-group (of an xref-file-location).
-        procedure :: group => xref_file_location_group
+        procedure :: group => cross_reference_file_location_group
         !> Port of xref.el:xref-location-line (of an xref-file-location).
-        procedure :: line_number => xref_file_location_line
-    end type xref_file_location_type
+        procedure :: line_number => cross_reference_file_location_line
+    end type cross_reference_file_location_type
 
     !> A position in a buffer.  Port of xref.el xref-buffer-location.
-    type, extends(xref_location_type), public :: xref_buffer_location_type
+    type, extends(cross_reference_location_type), public :: cross_reference_buffer_location_type
         type(handle_type) :: buffer
         integer(int64) :: position = 0
     contains
         !> Port of xref.el:xref-location-marker (of an xref-buffer-location).
-        procedure :: marker => xref_buffer_location_marker
+        procedure :: marker => cross_reference_buffer_location_marker
         !> Port of xref.el:xref-location-group (of an xref-buffer-location).
-        procedure :: group => xref_buffer_location_group
-    end type xref_buffer_location_type
+        procedure :: group => cross_reference_buffer_location_group
+    end type cross_reference_buffer_location_type
 
     !> Bogus locations are sometimes useful to indicate errors,
     !> e.g. when we know that a function exists but the actual location
     !> is not known.  Port of xref.el xref-bogus-location.
-    type, extends(xref_location_type), public :: xref_bogus_location_type
+    type, extends(cross_reference_location_type), public :: cross_reference_bogus_location_type
         character(len=:), allocatable :: message
     contains
         !> Port of xref.el:xref-location-marker (of an xref-bogus-location).
-        procedure :: marker => xref_bogus_location_marker
+        procedure :: marker => cross_reference_bogus_location_marker
         !> Port of xref.el:xref-location-group (of an xref-bogus-location).
-        procedure :: group => xref_bogus_location_group
-    end type xref_bogus_location_type
+        procedure :: group => cross_reference_bogus_location_group
+    end type cross_reference_bogus_location_type
 
     !> An xref item describes a reference to a location somewhere.
     !>
@@ -265,21 +282,21 @@ module cross_reference_mod
     !> summary values when several locations point to the same line.
     !>
     !> A match item (a search result) has a LENGTH, the length of the
-    !> match (XREF_MATCH_LENGTH_NONE for other items); the `xref_match'
+    !> match (CROSS_REFERENCE_MATCH_LENGTH_NONE for other items); the `cross_reference_match'
     !> face covers it in the summary from MATCH_BEGINNING (a 0-based
-    !> character offset).  Arrays of items grow with `append_xref_item'.
+    !> character offset).  Arrays of items grow with `append_cross_reference_item'.
     !> Port of xref.el xref-item and xref-match-item.
-    type, public :: xref_item_type
+    type, public :: cross_reference_item_type
         character(len=:), allocatable :: summary
-        class(xref_location_type), allocatable :: location
-        integer(int64) :: length = XREF_MATCH_LENGTH_NONE
+        class(cross_reference_location_type), allocatable :: location
+        integer(int64) :: length = CROSS_REFERENCE_MATCH_LENGTH_NONE
         integer(int64) :: match_beginning = 0
-    end type xref_item_type
+    end type cross_reference_item_type
 
     !> An xref backend: the methods a backend overrides, each with
-    !> upstream's default.  A function of `xref_backend_functions' gives
+    !> upstream's default.  A function of `cross_reference_backend_functions' gives
     !> one.  Port of xref.el's backend generics.
-    type, public :: xref_backend_type
+    type, public :: cross_reference_backend_type
     contains
         !> Find definitions of IDENTIFIER.
         !>
@@ -292,68 +309,68 @@ module cross_reference_mod
         !> IDENTIFIER can be any string given by `identifier_at_point', or
         !> from the table `identifier_completion_table' gives.
         !>
-        !> To create an xref item, call `make_xref'.  Port of
+        !> To create an xref item, call `make_cross_reference'.  Port of
         !> xref.el:xref-backend-definitions.
-        procedure :: definitions => xref_backend_definitions
+        procedure :: definitions => cross_reference_backend_definitions
         !> Find references of IDENTIFIER.
         !> The result must be an array of xref items.  If no references
         !> can be found, return an empty array.
         !>
-        !> The default implementation uses `xref_references_in_directory'.
+        !> The default implementation uses `cross_reference_references_in_directory'.
         !> Port of xref.el:xref-backend-references.
-        procedure :: references => xref_backend_references
+        procedure :: references => cross_reference_backend_references
         !> Find all identifiers that match PATTERN string.
         !> The second argument has the same meaning as in `apropos'.
         !>
-        !> The backend can use `xref_apropos_regular_expression' to convert the pattern
+        !> The backend can use `cross_reference_apropos_regular_expression' to convert the pattern
         !> to regexp.  Port of xref.el:xref-backend-apropos.
-        procedure :: apropos => xref_backend_apropos
+        procedure :: apropos => cross_reference_backend_apropos
         !> The relevant identifier at point (FOUND false for none).
         !> Port of xref.el:xref-backend-identifier-at-point.
-        procedure :: identifier_at_point => xref_backend_identifier_at_point
+        procedure :: identifier_at_point => cross_reference_backend_identifier_at_point
         !> The completion table for identifiers (FOUND false for none).
         !> Port of xref.el:xref-backend-identifier-completion-table.
-        procedure :: identifier_completion_table => xref_backend_identifier_completion_table
+        procedure :: identifier_completion_table => cross_reference_backend_identifier_completion_table
         !> True if case is not significant in identifier completion.
         !> Port of xref.el:xref-backend-identifier-completion-ignore-case.
-        procedure :: is_identifier_completion_case_ignored => is_xref_backend_identifier_completion_case_ignored
-    end type xref_backend_type
+        procedure :: is_identifier_completion_case_ignored => is_cross_reference_backend_identifier_completion_case_ignored
+    end type cross_reference_backend_type
 
     abstract interface
-        !> A function of `xref_backend_functions': the backend for the
+        !> A function of `cross_reference_backend_functions': the backend for the
         !> current context, or BACKEND unallocated if it is not
         !> applicable.  Not a port.
-        recursive subroutine xref_backend_function_procedure(backend)
-            import :: xref_backend_type
+        recursive subroutine cross_reference_backend_function_procedure(backend)
+            import :: cross_reference_backend_type
             implicit none(type, external)
-            class(xref_backend_type), allocatable, intent(out) :: backend
-        end subroutine xref_backend_function_procedure
+            class(cross_reference_backend_type), allocatable, intent(out) :: backend
+        end subroutine cross_reference_backend_function_procedure
     end interface
 
-    public :: xref_backend_function_procedure
+    public :: cross_reference_backend_function_procedure
 
-    ! A function of `xref_backend_functions', or the `t' of a buffer's own
+    ! A function of `cross_reference_backend_functions', or the `t' of a buffer's own
     ! value (the default functions run there), with the depth it was added
     ! with.
-    type :: xref_backend_entry_type
-        procedure(xref_backend_function_procedure), pointer, nopass :: fn => null()
+    type :: cross_reference_backend_entry_type
+        procedure(cross_reference_backend_function_procedure), pointer, nopass :: fn => null()
         logical :: is_default = .false.
         integer :: depth = 0
-    end type xref_backend_entry_type
+    end type cross_reference_backend_entry_type
 
     ! A buffer's own functions.
-    type :: xref_backend_local_type
+    type :: cross_reference_backend_local_type
         integer(int64) :: serial = 0
-        type(xref_backend_entry_type), allocatable :: entries(:)
-    end type xref_backend_local_type
+        type(cross_reference_backend_entry_type), allocatable :: entries(:)
+    end type cross_reference_backend_local_type
 
-    !> The hook `xref_backend_functions': functions called in turn with no
+    !> The hook `cross_reference_backend_functions': functions called in turn with no
     !> arguments, until one gives a backend.  `%prepend' and `%append' add a
     !> function as add-hook does (LOCAL for the current buffer's own
     !> value), `%remove' removes one.  Not a port.
-    type, public :: xref_backend_functions_type
-        type(xref_backend_entry_type), allocatable :: entries(:)
-        type(xref_backend_local_type), allocatable :: locals(:)
+    type, public :: cross_reference_backend_functions_type
+        type(cross_reference_backend_entry_type), allocatable :: entries(:)
+        type(cross_reference_backend_local_type), allocatable :: locals(:)
     contains
         !> Add FN to the hook (subr.el's add-hook; depth 0 by default).
         procedure :: prepend => prepend_backend_function
@@ -365,100 +382,100 @@ module cross_reference_mod
         procedure :: clear_local => clear_backend_functions_local
         !> Whether the current buffer has its own functions.
         procedure :: is_local => is_backend_functions_local
-    end type xref_backend_functions_type
+    end type cross_reference_backend_functions_type
 
     !> What an xref list is fetched from: `fetch' gives the items.  It must
     !> not depend on the current buffer or selected window.  Port of
     !> xref.el's FETCHER functions.
-    type, abstract, public :: xref_fetcher_type
+    type, abstract, public :: cross_reference_fetcher_type
     contains
         !> The items (an error condition if there are none to show).
-        procedure(xref_fetch_procedure), deferred :: fetch
-    end type xref_fetcher_type
+        procedure(cross_reference_fetch_procedure), deferred :: fetch
+    end type cross_reference_fetcher_type
 
     abstract interface
         !> The items of fetcher THIS.  Not a port.
-        recursive subroutine xref_fetch_procedure(this, items, status)
-            import :: xref_fetcher_type, xref_item_type, status_type
+        recursive subroutine cross_reference_fetch_procedure(this, items, status)
+            import :: cross_reference_fetcher_type, cross_reference_item_type, status_type
             implicit none(type, external)
-            class(xref_fetcher_type), intent(inout) :: this
-            type(xref_item_type), allocatable, intent(out) :: items(:)
+            class(cross_reference_fetcher_type), intent(inout) :: this
+            type(cross_reference_item_type), allocatable, intent(out) :: items(:)
             type(status_type), intent(out) :: status
-        end subroutine xref_fetch_procedure
+        end subroutine cross_reference_fetch_procedure
     end interface
 
-    public :: xref_fetch_procedure
+    public :: cross_reference_fetch_procedure
 
     !> The fetcher of the find commands: it revisits the saved position
     !> and delegates the finding to the backend's method of KIND, called
     !> with ARGUMENT; INPUT names what was asked for in the error when
     !> nothing is found.  Port of xref.el:xref--create-fetcher's function.
-    type, extends(xref_fetcher_type), public :: xref_backend_fetcher_type
+    type, extends(cross_reference_fetcher_type), public :: cross_reference_backend_fetcher_type
         type(handle_type) :: buffer
         integer(int64) :: position = 0
-        class(xref_backend_type), allocatable :: backend
+        class(cross_reference_backend_type), allocatable :: backend
         integer :: kind = KIND_DEFINITIONS
         character(len=:), allocatable :: argument, input
     contains
         !> Port of xref.el:xref--create-fetcher (the function it returns).
         procedure :: fetch => fetch_from_backend
-    end type xref_backend_fetcher_type
+    end type cross_reference_backend_fetcher_type
 
     !> A fetcher of a fixed array of items, which can be fetched once:
     !> refreshing is not supported.  Port of xref.el:xref--show-xrefs (the
     !> old convention of a list of xrefs).
-    type, extends(xref_fetcher_type), public :: xref_items_fetcher_type
-        type(xref_item_type), allocatable :: items(:)
+    type, extends(cross_reference_fetcher_type), public :: cross_reference_items_fetcher_type
+        type(cross_reference_item_type), allocatable :: items(:)
         logical :: fetched = .false.
     contains
         !> Port of xref.el:xref--show-xrefs (its function).
         procedure :: fetch => fetch_fixed_items
-    end type xref_items_fetcher_type
+    end type cross_reference_items_fetcher_type
 
     !> What the show functions get with the fetcher: WINDOW, the window
     !> that was selected before the current command was called;
     !> DISPLAY_ACTION, where the target location should be displayed
-    !> (XREF_DISPLAY_ACTION_NONE or XREF_DISPLAY_ACTION_WINDOW); AUTO_JUMP,
-    !> the state of an auto-jump setting (.false., .true., XREF_AUTO_JUMP_SHOW
-    !> or XREF_AUTO_JUMP_MOVE); and FETCHED, the items already fetched
+    !> (CROSS_REFERENCE_DISPLAY_ACTION_NONE or CROSS_REFERENCE_DISPLAY_ACTION_WINDOW); AUTO_JUMP,
+    !> the state of an auto-jump setting (.false., .true., CROSS_REFERENCE_AUTO_JUMP_SHOW
+    !> or CROSS_REFERENCE_AUTO_JUMP_MOVE); and FETCHED, the items already fetched
     !> (when allocated).  Port of the ALIST argument of
     !> `xref-show-xrefs-function'.
-    type, public :: xref_show_parameters_type
+    type, public :: cross_reference_show_parameters_type
         type(handle_type) :: window
-        integer :: display_action = XREF_DISPLAY_ACTION_NONE
+        integer :: display_action = CROSS_REFERENCE_DISPLAY_ACTION_NONE
         type(choice_type) :: auto_jump
-        type(xref_item_type), allocatable :: fetched(:)
-    end type xref_show_parameters_type
+        type(cross_reference_item_type), allocatable :: fetched(:)
+    end type cross_reference_show_parameters_type
 
     abstract interface
-        !> A function of `xref_show_xrefs_function' or
-        !> `xref_show_definitions_function': show what FETCHER fetches
+        !> A function of `cross_reference_show_cross_references_function' or
+        !> `cross_reference_show_definitions_function': show what FETCHER fetches
         !> according to PARAMETERS; BUFFER is the buffer showing them
         !> (the null handle when there is none).  Not a port.
-        recursive subroutine xref_show_procedure(fetcher, parameters, buffer, status)
-            import :: xref_fetcher_type, xref_show_parameters_type, handle_type, status_type
+        recursive subroutine cross_reference_show_procedure(fetcher, parameters, buffer, status)
+            import :: cross_reference_fetcher_type, cross_reference_show_parameters_type, handle_type, status_type
             implicit none(type, external)
-            class(xref_fetcher_type), intent(inout) :: fetcher
-            type(xref_show_parameters_type), intent(in) :: parameters
+            class(cross_reference_fetcher_type), intent(inout) :: fetcher
+            type(cross_reference_show_parameters_type), intent(in) :: parameters
             type(handle_type), intent(out) :: buffer
             type(status_type), intent(out) :: status
-        end subroutine xref_show_procedure
+        end subroutine cross_reference_show_procedure
 
-        !> A function of `xref_references_in_directory_function': all
+        !> A function of `cross_reference_references_in_directory_function': all
         !> references to IDENTIFIER in files under directory DIRECTORY.  Not a port.
-        recursive subroutine xref_references_in_directory_procedure(identifier, directory, items, status)
-            import :: xref_item_type, status_type
+        recursive subroutine cross_reference_references_in_directory_procedure(identifier, directory, items, status)
+            import :: cross_reference_item_type, status_type
             implicit none(type, external)
             character(len=*), intent(in) :: identifier, directory
-            type(xref_item_type), allocatable, intent(out) :: items(:)
+            type(cross_reference_item_type), allocatable, intent(out) :: items(:)
             type(status_type), intent(out) :: status
-        end subroutine xref_references_in_directory_procedure
+        end subroutine cross_reference_references_in_directory_procedure
     end interface
 
-    public :: xref_show_procedure, xref_references_in_directory_procedure
+    public :: cross_reference_show_procedure, cross_reference_references_in_directory_procedure
 
-    !> An entry of `xref_search_programs': the command TEMPLATE of search
-    !> PROGRAM (an XREF_SEARCH_PROGRAM_* value, or another number for a
+    !> An entry of `cross_reference_search_programs': the command TEMPLATE of search
+    !> PROGRAM (a CROSS_REFERENCE_SEARCH_PROGRAM_* value, or another number for a
     !> program of the configuration's own).  The template must be a shell
     !> command (or usually a pipeline) that will search the files based
     !> on the list of file names that is piped from stdin, separated by
@@ -466,57 +483,57 @@ module cross_reference_mod
     !>
     !>   <C> for extra arguments such as -i and --color
     !>   <R> for the regexp itself (in Extended format)
-    type, public :: xref_search_program_type
+    type, public :: cross_reference_search_program_type
         integer :: program = 0
         character(len=160) :: template = ""
-    end type xref_search_program_type
+    end type cross_reference_search_program_type
 
     !> A group of items in the *xref* buffer: the group's NAME and its
     !> ITEMS.  Port of an element of xref.el's XREF-ALIST.
-    type, public :: xref_group_type
+    type, public :: cross_reference_group_type
         character(len=:), allocatable :: name
-        type(xref_item_type), allocatable :: items(:)
-    end type xref_group_type
+        type(cross_reference_item_type), allocatable :: items(:)
+    end type cross_reference_group_type
 
     ! A hit of a search program: the LINE in FILE, and the TEXT of the line.
-    type :: xref_hit_type
+    type :: cross_reference_hit_type
         integer(int64) :: line = 0
         character(len=:), allocatable :: file, text
-    end type xref_hit_type
+    end type cross_reference_hit_type
 
     ! The backward and forward stacks of markers to visited Xref locations,
     ! the most recent last.
-    type :: xref_history_type
+    type :: cross_reference_history_type
         type(handle_type), allocatable :: backward(:), forward(:)
-    end type xref_history_type
+    end type cross_reference_history_type
 
-    ! An *xref* buffer's own state: the items shown (the `xref_item'
+    ! An *xref* buffer's own state: the items shown (the `cross_reference_item'
     ! property is the index of one), the fetcher that refreshes them, the
     ! window and the window-switching intent before it was made, the
     ! number of matches found, and the keymap its edit mode replaced.
-    type :: xref_buffer_entry_type
+    type :: cross_reference_buffer_entry_type
         integer(int64) :: serial = 0
-        type(xref_item_type), allocatable :: items(:)
-        class(xref_fetcher_type), allocatable :: fetcher
+        type(cross_reference_item_type), allocatable :: items(:)
+        class(cross_reference_fetcher_type), allocatable :: fetcher
         type(handle_type) :: original_window
-        integer :: original_window_intent = XREF_DISPLAY_ACTION_NONE
+        integer :: original_window_intent = CROSS_REFERENCE_DISPLAY_ACTION_NONE
         integer(int64) :: found_match_count = 0
-    end type xref_buffer_entry_type
+    end type cross_reference_buffer_entry_type
 
     !> Style of file name display in *xref* buffers.
     !>
-    !> If the value is XREF_FILE_NAME_DISPLAY_ABSOLUTE, show the file names
+    !> If the value is CROSS_REFERENCE_FILE_NAME_DISPLAY_ABSOLUTE, show the file names
     !> in their full absolute form.
     !>
-    !> If XREF_FILE_NAME_DISPLAY_NONDIRECTORY, show only the nondirectory
+    !> If CROSS_REFERENCE_FILE_NAME_DISPLAY_NONDIRECTORY, show only the nondirectory
     !> (a.k.a. "base name") part of the file name.
     !>
-    !> If XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE, the default, show only
+    !> If CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE, the default, show only
     !> the file name relative to the current project root.  If there is no
     !> current project, or if the file resides outside of its root, show
     !> that particular file name in its full absolute form.  Port of
     !> xref.el xref-file-name-display.
-    integer, public :: xref_file_name_display = XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE
+    integer, public :: cross_reference_file_name_display = CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE
 
     !> If not .false., prompt for the identifier to find.
     !>
@@ -525,166 +542,170 @@ module cross_reference_mod
     !> When .false., prompt only when there's no value at point we can
     !> use, or when the command has been called with the prefix argument.
     !>
-    !> Otherwise, `xref_prompt_for_identifier%commands' is a list of xref
-    !> commands which will always prompt (XREF_PROMPT_FOR_IDENTIFIER_LISTED),
+    !> Otherwise, `cross_reference_prompt_for_identifier%commands' is a list of xref
+    !> commands which will always prompt (CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED),
     !> with the identifier at point, if any, used as the default.  If the
-    !> value is XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, the meaning of the
+    !> value is CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED, the meaning of the
     !> list is negated: these commands will NOT prompt.  Port of xref.el
     !> xref-prompt-for-identifier.
-    type(xref_prompt_for_identifier_choice_setting_type), public :: xref_prompt_for_identifier = &
-                                                 xref_prompt_for_identifier_choice_setting_type(name="xref_prompt_for_identifier", &
-                                                                                    choice=XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED)
+    type(cross_reference_prompt_for_identifier_choice_setting_type), public :: cross_reference_prompt_for_identifier = &
+                                                                        cross_reference_prompt_for_identifier_choice_setting_type( &
+                                                                               name="cross_reference_prompt_for_identifier", &
+                                                                         choice=CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED)
 
     !> Functions called after jumping to an xref.
-    !> Also see `xref_current_item'.  Port of xref.el xref-after-jump-hook
-    !> (the default has only `recenter': `xref_pulse_momentarily' is not
+    !> Also see `cross_reference_current_item'.  Port of xref.el xref-after-jump-hook
+    !> (the default has only `recenter': `cross_reference_pulse_momentarily' is not
     !> ported).
-    type(hook_type), target, public :: xref_after_jump_hook = hook_type(name="xref_after_jump_hook")
+    type(hook_type), target, public :: cross_reference_after_jump_hook = hook_type(name="cross_reference_after_jump_hook")
 
     !> Functions called after returning to a pre-jump location.  Port of
-    !> xref.el xref-after-return-hook (empty: `xref_pulse_momentarily' is
+    !> xref.el xref-after-return-hook (empty: `cross_reference_pulse_momentarily' is
     !> not ported).
-    type(hook_type), target, public :: xref_after_return_hook = hook_type(name="xref_after_return_hook")
+    type(hook_type), target, public :: cross_reference_after_return_hook = hook_type(name="cross_reference_after_return_hook")
 
     !> Functions called after the xref buffer is updated.  Port of xref.el
     !> xref-after-update-hook.
-    type(hook_type), target, public :: xref_after_update_hook = hook_type(name="xref_after_update_hook")
+    type(hook_type), target, public :: cross_reference_after_update_hook = hook_type(name="cross_reference_after_update_hook")
 
-    !> If .true., `find_xref_definitions' always jumps to the
-    !> first result.  XREF_AUTO_JUMP_SHOW means to show the first result's
+    !> If .true., `find_cross_reference_definitions' always jumps to the
+    !> first result.  CROSS_REFERENCE_AUTO_JUMP_SHOW means to show the first result's
     !> location, but keep the focus on the Xref buffer's window.
-    !> XREF_AUTO_JUMP_MOVE means to only move point to the first result.
-    !> This variable also affects the variants of `find_xref_definitions',
-    !> such as `find_xref_definitions_other_window'.  Port of xref.el
+    !> CROSS_REFERENCE_AUTO_JUMP_MOVE means to only move point to the first result.
+    !> This variable also affects the variants of `find_cross_reference_definitions',
+    !> such as `find_cross_reference_definitions_other_window'.  Port of xref.el
     !> xref-auto-jump-to-first-definition.
-    type(choice_setting_type), public :: xref_auto_jump_to_first_definition = &
-                                         choice_setting_type(name="xref_auto_jump_to_first_definition")
+    type(choice_setting_type), public :: cross_reference_auto_jump_to_first_definition = &
+                                         choice_setting_type(name="cross_reference_auto_jump_to_first_definition")
 
-    !> If .true., `find_xref_references' always jumps to the
-    !> first result.  XREF_AUTO_JUMP_SHOW means to show the first result's
+    !> If .true., `find_cross_reference_references' always jumps to the
+    !> first result.  CROSS_REFERENCE_AUTO_JUMP_SHOW means to show the first result's
     !> location, but keep the focus on the Xref buffer's window.
-    !> XREF_AUTO_JUMP_MOVE means to only move point to the first result.
+    !> CROSS_REFERENCE_AUTO_JUMP_MOVE means to only move point to the first result.
     !> This variable also affects commands similar to
-    !> `find_xref_references', such as `find_xref_apropos', and
+    !> `find_cross_reference_references', such as `find_cross_reference_apropos', and
     !> `find_project_regular_expression'.  Port of xref.el xref-auto-jump-to-first-xref.
-    type(choice_setting_type), public :: xref_auto_jump_to_first_xref = choice_setting_type(name="xref_auto_jump_to_first_xref")
+    type(choice_setting_type), public :: cross_reference_auto_jump_to_first_cross_reference = choice_setting_type( &
+                                         name="cross_reference_auto_jump_to_first_cross_reference")
 
     !> Special hook to find the xref backend for the current context.
     !> Each function on this hook is called in turn with no arguments,
     !> and should give either no backend to mean that it is not applicable,
     !> or an xref backend, which is an object of a type extending
-    !> `xref_backend_type'.  The etags backend is appended to it at startup.
+    !> `cross_reference_backend_type'.  The etags backend is appended to it at startup.
     !> Port of xref.el xref-backend-functions.
-    type(xref_backend_functions_type), public :: xref_backend_functions
+    type(cross_reference_backend_functions_type), public :: cross_reference_backend_functions
 
-    !> The item being processed, for `xref_after_jump_hook' (unallocated
+    !> The item being processed, for `cross_reference_after_jump_hook' (unallocated
     !> location otherwise).  Port of xref.el xref-current-item.
-    type(xref_item_type), public :: xref_current_item
+    type(cross_reference_item_type), public :: cross_reference_current_item
 
     !> Face used to highlight file header in the xref buffer.  Port of
     !> xref.el xref-file-header.
-    type(named_face_type), target, public :: xref_file_header_face
+    type(named_face_type), target, public :: cross_reference_file_header_face
     !> Face for displaying line numbers in the xref buffer.  Port of
     !> xref.el xref-line-number.
-    type(named_face_type), target, public :: xref_line_number_face
+    type(named_face_type), target, public :: cross_reference_line_number_face
     !> Face used to highlight matches in the xref buffer.  Port of xref.el
     !> xref-match.
-    type(named_face_type), target, public :: xref_match_face
+    type(named_face_type), target, public :: cross_reference_match_face
 
     !> Face name to show the number of matches on the mode line.  Port of
     !> xref.el xref-num-matches-face.
-    character(len=:), allocatable, public :: xref_match_count_face
+    character(len=:), allocatable, public :: cross_reference_match_count_face
 
     !> The column to visually "truncate" each Xref buffer line to
-    !> (XREF_TRUNCATION_WIDTH_NONE disables truncation).  Port of xref.el
+    !> (CROSS_REFERENCE_TRUNCATION_WIDTH_NONE disables truncation).  Port of xref.el
     !> xref-truncation-width.
-    integer, public :: xref_truncation_width = 400
+    integer, public :: cross_reference_truncation_width = 400
 
     !> Function to display a list of search results.
     !>
     !> It should accept the arguments FETCHER and PARAMETERS.
     !>
-    !> FETCHER is an `xref_fetcher_type' whose `fetch' gives the items.  It
+    !> FETCHER is an `cross_reference_fetcher_type' whose `fetch' gives the items.  It
     !> must not depend on the current buffer or selected window.
     !>
     !> PARAMETERS has the components WINDOW for the window that was
     !> selected before the current command was called, and DISPLAY_ACTION,
     !> which indicates where the target location should be displayed: the
-    !> possible values are XREF_DISPLAY_ACTION_NONE, or
-    !> XREF_DISPLAY_ACTION_WINDOW meaning the other window.  Port of xref.el
+    !> possible values are CROSS_REFERENCE_DISPLAY_ACTION_NONE, or
+    !> CROSS_REFERENCE_DISPLAY_ACTION_WINDOW meaning the other window.  Port of xref.el
     !> xref-show-xrefs-function.
-    procedure(xref_show_procedure), pointer, public :: xref_show_xrefs_function => null()
+    procedure(cross_reference_show_procedure), pointer, public :: cross_reference_show_cross_references_function => null()
 
     !> Function to handle the definition search results.
     !>
-    !> Accepts the same arguments as `xref_show_xrefs_function'.
+    !> Accepts the same arguments as `cross_reference_show_cross_references_function'.
     !>
     !> Generally, it is expected to jump to the definition if there's
     !> only one, and otherwise provide some way to choose among the
     !> definitions.  Port of xref.el xref-show-definitions-function.
-    procedure(xref_show_procedure), pointer, public :: xref_show_definitions_function => null()
+    procedure(cross_reference_show_procedure), pointer, public :: cross_reference_show_definitions_function => null()
 
     !> Function to find all references to a identifier in a directory.
     !> It should take two string arguments: IDENTIFIER and DIRECTORY.
     !> And give an array of xref items representing all code references to
     !> IDENTIFIER in files under DIRECTORY.  Port of xref.el
     !> xref-references-in-directory-function (the default is
-    !> `xref_references_in_directory_grep': Semantic is not ported).
-    procedure(xref_references_in_directory_procedure), pointer, public :: xref_references_in_directory_function &
+    !> `cross_reference_references_in_directory_grep': Semantic is not ported).
+    procedure(cross_reference_references_in_directory_procedure), pointer :: cross_reference_references_in_directory_function &
         => null()
+    public :: cross_reference_references_in_directory_function
 
     !> The command templates of the search programs.  Port of xref.el
     !> xref-search-program-alist.
-    type(xref_search_program_type), allocatable, public :: xref_search_programs(:)
+    type(cross_reference_search_program_type), allocatable, public :: cross_reference_search_programs(:)
 
     !> The program to use for regexp search inside files.
     !>
-    !> This must reference a corresponding entry in `xref_search_programs'.
+    !> This must reference a corresponding entry in `cross_reference_search_programs'.
     !>
-    !> This variable is used in `xref_matches_in_files', which is the
+    !> This variable is used in `cross_reference_matches_in_files', which is the
     !> utility function used by commands like `find_project_regular_expression'.
     !> Port of xref.el xref-search-program.
-    integer, public :: xref_search_program = XREF_SEARCH_PROGRAM_GREP
+    integer, public :: cross_reference_search_program = CROSS_REFERENCE_SEARCH_PROGRAM_GREP
 
-    !> The history of identifiers read by `read_xref_identifier'.  Port of
+    !> The history of identifiers read by `read_cross_reference_identifier'.  Port of
     !> xref.el xref--read-identifier-history.
-    type(history_setting_type), target, public :: xref_read_identifier_history = &
-                                                  history_setting_type(name="xref_read_identifier_history")
-    !> The history of patterns read by `find_xref_apropos'.  Port of xref.el
+    type(history_setting_type), target, public :: cross_reference_read_identifier_history = &
+                                                  history_setting_type(name="cross_reference_read_identifier_history")
+    !> The history of patterns read by `find_cross_reference_apropos'.  Port of xref.el
     !> xref--read-pattern-history.
-    type(history_setting_type), target, public :: xref_read_pattern_history = &
-                                                  history_setting_type(name="xref_read_pattern_history")
+    type(history_setting_type), target, public :: cross_reference_read_pattern_history = &
+                                                  history_setting_type(name="cross_reference_read_pattern_history")
 
-    !> Keymap of `xref_xref_buffer_mode'.  Port of xref.el
+    !> Keymap of `cross_reference_cross_reference_buffer_mode'.  Port of xref.el
     !> xref--xref-buffer-mode-map.
-    type(handle_type), public :: xref_xref_buffer_mode_map
-    !> Keymap of `xref_transient_buffer_mode'.  Port of xref.el
+    type(handle_type), public :: cross_reference_cross_reference_buffer_mode_map
+    !> Keymap of `cross_reference_transient_buffer_mode'.  Port of xref.el
     !> xref--transient-buffer-mode-map.
-    type(handle_type), public :: xref_transient_buffer_mode_map
-    !> Keymap for `xref_edit_mode'.  Port of xref.el xref-edit-mode-map.
-    type(handle_type), public :: xref_edit_mode_map
+    type(handle_type), public :: cross_reference_transient_buffer_mode_map
+    !> Keymap for `cross_reference_edit_mode'.  Port of xref.el xref-edit-mode-map.
+    type(handle_type), public :: cross_reference_edit_mode_map
     !> Hook run after entering Xref mode.  Port of the hook of xref.el
     !> xref--xref-buffer-mode.
-    type(hook_type), target, public :: xref_xref_buffer_mode_hook = hook_type(name="xref_xref_buffer_mode_hook")
+    type(hook_type), target, public :: cross_reference_cross_reference_buffer_mode_hook = hook_type( &
+                                       name="cross_reference_cross_reference_buffer_mode_hook")
     !> Hook run after entering Xref Transient mode.  Port of the hook of
     !> xref.el xref--transient-buffer-mode.
-    type(hook_type), target, public :: xref_transient_buffer_mode_hook = &
-                                       hook_type(name="xref_transient_buffer_mode_hook")
+    type(hook_type), target, public :: cross_reference_transient_buffer_mode_hook = &
+                                       hook_type(name="cross_reference_transient_buffer_mode_hook")
     !> Hooks run when changing to Xref-Edit mode.  Port of xref.el
     !> xref-edit-mode-hook.
-    type(hook_type), target, public :: xref_edit_mode_hook = hook_type(name="xref_edit_mode_hook")
+    type(hook_type), target, public :: cross_reference_edit_mode_hook = hook_type(name="cross_reference_edit_mode_hook")
 
     ! (BACKWARD-STACK . FORWARD-STACK) of markers to visited Xref
     ! locations.  Port of xref.el xref--history (the global history).
-    type(xref_history_type) :: xref_history
+    type(cross_reference_history_type) :: cross_reference_history
 
     ! The *xref* buffers' own state.
-    type(xref_buffer_entry_type), allocatable :: xref_buffers(:)
+    type(cross_reference_buffer_entry_type), allocatable :: cross_reference_buffers(:)
 
-    ! The value of `xref_backend_functions' `xref_etags_mode' saved.  Port of
+    ! The value of `cross_reference_backend_functions' `cross_reference_fortmacs_tags_mode' saved.  Port of
     ! xref.el xref-etags-mode--saved.
-    type(xref_backend_entry_type), allocatable :: xref_etags_mode_saved(:)
-    logical :: xref_etags_mode_saved_local = .false.
+    type(cross_reference_backend_entry_type), allocatable :: cross_reference_fortmacs_tags_mode_saved(:)
+    logical :: cross_reference_fortmacs_tags_mode_saved_local = .false.
 
     ! The file of the last hit `find_file_buffer' looked up and its buffer,
     ! the file the temporary buffer of `collect_matches' was set up for, and
@@ -703,74 +724,74 @@ contains
 
     !> The line of a location without one: 0.  Port of
     !> xref.el:xref-location-line (the default method).
-    integer(int64) function xref_location_line(this) result(line)
-        class(xref_location_type), intent(in) :: this
+    integer(int64) function cross_reference_location_line(this) result(line)
+        class(cross_reference_location_type), intent(in) :: this
 
         line = 0
-    end function xref_location_line
+    end function cross_reference_location_line
 
     !> A new file location: FILE, LINE (from 1) and COLUMN (from 0).
     !> Port of xref.el:xref-make-file-location.
-    function make_xref_file_location(file, line, column) result(location)
+    function make_cross_reference_file_location(file, line, column) result(location)
         character(len=*), intent(in) :: file
         integer(int64), intent(in) :: line, column
-        type(xref_file_location_type) :: location
+        type(cross_reference_file_location_type) :: location
 
         location%file = file
         location%line = line
         location%column = column
-    end function make_xref_file_location
+    end function make_cross_reference_file_location
 
     !> A new buffer location: POSITION in BUFFER.  Port of
     !> xref.el:xref-make-buffer-location.
-    function make_xref_buffer_location(buffer, position) result(location)
+    function make_cross_reference_buffer_location(buffer, position) result(location)
         type(handle_type), intent(in) :: buffer
         integer(int64), intent(in) :: position
-        type(xref_buffer_location_type) :: location
+        type(cross_reference_buffer_location_type) :: location
 
         location%buffer = buffer
         location%position = position
-    end function make_xref_buffer_location
+    end function make_cross_reference_buffer_location
 
     !> A new bogus location with MESSAGE.  Port of
     !> xref.el:xref-make-bogus-location.
-    function make_xref_bogus_location(message) result(location)
+    function make_cross_reference_bogus_location(message) result(location)
         character(len=*), intent(in) :: message
-        type(xref_bogus_location_type) :: location
+        type(cross_reference_bogus_location_type) :: location
 
         location%message = message
-    end function make_xref_bogus_location
+    end function make_cross_reference_bogus_location
 
     !> A new xref item: SUMMARY and LOCATION.  Port of xref.el:xref-make.
-    function make_xref(summary, location) result(item)
+    function make_cross_reference(summary, location) result(item)
         character(len=*), intent(in) :: summary
-        class(xref_location_type), intent(in) :: location
-        type(xref_item_type) :: item
+        class(cross_reference_location_type), intent(in) :: location
+        type(cross_reference_item_type) :: item
 
         item%summary = summary
         allocate (item%location, source=location)
-    end function make_xref
+    end function make_cross_reference
 
     !> A new match item, a search result: SUMMARY, LOCATION and the LENGTH
     !> of the match.  Port of xref.el:xref-make-match.
-    function make_xref_match(summary, location, length) result(item)
+    function make_cross_reference_match(summary, location, length) result(item)
         character(len=*), intent(in) :: summary
-        class(xref_location_type), intent(in) :: location
+        class(cross_reference_location_type), intent(in) :: location
         integer(int64), intent(in) :: length
-        type(xref_item_type) :: item
+        type(cross_reference_item_type) :: item
 
         item%summary = summary
         allocate (item%location, source=location)
         item%length = length
-    end function make_xref_match
+    end function make_cross_reference_match
 
     !> Append ITEM to ITEMS (allocated if needed).  An array of items grows
     !> through this subroutine: gfortran 13 leaks the polymorphic location
     !> of an item in an array constructor.  Not a port.
-    subroutine append_xref_item(items, item)
-        type(xref_item_type), allocatable, intent(inout) :: items(:)
-        type(xref_item_type), intent(in) :: item
-        type(xref_item_type), allocatable :: grown(:)
+    subroutine append_cross_reference_item(items, item)
+        type(cross_reference_item_type), allocatable, intent(inout) :: items(:)
+        type(cross_reference_item_type), intent(in) :: item
+        type(cross_reference_item_type), allocatable :: grown(:)
         integer :: n
 
         if (.not. allocated(items)) allocate (items(0))
@@ -779,13 +800,13 @@ contains
         grown(1:n) = items
         grown(n + 1) = item
         call move_alloc(grown, items)
-    end subroutine append_xref_item
+    end subroutine append_cross_reference_item
 
     ! Append the items MORE to ITEMS.  Not a port.
-    subroutine append_xref_items(items, more)
-        type(xref_item_type), allocatable, intent(inout) :: items(:)
-        type(xref_item_type), intent(in) :: more(:)
-        type(xref_item_type), allocatable :: grown(:)
+    subroutine append_cross_reference_items(items, more)
+        type(cross_reference_item_type), allocatable, intent(inout) :: items(:)
+        type(cross_reference_item_type), intent(in) :: more(:)
+        type(cross_reference_item_type), allocatable :: grown(:)
         integer :: n
 
         if (.not. allocated(items)) allocate (items(0))
@@ -794,14 +815,14 @@ contains
         grown(1:n) = items
         grown(n + 1:) = more
         call move_alloc(grown, items)
-    end subroutine append_xref_items
+    end subroutine append_cross_reference_items
 
     !> The marker for a file location: in the buffer visiting its file,
     !> at its line and column.  The location shouldn't be out of date, but
     !> past the end of the file (or of its line) it is an approximation.
     !> Port of xref.el:xref-location-marker (of an xref-file-location).
-    recursive subroutine xref_file_location_marker(this, marker, status)
-        class(xref_file_location_type), intent(in) :: this
+    recursive subroutine cross_reference_file_location_marker(this, marker, status)
+        class(cross_reference_file_location_type), intent(in) :: this
         type(handle_type), intent(out) :: marker
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
@@ -824,29 +845,29 @@ contains
         call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
         call goto_character(original_point)
         call set_buffer(old, st)
-    end subroutine xref_file_location_marker
+    end subroutine cross_reference_file_location_marker
 
     !> The group of a file location: its file.  Port of
     !> xref.el:xref-location-group (of an xref-file-location).
-    function xref_file_location_group(this) result(group)
-        class(xref_file_location_type), intent(in) :: this
+    function cross_reference_file_location_group(this) result(group)
+        class(cross_reference_file_location_type), intent(in) :: this
         character(len=:), allocatable :: group
 
         group = this%file
-    end function xref_file_location_group
+    end function cross_reference_file_location_group
 
     !> The line of a file location.  Port of xref.el:xref-location-line (of
     !> an xref-file-location).
-    integer(int64) function xref_file_location_line(this) result(line)
-        class(xref_file_location_type), intent(in) :: this
+    integer(int64) function cross_reference_file_location_line(this) result(line)
+        class(cross_reference_file_location_type), intent(in) :: this
 
         line = this%line
-    end function xref_file_location_line
+    end function cross_reference_file_location_line
 
     !> A marker at the position of a buffer location.  Port of
     !> xref.el:xref-location-marker (of an xref-buffer-location).
-    recursive subroutine xref_buffer_location_marker(this, marker, status)
-        class(xref_buffer_location_type), intent(in) :: this
+    recursive subroutine cross_reference_buffer_location_marker(this, marker, status)
+        class(cross_reference_buffer_location_type), intent(in) :: this
         type(handle_type), intent(out) :: marker
         type(status_type), intent(out) :: status
         type(handle_type) :: old
@@ -858,13 +879,13 @@ contains
         if (.not. status%ok()) return
         call copy_marker_at(this%position, marker, .false., status)
         call set_buffer(old, st)
-    end subroutine xref_buffer_location_marker
+    end subroutine cross_reference_buffer_location_marker
 
     !> The group of a buffer location: the buffer's file name, or
     !> "(buffer NAME)".  Port of xref.el:xref-location-group (of an
     !> xref-buffer-location).
-    function xref_buffer_location_group(this) result(group)
-        class(xref_buffer_location_type), intent(in) :: this
+    function cross_reference_buffer_location_group(this) result(group)
+        class(cross_reference_buffer_location_type), intent(in) :: this
         character(len=:), allocatable :: group
         character(len=:), allocatable :: name
         type(status_type) :: st
@@ -874,29 +895,29 @@ contains
         if (found) return
         call buffer_name(this%buffer, name, st)
         group = "(buffer "//name//")"
-    end function xref_buffer_location_group
+    end function cross_reference_buffer_location_group
 
     !> A bogus location has no marker: a `user_error' error condition
     !> occurs with its message.  Port of xref.el:xref-location-marker (of an
     !> xref-bogus-location).
-    recursive subroutine xref_bogus_location_marker(this, marker, status)
-        class(xref_bogus_location_type), intent(in) :: this
+    recursive subroutine cross_reference_bogus_location_marker(this, marker, status)
+        class(cross_reference_bogus_location_type), intent(in) :: this
         type(handle_type), intent(out) :: marker
         type(status_type), intent(out) :: status
 
         marker = null_handle()
         status = status_type()
         call set_error(status, USER_ERROR_CODE, this%message)
-    end subroutine xref_bogus_location_marker
+    end subroutine cross_reference_bogus_location_marker
 
     !> The group of a bogus location: "(No location)".  Port of
     !> xref.el:xref-location-group (of an xref-bogus-location).
-    function xref_bogus_location_group(this) result(group)
-        class(xref_bogus_location_type), intent(in) :: this
+    function cross_reference_bogus_location_group(this) result(group)
+        class(cross_reference_bogus_location_type), intent(in) :: this
         character(len=:), allocatable :: group
 
         group = "(No location)"
-    end function xref_bogus_location_group
+    end function cross_reference_bogus_location_group
 
     ! ------------------------------------------------------------------
     ! Backends
@@ -904,60 +925,60 @@ contains
 
     !> The error of a backend without the method:
     !> "No Xref backend.  Try `M-x eglot', `M-x visit_tags_table', or `M-x
-    !> etags_regen_mode'."  Port of xref.el:xref--no-backend-available.
-    subroutine report_no_xref_backend(status)
+    !> fortmacs_tags_regen_mode'."  Port of xref.el:xref--no-backend-available.
+    subroutine report_no_cross_reference_backend(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call set_error(status, USER_ERROR_CODE, "No Xref backend.  Try `M-x eglot', `M-x visit_tags_table', or "// &
-                       "`M-x etags_regen_mode'.")
-    end subroutine report_no_xref_backend
+                       "`M-x fortmacs_tags_regen_mode'.")
+    end subroutine report_no_cross_reference_backend
 
     !> The default definitions: no backend.  Port of
     !> xref.el:xref-backend-definitions (the default method).
-    recursive subroutine xref_backend_definitions(this, identifier, items, status)
-        class(xref_backend_type), intent(inout) :: this
+    recursive subroutine cross_reference_backend_definitions(this, identifier, items, status)
+        class(cross_reference_backend_type), intent(inout) :: this
         character(len=*), intent(in) :: identifier
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
 
         allocate (items(0))
-        call report_no_xref_backend(status)
-    end subroutine xref_backend_definitions
+        call report_no_cross_reference_backend(status)
+    end subroutine cross_reference_backend_definitions
 
     !> The default references: the references of IDENTIFIER in the
     !> directories of the current project, through
-    !> `xref_references_in_directory'.  Port of
+    !> `cross_reference_references_in_directory'.  Port of
     !> xref.el:xref-backend-references (the default method; the project's
-    !> directories come from `xref_project_directories').
-    recursive subroutine xref_backend_references(this, identifier, items, status)
-        class(xref_backend_type), intent(inout) :: this
+    !> directories come from `cross_reference_project_directories').
+    recursive subroutine cross_reference_backend_references(this, identifier, items, status)
+        class(cross_reference_backend_type), intent(inout) :: this
         character(len=*), intent(in) :: identifier
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: directories(:)
-        type(xref_item_type), allocatable :: found(:)
+        type(cross_reference_item_type), allocatable :: found(:)
         integer :: k
 
         allocate (items(0))
         allocate (character(len=1) :: directories(0))
-        call xref_project_directories(directories, status)
+        call cross_reference_project_directories(directories, status)
         if (.not. status%ok()) return
 
         do k = 1, size(directories)
             call message("Searching "//trim(directories(k))//"...")
-            call xref_references_in_directory(identifier, trim(directories(k)), found, status)
+            call cross_reference_references_in_directory(identifier, trim(directories(k)), found, status)
             if (.not. status%ok()) return
-            call append_xref_items(items, found)
+            call append_cross_reference_items(items, found)
             call message("Searching "//trim(directories(k))//"... done")
         end do
-    end subroutine xref_backend_references
+    end subroutine cross_reference_backend_references
 
     !> The directories the default `references' searches: the current
     !> project's root and external roots, combined (the current project
     !> is asked for when there is none).  Port of the directories of
     !> xref.el:xref-backend-references (with xref--project-root).
-    recursive subroutine xref_project_directories(directories, status)
+    recursive subroutine cross_reference_project_directories(directories, status)
         character(len=:), allocatable, intent(out) :: directories(:)
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: project
@@ -990,25 +1011,25 @@ contains
         do k = 1, size(combined)
             directories(k) = combined(k)%text
         end do
-    end subroutine xref_project_directories
+    end subroutine cross_reference_project_directories
 
     !> The default apropos: no backend.  Port of
     !> xref.el:xref-backend-apropos (the default method).
-    recursive subroutine xref_backend_apropos(this, pattern, items, status)
-        class(xref_backend_type), intent(inout) :: this
+    recursive subroutine cross_reference_backend_apropos(this, pattern, items, status)
+        class(cross_reference_backend_type), intent(inout) :: this
         character(len=*), intent(in) :: pattern
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
 
         allocate (items(0))
-        call report_no_xref_backend(status)
-    end subroutine xref_backend_apropos
+        call report_no_cross_reference_backend(status)
+    end subroutine cross_reference_backend_apropos
 
     !> The default identifier at point: the identifier (word and identifier
     !> constituents) around point.  Port of
     !> xref.el:xref-backend-identifier-at-point (the default method).
-    recursive subroutine xref_backend_identifier_at_point(this, identifier, found)
-        class(xref_backend_type), intent(inout) :: this
+    recursive subroutine cross_reference_backend_identifier_at_point(this, identifier, found)
+        class(cross_reference_backend_type), intent(inout) :: this
         character(len=:), allocatable, intent(out) :: identifier
         logical, intent(out) :: found
         integer(int64) :: beginning, end
@@ -1017,49 +1038,49 @@ contains
         identifier = ""
         call bounds_of_identifier_at_point(beginning, end, found)
         if (found) call buffer_substring_no_properties(beginning, end, identifier, st)
-    end subroutine xref_backend_identifier_at_point
+    end subroutine cross_reference_backend_identifier_at_point
 
     !> The default completion table: none.  Port of
     !> xref.el:xref-backend-identifier-completion-table (the default
     !> method).
-    recursive subroutine xref_backend_identifier_completion_table(this, table, found)
-        class(xref_backend_type), intent(inout) :: this
+    recursive subroutine cross_reference_backend_identifier_completion_table(this, table, found)
+        class(cross_reference_backend_type), intent(inout) :: this
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
         type(value_type) :: none(0)
 
         table = completion_list_table(make_list(none))
         found = .false.
-    end subroutine xref_backend_identifier_completion_table
+    end subroutine cross_reference_backend_identifier_completion_table
 
     !> The default: `completion_ignore_case'.  Port of
     !> xref.el:xref-backend-identifier-completion-ignore-case (the default
     !> method).
-    logical function is_xref_backend_identifier_completion_case_ignored(this) result(ignore)
-        class(xref_backend_type), intent(inout) :: this
+    logical function is_cross_reference_backend_identifier_completion_case_ignored(this) result(ignore)
+        class(cross_reference_backend_type), intent(inout) :: this
 
         ignore = completion_ignore_case%value
-    end function is_xref_backend_identifier_completion_case_ignored
+    end function is_cross_reference_backend_identifier_completion_case_ignored
 
     !> The backend for the current context: the first one a function of
-    !> `xref_backend_functions' gives (BACKEND unallocated if none does).
+    !> `cross_reference_backend_functions' gives (BACKEND unallocated if none does).
     !> Port of xref.el:xref-find-backend.
-    recursive subroutine find_xref_backend(backend)
-        class(xref_backend_type), allocatable, intent(out) :: backend
+    recursive subroutine find_cross_reference_backend(backend)
+        class(cross_reference_backend_type), allocatable, intent(out) :: backend
         integer :: k, i
 
-        k = backend_local_index(xref_backend_functions)
+        k = backend_local_index(cross_reference_backend_functions)
 
         if (k == 0) then
-            call try_entries(xref_backend_functions%entries)
+            call try_entries(cross_reference_backend_functions%entries)
             return
         end if
 
-        do i = 1, size(xref_backend_functions%locals(k)%entries)
-            if (xref_backend_functions%locals(k)%entries(i)%is_default) then
-                call try_entries(xref_backend_functions%entries)
+        do i = 1, size(cross_reference_backend_functions%locals(k)%entries)
+            if (cross_reference_backend_functions%locals(k)%entries(i)%is_default) then
+                call try_entries(cross_reference_backend_functions%entries)
             else
-                call xref_backend_functions%locals(k)%entries(i)%fn(backend)
+                call cross_reference_backend_functions%locals(k)%entries(i)%fn(backend)
             end if
 
             if (allocated(backend)) return
@@ -1068,7 +1089,7 @@ contains
     contains
 
         recursive subroutine try_entries(entries)
-            type(xref_backend_entry_type), allocatable, intent(in) :: entries(:)
+            type(cross_reference_backend_entry_type), allocatable, intent(in) :: entries(:)
             integer :: j
 
             if (.not. allocated(entries)) return
@@ -1079,12 +1100,12 @@ contains
                 if (allocated(backend)) return
             end do
         end subroutine try_entries
-    end subroutine find_xref_backend
+    end subroutine find_cross_reference_backend
 
     ! The index of the current buffer's own functions in SELF (0 for
     ! none).  Not a port.
     integer function backend_local_index(self) result(k)
-        class(xref_backend_functions_type), intent(in) :: self
+        class(cross_reference_backend_functions_type), intent(in) :: self
 
         k = 0
         if (current == 0 .or. .not. allocated(self%locals)) return
@@ -1096,11 +1117,11 @@ contains
     ! (AT_END true, add-hook's append), as subr.el's add-hook sorts them.
     ! A function already there stays where it is.  Not a port.
     subroutine place_backend_function(entries, fn, depth, at_end)
-        type(xref_backend_entry_type), allocatable, intent(inout) :: entries(:)
-        procedure(xref_backend_function_procedure) :: fn
+        type(cross_reference_backend_entry_type), allocatable, intent(inout) :: entries(:)
+        procedure(cross_reference_backend_function_procedure) :: fn
         integer, intent(in) :: depth
         logical, intent(in) :: at_end
-        type(xref_backend_entry_type) :: entry
+        type(cross_reference_backend_entry_type) :: entry
         integer :: i, at
 
         if (.not. allocated(entries)) allocate (entries(0))
@@ -1139,9 +1160,9 @@ contains
     ! The current buffer's own functions, made (with the default functions,
     ! `t', in them) if it has none: their index K.  Not a port.
     subroutine make_backend_local(self, k)
-        class(xref_backend_functions_type), intent(inout) :: self
+        class(cross_reference_backend_functions_type), intent(inout) :: self
         integer, intent(out) :: k
-        type(xref_backend_local_type) :: local
+        type(cross_reference_backend_local_type) :: local
 
         k = backend_local_index(self)
         if (k /= 0) return
@@ -1153,13 +1174,13 @@ contains
         k = size(self%locals)
     end subroutine make_backend_local
 
-    !> Add FN to `xref_backend_functions' (subr.el's add-hook, at the
+    !> Add FN to `cross_reference_backend_functions' (subr.el's add-hook, at the
     !> front among the functions of its DEPTH, 0 by default), to the current
     !> buffer's own functions if LOCAL.  Port of subr.el:add-hook (for
     !> xref-backend-functions).
     subroutine prepend_backend_function(self, fn, depth, local)
-        class(xref_backend_functions_type), intent(inout) :: self
-        procedure(xref_backend_function_procedure) :: fn
+        class(cross_reference_backend_functions_type), intent(inout) :: self
+        procedure(cross_reference_backend_function_procedure) :: fn
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         integer :: d, k
@@ -1178,13 +1199,13 @@ contains
         call place_backend_function(self%entries, fn, d, .false.)
     end subroutine prepend_backend_function
 
-    !> Add FN to `xref_backend_functions' (add-hook with APPEND, at the end
+    !> Add FN to `cross_reference_backend_functions' (add-hook with APPEND, at the end
     !> among the functions of its DEPTH, 90 by default), to the current
     !> buffer's own functions if LOCAL.  Port of subr.el:add-hook (for
     !> xref-backend-functions, with APPEND).
     subroutine append_backend_function(self, fn, depth, local)
-        class(xref_backend_functions_type), intent(inout) :: self
-        procedure(xref_backend_function_procedure) :: fn
+        class(cross_reference_backend_functions_type), intent(inout) :: self
+        procedure(cross_reference_backend_function_procedure) :: fn
         integer, intent(in), optional :: depth
         logical, intent(in), optional :: local
         integer :: d, k
@@ -1203,12 +1224,12 @@ contains
         call place_backend_function(self%entries, fn, d, .true.)
     end subroutine append_backend_function
 
-    !> Remove FN from `xref_backend_functions', from the current buffer's
+    !> Remove FN from `cross_reference_backend_functions', from the current buffer's
     !> own functions if LOCAL.  Port of subr.el:remove-hook (for
     !> xref-backend-functions).
     subroutine remove_backend_function(self, fn, local)
-        class(xref_backend_functions_type), intent(inout) :: self
-        procedure(xref_backend_function_procedure) :: fn
+        class(cross_reference_backend_functions_type), intent(inout) :: self
+        procedure(cross_reference_backend_function_procedure) :: fn
         logical, intent(in), optional :: local
         integer :: k
 
@@ -1225,7 +1246,7 @@ contains
     contains
 
         subroutine drop(entries)
-            type(xref_backend_entry_type), allocatable, intent(inout) :: entries(:)
+            type(cross_reference_backend_entry_type), allocatable, intent(inout) :: entries(:)
             integer :: i
 
             if (.not. allocated(entries)) return
@@ -1244,7 +1265,7 @@ contains
     !> Forget the current buffer's own functions.  Port of
     !> data.c:Fkill_local_variable (for xref-backend-functions).
     subroutine clear_backend_functions_local(self)
-        class(xref_backend_functions_type), intent(inout) :: self
+        class(cross_reference_backend_functions_type), intent(inout) :: self
         integer :: k
 
         k = backend_local_index(self)
@@ -1254,20 +1275,20 @@ contains
     !> Whether the current buffer has its own functions.  Port of
     !> data.c:Flocal_variable_p (for xref-backend-functions).
     logical function is_backend_functions_local(self) result(local)
-        class(xref_backend_functions_type), intent(in) :: self
+        class(cross_reference_backend_functions_type), intent(in) :: self
 
         local = backend_local_index(self) /= 0
     end function is_backend_functions_local
 
-    ! Forget the current buffer's own `xref_backend_functions' and *xref*
+    ! Forget the current buffer's own `cross_reference_backend_functions' and *xref*
     ! state (clear_all_local_variables).  Not a port.
-    subroutine clear_xref_locals()
+    subroutine clear_cross_reference_locals()
         integer :: k
 
-        call xref_backend_functions%clear_local()
-        k = xref_buffer_index()
-        if (k /= 0) xref_buffers(k)%serial = 0
-    end subroutine clear_xref_locals
+        call cross_reference_backend_functions%clear_local()
+        k = cross_reference_buffer_index()
+        if (k /= 0) cross_reference_buffers(k)%serial = 0
+    end subroutine clear_cross_reference_locals
 
     ! ------------------------------------------------------------------
     ! The history
@@ -1340,50 +1361,52 @@ contains
     !> Add point M (defaults to a marker at point) to the marker stack.
     !> Erase the stack slots following this one.  Port of
     !> xref.el:xref-push-marker-stack.
-    subroutine push_xref_marker_stack(m)
+    subroutine push_cross_reference_marker_stack(m)
         type(handle_type), intent(in), optional :: m
         type(handle_type) :: pm
 
         if (present(m)) then
-            call push_marker(xref_history%backward, m)
+            call push_marker(cross_reference_history%backward, m)
         else
             call point_marker(pm)
-            call push_marker(xref_history%backward, pm)
+            call push_marker(cross_reference_history%backward, pm)
         end if
 
-        call clear_markers(xref_history%forward)
-    end subroutine push_xref_marker_stack
+        call clear_markers(cross_reference_history%forward)
+    end subroutine push_cross_reference_marker_stack
 
     !> Discard all markers from the xref history.  Port of
     !> xref.el:xref-clear-marker-stack.
-    subroutine clear_xref_marker_stack()
-        call clear_markers(xref_history%backward)
-        call clear_markers(xref_history%forward)
-    end subroutine clear_xref_marker_stack
+    subroutine clear_cross_reference_marker_stack()
+        call clear_markers(cross_reference_history%backward)
+        call clear_markers(cross_reference_history%forward)
+    end subroutine clear_cross_reference_marker_stack
 
     !> Whether the xref back-history is empty.  Port of
     !> xref.el:xref-marker-stack-empty-p.
-    logical function is_xref_marker_stack_empty()
-        is_xref_marker_stack_empty = .true.
-        if (allocated(xref_history%backward)) is_xref_marker_stack_empty = size(xref_history%backward) == 0
-    end function is_xref_marker_stack_empty
+    logical function is_cross_reference_marker_stack_empty()
+        is_cross_reference_marker_stack_empty = .true.
+        if (allocated(cross_reference_history%backward)) is_cross_reference_marker_stack_empty = size( &
+                                                                                              cross_reference_history%backward) == 0
+    end function is_cross_reference_marker_stack_empty
 
     !> Whether the xref forward-history is empty.  Port of
     !> xref.el:xref-forward-history-empty-p.
-    logical function is_xref_forward_history_empty()
-        is_xref_forward_history_empty = .true.
-        if (allocated(xref_history%forward)) is_xref_forward_history_empty = size(xref_history%forward) == 0
-    end function is_xref_forward_history_empty
+    logical function is_cross_reference_forward_history_empty()
+        is_cross_reference_forward_history_empty = .true.
+        if (allocated(cross_reference_history%forward)) is_cross_reference_forward_history_empty = size( &
+                                                                                               cross_reference_history%forward) == 0
+    end function is_cross_reference_forward_history_empty
 
     ! Display BUFFER in the selected window (pop-to-buffer with
     ! display-buffer-same-window).  Port of xref.el:xref--switch-to-buffer
     ! (the `xref-jump' category is not ported).
-    recursive subroutine switch_to_xref_buffer(buffer, status)
+    recursive subroutine switch_to_cross_reference_buffer(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
 
         call pop_to_buffer(buffer, status, actions=[DISPLAY_ACTION_SAME_WINDOW])
-    end subroutine switch_to_xref_buffer
+    end subroutine switch_to_cross_reference_buffer
 
     ! Go to the marker on top of FROM, pushing a marker at point onto TO;
     ! EMPTY is the error when FROM is empty.  Port of the body of
@@ -1415,7 +1438,7 @@ contains
             return
         end if
 
-        call switch_to_xref_buffer(buffer, status)
+        call switch_to_cross_reference_buffer(buffer, status)
 
         if (.not. status%ok()) then
             call destroy_marker(marker, st)
@@ -1425,31 +1448,32 @@ contains
         call marker_position(marker, position, st)
         call goto_character(position)
         call destroy_marker(marker, st)
-        call xref_after_return_hook%execute(status)
+        call cross_reference_after_return_hook%execute(status)
     end subroutine go_through_history
 
     !> Go back to the previous position in xref history.
-    !> To undo, use \[go_forward_in_xref_history].  Port of xref.el:xref-go-back.
-    recursive subroutine go_back_in_xref_history(status)
+    !> To undo, use \[go_forward_in_cross_reference_history].  Port of xref.el:xref-go-back.
+    recursive subroutine go_back_in_cross_reference_history(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(xref_history%forward)) allocate (xref_history%forward(0))
-        call go_through_history(xref_history%backward, xref_history%forward, "At start of xref history", status)
-    end subroutine go_back_in_xref_history
+        if (.not. allocated(cross_reference_history%forward)) allocate (cross_reference_history%forward(0))
+        call go_through_history(cross_reference_history%backward, cross_reference_history%forward, "At start of xref history", &
+                                status)
+    end subroutine go_back_in_cross_reference_history
 
-    !> Go to the point where a previous \[go_back_in_xref_history] was invoked.
+    !> Go to the point where a previous \[go_back_in_cross_reference_history] was invoked.
     !> Port of xref.el:xref-go-forward.
-    recursive subroutine go_forward_in_xref_history(status)
+    recursive subroutine go_forward_in_cross_reference_history(status)
         type(status_type), intent(out) :: status
 
-        if (.not. allocated(xref_history%backward)) allocate (xref_history%backward(0))
-        call go_through_history(xref_history%forward, xref_history%backward, "At end of xref history", status)
-    end subroutine go_forward_in_xref_history
+        if (.not. allocated(cross_reference_history%backward)) allocate (cross_reference_history%backward(0))
+        call go_through_history(cross_reference_history%forward, cross_reference_history%backward, "At end of xref history", status)
+    end subroutine go_forward_in_cross_reference_history
 
     ! Go to POSITION, widening when it is outside the accessible part of the
     ! buffer and `widen_automatically' is true.  Port of
     ! xref.el:xref--goto-char.
-    subroutine goto_xref_character(position, status)
+    subroutine goto_cross_reference_character(position, status)
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
 
@@ -1465,7 +1489,7 @@ contains
         end if
 
         call goto_character(position)
-    end subroutine goto_xref_character
+    end subroutine goto_cross_reference_character
 
     ! The buffer and position of MARKER.  Not a port.
     subroutine marker_place(marker, buffer, position)
@@ -1478,26 +1502,26 @@ contains
         call marker_position(marker, position, st)
     end subroutine marker_place
 
-    ! Run `xref_after_jump_hook' with ITEM as `xref_current_item'.
+    ! Run `cross_reference_after_jump_hook' with ITEM as `cross_reference_current_item'.
     ! Not a port.
     recursive subroutine execute_after_jump_hook(item, status)
-        type(xref_item_type), intent(in) :: item
+        type(cross_reference_item_type), intent(in) :: item
         type(status_type), intent(out) :: status
-        type(xref_item_type) :: saved
+        type(cross_reference_item_type) :: saved
 
-        saved = xref_current_item
-        xref_current_item = item
-        call xref_after_jump_hook%execute(status)
-        xref_current_item = saved
+        saved = cross_reference_current_item
+        cross_reference_current_item = item
+        call cross_reference_after_jump_hook%execute(status)
+        cross_reference_current_item = saved
     end subroutine execute_after_jump_hook
 
     !> Go to the location of ITEM and display the buffer.
     !> ACTION controls how the buffer is displayed:
-    !>   XREF_DISPLAY_ACTION_NONE   -- `switch_to_buffer'
-    !>   XREF_DISPLAY_ACTION_WINDOW -- `pop_to_buffer' (other window)
+    !>   CROSS_REFERENCE_DISPLAY_ACTION_NONE   -- `switch_to_buffer'
+    !>   CROSS_REFERENCE_DISPLAY_ACTION_WINDOW -- `pop_to_buffer' (other window)
     !> Port of xref.el:xref-pop-to-location (`frame' is not ported).
-    recursive subroutine pop_to_xref_location(item, action, status)
-        type(xref_item_type), intent(in) :: item
+    recursive subroutine pop_to_cross_reference_location(item, action, status)
+        type(cross_reference_item_type), intent(in) :: item
         integer, intent(in) :: action
         type(status_type), intent(out) :: status
         type(handle_type) :: marker, buffer
@@ -1509,19 +1533,19 @@ contains
         call marker_place(marker, buffer, position)
         call destroy_marker(marker, st)
 
-        if (action == XREF_DISPLAY_ACTION_WINDOW) then
+        if (action == CROSS_REFERENCE_DISPLAY_ACTION_WINDOW) then
             call switch_to_buffer_other_window(buffer, status)
         else
-            call switch_to_xref_buffer(buffer, status)
+            call switch_to_cross_reference_buffer(buffer, status)
         end if
 
         if (.not. status%ok()) return
-        call goto_xref_character(position, status)
+        call goto_cross_reference_character(position, status)
         if (.not. status%ok()) return
         call execute_after_jump_hook(item, status)
-    end subroutine pop_to_xref_location
+    end subroutine pop_to_cross_reference_location
 
-    ! `recenter' with no argument, as a function of `xref_after_jump_hook'.
+    ! `recenter' with no argument, as a function of `cross_reference_after_jump_hook'.
     ! Not a port.
     recursive subroutine recenter_adapter(status)
         type(status_type), intent(out) :: status
@@ -1535,46 +1559,46 @@ contains
 
     ! The index of the current buffer's *xref* state (0 for none).
     ! Not a port.
-    integer function xref_buffer_index() result(k)
+    integer function cross_reference_buffer_index() result(k)
         k = 0
-        if (current == 0 .or. .not. allocated(xref_buffers)) return
-        k = findloc(xref_buffers%serial, buffers(current)%serial, dim=1)
-    end function xref_buffer_index
+        if (current == 0 .or. .not. allocated(cross_reference_buffers)) return
+        k = findloc(cross_reference_buffers%serial, buffers(current)%serial, dim=1)
+    end function cross_reference_buffer_index
 
     ! The current buffer's *xref* state, made if it has none: its index K.
     ! Not a port.
-    subroutine make_xref_buffer_entry(k)
+    subroutine make_cross_reference_buffer_entry(k)
         integer, intent(out) :: k
-        type(xref_buffer_entry_type), allocatable :: grown(:)
+        type(cross_reference_buffer_entry_type), allocatable :: grown(:)
         integer :: n
 
-        k = xref_buffer_index()
+        k = cross_reference_buffer_index()
         if (k /= 0) return
-        if (.not. allocated(xref_buffers)) allocate (xref_buffers(0))
-        k = findloc(xref_buffers%serial, 0_int64, dim=1)
+        if (.not. allocated(cross_reference_buffers)) allocate (cross_reference_buffers(0))
+        k = findloc(cross_reference_buffers%serial, 0_int64, dim=1)
 
         if (k == 0) then
-            n = size(xref_buffers)
+            n = size(cross_reference_buffers)
             allocate (grown(n + 1))
-            grown(1:n) = xref_buffers
-            call move_alloc(grown, xref_buffers)
+            grown(1:n) = cross_reference_buffers
+            call move_alloc(grown, cross_reference_buffers)
             k = n + 1
         else
-            if (allocated(xref_buffers(k)%items)) deallocate (xref_buffers(k)%items)
-            if (allocated(xref_buffers(k)%fetcher)) deallocate (xref_buffers(k)%fetcher)
-            xref_buffers(k)%original_window = null_handle()
-            xref_buffers(k)%original_window_intent = XREF_DISPLAY_ACTION_NONE
-            xref_buffers(k)%found_match_count = 0
+            if (allocated(cross_reference_buffers(k)%items)) deallocate (cross_reference_buffers(k)%items)
+            if (allocated(cross_reference_buffers(k)%fetcher)) deallocate (cross_reference_buffers(k)%fetcher)
+            cross_reference_buffers(k)%original_window = null_handle()
+            cross_reference_buffers(k)%original_window_intent = CROSS_REFERENCE_DISPLAY_ACTION_NONE
+            cross_reference_buffers(k)%found_match_count = 0
         end if
 
-        xref_buffers(k)%serial = buffers(current)%serial
-    end subroutine make_xref_buffer_entry
+        cross_reference_buffers(k)%serial = buffers(current)%serial
+    end subroutine make_cross_reference_buffer_entry
 
     !> The items the *xref* buffer BUFFER shows, in order (none if it shows
     !> none).  Not a port.
-    subroutine xref_items_at(buffer, items)
+    subroutine cross_reference_items_at(buffer, items)
         type(handle_type), intent(in) :: buffer
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(handle_type) :: old
         type(status_type) :: st
         integer :: k
@@ -1583,10 +1607,10 @@ contains
         old = current_buffer()
         call set_buffer(buffer, st)
         if (.not. st%ok()) return
-        k = xref_buffer_index()
-        if (k /= 0 .and. allocated(xref_buffers(k)%items)) items = xref_buffers(k)%items
+        k = cross_reference_buffer_index()
+        if (k /= 0 .and. allocated(cross_reference_buffers(k)%items)) items = cross_reference_buffers(k)%items
         call set_buffer(old, st)
-    end subroutine xref_items_at
+    end subroutine cross_reference_items_at
 
     ! The value of PROPERTY at POSITION, as an integer (0 for none) and whether
     ! it has one.  Not a port.
@@ -1610,7 +1634,7 @@ contains
     !> INDEX is its value (an item's index) and FOUND whether there is
     !> one; if BACKWARD, search backward.  Point stays when there is none.
     !> Port of xref.el:xref--search-property.
-    subroutine search_xref_property(property, backward, index, found)
+    subroutine search_cross_reference_property(property, backward, index, found)
         character(len=*), intent(in) :: property
         logical, intent(in) :: backward
         integer, intent(out) :: index
@@ -1650,69 +1674,69 @@ contains
             if (vtag(v) /= vtag(probe)) return
             is_ellipsis = v%a(1)%s == probe%a(1)%s
         end function is_ellipsis
-    end subroutine search_xref_property
+    end subroutine search_cross_reference_property
 
     ! The index of the item at point (0 for none): at the end of a line,
     ! the one before point.  Port of xref.el:xref--item-at-point.
-    integer function xref_item_at_point() result(index)
+    integer function cross_reference_item_at_point() result(index)
         integer(int64) :: position
         logical :: found
 
         position = point()
         if (is_end_of_line() .and. position > point_minimum()) position = position - 1
-        call property_at(position, P_XREF_ITEM, index, found)
-        if (index /= 0 .and. xref_buffer_index() == 0) index = 0
-    end function xref_item_at_point
+        call property_at(position, P_CROSS_REFERENCE_ITEM, index, found)
+        if (index /= 0 .and. cross_reference_buffer_index() == 0) index = 0
+    end function cross_reference_item_at_point
 
     ! The item of index INDEX in the current *xref* buffer.  Not a port.
     function buffer_item(index) result(item)
         integer, intent(in) :: index
-        type(xref_item_type) :: item
+        type(cross_reference_item_type) :: item
         integer :: k
 
-        k = xref_buffer_index()
+        k = cross_reference_buffer_index()
         if (k == 0) return
-        if (.not. allocated(xref_buffers(k)%items)) return
-        if (index < 1 .or. index > size(xref_buffers(k)%items)) return
-        item = xref_buffers(k)%items(index)
+        if (.not. allocated(cross_reference_buffers(k)%items)) return
+        if (index < 1 .or. index > size(cross_reference_buffers(k)%items)) return
+        item = cross_reference_buffers(k)%items(index)
     end function buffer_item
 
     !> Go to POSITION of TARGET_BUFFER, displayed in a window, honoring the *xref*
-    !> buffer's original window intent; run `xref_after_jump_hook' and
+    !> buffer's original window intent; run `cross_reference_after_jump_hook' and
     !> give the WINDOW.  Port of xref.el:xref--show-pos-in-buf (the `frame'
     !> intent is not ported).
-    recursive subroutine show_xref_position_in_buffer(position, target_buffer, item, window, status)
+    recursive subroutine show_cross_reference_position_in_buffer(position, target_buffer, item, window, status)
         integer(int64), intent(in) :: position
         type(handle_type), intent(in) :: target_buffer
-        type(xref_item_type), intent(in) :: item
+        type(cross_reference_item_type), intent(in) :: item
         type(handle_type), intent(out) :: window
         type(status_type), intent(out) :: status
         type(display_action_parameters_type) :: table
-        type(handle_type) :: original, old_window, xref_window
+        type(handle_type) :: original, old_window, cross_reference_window
         type(status_type) :: st
         integer :: k, window_intent, dedication
         logical :: use_original
 
         window = null_handle()
-        k = xref_buffer_index()
+        k = cross_reference_buffer_index()
         original = null_handle()
-        window_intent = XREF_DISPLAY_ACTION_NONE
+        window_intent = CROSS_REFERENCE_DISPLAY_ACTION_NONE
 
         if (k /= 0) then
-            original = xref_buffers(k)%original_window
-            window_intent = xref_buffers(k)%original_window_intent
+            original = cross_reference_buffers(k)%original_window
+            window_intent = cross_reference_buffers(k)%original_window_intent
         end if
 
         old_window = selected_window()
 
-        if (window_intent == XREF_DISPLAY_ACTION_WINDOW .and. is_window_live(original)) then
+        if (window_intent == CROSS_REFERENCE_DISPLAY_ACTION_WINDOW .and. is_window_live(original)) then
             ! xref--display-buffer-in-other-window, in
             ! xref--with-dedicated-window.
-            xref_window = get_buffer_window(current_buffer())
+            cross_reference_window = get_buffer_window(current_buffer())
 
-            if (xref_window%index /= 0) then
-                dedication = window_dedication(xref_window, st)
-                call set_window_dedication(xref_window, DEDICATED_WEAK, st)
+            if (cross_reference_window%index /= 0) then
+                dedication = window_dedication(cross_reference_window, st)
+                call set_window_dedication(cross_reference_window, DEDICATED_WEAK, st)
             end if
 
             call select_window(original, status, norecord=.true.)
@@ -1723,7 +1747,7 @@ contains
             end if
 
             call select_window(old_window, st, norecord=.true.)
-            if (xref_window%index /= 0) call set_window_dedication(xref_window, dedication, st)
+            if (cross_reference_window%index /= 0) call set_window_dedication(cross_reference_window, dedication, st)
         else
             use_original = is_window_live(original)
 
@@ -1750,11 +1774,11 @@ contains
         ! with-selected-window.
         call select_window(window, status, norecord=.true.)
         if (.not. status%ok()) return
-        call goto_xref_character(position, status)
+        call goto_cross_reference_character(position, status)
         if (status%ok()) call execute_after_jump_hook(item, status)
         window = selected_window()
         call select_window(old_window, st, norecord=.true.)
-    end subroutine show_xref_position_in_buffer
+    end subroutine show_cross_reference_position_in_buffer
 
     ! Whether A and B are the same buffer.  Not a port.
     logical function is_same_buffer(a, b)
@@ -1767,11 +1791,11 @@ contains
     ! SELECT_YES or SELECT_QUIT (quitting the *xref* window first for
     ! SELECT_QUIT).  A `user_error' is shown as a message.  Port of
     ! xref.el:xref--show-location.
-    recursive subroutine show_xref_location(item, select, status)
-        type(xref_item_type), intent(in) :: item
+    recursive subroutine show_cross_reference_location(item, select, status)
+        type(cross_reference_item_type), intent(in) :: item
         integer, intent(in) :: select
         type(status_type), intent(out) :: status
-        type(handle_type) :: marker, target_buffer, xref_buffer, window, old_window
+        type(handle_type) :: marker, target_buffer, cross_reference_buffer, window, old_window
         type(status_type) :: st
         integer(int64) :: position
 
@@ -1789,19 +1813,19 @@ contains
 
         call marker_place(marker, target_buffer, position)
         call destroy_marker(marker, st)
-        xref_buffer = current_buffer()
+        cross_reference_buffer = current_buffer()
 
         if (select /= SELECT_NO) then
             if (select == SELECT_QUIT) call quit_window(.false., status)
             if (.not. status%ok()) return
-            call set_buffer(xref_buffer, st)
-            call show_xref_position_in_buffer(position, target_buffer, item, window, status)
+            call set_buffer(cross_reference_buffer, st)
+            call show_cross_reference_position_in_buffer(position, target_buffer, item, window, status)
             if (status%ok() .and. window%index /= 0) call select_window(window, status)
         else
             old_window = selected_window()
-            call show_xref_position_in_buffer(position, target_buffer, item, window, status)
+            call show_cross_reference_position_in_buffer(position, target_buffer, item, window, status)
             call select_window(old_window, st, norecord=.true.)
-            call set_buffer(xref_buffer, st)
+            call set_buffer(cross_reference_buffer, st)
         end if
 
         if (.not. status%ok()) then
@@ -1810,95 +1834,95 @@ contains
                 status = status_type()
             end if
         end if
-    end subroutine show_xref_location
+    end subroutine show_cross_reference_location
 
     !> Display the source of xref at point in the appropriate window, if
     !> any.  Port of xref.el:xref-show-location-at-point (the overlay arrow
     !> is not ported).
-    recursive subroutine show_xref_location_at_point(status)
+    recursive subroutine show_cross_reference_location_at_point(status)
         type(status_type), intent(out) :: status
         integer :: index
 
         status = status_type()
-        index = xref_item_at_point()
+        index = cross_reference_item_at_point()
         if (index == 0) return
-        call show_xref_location(buffer_item(index), SELECT_NO, status)
-    end subroutine show_xref_location_at_point
+        call show_cross_reference_location(buffer_item(index), SELECT_NO, status)
+    end subroutine show_cross_reference_location_at_point
 
     !> Move to the next xref but don't display its source.  Port of
     !> xref.el:xref-next-line-no-show.
-    recursive subroutine next_xref_line_no_show(status)
+    recursive subroutine next_cross_reference_line_no_show(status)
         type(status_type), intent(out) :: status
         integer :: index
         logical :: found
 
         status = status_type()
-        call search_xref_property(P_XREF_ITEM, .false., index, found)
-    end subroutine next_xref_line_no_show
+        call search_cross_reference_property(P_CROSS_REFERENCE_ITEM, .false., index, found)
+    end subroutine next_cross_reference_line_no_show
 
     !> Move to the next xref and display its source in the appropriate
     !> window.  Port of xref.el:xref-next-line.
-    recursive subroutine next_xref_line(status)
+    recursive subroutine next_cross_reference_line(status)
         type(status_type), intent(out) :: status
 
-        call next_xref_line_no_show(status)
-        call show_xref_location_at_point(status)
-    end subroutine next_xref_line
+        call next_cross_reference_line_no_show(status)
+        call show_cross_reference_location_at_point(status)
+    end subroutine next_cross_reference_line
 
     !> Move to the previous xref but don't display its source.  Port of
     !> xref.el:xref-prev-line-no-show.
-    recursive subroutine previous_xref_line_no_show(status)
+    recursive subroutine previous_cross_reference_line_no_show(status)
         type(status_type), intent(out) :: status
         integer :: index
         logical :: found
 
         status = status_type()
-        call search_xref_property(P_XREF_ITEM, .true., index, found)
-    end subroutine previous_xref_line_no_show
+        call search_cross_reference_property(P_CROSS_REFERENCE_ITEM, .true., index, found)
+    end subroutine previous_cross_reference_line_no_show
 
     !> Move to the previous xref and display its source in the appropriate
     !> window.  Port of xref.el:xref-prev-line.
-    recursive subroutine previous_xref_line(status)
+    recursive subroutine previous_cross_reference_line(status)
         type(status_type), intent(out) :: status
 
-        call previous_xref_line_no_show(status)
-        call show_xref_location_at_point(status)
-    end subroutine previous_xref_line
+        call previous_cross_reference_line_no_show(status)
+        call show_cross_reference_location_at_point(status)
+    end subroutine previous_cross_reference_line
 
     !> Move to the first item of the next xref group and display its
     !> source.  Port of xref.el:xref-next-group.
-    recursive subroutine next_xref_group(status)
+    recursive subroutine next_cross_reference_group(status)
         type(status_type), intent(out) :: status
         integer :: index
         logical :: found
 
-        call search_xref_property(P_XREF_GROUP, .false., index, found)
-        call search_xref_property(P_XREF_ITEM, .false., index, found)
-        call show_xref_location_at_point(status)
-    end subroutine next_xref_group
+        call search_cross_reference_property(P_CROSS_REFERENCE_GROUP, .false., index, found)
+        call search_cross_reference_property(P_CROSS_REFERENCE_ITEM, .false., index, found)
+        call show_cross_reference_location_at_point(status)
+    end subroutine next_cross_reference_group
 
     !> Move to the first item of the previous xref group and display its
     !> source.  Port of xref.el:xref-prev-group.
-    recursive subroutine previous_xref_group(status)
+    recursive subroutine previous_cross_reference_group(status)
         type(status_type), intent(out) :: status
         integer :: index
         logical :: found
 
         ! Search for the xref group of the current item, provided that the
         ! point is not already in an xref group.
-        call property_at(point(), P_XREF_GROUP, index, found)
-        if (.not. found) call search_xref_property(P_XREF_GROUP, .true., index, found)
+        call property_at(point(), P_CROSS_REFERENCE_GROUP, index, found)
+        if (.not. found) call search_cross_reference_property(P_CROSS_REFERENCE_GROUP, .true., index, found)
         ! Search for the previous xref group.
-        call search_xref_property(P_XREF_GROUP, .true., index, found)
-        call search_xref_property(P_XREF_ITEM, .false., index, found)
-        call show_xref_location_at_point(status)
-    end subroutine previous_xref_group
+        call search_cross_reference_property(P_CROSS_REFERENCE_GROUP, .true., index, found)
+        call search_cross_reference_property(P_CROSS_REFERENCE_ITEM, .false., index, found)
+        call show_cross_reference_location_at_point(status)
+    end subroutine previous_cross_reference_group
 
     !> Jump to the xref on the current line and select its window.
     !> If QUIT is true (interactively, with prefix argument), also
     !> quit the *xref* buffer.  Port of xref.el:xref-goto-xref (the overlay
     !> arrow is not ported).
-    recursive subroutine goto_xref(quit, status)
+    recursive subroutine goto_cross_reference(quit, status)
         logical, intent(in) :: quit
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer
@@ -1906,7 +1930,7 @@ contains
 
         status = status_type()
         buffer = current_buffer()
-        index = xref_item_at_point()
+        index = cross_reference_item_at_point()
 
         if (index == 0) then
             call set_error(status, USER_ERROR_CODE, "Choose a reference to visit")
@@ -1914,43 +1938,43 @@ contains
         end if
 
         if (quit) then
-            call show_xref_location(buffer_item(index), SELECT_QUIT, status)
+            call show_cross_reference_location(buffer_item(index), SELECT_QUIT, status)
         else
-            call show_xref_location(buffer_item(index), SELECT_YES, status)
+            call show_cross_reference_location(buffer_item(index), SELECT_YES, status)
         end if
 
         if (status%ok()) call next_error_found(status, buffer, current_buffer())
-    end subroutine goto_xref
+    end subroutine goto_cross_reference
 
-    ! The command: `goto_xref' with QUIT from the prefix argument.
+    ! The command: `goto_cross_reference' with QUIT from the prefix argument.
     ! Not a port.
-    recursive subroutine execute_goto_xref(status)
+    recursive subroutine execute_goto_cross_reference(status)
         type(status_type), intent(out) :: status
 
-        call goto_xref(current_prefix_argument%kind /= PREFIX_NONE, status)
-    end subroutine execute_goto_xref
+        call goto_cross_reference(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_goto_cross_reference
 
     !> Quit *xref* buffer, then jump to xref on current line.  Port of
     !> xref.el:xref-quit-and-goto-xref.
-    recursive subroutine quit_and_goto_xref(status)
+    recursive subroutine quit_and_goto_cross_reference(status)
         type(status_type), intent(out) :: status
 
-        call goto_xref(.true., status)
-    end subroutine quit_and_goto_xref
+        call goto_cross_reference(.true., status)
+    end subroutine quit_and_goto_cross_reference
 
     !> Quit *xref* buffer, then pop the xref marker stack.  Port of
     !> xref.el:xref-quit-and-pop-marker-stack.
-    recursive subroutine quit_and_pop_xref_marker_stack(status)
+    recursive subroutine quit_and_pop_cross_reference_marker_stack(status)
         type(status_type), intent(out) :: status
 
         call quit_window(.false., status)
-        if (status%ok()) call go_back_in_xref_history(status)
-    end subroutine quit_and_pop_xref_marker_stack
+        if (status%ok()) call go_back_in_cross_reference_history(status)
+    end subroutine quit_and_pop_cross_reference_marker_stack
 
     !> Move by N xrefs (back for a negative N) and show the location;
     !> RESET goes to the beginning first.  Port of
     !> xref.el:xref--next-error-function (the overlay arrow is not ported).
-    recursive subroutine xref_next_error_function(n, reset, status)
+    recursive subroutine cross_reference_next_error_function(n, reset, status)
         integer(int64), intent(in) :: n
         logical, intent(in) :: reset
         type(status_type), intent(out) :: status
@@ -1966,10 +1990,10 @@ contains
         index = 0
 
         if (n == 0) then
-            call property_at(point(), P_XREF_ITEM, index, found)
+            call property_at(point(), P_CROSS_REFERENCE_ITEM, index, found)
         else
             do i = 1, abs(n)
-                call search_xref_property(P_XREF_ITEM, backward, index, found)
+                call search_cross_reference_property(P_CROSS_REFERENCE_ITEM, backward, index, found)
             end do
         end if
 
@@ -1987,13 +2011,13 @@ contains
         ! reset to that window's point from time to time).
         window = get_buffer_window(current_buffer())
         if (window%index /= 0) call set_window_point(windows(window%index), point(), st)
-        call show_xref_location(buffer_item(index), SELECT_YES, status)
-    end subroutine xref_next_error_function
+        call show_cross_reference_location(buffer_item(index), SELECT_YES, status)
+    end subroutine cross_reference_next_error_function
 
-    !> Make the part of the line at point past `xref_truncation_width'
+    !> Make the part of the line at point past `cross_reference_truncation_width'
     !> columns invisible, around point.  Port of
     !> xref.el:xref--apply-truncation.
-    recursive subroutine apply_xref_truncation(status)
+    recursive subroutine apply_cross_reference_truncation(status)
         type(status_type), intent(out) :: status
         type(value_type) :: v
         type(status_type) :: st
@@ -2001,10 +2025,10 @@ contains
         logical :: ro, apply, shown_end_of_line, shown_beginning_of_line, hidden_point
 
         status = status_type()
-        if (xref_truncation_width == XREF_TRUNCATION_WIDTH_NONE) return
+        if (cross_reference_truncation_width == CROSS_REFERENCE_TRUNCATION_WIDTH_NONE) return
         beginning_of_line = line_beginning_position()
         end_of_line = line_end_position()
-        width = xref_truncation_width
+        width = cross_reference_truncation_width
         if (end_of_line - beginning_of_line <= width) return
         call get_text_property(end_of_line - 1, value_type(name=P_INVISIBLE), v, st)
         shown_end_of_line = .not. allocated(v%a)
@@ -2021,7 +2045,7 @@ contains
         call get_text_property(beginning_of_line, value_type(name=P_FACE), v, st)
         adjusted_beginning_of_line = beginning_of_line
 
-        if (is_name(v, FACE_XREF_LINE_NUMBER)) then
+        if (is_name(v, FACE_CROSS_REFERENCE_LINE_NUMBER)) then
             adjusted_beginning_of_line = next_single_character_property_change(beginning_of_line, value_type(name=P_FACE))
         end if
 
@@ -2057,7 +2081,7 @@ contains
 
             call remove_list_of_text_properties(b, e, list(value_type(name=P_INVISIBLE)), changed, s)
         end subroutine remove_invisible
-    end subroutine apply_xref_truncation
+    end subroutine apply_cross_reference_truncation
 
     ! Whether V is the name NAME.  Not a port.
     logical function is_name(v, name)
@@ -2071,21 +2095,21 @@ contains
         is_name = v%a(1)%s == probe%a(1)%s
     end function is_name
 
-    ! `apply_xref_truncation' as a function of `post_command_hook' in the
+    ! `apply_cross_reference_truncation' as a function of `post_command_hook' in the
     ! *xref* buffer.  Not a port.
     recursive subroutine apply_truncation_hook(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (xref_buffer_index() /= 0) call apply_xref_truncation(status)
+        if (cross_reference_buffer_index() /= 0) call apply_cross_reference_truncation(status)
     end subroutine apply_truncation_hook
 
     !> Insert GROUPS in the current buffer: a header line for each group,
     !> then a line for each of its items (several matches on one line are
     !> rendered together), with the items' index in the buffer's state as
-    !> their `xref_item' property.  Port of xref.el:xref--insert-xrefs.
-    recursive subroutine insert_xrefs(groups, status)
-        type(xref_group_type), intent(in) :: groups(:)
+    !> their `cross_reference_item' property.  Port of xref.el:xref--insert-xrefs.
+    recursive subroutine insert_cross_references(groups, status)
+        type(cross_reference_group_type), intent(in) :: groups(:)
         type(status_type), intent(out) :: status
         type(status_type) :: st
         character(len=:), allocatable :: previous_group, prefix
@@ -2095,10 +2119,10 @@ contains
         logical :: has_previous, changed
 
         status = status_type()
-        call make_xref_buffer_entry(k)
-        if (allocated(xref_buffers(k)%items)) deallocate (xref_buffers(k)%items)
-        allocate (xref_buffers(k)%items(0))
-        xref_buffers(k)%found_match_count = 0
+        call make_cross_reference_buffer_entry(k)
+        if (allocated(cross_reference_buffers(k)%items)) deallocate (cross_reference_buffers(k)%items)
+        allocate (cross_reference_buffers(k)%items(0))
+        cross_reference_buffers(k)%found_match_count = 0
         has_previous = .false.
         previous_line = 0
         previous_group = ""
@@ -2115,14 +2139,14 @@ contains
             start = point()
             call insert(groups(g)%name, status)
             if (.not. status%ok()) return
-            call put_text_property(start, point(), value_type(name=P_FACE), value_type(name=FACE_XREF_FILE_HEADER), st)
-            call put_text_property(start, point(), value_type(name=P_XREF_GROUP), value_type(.true.), st)
+            call put_text_property(start, point(), value_type(name=P_FACE), value_type(name=FACE_CROSS_REFERENCE_FILE_HEADER), st)
+            call put_text_property(start, point(), value_type(name=P_CROSS_REFERENCE_GROUP), value_type(.true.), st)
             call insert(LF, status)
 
             do i = 1, size(groups(g)%items)
-                call append_xref_item(xref_buffers(k)%items, groups(g)%items(i))
-                n = size(xref_buffers(k)%items)
-                xref_buffers(k)%found_match_count = xref_buffers(k)%found_match_count + 1
+                call append_cross_reference_item(cross_reference_buffers(k)%items, groups(g)%items(i))
+                n = size(cross_reference_buffers(k)%items)
+                cross_reference_buffers(k)%found_match_count = cross_reference_buffers(k)%found_match_count + 1
                 line = groups(g)%items(i)%location%line_number()
 
                 if (line == 0) then
@@ -2145,7 +2169,7 @@ contains
 
                 if (line /= 0 .and. len(prefix) > 0) then
                     call put_text_property(start, prefix_end - 1, value_type(name=P_FACE), &
-                                           value_type(name=FACE_XREF_LINE_NUMBER), st)
+                                           value_type(name=FACE_CROSS_REFERENCE_LINE_NUMBER), st)
                     call put_text_property(prefix_end - 1, prefix_end, value_type(name=P_FACE), &
                                            value_type(name=FACE_SHADOW), st)
                 end if
@@ -2153,18 +2177,18 @@ contains
                 call insert(groups(g)%items(i)%summary, status)
                 if (.not. status%ok()) return
 
-                if (groups(g)%items(i)%length /= XREF_MATCH_LENGTH_NONE) then
+                if (groups(g)%items(i)%length /= CROSS_REFERENCE_MATCH_LENGTH_NONE) then
                     mb = prefix_end + groups(g)%items(i)%match_beginning
 
                     if (groups(g)%items(i)%length > 0) then
                         call put_text_property(mb, min(mb + groups(g)%items(i)%length, point()), &
-                                               value_type(name=P_FACE), value_type(name=FACE_XREF_MATCH), st)
+                                               value_type(name=P_FACE), value_type(name=FACE_CROSS_REFERENCE_MATCH), st)
                     end if
                 end if
 
                 if (point() > start) then
                     call add_text_properties(start, point(), &
-                                             list(value_type(name=P_XREF_ITEM), value_type(int(n, int64)), &
+                                             list(value_type(name=P_CROSS_REFERENCE_ITEM), value_type(int(n, int64)), &
                                                   value_type(name=P_MOUSE_FACE), value_type(name=FACE_HIGHLIGHT), &
                                                   value_type(name=P_HELP_ECHO), &
                                                   value_type(text="mouse-2: display in another window, "// &
@@ -2184,31 +2208,31 @@ contains
         call goto_character(point_minimum())
 
         do while (forward_line(1_int64) == 0)
-            call apply_xref_truncation(st)
+            call apply_cross_reference_truncation(st)
         end do
 
         call goto_character(start)
-        call xref_after_update_hook%execute(status)
-    end subroutine insert_xrefs
+        call cross_reference_after_update_hook%execute(status)
+    end subroutine insert_cross_references
 
     !> GROUP formatted in the preferred style, given the PROJECT_ROOT ("" for
     !> none).  The style is determined by the value of
-    !> `xref_file_name_display'.  If GROUP looks like a file name, its value
+    !> `cross_reference_file_name_display'.  If GROUP looks like a file name, its value
     !> is formatted according to that style.  Otherwise it is returned
     !> unchanged.  Port of xref.el:xref--group-name-for-display.
-    function xref_group_name_for_display(group, project_root) result(name)
+    function cross_reference_group_name_for_display(group, project_root) result(name)
         character(len=*), intent(in) :: group, project_root
         character(len=:), allocatable :: name
         type(status_type) :: st
 
-        select case (xref_file_name_display)
-        case (XREF_FILE_NAME_DISPLAY_ABSOLUTE)
+        select case (cross_reference_file_name_display)
+        case (CROSS_REFERENCE_FILE_NAME_DISPLAY_ABSOLUTE)
             if (is_file_name_absolute(group)) then
                 name = group
             else
                 call expand_file_name(group, name, st)
             end if
-        case (XREF_FILE_NAME_DISPLAY_NONDIRECTORY)
+        case (CROSS_REFERENCE_FILE_NAME_DISPLAY_NONDIRECTORY)
             name = file_name_nondirectory(group)
         case default
             name = group
@@ -2217,17 +2241,17 @@ contains
                 name = group(len(project_root) + 1:)
             end if
         end select
-    end function xref_group_name_for_display
+    end function cross_reference_group_name_for_display
 
     !> Find common groups in ITEMS (by their location's group, in order)
     !> and format the group names, relative to the current project's root
-    !> with XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE.  Port of
+    !> with CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE.  Port of
     !> xref.el:xref--analyze.
-    recursive subroutine analyze_xrefs(items, groups, status)
-        type(xref_item_type), intent(in) :: items(:)
-        type(xref_group_type), allocatable, intent(out) :: groups(:)
+    recursive subroutine analyze_cross_references(items, groups, status)
+        type(cross_reference_item_type), intent(in) :: items(:)
+        type(cross_reference_group_type), allocatable, intent(out) :: groups(:)
         type(status_type), intent(out) :: status
-        type(xref_group_type), allocatable :: grown(:)
+        type(cross_reference_group_type), allocatable :: grown(:)
         character(len=:), allocatable :: key, root
         class(project_type), allocatable :: project
         integer :: i, i2, g, n
@@ -2236,7 +2260,7 @@ contains
         allocate (groups(0))
         root = ""
 
-        if (xref_file_name_display == XREF_FILE_NAME_DISPLAY_PROJECT_RELATIVE) then
+        if (cross_reference_file_name_display == CROSS_REFERENCE_FILE_NAME_DISPLAY_PROJECT_RELATIVE) then
             call get_current_project(project, status)
             if (.not. status%ok()) return
 
@@ -2256,28 +2280,28 @@ contains
             allocate (grown(size(groups) + 1))
             if (size(groups) > 0) grown(1:size(groups)) = groups
             g = size(grown)
-            grown(g)%name = xref_group_name_for_display(key, root)
+            grown(g)%name = cross_reference_group_name_for_display(key, root)
             allocate (grown(g)%items(0))
 
             do i2 = i, n
                 if (done(i2)) cycle
 
                 if (items(i2)%location%group() == key) then
-                    call append_xref_item(grown(g)%items, items(i2))
+                    call append_cross_reference_item(grown(g)%items, items(i2))
                     done(i2) = .true.
                 end if
             end do
 
             call move_alloc(grown, groups)
         end do
-    end subroutine analyze_xrefs
+    end subroutine analyze_cross_references
 
     ! Set up the current *xref* buffer from GROUPS for FETCHER and
     ! PARAMETERS.  Port of xref.el:xref--show-common-initialize.
-    recursive subroutine initialize_xref_buffer(groups, fetcher, parameters, status)
-        type(xref_group_type), intent(in) :: groups(:)
-        class(xref_fetcher_type), intent(in) :: fetcher
-        type(xref_show_parameters_type), intent(in) :: parameters
+    recursive subroutine initialize_cross_reference_buffer(groups, fetcher, parameters, status)
+        type(cross_reference_group_type), intent(in) :: groups(:)
+        class(cross_reference_fetcher_type), intent(in) :: fetcher
+        type(cross_reference_show_parameters_type), intent(in) :: parameters
         type(status_type), intent(out) :: status
         logical :: ro, undo
         integer :: k
@@ -2288,18 +2312,18 @@ contains
         buffers(current)%undo_enabled = .false.
         if (allocated(buffers(current)%undo_entries)) deallocate (buffers(current)%undo_entries)
         call erase_buffer(status)
-        if (status%ok()) call insert_xrefs(groups, status)
+        if (status%ok()) call insert_cross_references(groups, status)
         call post_command_hook%prepend(apply_truncation_hook, local=.true.)
         call goto_character(point_minimum())
-        call make_xref_buffer_entry(k)
-        xref_buffers(k)%original_window = parameters%window
-        xref_buffers(k)%original_window_intent = parameters%display_action
-        if (allocated(xref_buffers(k)%fetcher)) deallocate (xref_buffers(k)%fetcher)
-        allocate (xref_buffers(k)%fetcher, source=fetcher)
+        call make_cross_reference_buffer_entry(k)
+        cross_reference_buffers(k)%original_window = parameters%window
+        cross_reference_buffers(k)%original_window_intent = parameters%display_action
+        if (allocated(cross_reference_buffers(k)%fetcher)) deallocate (cross_reference_buffers(k)%fetcher)
+        allocate (cross_reference_buffers(k)%fetcher, source=fetcher)
         buffers(current)%read_only = ro
         buffers(current)%undo_enabled = undo
         call update_mode_line()
-    end subroutine initialize_xref_buffer
+    end subroutine initialize_cross_reference_buffer
 
     ! The mode line process of the current *xref* buffer: the number of
     ! matches.  Port of xref.el xref-mode-line-matches.
@@ -2308,13 +2332,13 @@ contains
         character(len=24) :: digits
         integer :: k
 
-        k = xref_buffer_index()
+        k = cross_reference_buffer_index()
         if (k == 0) return
-        write (digits, "(i0)") xref_buffers(k)%found_match_count
+        write (digits, "(i0)") cross_reference_buffers(k)%found_match_count
         parts(1)%text = " ["
         parts(1)%face = ""
         parts(2)%text = trim(digits)
-        parts(2)%face = xref_match_count_face
+        parts(2)%face = cross_reference_match_count_face
         parts(3)%text = "]"
         parts(3)%face = ""
         call set_mode_line_process(parts)
@@ -2323,24 +2347,24 @@ contains
     !> Show what FETCHER fetches (or the items PARAMETERS has already
     !> fetched) in the *xref* buffer, in Xref mode, and pop to it.  Port of
     !> xref.el:xref--show-xref-buffer.
-    recursive subroutine show_xref_buffer(fetcher, parameters, buffer, status)
-        class(xref_fetcher_type), intent(inout) :: fetcher
-        type(xref_show_parameters_type), intent(in) :: parameters
+    recursive subroutine show_cross_reference_buffer(fetcher, parameters, buffer, status)
+        class(cross_reference_fetcher_type), intent(inout) :: fetcher
+        type(cross_reference_show_parameters_type), intent(in) :: parameters
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
 
-        call show_xref_buffer_in_mode(fetcher, parameters, .false., buffer, status)
-    end subroutine show_xref_buffer
+        call show_cross_reference_buffer_in_mode(fetcher, parameters, .false., buffer, status)
+    end subroutine show_cross_reference_buffer
 
-    ! `show_xref_buffer' in Xref Transient mode if TRANSIENT.  Not a port.
-    recursive subroutine show_xref_buffer_in_mode(fetcher, parameters, transient, buffer, status)
-        class(xref_fetcher_type), intent(inout) :: fetcher
-        type(xref_show_parameters_type), intent(in) :: parameters
+    ! `show_cross_reference_buffer' in Xref Transient mode if TRANSIENT.  Not a port.
+    recursive subroutine show_cross_reference_buffer_in_mode(fetcher, parameters, transient, buffer, status)
+        class(cross_reference_fetcher_type), intent(inout) :: fetcher
+        type(cross_reference_show_parameters_type), intent(in) :: parameters
         logical, intent(in) :: transient
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        type(xref_item_type), allocatable :: items(:)
-        type(xref_group_type), allocatable :: groups(:)
+        type(cross_reference_item_type), allocatable :: items(:)
+        type(cross_reference_group_type), allocatable :: groups(:)
         character(len=:), allocatable :: dd
         type(status_type) :: st
 
@@ -2354,47 +2378,47 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call analyze_xrefs(items, groups, status)
+        call analyze_cross_references(items, groups, status)
         if (.not. status%ok()) return
         dd = ""
         if (allocated(buffers(current)%directory)) dd = buffers(current)%directory
-        call get_or_make_buffer(XREF_BUFFER_NAME, buffer, status)
+        call get_or_make_buffer(CROSS_REFERENCE_BUFFER_NAME, buffer, status)
         if (.not. status%ok()) return
         call set_buffer(buffer, st)
         if (len(dd) > 0) buffers(current)%directory = dd
 
         if (transient) then
-            call xref_transient_buffer_mode(status)
+            call cross_reference_transient_buffer_mode(status)
         else
-            call xref_xref_buffer_mode(status)
+            call cross_reference_cross_reference_buffer_mode(status)
         end if
 
         if (.not. status%ok()) return
-        call initialize_xref_buffer(groups, fetcher, parameters, status)
+        call initialize_cross_reference_buffer(groups, fetcher, parameters, status)
         if (.not. status%ok()) return
         call pop_to_buffer(buffer, status)
         if (.not. status%ok()) return
-        call jump_to_first_xref(buffer, parameters%auto_jump, status)
-    end subroutine show_xref_buffer_in_mode
+        call jump_to_first_cross_reference(buffer, parameters%auto_jump, status)
+    end subroutine show_cross_reference_buffer_in_mode
 
     !> Refresh the search results in the current buffer.  Port of
     !> xref.el:xref--revert-buffer.
-    recursive subroutine revert_xref_buffer(ignore_auto, noconfirm, status)
+    recursive subroutine revert_cross_reference_buffer(ignore_auto, noconfirm, status)
         logical, intent(in) :: ignore_auto, noconfirm
         type(status_type), intent(out) :: status
-        type(xref_item_type), allocatable :: items(:)
-        type(xref_group_type), allocatable :: groups(:)
-        class(xref_fetcher_type), allocatable :: fetcher
+        type(cross_reference_item_type), allocatable :: items(:)
+        type(cross_reference_group_type), allocatable :: groups(:)
+        class(cross_reference_fetcher_type), allocatable :: fetcher
         type(status_type) :: st
         integer(int64) :: original_point, start
         integer :: k
         logical :: ro, undo
 
         status = status_type()
-        k = xref_buffer_index()
+        k = cross_reference_buffer_index()
         if (k == 0) return
-        if (.not. allocated(xref_buffers(k)%fetcher)) return
-        allocate (fetcher, source=xref_buffers(k)%fetcher)
+        if (.not. allocated(cross_reference_buffers(k)%fetcher)) return
+        allocate (fetcher, source=cross_reference_buffers(k)%fetcher)
         original_point = point()
         ro = buffers(current)%read_only
         undo = buffers(current)%undo_enabled
@@ -2404,14 +2428,14 @@ contains
 
         if (status%ok()) then
             ! The fetcher keeps its state (a fixed list is fetched once).
-            k = xref_buffer_index()
-            deallocate (xref_buffers(k)%fetcher)
-            allocate (xref_buffers(k)%fetcher, source=fetcher)
-            call analyze_xrefs(items, groups, status)
+            k = cross_reference_buffer_index()
+            deallocate (cross_reference_buffers(k)%fetcher)
+            allocate (cross_reference_buffers(k)%fetcher, source=fetcher)
+            call analyze_cross_references(items, groups, status)
 
             if (status%ok()) then
                 call erase_buffer(st)
-                call insert_xrefs(groups, status)
+                call insert_cross_references(groups, status)
             end if
         else if (status%code == USER_ERROR_CODE) then
             call erase_buffer(st)
@@ -2425,11 +2449,11 @@ contains
         buffers(current)%read_only = ro
         buffers(current)%undo_enabled = undo
         call update_mode_line()
-    end subroutine revert_xref_buffer
+    end subroutine revert_cross_reference_buffer
 
     ! Go to the first result in TARGET_BUFFER according to VALUE (the
     ! state of an auto-jump setting).  Port of xref.el:xref--auto-jump-first.
-    recursive subroutine jump_to_first_xref(target_buffer, value, status)
+    recursive subroutine jump_to_first_cross_reference(target_buffer, value, status)
         type(handle_type), intent(in) :: target_buffer
         type(choice_type), intent(in) :: value
         type(status_type), intent(out) :: status
@@ -2446,42 +2470,42 @@ contains
         end if
 
         if (value%value) then
-            call next_xref_line_no_show(status)
-            if (status%ok()) call goto_xref(.false., status)
-        else if (value%choice == XREF_AUTO_JUMP_SHOW) then
-            call next_xref_line(status)
-        else if (value%choice == XREF_AUTO_JUMP_MOVE) then
+            call next_cross_reference_line_no_show(status)
+            if (status%ok()) call goto_cross_reference(.false., status)
+        else if (value%choice == CROSS_REFERENCE_AUTO_JUMP_SHOW) then
+            call next_cross_reference_line(status)
+        else if (value%choice == CROSS_REFERENCE_AUTO_JUMP_MOVE) then
             shortage = forward_line(1_int64)
         end if
-    end subroutine jump_to_first_xref
+    end subroutine jump_to_first_cross_reference
 
     !> Show the definitions list in a regular window.
     !>
     !> When only one definition found, jump to it right away instead.
     !> Port of xref.el:xref-show-definitions-buffer.
-    recursive subroutine show_xref_definitions_buffer(fetcher, parameters, buffer, status)
-        class(xref_fetcher_type), intent(inout) :: fetcher
-        type(xref_show_parameters_type), intent(in) :: parameters
+    recursive subroutine show_cross_reference_definitions_buffer(fetcher, parameters, buffer, status)
+        class(cross_reference_fetcher_type), intent(inout) :: fetcher
+        type(cross_reference_show_parameters_type), intent(in) :: parameters
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        type(xref_item_type), allocatable :: items(:)
-        type(xref_show_parameters_type) :: with_fetched
+        type(cross_reference_item_type), allocatable :: items(:)
+        type(cross_reference_show_parameters_type) :: with_fetched
 
         buffer = null_handle()
         call fetcher%fetch(items, status)
         if (.not. status%ok()) return
 
         if (size(items) <= 1) then
-            if (size(items) == 1) call pop_to_xref_location(items(1), parameters%display_action, status)
+            if (size(items) == 1) call pop_to_cross_reference_location(items(1), parameters%display_action, status)
             return
         end if
 
         with_fetched = parameters
         with_fetched%fetched = items
-        call show_xref_buffer(fetcher, with_fetched, buffer, status)
+        call show_cross_reference_buffer(fetcher, with_fetched, buffer, status)
         if (.not. status%ok()) return
-        call jump_to_first_xref(buffer, parameters%auto_jump, status)
-    end subroutine show_xref_definitions_buffer
+        call jump_to_first_cross_reference(buffer, parameters%auto_jump, status)
+    end subroutine show_cross_reference_definitions_buffer
 
     !> Let the user choose the target definition with completion.
     !>
@@ -2489,13 +2513,13 @@ contains
     !> between them by typing in the minibuffer with completion.  Port of
     !> xref.el:xref-show-definitions-completing-read (the group function
     !> of the completion table's metadata is not ported).
-    recursive subroutine show_xref_definitions_completing_read(fetcher, parameters, buffer, status)
-        class(xref_fetcher_type), intent(inout) :: fetcher
-        type(xref_show_parameters_type), intent(in) :: parameters
+    recursive subroutine show_cross_reference_definitions_completing_read(fetcher, parameters, buffer, status)
+        class(cross_reference_fetcher_type), intent(inout) :: fetcher
+        type(cross_reference_show_parameters_type), intent(in) :: parameters
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        type(xref_item_type), allocatable :: items(:), ordered(:)
-        type(xref_group_type), allocatable :: groups(:)
+        type(cross_reference_item_type), allocatable :: items(:), ordered(:)
+        type(cross_reference_group_type), allocatable :: groups(:)
         type(value_type), allocatable :: candidates(:)
         character(len=:), allocatable :: answer, prefix, group, line_text
         character(len=24) :: digits
@@ -2507,7 +2531,7 @@ contains
         buffer = null_handle()
         call fetcher%fetch(items, status)
         if (.not. status%ok()) return
-        call analyze_xrefs(items, groups, status)
+        call analyze_cross_references(items, groups, status)
         if (.not. status%ok()) return
         allocate (ordered(0), texts(0))
         ! FIXME: Groups are not always file names, but they often are.
@@ -2529,7 +2553,7 @@ contains
 
                 text%text = group//":"//line_text//groups(g)%items(i)%summary
                 texts = [texts, text]
-                call append_xref_item(ordered, groups(g)%items(i))
+                call append_cross_reference_item(ordered, groups(g)%items(i))
             end do
         end do
 
@@ -2560,13 +2584,13 @@ contains
             if (chosen == 0) return
         end if
 
-        call pop_to_xref_location(ordered(chosen), parameters%display_action, status)
+        call pop_to_cross_reference_location(ordered(chosen), parameters%display_action, status)
 
     contains
 
         ! (try-completion "" xref-alist): the common prefix of the names.
         function common_prefix(gs) result(p)
-            type(xref_group_type), intent(in) :: gs(:)
+            type(cross_reference_group_type), intent(in) :: gs(:)
             character(len=:), allocatable :: p
             integer :: j, m
 
@@ -2585,42 +2609,42 @@ contains
                 p = p(1:m)
             end do
         end function common_prefix
-    end subroutine show_xref_definitions_completing_read
+    end subroutine show_cross_reference_definitions_completing_read
 
     !> Major mode for displaying cross-references.  Port of
     !> xref.el:xref--xref-buffer-mode (Imenu, `add_log_current_subprogram_function',
     !> Outline minor mode and the restoring of point after a revert are
     !> not ported).
-    recursive subroutine xref_xref_buffer_mode(status)
+    recursive subroutine cross_reference_cross_reference_buffer_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        call major_modes%xref_xref_buffer_mode%begin(saved, status)
+        call major_modes%cross_reference_cross_reference_buffer_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call xref_buffer_mode_body()
-        call major_modes%xref_xref_buffer_mode%end(saved, status)
-    end subroutine xref_xref_buffer_mode
+        call cross_reference_buffer_mode_body()
+        call major_modes%cross_reference_cross_reference_buffer_mode%end(saved, status)
+    end subroutine cross_reference_cross_reference_buffer_mode
 
-    ! The body of `xref_xref_buffer_mode'.  Port of the body of
+    ! The body of `cross_reference_cross_reference_buffer_mode'.  Port of the body of
     ! xref.el:xref--xref-buffer-mode.
-    subroutine xref_buffer_mode_body()
+    subroutine cross_reference_buffer_mode_body()
         buffers(current)%read_only = .true.
-        call set_next_error_function(xref_next_error_function)
+        call set_next_error_function(cross_reference_next_error_function)
         next_error_last_buffer = current_buffer()
-        call revert_buffer_function%set_local(revert_xref_buffer)
-    end subroutine xref_buffer_mode_body
+        call revert_buffer_function%set_local(revert_cross_reference_buffer)
+    end subroutine cross_reference_buffer_mode_body
 
-    !> Major mode derived from `xref_xref_buffer_mode' by
-    !> `define_derived_mode', with RET bound to `quit_and_goto_xref'.  Port of
+    !> Major mode derived from `cross_reference_cross_reference_buffer_mode' by
+    !> `define_derived_mode', with RET bound to `quit_and_goto_cross_reference'.  Port of
     !> xref.el:xref--transient-buffer-mode.
-    recursive subroutine xref_transient_buffer_mode(status)
+    recursive subroutine cross_reference_transient_buffer_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        call major_modes%xref_transient_buffer_mode%begin(saved, status)
+        call major_modes%cross_reference_transient_buffer_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call major_modes%xref_transient_buffer_mode%end(saved, status)
-    end subroutine xref_transient_buffer_mode
+        call major_modes%cross_reference_transient_buffer_mode%end(saved, status)
+    end subroutine cross_reference_transient_buffer_mode
 
     ! ------------------------------------------------------------------
     ! Xref-Edit mode
@@ -2645,7 +2669,7 @@ contains
 
     !> Mark relevant regions read-only, and add relevant occur
     !> text-properties.  Port of xref.el:xref-edit--prepare-buffer.
-    recursive subroutine prepare_xref_edit_buffer(status)
+    recursive subroutine prepare_cross_reference_edit_buffer(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
         integer(int64) :: position, b, e, original_point, line_number_end
@@ -2658,7 +2682,7 @@ contains
         position = point_minimum()
 
         do
-            call next_region(P_XREF_GROUP, position, b, e, found)
+            call next_region(P_CROSS_REFERENCE_GROUP, position, b, e, found)
             if (.not. found) exit
             call add_text_properties(b, e, list(value_type(name=P_READ_ONLY), value_type(.true.), &
                                                 value_type(name=P_FRONT_STICKY), value_type(.true.)), changed, st)
@@ -2668,7 +2692,7 @@ contains
         position = point_minimum()
 
         do
-            call next_region(P_XREF_ITEM, position, b, e, found)
+            call next_region(P_CROSS_REFERENCE_ITEM, position, b, e, found)
             if (.not. found) exit
             call goto_character(b)
             call goto_character(line_beginning_position())
@@ -2690,72 +2714,72 @@ contains
 
         buffers(current)%read_only = ro
         call goto_character(original_point)
-    end subroutine prepare_xref_edit_buffer
+    end subroutine prepare_cross_reference_edit_buffer
 
     !> Major mode for editing *xref* buffers.
     !> In this mode, changes to the *xref* buffer are applied to the
     !> originating files.
-    !> \<xref_edit_mode_map>
-    !> Type \[save_xref_edit_changes] to exit Xref-Edit mode, return to Xref
+    !> \<cross_reference_edit_mode_map>
+    !> Type \[save_cross_reference_edit_changes] to exit Xref-Edit mode, return to Xref
     !> mode.
     !>
     !> The only editable texts in an Xref-Edit buffer are the match results.
     !> Port of xref.el:xref-edit-mode.
-    recursive subroutine xref_edit_mode(status)
+    recursive subroutine cross_reference_edit_mode(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call set_error(status, GENERIC_ERROR_CODE, "This mode can be enabled only by `change_to_xref_edit_mode'")
-    end subroutine xref_edit_mode
+        call set_error(status, GENERIC_ERROR_CODE, "This mode can be enabled only by `change_to_cross_reference_edit_mode'")
+    end subroutine cross_reference_edit_mode
 
-    !> Switch to `xref_edit_mode' to edit *xref* buffer.  Port of
+    !> Switch to `cross_reference_edit_mode' to edit *xref* buffer.  Port of
     !> xref.el:xref-change-to-xref-edit-mode.
-    recursive subroutine change_to_xref_edit_mode(status)
+    recursive subroutine change_to_cross_reference_edit_mode(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
 
-        if (.not. is_derived_mode(major_modes%xref_xref_buffer_mode)) then
+        if (.not. is_derived_mode(major_modes%cross_reference_cross_reference_buffer_mode)) then
             call set_error(status, GENERIC_ERROR_CODE, "Not an Xref buffer")
             return
         end if
 
-        call use_local_map(xref_edit_mode_map, status)
+        call use_local_map(cross_reference_edit_mode_map, status)
         if (.not. status%ok()) return
-        call prepare_xref_edit_buffer(status)
+        call prepare_cross_reference_edit_buffer(status)
         if (.not. status%ok()) return
         buffers(current)%read_only = .false.
-        buffers(current)%major_mode = "xref_edit_mode"
+        buffers(current)%major_mode = "cross_reference_edit_mode"
         buffers(current)%mode_name = "Xref-Edit"
         ! buffer-enable-undo.
         buffers(current)%undo_enabled = .true.
         call restore_buffer_modified(.false.)
         if (allocated(buffers(current)%undo_entries)) deallocate (buffers(current)%undo_entries)
-        call before_change_functions%prepend(xref_edit_before_change_function, local=.true.)
+        call before_change_functions%prepend(cross_reference_edit_before_change_function, local=.true.)
         call after_change_functions%prepend(occur_after_change_function, local=.true.)
-        call execute_mode_hooks(status, xref_edit_mode_hook)
+        call execute_mode_hooks(status, cross_reference_edit_mode_hook)
         if (.not. status%ok()) return
-        call message(substitute_command_keys("Editing: Type \[save_xref_edit_changes] to return to Xref mode"))
-    end subroutine change_to_xref_edit_mode
+        call message(substitute_command_keys("Editing: Type \[save_cross_reference_edit_changes] to return to Xref mode"))
+    end subroutine change_to_cross_reference_edit_mode
 
     !> Switch back to Xref mode.  Port of xref.el:xref-edit-save-changes.
-    recursive subroutine save_xref_edit_changes(status)
+    recursive subroutine save_cross_reference_edit_changes(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
         logical :: changed
 
         status = status_type()
 
-        if (.not. is_derived_mode("xref_edit_mode")) then
+        if (.not. is_derived_mode("cross_reference_edit_mode")) then
             call set_error(status, GENERIC_ERROR_CODE, "Not a Xref-Edit buffer")
             return
         end if
 
-        call before_change_functions%remove(xref_edit_before_change_function, local=.true.)
+        call before_change_functions%remove(cross_reference_edit_before_change_function, local=.true.)
         call after_change_functions%remove(occur_after_change_function, local=.true.)
-        call use_local_map(xref_xref_buffer_mode_map, status)
+        call use_local_map(cross_reference_cross_reference_buffer_mode_map, status)
         buffers(current)%read_only = .true.
-        buffers(current)%major_mode = "xref_xref_buffer_mode"
+        buffers(current)%major_mode = "cross_reference_cross_reference_buffer_mode"
         buffers(current)%mode_name = "Xref"
         ! buffer-disable-undo.
         buffers(current)%undo_enabled = .false.
@@ -2766,11 +2790,11 @@ contains
                                             changed, st)
         buffers(current)%read_only = .true.
         call message("Switching to Xref mode")
-    end subroutine save_xref_edit_changes
+    end subroutine save_cross_reference_edit_changes
 
     !> Before a change of a match line, give it its `occur_target': the
     !> location of its item.  Port of xref.el:xref-edit--before-change-function.
-    recursive subroutine xref_edit_before_change_function(beginning, end, status)
+    recursive subroutine cross_reference_edit_before_change_function(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         type(handle_type) :: m(1), e(1), old
@@ -2787,12 +2811,12 @@ contains
         if (allocated(v%a)) return
         call get_text_property(beginning_of_line, value_type(name=P_OCCUR_PREFIX), v, st)
         if (.not. allocated(v%a)) return
-        call property_at(beginning_of_line, P_XREF_ITEM, index, found)
+        call property_at(beginning_of_line, P_CROSS_REFERENCE_ITEM, index, found)
         if (index == 0) return
         old = current_buffer()
 
         block
-            type(xref_item_type) :: item
+            type(cross_reference_item_type) :: item
             type(handle_type) :: marker, buffer
             item = buffer_item(index)
             if (.not. allocated(item%location)) return
@@ -2814,7 +2838,7 @@ contains
         call put_text_property(beginning_of_line, end_of_line, value_type(name=P_OCCUR_TARGET), value_type(int(target, int64)), st)
         buffers(current)%read_only = ro
         buffers(current)%undo_enabled = undo
-    end subroutine xref_edit_before_change_function
+    end subroutine cross_reference_edit_before_change_function
 
     ! ------------------------------------------------------------------
     ! Showing and finding
@@ -2822,14 +2846,14 @@ contains
 
     !> Display the xref items produced by FETCHER using DISPLAY_ACTION.
     !> The meanings of both arguments are the same as documented in
-    !> `xref_show_xrefs_function'.  BUFFER is the buffer showing them.
+    !> `cross_reference_show_cross_references_function'.  BUFFER is the buffer showing them.
     !> Port of xref.el:xref-show-xrefs.
-    recursive subroutine show_xrefs(fetcher, display_action, buffer, status)
-        class(xref_fetcher_type), intent(inout) :: fetcher
+    recursive subroutine show_cross_references(fetcher, display_action, buffer, status)
+        class(cross_reference_fetcher_type), intent(inout) :: fetcher
         integer, intent(in) :: display_action
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        type(xref_show_parameters_type) :: parameters
+        type(cross_reference_show_parameters_type) :: parameters
         type(handle_type) :: cb
         integer(int64) :: point_value
 
@@ -2837,20 +2861,20 @@ contains
         point_value = point()
         parameters%window = selected_window()
         parameters%display_action = display_action
-        parameters%auto_jump = choice_state(xref_auto_jump_to_first_xref)
-        call xref_show_xrefs_function(fetcher, parameters, buffer, status)
+        parameters%auto_jump = choice_state(cross_reference_auto_jump_to_first_cross_reference)
+        call cross_reference_show_cross_references_function(fetcher, parameters, buffer, status)
         if (.not. status%ok()) return
-        call push_xref_markers(cb, point_value, parameters%window)
-    end subroutine show_xrefs
+        call push_cross_reference_markers(cb, point_value, parameters%window)
+    end subroutine show_cross_references
 
     ! Show ITEMS (a fetcher of definitions) with
-    ! `xref_show_definitions_function'.  Port of xref.el:xref--show-defs.
-    recursive subroutine show_xref_definitions(fetcher, display_action, buffer, status)
-        class(xref_fetcher_type), intent(inout) :: fetcher
+    ! `cross_reference_show_definitions_function'.  Port of xref.el:xref--show-defs.
+    recursive subroutine show_cross_reference_definitions(fetcher, display_action, buffer, status)
+        class(cross_reference_fetcher_type), intent(inout) :: fetcher
         integer, intent(in) :: display_action
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        type(xref_show_parameters_type) :: parameters
+        type(cross_reference_show_parameters_type) :: parameters
         type(handle_type) :: cb
         integer(int64) :: point_value
 
@@ -2858,16 +2882,16 @@ contains
         point_value = point()
         parameters%window = selected_window()
         parameters%display_action = display_action
-        parameters%auto_jump = choice_state(xref_auto_jump_to_first_definition)
-        call xref_show_definitions_function(fetcher, parameters, buffer, status)
+        parameters%auto_jump = choice_state(cross_reference_auto_jump_to_first_definition)
+        call cross_reference_show_definitions_function(fetcher, parameters, buffer, status)
         if (.not. status%ok()) return
-        call push_xref_markers(cb, point_value, parameters%window)
-    end subroutine show_xref_definitions
+        call push_cross_reference_markers(cb, point_value, parameters%window)
+    end subroutine show_cross_reference_definitions
 
     ! Push the mark (unless the region is active) and a marker at POINT of TARGET_BUFFER
     ! onto the marker stack, with WINDOW selected.  Port of
     ! xref.el:xref--push-markers.
-    recursive subroutine push_xref_markers(target_buffer, point_value, window)
+    recursive subroutine push_cross_reference_markers(target_buffer, point_value, window)
         type(handle_type), intent(in) :: target_buffer, window
         integer(int64), intent(in) :: point_value
         type(handle_type) :: old_window, old_buffer
@@ -2882,37 +2906,38 @@ contains
         original_point = point()
         call goto_character(point_value)
         if (.not. is_region_active()) call push_mark(nomsg=.true.)
-        call push_xref_marker_stack()
+        call push_cross_reference_marker_stack()
         call goto_character(original_point)
         call select_window(old_window, st, norecord=.true.)
         call set_buffer(old_buffer, st)
-    end subroutine push_xref_markers
+    end subroutine push_cross_reference_markers
 
     ! Whether COMMAND prompts for the identifier
-    ! (`xref_prompt_for_identifier').  Port of xref.el:xref--prompt-p.
-    logical function is_xref_prompt(command)
+    ! (`cross_reference_prompt_for_identifier').  Port of xref.el:xref--prompt-p.
+    logical function is_cross_reference_prompt(command)
         character(len=*), intent(in) :: command
         logical :: listed
 
         listed = .false.
-        if (allocated(xref_prompt_for_identifier%commands)) listed = any(xref_prompt_for_identifier%commands == command)
+        if (allocated(cross_reference_prompt_for_identifier%commands)) listed = any(cross_reference_prompt_for_identifier%commands &
+                                                                                    == command)
 
-        if (xref_prompt_for_identifier%choice == XREF_PROMPT_FOR_IDENTIFIER_LISTED) then
-            is_xref_prompt = listed
-        else if (xref_prompt_for_identifier%choice == XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED) then
-            is_xref_prompt = .not. listed
+        if (cross_reference_prompt_for_identifier%choice == CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED) then
+            is_cross_reference_prompt = listed
+        else if (cross_reference_prompt_for_identifier%choice == CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED) then
+            is_cross_reference_prompt = .not. listed
         else
-            is_xref_prompt = xref_prompt_for_identifier%value
+            is_cross_reference_prompt = cross_reference_prompt_for_identifier%value
         end if
-    end function is_xref_prompt
+    end function is_cross_reference_prompt
 
     !> The identifier at point, or read from the minibuffer with PROMPT.
     !> Port of xref.el:xref--read-identifier.
-    recursive subroutine read_xref_identifier(prompt, identifier, status)
+    recursive subroutine read_cross_reference_identifier(prompt, identifier, status)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: identifier
         type(status_type), intent(out) :: status
-        class(xref_backend_type), allocatable :: backend
+        class(cross_reference_backend_type), allocatable :: backend
         type(completion_table_type) :: table
         character(len=:), allocatable :: def, command, stem
         logical :: has_def, has_table, saved_ignore, prompting
@@ -2920,13 +2945,13 @@ contains
 
         status = status_type()
         identifier = ""
-        call find_xref_backend(backend)
+        call find_cross_reference_backend(backend)
         if (.not. allocated(backend)) allocate (backend)
         call backend%identifier_at_point(def, has_def)
         command = ""
         if (associated(this_command)) command = trim(this_command%name)
         prompting = current_prefix_argument%kind /= PREFIX_NONE .or. .not. has_def
-        if (.not. prompting) prompting = is_xref_prompt(command)
+        if (.not. prompting) prompting = is_cross_reference_prompt(command)
 
         if (.not. prompting) then
             identifier = def
@@ -2942,10 +2967,10 @@ contains
 
         if (has_def) then
             call completing_read(format_prompt(stem, def), table, identifier, status, &
-                                 history="xref_read_identifier_history", default=def)
+                                 history="cross_reference_read_identifier_history", default=def)
         else
             call completing_read(format_prompt(stem, ""), table, identifier, status, &
-                                 history="xref_read_identifier_history")
+                                 history="cross_reference_read_identifier_history")
         end if
 
         completion_ignore_case = saved_ignore
@@ -2958,30 +2983,30 @@ contains
                 call set_error(status, USER_ERROR_CODE, "There is no default identifier")
             end if
         end if
-    end subroutine read_xref_identifier
+    end subroutine read_cross_reference_identifier
 
     ! A fetcher of the backend's KIND for ARGUMENT, at point of the current
     ! buffer.  Port of xref.el:xref--create-fetcher.
-    recursive subroutine make_xref_fetcher(input, kind, argument, fetcher)
+    recursive subroutine make_cross_reference_fetcher(input, kind, argument, fetcher)
         character(len=*), intent(in) :: input, argument
         integer, intent(in) :: kind
-        type(xref_backend_fetcher_type), intent(out) :: fetcher
+        type(cross_reference_backend_fetcher_type), intent(out) :: fetcher
 
         fetcher%buffer = current_buffer()
         fetcher%position = point()
-        call find_xref_backend(fetcher%backend)
+        call find_cross_reference_backend(fetcher%backend)
         if (.not. allocated(fetcher%backend)) allocate (fetcher%backend)
         fetcher%kind = kind
         fetcher%argument = argument
         fetcher%input = input
-    end subroutine make_xref_fetcher
+    end subroutine make_cross_reference_fetcher
 
     !> Revisit the saved position and call the backend's method.  Port of
     !> xref.el:xref--create-fetcher (the function it returns) and
     !> xref--not-found-error.
     recursive subroutine fetch_from_backend(this, items, status)
-        class(xref_backend_fetcher_type), intent(inout) :: this
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        class(cross_reference_backend_fetcher_type), intent(inout) :: this
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
@@ -3021,8 +3046,8 @@ contains
     !> The items, the first time; after that, "Refresh is not supported".
     !> Port of xref.el:xref--show-xrefs (its function for a list of xrefs).
     recursive subroutine fetch_fixed_items(this, items, status)
-        class(xref_items_fetcher_type), intent(inout) :: this
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        class(cross_reference_items_fetcher_type), intent(inout) :: this
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
 
         status = status_type()
@@ -3044,29 +3069,29 @@ contains
 
     ! Find the xrefs of KIND for ARGUMENT and show them.  Port of
     ! xref.el:xref--find-xrefs.
-    recursive subroutine find_xrefs(input, kind, argument, display_action, buffer, status)
+    recursive subroutine find_cross_references(input, kind, argument, display_action, buffer, status)
         character(len=*), intent(in) :: input, argument
         integer, intent(in) :: kind, display_action
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        type(xref_backend_fetcher_type) :: fetcher
+        type(cross_reference_backend_fetcher_type) :: fetcher
 
-        call make_xref_fetcher(input, kind, argument, fetcher)
-        call show_xrefs(fetcher, display_action, buffer, status)
-    end subroutine find_xrefs
+        call make_cross_reference_fetcher(input, kind, argument, fetcher)
+        call show_cross_references(fetcher, display_action, buffer, status)
+    end subroutine find_cross_references
 
     ! Find the definitions of ID and show them.  Port of
     ! xref.el:xref--find-definitions.
-    recursive subroutine find_xref_definitions_internal(id, display_action, buffer, status)
+    recursive subroutine find_cross_reference_definitions_internal(id, display_action, buffer, status)
         character(len=*), intent(in) :: id
         integer, intent(in) :: display_action
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
-        type(xref_backend_fetcher_type) :: fetcher
+        type(cross_reference_backend_fetcher_type) :: fetcher
 
-        call make_xref_fetcher(id, KIND_DEFINITIONS, id, fetcher)
-        call show_xref_definitions(fetcher, display_action, buffer, status)
-    end subroutine find_xref_definitions_internal
+        call make_cross_reference_fetcher(id, KIND_DEFINITIONS, id, fetcher)
+        call show_cross_reference_definitions(fetcher, display_action, buffer, status)
+    end subroutine find_cross_reference_definitions_internal
 
     !> Find the definition of the identifier at point.
     !> With prefix argument or when there's no identifier at point,
@@ -3077,119 +3102,119 @@ contains
     !> Otherwise, display the list of the possible definitions in a
     !> buffer where the user can select from the list.
     !>
-    !> Use \[go_back_in_xref_history] to return back to where you invoked this command.
+    !> Use \[go_back_in_cross_reference_history] to return back to where you invoked this command.
     !> BUFFER is the buffer listing the definitions (the null handle when
     !> there is none).  Port of xref.el:xref-find-definitions.
-    recursive subroutine find_xref_definitions(identifier, buffer, status)
+    recursive subroutine find_cross_reference_definitions(identifier, buffer, status)
         character(len=*), intent(in) :: identifier
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
 
-        call find_xref_definitions_internal(identifier, XREF_DISPLAY_ACTION_NONE, buffer, status)
-    end subroutine find_xref_definitions
+        call find_cross_reference_definitions_internal(identifier, CROSS_REFERENCE_DISPLAY_ACTION_NONE, buffer, status)
+    end subroutine find_cross_reference_definitions
 
-    ! The command: read the identifier, then `find_xref_definitions'.
+    ! The command: read the identifier, then `find_cross_reference_definitions'.
     ! Not a port.
-    recursive subroutine execute_find_xref_definitions(status)
+    recursive subroutine execute_find_cross_reference_definitions(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: identifier
         type(handle_type) :: buffer
 
-        call read_xref_identifier("Find definitions of: ", identifier, status)
-        if (status%ok()) call find_xref_definitions(identifier, buffer, status)
-    end subroutine execute_find_xref_definitions
+        call read_cross_reference_identifier("Find definitions of: ", identifier, status)
+        if (status%ok()) call find_cross_reference_definitions(identifier, buffer, status)
+    end subroutine execute_find_cross_reference_definitions
 
-    !> Like `find_xref_definitions' but switch to the other window.
+    !> Like `find_cross_reference_definitions' but switch to the other window.
     !> If this command needs to split the current window, it by default
     !> obeys the user options `split_height_threshold' and
     !> `split_width_threshold', when it decides whether to split the window
     !> horizontally or vertically.  Port of
     !> xref.el:xref-find-definitions-other-window.
-    recursive subroutine find_xref_definitions_other_window(identifier, buffer, status)
+    recursive subroutine find_cross_reference_definitions_other_window(identifier, buffer, status)
         character(len=*), intent(in) :: identifier
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
 
-        call find_xref_definitions_internal(identifier, XREF_DISPLAY_ACTION_WINDOW, buffer, status)
-    end subroutine find_xref_definitions_other_window
+        call find_cross_reference_definitions_internal(identifier, CROSS_REFERENCE_DISPLAY_ACTION_WINDOW, buffer, status)
+    end subroutine find_cross_reference_definitions_other_window
 
     ! The command: read the identifier, then
-    ! `find_xref_definitions_other_window'.  Not a port.
-    recursive subroutine execute_find_xref_definitions_other_window(status)
+    ! `find_cross_reference_definitions_other_window'.  Not a port.
+    recursive subroutine execute_find_cross_reference_definitions_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: identifier
         type(handle_type) :: buffer
 
-        call read_xref_identifier("Find definitions of: ", identifier, status)
-        if (status%ok()) call find_xref_definitions_other_window(identifier, buffer, status)
-    end subroutine execute_find_xref_definitions_other_window
+        call read_cross_reference_identifier("Find definitions of: ", identifier, status)
+        if (status%ok()) call find_cross_reference_definitions_other_window(identifier, buffer, status)
+    end subroutine execute_find_cross_reference_definitions_other_window
 
     !> Find references to the identifier at point.
     !> This command might prompt for the identifier as needed, perhaps
     !> offering the identifier at point as the default.
-    !> With prefix argument, or if `xref_prompt_for_identifier' is
+    !> With prefix argument, or if `cross_reference_prompt_for_identifier' is
     !> .true., always prompt for the identifier.  If
-    !> `xref_prompt_for_identifier' is .false., prompt
+    !> `cross_reference_prompt_for_identifier' is .false., prompt
     !> only if there's no usable identifier at point.  Port of
     !> xref.el:xref-find-references.
-    recursive subroutine find_xref_references(identifier, buffer, status)
+    recursive subroutine find_cross_reference_references(identifier, buffer, status)
         character(len=*), intent(in) :: identifier
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
 
-        call find_xrefs(identifier, KIND_REFERENCES, identifier, XREF_DISPLAY_ACTION_NONE, buffer, status)
-    end subroutine find_xref_references
+        call find_cross_references(identifier, KIND_REFERENCES, identifier, CROSS_REFERENCE_DISPLAY_ACTION_NONE, buffer, status)
+    end subroutine find_cross_reference_references
 
-    ! The command: read the identifier, then `find_xref_references'.
+    ! The command: read the identifier, then `find_cross_reference_references'.
     ! Not a port.
-    recursive subroutine execute_find_xref_references(status)
+    recursive subroutine execute_find_cross_reference_references(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: identifier
         type(handle_type) :: buffer
 
-        call read_xref_identifier("Find references of: ", identifier, status)
-        if (status%ok()) call find_xref_references(identifier, buffer, status)
-    end subroutine execute_find_xref_references
+        call read_cross_reference_identifier("Find references of: ", identifier, status)
+        if (status%ok()) call find_cross_reference_references(identifier, buffer, status)
+    end subroutine execute_find_cross_reference_references
 
     !> Find all meaningful identifiers that match PATTERN.
     !> The argument has the same meaning as in `apropos'.  Port of
     !> xref.el:xref-find-apropos.
-    recursive subroutine find_xref_apropos(pattern, buffer, status)
+    recursive subroutine find_cross_reference_apropos(pattern, buffer, status)
         character(len=*), intent(in) :: pattern
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
 
         ! Delegate pattern handling to the backend fully.
-        call find_xrefs(pattern, KIND_APROPOS, pattern, XREF_DISPLAY_ACTION_NONE, buffer, status)
-    end subroutine find_xref_apropos
+        call find_cross_references(pattern, KIND_APROPOS, pattern, CROSS_REFERENCE_DISPLAY_ACTION_NONE, buffer, status)
+    end subroutine find_cross_reference_apropos
 
-    ! The command: read the pattern, then `find_xref_apropos'.  Not a port.
-    recursive subroutine execute_find_xref_apropos(status)
+    ! The command: read the pattern, then `find_cross_reference_apropos'.  Not a port.
+    recursive subroutine execute_find_cross_reference_apropos(status)
         type(status_type), intent(out) :: status
-        class(xref_backend_type), allocatable :: backend
+        class(cross_reference_backend_type), allocatable :: backend
         character(len=:), allocatable :: pattern, def
         type(handle_type) :: buffer
         logical :: has_def
 
-        call find_xref_backend(backend)
+        call find_cross_reference_backend(backend)
         if (.not. allocated(backend)) allocate (backend)
         call backend%identifier_at_point(def, has_def)
 
         if (has_def) then
             call read_string("Search for pattern (word list or regexp): ", pattern, status, &
-                             history="xref_read_pattern_history", default=def)
+                             history="cross_reference_read_pattern_history", default=def)
         else
             call read_string("Search for pattern (word list or regexp): ", pattern, status, &
-                             history="xref_read_pattern_history")
+                             history="cross_reference_read_pattern_history")
         end if
 
-        if (status%ok()) call find_xref_apropos(pattern, buffer, status)
-    end subroutine execute_find_xref_apropos
+        if (status%ok()) call find_cross_reference_apropos(pattern, buffer, status)
+    end subroutine execute_find_cross_reference_apropos
 
     !> An Emacs regexp from PATTERN similar to `apropos': a pattern without
     !> regexp special characters is a list of words.  Port of
     !> xref.el:xref-apropos-regexp.
-    subroutine xref_apropos_regular_expression(pattern, regular_expression, status)
+    subroutine cross_reference_apropos_regular_expression(pattern, regular_expression, status)
         character(len=*), intent(in) :: pattern
         character(len=:), allocatable, intent(out) :: regular_expression
         type(status_type), intent(out) :: status
@@ -3234,14 +3259,14 @@ contains
         end if
 
         regular_expression = apropos_regular_expression
-    end subroutine xref_apropos_regular_expression
+    end subroutine cross_reference_apropos_regular_expression
 
     !> Minor mode to make xref use etags again.
     !>
     !> Certain major modes install their own mechanisms for listing
     !> identifiers and navigation.  Turn this on to undo those settings
     !> and just use etags.  Port of xref.el:xref-etags-mode (the body).
-    recursive subroutine xref_etags_mode_body(enable, status)
+    recursive subroutine cross_reference_fortmacs_tags_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
         integer :: k
@@ -3249,45 +3274,46 @@ contains
         status = status_type()
 
         if (enable) then
-            k = backend_local_index(xref_backend_functions)
-            xref_etags_mode_saved_local = k /= 0
+            k = backend_local_index(cross_reference_backend_functions)
+            cross_reference_fortmacs_tags_mode_saved_local = k /= 0
 
             if (k /= 0) then
-                xref_etags_mode_saved = xref_backend_functions%locals(k)%entries
+                cross_reference_fortmacs_tags_mode_saved = cross_reference_backend_functions%locals(k)%entries
             else
-                xref_etags_mode_saved = xref_backend_functions%entries
+                cross_reference_fortmacs_tags_mode_saved = cross_reference_backend_functions%entries
             end if
 
-            call xref_backend_functions%clear_local()
+            call cross_reference_backend_functions%clear_local()
         else
-            call make_backend_local(xref_backend_functions, k)
-            if (allocated(xref_etags_mode_saved)) xref_backend_functions%locals(k)%entries = xref_etags_mode_saved
+            call make_backend_local(cross_reference_backend_functions, k)
+            if (allocated(cross_reference_fortmacs_tags_mode_saved)) cross_reference_backend_functions%locals(k)%entries = &
+                cross_reference_fortmacs_tags_mode_saved
         end if
-    end subroutine xref_etags_mode_body
+    end subroutine cross_reference_fortmacs_tags_mode_body
 
     !> Toggle Xref-Etags mode.  Port of xref.el:xref-etags-mode (the
     !> command).
-    recursive subroutine xref_etags_mode(status)
+    recursive subroutine cross_reference_fortmacs_tags_mode(status)
         type(status_type), intent(out) :: status
 
-        call minor_modes%xref_etags_mode%command(status)
-    end subroutine xref_etags_mode
+        call minor_modes%cross_reference_fortmacs_tags_mode%command(status)
+    end subroutine cross_reference_fortmacs_tags_mode
 
     ! ------------------------------------------------------------------
     ! Searching files
     ! ------------------------------------------------------------------
 
     !> Find all references to IDENTIFIER in directory DIRECTORY.
-    !> See `xref_references_in_directory_function' for the implementation.
+    !> See `cross_reference_references_in_directory_function' for the implementation.
     !> Gives an array of xref items.  Port of
     !> xref.el:xref-references-in-directory.
-    recursive subroutine xref_references_in_directory(identifier, directory, items, status)
+    recursive subroutine cross_reference_references_in_directory(identifier, directory, items, status)
         character(len=*), intent(in) :: identifier, directory
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
 
-        call xref_references_in_directory_function(identifier, file_name_as_directory(directory), items, status)
-    end subroutine xref_references_in_directory
+        call cross_reference_references_in_directory_function(identifier, file_name_as_directory(directory), items, status)
+    end subroutine cross_reference_references_in_directory
 
     !> Find all references to IDENTIFIER in directory DIRECTORY using find and grep.
     !> Gives an array of xref items.  Port of
@@ -3295,9 +3321,9 @@ contains
     !> of ignore patterns (as `ignores' gives them), or the default ignores
     !> if there is no project.  Port of
     !> xref.el:xref-references-in-directory-grep.
-    recursive subroutine xref_references_in_directory_grep(identifier, directory, items, status)
+    recursive subroutine cross_reference_references_in_directory_grep(identifier, directory, items, status)
         character(len=*), intent(in) :: identifier, directory
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         class(project_type), allocatable :: project
         type(string_type), allocatable :: patterns(:)
@@ -3325,9 +3351,9 @@ contains
             ignores(k) = patterns(k)%text
         end do
 
-        call xref_matches_in_directory(regular_expression_quote(identifier), "*", directory, ignores, items, status, &
-                                       delimited=.true.)
-    end subroutine xref_references_in_directory_grep
+        call cross_reference_matches_in_directory(regular_expression_quote(identifier), "*", directory, ignores, items, status, &
+                                                  delimited=.true.)
+    end subroutine cross_reference_references_in_directory_grep
 
     !> Find all matches for REGULAR_EXPRESSION in directory DIRECTORY.
     !> Gives an array of xref items.
@@ -3336,13 +3362,14 @@ contains
     !> IGNORES is an array of glob patterns for files to ignore.
     !> If DELIMITED is true (upstream's `symbol'), only select matches that
     !> span full identifiers.  Port of xref.el:xref-matches-in-directory.
-    recursive subroutine xref_matches_in_directory(regular_expression, files, directory, ignores, items, status, delimited)
+    recursive subroutine cross_reference_matches_in_directory(regular_expression, files, directory, ignores, items, status, &
+                                                              delimited)
         character(len=*), intent(in) :: regular_expression, files, directory
         character(len=*), intent(in) :: ignores(:)
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: delimited
-        type(xref_hit_type), allocatable :: hits(:)
+        type(cross_reference_hit_type), allocatable :: hits(:)
         type(handle_type) :: target_buffer, old
         type(value_type) :: result
         type(status_type) :: st
@@ -3360,7 +3387,8 @@ contains
         if (at > 0) template = template(1:at + 2)//" -E"//template(at + 3:)
         saved_highlight = choice_state(grep_highlight_matches)
         grep_highlight_matches = .false.
-        command = xref_rgrep_command(template, xref_regular_expression_to_extended(regular_expression), files, ".", ignores)
+        command = cross_reference_rgrep_command(template, cross_reference_regular_expression_to_extended(regular_expression), &
+                                                files, ".", ignores)
         grep_highlight_matches = saved_highlight
         call expand_file_name(directory, expanded, st)
         local_directory = directory_file_name(expanded)
@@ -3378,30 +3406,30 @@ contains
                              arguments=list(value_type(text=shell_command_switch%value), value_type(text=command)))
 
         if (status%ok()) then
-            call parse_xref_hits(grep_regular_expressions(1)%regular_expression, grep_regular_expressions(1)%line, &
-                                 grep_regular_expressions(1)%file, result, hits, &
-                                 status, local_directory)
+            call parse_cross_reference_hits(grep_regular_expressions(1)%regular_expression, grep_regular_expressions(1)%line, &
+                                            grep_regular_expressions(1)%file, result, hits, &
+                                            status, local_directory)
         end if
 
         call set_buffer(old, st)
         if (.not. status%ok()) return
-        call sort_xref_hits(hits)
-        call convert_xref_hits(hits, hits_regular_expression, items, status)
-    end subroutine xref_matches_in_directory
+        call sort_cross_reference_hits(hits)
+        call convert_cross_reference_hits(hits, hits_regular_expression, items, status)
+    end subroutine cross_reference_matches_in_directory
 
     !> Find all matches for REGULAR_EXPRESSION in FILES.
     !> Gives an array of xref items.
     !> FILES must be an array of absolute file names.
     !>
-    !> See `xref_search_program' and `xref_search_programs' for how
+    !> See `cross_reference_search_program' and `cross_reference_search_programs' for how
     !> to control which program to use when looking for matches.  Port of
     !> xref.el:xref-matches-in-files (remote files are not ported).
-    recursive subroutine xref_matches_in_files(regular_expression, files, items, status)
+    recursive subroutine cross_reference_matches_in_files(regular_expression, files, items, status)
         character(len=*), intent(in) :: regular_expression
         character(len=*), intent(in) :: files(:)
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
-        type(xref_hit_type), allocatable :: hits(:)
+        type(cross_reference_hit_type), allocatable :: hits(:)
         type(handle_type) :: output, temporary, old
         type(value_type) :: result
         type(status_type) :: st
@@ -3427,12 +3455,12 @@ contains
 
         k = 0
 
-        if (allocated(xref_search_programs)) then
-            k = findloc(xref_search_programs%program, xref_search_program, dim=1)
+        if (allocated(cross_reference_search_programs)) then
+            k = findloc(cross_reference_search_programs%program, cross_reference_search_program, dim=1)
         end if
 
         if (k == 0) then
-            call set_error(status, USER_ERROR_CODE, "Unknown search program `"//program_name(xref_search_program)//"'")
+            call set_error(status, USER_ERROR_CODE, "Unknown search program `"//program_name(cross_reference_search_program)//"'")
             return
         end if
 
@@ -3440,8 +3468,8 @@ contains
         ! the options we pass in that case.
         saved_highlight = choice_state(grep_highlight_matches)
         grep_highlight_matches = .false.
-        template = trim(xref_search_programs(k)%template)
-        command = grep_expand_template(template, xref_regular_expression_to_extended(regular_expression))
+        template = trim(cross_reference_search_programs(k)%template)
+        command = grep_expand_template(template, cross_reference_regular_expression_to_extended(regular_expression))
         grep_highlight_matches = saved_highlight
         joined = ""
 
@@ -3464,15 +3492,15 @@ contains
                                         arguments=list(value_type(text=shell_command_switch%value), value_type(text=command)))
             call close_buffer(temporary, st)
             call set_buffer(output, st)
-            if (status%ok()) call parse_xref_hits(grep_regular_expressions(1)%regular_expression, &
-                                                  grep_regular_expressions(1)%line, grep_regular_expressions(1)%file, &
-                                                  result, hits, status)
+            if (status%ok()) call parse_cross_reference_hits(grep_regular_expressions(1)%regular_expression, &
+                                                             grep_regular_expressions(1)%line, grep_regular_expressions(1)%file, &
+                                                             result, hits, status)
         end if
 
         call set_buffer(old, st)
         if (.not. status%ok()) return
-        call sort_xref_hits(hits)
-        call convert_xref_hits(hits, regular_expression, items, status)
+        call sort_cross_reference_hits(hits)
+        call convert_cross_reference_hits(hits, regular_expression, items, status)
 
     contains
 
@@ -3482,31 +3510,32 @@ contains
             character(len=24) :: digits
 
             select case (p)
-            case (XREF_SEARCH_PROGRAM_GREP)
-                name = "XREF_SEARCH_PROGRAM_GREP"
-            case (XREF_SEARCH_PROGRAM_RIPGREP)
-                name = "XREF_SEARCH_PROGRAM_RIPGREP"
-            case (XREF_SEARCH_PROGRAM_UGREP)
-                name = "XREF_SEARCH_PROGRAM_UGREP"
+            case (CROSS_REFERENCE_SEARCH_PROGRAM_GREP)
+                name = "CROSS_REFERENCE_SEARCH_PROGRAM_GREP"
+            case (CROSS_REFERENCE_SEARCH_PROGRAM_RIPGREP)
+                name = "CROSS_REFERENCE_SEARCH_PROGRAM_RIPGREP"
+            case (CROSS_REFERENCE_SEARCH_PROGRAM_UGREP)
+                name = "CROSS_REFERENCE_SEARCH_PROGRAM_UGREP"
             case default
                 write (digits, "(i0)") p
                 name = trim(digits)
             end select
         end function program_name
-    end subroutine xref_matches_in_files
+    end subroutine cross_reference_matches_in_files
 
     ! The hits of the search output in the current buffer: GREP_REGULAR_EXPRESSION with
     ! the line and file in groups LINE_GROUP and FILE_GROUP; RESULT is the
     ! exit status.  A file name starting with "." is relative to
     ! PARENT_DIRECTORY when given.  Port of xref.el:xref--parse-hits.
-    recursive subroutine parse_xref_hits(grep_regular_expression, line_group, file_group, result, hits, status, parent_directory)
+    recursive subroutine parse_cross_reference_hits(grep_regular_expression, line_group, file_group, result, hits, status, &
+                                                    parent_directory)
         character(len=*), intent(in) :: grep_regular_expression
         integer, intent(in) :: line_group, file_group
         type(value_type), intent(in) :: result
-        type(xref_hit_type), allocatable, intent(out) :: hits(:)
+        type(cross_reference_hit_type), allocatable, intent(out) :: hits(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: parent_directory
-        type(xref_hit_type) :: hit
+        type(cross_reference_hit_type) :: hit
         type(status_type) :: st
         character(len=:), allocatable :: first_line, file, digits
         character(len=24) :: code
@@ -3566,13 +3595,13 @@ contains
             e = match_end(group, s)
             call buffer_substring_no_properties(b, e, text, s)
         end function substring_of_match
-    end subroutine parse_xref_hits
+    end subroutine parse_cross_reference_hits
 
     ! Sort HITS by file name, keeping the order of the hits of one file (a
     ! stable sort, as upstream's `sort').  Port of xref.el:xref--sort-hits.
-    subroutine sort_xref_hits(hits)
-        type(xref_hit_type), intent(inout) :: hits(:)
-        type(xref_hit_type) :: h
+    subroutine sort_cross_reference_hits(hits)
+        type(cross_reference_hit_type), intent(inout) :: hits(:)
+        type(cross_reference_hit_type) :: h
         integer :: i, j
 
         do i = 2, size(hits)
@@ -3587,13 +3616,13 @@ contains
 
             hits(j + 1) = h
         end do
-    end subroutine sort_xref_hits
+    end subroutine sort_cross_reference_hits
 
-    !> The command of `xref_matches_in_directory': GREP_FIND_TEMPLATE
+    !> The command of `cross_reference_matches_in_directory': GREP_FIND_TEMPLATE
     !> expanded for REGULAR_EXPRESSION in the FILES (glob patterns separated by spaces)
     !> of directory DIRECTORY, without IGNORES.  Port of
     !> xref.el:xref--rgrep-command.
-    function xref_rgrep_command(grep_find_template, regular_expression, files, directory, ignores) result(command)
+    function cross_reference_rgrep_command(grep_find_template, regular_expression, files, directory, ignores) result(command)
         character(len=*), intent(in) :: grep_find_template, regular_expression, files, directory
         character(len=*), intent(in) :: ignores(:)
         character(len=:), allocatable :: command, names
@@ -3626,14 +3655,14 @@ contains
         command = grep_expand_template(grep_find_template, regular_expression, &
                                        shell_quote_argument("(")//" "//find_name_argument//" "//names//" "// &
                                        shell_quote_argument(")"), &
-                                       shell_quote_argument(directory), xref_find_ignores_arguments(ignores, directory))
-    end function xref_rgrep_command
+                                       shell_quote_argument(directory), cross_reference_find_ignores_arguments(ignores, directory))
+    end function cross_reference_rgrep_command
 
     !> Convert IGNORES and DIRECTORY to a string of arguments for `find'.
     !> IGNORES is an array of glob patterns.  DIRECTORY is an absolute
     !> directory, used as the root of the ignore globs.  Port of
     !> xref.el:xref--find-ignores-arguments.
-    function xref_find_ignores_arguments(ignores, directory) result(arguments)
+    function cross_reference_find_ignores_arguments(ignores, directory) result(arguments)
         character(len=*), intent(in) :: ignores(:), directory
         character(len=:), allocatable :: arguments, ignore, root
         integer :: i
@@ -3661,13 +3690,13 @@ contains
         end do
 
         arguments = arguments//" "//shell_quote_argument(")")//" -prune -o "
-    end function xref_find_ignores_arguments
+    end function cross_reference_find_ignores_arguments
 
     !> REGULAR_EXPRESSION, an Emacs regexp, in the extended syntax of grep -E: the
     !> grouping, alternation and repetition operators lose their backslash
     !> and the literal characters gain one.  Port of
     !> xref.el:xref--regexp-to-extended.
-    function xref_regular_expression_to_extended(regular_expression) result(extended)
+    function cross_reference_regular_expression_to_extended(regular_expression) result(extended)
         character(len=*), intent(in) :: regular_expression
         character(len=:), allocatable :: extended, matched, group
         character(len=*), parameter :: PATTERN = "\(?:\\\\\)*\(?:\\[][]\)?\(?:\[.+?]\|\(\\?[(){|}]\)\)"
@@ -3725,12 +3754,12 @@ contains
               start) < len(regular_expression)) extended = extended//regular_expression(string_index_to_offset(regular_expression, &
                                                                                                                         start) + 1:)
         case_fold_search = saved
-    end function xref_regular_expression_to_extended
+    end function cross_reference_regular_expression_to_extended
 
     ! Whether REGULAR_EXPRESSION depends on the buffer's syntax, such as the current syntax
     ! table and the applied syntax properties.  Port of
     ! xref.el:xref--regexp-syntax-dependent-p.
-    logical function is_xref_regular_expression_syntax_dependent(regular_expression) result(dependent)
+    logical function is_cross_reference_regular_expression_syntax_dependent(regular_expression) result(dependent)
         character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
         logical :: saved
@@ -3739,15 +3768,15 @@ contains
         case_fold_search = .false.
         dependent = string_match("\(?:\`\|[^\\]\)\(?:\\\\\)*\\[bB<>wW_sS]", regular_expression, st) /= 0
         case_fold_search = saved
-    end function is_xref_regular_expression_syntax_dependent
+    end function is_cross_reference_regular_expression_syntax_dependent
 
     ! The match items of HITS for REGULAR_EXPRESSION.  Port of xref.el:xref--convert-hits.
-    recursive subroutine convert_xref_hits(hits, regular_expression, items, status)
-        type(xref_hit_type), intent(in) :: hits(:)
+    recursive subroutine convert_cross_reference_hits(hits, regular_expression, items, status)
+        type(cross_reference_hit_type), intent(in) :: hits(:)
         character(len=*), intent(in) :: regular_expression
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
-        type(xref_item_type), allocatable :: matches(:)
+        type(cross_reference_item_type), allocatable :: matches(:)
         type(handle_type) :: temporary_buffer
         type(status_type) :: st
         character(len=:), allocatable :: name
@@ -3771,26 +3800,26 @@ contains
             end if
         end if
 
-        syntax_needed = is_xref_regular_expression_syntax_dependent(regular_expression)
+        syntax_needed = is_cross_reference_regular_expression_syntax_dependent(regular_expression)
 
         do i = 1, size(hits)
-            call collect_xref_matches(hits(i), regular_expression, temporary_buffer, syntax_needed, matches, status)
+            call collect_cross_reference_matches(hits(i), regular_expression, temporary_buffer, syntax_needed, matches, status)
             if (.not. status%ok()) exit
-            call append_xref_items(items, matches)
+            call append_cross_reference_items(items, matches)
         end do
 
         call close_buffer(temporary_buffer, st)
-    end subroutine convert_xref_hits
+    end subroutine convert_cross_reference_hits
 
     ! The match items of HIT for REGULAR_EXPRESSION, from the line in the buffer
     ! visiting its file (when it is up to date) or else from the hit's text
     ! in TEMPORARY_BUFFER.  Port of xref.el:xref--collect-matches.
-    recursive subroutine collect_xref_matches(hit, regular_expression, temporary_buffer, syntax_needed, matches, status)
-        type(xref_hit_type), intent(in) :: hit
+    recursive subroutine collect_cross_reference_matches(hit, regular_expression, temporary_buffer, syntax_needed, matches, status)
+        type(cross_reference_hit_type), intent(in) :: hit
         character(len=*), intent(in) :: regular_expression
         type(handle_type), intent(in) :: temporary_buffer
         logical, intent(in) :: syntax_needed
-        type(xref_item_type), allocatable, intent(out) :: matches(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: matches(:)
         type(status_type), intent(out) :: status
         type(handle_type) :: target_buffer, old
         type(status_type) :: st
@@ -3801,7 +3830,7 @@ contains
 
         status = status_type()
         file = hits_file_prefix//hit%file
-        target_buffer = find_xref_file_buffer(file)
+        target_buffer = find_cross_reference_file_buffer(file)
         old = current_buffer()
 
         if (target_buffer%index /= 0) then
@@ -3812,8 +3841,9 @@ contains
             call widen()
             call goto_character(point_minimum())
             shortage = forward_line(hit%line - 1)
-            call collect_xref_line_matches(regular_expression, file, hit%line, line_beginning_position(), line_end_position(), &
-                                           syntax_needed, matches)
+            call collect_cross_reference_line_matches(regular_expression, file, hit%line, line_beginning_position(), &
+                                                      line_end_position(), &
+                                                      syntax_needed, matches)
             call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
             call goto_character(original_point)
         else
@@ -3847,22 +3877,24 @@ contains
             call insert(hit%text, st)
             call goto_character(point_minimum())
             if (syntax_needed) call syntax_parser_state_flush_cache(point())
-            call collect_xref_line_matches(regular_expression, file, hit%line, point(), point_maximum(), syntax_needed, matches)
+            call collect_cross_reference_line_matches(regular_expression, file, hit%line, point(), point_maximum(), syntax_needed, &
+                                                      matches)
         end if
 
         call set_buffer(old, st)
-    end subroutine collect_xref_matches
+    end subroutine collect_cross_reference_matches
 
     ! The match items of REGULAR_EXPRESSION on the line LINE_BEGINNING..LINE_END of the
     ! current buffer, line LINE of FILE: each item's summary runs from its
     ! match (the line's beginning for the first) to the next match (the
     ! line's end for the last).  Port of xref.el:xref--collect-matches-1.
-    recursive subroutine collect_xref_line_matches(regular_expression, file, line, line_beginning, line_end, syntax_needed, matches)
+    recursive subroutine collect_cross_reference_line_matches(regular_expression, file, line, line_beginning, line_end, &
+                                                              syntax_needed, matches)
         character(len=*), intent(in) :: regular_expression, file
         integer(int64), intent(in) :: line, line_beginning, line_end
         logical, intent(in) :: syntax_needed
-        type(xref_item_type), allocatable, intent(out) :: matches(:)
-        type(xref_item_type) :: item
+        type(cross_reference_item_type), allocatable, intent(out) :: matches(:)
+        type(cross_reference_item_type) :: item
         type(status_type) :: st
         character(len=:), allocatable :: summary
         integer(int64) :: beginning, end, last_beginning, last_end, summary_end, summary_start, found
@@ -3909,22 +3941,23 @@ contains
                 end if
 
                 call buffer_substring_no_properties(summary_start, summary_end, summary, st)
-                item = make_xref_match(summary, make_xref_file_location(file, line, last_beginning - line_beginning), &
-                                       last_end - last_beginning)
+                item = make_cross_reference_match(summary, make_cross_reference_file_location(file, line, &
+                                                                                              last_beginning - line_beginning), &
+                                                  last_end - last_beginning)
                 item%match_beginning = last_beginning - summary_start
-                call append_xref_item(matches, item)
+                call append_cross_reference_item(matches, item)
             end if
 
             last_beginning = beginning
             last_end = end
             has_last = has_last .or. found /= 0
         end do
-    end subroutine collect_xref_line_matches
+    end subroutine collect_cross_reference_line_matches
 
     ! The buffer visiting FILE when its contents are those of the file
     ! (unmodified and up to date), else the null handle.  Port of
     ! xref.el:xref--find-file-buffer.
-    function find_xref_file_buffer(file) result(target_buffer)
+    function find_cross_reference_file_buffer(file) result(target_buffer)
         character(len=*), intent(in) :: file
         type(handle_type) :: target_buffer
         type(handle_type) :: old
@@ -3953,7 +3986,7 @@ contains
 
         last_file = file
         last_file_buffer = target_buffer
-    end function find_xref_file_buffer
+    end function find_cross_reference_file_buffer
 
     ! ------------------------------------------------------------------
     ! Setup
@@ -3962,124 +3995,128 @@ contains
     !> Define the faces, modes, keymaps and commands of xref.el, and bind
     !> the global keys in ESC_MAP and CONTROL_X_4_MAP.  Port of xref.el's
     !> top-level forms and its key bindings.
-    subroutine initialize_xref(escape_map, control_x_4_map)
+    subroutine initialize_cross_reference(escape_map, control_x_4_map)
         type(handle_type), intent(in) :: escape_map, control_x_4_map
         type(named_face_type), pointer :: f
         type(status_type) :: st
 
-        if (associated(major_modes%xref_xref_buffer_mode%execute)) return
-        xref_show_xrefs_function => show_xref_buffer
-        xref_show_definitions_function => show_xref_definitions_buffer
-        xref_references_in_directory_function => xref_references_in_directory_grep
-        if (.not. allocated(xref_match_count_face)) xref_match_count_face = "compilation_info"
+        if (associated(major_modes%cross_reference_cross_reference_buffer_mode%execute)) return
+        cross_reference_show_cross_references_function => show_cross_reference_buffer
+        cross_reference_show_definitions_function => show_cross_reference_definitions_buffer
+        cross_reference_references_in_directory_function => cross_reference_references_in_directory_grep
+        if (.not. allocated(cross_reference_match_count_face)) cross_reference_match_count_face = "compilation_info"
 
-        if (.not. allocated(xref_prompt_for_identifier%commands)) then
-            xref_prompt_for_identifier%commands = [character(len=64) :: "find_xref_definitions", &
-                                                   "find_xref_definitions_other_window", &
-                                                   "find_xref_definitions_other_frame"]
+        if (.not. allocated(cross_reference_prompt_for_identifier%commands)) then
+            cross_reference_prompt_for_identifier%commands = [character(len=64) :: "find_cross_reference_definitions", &
+                                                              "find_cross_reference_definitions_other_window", &
+                                                              "find_cross_reference_definitions_other_frame"]
         end if
 
-        if (.not. allocated(xref_search_programs)) then
-            allocate (xref_search_programs(3))
+        if (.not. allocated(cross_reference_search_programs)) then
+            allocate (cross_reference_search_programs(3))
             ! '-s' because 'git ls-files' can output broken symlinks.
-            xref_search_programs(1) = xref_search_program_type(XREF_SEARCH_PROGRAM_GREP, &
-                                                               "xargs -0 grep <C> --null -snHE -e <R>")
+            cross_reference_search_programs(1) = cross_reference_search_program_type(CROSS_REFERENCE_SEARCH_PROGRAM_GREP, &
+                                                                                     "xargs -0 grep <C> --null -snHE -e <R>")
             ! '!*/' is there to filter out dirs (e.g. submodules).
-            xref_search_programs(2) = xref_search_program_type(XREF_SEARCH_PROGRAM_RIPGREP, &
-                                                               "xargs -0 rg <C> --null -nH --no-heading --no-messages "// &
-                                                               "-g '!*/' -e <R>")
-            xref_search_programs(3) = xref_search_program_type(XREF_SEARCH_PROGRAM_UGREP, &
-                                                               "xargs -0 ugrep <C> --null -ns -e <R>")
+            cross_reference_search_programs(2) = cross_reference_search_program_type(CROSS_REFERENCE_SEARCH_PROGRAM_RIPGREP, &
+                                                                        "xargs -0 rg <C> --null -nH --no-heading --no-messages "// &
+                                                                                     "-g '!*/' -e <R>")
+            cross_reference_search_programs(3) = cross_reference_search_program_type(CROSS_REFERENCE_SEARCH_PROGRAM_UGREP, &
+                                                                                     "xargs -0 ugrep <C> --null -ns -e <R>")
         end if
 
-        call xref_after_jump_hook%append(recenter_adapter)
-        f => xref_file_header_face
-        call f%define("xref_file_header", "Face used to highlight file header in the xref buffer.")
+        call cross_reference_after_jump_hook%append(recenter_adapter)
+        f => cross_reference_file_header_face
+        call f%define("cross_reference_file_header", "Face used to highlight file header in the xref buffer.")
         call f%specification_entry(display_when(), face_attributes(inherit="compilation_info"))
-        f => xref_line_number_face
-        call f%define("xref_line_number", "Face for displaying line numbers in the xref buffer.")
+        f => cross_reference_line_number_face
+        call f%define("cross_reference_line_number", "Face for displaying line numbers in the xref buffer.")
         call f%specification_entry(display_when(), face_attributes(inherit="compilation_line_number"))
-        f => xref_match_face
-        call f%define("xref_match", "Face used to highlight matches in the xref buffer.")
+        f => cross_reference_match_face
+        call f%define("cross_reference_match", "Face used to highlight matches in the xref buffer.")
         call f%specification_entry(display_when(), face_attributes(inherit="match"))
-        call major_modes%xref_xref_buffer_mode%define("xref_xref_buffer_mode", "Xref", xref_xref_buffer_mode, &
-                                                      xref_xref_buffer_mode_hook, parent=major_modes%special_mode)
-        call major_modes%xref_transient_buffer_mode%define("xref_transient_buffer_mode", "Xref Transient", &
-                                                           xref_transient_buffer_mode, xref_transient_buffer_mode_hook, &
-                                                           parent=major_modes%xref_xref_buffer_mode)
-        xref_xref_buffer_mode_map = major_modes%xref_xref_buffer_mode%map
-        call keymap_set(xref_xref_buffer_mode_map, "n", "next_xref_line", st)
-        call keymap_set(xref_xref_buffer_mode_map, "p", "previous_xref_line", st)
-        call keymap_set(xref_xref_buffer_mode_map, "N", "next_xref_group", st)
-        call keymap_set(xref_xref_buffer_mode_map, "P", "previous_xref_group", st)
-        call keymap_set(xref_xref_buffer_mode_map, "RET", "goto_xref", st)
-        call keymap_set(xref_xref_buffer_mode_map, "TAB", "quit_and_goto_xref", st)
-        call keymap_set(xref_xref_buffer_mode_map, "C-o", "show_xref_location_at_point", st)
+        call major_modes%cross_reference_cross_reference_buffer_mode%define("cross_reference_cross_reference_buffer_mode", "Xref", &
+                                                                            cross_reference_cross_reference_buffer_mode, &
+                                                                            cross_reference_cross_reference_buffer_mode_hook, &
+                                                                            parent=major_modes%special_mode)
+        call major_modes%cross_reference_transient_buffer_mode%define("cross_reference_transient_buffer_mode", "Xref Transient", &
+                                                                      cross_reference_transient_buffer_mode, &
+                                                                      cross_reference_transient_buffer_mode_hook, &
+                                                                     parent=major_modes%cross_reference_cross_reference_buffer_mode)
+        cross_reference_cross_reference_buffer_mode_map = major_modes%cross_reference_cross_reference_buffer_mode%map
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "n", "next_cross_reference_line", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "p", "previous_cross_reference_line", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "N", "next_cross_reference_group", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "P", "previous_cross_reference_group", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "RET", "goto_cross_reference", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "TAB", "quit_and_goto_cross_reference", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "C-o", "show_cross_reference_location_at_point", st)
         ! suggested by Johan Claesson "to further reduce finger movement":
-        call keymap_set(xref_xref_buffer_mode_map, ".", "next_xref_line", st)
-        call keymap_set(xref_xref_buffer_mode_map, ",", "previous_xref_line", st)
-        call keymap_set(xref_xref_buffer_mode_map, "M-,", "quit_and_pop_xref_marker_stack", st)
-        call keymap_set(xref_xref_buffer_mode_map, "e", "change_to_xref_edit_mode", st)
-        xref_transient_buffer_mode_map = major_modes%xref_transient_buffer_mode%map
-        call keymap_set(xref_transient_buffer_mode_map, "RET", "quit_and_goto_xref", st)
-        call make_sparse_keymap(xref_edit_mode_map)
-        call keymap_set(xref_edit_mode_map, "C-c C-c", "save_xref_edit_changes", st)
-        call keymap_set(xref_edit_mode_map, "RET", "goto_xref", st)
-        call keymap_set(xref_edit_mode_map, "M-,", "quit_and_pop_xref_marker_stack", st)
-        call keymap_set(xref_edit_mode_map, "C-o", "show_xref_location_at_point", st)
-        call minor_modes%xref_etags_mode%define("xref_etags_mode", body=xref_etags_mode_body)
-        call forward_setting(xref_read_identifier_history)
-        call forward_setting(xref_read_pattern_history)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, ".", "next_cross_reference_line", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, ",", "previous_cross_reference_line", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "M-,", "quit_and_pop_cross_reference_marker_stack", st)
+        call keymap_set(cross_reference_cross_reference_buffer_mode_map, "e", "change_to_cross_reference_edit_mode", st)
+        cross_reference_transient_buffer_mode_map = major_modes%cross_reference_transient_buffer_mode%map
+        call keymap_set(cross_reference_transient_buffer_mode_map, "RET", "quit_and_goto_cross_reference", st)
+        call make_sparse_keymap(cross_reference_edit_mode_map)
+        call keymap_set(cross_reference_edit_mode_map, "C-c C-c", "save_cross_reference_edit_changes", st)
+        call keymap_set(cross_reference_edit_mode_map, "RET", "goto_cross_reference", st)
+        call keymap_set(cross_reference_edit_mode_map, "M-,", "quit_and_pop_cross_reference_marker_stack", st)
+        call keymap_set(cross_reference_edit_mode_map, "C-o", "show_cross_reference_location_at_point", st)
+        call minor_modes%cross_reference_fortmacs_tags_mode%define("cross_reference_fortmacs_tags_mode", &
+                                                                   body=cross_reference_fortmacs_tags_mode_body)
+        call forward_setting(cross_reference_read_identifier_history)
+        call forward_setting(cross_reference_read_pattern_history)
         ! The key bindings (xref.el's autoloads).
-        call keymap_set(escape_map, ".", "find_xref_definitions", st)
-        call keymap_set(escape_map, ",", "go_back_in_xref_history", st)
-        call keymap_set(escape_map, "C-,", "go_forward_in_xref_history", st)
-        call keymap_set(escape_map, "?", "find_xref_references", st)
-        call keymap_set(escape_map, "C-.", "find_xref_apropos", st)
-        call keymap_set(control_x_4_map, ".", "find_xref_definitions_other_window", st)
-        commands%xref_xref_buffer_mode%execute => xref_xref_buffer_mode
-        commands%xref_transient_buffer_mode%execute => xref_transient_buffer_mode
-        commands%xref_edit_mode%execute => xref_edit_mode
-        commands%xref_etags_mode%execute => xref_etags_mode
-        commands%find_xref_definitions%execute => execute_find_xref_definitions
-        commands%find_xref_definitions_other_window%execute => execute_find_xref_definitions_other_window
-        commands%find_xref_references%execute => execute_find_xref_references
-        commands%find_xref_apropos%execute => execute_find_xref_apropos
-        commands%go_back_in_xref_history%execute => go_back_in_xref_history
-        commands%pop_xref_marker_stack%execute => go_back_in_xref_history
-        commands%go_forward_in_xref_history%execute => go_forward_in_xref_history
-        commands%next_xref_line%execute => next_xref_line
-        commands%next_xref_line_no_show%execute => next_xref_line_no_show
-        commands%previous_xref_line%execute => previous_xref_line
-        commands%previous_xref_line_no_show%execute => previous_xref_line_no_show
-        commands%next_xref_group%execute => next_xref_group
-        commands%previous_xref_group%execute => previous_xref_group
-        commands%goto_xref%execute => execute_goto_xref
-        commands%quit_and_goto_xref%execute => quit_and_goto_xref
-        commands%quit_and_pop_xref_marker_stack%execute => quit_and_pop_xref_marker_stack
-        commands%show_xref_location_at_point%execute => show_xref_location_at_point
-        commands%change_to_xref_edit_mode%execute => change_to_xref_edit_mode
-        commands%save_xref_edit_changes%execute => save_xref_edit_changes
-        call append_locals_clearer(clear_xref_locals)
-    end subroutine initialize_xref
+        call keymap_set(escape_map, ".", "find_cross_reference_definitions", st)
+        call keymap_set(escape_map, ",", "go_back_in_cross_reference_history", st)
+        call keymap_set(escape_map, "C-,", "go_forward_in_cross_reference_history", st)
+        call keymap_set(escape_map, "?", "find_cross_reference_references", st)
+        call keymap_set(escape_map, "C-.", "find_cross_reference_apropos", st)
+        call keymap_set(control_x_4_map, ".", "find_cross_reference_definitions_other_window", st)
+        commands%cross_reference_cross_reference_buffer_mode%execute => cross_reference_cross_reference_buffer_mode
+        commands%cross_reference_transient_buffer_mode%execute => cross_reference_transient_buffer_mode
+        commands%cross_reference_edit_mode%execute => cross_reference_edit_mode
+        commands%cross_reference_fortmacs_tags_mode%execute => cross_reference_fortmacs_tags_mode
+        commands%find_cross_reference_definitions%execute => execute_find_cross_reference_definitions
+        commands%find_cross_reference_definitions_other_window%execute => execute_find_cross_reference_definitions_other_window
+        commands%find_cross_reference_references%execute => execute_find_cross_reference_references
+        commands%find_cross_reference_apropos%execute => execute_find_cross_reference_apropos
+        commands%go_back_in_cross_reference_history%execute => go_back_in_cross_reference_history
+        commands%pop_cross_reference_marker_stack%execute => go_back_in_cross_reference_history
+        commands%go_forward_in_cross_reference_history%execute => go_forward_in_cross_reference_history
+        commands%next_cross_reference_line%execute => next_cross_reference_line
+        commands%next_cross_reference_line_no_show%execute => next_cross_reference_line_no_show
+        commands%previous_cross_reference_line%execute => previous_cross_reference_line
+        commands%previous_cross_reference_line_no_show%execute => previous_cross_reference_line_no_show
+        commands%next_cross_reference_group%execute => next_cross_reference_group
+        commands%previous_cross_reference_group%execute => previous_cross_reference_group
+        commands%goto_cross_reference%execute => execute_goto_cross_reference
+        commands%quit_and_goto_cross_reference%execute => quit_and_goto_cross_reference
+        commands%quit_and_pop_cross_reference_marker_stack%execute => quit_and_pop_cross_reference_marker_stack
+        commands%show_cross_reference_location_at_point%execute => show_cross_reference_location_at_point
+        commands%change_to_cross_reference_edit_mode%execute => change_to_cross_reference_edit_mode
+        commands%save_cross_reference_edit_changes%execute => save_cross_reference_edit_changes
+        call append_locals_clearer(clear_cross_reference_locals)
+    end subroutine initialize_cross_reference
 
-    !> `xref_prompt_for_identifier' as help shows it in the two states that
+    !> `cross_reference_prompt_for_identifier' as help shows it in the two states that
     !> use `%commands' (upstream's list of commands): the state and the
-    !> commands (`XREF_PROMPT_FOR_IDENTIFIER_LISTED, %commands = ["a", "b"]');
+    !> commands (`CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED, %commands = ["a", "b"]');
     !> "" in the states .true. and .false., which do not use them, so
     !> `is_off()' is not changed by the commands.  Not a port.
-    function xref_prompt_for_identifier_other_value(self) result(text)
-        class(xref_prompt_for_identifier_choice_setting_type), intent(in) :: self
+    function cross_reference_prompt_for_identifier_other_value(self) result(text)
+        class(cross_reference_prompt_for_identifier_choice_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
         integer :: k
 
         text = ""
 
         select case (self%choice)
-        case (XREF_PROMPT_FOR_IDENTIFIER_LISTED)
-            text = "XREF_PROMPT_FOR_IDENTIFIER_LISTED"
-        case (XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED)
-            text = "XREF_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED"
+        case (CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED)
+            text = "CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_LISTED"
+        case (CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED)
+            text = "CROSS_REFERENCE_PROMPT_FOR_IDENTIFIER_EXCEPT_LISTED"
         case default
             return
         end select
@@ -4094,5 +4131,5 @@ contains
         end if
 
         text = text//"]"
-    end function xref_prompt_for_identifier_other_value
+    end function cross_reference_prompt_for_identifier_other_value
 end module cross_reference_mod

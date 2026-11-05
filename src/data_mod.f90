@@ -196,7 +196,7 @@ module data_mod
     end type choice_setting_type
 
     !> The errors of rejected assignments to choice settings, oldest first
-    !> ("sh_indent_for_fi: 0 is not a value of this option; ..."), for
+    !> ("shell_indent_for_fi: 0 is not a value of this option; ..."), for
     !> the init file's loading and `set_variable' to report and clear.
     !> Not a port.
     type(string_type), allocatable, public :: setting_errors(:)
@@ -393,7 +393,7 @@ module data_mod
         !> Most local variable bindings are eliminated so that the default values
         !> become effective once more.  Also, the syntax table is set from
         !> `standard_syntax_table', the local keymap is set to none,
-        !> and the abbrev table from `fundamental_mode_abbrev_table'.
+        !> and the abbrev table from `fundamental_mode_abbreviation_table'.
         !> This function also forces redisplay of the mode line.
         !>
         !> Every function to select a new major mode starts by

@@ -1289,8 +1289,8 @@ contains
     buffers(current)%mode_name = "Fundamental"
     buffers(current)%keymap = null_handle()
     buffers(current)%invisibility_specification_t = .true.
-    buffers(current)%bidi_display_reordering = .true.
-    buffers(current)%bidi_paragraph_direction = 0
+    buffers(current)%bidirectional_display_reordering = .true.
+    buffers(current)%bidirectional_paragraph_direction = 0
     buffers(current)%read_only_mode_state_set = .false.
     if (allocated(buffers(current)%invisibility_specification)) deallocate (buffers(current)%invisibility_specification)
     call buffers(current)%mode_line_format%clear()

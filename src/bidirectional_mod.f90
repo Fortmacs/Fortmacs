@@ -25,7 +25,7 @@
 !> of a string in logical order, resolving the embedding level of each
 !> character as UAX#9 says (explicit embeddings, overrides and isolates,
 !> weak and neutral types, paired brackets), and in visual order with
-!> `bidi_move_to_visually_next', keeping the states it looked ahead at in
+!> `bidirectional_move_to_visually_next', keeping the states it looked ahead at in
 !> a cache as upstream does.  Character positions in a string are
 !> 0-based, as upstream; in a buffer 1-based.
 !>
@@ -33,92 +33,96 @@
 !> (compute_display_string_position and compute_display_string_end of xdisp.c:
 !> text a display string replaces counts as its characters), the
 !> paragraph region cache (`cache_long_scans'), the buffer-local
-!> `bidi_paragraph_start_regular_expression' and `bidi_paragraph_separate_regular_expression' (their
+!> `bidirectional_paragraph_start_regular_expression' and `bidirectional_paragraph_separate_regular_expression' (their
 !> defaults are used), the redisplay ticks (`maximum_redisplay_ticks').
 module bidirectional_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type
     use character_mod, only: MAXIMUM_CHARACTER, string_character_and_length, bytes_by_character_head
-    use buffer_mod, only: buffers, current, buf_fetch_char, buf_fetch_byte, buf_next_char_len, buf_prev_char_len
+    use buffer_mod, only: buffers, current, buffer_fetch_character, buffer_fetch_byte, buffer_next_character_length, &
+                          buffer_previous_character_length
     use marker_mod, only: character_to_byte, byte_to_character
     use search_mod, only: find_newline_no_quit, fast_looking_at
-    use unicode_bidirectional_mod, only: bidi_runs, bidi_starts, bidi_ends, bidi_codes, mirror_count, mirror_from, mirror_to, &
-                                         open_bracket_count, open_brackets, close_bracket_count, close_brackets
+    use unicode_bidirectional_mod, only: bidirectional_runs, bidirectional_starts, bidirectional_ends, bidirectional_codes, &
+                                         mirror_count, mirror_from, mirror_to, open_bracket_count, open_brackets, &
+                                         close_bracket_count, close_brackets
     implicit none(type, external)
     private
 
-    public :: bidi_get_type, bidi_mirror_character, bidi_init_it, bidi_paragraph_init, bidi_move_to_visually_next, &
-              bidi_find_first_overridden, bidi_level_start, bidi_push_it, bidi_pop_it, bidi_shelve_cache, &
-              bidi_unshelve_cache, bidi_set_string, bidi_at_base_level
+    public :: bidirectional_get_type, bidirectional_mirror_character, bidirectional_initialize_iterator, &
+              bidirectional_paragraph_initialize, bidirectional_move_to_visually_next, &
+              bidirectional_find_first_overridden, bidirectional_level_start, bidirectional_push_it, bidirectional_pop_it, &
+              bidirectional_shelve_cache, &
+              bidirectional_unshelve_cache, bidirectional_set_string, bidirectional_at_base_level
 
-    !> The deepest embedding level (dispextern.h BIDI_MAXDEPTH).
-    integer, parameter, public :: BIDI_MAXDEPTH = 125
+    !> The deepest embedding level (dispextern.h BIDIRECTIONAL_MAXDEPTH).
+    integer, parameter, public :: BIDIRECTIONAL_MAXDEPTH = 125
 
-    !> The bidirectional character types (dispextern.h bidi_type_t).
+    !> The bidirectional character types (dispextern.h bidirectional_type_t).
     integer, parameter, public :: UNKNOWN_BT = 0, STRONG_L = 1, STRONG_R = 2, WEAK_EN = 3, WEAK_AN = 4, &
                                   WEAK_BN = 5, NEUTRAL_B = 6, STRONG_AL = 7, LRE = 8, LRO = 9, RLE = 10, &
                                   RLO = 11, PDF = 12, LRI = 13, RLI = 14, FSI = 15, PDI = 16, WEAK_ES = 17, &
                                   WEAK_ET = 18, WEAK_CS = 19, WEAK_NSM = 20, NEUTRAL_S = 21, NEUTRAL_WHITESPACE = 22, &
                                   NEUTRAL_ON = 23
 
-    !> The paired bracket types (dispextern.h bidi_bracket_type_t).
-    integer, parameter, public :: BIDI_BRACKET_NONE = 1, BIDI_BRACKET_OPEN = 2, BIDI_BRACKET_CLOSE = 3
+    !> The paired bracket types (dispextern.h bidirectional_bracket_type_t).
+    integer, parameter, public :: BIDIRECTIONAL_BRACKET_NONE = 1, BIDIRECTIONAL_BRACKET_OPEN = 2, BIDIRECTIONAL_BRACKET_CLOSE = 3
 
-    !> The basic directions (dispextern.h bidi_directory_t).
+    !> The basic directions (dispextern.h bidirectional_directory_t).
     integer, parameter, public :: NEUTRAL_DIRECTORY = 0, L2R = 1, R2L = 2
 
-    !> The end of the text, as a character (bidi.c BIDI_END_OF_BUFFER).
-    integer(int32), parameter, public :: BIDI_END_OF_BUFFER = -1
+    !> The end of the text, as a character (bidi.c BIDIRECTIONAL_END_OF_BUFFER).
+    integer(int32), parameter, public :: BIDIRECTIONAL_END_OF_BUFFER = -1
 
-    !> The categories of bidi types (bidi.c bidi_category_t).
+    !> The categories of bidi types (bidi.c bidirectional_category_t).
     integer, parameter :: UNKNOWN_BC = 0, NEUTRAL = 1, WEAK = 2, STRONG = 3, EXPLICIT_FORMATTING = 4
 
     !> Inhibit the bidi bracket pair algorithm (BPA).  If true, the paired
     !> brackets are resolved as other neutral characters.  Port of xdisp.c
     !> bidi-inhibit-bpa.
-    logical, public :: bidi_inhibit_bpa = .false.
+    logical, public :: bidirectional_inhibit_bpa = .false.
 
     !> How many states are added to the cache at a time, and at most in
     !> one slot of the iterator stack (bidi.c).
-    integer(int64), parameter :: BIDI_CACHE_CHUNK = 200, BIDI_CACHE_MAXIMUM_ELEMENTS_PER_SLOT = 50000
+    integer(int64), parameter :: BIDIRECTIONAL_CACHE_CHUNK = 200, BIDIRECTIONAL_CACHE_MAXIMUM_ELEMENTS_PER_SLOT = 50000
     !> dispextern.h IT_STACK_SIZE.
     integer, parameter :: IT_STACK_SIZE = 5
 
     !> What the iterator remembers of a character (dispextern.h struct
-    !> bidi_saved_info).
-    type, public :: bidi_saved_info_type
+    !> bidirectional_saved_info).
+    type, public :: bidirectional_saved_info_type
         integer(int64) :: character_position = 0
         integer :: type = UNKNOWN_BT, original_type = UNKNOWN_BT
-    end type bidi_saved_info_type
+    end type bidirectional_saved_info_type
 
     !> One level of the directional status stack (dispextern.h struct
-    !> bidi_stack); `flags' holds the isolate status (bit 0), the override
+    !> bidirectional_stack); `flags' holds the isolate status (bit 0), the override
     !> (bits 1-2) and the sos of an isolate (bit 3).
-    type, public :: bidi_stack_type
+    type, public :: bidirectional_stack_type
         integer(int64) :: next_for_neutral_position = 0
         integer :: next_for_neutral_type = 0, last_strong_type = 0, previous_for_neutral_type = 0
         integer :: level = 0, flags = 0
-    end type bidi_stack_type
+    end type bidirectional_stack_type
 
-    !> The string being reordered (dispextern.h struct bidi_string_data):
+    !> The string being reordered (dispextern.h struct bidirectional_string_data):
     !> none when not `active' (the current buffer is reordered).
-    type, public :: bidi_string_type
+    type, public :: bidirectional_string_type
         logical :: active = .false.
         character(len=:), allocatable :: s
         integer(int64) :: count_characters = 0
-    end type bidi_string_type
+    end type bidirectional_string_type
 
-    !> The bidi iterator (dispextern.h struct bidi_it).  The components
+    !> The bidi iterator (dispextern.h struct bidirectional_it).  The components
     !> from `level_stack' on (but its levels in use) are not part of the
     !> state that is saved, cached, pushed or popped.
-    type, public :: bidi_it_type
+    type, public :: bidirectional_it_type
         integer(int64) :: byte_position = 0, character_position = 0
         integer(int32) :: ch = 0
         integer(int64) :: nchars = 0, ch_length = 0
         integer :: type = UNKNOWN_BT, type_after_wn = UNKNOWN_BT, original_type = UNKNOWN_BT
         integer :: resolved_level = 0, isolate_level = 0
         integer(int64) :: invalid_levels = 0, invalid_isolates = 0
-        type(bidi_saved_info_type) :: previous, last_strong, next_for_neutral, previous_for_neutral, next_for_whitespace
+        type(bidirectional_saved_info_type) :: previous, last_strong, next_for_neutral, previous_for_neutral, next_for_whitespace
         integer(int64) :: bracket_pairing_position = 0
         integer :: bracket_enclosed_type = UNKNOWN_BT
         integer(int64) :: next_en_position = 0
@@ -126,24 +130,24 @@ module bidirectional_mod
         integer :: sos = L2R, scan_directory = 0
         integer(int64) :: disp_position = 0
         integer :: disp_property = 0
-        integer :: stack_idx = 0
-        type(bidi_stack_type) :: level_stack(0:BIDI_MAXDEPTH + 2)
-        type(bidi_string_type) :: string
+        integer :: stack_index = 0
+        type(bidirectional_stack_type) :: level_stack(0:BIDIRECTIONAL_MAXDEPTH + 2)
+        type(bidirectional_string_type) :: string
         integer :: paragraph_directory = NEUTRAL_DIRECTORY
         integer(int64) :: separator_limit = 0
         logical :: first_element = .false., new_paragraph = .false., frame_window_p = .false.
-    end type bidi_it_type
+    end type bidirectional_it_type
 
-    !> The cache's state, saved by `bidi_shelve_cache'.
-    type, public :: bidi_shelved_type
+    !> The cache's state, saved by `bidirectional_shelve_cache'.
+    type, public :: bidirectional_shelved_type
         logical :: empty = .true.
-        type(bidi_it_type), allocatable :: cache(:)
-        integer(int64) :: index = 0, start = 0, last_idx = 0, maximum_elements = 0
+        type(bidirectional_it_type), allocatable :: cache(:)
+        integer(int64) :: index = 0, start = 0, last_index = 0, maximum_elements = 0
         integer(int64) :: start_stack(0:IT_STACK_SIZE - 1) = 0
         integer :: sp = 0
-    end type bidi_shelved_type
+    end type bidirectional_shelved_type
 
-    !> The depth of the bracket stack of `bidi_find_bracket_pairs': as
+    !> The depth of the bracket stack of `bidirectional_find_bracket_pairs': as
     !> many entries as fit upstream in MAXIMUM_ALLOCA (16 KiB) less two
     !> iterators, on a 64-bit system (bidi.c MAXIMUM_BPA_STACK).
     integer, parameter :: MAXIMUM_BPA_STACK = 977
@@ -155,12 +159,13 @@ module bidirectional_mod
     !> Bracket stack flags (bidi.c).
     integer, parameter :: FLAG_EMBEDDING_INSIDE = 1, FLAG_OPPOSITE_INSIDE = 2
 
-    !> The cache of iterator states (bidi.c bidi_cache and its indices).
-    type(bidi_it_type), allocatable :: bidi_cache(:)
-    integer(int64) :: bidi_cache_size = 0, bidi_cache_idx = 0, bidi_cache_last_idx = -1, bidi_cache_start = 0
-    integer(int64) :: bidi_cache_maximum_elements = BIDI_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
-    integer(int64) :: bidi_cache_start_stack(0:IT_STACK_SIZE - 1) = 0
-    integer :: bidi_cache_sp = 0
+    !> The cache of iterator states (bidi.c bidirectional_cache and its indices).
+    type(bidirectional_it_type), allocatable :: bidirectional_cache(:)
+    integer(int64) :: bidirectional_cache_size = 0, bidirectional_cache_index = 0, bidirectional_cache_last_index = -1, &
+                      bidirectional_cache_start = 0
+    integer(int64) :: bidirectional_cache_maximum_elements = BIDIRECTIONAL_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
+    integer(int64) :: bidirectional_cache_start_stack(0:IT_STACK_SIZE - 1) = 0
+    integer :: bidirectional_cache_sp = 0
     !> The characters find_first_strong_character examined (bidi.c).
     integer(int64) :: nsearch_for_strong = 0
 
@@ -172,27 +177,27 @@ contains
 
     !> The bidi class of character C (the bidi-class property table;
     !> L above U+10FFFF).  Not a port.
-    integer function bidi_class(c) result(t)
+    integer function bidirectional_class(c) result(t)
         integer(int32), intent(in) :: c
         integer :: lo, hi, middle
 
         t = STRONG_L
-        if (c > bidi_ends(bidi_runs)) return
+        if (c > bidirectional_ends(bidirectional_runs)) return
         lo = 1
-        hi = bidi_runs
+        hi = bidirectional_runs
 
         do while (lo < hi)
             middle = (lo + hi)/2
 
-            if (bidi_ends(middle) < c) then
+            if (bidirectional_ends(middle) < c) then
                 lo = middle + 1
             else
                 hi = middle
             end if
         end do
 
-        t = bidi_codes(lo)
-    end function bidi_class
+        t = bidirectional_codes(lo)
+    end function bidirectional_class
 
     !> The index of C in the sorted array A, or 0.  Not a port.
     pure integer function search_sorted(a, c) result(k)
@@ -220,16 +225,16 @@ contains
     !> The bidi type of character CH, with OVERRIDE (L2R or R2L) making
     !> it strong unless it is a formatting character.  Port of
     !> bidi.c:bidi_get_type.
-    integer function bidi_get_type(ch, override) result(t)
+    integer function bidirectional_get_type(ch, override) result(t)
         integer(int32), intent(in) :: ch
         integer, intent(in) :: override
 
-        if (ch == BIDI_END_OF_BUFFER) then
+        if (ch == BIDIRECTIONAL_END_OF_BUFFER) then
             t = NEUTRAL_B
             return
         end if
 
-        t = bidi_class(ch)
+        t = bidirectional_class(ch)
 
         select case (t)
         case (WEAK_BN, NEUTRAL_B, LRE, LRO, RLE, RLO, PDF, LRI, RLI, FSI, PDI)
@@ -241,11 +246,11 @@ contains
                 t = STRONG_R
             end if
         end select
-    end function bidi_get_type
+    end function bidirectional_get_type
 
     !> The category of bidi type TYPE.  Port of bidi.c:bidi_get_category
     !> (with bidi.c:bidi_check_type: types are always valid here).
-    pure integer function bidi_get_category(type) result(c)
+    pure integer function bidirectional_get_category(type) result(c)
         integer, intent(in) :: type
 
         select case (type)
@@ -260,54 +265,54 @@ contains
         case default
             c = UNKNOWN_BC
         end select
-    end function bidi_get_category
+    end function bidirectional_get_category
 
     !> Whether TYPE is an isolate formatting character.  Port of
     !> bidi.c:bidi_isolate_fmt_char.
-    pure logical function bidi_isolate_fmt_character(type)
+    pure logical function bidirectional_isolate_fmt_character(type)
         integer, intent(in) :: type
 
-        bidi_isolate_fmt_character = type == LRI .or. type == RLI .or. type == PDI .or. type == FSI
-    end function bidi_isolate_fmt_character
+        bidirectional_isolate_fmt_character = type == LRI .or. type == RLI .or. type == PDI .or. type == FSI
+    end function bidirectional_isolate_fmt_character
 
     !> The mirror image of character C (C itself if it has none).  Port of
     !> bidi.c:bidi_mirror_char.
-    integer(int32) function bidi_mirror_character(c) result(m)
+    integer(int32) function bidirectional_mirror_character(c) result(m)
         integer(int32), intent(in) :: c
         integer :: k
 
         m = c
-        if (c == BIDI_END_OF_BUFFER) return
+        if (c == BIDIRECTIONAL_END_OF_BUFFER) return
         k = search_sorted(mirror_from, c)
         if (k > 0) m = mirror_to(k)
-    end function bidi_mirror_character
+    end function bidirectional_mirror_character
 
     !> The paired bracket type of character C.  Port of
     !> bidi.c:bidi_paired_bracket_type.
-    integer function bidi_paired_bracket_type(c) result(t)
+    integer function bidirectional_paired_bracket_type(c) result(t)
         integer(int32), intent(in) :: c
 
-        t = BIDI_BRACKET_NONE
-        if (c == BIDI_END_OF_BUFFER .or. bidi_inhibit_bpa) return
+        t = BIDIRECTIONAL_BRACKET_NONE
+        if (c == BIDIRECTIONAL_END_OF_BUFFER .or. bidirectional_inhibit_bpa) return
 
         if (search_sorted(open_brackets, c) > 0) then
-            t = BIDI_BRACKET_OPEN
+            t = BIDIRECTIONAL_BRACKET_OPEN
         else if (search_sorted(close_brackets, c) > 0) then
-            t = BIDI_BRACKET_CLOSE
+            t = BIDIRECTIONAL_BRACKET_CLOSE
         end if
-    end function bidi_paired_bracket_type
+    end function bidirectional_paired_bracket_type
 
     !> Whether CH is an explicit embedding or override character (LRE,
     !> LRO, RLE, RLO or PDF).  Port of bidi.c:bidi_explicit_dir_char.
-    logical function bidi_explicit_directory_character(ch)
+    logical function bidirectional_explicit_directory_character(ch)
         integer(int32), intent(in) :: ch
         integer :: t
 
-        bidi_explicit_directory_character = .false.
+        bidirectional_explicit_directory_character = .false.
         if (ch < 0) return
-        t = bidi_class(ch)
-        bidi_explicit_directory_character = t == LRE .or. t == LRO .or. t == RLE .or. t == RLO .or. t == PDF
-    end function bidi_explicit_directory_character
+        t = bidirectional_class(ch)
+        bidirectional_explicit_directory_character = t == LRE .or. t == LRO .or. t == RLE .or. t == RLO .or. t == PDF
+    end function bidirectional_explicit_directory_character
 
     ! ------------------------------------------------------------------
     ! The iterator state
@@ -316,8 +321,8 @@ contains
     !> Set the start-of-sequence type from the levels before and after a
     !> level run, and forget the characters before it.  Port of
     !> bidi.c:bidi_set_sos_type.
-    subroutine bidi_set_sos_type(it, level_before, level_after)
-        type(bidi_it_type), intent(inout) :: it
+    subroutine bidirectional_set_sos_type(it, level_before, level_after)
+        type(bidirectional_it_type), intent(inout) :: it
         integer, intent(in) :: level_before, level_after
 
         if (iand(max(level_before, level_after), 1) /= 0) then
@@ -339,12 +344,12 @@ contains
         it%previous_for_neutral%character_position = it%character_position
         it%next_for_neutral%type = UNKNOWN_BT
         it%next_for_neutral%original_type = UNKNOWN_BT
-    end subroutine bidi_set_sos_type
+    end subroutine bidirectional_set_sos_type
 
     !> The isolate status of stack entry INDEX (bidi.c ISOLATE_STATUS).
     !> Not a port.
     pure logical function isolate_status(it, index)
-        type(bidi_it_type), intent(in) :: it
+        type(bidirectional_it_type), intent(in) :: it
         integer, intent(in) :: index
 
         isolate_status = iand(it%level_stack(index)%flags, 1) /= 0
@@ -353,10 +358,10 @@ contains
     !> Whether the character the iterator moved to starts a level run
     !> excluded from the isolating run sequence at CURRENT_LEVEL (an
     !> isolate, the stack having gone from OLD_SIDX to NEW_SIDX): a
-    !> condition of bidi_find_bracket_pairs and bidi_resolve_neutral.
+    !> condition of bidirectional_find_bracket_pairs and bidirectional_resolve_neutral.
     !> Not a port.
     pure logical function excluded_run(it, old_sidx, new_sidx, current_level) result(excluded)
-        type(bidi_it_type), intent(in) :: it
+        type(bidirectional_it_type), intent(in) :: it
         integer, intent(in) :: old_sidx, new_sidx, current_level
 
         excluded = .false.
@@ -368,7 +373,7 @@ contains
 
     !> The override of stack entry INDEX (bidi.c OVERRIDE).  Not a port.
     pure integer function override_of(it, index)
-        type(bidi_it_type), intent(in) :: it
+        type(bidirectional_it_type), intent(in) :: it
         integer, intent(in) :: index
 
         override_of = iand(ishft(it%level_stack(index)%flags, -1), 3)
@@ -376,16 +381,16 @@ contains
 
     !> Push embedding level LEVEL with OVERRIDE and ISOLATE on the
     !> directional status stack.  Port of bidi.c:bidi_push_embedding_level.
-    subroutine bidi_push_embedding_level(it, level, override, isolate)
-        type(bidi_it_type), intent(inout) :: it
+    subroutine bidirectional_push_embedding_level(it, level, override, isolate)
+        type(bidirectional_it_type), intent(inout) :: it
         integer, intent(in) :: level, override
         logical, intent(in) :: isolate
         integer :: previous_level
 
-        previous_level = it%level_stack(it%stack_idx)%level
-        it%stack_idx = it%stack_idx + 1
+        previous_level = it%level_stack(it%stack_index)%level
+        it%stack_index = it%stack_index + 1
 
-        associate (st => it%level_stack(it%stack_idx))
+        associate (st => it%level_stack(it%stack_index))
             st%level = level
             st%flags = ishft(iand(override, 3), 1)
 
@@ -399,21 +404,21 @@ contains
             end if
         end associate
 
-        call bidi_set_sos_type(it, previous_level, level)
-    end subroutine bidi_push_embedding_level
+        call bidirectional_set_sos_type(it, previous_level, level)
+    end subroutine bidirectional_push_embedding_level
 
     !> Pop the directional status stack and return the new embedding
     !> level.  Port of bidi.c:bidi_pop_embedding_level.
-    integer function bidi_pop_embedding_level(it) result(level)
-        type(bidi_it_type), intent(inout) :: it
-        type(bidi_stack_type) :: st
+    integer function bidirectional_pop_embedding_level(it) result(level)
+        type(bidirectional_it_type), intent(inout) :: it
+        type(bidirectional_stack_type) :: st
         integer :: old_level
 
-        if (it%stack_idx > 0) then
-            old_level = it%level_stack(it%stack_idx)%level
-            st = it%level_stack(it%stack_idx)
+        if (it%stack_index > 0) then
+            old_level = it%level_stack(it%stack_index)%level
+            st = it%level_stack(it%stack_index)
 
-            if (isolate_status(it, it%stack_idx)) then
+            if (isolate_status(it, it%stack_index)) then
                 it%previous%type = UNKNOWN_BT
                 it%previous%original_type = UNKNOWN_BT
                 it%last_strong%type = st%last_strong_type
@@ -427,21 +432,21 @@ contains
                     it%sos = R2L
                 end if
             else
-                call bidi_set_sos_type(it, old_level, it%level_stack(it%stack_idx - 1)%level)
+                call bidirectional_set_sos_type(it, old_level, it%level_stack(it%stack_index - 1)%level)
             end if
 
-            it%stack_idx = it%stack_idx - 1
+            it%stack_index = it%stack_index - 1
         end if
 
-        level = it%level_stack(it%stack_idx)%level
-    end function bidi_pop_embedding_level
+        level = it%level_stack(it%stack_index)%level
+    end function bidirectional_pop_embedding_level
 
     !> Remember the character the iterator is at in SAVED, with its
     !> resolved type if FROM_TYPE, else its type after the Wn rules.
     !> Port of bidi.c:bidi_remember_char.
-    pure subroutine bidi_remember_character(saved, it, from_type)
-        type(bidi_saved_info_type), intent(out) :: saved
-        type(bidi_it_type), intent(in) :: it
+    pure subroutine bidirectional_remember_character(saved, it, from_type)
+        type(bidirectional_saved_info_type), intent(out) :: saved
+        type(bidirectional_it_type), intent(in) :: it
         logical, intent(in) :: from_type
 
         saved%character_position = it%character_position
@@ -453,13 +458,13 @@ contains
         end if
 
         saved%original_type = it%original_type
-    end subroutine bidi_remember_character
+    end subroutine bidirectional_remember_character
 
     !> Copy the state of iterator FROM to TO: everything before the
     !> stack, and the stack up to its top.  Port of bidi.c:bidi_copy_it.
-    pure subroutine bidi_copy_it(to, from)
-        type(bidi_it_type), intent(inout) :: to
-        type(bidi_it_type), intent(in) :: from
+    pure subroutine bidirectional_copy_it(to, from)
+        type(bidirectional_it_type), intent(inout) :: to
+        type(bidirectional_it_type), intent(in) :: from
 
         to%byte_position = from%byte_position
         to%character_position = from%character_position
@@ -486,17 +491,17 @@ contains
         to%scan_directory = from%scan_directory
         to%disp_position = from%disp_position
         to%disp_property = from%disp_property
-        to%stack_idx = from%stack_idx
-        to%level_stack(0:from%stack_idx) = from%level_stack(0:from%stack_idx)
-    end subroutine bidi_copy_it
+        to%stack_index = from%stack_index
+        to%level_stack(0:from%stack_index) = from%level_stack(0:from%stack_index)
+    end subroutine bidirectional_copy_it
 
     !> Whether the iterator is at the paragraph's embedding level
-    !> (dispextern.h BIDI_AT_BASE_LEVEL).  Not a port.
-    pure logical function bidi_at_base_level(it)
-        type(bidi_it_type), intent(in) :: it
+    !> (dispextern.h BIDIRECTIONAL_AT_BASE_LEVEL).  Not a port.
+    pure logical function bidirectional_at_base_level(it)
+        type(bidirectional_it_type), intent(in) :: it
 
-        bidi_at_base_level = it%resolved_level == it%level_stack(0)%level
-    end function bidi_at_base_level
+        bidirectional_at_base_level = it%resolved_level == it%level_stack(0)%level
+    end function bidirectional_at_base_level
 
     ! ------------------------------------------------------------------
     ! The cache of iterator states
@@ -504,52 +509,52 @@ contains
 
     !> Forget the cached states from the N-th of the current slot on.
     !> Port of bidi.c:bidi_cache_reset_to.
-    subroutine bidi_cache_reset_to(n)
+    subroutine bidirectional_cache_reset_to(n)
         integer(int64), intent(in) :: n
 
-        bidi_cache_idx = bidi_cache_start + n
-        bidi_cache_last_idx = -1
-    end subroutine bidi_cache_reset_to
+        bidirectional_cache_index = bidirectional_cache_start + n
+        bidirectional_cache_last_index = -1
+    end subroutine bidirectional_cache_reset_to
 
     !> Forget the cached states of the current slot.  Port of
     !> bidi.c:bidi_cache_reset.
-    subroutine bidi_cache_reset()
-        call bidi_cache_reset_to(0_int64)
-    end subroutine bidi_cache_reset
+    subroutine bidirectional_cache_reset()
+        call bidirectional_cache_reset_to(0_int64)
+    end subroutine bidirectional_cache_reset
 
     !> Give the cache back its first chunk and empty it.  Port of
     !> bidi.c:bidi_cache_shrink.
-    subroutine bidi_cache_shrink()
-        type(bidi_it_type), allocatable :: smaller(:)
+    subroutine bidirectional_cache_shrink()
+        type(bidirectional_it_type), allocatable :: smaller(:)
 
-        if (bidi_cache_size > BIDI_CACHE_CHUNK) then
-            allocate (smaller(0:BIDI_CACHE_CHUNK - 1))
-            smaller(0:BIDI_CACHE_CHUNK - 1) = bidi_cache(0:BIDI_CACHE_CHUNK - 1)
-            call move_alloc(smaller, bidi_cache)
-            bidi_cache_size = BIDI_CACHE_CHUNK
+        if (bidirectional_cache_size > BIDIRECTIONAL_CACHE_CHUNK) then
+            allocate (smaller(0:BIDIRECTIONAL_CACHE_CHUNK - 1))
+            smaller(0:BIDIRECTIONAL_CACHE_CHUNK - 1) = bidirectional_cache(0:BIDIRECTIONAL_CACHE_CHUNK - 1)
+            call move_alloc(smaller, bidirectional_cache)
+            bidirectional_cache_size = BIDIRECTIONAL_CACHE_CHUNK
         end if
 
-        call bidi_cache_reset()
-        bidi_cache_maximum_elements = BIDI_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
-    end subroutine bidi_cache_shrink
+        call bidirectional_cache_reset()
+        bidirectional_cache_maximum_elements = BIDIRECTIONAL_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
+    end subroutine bidirectional_cache_shrink
 
     !> Load the cached state INDEX into the iterator, keeping its scan
     !> direction.  Port of bidi.c:bidi_cache_fetch_state.
-    subroutine bidi_cache_fetch_state(index, it)
+    subroutine bidirectional_cache_fetch_state(index, it)
         integer(int64), intent(in) :: index
-        type(bidi_it_type), intent(inout) :: it
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: current_scan_directory
 
         current_scan_directory = it%scan_directory
-        call bidi_copy_it(it, bidi_cache(index))
+        call bidirectional_copy_it(it, bidirectional_cache(index))
         it%scan_directory = current_scan_directory
-        bidi_cache_last_idx = index
-    end subroutine bidi_cache_fetch_state
+        bidirectional_cache_last_index = index
+    end subroutine bidirectional_cache_fetch_state
 
     !> The index of the cached state that covers CHARACTER_POSITION at level LEVEL
     !> or lower (any level if -1), searching in direction DIRECTORY from the
     !> last state used, or -1.  Port of bidi.c:bidi_cache_search.
-    integer(int64) function bidi_cache_search(character_position, level, directory_in) result(found)
+    integer(int64) function bidirectional_cache_search(character_position, level, directory_in) result(found)
         integer(int64), intent(in) :: character_position
         integer, intent(in) :: level, directory_in
         integer(int64) :: i, i_start
@@ -557,32 +562,33 @@ contains
 
         found = -1
         directory = directory_in
-        if (bidi_cache_idx <= bidi_cache_start) return
-        if (bidi_cache_last_idx == -1) bidi_cache_last_idx = bidi_cache_idx - 1
+        if (bidirectional_cache_index <= bidirectional_cache_start) return
+        if (bidirectional_cache_last_index == -1) bidirectional_cache_last_index = bidirectional_cache_index - 1
 
-        if (character_position < bidi_cache(bidi_cache_last_idx)%character_position) then
+        if (character_position < bidirectional_cache(bidirectional_cache_last_index)%character_position) then
             directory = -1
-            i_start = bidi_cache_last_idx - 1
-        else if (character_position > bidi_cache(bidi_cache_last_idx)%character_position + bidi_cache(bidi_cache_last_idx)%nchars &
+            i_start = bidirectional_cache_last_index - 1
+        else if (character_position > bidirectional_cache(bidirectional_cache_last_index)%character_position &
+                 + bidirectional_cache(bidirectional_cache_last_index)%nchars &
                  - 1) then
             directory = 1
-            i_start = bidi_cache_last_idx + 1
+            i_start = bidirectional_cache_last_index + 1
         else if (directory /= 0) then
-            i_start = bidi_cache_last_idx
+            i_start = bidirectional_cache_last_index
         else
             directory = -1
-            i_start = bidi_cache_idx - 1
+            i_start = bidirectional_cache_index - 1
         end if
 
         if (directory < 0) then
-            do i = i_start, bidi_cache_start, -1
+            do i = i_start, bidirectional_cache_start, -1
                 if (covers(i)) then
                     found = i
                     return
                 end if
             end do
         else
-            do i = i_start, bidi_cache_idx - 1
+            do i = i_start, bidirectional_cache_index - 1
                 if (covers(i)) then
                     found = i
                     return
@@ -597,30 +603,30 @@ contains
             integer(int64), intent(in) :: i
 
             covers = .false.
-            if (bidi_cache(i)%character_position > character_position) return
-            if (character_position >= bidi_cache(i)%character_position + bidi_cache(i)%nchars) return
-            covers = level == -1 .or. bidi_cache(i)%resolved_level <= level
+            if (bidirectional_cache(i)%character_position > character_position) return
+            if (character_position >= bidirectional_cache(i)%character_position + bidirectional_cache(i)%nchars) return
+            covers = level == -1 .or. bidirectional_cache(i)%resolved_level <= level
         end function covers
-    end function bidi_cache_search
+    end function bidirectional_cache_search
 
     !> The index of the cached state where the level drops below LEVEL,
     !> searching from the last state used in direction DIRECTORY (from the end
     !> if 0); with BEFORE, the state before that change.  -1 if none.
     !> Port of bidi.c:bidi_cache_find_level_change.
-    integer(int64) function bidi_cache_find_level_change(level, directory_in, before) result(found)
+    integer(int64) function bidirectional_cache_find_level_change(level, directory_in, before) result(found)
         integer, intent(in) :: level, directory_in
         logical, intent(in) :: before
         integer(int64) :: i
         integer :: increment, directory
 
         found = -1
-        if (bidi_cache_idx == 0) return
+        if (bidirectional_cache_index == 0) return
         directory = directory_in
 
         if (directory /= 0) then
-            i = bidi_cache_last_idx
+            i = bidirectional_cache_last_index
         else
-            i = bidi_cache_idx - 1
+            i = bidirectional_cache_index - 1
         end if
 
         increment = 0
@@ -634,8 +640,9 @@ contains
         end if
 
         if (directory < 0) then
-            do while (i >= bidi_cache_start + increment)
-                if (bidi_cache(i - increment)%resolved_level >= 0 .and. bidi_cache(i - increment)%resolved_level < level) then
+            do while (i >= bidirectional_cache_start + increment)
+                if (bidirectional_cache(i - increment)%resolved_level >= 0 .and. bidirectional_cache(i &
+                                                                                           - increment)%resolved_level < level) then
                     found = i
                     return
                 end if
@@ -643,8 +650,9 @@ contains
                 i = i - 1
             end do
         else
-            do while (i < bidi_cache_idx - increment)
-                if (bidi_cache(i + increment)%resolved_level >= 0 .and. bidi_cache(i + increment)%resolved_level < level) then
+            do while (i < bidirectional_cache_index - increment)
+                if (bidirectional_cache(i + increment)%resolved_level >= 0 .and. bidirectional_cache(i &
+                                                                                           + increment)%resolved_level < level) then
                     found = i
                     return
                 end if
@@ -652,206 +660,211 @@ contains
                 i = i + 1
             end do
         end if
-    end function bidi_cache_find_level_change
+    end function bidirectional_cache_find_level_change
 
     !> The position where the run of characters at LEVEL or higher that
     !> ends at the last cached state starts, or -1.  Port of
     !> bidi.c:bidi_level_start.
-    integer(int64) function bidi_level_start(level) result(position)
+    integer(int64) function bidirectional_level_start(level) result(position)
         integer, intent(in) :: level
         integer(int64) :: slot
 
         position = -1
-        slot = bidi_cache_find_level_change(level, -1, .true.)
-        if (slot >= 0) position = bidi_cache(slot)%character_position
-    end function bidi_level_start
+        slot = bidirectional_cache_find_level_change(level, -1, .true.)
+        if (slot >= 0) position = bidirectional_cache(slot)%character_position
+    end function bidirectional_level_start
 
     !> Make room in the cache for the state at index INDEX, if the slot
     !> allows that many.  Port of bidi.c:bidi_cache_ensure_space.
-    subroutine bidi_cache_ensure_space(index)
+    subroutine bidirectional_cache_ensure_space(index)
         integer(int64), intent(in) :: index
-        type(bidi_it_type), allocatable :: grown(:)
+        type(bidirectional_it_type), allocatable :: grown(:)
         integer(int64) :: chunk_size, new_size
 
-        if (index < bidi_cache_size) return
-        chunk_size = BIDI_CACHE_CHUNK
-        if (bidi_cache_size > bidi_cache_maximum_elements - chunk_size) chunk_size = bidi_cache_maximum_elements - bidi_cache_size
-        if (max(index + 1, bidi_cache_size + chunk_size) > bidi_cache_maximum_elements) return
-        new_size = min(bidi_cache_maximum_elements, bidi_cache_size + max(chunk_size, index - bidi_cache_size + 1))
+        if (index < bidirectional_cache_size) return
+        chunk_size = BIDIRECTIONAL_CACHE_CHUNK
+        if (bidirectional_cache_size > bidirectional_cache_maximum_elements - chunk_size) chunk_size = &
+            bidirectional_cache_maximum_elements - bidirectional_cache_size
+        if (max(index + 1, bidirectional_cache_size + chunk_size) > bidirectional_cache_maximum_elements) return
+        new_size = min(bidirectional_cache_maximum_elements, bidirectional_cache_size + max(chunk_size, &
+                                                                                            index - bidirectional_cache_size + 1))
         allocate (grown(0:new_size - 1))
-        if (bidi_cache_size > 0) grown(0:bidi_cache_size - 1) = bidi_cache(0:bidi_cache_size - 1)
-        call move_alloc(grown, bidi_cache)
-        bidi_cache_size = new_size
-    end subroutine bidi_cache_ensure_space
+        if (bidirectional_cache_size > 0) grown(0:bidirectional_cache_size - 1) = bidirectional_cache(0:bidirectional_cache_size &
+                                                                                                      - 1)
+        call move_alloc(grown, bidirectional_cache)
+        bidirectional_cache_size = new_size
+    end subroutine bidirectional_cache_ensure_space
 
     !> Cache the iterator's state (as unresolved unless RESOLVED); with
     !> UPDATE_ONLY, only update a state already cached.  Return whether it
     !> was cached.  Port of bidi.c:bidi_cache_iterator_state.
-    logical function bidi_cache_iterator_state(it, resolved, update_only) result(cached)
-        type(bidi_it_type), intent(in) :: it
+    logical function bidirectional_cache_iterator_state(it, resolved, update_only) result(cached)
+        type(bidirectional_it_type), intent(in) :: it
         logical, intent(in) :: resolved, update_only
         integer(int64) :: index
 
         cached = .false.
-        index = bidi_cache_search(it%character_position, -1, 1)
+        index = bidirectional_cache_search(it%character_position, -1, 1)
         if (index < 0 .and. update_only) return
 
         if (index < 0) then
-            index = bidi_cache_idx
-            call bidi_cache_ensure_space(index)
+            index = bidirectional_cache_index
+            call bidirectional_cache_ensure_space(index)
 
             ! Don't let the cache grow out of contiguity.
-            if (bidi_cache_start < index .and. index < bidi_cache_size) then
-                if (it%character_position > bidi_cache(index - 1)%character_position + bidi_cache(index - 1)%nchars .or. &
-                    it%character_position < bidi_cache(bidi_cache_start)%character_position) then
-                    call bidi_cache_reset()
-                    index = bidi_cache_start
+            if (bidirectional_cache_start < index .and. index < bidirectional_cache_size) then
+                if (it%character_position > bidirectional_cache(index - 1)%character_position + bidirectional_cache(index &
+                                                                                                                  - 1)%nchars .or. &
+                    it%character_position < bidirectional_cache(bidirectional_cache_start)%character_position) then
+                    call bidirectional_cache_reset()
+                    index = bidirectional_cache_start
                 end if
             end if
 
-            if (bidi_cache_size > index) then
-                call bidi_copy_it(bidi_cache(index), it)
-                if (.not. resolved) bidi_cache(index)%resolved_level = -1
+            if (bidirectional_cache_size > index) then
+                call bidirectional_copy_it(bidirectional_cache(index), it)
+                if (.not. resolved) bidirectional_cache(index)%resolved_level = -1
             end if
         else
             ! Copy only the members that could have changed.
-            bidi_cache(index)%type = it%type
-            bidi_cache(index)%type_after_wn = it%type_after_wn
+            bidirectional_cache(index)%type = it%type
+            bidirectional_cache(index)%type_after_wn = it%type_after_wn
 
             if (resolved) then
-                bidi_cache(index)%resolved_level = it%resolved_level
+                bidirectional_cache(index)%resolved_level = it%resolved_level
             else
-                bidi_cache(index)%resolved_level = -1
+                bidirectional_cache(index)%resolved_level = -1
             end if
 
-            bidi_cache(index)%invalid_levels = it%invalid_levels
-            bidi_cache(index)%next_for_neutral = it%next_for_neutral
-            bidi_cache(index)%next_for_whitespace = it%next_for_whitespace
-            bidi_cache(index)%disp_position = it%disp_position
-            bidi_cache(index)%disp_property = it%disp_property
-            bidi_cache(index)%bracket_pairing_position = it%bracket_pairing_position
-            bidi_cache(index)%bracket_enclosed_type = it%bracket_enclosed_type
+            bidirectional_cache(index)%invalid_levels = it%invalid_levels
+            bidirectional_cache(index)%next_for_neutral = it%next_for_neutral
+            bidirectional_cache(index)%next_for_whitespace = it%next_for_whitespace
+            bidirectional_cache(index)%disp_position = it%disp_position
+            bidirectional_cache(index)%disp_property = it%disp_property
+            bidirectional_cache(index)%bracket_pairing_position = it%bracket_pairing_position
+            bidirectional_cache(index)%bracket_enclosed_type = it%bracket_enclosed_type
         end if
 
-        if (bidi_cache_size > index) then
-            bidi_cache_last_idx = index
-            if (index >= bidi_cache_idx) bidi_cache_idx = index + 1
+        if (bidirectional_cache_size > index) then
+            bidirectional_cache_last_index = index
+            if (index >= bidirectional_cache_index) bidirectional_cache_index = index + 1
             cached = .true.
         else
-            bidi_cache_last_idx = -1
+            bidirectional_cache_last_index = -1
         end if
-    end function bidi_cache_iterator_state
+    end function bidirectional_cache_iterator_state
 
     !> Load the cached state at CHARACTER_POSITION (only a resolved one if
     !> RESOLVED_ONLY) into the iterator and return its type, or
     !> UNKNOWN_BT.  Port of bidi.c:bidi_cache_find.
-    integer function bidi_cache_find(character_position, resolved_only, it) result(type)
+    integer function bidirectional_cache_find(character_position, resolved_only, it) result(type)
         integer(int64), intent(in) :: character_position
         logical, intent(in) :: resolved_only
-        type(bidi_it_type), intent(inout) :: it
+        type(bidirectional_it_type), intent(inout) :: it
         integer(int64) :: i
         integer :: current_scan_directory
 
         type = UNKNOWN_BT
-        i = bidi_cache_search(character_position, -1, it%scan_directory)
-        if (i < bidi_cache_start) return
-        if (resolved_only .and. bidi_cache(i)%resolved_level < 0) return
+        i = bidirectional_cache_search(character_position, -1, it%scan_directory)
+        if (i < bidirectional_cache_start) return
+        if (resolved_only .and. bidirectional_cache(i)%resolved_level < 0) return
         current_scan_directory = it%scan_directory
-        call bidi_copy_it(it, bidi_cache(i))
-        bidi_cache_last_idx = i
+        call bidirectional_copy_it(it, bidirectional_cache(i))
+        bidirectional_cache_last_index = i
         it%scan_directory = current_scan_directory
         type = it%type
-    end function bidi_cache_find
+    end function bidirectional_cache_find
 
     !> The level of the next character in the scan direction, from the
     !> cache.  Port of bidi.c:bidi_peek_at_next_level.
-    integer function bidi_peek_at_next_level(it) result(level)
-        type(bidi_it_type), intent(in) :: it
+    integer function bidirectional_peek_at_next_level(it) result(level)
+        type(bidirectional_it_type), intent(in) :: it
 
-        if (bidi_cache_last_idx == -1 .or. (bidi_cache_last_idx >= bidi_cache_idx - 1 .and. it%scan_directory > 0)) then
-            level = bidi_cache(bidi_cache_idx - 1)%resolved_level
+        if (bidirectional_cache_last_index == -1 .or. (bidirectional_cache_last_index >= bidirectional_cache_index - 1 &
+                                                       .and. it%scan_directory > 0)) then
+            level = bidirectional_cache(bidirectional_cache_index - 1)%resolved_level
         else
-            level = bidi_cache(bidi_cache_last_idx + it%scan_directory)%resolved_level
+            level = bidirectional_cache(bidirectional_cache_last_index + it%scan_directory)%resolved_level
         end if
-    end function bidi_peek_at_next_level
+    end function bidirectional_peek_at_next_level
 
     !> Push the iterator's state on the cache and start a new slot (for
     !> reordering a string within the buffer text).  Port of
     !> bidi.c:bidi_push_it.
-    subroutine bidi_push_it(it)
-        type(bidi_it_type), intent(in) :: it
+    subroutine bidirectional_push_it(it)
+        type(bidirectional_it_type), intent(in) :: it
 
-        bidi_cache_maximum_elements = bidi_cache_maximum_elements + BIDI_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
-        call bidi_cache_ensure_space(bidi_cache_idx)
-        bidi_cache(bidi_cache_idx) = it
-        bidi_cache_idx = bidi_cache_idx + 1
-        bidi_cache_start_stack(bidi_cache_sp) = bidi_cache_start
-        bidi_cache_sp = bidi_cache_sp + 1
-        bidi_cache_start = bidi_cache_idx
-        bidi_cache_last_idx = -1
-    end subroutine bidi_push_it
+        bidirectional_cache_maximum_elements = bidirectional_cache_maximum_elements + BIDIRECTIONAL_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
+        call bidirectional_cache_ensure_space(bidirectional_cache_index)
+        bidirectional_cache(bidirectional_cache_index) = it
+        bidirectional_cache_index = bidirectional_cache_index + 1
+        bidirectional_cache_start_stack(bidirectional_cache_sp) = bidirectional_cache_start
+        bidirectional_cache_sp = bidirectional_cache_sp + 1
+        bidirectional_cache_start = bidirectional_cache_index
+        bidirectional_cache_last_index = -1
+    end subroutine bidirectional_push_it
 
-    !> Restore the state `bidi_push_it' saved, and its cache slot.
+    !> Restore the state `bidirectional_push_it' saved, and its cache slot.
     !> Port of bidi.c:bidi_pop_it.
-    subroutine bidi_pop_it(it)
-        type(bidi_it_type), intent(inout) :: it
+    subroutine bidirectional_pop_it(it)
+        type(bidirectional_it_type), intent(inout) :: it
 
-        bidi_cache_idx = bidi_cache_start - 1
-        it = bidi_cache(bidi_cache_idx)
-        bidi_cache_sp = bidi_cache_sp - 1
-        bidi_cache_start = bidi_cache_start_stack(bidi_cache_sp)
-        bidi_cache_last_idx = -1
-        bidi_cache_maximum_elements = bidi_cache_maximum_elements - BIDI_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
-    end subroutine bidi_pop_it
+        bidirectional_cache_index = bidirectional_cache_start - 1
+        it = bidirectional_cache(bidirectional_cache_index)
+        bidirectional_cache_sp = bidirectional_cache_sp - 1
+        bidirectional_cache_start = bidirectional_cache_start_stack(bidirectional_cache_sp)
+        bidirectional_cache_last_index = -1
+        bidirectional_cache_maximum_elements = bidirectional_cache_maximum_elements - BIDIRECTIONAL_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
+    end subroutine bidirectional_pop_it
 
-    !> Save the cache, to restore it with `bidi_unshelve_cache' after an
+    !> Save the cache, to restore it with `bidirectional_unshelve_cache' after an
     !> unrelated iteration.  Port of bidi.c:bidi_shelve_cache.
-    function bidi_shelve_cache() result(data)
-        type(bidi_shelved_type) :: data
+    function bidirectional_shelve_cache() result(data)
+        type(bidirectional_shelved_type) :: data
 
-        if (bidi_cache_idx == 0) return
+        if (bidirectional_cache_index == 0) return
         data%empty = .false.
-        allocate (data%cache(0:bidi_cache_idx - 1))
-        data%cache(0:bidi_cache_idx - 1) = bidi_cache(0:bidi_cache_idx - 1)
-        data%index = bidi_cache_idx
-        data%start_stack = bidi_cache_start_stack
-        data%sp = bidi_cache_sp
-        data%start = bidi_cache_start
-        data%last_idx = bidi_cache_last_idx
-        data%maximum_elements = bidi_cache_maximum_elements
-    end function bidi_shelve_cache
+        allocate (data%cache(0:bidirectional_cache_index - 1))
+        data%cache(0:bidirectional_cache_index - 1) = bidirectional_cache(0:bidirectional_cache_index - 1)
+        data%index = bidirectional_cache_index
+        data%start_stack = bidirectional_cache_start_stack
+        data%sp = bidirectional_cache_sp
+        data%start = bidirectional_cache_start
+        data%last_index = bidirectional_cache_last_index
+        data%maximum_elements = bidirectional_cache_maximum_elements
+    end function bidirectional_shelve_cache
 
     !> Restore the cache DATA saved (only free it with JUST_FREE); an empty
     !> DATA resets the cache.  Port of bidi.c:bidi_unshelve_cache.
-    subroutine bidi_unshelve_cache(data, just_free)
-        type(bidi_shelved_type), intent(inout) :: data
+    subroutine bidirectional_unshelve_cache(data, just_free)
+        type(bidirectional_shelved_type), intent(inout) :: data
         logical, intent(in) :: just_free
 
         if (data%empty) then
             if (.not. just_free) then
-                bidi_cache_start = 0
-                bidi_cache_sp = 0
-                bidi_cache_maximum_elements = BIDI_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
-                call bidi_cache_reset()
+                bidirectional_cache_start = 0
+                bidirectional_cache_sp = 0
+                bidirectional_cache_maximum_elements = BIDIRECTIONAL_CACHE_MAXIMUM_ELEMENTS_PER_SLOT
+                call bidirectional_cache_reset()
             end if
 
             return
         end if
 
         if (.not. just_free) then
-            bidi_cache_idx = data%index
-            call bidi_cache_ensure_space(bidi_cache_idx)
-            bidi_cache(0:bidi_cache_idx - 1) = data%cache(0:bidi_cache_idx - 1)
-            bidi_cache_start_stack = data%start_stack
-            bidi_cache_sp = data%sp
-            bidi_cache_start = data%start
-            bidi_cache_last_idx = data%last_idx
-            bidi_cache_maximum_elements = data%maximum_elements
+            bidirectional_cache_index = data%index
+            call bidirectional_cache_ensure_space(bidirectional_cache_index)
+            bidirectional_cache(0:bidirectional_cache_index - 1) = data%cache(0:bidirectional_cache_index - 1)
+            bidirectional_cache_start_stack = data%start_stack
+            bidirectional_cache_sp = data%sp
+            bidirectional_cache_start = data%start
+            bidirectional_cache_last_index = data%last_index
+            bidirectional_cache_maximum_elements = data%maximum_elements
         end if
 
         if (allocated(data%cache)) deallocate (data%cache)
         data%empty = .true.
-    end subroutine bidi_unshelve_cache
+    end subroutine bidirectional_unshelve_cache
 
     ! ------------------------------------------------------------------
     ! Initialization
@@ -859,9 +872,9 @@ contains
 
     !> Reorder the string S (UTF-8, multibyte) with iterator IT instead of
     !> the current buffer; without S, the buffer again.  Not a port (the
-    !> `string' member of struct bidi_it).
-    subroutine bidi_set_string(it, s)
-        type(bidi_it_type), intent(inout) :: it
+    !> `string' member of struct bidirectional_it).
+    subroutine bidirectional_set_string(it, s)
+        type(bidirectional_it_type), intent(inout) :: it
         character(len=*), intent(in), optional :: s
         integer(int64) :: k
         integer(int32) :: ch, n
@@ -878,27 +891,27 @@ contains
             k = k + n
             it%string%count_characters = it%string%count_characters + 1
         end do
-    end subroutine bidi_set_string
+    end subroutine bidirectional_set_string
 
     !> Reset the iterator's state for the end of a paragraph.  Port of
     !> bidi.c:bidi_set_paragraph_end.
-    subroutine bidi_set_paragraph_end(it)
-        type(bidi_it_type), intent(inout) :: it
+    subroutine bidirectional_set_paragraph_end(it)
+        type(bidirectional_it_type), intent(inout) :: it
 
         it%invalid_levels = 0
         it%invalid_isolates = 0
-        it%stack_idx = 0
+        it%stack_index = 0
         it%isolate_level = 0
         it%resolved_level = it%level_stack(0)%level
-    end subroutine bidi_set_paragraph_end
+    end subroutine bidirectional_set_paragraph_end
 
     !> Set up IT to reorder from CHARACTER_POSITION and BYTE_POSITION (unchanged where
     !> negative).  Port of bidi.c:bidi_init_it (with
     !> bidi.c:bidi_initialize: the tables are compiled in).
-    subroutine bidi_init_it(character_position, byte_position, frame_window_p, it)
+    subroutine bidirectional_initialize_iterator(character_position, byte_position, frame_window_p, it)
         integer(int64), intent(in) :: character_position, byte_position
         logical, intent(in) :: frame_window_p
-        type(bidi_it_type), intent(inout) :: it
+        type(bidirectional_it_type), intent(inout) :: it
 
         if (character_position >= 0) it%character_position = character_position
         if (byte_position >= 0) it%byte_position = byte_position
@@ -906,7 +919,7 @@ contains
         ! This means "need to recompute".
         it%nchars = -1
         it%first_element = .true.
-        call bidi_set_paragraph_end(it)
+        call bidirectional_set_paragraph_end(it)
         it%new_paragraph = .true.
         it%separator_limit = -1
         it%type = NEUTRAL_B
@@ -927,21 +940,21 @@ contains
         it%disp_position = -1
         it%disp_property = 0
 
-        if (bidi_cache_start == 0) then
-            call bidi_cache_shrink()
+        if (bidirectional_cache_start == 0) then
+            call bidirectional_cache_shrink()
         else
-            call bidi_cache_reset()
+            call bidirectional_cache_reset()
         end if
-    end subroutine bidi_init_it
+    end subroutine bidirectional_initialize_iterator
 
     !> Set up the iterator for the start of a line.  Port of
     !> bidi.c:bidi_line_init.
-    subroutine bidi_line_init(it)
-        type(bidi_it_type), intent(inout) :: it
+    subroutine bidirectional_line_initialize(it)
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: before
 
         it%scan_directory = 1
-        it%stack_idx = 0
+        it%stack_index = 0
         it%resolved_level = it%level_stack(0)%level
         it%level_stack(0)%flags = 0
         it%invalid_levels = 0
@@ -954,9 +967,9 @@ contains
         it%bracket_pairing_position = -1
         before = 0
         if (it%paragraph_directory == R2L) before = 1
-        call bidi_set_sos_type(it, before, it%level_stack(0)%level)
-        call bidi_cache_reset()
-    end subroutine bidi_line_init
+        call bidirectional_set_sos_type(it, before, it%level_stack(0)%level)
+        call bidirectional_cache_reset()
+    end subroutine bidirectional_line_initialize
 
     ! ------------------------------------------------------------------
     ! Fetching characters
@@ -964,7 +977,7 @@ contains
 
     !> The end of the text: the string's length, or END_OF_ACCESSIBLE_PORTION.  Not a port.
     integer(int64) function text_end(it) result(e)
-        type(bidi_it_type), intent(in) :: it
+        type(bidirectional_it_type), intent(in) :: it
 
         if (it%string%active) then
             e = it%string%count_characters
@@ -976,8 +989,8 @@ contains
     !> The character at BYTE_POSITION of the text and its length in bytes.
     !> Port of bidi.c:bidi_char_at_pos (with bidi.c:bidi_count_bytes for
     !> the length).
-    subroutine bidi_character_at_position(it, byte_position, ch, len)
-        type(bidi_it_type), intent(in) :: it
+    subroutine bidirectional_character_at_position(it, byte_position, ch, len)
+        type(bidirectional_it_type), intent(in) :: it
         integer(int64), intent(in) :: byte_position
         integer(int32), intent(out) :: ch
         integer(int64), intent(out) :: len
@@ -987,17 +1000,18 @@ contains
             call string_character_and_length(it%string%s, byte_position + 1, ch, n)
             len = n
         else
-            ch = buf_fetch_char(buffers(current), byte_position)
-            len = buf_next_char_len(buffers(current), byte_position)
+            ch = buffer_fetch_character(buffers(current), byte_position)
+            len = buffer_next_character_length(buffers(current), byte_position)
         end if
-    end subroutine bidi_character_at_position
+    end subroutine bidirectional_character_at_position
 
-    !> The character at CHARACTER_POSITION and BYTE_POSITION, BIDI_END_OF_BUFFER at the end, with
+    !> The character at CHARACTER_POSITION and BYTE_POSITION, BIDIRECTIONAL_END_OF_BUFFER at the end, with
     !> its length in bytes and characters.  Port of bidi.c:bidi_fetch_char
     !> (display properties are Deferred: DISP_POSITION is the end of the text).
-    integer(int32) function bidi_fetch_character(it, character_position, byte_position, disp_position, disp_property, ch_length, &
-                                                 nchars) result(ch)
-        type(bidi_it_type), intent(in) :: it
+    integer(int32) function bidirectional_fetch_character(it, character_position, byte_position, disp_position, disp_property, &
+                                                          ch_length, &
+                                                          nchars) result(ch)
+        type(bidirectional_it_type), intent(in) :: it
         integer(int64), intent(in) :: character_position, byte_position
         integer(int64), intent(inout) :: disp_position
         integer, intent(inout) :: disp_property
@@ -1010,20 +1024,21 @@ contains
         nchars = 1
 
         if (character_position >= endpos) then
-            ch = BIDI_END_OF_BUFFER
+            ch = BIDIRECTIONAL_END_OF_BUFFER
             ch_length = 1
         else
-            call bidi_character_at_position(it, byte_position, ch, ch_length)
+            call bidirectional_character_at_position(it, byte_position, ch, ch_length)
         end if
-    end function bidi_fetch_character
+    end function bidirectional_fetch_character
 
-    !> Like `bidi_fetch_character', but an isolate initiator comes with the
+    !> Like `bidirectional_fetch_character', but an isolate initiator comes with the
     !> isolated text up to its matching PDI, as one character.  Port of
     !> bidi.c:bidi_fetch_char_skip_isolates.
-    integer(int32) function bidi_fetch_character_skip_isolates(it, character_position_in, byte_position_in, disp_position, &
-                                                               disp_property, ch_length, &
-                                                               nchars) result(ch)
-        type(bidi_it_type), intent(in) :: it
+    integer(int32) function bidirectional_fetch_character_skip_isolates(it, character_position_in, byte_position_in, &
+                                                                        disp_position, &
+                                                                        disp_property, ch_length, &
+                                                                        nchars) result(ch)
+        type(bidirectional_it_type), intent(in) :: it
         integer(int64), intent(in) :: character_position_in, byte_position_in
         integer(int64), intent(inout) :: disp_position
         integer, intent(inout) :: disp_property
@@ -1033,8 +1048,8 @@ contains
 
         character_position = character_position_in
         byte_position = byte_position_in
-        ch = bidi_fetch_character(it, character_position, byte_position, disp_position, disp_property, ch_length, nchars)
-        ch_type = bidi_get_type(ch, NEUTRAL_DIRECTORY)
+        ch = bidirectional_fetch_character(it, character_position, byte_position, disp_position, disp_property, ch_length, nchars)
+        ch_type = bidirectional_get_type(ch, NEUTRAL_DIRECTORY)
         level = 0
 
         if (ch_type == LRI .or. ch_type == RLI .or. ch_type == FSI) then
@@ -1043,8 +1058,9 @@ contains
             do while (level > 0 .and. ch_type /= NEUTRAL_B)
                 character_position = character_position + nchars
                 byte_position = byte_position + ch_length
-                ch = bidi_fetch_character(it, character_position, byte_position, disp_position, disp_property, ch_length, nchars)
-                ch_type = bidi_get_type(ch, NEUTRAL_DIRECTORY)
+                ch = bidirectional_fetch_character(it, character_position, byte_position, disp_position, disp_property, ch_length, &
+                                                   nchars)
+                ch_type = bidirectional_get_type(ch, NEUTRAL_DIRECTORY)
 
                 if (ch_type == LRI .or. ch_type == RLI .or. ch_type == FSI) then
                     level = level + 1
@@ -1057,7 +1073,7 @@ contains
         ! Make sure the data for the isolate is all of it.
         nchars = nchars + character_position - character_position_in
         ch_length = ch_length + byte_position - byte_position_in
-    end function bidi_fetch_character_skip_isolates
+    end function bidirectional_fetch_character_skip_isolates
 
     ! ------------------------------------------------------------------
     ! Paragraphs
@@ -1079,7 +1095,7 @@ contains
     !> The length of the paragraph separator at CHARACTER_POSITION (0 for an empty
     !> line), -1 if a paragraph starts there without a separator, -2 if
     !> neither.  Port of bidi.c:bidi_at_paragraph_end.
-    integer(int64) function bidi_at_paragraph_end(character_position) result(value)
+    integer(int64) function bidirectional_at_paragraph_end(character_position) result(value)
         integer(int64), intent(in) :: character_position
         type(status_type) :: st
 
@@ -1094,13 +1110,13 @@ contains
                 value = -2
             end if
         end if
-    end function bidi_at_paragraph_end
+    end function bidirectional_at_paragraph_end
 
     !> The byte position of the start of the paragraph holding POSITION (the
     !> line where a paragraph start matches, at most MAXIMUM_PARAGRAPH_SEARCH
     !> lines back, else BEGINNING_OF_ACCESSIBLE_PORTION).  Port of bidi.c:bidi_find_paragraph_start
-    !> (without the region cache of bidi_paragraph_cache_on_off, Deferred).
-    integer(int64) function bidi_find_paragraph_start(position_in, position_byte_in) result(position_byte)
+    !> (without the region cache of bidirectional_paragraph_cache_on_off, Deferred).
+    integer(int64) function bidirectional_find_paragraph_start(position_in, position_byte_in) result(position_byte)
         integer(int64), intent(in) :: position_in, position_byte_in
         integer(int64) :: position, n
         type(status_type) :: st
@@ -1116,14 +1132,14 @@ contains
                                 st) >= 0) exit
             ! dec_both
             position = position - 1
-            position_byte = position_byte - buf_prev_char_len(buffers(current), position_byte)
+            position_byte = position_byte - buffer_previous_character_length(buffers(current), position_byte)
             position = find_newline_no_quit(position, position_byte, -1_int64, position_byte)
         end do
 
         if (n >= MAXIMUM_PARAGRAPH_SEARCH) position_byte = buffers(current)%beginning_of_accessible_portion_byte
         position_byte = max(buffers(current)%beginning_of_accessible_portion_byte, min(position_byte, &
                                                                                    buffers(current)%end_of_accessible_portion_byte))
-    end function bidi_find_paragraph_start
+    end function bidirectional_find_paragraph_start
 
     !> The type of the first strong character from POSITION (or NEUTRAL_B at a
     !> paragraph's end, or PDI with STOP_AT_PDI), isolates skipped.
@@ -1131,7 +1147,7 @@ contains
     integer function find_first_strong_character(it, position_in, byte_position_in, end, disp_position, disp_property, ch_length, &
                                                  nchars, &
                                                  stop_at_pdi) result(type)
-        type(bidi_it_type), intent(in) :: it
+        type(bidirectional_it_type), intent(in) :: it
         integer(int64), intent(in) :: position_in, byte_position_in, end
         integer(int64), intent(inout) :: disp_position
         integer, intent(inout) :: disp_property
@@ -1149,13 +1165,14 @@ contains
             byte_position = byte_position + ch_length
         end if
 
-        ch = bidi_fetch_character_skip_isolates(it, position, byte_position, disp_position, disp_property, ch_length, nchars)
-        type = bidi_get_type(ch, NEUTRAL_DIRECTORY)
+        ch = bidirectional_fetch_character_skip_isolates(it, position, byte_position, disp_position, disp_property, ch_length, &
+                                                         nchars)
+        type = bidirectional_get_type(ch, NEUTRAL_DIRECTORY)
         position1 = position
         position = position + nchars
         byte_position = byte_position + ch_length
 
-        do while (bidi_get_category(type) /= STRONG .and. .not. (stop_at_pdi .and. type == PDI) .and. &
+        do while (bidirectional_get_category(type) /= STRONG .and. .not. (stop_at_pdi .and. type == PDI) .and. &
                   position - position1 < MAXIMUM_STRONG_CHARACTER_SEARCH)
             if (position >= end) then
                 ! Pretend there's a paragraph separator at end of buffer.
@@ -1164,13 +1181,14 @@ contains
             end if
 
             if (.not. it%string%active .and. type == NEUTRAL_B) then
-                if (bidi_at_paragraph_end(position) >= -1) exit
+                if (bidirectional_at_paragraph_end(position) >= -1) exit
             end if
 
-            ch = bidi_fetch_character_skip_isolates(it, position, byte_position, disp_position, disp_property, ch_length, nchars)
+            ch = bidirectional_fetch_character_skip_isolates(it, position, byte_position, disp_position, disp_property, ch_length, &
+                                                             nchars)
             position = position + nchars
             byte_position = byte_position + ch_length
-            type = bidi_get_type(ch, NEUTRAL_DIRECTORY)
+            type = bidirectional_get_type(ch, NEUTRAL_DIRECTORY)
         end do
 
         nsearch_for_strong = nsearch_for_strong + position - position1
@@ -1180,9 +1198,9 @@ contains
     !> if L2R or R2L, else from its first strong character (with
     !> NO_DEFAULT_P, that of an earlier paragraph if it has none), and
     !> start a line.  Port of bidi.c:bidi_paragraph_init.
-    subroutine bidi_paragraph_init(directory_in, it, no_default_p)
+    subroutine bidirectional_paragraph_initialize(directory_in, it, no_default_p)
         integer, intent(in) :: directory_in
-        type(bidi_it_type), intent(inout) :: it
+        type(bidirectional_it_type), intent(inout) :: it
         logical, intent(in) :: no_default_p
         integer(int64) :: byte_position, pstartbyte, begbyte, end, position, ch_length, nchars, disp_position, prevpbyte, p, pbyte
         integer(int64) :: len
@@ -1218,7 +1236,7 @@ contains
             position = it%character_position
 
             if (byte_position > begbyte) then
-                call bidi_character_at_position(it, byte_position, ch, len)
+                call bidirectional_character_at_position(it, byte_position, ch, len)
 
                 if (ch == 10) then
                     byte_position = byte_position + 1
@@ -1229,7 +1247,7 @@ contains
             if (it%string%active) then
                 pstartbyte = 0
             else
-                pstartbyte = bidi_find_paragraph_start(position, byte_position)
+                pstartbyte = bidirectional_find_paragraph_start(position, byte_position)
             end if
 
             it%separator_limit = -1
@@ -1260,8 +1278,8 @@ contains
 
                         do while (pbyte > buffers(current)%beginning_of_accessible_portion_byte .and. prevpbyte >= pstartbyte)
                             p = p - 1
-                            pbyte = pbyte - buf_prev_char_len(buffers(current), pbyte)
-                            prevpbyte = bidi_find_paragraph_start(p, pbyte)
+                            pbyte = pbyte - buffer_previous_character_length(buffers(current), pbyte)
+                            prevpbyte = bidirectional_find_paragraph_start(p, pbyte)
                         end do
 
                         pstartbyte = prevpbyte
@@ -1282,8 +1300,8 @@ contains
             it%level_stack(0)%level = 0
         end if
 
-        call bidi_line_init(it)
-    end subroutine bidi_paragraph_init
+        call bidirectional_line_initialize(it)
+    end subroutine bidirectional_paragraph_initialize
 
     ! ------------------------------------------------------------------
     ! Resolving the levels
@@ -1292,8 +1310,8 @@ contains
     !> Move the iterator to the next character and resolve its explicit
     !> embedding level (rules X1 to X8 of UAX#9); return it.  Port of
     !> bidi.c:bidi_resolve_explicit.
-    integer function bidi_resolve_explicit(it) result(level)
-        type(bidi_it_type), intent(inout) :: it
+    integer function bidirectional_resolve_explicit(it) result(level)
+        type(bidirectional_it_type), intent(inout) :: it
         integer(int32) :: curchar
         integer :: type, typ1, previous_type, current_level, new_level, override, disp_property
         integer :: stack_override
@@ -1306,20 +1324,20 @@ contains
         if (it%type_after_wn /= WEAK_BN .and. it%type /= WEAK_BN) then
             ! A closing bracket resolved to a strong type by the BPA is
             ! remembered with that type (N0).
-            if (it%type_after_wn == NEUTRAL_ON .and. bidi_get_category(it%type) == STRONG .and. &
-                bidi_paired_bracket_type(it%ch) == BIDI_BRACKET_CLOSE) then
-                call bidi_remember_character(it%previous, it, .true.)
+            if (it%type_after_wn == NEUTRAL_ON .and. bidirectional_get_category(it%type) == STRONG .and. &
+                bidirectional_paired_bracket_type(it%ch) == BIDIRECTIONAL_BRACKET_CLOSE) then
+                call bidirectional_remember_character(it%previous, it, .true.)
             else
-                call bidi_remember_character(it%previous, it, .false.)
+                call bidirectional_remember_character(it%previous, it, .false.)
             end if
         end if
 
         if (it%type_after_wn == STRONG_R .or. it%type_after_wn == STRONG_L .or. it%type_after_wn == STRONG_AL) then
-            call bidi_remember_character(it%last_strong, it, .false.)
+            call bidirectional_remember_character(it%last_strong, it, .false.)
         end if
 
         if (it%type == STRONG_R .or. it%type == STRONG_L .or. it%type == WEAK_EN .or. it%type == WEAK_AN) then
-            call bidi_remember_character(it%previous_for_neutral, it, .true.)
+            call bidirectional_remember_character(it%previous_for_neutral, it, .true.)
         end if
 
         ! If we overstepped the characters used for resolving neutrals and
@@ -1357,7 +1375,7 @@ contains
                 it%byte_position = buffers(current)%beginning_of_accessible_portion_byte
             end if
 
-            ! The previous character, if any, is a newline (bidi_line_init).
+            ! The previous character, if any, is a newline (bidirectional_line_initialize).
             if (it%first_element .and. it%previous%type /= UNKNOWN_BT) previous_type = it%previous%original_type
         else if (it%character_position < end_of_buffer) then
             it%character_position = it%character_position + it%nchars
@@ -1368,13 +1386,13 @@ contains
             previous_type = NEUTRAL_B
         end if
 
-        current_level = it%level_stack(it%stack_idx)%level
-        isolate = isolate_status(it, it%stack_idx)
-        override = override_of(it, it%stack_idx)
+        current_level = it%level_stack(it%stack_index)%level
+        isolate = isolate_status(it, it%stack_index)
+        override = override_of(it, it%stack_index)
         new_level = current_level
 
         if (it%character_position >= end_of_buffer) then
-            curchar = BIDI_END_OF_BUFFER
+            curchar = BIDIRECTIONAL_END_OF_BUFFER
             it%ch_length = 1
             it%nchars = 1
             it%disp_position = end_of_buffer
@@ -1383,18 +1401,18 @@ contains
             ! The level of an isolate initiator or a PDF changes after it.
             select case (previous_type)
             case (RLI)
-                if (current_level < BIDI_MAXDEPTH .and. it%invalid_levels == 0 .and. it%invalid_isolates == 0) then
+                if (current_level < BIDIRECTIONAL_MAXDEPTH .and. it%invalid_levels == 0 .and. it%invalid_isolates == 0) then
                     new_level = iand(current_level + 1, not(1)) + 1
                     it%isolate_level = it%isolate_level + 1
-                    call bidi_push_embedding_level(it, new_level, NEUTRAL_DIRECTORY, .true.)
+                    call bidirectional_push_embedding_level(it, new_level, NEUTRAL_DIRECTORY, .true.)
                 else
                     it%invalid_isolates = it%invalid_isolates + 1
                 end if
             case (LRI)
-                if (current_level < BIDI_MAXDEPTH - 1 .and. it%invalid_levels == 0 .and. it%invalid_isolates == 0) then
+                if (current_level < BIDIRECTIONAL_MAXDEPTH - 1 .and. it%invalid_levels == 0 .and. it%invalid_isolates == 0) then
                     new_level = iand(current_level + 2, not(1))
                     it%isolate_level = it%isolate_level + 1
-                    call bidi_push_embedding_level(it, new_level, NEUTRAL_DIRECTORY, .true.)
+                    call bidirectional_push_embedding_level(it, new_level, NEUTRAL_DIRECTORY, .true.)
                 else
                     it%invalid_isolates = it%invalid_isolates + 1
                 end if
@@ -1402,23 +1420,24 @@ contains
                 if (it%invalid_isolates == 0) then
                     if (it%invalid_levels > 0) then
                         it%invalid_levels = it%invalid_levels - 1
-                    else if (.not. isolate .and. it%stack_idx >= 1) then
-                        new_level = bidi_pop_embedding_level(it)
+                    else if (.not. isolate .and. it%stack_index >= 1) then
+                        new_level = bidirectional_pop_embedding_level(it)
                     end if
                 end if
             case default
                 continue
             end select
 
-            curchar = bidi_fetch_character(it, it%character_position, it%byte_position, it%disp_position, it%disp_property, &
-                                           it%ch_length, it%nchars)
+            curchar = bidirectional_fetch_character(it, it%character_position, it%byte_position, it%disp_position, &
+                                                    it%disp_property, &
+                                                    it%ch_length, it%nchars)
         end if
 
         it%ch = curchar
         it%resolved_level = new_level
         ! Don't apply directional override here, as all the types we handle
         ! below will not be affected by the override anyway.
-        type = bidi_get_type(curchar, NEUTRAL_DIRECTORY)
+        type = bidirectional_get_type(curchar, NEUTRAL_DIRECTORY)
         it%original_type = type
         it%type_after_wn = UNKNOWN_BT
 
@@ -1428,7 +1447,7 @@ contains
             ! X9/Retaining
             type = WEAK_BN
 
-            if (new_level < BIDI_MAXDEPTH .and. it%invalid_levels == 0 .and. it%invalid_isolates == 0) then
+            if (new_level < BIDIRECTIONAL_MAXDEPTH .and. it%invalid_levels == 0 .and. it%invalid_isolates == 0) then
                 new_level = iand(new_level + 1, not(1)) + 1
 
                 if (it%type_after_wn == RLE) then
@@ -1437,7 +1456,7 @@ contains
                     override = R2L
                 end if
 
-                call bidi_push_embedding_level(it, new_level, override, .false.)
+                call bidirectional_push_embedding_level(it, new_level, override, .false.)
                 it%resolved_level = new_level
             else if (it%invalid_isolates == 0) then
                 it%invalid_levels = it%invalid_levels + 1
@@ -1446,7 +1465,7 @@ contains
             it%type_after_wn = type
             type = WEAK_BN
 
-            if (new_level < BIDI_MAXDEPTH - 1 .and. it%invalid_levels == 0 .and. it%invalid_isolates == 0) then
+            if (new_level < BIDIRECTIONAL_MAXDEPTH - 1 .and. it%invalid_levels == 0 .and. it%invalid_isolates == 0) then
                 new_level = iand(new_level + 2, not(1))
 
                 if (it%type_after_wn == LRE) then
@@ -1455,7 +1474,7 @@ contains
                     override = L2R
                 end if
 
-                call bidi_push_embedding_level(it, new_level, override, .false.)
+                call bidirectional_push_embedding_level(it, new_level, override, .false.)
                 it%resolved_level = new_level
             else if (it%invalid_isolates == 0) then
                 it%invalid_levels = it%invalid_levels + 1
@@ -1496,18 +1515,18 @@ contains
             else if (it%isolate_level > 0) then
                 it%invalid_levels = 0
 
-                do while (.not. isolate_status(it, it%stack_idx))
-                    new_level = bidi_pop_embedding_level(it)
+                do while (.not. isolate_status(it, it%stack_index))
+                    new_level = bidirectional_pop_embedding_level(it)
                 end do
 
-                new_level = bidi_pop_embedding_level(it)
+                new_level = bidirectional_pop_embedding_level(it)
                 it%isolate_level = it%isolate_level - 1
             end if
 
             it%resolved_level = new_level
             ! Unlike the other formatting characters, PDI is affected by
             ! the directional override of the enclosing level.
-            stack_override = override_of(it, it%stack_idx)
+            stack_override = override_of(it, it%stack_index)
 
             if (stack_override == L2R) then
                 it%type_after_wn = STRONG_L
@@ -1527,29 +1546,29 @@ contains
 
         if (it%type == NEUTRAL_B) then
             ! X8: at a paragraph end, all explicit levels end.
-            call bidi_set_paragraph_end(it)
+            call bidirectional_set_paragraph_end(it)
             it%type_after_wn = it%type
         end if
 
         level = it%resolved_level
-    end function bidi_resolve_explicit
+    end function bidirectional_resolve_explicit
 
     !> Resolve the weak types of the next character (rules W1 to W7 of
     !> UAX#9).  Port of bidi.c:bidi_resolve_weak.
-    integer function bidi_resolve_weak(it) result(type)
-        type(bidi_it_type), intent(inout) :: it
+    integer function bidirectional_resolve_weak(it) result(type)
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: override, previous_level, new_level, type_of_next
         integer(int32) :: next_character
         integer(int64) :: end_of_buffer, en_position, len
-        type(bidi_it_type) :: saved_it
+        type(bidirectional_it_type) :: saved_it
 
-        previous_level = it%level_stack(it%stack_idx)%level
-        new_level = bidi_resolve_explicit(it)
+        previous_level = it%level_stack(it%stack_index)%level
+        new_level = bidirectional_resolve_explicit(it)
         end_of_buffer = text_end(it)
         type = it%type
-        override = override_of(it, it%stack_idx)
+        override = override_of(it, it%stack_index)
         ! Reset sos at a paragraph separator.
-        if (it%type == NEUTRAL_B) call bidi_set_sos_type(it, previous_level, new_level)
+        if (it%type == NEUTRAL_B) call bidirectional_set_sos_type(it, previous_level, new_level)
 
         if (type == NEUTRAL_S .or. type == NEUTRAL_WHITESPACE .or. type == WEAK_BN .or. type == STRONG_AL) then
             ! Not changed by the Wn rules.
@@ -1564,7 +1583,7 @@ contains
             if (type == WEAK_NSM) then
                 ! W1
                 if (it%previous%type /= UNKNOWN_BT .and. it%previous%type /= NEUTRAL_B) then
-                    if (bidi_isolate_fmt_character(it%previous%type)) then
+                    if (bidirectional_isolate_fmt_character(it%previous%type)) then
                         type = NEUTRAL_ON
                     else
                         type = it%previous%type
@@ -1587,21 +1606,21 @@ contains
                                              it%previous%type == WEAK_AN))) then
                 ! W4
                 if (it%character_position + it%nchars >= end_of_buffer) then
-                    next_character = BIDI_END_OF_BUFFER
+                    next_character = BIDIRECTIONAL_END_OF_BUFFER
                 else
-                    call bidi_character_at_position(it, it%byte_position + it%ch_length, next_character, len)
+                    call bidirectional_character_at_position(it, it%byte_position + it%ch_length, next_character, len)
                 end if
 
-                type_of_next = bidi_get_type(next_character, override)
+                type_of_next = bidirectional_get_type(next_character, override)
 
-                if (type_of_next == WEAK_BN .or. bidi_explicit_directory_character(next_character)) then
-                    call bidi_copy_it(saved_it, it)
+                if (type_of_next == WEAK_BN .or. bidirectional_explicit_directory_character(next_character)) then
+                    call bidirectional_copy_it(saved_it, it)
 
-                    do while (bidi_resolve_explicit(it) == new_level .and. it%type == WEAK_BN)
+                    do while (bidirectional_resolve_explicit(it) == new_level .and. it%type == WEAK_BN)
                         type_of_next = it%type
                     end do
 
-                    call bidi_copy_it(it, saved_it)
+                    call bidirectional_copy_it(it, saved_it)
                 end if
 
                 if (type == WEAK_ES .and. type_of_next == WEAK_EN .and. it%last_strong%type /= STRONG_AL) then
@@ -1622,7 +1641,7 @@ contains
                     type = WEAK_EN
                 else if (it%next_en_position > it%character_position .and. it%next_en_type /= WEAK_BN) then
                     if (it%next_en_type == WEAK_EN) type = WEAK_EN
-                else if (type == WEAK_BN .and. new_level == 0 .and. .not. bidi_explicit_directory_character(it%ch) .and. &
+                else if (type == WEAK_BN .and. new_level == 0 .and. .not. bidirectional_explicit_directory_character(it%ch) .and. &
                          ((it%last_strong%type == STRONG_L) .or. &
                           (it%last_strong%type == UNKNOWN_BT .and. it%sos == L2R))) then
                     ! A BN at level 0 after L stays L.
@@ -1632,18 +1651,18 @@ contains
                     en_position = it%character_position + it%nchars
 
                     if (it%character_position + it%nchars >= end_of_buffer) then
-                        next_character = BIDI_END_OF_BUFFER
+                        next_character = BIDIRECTIONAL_END_OF_BUFFER
                     else
-                        call bidi_character_at_position(it, it%byte_position + it%ch_length, next_character, len)
+                        call bidirectional_character_at_position(it, it%byte_position + it%ch_length, next_character, len)
                     end if
 
-                    type_of_next = bidi_get_type(next_character, override)
+                    type_of_next = bidirectional_get_type(next_character, override)
 
-                    if (type_of_next == WEAK_ET .or. type_of_next == WEAK_BN .or. bidi_explicit_directory_character( &
+                    if (type_of_next == WEAK_ET .or. type_of_next == WEAK_BN .or. bidirectional_explicit_directory_character( &
                         next_character)) then
-                        call bidi_copy_it(saved_it, it)
+                        call bidirectional_copy_it(saved_it, it)
 
-                        do while (bidi_resolve_explicit(it) == new_level .and. &
+                        do while (bidirectional_resolve_explicit(it) == new_level .and. &
                                   (it%type == WEAK_BN .or. it%type == WEAK_ET))
                             type_of_next = it%type
                         end do
@@ -1656,7 +1675,7 @@ contains
                             en_position = it%character_position
                         end if
 
-                        call bidi_copy_it(it, saved_it)
+                        call bidirectional_copy_it(it, saved_it)
                     end if
 
                     ! Remember this position, to speed up processing of
@@ -1699,11 +1718,11 @@ contains
         end if
 
         it%type = type
-    end function bidi_resolve_weak
+    end function bidirectional_resolve_weak
 
     !> The type of a neutral between PREVIOUS_TYPE and NEXT_TYPE at level LEV
     !> (rules N1 and N2 of UAX#9).  Port of bidi.c:bidi_resolve_neutral_1.
-    pure integer function bidi_resolve_neutral_1(previous_type_in, next_type_in, lev) result(type)
+    pure integer function bidirectional_resolve_neutral_1(previous_type_in, next_type_in, lev) result(type)
         integer, intent(in) :: previous_type_in, next_type_in, lev
         integer :: previous_type, next_type
 
@@ -1721,7 +1740,7 @@ contains
         else
             type = STRONG_R
         end if
-    end function bidi_resolve_neutral_1
+    end function bidirectional_resolve_neutral_1
 
     !> The closing bracket of character C's canonical equivalent
     !> (bidi.c CANONICAL_EQU: U+2329 and U+232A are U+3008 and U+3009).
@@ -1739,23 +1758,23 @@ contains
     !> the type of what the pairs enclose (rules BD16 and N0 of UAX#9).
     !> Return whether a pair was found.  Port of
     !> bidi.c:bidi_find_bracket_pairs.
-    logical function bidi_find_bracket_pairs(it) result(retval)
-        type(bidi_it_type), intent(inout) :: it
+    logical function bidirectional_find_bracket_pairs(it) result(retval)
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: btype, type, bpa_sp, base_level, embedding_level, maxlevel, embedding_type, sp, flag
         integer :: old_sidx, new_sidx, current_level
         integer(int32) :: close_character(0:MAXIMUM_BPA_STACK - 1), curchar
-        integer(int64) :: open_index(0:MAXIMUM_BPA_STACK - 1), pairing_position, idx_at_entry, end_of_buffer
+        integer(int64) :: open_index(0:MAXIMUM_BPA_STACK - 1), pairing_position, index_at_entry, end_of_buffer
         integer :: flags(0:MAXIMUM_BPA_STACK - 1)
-        type(bidi_it_type) :: saved_it, tem_it
+        type(bidirectional_it_type) :: saved_it, tem_it
         logical :: l2r_seen, r2l_seen, ok
 
         retval = .false.
         type = it%type
-        btype = bidi_paired_bracket_type(it%ch)
-        if (btype /= BIDI_BRACKET_OPEN) return
+        btype = bidirectional_paired_bracket_type(it%ch)
+        if (btype /= BIDIRECTIONAL_BRACKET_OPEN) return
         bpa_sp = -1
         base_level = it%level_stack(0)%level
-        embedding_level = it%level_stack(it%stack_idx)%level
+        embedding_level = it%level_stack(it%stack_index)%level
         maxlevel = embedding_level
 
         if (iand(embedding_level, 1) /= 0) then
@@ -1767,34 +1786,34 @@ contains
         l2r_seen = .false.
         r2l_seen = .false.
         pairing_position = -1
-        idx_at_entry = bidi_cache_idx
-        call bidi_copy_it(saved_it, it)
+        index_at_entry = bidirectional_cache_index
+        call bidirectional_copy_it(saved_it, it)
         ! The iterator for fetching cached states is always forward.
         tem_it%scan_directory = 1
 
         do
-            current_level = it%level_stack(it%stack_idx)%level
+            current_level = it%level_stack(it%stack_index)%level
             if (maxlevel < current_level) maxlevel = current_level
             ! Mark the opening bracket as being resolved (bracket_pairing_position).
-            if (btype == BIDI_BRACKET_OPEN .and. it%bracket_pairing_position == -1) it%bracket_pairing_position = &
+            if (btype == BIDIRECTIONAL_BRACKET_OPEN .and. it%bracket_pairing_position == -1) it%bracket_pairing_position = &
                 it%character_position
 
-            if (.not. bidi_cache_iterator_state(it, type == NEUTRAL_B, .false.)) then
+            if (.not. bidirectional_cache_iterator_state(it, type == NEUTRAL_B, .false.)) then
                 ! No room in the cache: give up on the BPA.
-                call bidi_cache_reset_to(idx_at_entry - bidi_cache_start)
-                call bidi_copy_it(it, saved_it)
+                call bidirectional_cache_reset_to(index_at_entry - bidirectional_cache_start)
+                call bidirectional_copy_it(it, saved_it)
                 return
             end if
 
-            if (btype == BIDI_BRACKET_OPEN) then
+            if (btype == BIDIRECTIONAL_BRACKET_OPEN) then
                 ! PUSH_BPA_STACK
                 if (bpa_sp < MAXIMUM_BPA_STACK - 1) then
                     bpa_sp = bpa_sp + 1
-                    close_character(bpa_sp) = bidi_mirror_character(canonical_equ(it%ch))
-                    open_index(bpa_sp) = bidi_cache_last_idx
+                    close_character(bpa_sp) = bidirectional_mirror_character(canonical_equ(it%ch))
+                    open_index(bpa_sp) = bidirectional_cache_last_index
                     flags(bpa_sp) = 0
                 end if
-            else if (btype == BIDI_BRACKET_CLOSE) then
+            else if (btype == BIDIRECTIONAL_BRACKET_CLOSE) then
                 sp = bpa_sp
                 curchar = canonical_equ(it%ch)
 
@@ -1806,7 +1825,7 @@ contains
                 if (sp >= 0) then
                     ! Update the cached state of the opening bracket with
                     ! the type of what the pair encloses.
-                    call bidi_cache_fetch_state(open_index(sp), tem_it)
+                    call bidirectional_cache_fetch_state(open_index(sp), tem_it)
 
                     if (iand(flags(sp), FLAG_EMBEDDING_INSIDE) /= 0) then
                         tem_it%bracket_enclosed_type = embedding_type
@@ -1821,7 +1840,7 @@ contains
                     end if
 
                     tem_it%bracket_pairing_position = it%character_position
-                    ok = bidi_cache_iterator_state(tem_it, .false., .true.)
+                    ok = bidirectional_cache_iterator_state(tem_it, .false., .true.)
                     ! Pop the BPA stack.
                     bpa_sp = sp - 1
                 end if
@@ -1830,7 +1849,7 @@ contains
                     retval = .true.
                     exit
                 end if
-            else if (bidi_get_category(it%type_after_wn) /= NEUTRAL) then
+            else if (bidirectional_get_category(it%type_after_wn) /= NEUTRAL) then
                 flag = 0
 
                 select case (it%type)
@@ -1861,26 +1880,26 @@ contains
                 end if
             end if
 
-            old_sidx = it%stack_idx
-            type = bidi_resolve_weak(it)
-            new_sidx = it%stack_idx
+            old_sidx = it%stack_index
+            type = bidirectional_resolve_weak(it)
+            new_sidx = it%stack_index
 
             ! Skip level runs excluded from this isolating run sequence.
             if (excluded_run(it, old_sidx, new_sidx, current_level)) then
-                do while (it%level_stack(it%stack_idx)%level > current_level)
-                    if (maxlevel < it%level_stack(it%stack_idx)%level) maxlevel = it%level_stack(it%stack_idx)%level
+                do while (it%level_stack(it%stack_index)%level > current_level)
+                    if (maxlevel < it%level_stack(it%stack_index)%level) maxlevel = it%level_stack(it%stack_index)%level
 
-                    if (.not. bidi_cache_iterator_state(it, type == NEUTRAL_B, .false.)) then
-                        call bidi_cache_reset_to(idx_at_entry - bidi_cache_start)
-                        call bidi_copy_it(it, saved_it)
+                    if (.not. bidirectional_cache_iterator_state(it, type == NEUTRAL_B, .false.)) then
+                        call bidirectional_cache_reset_to(index_at_entry - bidirectional_cache_start)
+                        call bidirectional_copy_it(it, saved_it)
                         return
                     end if
 
-                    type = bidi_resolve_weak(it)
+                    type = bidirectional_resolve_weak(it)
                 end do
             end if
 
-            if (type == NEUTRAL_B .or. it%level_stack(it%stack_idx)%level /= current_level) then
+            if (type == NEUTRAL_B .or. it%level_stack(it%stack_index)%level /= current_level) then
                 ! We've marched all the way to the end of this isolating
                 ! run sequence, and didn't find matching closing brackets.
                 pairing_position = it%character_position
@@ -1888,15 +1907,15 @@ contains
             end if
 
             if (it%type_after_wn == NEUTRAL_ON) then
-                btype = bidi_paired_bracket_type(it%ch)
+                btype = bidirectional_paired_bracket_type(it%ch)
             else
-                btype = BIDI_BRACKET_NONE
+                btype = BIDIRECTIONAL_BRACKET_NONE
             end if
         end do
 
-        ! Restore bidi_it from the cache, which should have the bracket
+        ! Restore bidirectional_it from the cache, which should have the bracket
         ! resolution members set as determined by the above loop.
-        type = bidi_cache_find(saved_it%character_position, .false., it)
+        type = bidirectional_cache_find(saved_it%character_position, .false., it)
 
         ! The BPA is unnecessary if the sequence has only characters of
         ! the base direction at the base level.
@@ -1907,56 +1926,56 @@ contains
             ! The special value END_OF_BUFFER says the BPA was not needed.
             it%bracket_pairing_position = end_of_buffer
             it%bracket_enclosed_type = embedding_type
-            call bidi_cache_reset_to(bidi_cache_last_idx - bidi_cache_start)
+            call bidirectional_cache_reset_to(bidirectional_cache_last_index - bidirectional_cache_start)
             it%next_for_neutral%type = embedding_type
             it%next_for_neutral%character_position = pairing_position
             retval = .false.
         end if
-    end function bidi_find_bracket_pairs
+    end function bidirectional_find_bracket_pairs
 
     !> Record INFO as the next (NEXTP) or previous character for resolving
     !> neutrals in the first cached state after the last used one at
     !> LEVEL.  Port of bidi.c:bidi_record_type_for_neutral.
-    subroutine bidi_record_type_for_neutral(info, level, nextp)
-        type(bidi_saved_info_type), intent(in) :: info
+    subroutine bidirectional_record_type_for_neutral(info, level, nextp)
+        type(bidirectional_saved_info_type), intent(in) :: info
         integer, intent(in) :: level
         logical, intent(in) :: nextp
         integer(int64) :: index
         integer :: lev
 
-        do index = bidi_cache_last_idx + 1, bidi_cache_idx - 1
-            lev = bidi_cache(index)%level_stack(bidi_cache(index)%stack_idx)%level
+        do index = bidirectional_cache_last_index + 1, bidirectional_cache_index - 1
+            lev = bidirectional_cache(index)%level_stack(bidirectional_cache(index)%stack_index)%level
 
             if (lev <= level) then
                 if (nextp) then
-                    bidi_cache(index)%next_for_neutral = info
+                    bidirectional_cache(index)%next_for_neutral = info
                 else
-                    bidi_cache(index)%previous_for_neutral = info
+                    bidirectional_cache(index)%previous_for_neutral = info
                 end if
 
                 exit
             end if
         end do
-    end subroutine bidi_record_type_for_neutral
+    end subroutine bidirectional_record_type_for_neutral
 
     !> Resolve the type of the next character with the paired brackets
     !> (rule N0 of UAX#9).  Port of bidi.c:bidi_resolve_brackets.
-    integer function bidi_resolve_brackets(it) result(type)
-        type(bidi_it_type), intent(inout) :: it
+    integer function bidirectional_resolve_brackets(it) result(type)
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: previous_level, embedding_level, embedding_type, previous_type_for_neutral
         logical :: resolve_bracket
         integer(int32) :: ch
         integer(int64) :: end_of_buffer, index
-        type(bidi_saved_info_type) :: previous_for_neutral, next_for_neutral
+        type(bidirectional_saved_info_type) :: previous_for_neutral, next_for_neutral
 
-        previous_level = it%level_stack(it%stack_idx)%level
+        previous_level = it%level_stack(it%stack_index)%level
         resolve_bracket = .false.
         type = UNKNOWN_BT
         ch = 0
         end_of_buffer = text_end(it)
 
         if (it%type == STRONG_L .or. it%type == STRONG_R .or. it%type == WEAK_AN .or. it%type == WEAK_EN) then
-            call bidi_remember_character(previous_for_neutral, it, .true.)
+            call bidirectional_remember_character(previous_for_neutral, it, .true.)
         else
             previous_for_neutral = it%previous_for_neutral
         end if
@@ -1969,50 +1988,50 @@ contains
         end if
 
         if (.not. it%first_element) then
-            type = bidi_cache_find(it%character_position + it%nchars, .false., it)
+            type = bidirectional_cache_find(it%character_position + it%nchars, .false., it)
             ch = it%ch
         end if
 
         if (type == UNKNOWN_BT) then
-            type = bidi_resolve_weak(it)
+            type = bidirectional_resolve_weak(it)
 
             if (type == NEUTRAL_ON) then
                 ! The BPA was found unnecessary for this sequence: a closing
                 ! bracket takes the type of the run.
                 if (it%bracket_pairing_position == end_of_buffer) then
                     if (it%next_for_neutral%character_position == it%character_position .and. &
-                        bidi_paired_bracket_type(it%ch) == BIDI_BRACKET_CLOSE) type = it%bracket_enclosed_type
-                else if (bidi_find_bracket_pairs(it)) then
+                        bidirectional_paired_bracket_type(it%ch) == BIDIRECTIONAL_BRACKET_CLOSE) type = it%bracket_enclosed_type
+                else if (bidirectional_find_bracket_pairs(it)) then
                     resolve_bracket = .true.
                 end if
             end if
         else if (it%bracket_pairing_position /= end_of_buffer) then
             ! The cached state of an isolate's first character carries its
             ! own neutral context.
-            if (it%level_stack(it%stack_idx)%level > previous_level .and. isolate_status(it, it%stack_idx)) then
-                call bidi_record_type_for_neutral(previous_for_neutral, previous_level, .false.)
-                call bidi_record_type_for_neutral(next_for_neutral, previous_level, .true.)
+            if (it%level_stack(it%stack_index)%level > previous_level .and. isolate_status(it, it%stack_index)) then
+                call bidirectional_record_type_for_neutral(previous_for_neutral, previous_level, .false.)
+                call bidirectional_record_type_for_neutral(next_for_neutral, previous_level, .true.)
             end if
 
-            if (type == NEUTRAL_ON .and. bidi_paired_bracket_type(ch) == BIDI_BRACKET_OPEN) then
+            if (type == NEUTRAL_ON .and. bidirectional_paired_bracket_type(ch) == BIDIRECTIONAL_BRACKET_OPEN) then
                 if (it%bracket_pairing_position > it%character_position) then
                     ! A cached opening bracket with a known pair.
                     resolve_bracket = .true.
                 else if (it%bracket_pairing_position == -1) then
                     ! Not yet resolved: look for its pair.
-                    if (bidi_find_bracket_pairs(it)) resolve_bracket = .true.
+                    if (bidirectional_find_bracket_pairs(it)) resolve_bracket = .true.
                 end if
             end if
 
             ! Keep the neutral context of the level run.
-            if (it%level_stack(it%stack_idx)%level == previous_level) then
+            if (it%level_stack(it%stack_index)%level == previous_level) then
                 it%previous_for_neutral = previous_for_neutral
                 if (next_for_neutral%character_position > 0) it%next_for_neutral = next_for_neutral
             end if
         end if
 
         if (resolve_bracket) then
-            embedding_level = it%level_stack(it%stack_idx)%level
+            embedding_level = it%level_stack(it%stack_index)%level
 
             if (iand(embedding_level, 1) /= 0) then
                 embedding_type = STRONG_R
@@ -2048,25 +2067,25 @@ contains
 
             ! The closing bracket gets the same type.
             if (type /= NEUTRAL_ON) then
-                index = bidi_cache_search(it%bracket_pairing_position, -1, 1)
-                if (index >= bidi_cache_start) bidi_cache(index)%type = type
+                index = bidirectional_cache_search(it%bracket_pairing_position, -1, 1)
+                if (index >= bidirectional_cache_start) bidirectional_cache(index)%type = type
             end if
         end if
-    end function bidi_resolve_brackets
+    end function bidirectional_resolve_brackets
 
     !> Resolve the neutral types of the next character (rules N1 and N2
     !> of UAX#9).  Port of bidi.c:bidi_resolve_neutral.
-    integer function bidi_resolve_neutral(it) result(type)
-        type(bidi_it_type), intent(inout) :: it
+    integer function bidirectional_resolve_neutral(it) result(type)
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: current_level, next_type, old_sidx, new_sidx
         logical :: is_neutral, adjacent_to_neutrals, ok
-        type(bidi_it_type) :: saved_it
+        type(bidirectional_it_type) :: saved_it
 
-        type = bidi_resolve_brackets(it)
-        current_level = it%level_stack(it%stack_idx)%level
-        is_neutral = bidi_get_category(type) == NEUTRAL
+        type = bidirectional_resolve_brackets(it)
+        current_level = it%level_stack(it%stack_index)%level
+        is_neutral = bidirectional_get_category(type) == NEUTRAL
 
-        if (.not. ((type /= NEUTRAL_B .and. (is_neutral .or. bidi_isolate_fmt_character(type))) .or. type == WEAK_BN)) then
+        if (.not. ((type /= NEUTRAL_B .and. (is_neutral .or. bidirectional_isolate_fmt_character(type))) .or. type == WEAK_BN)) then
             return
         end if
 
@@ -2074,57 +2093,59 @@ contains
             (it%next_for_neutral%character_position > it%character_position .or. &
              (it%next_for_neutral%character_position == it%character_position .and. it%type == PDI))) then
             ! The next strong character is already known.
-            type = bidi_resolve_neutral_1(it%previous_for_neutral%type, it%next_for_neutral%type, current_level)
+            type = bidirectional_resolve_neutral_1(it%previous_for_neutral%type, it%next_for_neutral%type, current_level)
         else if (current_level == 0 .and. it%previous_for_neutral%type == STRONG_L .and. &
-                 (it%ch >= 0 .and. it%ch < 128 .or. (type /= WEAK_BN .and. .not. bidi_explicit_directory_character(it%ch) .and. &
-                                                     .not. bidi_isolate_fmt_character(type)))) then
+                 (it%ch >= 0 .and. it%ch < 128 .or. (type /= WEAK_BN .and. .not. bidirectional_explicit_directory_character(it%ch) &
+                                                     .and. &
+                                                     .not. bidirectional_isolate_fmt_character(type)))) then
             ! Speed up: neutrals after L at level 0 are L (as N1/N2 make
             ! them, whatever follows).
-            type = bidi_resolve_neutral_1(it%previous_for_neutral%type, STRONG_L, current_level)
+            type = bidirectional_resolve_neutral_1(it%previous_for_neutral%type, STRONG_L, current_level)
         else if (current_level == 1 .and. it%level_stack(0)%level == 1 .and. &
                  (it%previous_for_neutral%type == STRONG_R .or. it%previous_for_neutral%type == WEAK_EN .or. &
                   it%previous_for_neutral%type == WEAK_AN) .and. type /= WEAK_BN .and. &
-                 .not. bidi_explicit_directory_character(it%ch) .and. .not. bidi_isolate_fmt_character(type)) then
+                 .not. bidirectional_explicit_directory_character(it%ch) .and. .not. bidirectional_isolate_fmt_character(type)) then
             ! Likewise for neutrals after R at level 1 of an R2L paragraph.
-            type = bidi_resolve_neutral_1(it%previous_for_neutral%type, STRONG_R, current_level)
+            type = bidirectional_resolve_neutral_1(it%previous_for_neutral%type, STRONG_R, current_level)
         else
             ! Look ahead for the first strong character, caching the
             ! neutrals on the way.
             adjacent_to_neutrals = is_neutral
-            call bidi_copy_it(saved_it, it)
+            call bidirectional_copy_it(saved_it, it)
 
             do
-                ok = bidi_cache_iterator_state(it, type == NEUTRAL_B, .false.)
-                old_sidx = it%stack_idx
-                type = bidi_resolve_brackets(it)
-                new_sidx = it%stack_idx
+                ok = bidirectional_cache_iterator_state(it, type == NEUTRAL_B, .false.)
+                old_sidx = it%stack_index
+                type = bidirectional_resolve_brackets(it)
+                new_sidx = it%stack_index
 
                 ! Skip level runs excluded from this isolating run sequence.
                 if (excluded_run(it, old_sidx, new_sidx, current_level)) then
-                    do while (it%level_stack(it%stack_idx)%level > current_level)
-                        ok = bidi_cache_iterator_state(it, type == NEUTRAL_B, .false.)
-                        type = bidi_resolve_brackets(it)
+                    do while (it%level_stack(it%stack_index)%level > current_level)
+                        ok = bidirectional_cache_iterator_state(it, type == NEUTRAL_B, .false.)
+                        type = bidirectional_resolve_brackets(it)
                     end do
                 end if
 
-                if (.not. adjacent_to_neutrals .and. (bidi_get_category(type) == NEUTRAL .or. &
-                                                      bidi_isolate_fmt_character(type))) adjacent_to_neutrals = .true.
+                if (.not. adjacent_to_neutrals .and. (bidirectional_get_category(type) == NEUTRAL .or. &
+                                                      bidirectional_isolate_fmt_character(type))) adjacent_to_neutrals = .true.
                 if (type == NEUTRAL_B) exit
-                if (type /= WEAK_BN .and. bidi_get_category(type) /= NEUTRAL .and. .not. bidi_isolate_fmt_character(type)) exit
-                if (it%level_stack(it%stack_idx)%level /= current_level) exit
+                if (type /= WEAK_BN .and. bidirectional_get_category(type) /= NEUTRAL &
+                    .and. .not. bidirectional_isolate_fmt_character(type)) exit
+                if (it%level_stack(it%stack_index)%level /= current_level) exit
             end do
 
             ! Record the character that stopped the search.
-            call bidi_remember_character(saved_it%next_for_neutral, it, .true.)
+            call bidirectional_remember_character(saved_it%next_for_neutral, it, .true.)
 
-            if (it%level_stack(it%stack_idx)%level /= current_level .or. type == NEUTRAL_B) then
+            if (it%level_stack(it%stack_index)%level /= current_level .or. type == NEUTRAL_B) then
                 ! The sequence ended: the eos type is the embedding direction.
                 if (adjacent_to_neutrals) then
                     next_type = it%previous_for_neutral%type
                 else
                     ! A BN or an isolate initiator between strong
                     ! characters: leave it as it is.
-                    call bidi_copy_it(it, saved_it)
+                    call bidirectional_copy_it(it, saved_it)
                     type = it%type
                     return
                 end if
@@ -2138,27 +2159,27 @@ contains
                 end select
             end if
 
-            type = bidi_resolve_neutral_1(saved_it%previous_for_neutral%type, next_type, current_level)
+            type = bidirectional_resolve_neutral_1(saved_it%previous_for_neutral%type, next_type, current_level)
             saved_it%next_for_neutral%type = next_type
             saved_it%type = type
-            call bidi_copy_it(it, saved_it)
+            call bidirectional_copy_it(it, saved_it)
         end if
-    end function bidi_resolve_neutral
+    end function bidirectional_resolve_neutral
 
     !> The resolved type of the next character.  Port of
     !> bidi.c:bidi_type_of_next_char.
-    integer function bidi_type_of_next_character(it) result(type)
-        type(bidi_it_type), intent(inout) :: it
+    integer function bidirectional_type_of_next_character(it) result(type)
+        type(bidirectional_it_type), intent(inout) :: it
 
-        type = bidi_resolve_neutral(it)
-    end function bidi_type_of_next_character
+        type = bidirectional_resolve_neutral(it)
+    end function bidirectional_type_of_next_character
 
     !> Move the iterator to the next character in logical order (or in
     !> the scan direction through the cache) and return its resolved
     !> level (rules I1, I2 and L1 of UAX#9).  Port of
     !> bidi.c:bidi_level_of_next_char.
-    integer function bidi_level_of_next_character(it) result(level)
-        type(bidi_it_type), intent(inout) :: it
+    integer function bidirectional_level_of_next_character(it) result(level)
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: type, chtype, dpp
         integer(int64) :: next_character_position, beginning_of_buffer, clen, buffer_position, cpos, disp_position, nc
         integer(int32) :: ch
@@ -2176,7 +2197,7 @@ contains
         end if
 
         ! Perhaps the character is in the cache.
-        if (bidi_cache_idx > bidi_cache_start .and. .not. it%first_element) then
+        if (bidirectional_cache_index > bidirectional_cache_start .and. .not. it%first_element) then
             beginning_of_buffer = 1
             if (it%string%active) beginning_of_buffer = 0
 
@@ -2187,7 +2208,8 @@ contains
                 next_character_position = it%character_position - 1
             end if
 
-            if (next_character_position >= beginning_of_buffer - 1) type = bidi_cache_find(next_character_position, .true., it)
+            if (next_character_position >= beginning_of_buffer - 1) type = bidirectional_cache_find(next_character_position, &
+                                                                                                    .true., it)
 
             if (type /= UNKNOWN_BT) then
                 level = it%resolved_level
@@ -2195,21 +2217,21 @@ contains
             end if
         end if
 
-        if (type == UNKNOWN_BT) type = bidi_type_of_next_character(it)
+        if (type == UNKNOWN_BT) type = bidirectional_type_of_next_character(it)
 
         if (type == NEUTRAL_B) then
             level = it%resolved_level
             return
         end if
 
-        level = it%level_stack(it%stack_idx)%level
+        level = it%level_stack(it%stack_index)%level
         it%type = type
 
         ! L1: whitespace, BNs and isolate formatting characters before a
         ! segment or paragraph separator, or at the end of a line, get the
         ! paragraph level.  Find the character after them.
         if ((it%original_type == NEUTRAL_WHITESPACE .or. (it%original_type == WEAK_BN .and. level /= it%level_stack(0)%level) .or. &
-             bidi_isolate_fmt_character(it%original_type)) &
+             bidirectional_isolate_fmt_character(it%original_type)) &
             .and. it%next_for_whitespace%character_position < it%character_position) then
             clen = it%ch_length
             buffer_position = it%byte_position
@@ -2221,10 +2243,11 @@ contains
             do
                 cpos = cpos + nc
                 buffer_position = buffer_position + clen
-                ch = bidi_fetch_character(it, cpos, buffer_position, disp_position, dpp, clen, nc)
-                chtype = bidi_get_type(ch, NEUTRAL_DIRECTORY)
-                if (.not. (chtype == NEUTRAL_WHITESPACE .or. chtype == WEAK_BN .or. bidi_isolate_fmt_character(chtype) .or. &
-                           bidi_explicit_directory_character(ch))) exit
+                ch = bidirectional_fetch_character(it, cpos, buffer_position, disp_position, dpp, clen, nc)
+                chtype = bidirectional_get_type(ch, NEUTRAL_DIRECTORY)
+                if (.not. (chtype == NEUTRAL_WHITESPACE .or. chtype == WEAK_BN .or. bidirectional_isolate_fmt_character(chtype) &
+                           .or. &
+                           bidirectional_explicit_directory_character(ch))) exit
             end do
 
             it%next_for_whitespace%type = chtype
@@ -2232,14 +2255,15 @@ contains
         end if
 
         ! Update the cache, but only if this state was already cached.
-        ok = bidi_cache_iterator_state(it, .true., .true.)
+        ok = bidirectional_cache_iterator_state(it, .true., .true.)
 
         ! Resolve implicit levels.
-        if (it%original_type == NEUTRAL_B .or. it%original_type == NEUTRAL_S .or. it%ch == 10 .or. it%ch == BIDI_END_OF_BUFFER &
+        if (it%original_type == NEUTRAL_B .or. it%original_type == NEUTRAL_S .or. it%ch == 10 .or. it%ch &
+            == BIDIRECTIONAL_END_OF_BUFFER &
             .or. &
-            ((it%original_type == NEUTRAL_WHITESPACE .or. it%original_type == WEAK_BN .or. bidi_isolate_fmt_character( &
+            ((it%original_type == NEUTRAL_WHITESPACE .or. it%original_type == WEAK_BN .or. bidirectional_isolate_fmt_character( &
               it%original_type) .or. &
-              bidi_explicit_directory_character(it%ch)) .and. &
+              bidirectional_explicit_directory_character(it%ch)) .and. &
              (it%next_for_whitespace%type == NEUTRAL_B .or. it%next_for_whitespace%type == NEUTRAL_S))) then
             level = it%level_stack(0)%level
         else if (iand(level, 1) == 0) then
@@ -2255,13 +2279,13 @@ contains
         end if
 
         it%resolved_level = level
-    end function bidi_level_of_next_character
+    end function bidirectional_level_of_next_character
 
     !> Move to the other edge of the run at LEVEL or higher: forward
     !> through new characters, or (END_FLAG) back through the cache.
     !> Port of bidi.c:bidi_find_other_level_edge.
-    subroutine bidi_find_other_level_edge(it, level, end_flag)
-        type(bidi_it_type), intent(inout) :: it
+    subroutine bidirectional_find_other_level_edge(it, level, end_flag)
+        type(bidirectional_it_type), intent(inout) :: it
         integer, intent(in) :: level
         logical, intent(in) :: end_flag
         integer :: directory, new_level
@@ -2274,46 +2298,49 @@ contains
             directory = it%scan_directory
         end if
 
-        index = bidi_cache_find_level_change(level, directory, end_flag)
+        index = bidirectional_cache_find_level_change(level, directory, end_flag)
 
-        if (index >= bidi_cache_start) then
-            call bidi_cache_fetch_state(index, it)
+        if (index >= bidirectional_cache_start) then
+            call bidirectional_cache_fetch_state(index, it)
         else
-            ok = bidi_cache_iterator_state(it, .true., .false.)
+            ok = bidirectional_cache_iterator_state(it, .true., .false.)
 
             do
-                new_level = bidi_level_of_next_character(it)
+                new_level = bidirectional_level_of_next_character(it)
 
-                if (.not. bidi_cache_iterator_state(it, .true., .false.)) then
+                if (.not. bidirectional_cache_iterator_state(it, .true., .false.)) then
                     ! The cache is full: the rest is at the base level.
                     new_level = level - 1
-                    call bidi_cache_fetch_state(bidi_cache_idx - 1, it)
+                    call bidirectional_cache_fetch_state(bidirectional_cache_index - 1, it)
                     it%resolved_level = new_level
-                    ok = bidi_cache_iterator_state(it, .true., .true.)
+                    ok = bidirectional_cache_iterator_state(it, .true., .true.)
                 end if
 
                 if (new_level < level) exit
             end do
         end if
-    end subroutine bidi_find_other_level_edge
+    end subroutine bidirectional_find_other_level_edge
 
     !> Move the iterator to the next character in visual order (rule L2 of
     !> UAX#9: runs of higher levels are reversed).  Port of
     !> bidi.c:bidi_move_to_visually_next.
-    subroutine bidi_move_to_visually_next(it)
-        type(bidi_it_type), intent(inout) :: it
+    subroutine bidirectional_move_to_visually_next(it)
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: old_level, new_level, next_level, level_to_search, increment, expected_next_level
-        type(bidi_it_type) :: sentinel
+        type(bidirectional_it_type) :: sentinel
         logical :: ascending, ok
         integer(int64) :: separator_length
 
         if (it%scan_directory == 0) it%scan_directory = 1
+
         ! If we just passed a newline, initialize for the next line.
-        if (.not. it%first_element .and. (it%ch == 10 .or. it%ch == BIDI_END_OF_BUFFER)) call bidi_line_init(it)
+        if (.not. it%first_element .and. (it%ch == 10 .or. it%ch == BIDIRECTIONAL_END_OF_BUFFER)) then
+            call bidirectional_line_initialize(it)
+        end if
 
         ! Prepare the sentinel iterator state: a newline before the start.
-        if (bidi_cache_idx == bidi_cache_start) then
-            call bidi_copy_it(sentinel, it)
+        if (bidirectional_cache_index == bidirectional_cache_start) then
+            call bidirectional_copy_it(sentinel, it)
 
             if (it%first_element) then
                 sentinel%character_position = sentinel%character_position - 1
@@ -2323,11 +2350,11 @@ contains
                 sentinel%nchars = 1
             end if
 
-            ok = bidi_cache_iterator_state(sentinel, .true., .false.)
+            ok = bidirectional_cache_iterator_state(sentinel, .true., .false.)
         end if
 
         old_level = it%resolved_level
-        new_level = bidi_level_of_next_character(it)
+        new_level = bidirectional_level_of_next_character(it)
 
         ! Reordering of resolved levels (clause L2) is implemented by
         ! jumping to the other edge of the level and flipping direction.
@@ -2343,29 +2370,29 @@ contains
             end if
 
             expected_next_level = old_level + increment
-            call bidi_find_other_level_edge(it, level_to_search,.not. ascending)
+            call bidirectional_find_other_level_edge(it, level_to_search,.not. ascending)
             it%scan_directory = -it%scan_directory
-            next_level = bidi_peek_at_next_level(it)
+            next_level = bidirectional_peek_at_next_level(it)
 
             do while (next_level /= expected_next_level)
                 expected_next_level = expected_next_level + increment
                 level_to_search = level_to_search + increment
-                call bidi_find_other_level_edge(it, level_to_search,.not. ascending)
+                call bidirectional_find_other_level_edge(it, level_to_search,.not. ascending)
                 it%scan_directory = -it%scan_directory
-                next_level = bidi_peek_at_next_level(it)
+                next_level = bidirectional_peek_at_next_level(it)
             end do
 
             ! Finally, deliver the next character in the new direction.
-            next_level = bidi_level_of_next_character(it)
+            next_level = bidirectional_level_of_next_character(it)
         end if
 
         ! Take note when we have just processed the newline that precedes
         ! the end of the paragraph.
-        if (it%scan_directory == 1 .and. (it%ch == 10 .or. it%ch == BIDI_END_OF_BUFFER)) then
+        if (it%scan_directory == 1 .and. (it%ch == 10 .or. it%ch == BIDIRECTIONAL_END_OF_BUFFER)) then
             if (it%string%active) then
                 it%separator_limit = it%string%count_characters
             else if (it%byte_position < buffers(current)%end_of_accessible_portion_byte) then
-                separator_length = bidi_at_paragraph_end(it%character_position + it%nchars)
+                separator_length = bidirectional_at_paragraph_end(it%character_position + it%nchars)
 
                 if (separator_length >= 0) then
                     it%new_paragraph = .true.
@@ -2383,28 +2410,30 @@ contains
 
         ! The cache is no longer needed when back at the base level after
         ! the cached characters.
-        if (it%scan_directory == 1 .and. bidi_cache_idx > bidi_cache_start) then
+        if (it%scan_directory == 1 .and. bidirectional_cache_index > bidirectional_cache_start) then
             if (it%resolved_level == it%level_stack(0)%level .and. &
-                it%character_position > bidi_cache(bidi_cache_idx - 1)%character_position + bidi_cache(bidi_cache_idx - 1)%nchars &
+                it%character_position > bidirectional_cache(bidirectional_cache_index - 1)%character_position &
+                + bidirectional_cache(bidirectional_cache_index - 1)%nchars &
                 - 1) then
-                call bidi_cache_reset()
-                ! hazard-ok(short-circuit): bidi_cache_idx > bidi_cache_start >= 0 here, so the index is valid.
-            else if (it%resolved_level == it%level_stack(0)%level .and. bidi_cache_idx >= bidi_cache_size .and. &
-                     it%character_position == bidi_cache(bidi_cache_idx - 1)%character_position) then
-                call bidi_cache_reset()
+                call bidirectional_cache_reset()
+                ! hazard-ok(short-circuit): bidirectional_cache_index > bidirectional_cache_start >= 0 here, so the index is valid.
+            else if (it%resolved_level == it%level_stack(0)%level .and. bidirectional_cache_index >= bidirectional_cache_size &
+                     .and. &
+                     it%character_position == bidirectional_cache(bidirectional_cache_index - 1)%character_position) then
+                call bidirectional_cache_reset()
             else
-                ok = bidi_cache_iterator_state(it, .true., .false.)
+                ok = bidirectional_cache_iterator_state(it, .true., .false.)
             end if
         end if
-    end subroutine bidi_move_to_visually_next
+    end subroutine bidirectional_move_to_visually_next
 
     !> The position of the first character up to the end of the line
     !> whose directionality an override or embedding changed confusingly
     !> (L shown as R or the reverse, or strong, weak and neutral
     !> characters at too high a level), or the end of the text.  Port of
     !> bidi.c:bidi_find_first_overridden.
-    integer(int64) function bidi_find_first_overridden(it) result(found_position)
-        type(bidi_it_type), intent(inout) :: it
+    integer(int64) function bidirectional_find_first_overridden(it) result(found_position)
+        type(bidirectional_it_type), intent(inout) :: it
         integer :: maximum_l2r, maximum_r2l, maximum_weak, type, level, category
         integer(int64) :: end_of_buffer
 
@@ -2421,9 +2450,9 @@ contains
         end if
 
         do
-            type = bidi_resolve_weak(it)
-            level = it%level_stack(it%stack_idx)%level
-            category = bidi_get_category(it%original_type)
+            type = bidirectional_resolve_weak(it)
+            level = it%level_stack(it%stack_index)%level
+            category = bidirectional_get_category(it%original_type)
             ! Detect when we have overridden directionality, or have
             ! embedding levels larger than needed for the context.
             if ((type == STRONG_R .and. it%original_type == STRONG_L) .or. &
@@ -2432,8 +2461,9 @@ contains
                 ((it%original_type == STRONG_R .or. it%original_type == STRONG_AL) .and. level > maximum_r2l) .or. &
                 ((category == WEAK .or. it%original_type == NEUTRAL_ON) &
                  .and. level > maximum_weak)) found_position = it%character_position
-            if (found_position /= end_of_buffer .or. it%character_position >= end_of_buffer .or. it%ch == BIDI_END_OF_BUFFER &
+            if (found_position /= end_of_buffer .or. it%character_position >= end_of_buffer .or. it%ch &
+                == BIDIRECTIONAL_END_OF_BUFFER &
                 .or. it%ch == 10) exit
         end do
-    end function bidi_find_first_overridden
+    end function bidirectional_find_first_overridden
 end module bidirectional_mod

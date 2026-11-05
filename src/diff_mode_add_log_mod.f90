@@ -23,7 +23,7 @@
 !> The names of the subprograms a diff changes
 !> (`diff_add_log_current_subprograms', `diff_current_subprogram') and
 !> ChangeLog entries for every hunk (\[add_diff_change_log_entries_other_window]):
-!> a submodule because it uses version_control_mod (`vc_root_directory'), which uses
+!> a submodule because it uses version_control_mod (`version_control_root_directory'), which uses
 !> diff_mode_mod.
 submodule(diff_mode_mod) diff_mode_add_log_mod
     use add_log_mod, only: add_log_current_subprogram, change_log_default_name, add_change_log_entry
@@ -33,7 +33,7 @@ submodule(diff_mode_mod) diff_mode_add_log_mod
     use basic_subprograms_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end
     use expression_motion_mod, only: end_of_subprogram
     use files_mod, only: file_relative_name
-    use version_control_mod, only: vc_root_directory
+    use version_control_mod, only: version_control_root_directory
     use display_engine_mod, only: message
     implicit none(type, external)
 
@@ -82,7 +82,7 @@ contains
         if (.not. has_file) filename = ""
 
         if (diff_add_log_use_relative_names) then
-            call vc_root_directory(root, has_root, st)
+            call version_control_root_directory(root, has_root, st)
             if (st%ok() .and. has_root) filename = file_relative_name(filename, root)
         end if
 

@@ -47,7 +47,7 @@ module time_date_mod
                                                    86400.0_real64, 365.25_real64*24*3600]
 
     ! seconds-to-string-readable: (ABBREV-UNIT UNIT UNIT-PLURAL SECONDS).
-    character(len=1), parameter :: READABLE_ABBREV(7) = ["Y", "M", "w", "d", "h", "m", "s"]
+    character(len=1), parameter :: READABLE_ABBREVIATION(7) = ["Y", "M", "w", "d", "h", "m", "s"]
     character(len=6), parameter :: READABLE_UNIT(7) = ["year  ", "month ", "week  ", "day   ", "hour  ", "minute", &
                                                        "second"]
     character(len=7), parameter :: READABLE_PLURAL(7) = ["years  ", "months ", "weeks  ", "days   ", "hours  ", &
@@ -64,16 +64,16 @@ contains
     !> convert DELAY into a readable string, using the information provided
     !> in the variable `seconds_to_string_readable'.  If it is
     !> `SECONDS_TO_STRING_EXPANDED', use two units to describe DELAY, if
-    !> appropriate.  E.g. "1 hour 32 minutes".  If ABBREV is true,
+    !> appropriate.  E.g. "1 hour 32 minutes".  If ABBREVIATION is true,
     !> abbreviate the readable units.  If PRECISION is a whole number, round
     !> the value associated with the smallest displayed unit to that many
     !> digits after the decimal.  If PRECISION_FRACTION is a non-negative
     !> float less than 1.0, round to that value.  Port of
     !> time-date.el:seconds-to-string.
-    recursive function seconds_to_string(delay, readable, abbrev, precision, precision_fraction) result(s)
+    recursive function seconds_to_string(delay, readable, abbreviation, precision, precision_fraction) result(s)
         real(real64), intent(in) :: delay
         integer, intent(in), optional :: readable
-        logical, intent(in), optional :: abbrev
+        logical, intent(in), optional :: abbreviation
         integer, intent(in), optional :: precision
         real(real64), intent(in), optional :: precision_fraction
         character(len=:), allocatable :: s
@@ -87,10 +87,10 @@ contains
         how = SECONDS_TO_STRING_PLAIN
         if (present(readable)) how = readable
         abbreviate = .false.
-        if (present(abbrev)) abbreviate = abbrev
+        if (present(abbreviation)) abbreviate = abbreviation
 
         if (delay < 0) then
-            ! (Upstream passes PRECISION as ABBREV here.)
+            ! (Upstream passes PRECISION as ABBREVIATION here.)
             if (present(precision)) then
                 s = "-"//seconds_to_string(-delay, how, .true.)
             else if (present(precision_fraction)) then
@@ -194,14 +194,14 @@ contains
     end function seconds_to_string
 
     ! The unit HERE for VALUE: abbreviated, singular or PLURAL.  Not a port.
-    function unit_name(value, here, abbrev, plural) result(name)
+    function unit_name(value, here, abbreviation, plural) result(name)
         real(real64), intent(in) :: value
         integer, intent(in) :: here
-        logical, intent(in) :: abbrev, plural
+        logical, intent(in) :: abbreviation, plural
         character(len=:), allocatable :: name
 
-        if (abbrev) then
-            name = trim(READABLE_ABBREV(here))
+        if (abbreviation) then
+            name = trim(READABLE_ABBREVIATION(here))
         else if (.not. plural .and. floor(value) <= 1) then
             name = trim(READABLE_UNIT(here))
         else

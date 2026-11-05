@@ -56,7 +56,7 @@
 !> `calendar_get_date_range', the years of `get_calendar_month_visible_year'
 !> for N months, the obsolete calendar-nongregorian-visible-p,
 !> `calendar_increment_month_cons', `calendar_make_alist',
-!> `calendar_abbrev_construct', `calendar_day_header_construct' and
+!> `calendar_abbreviation_construct', `calendar_day_header_construct' and
 !> `calendar_customized_p' (used only by the deferred parts), the
 !> wide characters of the intermonth text (their `(space :align-to)'
 !> display), `scroll_margin' (not ported) and the obsolete
@@ -321,7 +321,7 @@ module calendar_mod
 
     !> Array of capitalized strings giving, in order from Sunday, the day names.
     !> If you change this without using customize after the calendar has loaded,
-    !> then you may also want to change `calendar_day_abbrevs'
+    !> then you may also want to change `calendar_day_abbreviations'
     !> and `calendar_day_headers'.  Port of calendar.el
     !> calendar-day-name-array.
     character(len=CALENDAR_NAME_MAXIMUM), public :: calendar_day_names(0:6) = [character(len=CALENDAR_NAME_MAXIMUM) :: &
@@ -330,9 +330,9 @@ module calendar_mod
 
     !> Default length of abbreviations to use for day and month names.
     !> If you change this without using customize after the calendar has loaded,
-    !> then you may also want to change `calendar_day_abbrevs' and
-    !> `calendar_month_abbrevs'.  Port of calendar.el calendar-abbrev-length.
-    integer, public :: calendar_abbrev_length = 3
+    !> then you may also want to change `calendar_day_abbreviations' and
+    !> `calendar_month_abbreviations'.  Port of calendar.el calendar-abbrev-length.
+    integer, public :: calendar_abbreviation_length = 3
 
     !> Array of capitalized strings giving the abbreviated day names.
     !> The order should be the same as that of the full names specified
@@ -340,19 +340,19 @@ module calendar_mod
     !> instead of the full names in the diary file.  Do not include a
     !> trailing `.' in the strings specified in this variable, though
     !> you may use such in the diary file.  By default, each string is
-    !> the first `calendar_abbrev_length' characters of the corresponding
+    !> the first `calendar_abbreviation_length' characters of the corresponding
     !> full name.  Port of calendar.el calendar-day-abbrev-array.
-    character(len=CALENDAR_NAME_MAXIMUM), public :: calendar_day_abbrevs(0:6) = [character(len=CALENDAR_NAME_MAXIMUM) :: &
-                                                                                 "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", &
-                                                                                 "Sat"]
+    character(len=CALENDAR_NAME_MAXIMUM), public :: calendar_day_abbreviations(0:6) = [character(len=CALENDAR_NAME_MAXIMUM) :: &
+                                                                                       "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", &
+                                                                                       "Sat"]
 
     !> Array of strings to use for the headers of the calendar's day columns.
     !> The order should be the same as in `calendar_day_names'.
     !> In use, the calendar truncates elements to no more than
     !> `calendar_day_header_width' columns wide.
     !> Emacs constructs the default from either `calendar_day_names'
-    !> (if `calendar_day_header_width' is more than `calendar_abbrev_length'),
-    !> or from `calendar_day_abbrevs' (assuming that the abbreviated
+    !> (if `calendar_day_header_width' is more than `calendar_abbreviation_length'),
+    !> or from `calendar_day_abbreviations' (assuming that the abbreviated
     !> name are more likely to be unique when truncated).  Port of
     !> calendar.el calendar-day-header-array.
     character(len=CALENDAR_NAME_MAXIMUM), public :: calendar_day_headers(0:6) = [character(len=CALENDAR_NAME_MAXIMUM) :: &
@@ -360,7 +360,7 @@ module calendar_mod
 
     !> Array of capitalized strings giving, in order, the month names.
     !> If you change this without using customize after the calendar has loaded,
-    !> then you may also want to change `calendar_month_abbrevs'.  Port of
+    !> then you may also want to change `calendar_month_abbreviations'.  Port of
     !> calendar.el calendar-month-name-array.
     character(len=CALENDAR_NAME_MAXIMUM), public :: calendar_month_names(12) = [character(len=CALENDAR_NAME_MAXIMUM) :: &
                                                                                 "January", "February", "March", "April", "May", &
@@ -373,12 +373,12 @@ module calendar_mod
     !> the calendar menu entries, and can also be used in the diary
     !> file.  Do not include a trailing `.' in the strings specified in
     !> this variable, though you may use such in the diary file.  By
-    !> default, each string is the first `calendar_abbrev_length'
+    !> default, each string is the first `calendar_abbreviation_length'
     !> characters of the corresponding full name.  Port of calendar.el
     !> calendar-month-abbrev-array.
-    character(len=CALENDAR_NAME_MAXIMUM), public :: calendar_month_abbrevs(12) = [character(len=CALENDAR_NAME_MAXIMUM) :: &
-                                                                                  "Jan", "Feb", "Mar", "Apr", "May", "Jun", &
-                                                                                  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    character(len=CALENDAR_NAME_MAXIMUM), public :: calendar_month_abbreviations(12) = [character(len=CALENDAR_NAME_MAXIMUM) :: &
+                                                                                        "Jan", "Feb", "Mar", "Apr", "May", "Jun", &
+                                                                                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
     ! ------------------------------------------------------------------
     ! Faces
@@ -757,9 +757,9 @@ module calendar_mod
         end subroutine calendar_show_fewer_months
 
         !> Register the commands of cal-move.el.  Not a port.
-        module subroutine initialize_cal_move()
+        module subroutine initialize_calendar_movement()
             implicit none(type, external)
-        end subroutine initialize_cal_move
+        end subroutine initialize_calendar_movement
     end interface
 
 contains
@@ -1194,43 +1194,43 @@ contains
 
     !> Return a string with the name of the day of the week of DATE.
     !> Day names are taken from the variable `calendar_day_names',
-    !> unless ABBREV is true, in which case `calendar_day_abbrevs' is
+    !> unless ABBREVIATION is true, in which case `calendar_day_abbreviations' is
     !> used.  Port of calendar.el:calendar-day-name (the day of the week
     !> as an index, upstream's ABSOLUTE, is an element of the arrays).
-    function calendar_day_name(date, abbrev) result(name)
+    function calendar_day_name(date, abbreviation) result(name)
         type(calendar_date_type), intent(in) :: date
-        logical, intent(in), optional :: abbrev
+        logical, intent(in), optional :: abbreviation
         character(len=:), allocatable :: name
 
         name = trim(calendar_day_names(calendar_day_of_week(date)))
 
-        if (present(abbrev)) then
-            if (abbrev) name = trim(calendar_day_abbrevs(calendar_day_of_week(date)))
+        if (present(abbreviation)) then
+            if (abbreviation) name = trim(calendar_day_abbreviations(calendar_day_of_week(date)))
         end if
     end function calendar_day_name
 
     !> Return a string with the name of month number MONTH.
     !> Months are numbered from one.  Month names are taken from the
     !> variable `calendar_month_names', unless the optional
-    !> argument ABBREV is true, in which case
-    !> `calendar_month_abbrevs' is used.  Port of
+    !> argument ABBREVIATION is true, in which case
+    !> `calendar_month_abbreviations' is used.  Port of
     !> calendar.el:calendar-month-name.
-    function calendar_month_name(month, abbrev) result(name)
+    function calendar_month_name(month, abbreviation) result(name)
         integer, intent(in) :: month
-        logical, intent(in), optional :: abbrev
+        logical, intent(in), optional :: abbreviation
         character(len=:), allocatable :: name
 
         name = trim(calendar_month_names(month))
 
-        if (present(abbrev)) then
-            if (abbrev) name = trim(calendar_month_abbrevs(month))
+        if (present(abbreviation)) then
+            if (abbreviation) name = trim(calendar_month_abbreviations(month))
         end if
     end function calendar_month_name
 
     !> A string of DATE, driven by the variable `calendar_date_style'.
     !> An optional parameter ABBREVIATE, when true, causes the month
     !> and day names to be abbreviated as specified by
-    !> `calendar_month_abbrevs' and `calendar_day_abbrevs',
+    !> `calendar_month_abbreviations' and `calendar_day_abbreviations',
     !> respectively.  An optional parameter NODAYNAME, when true, omits the
     !> name of the day of the week.  Port of calendar.el:calendar-date-string
     !> (with what calendar.el's three date display styles give).
@@ -1238,19 +1238,19 @@ contains
         type(calendar_date_type), intent(in) :: date
         logical, intent(in), optional :: abbreviate, nodayname
         character(len=:), allocatable :: s, day_part, monthname
-        logical :: abbrev
+        logical :: abbreviation
         character(len=24) :: text
 
-        abbrev = .false.
-        if (present(abbreviate)) abbrev = abbreviate
+        abbreviation = .false.
+        if (present(abbreviate)) abbreviation = abbreviate
         ! (if dayname (concat dayname ", "))
-        day_part = calendar_day_name(date, abbrev)//", "
+        day_part = calendar_day_name(date, abbreviation)//", "
 
         if (present(nodayname)) then
             if (nodayname) day_part = ""
         end if
 
-        monthname = calendar_month_name(date%month, abbrev)
+        monthname = calendar_month_name(date%month, abbreviation)
 
         select case (calendar_date_style)
         case (CALENDAR_DATE_STYLE_ISO)
@@ -3076,6 +3076,6 @@ contains
         commands%calendar_print_day_of_year%execute => calendar_print_day_of_year
         commands%calendar_set_date_style%execute => execute_calendar_set_date_style
         commands%calendar_goto_info_node%execute => calendar_goto_info_node
-        call initialize_cal_move()
+        call initialize_calendar_movement()
     end subroutine initialize_calendar
 end module calendar_mod

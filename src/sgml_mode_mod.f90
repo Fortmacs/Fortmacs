@@ -115,7 +115,7 @@ module sgml_mode_mod
     use print_mod, only: fortran_string
     use data_mod, only: history_setting_type
     use error_mod, only: WRONG_TYPE_ARGUMENT_CODE
-    use index_menu_mod, only: imenu_patterns, imenu_pattern_type, imenu_create_index_function, imenu_index_type
+    use index_menu_mod, only: index_menu_patterns, index_menu_pattern_type, index_menu_create_index_function, index_menu_index_type
     use string_type_mod, only: string_type, append_string
     use data_mod, only: choice_setting_type
     implicit none(type, external)
@@ -342,7 +342,7 @@ module sgml_mode_mod
     !> The second `match_string' matches extra tags and is ignored.
     !> The third `match_string' will be the used in the menu.  Port of
     !> sgml-mode.el html-imenu-regexp.
-    character(len=:), allocatable, public :: html_imenu_regular_expression
+    character(len=:), allocatable, public :: html_index_menu_regular_expression
 
     character(len=*), parameter :: HTML_SUBPROGRAM_REGULAR_EXPRESSION = &
                                    "<[ "//TAB//achar(13)//LF//"]*\(?:[hH][0-6]\|title\|TITLE\|Title\)[^>]*>" &
@@ -2806,7 +2806,7 @@ contains
 ! Port of sgml-mode.el:sgml-mode (in part: its body).
     ! The body of `sgml_mode'.
     recursive subroutine setup()
-        type(imenu_pattern_type), allocatable :: patterns(:)
+        type(index_menu_pattern_type), allocatable :: patterns(:)
         character(len=:), allocatable :: q
         integer :: k
 
@@ -2831,13 +2831,15 @@ contains
         q = "?"
         if (sgml_xml_mode%value) q = ""
         allocate (patterns(3))
-        patterns(1) = imenu_pattern_type(menu_title="", regular_expression="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
-                                         "]*\("//SGML_NAME_REGULAR_EXPRESSION//"\)", subexpression=2)
-        patterns(2) = imenu_pattern_type(menu_title="Id", regular_expression="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
-                                         "\)\("//SGML_NAME_REGULAR_EXPRESSION//"\)\1", subexpression=2)
-        patterns(3) = imenu_pattern_type(menu_title="Name", regular_expression="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
-                                         q//"\)\("//SGML_NAME_REGULAR_EXPRESSION//"\)\1", subexpression=2)
-        call imenu_patterns%set_local(patterns)
+        patterns(1) = index_menu_pattern_type(menu_title="", &
+                                              regular_expression="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
+                                              "]*\("//SGML_NAME_REGULAR_EXPRESSION//"\)", subexpression=2)
+        patterns(2) = index_menu_pattern_type(menu_title="Id", regular_expression="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
+                                              "\)\("//SGML_NAME_REGULAR_EXPRESSION//"\)\1", subexpression=2)
+        patterns(3) = index_menu_pattern_type(menu_title="Name", &
+                                              regular_expression="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
+                                              q//"\)\("//SGML_NAME_REGULAR_EXPRESSION//"\)\1", subexpression=2)
+        call index_menu_patterns%set_local(patterns)
         call skeleton_further_elements_set_local(sgml_further_elements)
         call skeleton_end_newline%set_local(.false.)
         call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
@@ -2868,14 +2870,14 @@ contains
         call make_local_entry(k)
         locals(k)%html = .true.
         call add_log_current_subprogram_function%set_local(html_current_heading_name)
-        call imenu_create_index_function%set_local(html_imenu_index)
+        call index_menu_create_index_function%set_local(html_index_menu_index)
         call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
 
     !> Return a table of contents for an HTML buffer for use with Imenu.
     !> Port of sgml-mode.el:html-imenu-index.
-    recursive subroutine html_imenu_index(index, status)
-        type(imenu_index_type), intent(out) :: index
+    recursive subroutine html_index_menu_index(index, status)
+        type(index_menu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: digit
         integer(int64) :: here, position_value
@@ -2886,12 +2888,13 @@ contains
         here = point()
         call goto_character(point_minimum())
 
-        if (.not. allocated(html_imenu_regular_expression)) then
-            html_imenu_regular_expression = "\s-*<h\([1-9]\)[^"//LF//"<>]*>\(<[^"//LF//"<>]*>\)*\s-*\([^"//LF//"<>]*\)"
+        if (.not. allocated(html_index_menu_regular_expression)) then
+            html_index_menu_regular_expression = "\s-*<h\([1-9]\)[^"//LF//"<>]*>\(<[^"//LF//"<>]*>\)*\s-*\([^"//LF//"<>]*\)"
         end if
 
         do
-            call regular_expression_search_forward(html_imenu_regular_expression, position_value, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(html_index_menu_regular_expression, position_value, status, &
+                                                   noerror=SEARCH_NOERROR)
             if (.not. status%ok() .or. position_value == 0) exit
             digit = match_string(1)
             level = ichar(digit(1:1)) - ichar("0")
@@ -2899,7 +2902,7 @@ contains
         end do
 
         call goto_character(here)
-    end subroutine html_imenu_index
+    end subroutine html_index_menu_index
 
     ! Not a port.
     !> Define SGML mode and HTML mode: their variables, tables, keymaps and

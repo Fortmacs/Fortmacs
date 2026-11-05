@@ -46,16 +46,16 @@ module test_spellcheck_mod
     use execute_interactively_mod, only: prefix_argument_type, prefix_argument, current_prefix_argument
     use bindings_mod, only: initialize_bindings
     use simple_mod, only: fundamental_mode, set_mark
-    use shell_script_mod, only: sh_mode
+    use shell_script_mod, only: shell_script_mode
     use sgml_mode_mod, only: html_mode
     use spellcheck_mod, only: spellcheck_word, spellcheck_region, spellcheck_buffer, spellcheck, spellcheck_comments_and_strings, &
                               spellcheck_comment_or_string_at_point, spellcheck_change_dictionary, spellcheck_kill_spellcheck, &
-                              spellcheck_pdict_save, spellcheck_check_version, spellcheck_init_process, spellcheck_process_status, &
-                              spellcheck_add_per_file_word_list, spellcheck_buffer_local_words, spellcheck_parse_output, &
-                              spellcheck_output_type, spellcheck_filter, spellcheck_program_name, spellcheck_check_only, &
-                              spellcheck_dictionary, spellcheck_local_dictionary, spellcheck_pdict_modified, &
-                              spellcheck_words_keyword, prepend_spellcheck_buffer_session_localword, spellcheck_get_word, &
-                              spellcheck_highlight, SPELLCHECK_OUTPUT_CORRECT, SPELLCHECK_OUTPUT_ROOT, &
+                              spellcheck_pdict_save, spellcheck_check_version, spellcheck_initialize_process, &
+                              spellcheck_process_status, spellcheck_add_per_file_word_list, spellcheck_buffer_local_words, &
+                              spellcheck_parse_output, spellcheck_output_type, spellcheck_filter, spellcheck_program_name, &
+                              spellcheck_check_only, spellcheck_dictionary, spellcheck_local_dictionary, &
+                              spellcheck_pdict_modified, spellcheck_words_keyword, prepend_spellcheck_buffer_session_localword, &
+                              spellcheck_get_word, spellcheck_highlight, SPELLCHECK_OUTPUT_CORRECT, SPELLCHECK_OUTPUT_ROOT, &
                               SPELLCHECK_OUTPUT_MISSPELLED, SPELLCHECK_OUTPUT_ERROR
     implicit none(type, external)
     private
@@ -84,10 +84,10 @@ contains
                     new_unittest("ispell/ispell-buffer-local-words/ispell-words-keyword", test_local_words_keyword), &
                     new_unittest("ispell/ispell-buffer-local-words/ispell-buffer-session-localwords", &
                                  test_local_words_session), &
-                    new_unittest("ispell/ispell-init-process/works-with-home", test_init_process), &
+                    new_unittest("ispell/ispell-init-process/works-with-home", test_initialize_process), &
                     new_unittest("ispell/ispell--run-on-word/default", test_run_on_word), &
                     new_unittest("ispell/ispell-word/default/check-only/correct", test_word_correct), &
-                    new_unittest("ispell/ispell-word/default/check-only/correct/add-init", test_word_correct_init), &
+                    new_unittest("ispell/ispell-word/default/check-only/correct/add-init", test_word_correct_initialize), &
                     new_unittest("ispell/ispell-word/default/check-only/incorrect", test_word_incorrect), &
                     new_unittest("ispell/ispell-region/correct", test_region_correct), &
                     new_unittest("ispell/ispell-region/incorrect", test_region_incorrect), &
@@ -217,7 +217,7 @@ contains
     end subroutine test_add_word_simple
 
     !> Adding a per-file word to an empty buffer.  Uses a comment syntax
-    !> with no end marker (sh_mode's "# ", for upstream's emacs-lisp-mode
+    !> with no end marker (shell_script_mode's "# ", for upstream's emacs-lisp-mode
     !> and its ";"; the keyword follows `comment_start' and a space).
     subroutine test_add_word_comments(error)
         type(error_type), allocatable, intent(out) :: error
@@ -225,7 +225,7 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        call sh_mode(st)
+        call shell_script_mode(st)
         call spellcheck_add_per_file_word_list("12345", st)
         call check(error, buffer_string(), LF//"#  "//spellcheck_words_keyword//" 12345"//LF)
         call finish(h)
@@ -268,7 +268,7 @@ contains
 
         call fresh("ispell-test", h)
         call html_mode(st)
-        call spellcheck_init_process(st)
+        call spellcheck_initialize_process(st)
         call check(error, st%ok(), "init: "//detail(st))
         if (allocated(error)) return
         call check(error, word_result(WRONG) == SPELLCHECK_OUTPUT_MISSPELLED)
@@ -287,7 +287,7 @@ contains
 
         call fresh("ispell-test", h)
         call html_mode(st)
-        call spellcheck_init_process(st)
+        call spellcheck_initialize_process(st)
         call check(error, word_result(WRONG) == SPELLCHECK_OUTPUT_MISSPELLED)
         if (allocated(error)) return
         call prepend_spellcheck_buffer_session_localword(WRONG)
@@ -296,19 +296,19 @@ contains
         call finish(h)
     end subroutine test_local_words_session
 
-    !> Simple test to check that `spellcheck_init_process' works.
-    subroutine test_init_process(error)
+    !> Simple test to check that `spellcheck_initialize_process' works.
+    subroutine test_initialize_process(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        call spellcheck_init_process(st)
+        call spellcheck_initialize_process(st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
         call check(error, spellcheck_process_status(), "run")
         call finish(h)
-    end subroutine test_init_process
+    end subroutine test_initialize_process
 
     !> The kind of the speller's answer for WORD, as ispell--run-on-word
     !> gives it: `spellcheck_word' in check-only mode on a copy of WORD added
@@ -368,21 +368,21 @@ contains
     end subroutine test_word_correct
 
     !> Check that `spellcheck_word' works with a default dictionary, after an
-    !> explicit `spellcheck_init_process'.
-    subroutine test_word_correct_init(error)
+    !> explicit `spellcheck_initialize_process'.
+    subroutine test_word_correct_initialize(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("ispell-test", h)
         spellcheck_check_only = .true.
-        call spellcheck_init_process(st)
+        call spellcheck_initialize_process(st)
         call insert("hello"//LF, st)
         call goto_character(1_int64)
         call spellcheck_word(st)
         call check(error, index(last_message, "is correct") > 0, last_message)
         call finish(h)
-    end subroutine test_word_correct_init
+    end subroutine test_word_correct_initialize
 
     !> Check that `spellcheck_word' works with a default dictionary, given a
     !> word which does not exist.
@@ -473,7 +473,7 @@ contains
 
         call fresh("ispell-test", h)
         call insert(CORRECT_TEXT, st)
-        call spellcheck_init_process(st)
+        call spellcheck_initialize_process(st)
         call check(error, spellcheck_process_status(), "run")
         if (allocated(error)) return
         call spellcheck_kill_spellcheck(st, clear=.true.)
@@ -540,7 +540,7 @@ contains
 
         call fresh("ispell-test", h)
         call insert("#!/bin/bash"//LF//"echo """//CORRECT_TEXT//""""//LF//"# commented line"//LF, st)
-        call sh_mode(st)
+        call shell_script_mode(st)
         call spellcheck_comments_and_strings(st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
@@ -556,7 +556,7 @@ contains
 
         call fresh("ispell-test", h)
         call insert("#!/bin/bash"//LF//"echo """//CORRECT_TEXT//""""//LF//"# "//WRONG//LF, st)
-        call sh_mode(st)
+        call shell_script_mode(st)
         call spellcheck_comments_and_strings(st)
         call check(error,.not. st%ok())
         call finish(h)
@@ -572,7 +572,7 @@ contains
 
         call fresh("ispell-test", h)
         call insert(string1//CORRECT_TEXT//string3//WRONG//LF, st)
-        call sh_mode(st)
+        call shell_script_mode(st)
         call goto_character(int(len(string1) + len("hello"), int64))
         call spellcheck_comment_or_string_at_point(st)
         call check(error, st%ok(), detail(st))
@@ -658,7 +658,7 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        call spellcheck_init_process(st)
+        call spellcheck_initialize_process(st)
         call spellcheck_filter(h, "& wor", st)
         call spellcheck_filter(h, "d 0 1: word"//LF//LF, st)
         call check(error, st%ok())

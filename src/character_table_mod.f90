@@ -40,7 +40,7 @@
 !> `get_unicode_property_internal', `put_unicode_property_internal';
 !> the properties are generated Fortran tables, unicode_case_mod,
 !> unicode_category_mod and character_script_mod, and nothing asks for them as a
-!> char-table yet), `map_character_table_for_charset' (needs charsets with
+!> char-table yet), `map_character_table_for_character_set' (needs charsets with
 !> mapping tables, step 41).
 module character_table_mod
     use, intrinsic :: iso_fortran_env, only: int64
@@ -302,12 +302,12 @@ contains
     end subroutine get_element
 
     !> The index of element C of a sub char-table of DEPTH from MINIMUM_CHARACTER.
-    !> Port of chartab.c CHARTAB_IDX.
-    pure integer function chartab_idx(c, depth, minimum_character)
+    !> Port of chartab.c CHARTAB_INDEX.
+    pure integer function chartab_index(c, depth, minimum_character)
         integer, intent(in) :: c, depth, minimum_character
 
-        chartab_idx = ishft(c - minimum_character, -chartab_bits(depth))
-    end function chartab_idx
+        chartab_index = ishft(c - minimum_character, -chartab_bits(depth))
+    end function chartab_index
 
     !> Recompute the ASCII cache of table I: the sub char-table of depth 3
     !> holding the ASCII characters, or their common value.  Port of
@@ -341,25 +341,25 @@ contains
     ! ------------------------------------------------------------------
 
     !> Return a newly created char-table, with purpose PURPOSE.
-    !> Each element is initialized to INIT, which defaults to `NO_VALUE'.
+    !> Each element is initialized to INITIALIZE, which defaults to `NO_VALUE'.
     !>
     !> PURPOSE names the subtype.  N_EXTRAS, from 0 to 10, specifies how
     !> many extra slots the char-table has; it defaults to 3 for
     !> "case_table", 2 for "category_table" and 0 for other purposes.
     !> Port of chartab.c:Fmake_char_table (N_EXTRAS stands for the
     !> purpose name's `character_table_extra_slots' property).
-    subroutine make_character_table(h, purpose, status, init, n_extras)
+    subroutine make_character_table(h, purpose, status, initialize, n_extras)
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: purpose
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: init
+        integer(int64), intent(in), optional :: initialize
         integer, intent(in), optional :: n_extras
         integer(int64) :: value
         integer :: n
 
         status = status_type()
         value = NO_VALUE
-        if (present(init)) value = init
+        if (present(initialize)) value = initialize
         n = purpose_extra_slots(purpose)
         if (present(n_extras)) n = n_extras
 
@@ -587,7 +587,7 @@ contains
         integer, intent(in) :: k, c
         integer :: s
 
-        call get_element(i, k, chartab_idx(c, tables(i)%pool(k)%depth, tables(i)%pool(k)%minimum_character), value, s)
+        call get_element(i, k, chartab_index(c, tables(i)%pool(k)%depth, tables(i)%pool(k)%minimum_character), value, s)
         if (s > 0) value = sub_character_table_reference(i, s, c)
     end function sub_character_table_reference
 
@@ -602,7 +602,7 @@ contains
             value = tables(i)%ascii
             if (tables(i)%ascii_sub > 0) value = tables(i)%pool(tables(i)%ascii_sub)%contents(c + 1)
         else
-            call get_element(i, 0, chartab_idx(c, 0, 0), value, s)
+            call get_element(i, 0, chartab_index(c, 0, 0), value, s)
             if (s > 0) value = sub_character_table_reference(i, s, c)
         end if
     end function own_reference
@@ -659,7 +659,7 @@ contains
 
         depth = tables(i)%pool(k)%depth
         minimum_character = tables(i)%pool(k)%minimum_character
-        cidx = chartab_idx(c, depth, minimum_character)
+        cidx = chartab_index(c, depth, minimum_character)
         value = character_table_reference_simple(i, k, cidx, c, from, to, defalt)
         index = cidx
 
@@ -709,7 +709,7 @@ contains
         if (from < 0) from = 0
         if (to < 0) to = MAXIMUM_CHARACTER
         defalt = tables(i)%defalt
-        cidx = chartab_idx(c, 0, 0)
+        cidx = chartab_index(c, 0, 0)
         value = character_table_reference_simple(i, 0, cidx, c, from, to, defalt)
         index = cidx
 
@@ -750,7 +750,7 @@ contains
 
         depth = tables(i)%pool(k)%depth
         minimum_character = tables(i)%pool(k)%minimum_character
-        index = chartab_idx(c, depth, minimum_character)
+        index = chartab_index(c, depth, minimum_character)
 
         if (depth == 3) then
             call set_element(i, k, index, value)
@@ -787,7 +787,7 @@ contains
         if (c < 128 .and. tables(i)%ascii_sub > 0) then
             call set_element(i, tables(i)%ascii_sub, c, value)
         else
-            index = chartab_idx(c, 0, 0)
+            index = chartab_index(c, 0, 0)
             call get_element(i, 0, index, old, s)
 
             if (s == 0) then
@@ -813,7 +813,7 @@ contains
         characters_in_block = chartab_characters(depth)
         limit = chartab_size(depth)
         start = max(from, minimum_character)
-        index = chartab_idx(start, depth, minimum_character)
+        index = chartab_index(start, depth, minimum_character)
         c = minimum_character + characters_in_block*index
 
         do while (index < limit)
@@ -861,8 +861,8 @@ contains
             return
         end if
 
-        limit = chartab_idx(to, 0, 0)
-        index = chartab_idx(from, 0, 0)
+        limit = chartab_index(to, 0, 0)
+        index = chartab_index(from, 0, 0)
         c = index*chartab_characters(0)
 
         do while (index <= limit)

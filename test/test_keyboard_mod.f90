@@ -44,8 +44,8 @@ module test_keyboard_mod
                             cancel_echoing, event_convert_list, event_name_parse_modifiers, make_control_character, &
                             recursion_depth, top_level, recursive_edit, post_command_hook, safe_execute_hooks, echo_now
     use utility_functions_mod, only: value_equal
-    use basic_subprograms_mod, only: initialize_subr
-    use system_dependent_mod, only: fortmacs_tty_type, open_pty, close_fd, initialize_system_modes, &
+    use basic_subprograms_mod, only: initialize_basic_subprograms
+    use system_dependent_mod, only: fortmacs_terminal_type, open_pty, close_fd, initialize_system_modes, &
                                     reset_system_modes, fortmacs_write
     implicit none(type, external)
     private
@@ -94,7 +94,7 @@ contains
                     new_unittest("execute-kbd-macro/until-error", test_macro_until_error), &
                     new_unittest("adjust-point-invisible", test_adjust_invisible), &
                     new_unittest("adjust-point-display", test_adjust_display), &
-                    new_unittest("command-loop/tty", test_tty), &
+                    new_unittest("command-loop/tty", test_terminal), &
                     new_unittest("read-key-sequence/keyboard-tests", test_rks), &
                     new_unittest("keyboard-lossage-size", test_lossage_size), &
                     new_unittest("keyboard-inhibit-interaction", test_inhibit_interaction), &
@@ -560,7 +560,7 @@ contains
         if (allocated(error)) return
         call check(error, xfixnum(last_command_event), 98_int64)
         if (allocated(error)) return
-        call initialize_subr()
+        call initialize_basic_subprograms()
         call keyboard_store_bytes("z")
         call command_loop_step(done, st)
         call check(error, last_message, "z is undefined")
@@ -634,7 +634,7 @@ contains
         call command_check%define()
         execute_universal_argument = command_type("test-universal-argument", execute_universal)
         call execute_universal_argument%define()
-        call initialize_subr()
+        call initialize_basic_subprograms()
         call define_key(global, keyboard("a"), value_type(name="cmd-a"), st)
         call define_key(global, keyboard("g"), value_type(name="cmd-check"), st)
         call define_key(global, keyboard("C-c m"), value_type(text="ag"), st)
@@ -667,10 +667,10 @@ contains
     end subroutine test_macro_until_error
 
     !> Input read from a terminal (a pty in raw mode).
-    subroutine test_tty(error)
+    subroutine test_terminal(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: global
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(status_type) :: st
         type(value_type), allocatable :: keys(:)
         type(value_type) :: binding
@@ -698,7 +698,7 @@ contains
         call close_fd(slave)
         call close_fd(master)
         call free(global)
-    end subroutine test_tty
+    end subroutine test_terminal
 
     ! ------------------------------------------------------------------
     ! Step 42c: keyboard.c

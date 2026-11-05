@@ -50,7 +50,7 @@ module test_derived_mod
     character(len=:), allocatable :: trace
 
     !> Hooks of the hook tests.
-    type(hook_type), target :: subr_tests_hook, test_hook, test_hook2, child_mode_hook, depth_hook
+    type(hook_type), target :: basic_subprograms_tests_hook, test_hook, test_hook2, child_mode_hook, depth_hook
     type(hook_type), target :: order_hook, order_hook2
 
     !> Modes of the derived-mode tests.
@@ -210,31 +210,31 @@ contains
     subroutine test_add_hook_depth(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call subr_tests_hook%prepend(f1)
-        call subr_tests_hook%prepend(f2)
-        call check(error, hook_names(subr_tests_hook), "f2 f1")
+        call basic_subprograms_tests_hook%prepend(f1)
+        call basic_subprograms_tests_hook%prepend(f2)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f2 f1")
         if (allocated(error)) return
-        call subr_tests_hook%append(f3)
-        call check(error, hook_names(subr_tests_hook), "f2 f1 f3")
+        call basic_subprograms_tests_hook%append(f3)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f2 f1 f3")
         if (allocated(error)) return
-        call subr_tests_hook%append(f4, depth=50)
-        call check(error, hook_names(subr_tests_hook), "f2 f1 f4 f3")
+        call basic_subprograms_tests_hook%append(f4, depth=50)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f2 f1 f4 f3")
         if (allocated(error)) return
-        call subr_tests_hook%prepend(f5, depth=-50)
-        call check(error, hook_names(subr_tests_hook), "f5 f2 f1 f4 f3")
+        call basic_subprograms_tests_hook%prepend(f5, depth=-50)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f5 f2 f1 f4 f3")
         if (allocated(error)) return
-        call subr_tests_hook%prepend(f6)
-        call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3")
+        call basic_subprograms_tests_hook%prepend(f6)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f5 f6 f2 f1 f4 f3")
         if (allocated(error)) return
         ! Make sure t is equivalent to 90.
-        call subr_tests_hook%append(f7, depth=90)
-        call subr_tests_hook%append(f8)
-        call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3 f7 f8")
+        call basic_subprograms_tests_hook%append(f7, depth=90)
+        call basic_subprograms_tests_hook%append(f8)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f5 f6 f2 f1 f4 f3 f7 f8")
         if (allocated(error)) return
         ! Make sure nil is equivalent to 0.
-        call subr_tests_hook%prepend(f9, depth=0)
-        call subr_tests_hook%prepend(f10)
-        call check(error, hook_names(subr_tests_hook), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
+        call basic_subprograms_tests_hook%prepend(f9, depth=0)
+        call basic_subprograms_tests_hook%prepend(f10)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
     end subroutine test_add_hook_depth
 
     !> remove-hook drops a function's depth (hook--depth-alist) with it
@@ -471,6 +471,14 @@ contains
         call check(error, auto_mode_specification("-*- Text -*-"//LF//"body"), "text_mode")
         if (allocated(error)) return
         call check(error, auto_mode_specification(LF//"  ;; -*- mode: Programming; fill-column: 60 -*-"), "programming_mode")
+        if (allocated(error)) return
+        ! A file written for Emacs: upstream's mode names are read through
+        ! modes_mod's table.
+        call check(error, auto_mode_specification(LF//"  ;; -*- mode: Prog; fill-column: 60 -*-"), "programming_mode")
+        if (allocated(error)) return
+        call check(error, auto_mode_specification("# -*- mode: sh -*-"), "shell_script_mode")
+        if (allocated(error)) return
+        call check(error, auto_mode_specification("# -*- mode: conf-unix -*-"), "configuration_unix_mode")
         if (allocated(error)) return
         call check(error, auto_mode_specification("x -*- coding: utf-8; Mode: text -*-"), "text_mode")
         if (allocated(error)) return

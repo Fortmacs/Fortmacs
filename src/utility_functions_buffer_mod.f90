@@ -24,7 +24,7 @@
 !> and editing_functions_mod, which a module below them cannot.
 submodule(utility_functions_mod) utility_functions_buffer_mod
     use commands_mod, only: commands
-    use buffer_mod, only: buf_bytes, temporary_set_point_both
+    use buffer_mod, only: buffer_bytes, temporary_set_point_both
     use marker_mod, only: character_to_byte
     use insert_delete_mod, only: insert, insert_1_both, signal_after_change, delete_range_byte, delete_range_both, move_gap_both
     use text_properties_mod, only: set_point, set_point_both
@@ -78,7 +78,7 @@ contains
         beginning_byte = character_to_byte(beginning)
         end_byte = character_to_byte(end)
         call move_gap_both(beginning, beginning_byte)
-        call base64_encode_1(buf_bytes(buffers(current), beginning_byte, end_byte), line_break, pad, base64url, &
+        call base64_encode_1(buffer_bytes(buffers(current), beginning_byte, end_byte), line_break, pad, base64url, &
                              buffers(current)%multibyte, encoded, ok)
 
         if (.not. ok) then
@@ -131,7 +131,7 @@ contains
         beginning_byte = character_to_byte(b)
         end_byte = character_to_byte(e)
         call move_gap_both(b, beginning_byte)
-        call base64_decode_1(buf_bytes(buffers(current), beginning_byte, end_byte), url, multibyte, ignore, decoded, &
+        call base64_decode_1(buffer_bytes(buffers(current), beginning_byte, end_byte), url, multibyte, ignore, decoded, &
                              inserted_characters, ok)
 
         if (.not. ok) then

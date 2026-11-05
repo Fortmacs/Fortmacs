@@ -107,25 +107,25 @@ contains
         end do
     end function total
 
-    ! The parts of the result: HEAD padding, the characters FROM_IDX to
+    ! The parts of the result: HEAD padding, the characters FROM_INDEX to
     ! INDEX (0-based, exclusive) of STRING, TAIL padding and the ELLIPSIS
     ! (DONE when the whole result is RESULT, START_COLUMN being beyond STRING).
     ! Port of mule-util.el:truncate-string-to-width in part.
-    subroutine truncate_parts(string, end_column_in, start_column, padding, ellipsis_in, head, from_idx, index, tail, &
+    subroutine truncate_parts(string, end_column_in, start_column, padding, ellipsis_in, head, from_index, index, tail, &
                               ellipsis, done, result)
         character(len=*), intent(in) :: string, ellipsis_in, padding
         integer, intent(in) :: end_column_in, start_column
         character(len=:), allocatable, intent(out) :: head, tail, ellipsis, result
-        integer, intent(out) :: from_idx, index
+        integer, intent(out) :: from_index, index
         logical, intent(out) :: done
         integer, allocatable :: widths(:)
         integer(int64), allocatable :: starts(:)
-        integer :: str_len, string_width, ellipsis_width, column, last_column, last_idx, end_column
+        integer :: string_length, string_width, ellipsis_width, column, last_column, last_index, end_column
         integer, allocatable :: ew(:)
         integer(int64), allocatable :: es(:)
 
         call decode(string, widths, starts)
-        str_len = size(widths)
+        string_length = size(widths)
         string_width = total(widths)
         ellipsis = ellipsis_in
         call decode(ellipsis, ew, es)
@@ -136,10 +136,10 @@ contains
         head = ""
         tail = ""
         done = .false.
-        from_idx = 0
+        from_index = 0
 
         do while (column < start_column)
-            if (index >= str_len) exit
+            if (index >= string_length) exit
             index = index + 1
             column = column + widths(index)
         end do
@@ -157,7 +157,7 @@ contains
         end if
 
         if (len(padding) > 0 .and. column > start_column) head = repeat(padding, column - start_column)
-        from_idx = index
+        from_index = index
 
         if (end_column >= column) then
             if (end_column < string_width .and. string_width > ellipsis_width) then
@@ -167,19 +167,19 @@ contains
             end if
 
             last_column = column
-            last_idx = index
+            last_index = index
 
             do while (column < end_column)
-                if (index >= str_len) exit
+                if (index >= string_length) exit
                 last_column = column
-                last_idx = index
+                last_index = index
                 index = index + 1
                 column = column + widths(index)
             end do
 
             if (column > end_column) then
                 column = last_column
-                index = last_idx
+                index = last_index
             end if
 
             if (len(padding) > 0 .and. column < end_column) tail = repeat(padding, end_column - column)
@@ -242,17 +242,17 @@ contains
         logical, intent(in), optional :: default_ellipsis
         character(len=:), allocatable :: s
         character(len=:), allocatable :: head, tail, ell, result
-        integer :: from_idx, index
+        integer :: from_index, index
         logical :: done
 
         call truncate_parts(string, end_column, option_integer(start_column), option_string(padding), &
-                            ellipsis_of(ellipsis, default_ellipsis), head, from_idx, index, tail, ell, done, result)
+                            ellipsis_of(ellipsis, default_ellipsis), head, from_index, index, tail, ell, done, result)
 
         if (done) then
             s = result
         else
             ! (Possibly) chop off bits of the string.
-            s = head//chars(string, from_idx, index)//tail//ell
+            s = head//chars(string, from_index, index)//tail//ell
         end if
     end function truncate_string_to_width
 
@@ -271,13 +271,13 @@ contains
         type(value_type) :: v
         character(len=:), allocatable :: head, tail, ell, result
         type(value_type) :: properties(2), rest
-        integer :: from_idx, index, n
+        integer :: from_index, index, n
         logical :: done
         integer, allocatable :: widths(:)
         integer(int64), allocatable :: starts(:)
 
         call truncate_parts(string, end_column, option_integer(start_column), option_string(padding), &
-                            ellipsis_of(ellipsis, default_ellipsis), head, from_idx, index, tail, ell, done, result)
+                            ellipsis_of(ellipsis, default_ellipsis), head, from_index, index, tail, ell, done, result)
 
         if (done) then
             v = value_type(text=result)
@@ -288,9 +288,9 @@ contains
             properties(1) = value_type(name="display")
             properties(2) = value_type(text=ell)
             rest = propertize(value_type(text=chars(string, index, n)), make_list(properties))
-            v = propertized_concat(value_type(text=head//chars(string, from_idx, index)), rest)
+            v = propertized_concat(value_type(text=head//chars(string, from_index, index)), rest)
         else
-            v = value_type(text=head//chars(string, from_idx, index)//tail//ell)
+            v = value_type(text=head//chars(string, from_index, index)//tail//ell)
         end if
     end function truncate_string_to_width_propertized
 

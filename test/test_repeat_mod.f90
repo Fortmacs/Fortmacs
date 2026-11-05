@@ -33,7 +33,7 @@ module test_repeat_mod
     use editing_functions_mod, only: buffer_string
     use keymap_mod, only: make_sparse_keymap, key_parse, keymap_set, use_local_map, set_repeat_map
     use keyboard_mod, only: execute_keyboard_macro, last_keyboard_macro
-    use keyboard_macros_mod, only: initialize_kmacro
+    use keyboard_macros_mod, only: initialize_keyboard_macro
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use modes_mod, only: minor_modes
     use bindings_mod, only: initialize_bindings
@@ -436,7 +436,7 @@ contains
         type(status_type) :: st
 
         call setup()
-        call initialize_kmacro()
+        call initialize_keyboard_macro()
         call initialize_bindings()
         call begin(global_map)
         call key_parse("C-M-a C-M-b", last_keyboard_macro, st)

@@ -27,6 +27,7 @@ submodule(files_mod) files_mode_mod
     use data_mod, only: clear_all_local_variables
     use basic_subprograms_mod, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
     use execute_interactively_mod, only: find_command, current_prefix_argument, command_type
+    use modes_mod, only: mode_name_of_upstream
     use search_mod, only: string_match, case_fold_search, match_beginning, match_end, looking_at
     use editing_functions_mod, only: point_minimum, point_maximum, buffer_substring, point, goto_character
     implicit none(type, external)
@@ -49,11 +50,17 @@ submodule(files_mod) files_mode_mod
                                                                        "nodejs", "node", "[acjkwz]sh", "r?bash2?", "dash", "mksh", &
                                                                   "\(dt\|pd\|w\)ksh", "es", "i?tcsh", "oash", "rc", "rpm", "sh5?", &
                                                                                                "tail", "more", "less", "pg", "make"]
-    character(len=*), parameter :: interpreter_modes(21) = [character(len=19) :: "python_mode", "js_mode", "js_mode", &
-                                                                 "js_mode", "js_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
-                                                                 "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
-                                                                    "sh_mode", "text_mode", "text_mode", "text_mode", "text_mode", &
-                                                                                                              "makefile_gmake_mode"]
+    character(len=*), parameter :: interpreter_modes(21) = [character(len=22) :: "python_mode", "javascript_mode", &
+                                                                                                                "javascript_mode", &
+                                                                        "javascript_mode", "javascript_mode", "shell_script_mode", &
+                                                                                         "shell_script_mode", "shell_script_mode", &
+                                                                                                              "shell_script_mode", &
+                                                                    "shell_script_mode", "shell_script_mode", "shell_script_mode", &
+                                                                                         "shell_script_mode", "shell_script_mode", &
+                                                                                                              "shell_script_mode", &
+                                                                       "shell_script_mode", "text_mode", "text_mode", "text_mode", &
+                                                                                                                      "text_mode", &
+                                                                                                           "makefile_gnu_make_mode"]
 
     !> How much of the buffer the -*- line is looked for in.
     integer(int64), parameter :: SPECIFICATION_LIMIT = 4096
@@ -96,24 +103,24 @@ contains
         call append_auto_mode("Makeppfile\(?:\.mk\)?\'", "makefile_makepp_mode")
         call append_auto_mode("\.makepp\'", "makefile_makepp_mode")
         ! Might be any make, give GNU the host advantage
-        call append_auto_mode("\.mk\'", "makefile_gmake_mode")
-        call append_auto_mode("\.make\'", "makefile_gmake_mode")
-        call append_auto_mode("[Mm]akefile\'", "makefile_gmake_mode")
+        call append_auto_mode("\.mk\'", "makefile_gnu_make_mode")
+        call append_auto_mode("\.make\'", "makefile_gnu_make_mode")
+        call append_auto_mode("[Mm]akefile\'", "makefile_gnu_make_mode")
         call append_auto_mode("\.am\'", "makefile_automake_mode")
         call append_auto_mode("\.css\'", "css_mode")
-        call append_auto_mode("\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\'", "sh_mode")
-        call append_auto_mode("\.bash\'", "sh_mode")
+        call append_auto_mode("\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\'", "shell_script_mode")
+        call append_auto_mode("\.bash\'", "shell_script_mode")
         ! Bash builtin 'fc' creates a temp file named "bash-fc.XXXXXX"
         ! to edit shell commands from its history list.
-        call append_auto_mode("/bash-fc\.[0-9A-Za-z]\{6\}\'", "sh_mode")
+        call append_auto_mode("/bash-fc\.[0-9A-Za-z]\{6\}\'", "shell_script_mode")
         ! A login sh first attempts to read /etc/profile.
-        call append_auto_mode("\`/etc/profile\'", "sh_mode")
-        call append_auto_mode("/PKGBUILD\'", "sh_mode")
+        call append_auto_mode("\`/etc/profile\'", "shell_script_mode")
+        call append_auto_mode("/PKGBUILD\'", "shell_script_mode")
         call append_auto_mode("\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\'", &
-                              "sh_mode")
-        call append_auto_mode("\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\'", "sh_mode")
-        call append_auto_mode("\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\'", "sh_mode")
-        call append_auto_mode("\.m?spec\'", "sh_mode")
+                              "shell_script_mode")
+        call append_auto_mode("\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\'", "shell_script_mode")
+        call append_auto_mode("\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\'", "shell_script_mode")
+        call append_auto_mode("\.m?spec\'", "shell_script_mode")
         call append_auto_mode("\.article\'", "text_mode")
         call append_auto_mode("\.letter\'", "text_mode")
         ! The Fortran standard does not say anything about file extensions.
@@ -130,7 +137,7 @@ contains
         call append_auto_mode("\.js[mx]?\'", "javascript_mode")
         ! https://en.wikipedia.org/wiki/.har
         call append_auto_mode("\.har\'", "javascript_mode")
-        call append_auto_mode("\.json\'", "js_json_mode")
+        call append_auto_mode("\.json\'", "javascript_json_mode")
         call append_auto_mode("/crontab\.X*[0-9]+\'", "shell_script_mode")
         call append_auto_mode("\.docbook\'", "sgml_mode")
         call append_auto_mode("/config\.\(?:bat\|log\)\'", "fundamental_mode")
@@ -167,7 +174,7 @@ contains
         call append_auto_mode("/X11.+locale/compose\.dir\'", "configuration_javaprop_mode")
         ! Get rid of any trailing .n.m and try again.
         ! This is for files saved by cvs-merge that look like .#<file>.<rev>
-        ! or .#<file>.<rev>-<rev> or VC's <file>.~<rev>~.
+        ! or .#<file>.<rev>-<rev> or VERSION_CONTROL's <file>.~<rev>~.
         call append_auto_mode("\.~?[0-9]+\.[0-9][-.0-9]*~?\'", "", strip=.true.)
         call append_auto_mode("\.\(?:orig\|in\|[bB][aA][kK]\)\'", "", strip=.true.)
         ! This should come after "in" stripping (e.g. config.h.in).
@@ -271,7 +278,7 @@ contains
 
     if (index(specification, ":") == 0) then
         ! Simple -*-MODE-*- case.
-        if (len(specification) > 0) mode = underscores(downcase_ascii(specification))//"_mode"
+        if (len(specification) > 0) mode = fortran_mode(underscores(downcase_ascii(specification))//"_mode")
         return
     end if
 
@@ -297,8 +304,19 @@ contains
     j = index(value, ";")
     if (j > 0) value = value(1:j - 1)
     value = strip(value)
-    if (len(value) > 0) mode = underscores(downcase_ascii(value))//"_mode"
+    if (len(value) > 0) mode = fortran_mode(underscores(downcase_ascii(value))//"_mode")
     end procedure auto_mode_specification
+
+    !> MODE, the name of a mode as a file gives it: itself if it is a mode
+    !> (a command), else the Fortran name of the mode upstream names so
+    !> (modes_mod's table: a file written for Emacs).  Not a port.
+    function fortran_mode(mode) result(name)
+        character(len=*), intent(in) :: mode
+        character(len=:), allocatable :: name
+
+        name = mode
+        if (.not. associated(find_command(mode))) name = mode_name_of_upstream(mode)
+    end function fortran_mode
 
     !> S with hyphens turned into underscores: a mode named in a file, as
     !> Emacs names it, as Fortmacs names it.  Not a port.
@@ -333,7 +351,7 @@ contains
             end if
         end if
 
-        fn => find_command(mode)
+        fn => find_command(fortran_mode(mode))
 
         if (.not. associated(fn)) then
             call message(format_message("Ignoring unknown mode `"//mode//"'"))

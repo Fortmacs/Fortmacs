@@ -42,11 +42,11 @@ module editing_functions_mod
                              unibyte_to_character, multibyte_characters_in_text, MAXIMUM_MULTIBYTE_LENGTH, &
                              string_character_and_length, bytes_by_character_head, character_to_byte8, MAXIMUM_CHARACTER, &
                              glyph_width, character_hexdigit
-    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, BUF_BYTES_MAXIMUM, &
-                          buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buffer_byte_index, &
-                          buf_bytes, temporary_set_point_both, current_buffer, &
-                          resolve_buffer, transient_mark_mode, set_buffer, is_buffer_live
-    use marker_mod, only: character_to_byte, byte_to_character, buf_charpos_to_bytepos, &
+    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, BUFFER_BYTES_MAXIMUM, buffer_fetch_byte, &
+                          buffer_fetch_character, buffer_previous_character_length, buffer_next_character_length, &
+                          buffer_byte_index, buffer_bytes, temporary_set_point_both, current_buffer, resolve_buffer, &
+                          transient_mark_mode, set_buffer, is_buffer_live
+    use marker_mod, only: character_to_byte, byte_to_character, buffer_character_position_to_byte_position, &
                           markers, resolve_marker, make_marker, set_marker_both, marker_position, marker_byte_position, &
                           destroy_marker, marker_buffer, copy_marker_at, set_marker_insertion_type, clear_character_position_cache
     use execute_interactively_mod, only: mark_even_if_inactive
@@ -455,7 +455,7 @@ contains
                                                                                        buffers(current)%end_of_accessible_portion))
 
         if (markers(i)%buffer /= current) then
-            byte_position = buf_charpos_to_bytepos(current, character_position)
+            byte_position = buffer_character_position_to_byte_position(current, character_position)
         else
             byte_position = max(buffers(current)%beginning_of_accessible_portion_byte, min(markers(i)%byte_position, &
                                                                                    buffers(current)%end_of_accessible_portion_byte))
@@ -658,7 +658,7 @@ contains
         if (buffers(current)%text%z /= buffers(current)%text%z_byte) then
             ! Back up to the start of the character containing BYTE_POSITION.
             do while (position_byte < buffers(current)%text%z_byte)
-                if (is_character_head(buf_fetch_byte(buffers(current), position_byte))) exit
+                if (is_character_head(buffer_fetch_byte(buffers(current), position_byte))) exit
                 position_byte = position_byte - 1
             end do
         end if
@@ -676,7 +676,7 @@ contains
         following_character = 0
 
         if (buffers(current)%point < buffers(current)%end_of_accessible_portion) then
-            following_character = buf_fetch_char(buffers(current), buffers(current)%point_byte)
+            following_character = buffer_fetch_character(buffers(current), buffers(current)%point_byte)
         end if
     end function following_character
 
@@ -691,10 +691,10 @@ contains
             if (b%point <= b%beginning_of_accessible_portion) return
 
             if (b%multibyte) then
-                position = b%point_byte - buf_prev_char_len(b, b%point_byte)
-                preceding_character = buf_fetch_char(b, position)
+                position = b%point_byte - buffer_previous_character_length(b, b%point_byte)
+                preceding_character = buffer_fetch_character(b, position)
             else
-                preceding_character = buf_fetch_byte(b, b%point_byte - 1)
+                preceding_character = buffer_fetch_byte(b, b%point_byte - 1)
             end if
         end associate
     end function preceding_character
@@ -718,7 +718,7 @@ contains
     logical function is_beginning_of_line()
         associate (b => buffers(current))
             is_beginning_of_line = b%point == b%beginning_of_accessible_portion
-            if (.not. is_beginning_of_line) is_beginning_of_line = buf_fetch_byte(b, b%point_byte - 1) == 10
+            if (.not. is_beginning_of_line) is_beginning_of_line = buffer_fetch_byte(b, b%point_byte - 1) == 10
         end associate
     end function is_beginning_of_line
 
@@ -728,7 +728,7 @@ contains
     logical function is_end_of_line()
         associate (b => buffers(current))
             is_end_of_line = b%point == b%end_of_accessible_portion
-            if (.not. is_end_of_line) is_end_of_line = buf_fetch_byte(b, b%point_byte) == 10
+            if (.not. is_end_of_line) is_end_of_line = buffer_fetch_byte(b, b%point_byte) == 10
         end associate
     end function is_end_of_line
 
@@ -752,7 +752,7 @@ contains
                 if (found) position_byte = character_to_byte(position)
             end if
 
-            if (found) c = buf_fetch_char(b, position_byte)
+            if (found) c = buffer_fetch_character(b, position_byte)
         end associate
     end subroutine character_after
 
@@ -774,10 +774,10 @@ contains
             position_byte = character_to_byte(p)
 
             if (b%multibyte) then
-                position_byte = position_byte - buf_prev_char_len(b, position_byte)
-                c = buf_fetch_char(b, position_byte)
+                position_byte = position_byte - buffer_previous_character_length(b, position_byte)
+                c = buffer_fetch_character(b, position_byte)
             else
-                c = buf_fetch_byte(b, position_byte - 1)
+                c = buffer_fetch_byte(b, position_byte - 1)
             end if
         end associate
     end subroutine character_before
@@ -958,7 +958,7 @@ contains
 
         if (count <= 0) return
 
-        if (BUF_BYTES_MAXIMUM/clen < count) then
+        if (BUFFER_BYTES_MAXIMUM/clen < count) then
             call set_error(status, GENERIC_ERROR_CODE, "Maximum buffer size exceeded")
             return
         end if
@@ -1964,20 +1964,20 @@ contains
         e = end
         call validate_region(s, e, status)
         if (.not. status%ok()) return
-        text = buf_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
+        text = buffer_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
     end subroutine buffer_substring_no_properties
 
     !> The text of the current buffer from START to END (START <= END, in
     !> the accessible text) as a string value, with the text properties
     !> of that text when PROPERTIES is true.  Port of editfns.c:make_buffer_string
     !> (and editfns.c:make_buffer_string_both, the byte positions found
-    !> here; the bytes are joined across the gap by `buf_bytes').
+    !> here; the bytes are joined across the gap by `buffer_bytes').
     subroutine make_buffer_string(start, end, properties, string)
         integer(int64), intent(in) :: start, end
         logical, intent(in) :: properties
         type(value_type), intent(out) :: string
 
-        string = value_type(text=buf_bytes(buffers(current), character_to_byte(start), character_to_byte(end)))
+        string = value_type(text=buffer_bytes(buffers(current), character_to_byte(start), character_to_byte(end)))
         ! Copy the text properties (none if that text has none).
         if (properties) call copy_intervals_to_string(string, buffers(current)%text%intervals, start, end - start)
     end subroutine make_buffer_string
@@ -1986,8 +1986,8 @@ contains
     function buffer_string() result(text)
         character(len=:), allocatable :: text
 
-        text = buf_bytes(buffers(current), buffers(current)%beginning_of_accessible_portion_byte, &
-                         buffers(current)%end_of_accessible_portion_byte)
+        text = buffer_bytes(buffers(current), buffers(current)%beginning_of_accessible_portion_byte, &
+                            buffers(current)%end_of_accessible_portion_byte)
     end function buffer_string
 
     !> Insert before point a substring of the contents of BUFFER.
@@ -2095,8 +2095,8 @@ contains
         if (.not. status%ok()) return
         i1 = begp1
         i2 = begp2
-        i1_byte = buf_charpos_to_bytepos(bp1, i1)
-        i2_byte = buf_charpos_to_bytepos(bp2, i2)
+        i1_byte = buffer_character_position_to_byte_position(bp1, i1)
+        i2_byte = buffer_character_position_to_byte_position(bp2, i2)
         chars = 0
 
         do while (i1 < endp1 .and. i2 < endp2)
@@ -2182,10 +2182,10 @@ contains
             integer(int32), intent(out) :: c
 
             if (buffers(b)%multibyte) then
-                c = buf_fetch_char(buffers(b), i_byte)
-                i_byte = i_byte + buf_next_char_len(buffers(b), i_byte)
+                c = buffer_fetch_character(buffers(b), i_byte)
+                i_byte = i_byte + buffer_next_character_length(buffers(b), i_byte)
             else
-                c = unibyte_to_character(buf_fetch_byte(buffers(b), i_byte))
+                c = unibyte_to_character(buffer_fetch_byte(buffers(b), i_byte))
                 i_byte = i_byte + 1
             end if
 
@@ -2300,7 +2300,7 @@ contains
         integer(int64) :: count_value, character_position, byte_position, counted
 
         count_value = 0
-        if (present(n)) count_value = max(-BUF_BYTES_MAXIMUM, min(n - 1, BUF_BYTES_MAXIMUM))
+        if (present(n)) count_value = max(-BUFFER_BYTES_MAXIMUM, min(n - 1, BUFFER_BYTES_MAXIMUM))
         if (present(count)) count = count_value
         counted = scan_newline_from_point(count_value, character_position, byte_position)
         beginning_of_line = character_position
@@ -2331,7 +2331,7 @@ contains
         integer(int64) :: count
 
         count = 1
-        if (present(n)) count = max(-BUF_BYTES_MAXIMUM, min(n, BUF_BYTES_MAXIMUM))
+        if (present(n)) count = max(-BUFFER_BYTES_MAXIMUM, min(n, BUFFER_BYTES_MAXIMUM))
         if (count <= 0) count = count - 1
         end_of_line = find_before_next_newline(buffers(current)%point, count)
     end function end_of_line
@@ -2499,7 +2499,7 @@ contains
         integer(int64) :: beginning, end
 
         call find_field(position, .false., beginning, end)
-        text = buf_bytes(buffers(current), character_to_byte(beginning), character_to_byte(end))
+        text = buffer_bytes(buffers(current), character_to_byte(beginning), character_to_byte(end))
     end function field_string_no_properties
 
     !> Delete the field around `position'.  Port of editfns.c:Fdelete_field.
@@ -2644,13 +2644,13 @@ contains
                 position_byte_next = position_byte
 
                 if (buffers(current)%multibyte) then
-                    position_byte_next = position_byte_next + buf_next_char_len(buffers(current), position_byte_next)
+                    position_byte_next = position_byte_next + buffer_next_character_length(buffers(current), position_byte_next)
                 else
                     position_byte_next = position_byte_next + 1
                 end if
 
                 if (position_byte_next - position_byte == nlen) then
-                    if (buf_bytes(buffers(current), position_byte, position_byte_next) == fromstr(1:nlen)) then
+                    if (buffer_bytes(buffers(current), position_byte, position_byte_next) == fromstr(1:nlen)) then
                         if (changed < 0) then
                             ! We've already seen this and run the
                             ! before-change functions; this time we only
@@ -2776,7 +2776,7 @@ contains
         character(len=MAXIMUM_MULTIBYTE_LENGTH) :: bytes
         integer(int64) :: s, e, position, position_byte, end_position, translatable_characters, k, string_byte
         integer(int64) :: value
-        integer(int32) :: oc, nc, len1, str_len
+        integer(int32) :: oc, nc, len1, string_length
         logical :: multibyte, string_multibyte
 
         changed = 0
@@ -2812,7 +2812,7 @@ contains
                 call string_character_and_length(buffers(current)%text%beginning, &
                                                  buffer_byte_index(buffers(current), position_byte), oc, len1)
             else
-                oc = buf_fetch_byte(buffers(current), position_byte)
+                oc = buffer_fetch_byte(buffers(current), position_byte)
                 len1 = 1
             end if
 
@@ -2826,16 +2826,16 @@ contains
                         call string_character_byte(tt, int(oc, int64), string_byte)
 
                         if (string_byte > 0) then
-                            call string_character_and_length(tt, string_byte, nc, str_len)
-                            bytes = tt(string_byte:string_byte + str_len - 1)
+                            call string_character_and_length(tt, string_byte, nc, string_length)
+                            bytes = tt(string_byte:string_byte + string_length - 1)
                         end if
                     else
                         nc = ichar(tt(oc + 1:oc + 1), kind=int32)
 
                         if (nc > 127 .and. multibyte) then
-                            call character_string(unibyte_to_character(nc), bytes, str_len, status)
+                            call character_string(unibyte_to_character(nc), bytes, string_length, status)
                         else
-                            str_len = 1
+                            string_length = 1
                             bytes = tt(oc + 1:oc + 1)
                         end if
                     end if
@@ -2844,22 +2844,22 @@ contains
 
                     if (value >= 0 .and. value <= MAXIMUM_CHARACTER) then
                         nc = int(value, int32)
-                        call character_string(nc, bytes, str_len, status)
+                        call character_string(nc, bytes, string_length, status)
                     end if
                 end if
 
                 if (nc /= oc) then
                     ! Simple one char to one char translation.
-                    if (len1 /= str_len) then
+                    if (len1 /= string_length) then
                         ! This is less efficient, because it moves the gap,
                         ! but it should handle multibyte characters correctly.
-                        call replace_range(position, position + 1, bytes(1:str_len), .true., status)
+                        call replace_range(position, position + 1, bytes(1:string_length), .true., status)
                         if (.not. status%ok()) return
-                        len1 = str_len
+                        len1 = string_length
                     else
                         call record_change(position, 1_int64)
                         k = buffer_byte_index(buffers(current), position_byte)
-                        buffers(current)%text%beginning(k:k + str_len - 1) = bytes(1:str_len)
+                        buffers(current)%text%beginning(k:k + string_length - 1) = bytes(1:string_length)
                         call signal_after_change(position, 1_int64, 1_int64, status)
                         if (.not. status%ok()) return
                     end if

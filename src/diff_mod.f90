@@ -67,10 +67,10 @@ module diff_mod
 
     !> A string specifying switches to be passed to diff.
     !>
-    !> This variable is also used in the `vc_diff' command (and related
+    !> This variable is also used in the `version_control_diff' command (and related
     !> commands) if the backend-specific diff switch variable isn't set
-    !> (`vc_git_diff_switches' for git, for instance), and
-    !> `vc_diff_switches' isn't set.  Port of diff.el diff-switches.
+    !> (`version_control_git_diff_switches' for git, for instance), and
+    !> `version_control_diff_switches' isn't set.  Port of diff.el diff-switches.
     character(len=:), allocatable, public :: diff_switches
 
     !> The command to use to run diff.  Port of diff.el diff-command.
@@ -106,7 +106,7 @@ module diff_mod
         integer(int64) :: serial = 0
         type(diff_operand_type) :: old, new
         character(len=:), allocatable :: switches
-        logical :: no_async = .false.
+        logical :: no_asynchronous = .false.
     end type revert_arguments_type
 
     type(revert_arguments_type), allocatable :: revert_arguments(:)
@@ -180,7 +180,7 @@ contains
     !> When called interactively, read NEW, then OLD, using the
     !> minibuffer.  The default for NEW is the current buffer's file name,
     !> and the default for OLD is a backup file for NEW, if one exists.
-    !> If NO_ASYNC is true, call diff synchronously.
+    !> If NO_ASYNCHRONOUS is true, call diff synchronously.
     !>
     !> When called interactively with a prefix argument SWITCHES, prompt
     !> interactively for diff switches.  Otherwise, the switches
@@ -189,14 +189,14 @@ contains
     !>
     !> Non-interactively, OLD and NEW may each be a file or a buffer.
     !> Port of diff.el:diff.
-    recursive subroutine diff(old, new, status, switches, no_async)
+    recursive subroutine diff(old, new, status, switches, no_asynchronous)
         type(diff_operand_type), intent(in) :: old, new
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: switches
-        logical, intent(in), optional :: no_async
+        logical, intent(in), optional :: no_asynchronous
         type(handle_type) :: buffer, window
 
-        call diff_no_select(old, new, buffer, status, switches, no_async)
+        call diff_no_select(old, new, buffer, status, switches, no_asynchronous)
         if (.not. status%ok()) return
         call display_buffer(buffer, window, status)
     end subroutine diff
@@ -296,17 +296,17 @@ contains
     !> `diff_switches' are passed to the diff command, otherwise SWITCHES
     !> is used.
     !>
-    !> If NO_ASYNC is true, call diff synchronously.
+    !> If NO_ASYNCHRONOUS is true, call diff synchronously.
     !>
     !> By default, this function creates the diff in the "*Diff*" buffer.
     !> If BUFFER is given, BUFFER is used instead.  This function gives the
     !> buffer used in RESULT.  Port of diff.el:diff-no-select.
-    recursive subroutine diff_no_select(old_in, new_in, result, status, switches, no_async, buffer)
+    recursive subroutine diff_no_select(old_in, new_in, result, status, switches, no_asynchronous, buffer)
         type(diff_operand_type), intent(in) :: old_in, new_in
         type(handle_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: switches
-        logical, intent(in), optional :: no_async
+        logical, intent(in), optional :: no_asynchronous
         type(handle_type), intent(in), optional :: buffer
         type(diff_operand_type) :: old, new
         character(len=:), allocatable :: sw, old_alt, new_alt, command, thisdir, olddir
@@ -335,7 +335,7 @@ contains
         sw = diff_switches
         if (present(switches)) sw = switches
         synchronize = .false.
-        if (present(no_async)) synchronize = no_async
+        if (present(no_asynchronous)) synchronize = no_asynchronous
 
         if (present(buffer)) then
             result = buffer
@@ -432,10 +432,10 @@ contains
     end subroutine diff_no_select
 
     !> The current buffer's `revert_buffer_function' arguments.  Not a port.
-    subroutine remember_revert_arguments(old, new, switches, no_async)
+    subroutine remember_revert_arguments(old, new, switches, no_asynchronous)
         type(diff_operand_type), intent(in) :: old, new
         character(len=*), intent(in) :: switches
-        logical, intent(in) :: no_async
+        logical, intent(in) :: no_asynchronous
         type(revert_arguments_type) :: entry
         integer :: k
 
@@ -451,7 +451,7 @@ contains
         revert_arguments(k)%old = old
         revert_arguments(k)%new = new
         revert_arguments(k)%switches = switches
-        revert_arguments(k)%no_async = no_async
+        revert_arguments(k)%no_asynchronous = no_asynchronous
     end subroutine remember_revert_arguments
 
     !> The `revert_buffer_function' of *Diff* buffers: run the diff
@@ -469,7 +469,7 @@ contains
         if (k == 0) return
 
         associate (a => revert_arguments(k))
-            call diff_no_select(a%old, a%new, result, status, a%switches, a%no_async, current_buffer())
+            call diff_no_select(a%old, a%new, result, status, a%switches, a%no_asynchronous, current_buffer())
         end associate
     end subroutine diff_revert
 
@@ -649,7 +649,7 @@ contains
         old%file = buffers(bi)%filename
         new%is_buffer = .true.
         new%buffer = b
-        call diff(old, new, status, no_async=.true.)
+        call diff(old, new, status, no_asynchronous=.true.)
     end subroutine diff_buffer_with_file
 
     !> Find and display the differences between OLD and NEW buffers.
@@ -657,7 +657,7 @@ contains
     !> When called interactively, read NEW, then OLD, using the
     !> minibuffer.  The default for NEW is the current buffer, and the
     !> default for OLD is the most recently selected other buffer.
-    !> If NO_ASYNC is true, call diff synchronously.
+    !> If NO_ASYNCHRONOUS is true, call diff synchronously.
     !>
     !> When called interactively with a prefix argument, prompt
     !> interactively for diff switches.  Otherwise, the switches specified
@@ -665,18 +665,18 @@ contains
     !>
     !> Also see the `diff_entire_buffers' variable.  Port of
     !> diff.el:diff-buffers.
-    recursive subroutine diff_buffers(old, new, status, switches, no_async)
+    recursive subroutine diff_buffers(old, new, status, switches, no_asynchronous)
         type(handle_type), intent(in) :: old, new
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: switches
-        logical, intent(in), optional :: no_async
+        logical, intent(in), optional :: no_asynchronous
         type(diff_operand_type) :: o, n
 
         o%is_buffer = .true.
         o%buffer = old
         n%is_buffer = .true.
         n%buffer = new
-        call diff(o, n, status, switches, no_async)
+        call diff(o, n, status, switches, no_asynchronous)
     end subroutine diff_buffers
 
     ! ------------------------------------------------------------------

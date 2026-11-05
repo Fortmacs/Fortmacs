@@ -23,8 +23,8 @@
 !> `find_project_regular_expression' and `find_project_or_external_regular_expression': a
 !> submodule because they use cross_reference_mod, which uses project_mod.
 submodule(project_mod) project_cross_reference_mod
-    use cross_reference_mod, only: xref_fetcher_type, xref_item_type, xref_matches_in_files, show_xrefs, &
-                                   XREF_DISPLAY_ACTION_NONE
+    use cross_reference_mod, only: cross_reference_fetcher_type, cross_reference_item_type, cross_reference_matches_in_files, &
+                                   show_cross_references, CROSS_REFERENCE_DISPLAY_ACTION_NONE
     use grep_mod, only: grep_read_files
     implicit none(type, external)
 
@@ -32,7 +32,7 @@ submodule(project_mod) project_cross_reference_mod
     ! (relative to DIRECTORY when not absolute).  Port of the
     ! (apply-partially #'project--find-regexp-in-files REGULAR_EXPRESSION FILES) of
     ! project.el.
-    type, extends(xref_fetcher_type) :: project_regular_expression_fetcher_type
+    type, extends(cross_reference_fetcher_type) :: project_regular_expression_fetcher_type
         character(len=:), allocatable :: regular_expression
         character(len=:), allocatable :: directory
         type(string_type), allocatable :: files(:)
@@ -113,7 +113,7 @@ contains
     call show_regular_expression_matches(fetcher, buffer, status)
     end procedure find_project_or_external_regular_expression
 
-    ! Show the matches FETCHER finds with `show_xrefs', from its
+    ! Show the matches FETCHER finds with `show_cross_references', from its
     ! directory (upstream's let-bound `default-directory').  Port of the
     ! (xref-show-xrefs ... nil) of project.el:project-find-regexp.
     recursive subroutine show_regular_expression_matches(fetcher, buffer, status)
@@ -124,7 +124,7 @@ contains
 
         saved_directory = current_directory()
         call set_directory(fetcher%directory)
-        call show_xrefs(fetcher, XREF_DISPLAY_ACTION_NONE, buffer, status)
+        call show_cross_references(fetcher, CROSS_REFERENCE_DISPLAY_ACTION_NONE, buffer, status)
         call set_directory(saved_directory)
     end subroutine show_regular_expression_matches
 
@@ -133,7 +133,7 @@ contains
     ! Port of project.el:project--find-regexp-in-files.
     recursive subroutine find_regular_expression_in_files(this, items, status)
         class(project_regular_expression_fetcher_type), intent(inout) :: this
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: files(:), saved_directory
         integer :: k, width
@@ -160,7 +160,7 @@ contains
 
         saved_directory = current_directory()
         call set_directory(this%directory)
-        call xref_matches_in_files(this%regular_expression, files, items, status)
+        call cross_reference_matches_in_files(this%regular_expression, files, items, status)
         call set_directory(saved_directory)
         if (.not. status%ok()) return
 

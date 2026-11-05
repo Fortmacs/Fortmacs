@@ -87,7 +87,7 @@ contains
         type(fake_font_driver_type), target, intent(inout) :: driver
         integer, intent(in) :: columns, lines
 
-        f%rif => device
+        f%redisplay_interface => device
         f%font_driver => driver
         f%column_width = FAKE_COLUMN_WIDTH
         f%line_height = FAKE_LINE_HEIGHT

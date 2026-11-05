@@ -46,7 +46,7 @@ module text_properties_mod
     use names_mod, only: intern
     use data_mod, only: value_eq, logical_setting_type
     use buffer_mod, only: buffers, current, BEGINNING, inhibit_read_only, temporary_set_point_both, set_buffer_internal
-    use marker_mod, only: buf_charpos_to_bytepos
+    use marker_mod, only: buffer_character_position_to_byte_position
     use handle_mod, only: handle_type, null_handle
     use hooks_mod, only: execute_property_function
     use interval_tree_mod, only: overlays_at, overlay_get_property, next_overlay_change, previous_overlay_change, overlays_in, &
@@ -2161,7 +2161,8 @@ contains
     subroutine temporary_set_point(b, character_position)
         integer(int64), intent(in) :: b, character_position
 
-        call temporary_set_point_both(buffers(b), character_position, buf_charpos_to_bytepos(b, character_position))
+        call temporary_set_point_both(buffers(b), character_position, buffer_character_position_to_byte_position(b, &
+                                                                                                                character_position))
     end subroutine temporary_set_point
 
     !> Set point to CHARACTER_POSITION.  If the target position is before an
@@ -2171,7 +2172,7 @@ contains
         integer(int64), intent(in) :: character_position
         type(status_type), intent(out) :: status
 
-        call set_point_both(character_position, buf_charpos_to_bytepos(current, character_position), status)
+        call set_point_both(character_position, buffer_character_position_to_byte_position(current, character_position), status)
     end subroutine set_point
 
     !> If there's an invisible character at position POSITION + TEST_OFFS in the
@@ -2335,7 +2336,7 @@ contains
                 end if
             end if
 
-            byte_position = buf_charpos_to_bytepos(current, character_position)
+            byte_position = buffer_character_position_to_byte_position(current, character_position)
         end if
 
         if (character_position /= original_position) call find_to(character_position, to, toprev)

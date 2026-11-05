@@ -34,8 +34,8 @@
 !> place of test/lisp, test/project-resources (with the files etc and
 !> foo) that of project-resources, and test/bookmark-resources (marked by
 !> test.bmk) that of autoconf-resources.  Directory-local variables are
-!> not ported, so the tests that set `project_vc_ignores' in
-!> project-resources/.dir-locals.el set it globally.  The VC tests are
+!> not ported, so the tests that set `project_version_control_ignores' in
+!> project-resources/.dir-locals.el set it globally.  The VERSION_CONTROL tests are
 !> skipped outside of a Git checkout.  Own tests: a project from a
 !> procedure of `project_find_functions', the known projects list, the
 !> buffer conditions, `combine_project_directories' and
@@ -60,19 +60,21 @@ module test_project_mod
     use keymap_mod, only: key_parse, lookup_key, current_global_map
     use execute_interactively_mod, only: command_of
     use commands_mod, only: commands
-    use version_control_hooks_mod, only: vc_handled_backends
-    use version_control_mod, only: vc_responsible_backend
-    use version_control_hooks_mod, only: vc_backends
-    use project_mod, only: project_type, transient_project_type, vc_project_type, &
-                           get_current_project, project_find_functions, try_vc_project, project_clear_cache, &
-                           project_vc_extra_root_markers, project_vc_ignores, project_vc_backend_markers, &
-                           project_vc_non_essential_cache_timeout, project_vc_backend_marker_type, &
-                           project_list_file, remember_project, forget_project, known_project_roots, &
-                           combine_project_directories, subtract_project_directories, project_vc_ignores_of, &
-                           is_project_buffer_matching, project_close_buffer_conditions, project_buffers_to_close, &
-                           find_project_regular_expression
-    use cross_reference_mod, only: xref_fetcher_type, xref_show_parameters_type, xref_show_procedure, xref_item_type, &
-                                   xref_show_xrefs_function, xref_search_program, XREF_SEARCH_PROGRAM_GREP
+    use version_control_hooks_mod, only: version_control_handled_backends
+    use version_control_mod, only: version_control_responsible_backend
+    use version_control_hooks_mod, only: version_control_backends
+    use project_mod, only: project_type, transient_project_type, version_control_project_type, get_current_project, &
+                           project_find_functions, try_version_control_project, project_clear_cache, &
+                           project_version_control_extra_root_markers, project_version_control_ignores, &
+                           project_version_control_backend_markers, project_version_control_non_essential_cache_timeout, &
+                           project_version_control_backend_marker_type, project_list_file, remember_project, forget_project, &
+                           known_project_roots, combine_project_directories, subtract_project_directories, &
+                           project_version_control_ignores_of, is_project_buffer_matching, project_close_buffer_conditions, &
+                           project_buffers_to_close, find_project_regular_expression
+    use cross_reference_mod, only: cross_reference_fetcher_type, cross_reference_show_parameters_type, &
+                                   cross_reference_show_procedure, cross_reference_item_type, &
+                                   cross_reference_show_cross_references_function, cross_reference_search_program, &
+                                   CROSS_REFERENCE_SEARCH_PROGRAM_GREP
     implicit none(type, external)
     private
 
@@ -93,7 +95,7 @@ module test_project_mod
     !> The project the finder of the own test gives.
     type(transient_project_type) :: found_project
     !> What `capture_matches' fetched.
-    type(xref_item_type), allocatable :: fetched_matches(:)
+    type(cross_reference_item_type), allocatable :: fetched_matches(:)
 
 contains
 
@@ -104,7 +106,7 @@ contains
         testsuite = [ &
                     new_unittest("project-ignores", test_ignores), &
                     new_unittest("project-ignores-bug-50240", test_ignores_bug_50240), &
-                    new_unittest("project-vc-recognizes-git", test_vc_recognizes_git), &
+                    new_unittest("project-vc-recognizes-git", test_version_control_recognizes_git), &
                     new_unittest("project-vc-extra-root-markers-supports-wildcards", test_extra_root_markers_wildcards), &
                     new_unittest("project-vc-supports-project-in-different-dir", test_project_in_different_directory), &
                     new_unittest("project-vc-supports-files-in-subdirectory", test_files_in_subdirectory), &
@@ -117,7 +119,7 @@ contains
                     new_unittest("project-known-projects", test_known_projects), &
                     new_unittest("project-close-buffer-conditions", test_close_buffer_conditions), &
                     new_unittest("project-combine-directories", test_combine_directories), &
-                    new_unittest("project-vc-ignores", test_vc_ignores), &
+                    new_unittest("project-vc-ignores", test_version_control_ignores), &
                     new_unittest("project-prefix-map", test_prefix_map) &
                     ]
     end subroutine collect_project_mod
@@ -236,9 +238,9 @@ contains
         call set_buffer(h, st)
         buffers(current)%directory = wd()
         call project_clear_cache()
-        project_vc_extra_root_markers = [character(len=1) ::]
-        project_vc_ignores = [character(len=1) ::]
-        project_vc_non_essential_cache_timeout = 300
+        project_version_control_extra_root_markers = [character(len=1) ::]
+        project_version_control_ignores = [character(len=1) ::]
+        project_version_control_non_essential_cache_timeout = 300
     end subroutine setup
 
     !> Whether the working directory is in a Git checkout (else the test is
@@ -258,22 +260,22 @@ contains
             return
         end if
 
-        b = vc_responsible_backend(wd(), st, no_error=.true.)
+        b = version_control_responsible_backend(wd(), st, no_error=.true.)
 
         if (b > 0) then
-            in_git = vc_backends(b)%name == "Git"
+            in_git = version_control_backends(b)%name == "Git"
         end if
 
         if (.not. in_git) call skip_test(error, "not in a Git checkout")
-        vc_handled_backends = [character(len=8) :: "Git"]
+        version_control_handled_backends = [character(len=8) :: "Git"]
     end function in_git
 
     !> Handle all backends again.
     subroutine teardown()
-        vc_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
-        project_vc_extra_root_markers = [character(len=1) ::]
-        project_vc_ignores = [character(len=1) ::]
-        project_vc_non_essential_cache_timeout = 300
+        version_control_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
+        project_version_control_extra_root_markers = [character(len=1) ::]
+        project_version_control_ignores = [character(len=1) ::]
+        project_version_control_non_essential_cache_timeout = 300
         call project_clear_cache()
     end subroutine teardown
 
@@ -342,7 +344,7 @@ contains
     end subroutine test_ignores_bug_50240
 
     !> Check that Git repository is detected.
-    subroutine test_vc_recognizes_git(error)
+    subroutine test_version_control_recognizes_git(error)
         type(error_type), allocatable, intent(out) :: error
         class(project_type), allocatable :: project
         type(status_type) :: st
@@ -358,7 +360,7 @@ contains
         end if
 
         call teardown()
-    end subroutine test_vc_recognizes_git
+    end subroutine test_version_control_recognizes_git
 
     !> Check that one can add wildcard entries.
     subroutine test_extra_root_markers_wildcards(error)
@@ -367,13 +369,13 @@ contains
         type(status_type) :: st
 
         if (.not. in_git(error)) return
-        project_vc_extra_root_markers = [character(len=32) :: "test_project_mod.*"]
+        project_version_control_extra_root_markers = [character(len=32) :: "test_project_mod.*"]
         call get_current_project(project, st, directory=resource_directory())
         call check(error, allocated(project), "no project")
 
         if (.not. allocated(error)) then
             select type (project)
-            type is (vc_project_type)
+            type is (version_control_project_type)
                 call check(error, project%backend, "Git")
             class default
                 call check(error, .false., "not a VC-aware project")
@@ -396,7 +398,7 @@ contains
 
     !> Check that it picks up the ignores for a project in another
     !> directory (upstream: from its directory-local variables; here the
-    !> global `project_vc_ignores').
+    !> global `project_version_control_ignores').
     subroutine test_project_in_different_directory(error)
         type(error_type), allocatable, intent(out) :: error
         class(project_type), allocatable :: project
@@ -406,8 +408,8 @@ contains
         logical :: has_etc
 
         if (.not. in_git(error)) return
-        project_vc_extra_root_markers = [character(len=32) :: "foo"]
-        project_vc_ignores = [character(len=32) :: "etc"]
+        project_version_control_extra_root_markers = [character(len=32) :: "foo"]
+        project_version_control_ignores = [character(len=32) :: "etc"]
         call get_current_project(project, st, directory=resource_directory())
         call check(error, allocated(project), "no project")
 
@@ -443,8 +445,8 @@ contains
         type(status_type) :: st
 
         if (.not. in_git(error)) return
-        project_vc_extra_root_markers = [character(len=32) :: "test_project_mod.f90"]
-        project_vc_ignores = [character(len=32) :: "etc"]
+        project_version_control_extra_root_markers = [character(len=32) :: "test_project_mod.f90"]
+        project_version_control_ignores = [character(len=32) :: "etc"]
         call get_current_project(project, st, directory=resource_directory())
         call check(error, allocated(project), "no project")
 
@@ -461,24 +463,24 @@ contains
         call teardown()
     end subroutine test_files_in_subdirectory
 
-    !> Check that it applies `project_vc_ignores' when DIRECTORY is external to
+    !> Check that it applies `project_version_control_ignores' when DIRECTORY is external to
     !> the root.
     subroutine test_ignores_in_external_directory(error)
         type(error_type), allocatable, intent(out) :: error
         class(project_type), allocatable :: project
         type(string_type), allocatable :: files(:)
-        type(project_vc_backend_marker_type), allocatable :: saved(:)
+        type(project_version_control_backend_marker_type), allocatable :: saved(:)
         type(status_type) :: st
 
         if (.not. in_git(error)) return
-        ! Do not detect VC backend.
-        saved = project_vc_backend_markers
-        deallocate (project_vc_backend_markers)
-        allocate (project_vc_backend_markers(0))
-        project_vc_extra_root_markers = [character(len=32) :: "test.bmk"]
-        project_vc_ignores = [character(len=32) :: "etc"]
+        ! Do not detect VERSION_CONTROL backend.
+        saved = project_version_control_backend_markers
+        deallocate (project_version_control_backend_markers)
+        allocate (project_version_control_backend_markers(0))
+        project_version_control_extra_root_markers = [character(len=32) :: "test.bmk"]
+        project_version_control_ignores = [character(len=32) :: "etc"]
         call get_current_project(project, st, directory=resource_directory()//"../bookmark-resources/")
-        project_vc_backend_markers = saved
+        project_version_control_backend_markers = saved
         call check(error, allocated(project), "no project")
 
         if (.not. allocated(error)) then
@@ -502,7 +504,7 @@ contains
         type(status_type) :: st
 
         if (.not. in_git(error)) return
-        project_vc_extra_root_markers = [character(len=32) :: "foo"]
+        project_version_control_extra_root_markers = [character(len=32) :: "foo"]
         call get_current_project(project, st, directory=resource_directory()//"foo-456/bar/")
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, allocated(project), "no project")
@@ -521,7 +523,7 @@ contains
         type(status_type) :: st
 
         if (.not. in_git(error)) return
-        project_vc_extra_root_markers = [character(len=32) :: "test_project_mod.*"]
+        project_version_control_extra_root_markers = [character(len=32) :: "test_project_mod.*"]
         call get_current_project(project, st, directory=resource_directory())
         call check(error, allocated(project), "no project")
 
@@ -530,8 +532,8 @@ contains
         end if
 
         if (.not. allocated(error)) then
-            project_vc_extra_root_markers = [character(len=1) ::]
-            project_vc_non_essential_cache_timeout = 0.1
+            project_version_control_extra_root_markers = [character(len=1) ::]
+            project_version_control_non_essential_cache_timeout = 0.1
             call get_current_project(cached, st, directory=resource_directory())
             call check(error, allocated(cached), "no cached project")
             if (.not. allocated(error)) call check(error, cached%root(), project%root())
@@ -547,7 +549,7 @@ contains
         type(status_type) :: st
 
         if (.not. in_git(error)) return
-        project_vc_extra_root_markers = [character(len=32) :: "test_project_mod.*"]
+        project_version_control_extra_root_markers = [character(len=32) :: "test_project_mod.*"]
         call get_current_project(project, st, directory=resource_directory())
         call check(error, allocated(project), "no project")
 
@@ -556,8 +558,8 @@ contains
         end if
 
         if (.not. allocated(error)) then
-            project_vc_extra_root_markers = [character(len=1) ::]
-            project_vc_non_essential_cache_timeout = 0
+            project_version_control_extra_root_markers = [character(len=1) ::]
+            project_version_control_non_essential_cache_timeout = 0
             call get_current_project(fresh, st, directory=resource_directory())
             call check(error, allocated(fresh), "no fresh project")
             if (.not. allocated(error)) call check(error, is_file_equal(fresh%root(), wd()), fresh%root())
@@ -566,11 +568,11 @@ contains
         call teardown()
     end subroutine test_invalidates_cache
 
-    !> The function of `xref_show_xrefs_function' in project-find-regexp:
+    !> The function of `cross_reference_show_cross_references_function' in project-find-regexp:
     !> it keeps what the fetcher fetches in `fetched_matches'.
     recursive subroutine capture_matches(fetcher, parameters, buffer, status)
-        class(xref_fetcher_type), intent(inout) :: fetcher
-        type(xref_show_parameters_type), intent(in) :: parameters
+        class(cross_reference_fetcher_type), intent(inout) :: fetcher
+        type(cross_reference_show_parameters_type), intent(in) :: parameters
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
 
@@ -581,7 +583,7 @@ contains
     !> Check the happy path.
     subroutine test_find_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
-        procedure(xref_show_procedure), pointer :: saved_show
+        procedure(cross_reference_show_procedure), pointer :: saved_show
         type(status_type) :: st
         character(len=:), allocatable :: path
 
@@ -603,14 +605,14 @@ contains
         found_project%directory = resource_directory()
         call project_find_functions%clear()
         call project_find_functions%append(find_test_project)
-        saved_show => xref_show_xrefs_function
-        xref_show_xrefs_function => capture_matches
-        xref_search_program = XREF_SEARCH_PROGRAM_GREP
+        saved_show => cross_reference_show_cross_references_function
+        cross_reference_show_cross_references_function => capture_matches
+        cross_reference_search_program = CROSS_REFERENCE_SEARCH_PROGRAM_GREP
         if (allocated(fetched_matches)) deallocate (fetched_matches)
         call find_project_regular_expression("etc", st)
-        xref_show_xrefs_function => saved_show
+        cross_reference_show_cross_references_function => saved_show
         call project_find_functions%clear()
-        call project_find_functions%append(try_vc_project)
+        call project_find_functions%append(try_version_control_project)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, allocated(fetched_matches), "nothing fetched")
@@ -640,7 +642,7 @@ contains
         call project_find_functions%append(find_test_project)
         call get_current_project(project, st)
         call project_find_functions%clear()
-        call project_find_functions%append(try_vc_project)
+        call project_find_functions%append(try_version_control_project)
         call check(error, allocated(project), "no project")
         if (allocated(error)) return
         call check(error, project%root(), wd()//"test/")
@@ -794,13 +796,13 @@ contains
     end subroutine test_combine_directories
 
     !> The ignores of a VC-aware project without a backend: the extra
-    !> ignores, then the directories of `vc_directory_exclusions'.
-    subroutine test_vc_ignores(error)
+    !> ignores, then the directories of `version_control_directory_exclusions'.
+    subroutine test_version_control_ignores(error)
         type(error_type), allocatable, intent(out) :: error
         type(string_type), allocatable :: ignores(:)
 
         call setup()
-        ignores = project_vc_ignores_of(wd(), "", strings("*.o", "./build/"))
+        ignores = project_version_control_ignores_of(wd(), "", strings("*.o", "./build/"))
         call check(error, size(ignores) > 2, "too few ignores")
         if (allocated(error)) return
         call check(error, ignores(1)%text, "*.o")
@@ -808,7 +810,7 @@ contains
         call check(error, ignores(2)%text, "./build/")
         if (allocated(error)) return
         call check(error, ignores(3)%text, "SCCS/")
-    end subroutine test_vc_ignores
+    end subroutine test_version_control_ignores
 
     !> C-x p is `project_prefix_map': C-x p f is `find_project_file', C-x p
     !> C-b `list_project_buffers', C-x p C-x s `save_some_project_buffers'.

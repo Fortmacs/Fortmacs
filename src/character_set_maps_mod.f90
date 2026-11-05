@@ -32,7 +32,7 @@ module character_set_maps_mod
     implicit none(type, external)
     private
 
-    public :: charset_map_entries
+    public :: character_set_map_entries
 
     ! 8859-2.map
     integer(int64), parameter :: map_iso8859_2_from_codes_1(85) = [integer(int64) :: &
@@ -1638,7 +1638,7 @@ module character_set_maps_mod
                                                                  ]
 
     ! MULE-ethiopic.map
-    integer(int64), parameter :: map_mule_ethiopic_from_codes_1(345) = [integer(int64) :: &
+    integer(int64), parameter :: map_multilingual_environment_ethiopic_from_codes_1(345) = [integer(int64) :: &
                              8481, 8482, 8483, 8484, 8485, 8486, 8487, 8489, 8490, 8491, 8492, 8493, 8494, 8495, 8496, 8497, 8498, &
                              8499, 8500, 8501, 8502, 8503, 8504, 8505, 8506, 8507, 8508, 8509, 8510, 8511, 8512, 8513, 8514, 8515, &
                              8516, 8517, 8518, 8519, 8520, 8521, 8522, 8523, 8524, 8525, 8526, 8527, 8528, 8529, 8530, 8531, 8532, &
@@ -1659,9 +1659,9 @@ module character_set_maps_mod
                              9285, 9286, 9287, 9288, 9289, 9290, 9291, 9292, 9293, 9295, 9296, 9297, 9298, 9299, 9300, 9301, 9302, &
                              9303, 9304, 9305, 9306, 9307, 9308, 9309, 9310, 9311, 9312, 9313, 9320, 9321, 9322, 9323, 9324, 9325, &
                              9326, 9327, 9328, 9329, 9330, 9331, 9332, 9333, 9334, 9335, 9336, 9337, 9338, 9339, 9340, 9341, 9342, &
-                                                                        9505, 9506, 9507, 9508, 9509 &
-                                                                        ]
-    integer(int64), parameter :: map_mule_ethiopic_to_codes_1(345) = [integer(int64) :: &
+                                                                                            9505, 9506, 9507, 9508, 9509 &
+                                                                                            ]
+    integer(int64), parameter :: map_multilingual_environment_ethiopic_to_codes_1(345) = [integer(int64) :: &
                              8481, 8482, 8483, 8484, 8485, 8486, 8487, 8489, 8490, 8491, 8492, 8493, 8494, 8495, 8496, 8497, 8498, &
                              8499, 8500, 8501, 8502, 8503, 8504, 8505, 8506, 8507, 8508, 8509, 8510, 8511, 8512, 8513, 8514, 8515, &
                              8516, 8517, 8518, 8519, 8520, 8521, 8522, 8523, 8524, 8525, 8526, 8527, 8528, 8529, 8530, 8531, 8532, &
@@ -1682,9 +1682,9 @@ module character_set_maps_mod
                              9285, 9286, 9287, 9288, 9289, 9290, 9291, 9292, 9293, 9295, 9296, 9297, 9298, 9299, 9300, 9301, 9302, &
                              9303, 9304, 9305, 9306, 9307, 9308, 9309, 9310, 9311, 9312, 9313, 9320, 9321, 9322, 9323, 9324, 9325, &
                              9326, 9327, 9328, 9329, 9330, 9331, 9332, 9333, 9334, 9335, 9336, 9337, 9338, 9339, 9340, 9341, 9342, &
-                                                                      9505, 9506, 9507, 9508, 9509 &
-                                                                      ]
-    integer(int32), parameter :: map_mule_ethiopic_characters_1(345) = [integer(int32) :: &
+                                                                                          9505, 9506, 9507, 9508, 9509 &
+                                                                                          ]
+    integer(int32), parameter :: map_multilingual_environment_ethiopic_characters_1(345) = [integer(int32) :: &
                              4608, 4609, 4610, 4611, 4612, 4613, 4614, 4616, 4617, 4618, 4619, 4620, 4621, 4622, 4623, 4624, 4625, &
                              4626, 4627, 4628, 4629, 4630, 4631, 4632, 4633, 4634, 4635, 4636, 4637, 4638, 4639, 4640, 4641, 4642, &
                              4643, 4644, 4645, 4646, 4647, 4648, 4649, 4650, 4651, 4652, 4653, 4654, 4655, 4656, 4657, 4658, 4659, &
@@ -1705,86 +1705,86 @@ module character_set_maps_mod
                              4926, 4927, 4928, 4929, 4930, 4931, 4932, 4933, 4934, 4936, 4937, 4938, 4939, 4940, 4941, 4942, 4943, &
                              4944, 4945, 4946, 4947, 4948, 4949, 4950, 4951, 4952, 4953, 4954, 4961, 4962, 4963, 4964, 4965, 4966, &
                              4967, 4968, 4969, 4970, 4971, 4972, 4973, 4974, 4975, 4976, 4977, 4978, 4979, 4980, 4981, 4982, 4983, &
-                                                                        4984, 4985, 4986, 4987, 4988 &
-                                                                        ]
+                                                                                            4984, 4985, 4986, 4987, 4988 &
+                                                                                            ]
 
     ! MULE-ipa.map
-    integer(int64), parameter :: map_mule_ipa_from_codes_1(61) = [integer(int64) :: &
+    integer(int64), parameter :: map_multilingual_environment_ipa_from_codes_1(61) = [integer(int64) :: &
                            32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, &
                            64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, &
-                                                                  90, 91, 92, 93, 94, 95, 112, 113, 114 &
-                                                                  ]
-    integer(int64), parameter :: map_mule_ipa_to_codes_1(61) = [integer(int64) :: &
+                                                                                      90, 91, 92, 93, 94, 95, 112, 113, 114 &
+                                                                                      ]
+    integer(int64), parameter :: map_multilingual_environment_ipa_to_codes_1(61) = [integer(int64) :: &
                            32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 58, &
                            64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, &
-                                                                90, 91, 92, 93, 94, 95, 112, 113, 114 &
-                                                                ]
-    integer(int32), parameter :: map_mule_ipa_characters_1(61) = [integer(int32) :: &
+                                                                                    90, 91, 92, 93, 94, 95, 112, 113, 114 &
+                                                                                    ]
+    integer(int32), parameter :: map_multilingual_environment_ipa_characters_1(61) = [integer(int32) :: &
                            105, 618, 101, 603, 230, 97, 616, 601, 592, 623, 612, 652, 593, 121, 655, 248, 339, 630, 649, 629, 117, &
                            650, 111, 596, 594, 602, 112, 98, 116, 100, 107, 103, 102, 118, 952, 240, 115, 122, 643, 658, 231, 120, &
                                      641, 104, 109, 110, 626, 331, 114, 640, 633, 106, 108, 654, 671, 613, 119, 653, 712, 716, 720 &
-                                                                  ]
+                                                                                      ]
 
     ! MULE-is13194.map
-    integer(int64), parameter :: map_mule_is13194_from_codes_1(83) = [integer(int64) :: &
+    integer(int64), parameter :: map_multilingual_environment_is13194_from_codes_1(83) = [integer(int64) :: &
                            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, &
                            59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, &
                               85, 86, 87, 88, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 113, 114, &
-                                                                      115, 116, 117, 118, 119, 120, 121, 122 &
-                                                                      ]
-    integer(int64), parameter :: map_mule_is13194_to_codes_1(83) = [integer(int64) :: &
+                                                                                          115, 116, 117, 118, 119, 120, 121, 122 &
+                                                                                          ]
+    integer(int64), parameter :: map_multilingual_environment_is13194_to_codes_1(83) = [integer(int64) :: &
                            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, &
                            59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, &
                               85, 86, 87, 88, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 113, 114, &
-                                                                    115, 116, 117, 118, 119, 120, 121, 122 &
-                                                                    ]
-    integer(int32), parameter :: map_mule_is13194_characters_1(83) = [integer(int32) :: &
+                                                                                        115, 116, 117, 118, 119, 120, 121, 122 &
+                                                                                        ]
+    integer(int32), parameter :: map_multilingual_environment_is13194_characters_1(83) = [integer(int32) :: &
                              2305, 2306, 2307, 2309, 2310, 2311, 2312, 2313, 2314, 2315, 2318, 2319, 2320, 2317, 2322, 2323, 2324, &
                              2317, 2325, 2326, 2327, 2328, 2329, 2330, 2331, 2332, 2333, 2334, 2335, 2336, 2337, 2338, 2339, 2340, &
                              2341, 2342, 2343, 2344, 2345, 2346, 2347, 2348, 2349, 2350, 2351, 2399, 2352, 2353, 2354, 2355, 2356, &
                              2357, 2358, 2359, 2360, 2361, 2366, 2367, 2368, 2369, 2370, 2371, 2374, 2375, 2376, 2373, 2378, 2379, &
                                           2380, 2377, 2381, 2364, 2404, 2406, 2407, 2408, 2409, 2410, 2411, 2412, 2413, 2414, 2415 &
-                                                                      ]
+                                                                                          ]
 
     ! MULE-lviscii.map
-    integer(int64), parameter :: map_mule_lviscii_from_codes_1(67) = [integer(int64) :: &
+    integer(int64), parameter :: map_multilingual_environment_lviscii_from_codes_1(67) = [integer(int64) :: &
                            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53, 54, 55, 56, 61, 62, 70, 71, &
                               79, 81, 85, 86, 87, 88, 91, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, &
                                           109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126 &
-                                                                      ]
-    integer(int64), parameter :: map_mule_lviscii_to_codes_1(67) = [integer(int64) :: &
+                                                                                          ]
+    integer(int64), parameter :: map_multilingual_environment_lviscii_to_codes_1(67) = [integer(int64) :: &
                            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53, 54, 55, 56, 61, 62, 70, 71, &
                               79, 81, 85, 86, 87, 88, 91, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, &
                                           109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126 &
-                                                                    ]
-    integer(int32), parameter :: map_mule_lviscii_characters_1(67) = [integer(int32) :: &
+                                                                                        ]
+    integer(int32), parameter :: map_multilingual_environment_lviscii_characters_1(67) = [integer(int32) :: &
                              7855, 7857, 7863, 7845, 7847, 7849, 7853, 7869, 7865, 7871, 7873, 7875, 7877, 7879, 7889, 7891, 7893, &
                               7895, 7897, 7901, 7903, 7883, 417, 7899, 7859, 7861, 7923, 7913, 7841, 7927, 7915, 7917, 7929, 7925, &
                               7905, 432, 224, 225, 226, 227, 7843, 259, 7919, 7851, 232, 233, 234, 7867, 236, 237, 297, 7881, 273, &
                                                         7921, 242, 243, 244, 245, 7887, 7885, 7909, 249, 250, 361, 7911, 253, 7907 &
-                                                                      ]
+                                                                                          ]
 
     ! MULE-sisheng.map
-    integer(int64), parameter :: map_mule_sisheng_from_codes_1(71) = [integer(int64) :: &
+    integer(int64), parameter :: map_multilingual_environment_sisheng_from_codes_1(71) = [integer(int64) :: &
                            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, &
                            60, 61, 62, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, &
                                                   87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105 &
-                                                                      ]
-    integer(int64), parameter :: map_mule_sisheng_to_codes_1(71) = [integer(int64) :: &
+                                                                                          ]
+    integer(int64), parameter :: map_multilingual_environment_sisheng_to_codes_1(71) = [integer(int64) :: &
                            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, &
                            60, 61, 62, 63, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, &
                                                   87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105 &
-                                                                    ]
-    integer(int32), parameter :: map_mule_sisheng_characters_1(71) = [integer(int32) :: &
+                                                                                        ]
+    integer(int32), parameter :: map_multilingual_environment_sisheng_characters_1(71) = [integer(int32) :: &
                           257, 225, 462, 224, 275, 233, 283, 232, 299, 237, 464, 236, 333, 243, 466, 242, 363, 250, 468, 249, 470, &
                               472, 474, 476, 252, 234, 7743, 324, 328, 505, 713, 714, 711, 715, 12549, 12550, 12551, 12552, 12553, &
                           12554, 12555, 12556, 12557, 12558, 12559, 12560, 12561, 12562, 12563, 12564, 12565, 12566, 12567, 12568, &
                           12569, 12570, 12571, 12572, 12573, 12574, 12575, 12576, 12577, 12578, 12579, 12580, 12581, 12582, 12583, &
-                                                                      12584, 12585 &
-                                                                      ]
+                                                                                          12584, 12585 &
+                                                                                          ]
 
     ! MULE-tibetan.map
-    integer(int64), parameter :: map_mule_tibetan_from_codes_1(193) = [integer(int64) :: &
+    integer(int64), parameter :: map_multilingual_environment_tibetan_from_codes_1(193) = [integer(int64) :: &
                              8496, 8497, 8498, 8499, 8500, 8501, 8502, 8503, 8504, 8505, 8506, 8507, 8508, 8509, 8510, 8511, 8512, &
                              8513, 8514, 8515, 8516, 8517, 8518, 8519, 8520, 8521, 8522, 8523, 8524, 8525, 8526, 8527, 8528, 8529, &
                              8530, 8531, 8532, 8533, 8534, 8535, 8536, 8537, 8538, 8539, 8540, 8541, 8542, 8543, 8544, 8545, 8546, &
@@ -1796,9 +1796,9 @@ module character_set_maps_mod
                              8996, 8997, 8998, 8999, 9000, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010, 9011, 9012, 9013, &
                              9014, 9015, 9016, 9017, 9018, 9019, 9020, 9021, 9022, 9023, 9024, 9025, 9026, 9027, 9028, 9029, 9030, &
                              9031, 9032, 9033, 9034, 9035, 9036, 9037, 9039, 9040, 9041, 9042, 9043, 9044, 9045, 9046, 9047, 9048, &
-                                                                       9049, 9050, 9051, 9052, 9053, 9056 &
-                                                                       ]
-    integer(int64), parameter :: map_mule_tibetan_to_codes_1(193) = [integer(int64) :: &
+                                                                                           9049, 9050, 9051, 9052, 9053, 9056 &
+                                                                                           ]
+    integer(int64), parameter :: map_multilingual_environment_tibetan_to_codes_1(193) = [integer(int64) :: &
                              8496, 8497, 8498, 8499, 8500, 8501, 8502, 8503, 8504, 8505, 8506, 8507, 8508, 8509, 8510, 8511, 8512, &
                              8513, 8514, 8515, 8516, 8517, 8518, 8519, 8520, 8521, 8522, 8523, 8524, 8525, 8526, 8527, 8528, 8529, &
                              8530, 8531, 8532, 8533, 8534, 8535, 8536, 8537, 8538, 8539, 8540, 8541, 8542, 8543, 8544, 8545, 8546, &
@@ -1810,9 +1810,9 @@ module character_set_maps_mod
                              8996, 8997, 8998, 8999, 9000, 9002, 9003, 9004, 9005, 9006, 9007, 9008, 9009, 9010, 9011, 9012, 9013, &
                              9014, 9015, 9016, 9017, 9018, 9019, 9020, 9021, 9022, 9023, 9024, 9025, 9026, 9027, 9028, 9029, 9030, &
                              9031, 9032, 9033, 9034, 9035, 9036, 9037, 9039, 9040, 9041, 9042, 9043, 9044, 9045, 9046, 9047, 9048, &
-                                                                     9049, 9050, 9051, 9052, 9053, 9056 &
-                                                                     ]
-    integer(int32), parameter :: map_mule_tibetan_characters_1(193) = [integer(int32) :: &
+                                                                                         9049, 9050, 9051, 9052, 9053, 9056 &
+                                                                                         ]
+    integer(int32), parameter :: map_multilingual_environment_tibetan_characters_1(193) = [integer(int32) :: &
                              3840, 3841, 3842, 3843, 3844, 3845, 3846, 3847, 3848, 3849, 3850, 3851, 3852, 3853, 3854, 3855, 3856, &
                              3857, 3858, 3859, 3860, 3861, 3862, 3863, 3864, 3865, 3866, 3867, 3868, 3869, 3870, 3871, 3872, 3873, &
                              3874, 3875, 3876, 3877, 3878, 3879, 3880, 3881, 3882, 3883, 3884, 3885, 3886, 3887, 3888, 3889, 3890, &
@@ -1824,26 +1824,26 @@ module character_set_maps_mod
                              3987, 3988, 3989, 3990, 3991, 3993, 3994, 3995, 3996, 3997, 3998, 3999, 4000, 4001, 4002, 4003, 4004, &
                              4005, 4006, 4007, 4008, 4009, 4010, 4011, 4012, 4013, 4014, 4015, 4016, 4017, 4018, 4019, 4020, 4021, &
                              4022, 4023, 4024, 4025, 4026, 4027, 4028, 4030, 4031, 4032, 4033, 4034, 4035, 4036, 4037, 4038, 4039, &
-                                                                       4040, 4041, 4042, 4043, 4044, 4047 &
-                                                                       ]
+                                                                                           4040, 4041, 4042, 4043, 4044, 4047 &
+                                                                                           ]
 
     ! MULE-uviscii.map
-    integer(int64), parameter :: map_mule_uviscii_from_codes_1(67) = [integer(int64) :: &
+    integer(int64), parameter :: map_multilingual_environment_uviscii_from_codes_1(67) = [integer(int64) :: &
                            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53, 54, 55, 56, 61, 62, 70, 71, &
                               79, 81, 85, 86, 87, 88, 91, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, &
                                           109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126 &
-                                                                      ]
-    integer(int64), parameter :: map_mule_uviscii_to_codes_1(67) = [integer(int64) :: &
+                                                                                          ]
+    integer(int64), parameter :: map_multilingual_environment_uviscii_to_codes_1(67) = [integer(int64) :: &
                            33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53, 54, 55, 56, 61, 62, 70, 71, &
                               79, 81, 85, 86, 87, 88, 91, 92, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, &
                                           109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126 &
-                                                                    ]
-    integer(int32), parameter :: map_mule_uviscii_characters_1(67) = [integer(int32) :: &
+                                                                                        ]
+    integer(int32), parameter :: map_multilingual_environment_uviscii_characters_1(67) = [integer(int32) :: &
                              7854, 7856, 7862, 7844, 7846, 7848, 7852, 7868, 7864, 7870, 7872, 7874, 7876, 7878, 7888, 7890, 7892, &
                               7894, 7896, 7900, 7902, 7882, 416, 7898, 7858, 7860, 7922, 7912, 7840, 7926, 7914, 7916, 7928, 7924, &
                               7904, 431, 192, 193, 194, 195, 7842, 258, 7918, 7850, 200, 201, 202, 7866, 204, 205, 296, 7880, 272, &
                                                         7920, 210, 211, 212, 213, 7886, 7884, 7908, 217, 218, 360, 7910, 221, 7906 &
-                                                                      ]
+                                                                                          ]
 
     ! GB2312.map
     integer(int64), parameter :: map_gb2312_from_codes_1(1200) = [integer(int64) :: &
@@ -38365,7 +38365,7 @@ contains
     !> TO_CODES(i) are code points mapped to CHARS(i) and the characters
     !> after it.  FOUND is
     !> false for a map that is not built in.
-    subroutine charset_map_entries(name, from_codes, to_codes, chars, found)
+    subroutine character_set_map_entries(name, from_codes, to_codes, chars, found)
         character(len=*), intent(in) :: name
         integer(int64), allocatable, intent(out) :: from_codes(:), to_codes(:)
         integer(int32), allocatable, intent(out) :: chars(:)
@@ -38679,33 +38679,33 @@ contains
             to_codes = [map_symbol_to_codes_1]
             chars = [map_symbol_characters_1]
         case ("MULE-ethiopic")
-            from_codes = [map_mule_ethiopic_from_codes_1]
-            to_codes = [map_mule_ethiopic_to_codes_1]
-            chars = [map_mule_ethiopic_characters_1]
+            from_codes = [map_multilingual_environment_ethiopic_from_codes_1]
+            to_codes = [map_multilingual_environment_ethiopic_to_codes_1]
+            chars = [map_multilingual_environment_ethiopic_characters_1]
         case ("MULE-ipa")
-            from_codes = [map_mule_ipa_from_codes_1]
-            to_codes = [map_mule_ipa_to_codes_1]
-            chars = [map_mule_ipa_characters_1]
+            from_codes = [map_multilingual_environment_ipa_from_codes_1]
+            to_codes = [map_multilingual_environment_ipa_to_codes_1]
+            chars = [map_multilingual_environment_ipa_characters_1]
         case ("MULE-is13194")
-            from_codes = [map_mule_is13194_from_codes_1]
-            to_codes = [map_mule_is13194_to_codes_1]
-            chars = [map_mule_is13194_characters_1]
+            from_codes = [map_multilingual_environment_is13194_from_codes_1]
+            to_codes = [map_multilingual_environment_is13194_to_codes_1]
+            chars = [map_multilingual_environment_is13194_characters_1]
         case ("MULE-lviscii")
-            from_codes = [map_mule_lviscii_from_codes_1]
-            to_codes = [map_mule_lviscii_to_codes_1]
-            chars = [map_mule_lviscii_characters_1]
+            from_codes = [map_multilingual_environment_lviscii_from_codes_1]
+            to_codes = [map_multilingual_environment_lviscii_to_codes_1]
+            chars = [map_multilingual_environment_lviscii_characters_1]
         case ("MULE-sisheng")
-            from_codes = [map_mule_sisheng_from_codes_1]
-            to_codes = [map_mule_sisheng_to_codes_1]
-            chars = [map_mule_sisheng_characters_1]
+            from_codes = [map_multilingual_environment_sisheng_from_codes_1]
+            to_codes = [map_multilingual_environment_sisheng_to_codes_1]
+            chars = [map_multilingual_environment_sisheng_characters_1]
         case ("MULE-tibetan")
-            from_codes = [map_mule_tibetan_from_codes_1]
-            to_codes = [map_mule_tibetan_to_codes_1]
-            chars = [map_mule_tibetan_characters_1]
+            from_codes = [map_multilingual_environment_tibetan_from_codes_1]
+            to_codes = [map_multilingual_environment_tibetan_to_codes_1]
+            chars = [map_multilingual_environment_tibetan_characters_1]
         case ("MULE-uviscii")
-            from_codes = [map_mule_uviscii_from_codes_1]
-            to_codes = [map_mule_uviscii_to_codes_1]
-            chars = [map_mule_uviscii_characters_1]
+            from_codes = [map_multilingual_environment_uviscii_from_codes_1]
+            to_codes = [map_multilingual_environment_uviscii_to_codes_1]
+            chars = [map_multilingual_environment_uviscii_characters_1]
         case ("GB2312")
             from_codes = [map_gb2312_from_codes_1, map_gb2312_from_codes_2, map_gb2312_from_codes_3, &
                           map_gb2312_from_codes_4, map_gb2312_from_codes_5, map_gb2312_from_codes_6]
@@ -38904,5 +38904,5 @@ contains
             found = .false.
             allocate (from_codes(0), to_codes(0), chars(0))
         end select
-    end subroutine charset_map_entries
+    end subroutine character_set_map_entries
 end module character_set_maps_mod

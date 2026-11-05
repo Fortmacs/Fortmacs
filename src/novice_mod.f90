@@ -53,7 +53,7 @@ module novice_mod
     use help_mod, only: substitute_command_keys, documentation_hook
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use minibuffer_reading_mod, only: completion_obarray_table
-    use read_multiple_choice_mod, only: rmc_choice_type, read_multiple_choice
+    use read_multiple_choice_mod, only: read_multiple_choice_choice_type, read_multiple_choice
     implicit none(type, external)
     private
 
@@ -71,7 +71,7 @@ contains
         type(value_type), intent(in) :: command
         type(value_type), intent(in) :: keys(:)
         type(status_type), intent(out) :: status
-        type(rmc_choice_type) :: choices(4)
+        type(read_multiple_choice_choice_type) :: choices(4)
         type(command_type), pointer :: p
         character(len=:), allocatable :: name, help_string, doc
         logical :: by_name, found, enable_also
@@ -215,7 +215,7 @@ contains
     !> Set the `disabled' property of COMMAND and record it in the init
     !> file: its line `commands%COMMAND%disabled = ...' is
     !> replaced by one at the end of `configure'.  A missing init file is
-    !> created with a `user_config' module.  Port of
+    !> created with a `user_configuration' module.  Port of
     !> novice.el:en/disable-command.
     recursive subroutine en_disable_command(command, disable, status)
         character(len=*), intent(in) :: command
@@ -271,10 +271,10 @@ contains
 
         if (point_maximum() == point_minimum()) then
             ! A new init file.
-            call insert("module user_config"//LF//"    use fortmacs"//LF//"    implicit none(type, external)"//LF// &
+            call insert("module user_configuration"//LF//"    use fortmacs"//LF//"    implicit none(type, external)"//LF// &
                         "    private"//LF//LF//"    public :: configure"//LF//LF//"contains"//LF//LF// &
                         "    subroutine configure(status)"//LF//"        type(status_type), intent(out) :: status"// &
-                        LF//"    end subroutine configure"//LF//"end module user_config"//LF, status)
+                        LF//"    end subroutine configure"//LF//"end module user_configuration"//LF, status)
 
             if (.not. status%ok()) then
                 case_fold_search = saved_fold

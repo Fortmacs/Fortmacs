@@ -43,8 +43,8 @@ module casefiddle_mod
                              unibyte_to_character, character_to_byte8
     use case_table_mod, only: downcase, upcase
     use syntax_mod, only: syntax_entry, character_syntax_class, scan_words, syntax_descriptor_type, SWORD, SSYMBOL
-    use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buf_bytes, temporary_set_point_both, &
-                          buf_fetch_byte, buffer_byte_index
+    use buffer_mod, only: buffers, current, buffer_fetch_character, buffer_next_character_length, buffer_bytes, &
+                          temporary_set_point_both, buffer_fetch_byte, buffer_byte_index
     use marker_mod, only: character_to_byte
     use insert_delete_mod, only: modify_text, replace_range_2, signal_after_change
     use undo_mod, only: record_insert, record_delete
@@ -99,12 +99,12 @@ module casefiddle_mod
         logical :: downcase_last = .false.
     end type casing_context_type
 
-    !> The result of casing one character (struct casing_str_buf_type): up to
+    !> The result of casing one character (struct casing_string_buffer_type): up to
     !> three characters.
-    type :: casing_str_buf_type
+    type :: casing_string_buffer_type
         integer(int32) :: chars(3) = 0
         integer :: length_characters = 0
-    end type casing_str_buf_type
+    end type casing_string_buffer_type
 
     abstract interface
         !> simple.el's `region_bounds': the region's pieces [STARTS(k),
@@ -213,7 +213,7 @@ contains
     logical function special_casing(flag, ch, buffer) result(found)
         integer, intent(in) :: flag
         integer(int32), intent(in) :: ch
-        type(casing_str_buf_type), intent(inout) :: buffer
+        type(casing_string_buffer_type), intent(inout) :: buffer
         integer :: k
 
         found = .false.
@@ -246,7 +246,7 @@ contains
     integer(int32) function case_character_impl(ctx, ch, buffer, changed) result(cased)
         type(casing_context_type), intent(inout) :: ctx
         integer(int32), intent(in) :: ch
-        type(casing_str_buf_type), intent(inout), optional :: buffer
+        type(casing_string_buffer_type), intent(inout), optional :: buffer
         logical, intent(out), optional :: changed
         integer :: flag
         logical :: was_inword
@@ -337,7 +337,7 @@ contains
     !> casing rules and the final sigma.  Port of
     !> casefiddle.c:case_character.
     logical function case_character(buffer, ctx, ch, next) result(changed)
-        type(casing_str_buf_type), intent(inout) :: buffer
+        type(casing_string_buffer_type), intent(inout) :: buffer
         type(casing_context_type), intent(inout) :: ctx
         integer(int32), intent(in) :: ch, next
         logical :: was_inword
@@ -362,7 +362,7 @@ contains
 
     !> The UTF-8 form of the characters in BUFFER.  Not a port.
     function buffer_text(buffer) result(s)
-        type(casing_str_buf_type), intent(in) :: buffer
+        type(casing_string_buffer_type), intent(in) :: buffer
         character(len=:), allocatable :: s
         character(len=MAXIMUM_MULTIBYTE_LENGTH) :: temporary
         integer(int32) :: nbytes
@@ -423,7 +423,7 @@ contains
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: out
         type(casing_context_type) :: ctx
-        type(casing_str_buf_type) :: buffer
+        type(casing_string_buffer_type) :: buffer
         integer(int64) :: i
         integer(int32) :: ch, clen, next, nlen
         logical :: ignored
@@ -537,7 +537,7 @@ contains
         last = -1
 
         do position = start, end - 1
-            ch = unibyte_to_character(buf_fetch_byte(buffers(current), position))
+            ch = unibyte_to_character(buffer_fetch_byte(buffers(current), position))
             cased = case_single_character(ctx, ch)
             if (cased == ch) cycle
             last = position + 1
@@ -562,7 +562,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: first, last, position, position_byte, size, original_point
         integer(int32) :: ch, len1, next
-        type(casing_str_buf_type) :: buffer
+        type(casing_string_buffer_type) :: buffer
         character(len=:), allocatable :: text
 
         status = status_type()
@@ -575,10 +575,10 @@ contains
         added = 0
 
         do while (size > 0)
-            ch = buf_fetch_char(buffers(current), position_byte)
-            len1 = buf_next_char_len(buffers(current), position_byte)
+            ch = buffer_fetch_character(buffers(current), position_byte)
+            len1 = buffer_next_character_length(buffers(current), position_byte)
             next = -1
-            if (size > 1) next = buf_fetch_char(buffers(current), position_byte + len1)
+            if (size > 1) next = buffer_fetch_character(buffers(current), position_byte + len1)
 
             if (.not. case_character(buffer, ctx, ch, next)) then
                 position_byte = position_byte + len1
@@ -630,7 +630,7 @@ contains
         if (.not. status%ok()) return
         ctx = prepare_casing_context(flag, .true.)
         original_end = end
-        call record_delete(start, buf_bytes(buffers(current), character_to_byte(start), character_to_byte(end)), end - start)
+        call record_delete(start, buffer_bytes(buffers(current), character_to_byte(start), character_to_byte(end)), end - start)
         length = end - start
         ostart = start
 

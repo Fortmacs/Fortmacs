@@ -29,7 +29,7 @@
 !> runs processes (execute_process_mod sits above simple_mod).
 !>
 !> Asynchronous shell commands (a COMMAND ending in `&',
-!> `async_shell_command' on M-&) run in *Async Shell Command* in Shell
+!> `asynchronous_shell_command' on M-&) run in *Async Shell Command* in Shell
 !> Command mode, through comint's output filter.
 !>
 !> Not ported yet (Deferred): the `revert_buffer_function' of the
@@ -71,14 +71,14 @@ submodule(simple_mod) simple_shell_mod
     use utility_functions_mod, only: read_yes_or_no
     use process_mod, only: make_process, get_buffer_process, stop_process, &
                            process_status, process_buffer, process_command, set_process_sentinel, set_process_filter
-    use command_interpreter_mod, only: comint_output_filter, comint_term_environment
+    use command_interpreter_mod, only: command_interpreter_output_filter, command_interpreter_term_environment
     use shell_mod, only: shell_command_mode
     use display_engine_mod, only: set_mode_line_process, mode_line_part_type
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
 
     !> The processes of asynchronous shell commands whose buffer is to be
-    !> displayed on their first output (async_shell_command_display_buffer
+    !> displayed on their first output (asynchronous_shell_command_display_buffer
     !> false): upstream's disposable advice on their filter.
     type(handle_type), allocatable :: display_on_output(:)
 
@@ -314,7 +314,7 @@ contains
     has_output_buffer = present(output_buffer) .or. present(output_buffer_name) .or. insert_flag
     to_current = .false.
 
-    if (has_output_buffer .and. .not. is_async_command(command)) then
+    if (has_output_buffer .and. .not. is_asynchronous_command(command)) then
         here = current_buffer()
 
         if (present(output_buffer)) then
@@ -378,9 +378,9 @@ contains
         omark = mark_position()
         call set_marker_to_point()
         call goto_character(omark)
-    else if (is_async_command(command)) then
+    else if (is_asynchronous_command(command)) then
         ! Command ending with ampersand means asynchronous.
-        call async_shell_command_1(command, status, output_buffer, output_buffer_name, insert_flag)
+        call asynchronous_shell_command_1(command, status, output_buffer, output_buffer_name, insert_flag)
     else
         ! Otherwise, command is executed synchronously.
         call shell_command_on_region(point(), point(), command, status, output_buffer=output_buffer, &
@@ -401,10 +401,10 @@ contains
 
     !> The asynchronous branch of shell-command: run COMMAND (ending in
     !> `&') with its output in OUTPUT_BUFFER, the buffer OUTPUT_BUFFER_NAME
-    !> or `shell_command_buffer_name_async' (an error with INSERT_HERE).
+    !> or `shell_command_buffer_name_asynchronous' (an error with INSERT_HERE).
     !> Part of simple.el:shell-command.
     !> Port of part of simple.el:shell-command.
-    subroutine async_shell_command_1(command_in, status, output_buffer, output_buffer_name, insert_here)
+    subroutine asynchronous_shell_command_1(command_in, status, output_buffer, output_buffer_name, insert_here)
         character(len=*), intent(in) :: command_in
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: output_buffer
@@ -440,7 +440,7 @@ contains
         else if (present(output_buffer_name)) then
             call get_or_make_buffer(output_buffer_name, buffer, status)
         else
-            call get_or_make_buffer(shell_command_buffer_name_async, buffer, status)
+            call get_or_make_buffer(shell_command_buffer_name_asynchronous, buffer, status)
         end if
 
         if (.not. status%ok()) return
@@ -451,27 +451,27 @@ contains
 
         ! Ask the user what to do with already running process.
         if (process%index /= 0) then
-            select case (async_shell_command_buffer%value)
-            case (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS)
+            select case (asynchronous_shell_command_buffer%value)
+            case (ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS)
                 ! If will kill a process, query first.
                 call same_buffer_confirm("Kill it", status)
                 if (.not. status%ok()) return
                 call stop_process(st, process)
-            case (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER)
+            case (ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER)
                 ! If will create a new buffer, query first.
                 call same_buffer_confirm("Use a new buffer", status)
                 if (.not. status%ok()) return
                 call get_or_make_buffer(generate_new_buffer_name(bname), buffer, status)
-            case (ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER)
+            case (ASYNCHRONOUS_SHELL_COMMAND_BUFFER_NEW_BUFFER)
                 ! It will create a new buffer.
                 call get_or_make_buffer(generate_new_buffer_name(bname), buffer, status)
-            case (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER)
+            case (ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER)
                 ! If will rename the buffer, query first.
                 call same_buffer_confirm("Rename it", status)
                 if (.not. status%ok()) return
                 call rename_uniquely_in(buffer)
                 call get_or_make_buffer(bname, buffer, status)
-            case (ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER)
+            case (ASYNCHRONOUS_SHELL_COMMAND_BUFFER_RENAME_BUFFER)
                 ! It will rename the buffer.
                 call rename_uniquely_in(buffer)
                 call get_or_make_buffer(bname, buffer, status)
@@ -490,14 +490,14 @@ contains
         ! shell_command_switch are not ported.)
         allocate (environment_variables(0))
 
-        if (async_shell_command_width%value >= 0) then
-            write (columns, "(i0)") async_shell_command_width%value
+        if (asynchronous_shell_command_width%value >= 0) then
+            write (columns, "(i0)") asynchronous_shell_command_width%value
             call append_string(environment_variables, "COLUMNS="//trim(columns))
         end if
 
         block
             type(string_type), allocatable :: term(:)
-            call comint_term_environment(term)
+            call command_interpreter_term_environment(term)
             environment_variables = [environment_variables, term]
         end block
 
@@ -512,15 +512,15 @@ contains
         parts(1)%text = ":%s"
         parts(1)%face = ""
         call set_mode_line_process(parts)
-        if (.not. associated(async_shell_command_mode%value)) call initialize_simple_shell()
-        call async_shell_command_mode%value(status)
+        if (.not. associated(asynchronous_shell_command_mode%value)) call initialize_simple_shell()
+        call asynchronous_shell_command_mode%value(status)
         if (.not. status%ok()) return
         call set_process_sentinel(process, st, shell_command_sentinel)
         ! Use the comint filter for proper handling of carriage motion (see
         ! comint-inhibit-carriage-motion).
-        call set_process_filter(process, st, comint_output_filter)
+        call set_process_filter(process, st, command_interpreter_output_filter)
 
-        if (async_shell_command_display_buffer%value) then
+        if (asynchronous_shell_command_display_buffer%value) then
             ! Display buffer immediately.
             call display_buffer(buffer, window, st)
         else
@@ -531,7 +531,7 @@ contains
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, st)
-    end subroutine async_shell_command_1
+    end subroutine asynchronous_shell_command_1
 
     !> Ask before using the default buffer taken by another command; an
     !> error if the answer is no.  Port of
@@ -608,11 +608,11 @@ contains
                 display_on_output = pack(display_on_output, keep)
             end if
 
-            call set_process_filter(process, st, comint_output_filter)
+            call set_process_filter(process, st, command_interpreter_output_filter)
             call display_buffer(buffer, window, st)
         end if
 
-        call comint_output_filter(process, string, status)
+        call command_interpreter_output_filter(process, string, status)
     end subroutine display_then_filter
 
     module procedure shell_command_sentinel
@@ -630,7 +630,7 @@ contains
     end if
     end procedure shell_command_sentinel
 
-    module procedure async_shell_command
+    module procedure asynchronous_shell_command
     character(len=:), allocatable :: command_text
     type(status_type) :: st
 
@@ -649,13 +649,13 @@ contains
     else
         call shell_command(command_text, status)
     end if
-    end procedure async_shell_command
+    end procedure asynchronous_shell_command
 
     !> The command: read COMMAND (with the visited file as default).  The
     !> command of simple.el:async-shell-command.
     !>
     !> Execute string COMMAND asynchronously in background.
-    subroutine execute_async_shell_command(status)
+    subroutine execute_asynchronous_shell_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: command
 
@@ -667,8 +667,8 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call async_shell_command(command, status)
-    end subroutine execute_async_shell_command
+        call asynchronous_shell_command(command, status)
+    end subroutine execute_asynchronous_shell_command
 
     !> `shell_file_name' (set from SHELL when not set yet).  Not a port.
     function shell_program() result(name)
@@ -688,15 +688,15 @@ contains
 
     !> Whether COMMAND ends in `&' (with blanks around it): the
     !> "[ \t]*&[ \t]*\\'" match of shell-command.  Not a port.
-    logical function is_async_command(command)
+    logical function is_asynchronous_command(command)
         character(len=*), intent(in) :: command
         integer :: k
 
-        is_async_command = .false.
+        is_asynchronous_command = .false.
         k = verify(command, " "//achar(9), back=.true.)
         if (k < 1) return
-        is_async_command = command(k:k) == "&"
-    end function is_async_command
+        is_asynchronous_command = command(k:k) == "&"
+    end function is_asynchronous_command
 
     module subroutine execute_process_shell_command(command, result, status, error_file, buffer)
         character(len=*), intent(in) :: command
@@ -1168,8 +1168,8 @@ contains
     if (.not. allocated(shell_command_switch%value)) shell_command_switch = "-c"
     commands%shell_command%execute => execute_shell_command
     commands%shell_command_on_region%execute => execute_shell_command_on_region
-    commands%async_shell_command%execute => execute_async_shell_command
-    if (.not. associated(async_shell_command_mode%value)) async_shell_command_mode%value => shell_command_mode
+    commands%asynchronous_shell_command%execute => execute_asynchronous_shell_command
+    if (.not. associated(asynchronous_shell_command_mode%value)) asynchronous_shell_command_mode%value => shell_command_mode
 
     if (.not. is_keymap_live(minibuffer_local_shell_command_map)) then
         call make_sparse_keymap(minibuffer_local_shell_command_map)

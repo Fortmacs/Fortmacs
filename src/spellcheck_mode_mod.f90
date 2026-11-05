@@ -25,9 +25,9 @@
 !> edited) after each command and highlights the misspelled ones with
 !> the `spellcheck_incorrect' face, repeated ones with `spellcheck_duplicate';
 !> `spellcheck_programming_mode' checks only comments and strings.
-!> `spellcheck_mode_region' and `spellcheck_mode_buffer' check text (a large region
+!> `spellcheck_region_highlight' and `spellcheck_buffer_highlight' check text (a large region
 !> through a separate `ispell -l' run), `goto_next_spellcheck_error' (C-,)
-!> moves to the next highlighted word and `auto_correct_spellcheck_mode_word'
+!> moves to the next highlighted word and `auto_correct_spellcheck_word'
 !> (M-TAB, C-.) cycles through the corrections of the word at point.
 !> What is not ported is listed in docs/status/spellcheck_mode_mod.md.
 module spellcheck_mode_mod
@@ -77,7 +77,7 @@ module spellcheck_mode_mod
     use editing_functions_mod, only: narrow_to_region, widen
     use display_engine_mod, only: message, add_minor_mode_lighter
     use spellcheck_mod, only: spellcheck_set_spellchecker_parameters, spellcheck_change_dictionary, &
-                              spellcheck_accept_buffer_local_defs, spellcheck_send_string, spellcheck_accept_output, &
+                              spellcheck_accept_buffer_local_definitions, spellcheck_send_string, spellcheck_accept_output, &
                               spellcheck_parse_output, spellcheck_output_type, spellcheck_filter_variable, spellcheck_process, &
                               spellcheck_quit, spellcheck_pdict_save, spellcheck_word, spellcheck_get_casechars, &
                               spellcheck_get_not_casechars, spellcheck_get_otherchars, spellcheck_get_many_otherchars, &
@@ -88,20 +88,21 @@ module spellcheck_mode_mod
                               spellcheck_current_personal_dictionary, spellcheck_extra_arguments, spellcheck_encoding8_command, &
                               spellcheck_really_aspell, spellcheck_really_hunspell, spellcheck_really_enchant, &
                               spellcheck_program_name, spellcheck_words_keyword, spellcheck_parser, spellcheck_highlight_face, &
-                              spellcheck_kill_spellcheck_hook, SPELLCHECK_PARSER_TEX, SPELLCHECK_OUTPUT_CORRECT, &
+                              spellcheck_kill_spellcheck_hook_variable, SPELLCHECK_PARSER_TEX, SPELLCHECK_OUTPUT_CORRECT, &
                               SPELLCHECK_OUTPUT_ROOT, SPELLCHECK_OUTPUT_MISSPELLED, SPELLCHECK_OUTPUT_ERROR
     use send_mail_mod, only: mail_header_separator
     use sgml_mode_mod, only: sgml_lexical_context, SGML_CONTEXT_TAG, SGML_CONTEXT_PI
     implicit none(type, external)
     private
 
-    public :: spellcheck_mode, spellcheck_programming_mode, spellcheck_mode_word, spellcheck_mode_region, spellcheck_mode_buffer, &
-              goto_next_spellcheck_error, auto_correct_spellcheck_mode_word, auto_correct_previous_spellcheck_mode_word, &
-              check_previous_highlighted_spellcheck_mode_word, set_spellcheck_delayed_command, set_spellcheck_deplacement_command, &
+    public :: spellcheck_mode, spellcheck_programming_mode, spellcheck_word_highlight, spellcheck_region_highlight, &
+              spellcheck_buffer_highlight, &
+              goto_next_spellcheck_error, auto_correct_spellcheck_word, auto_correct_previous_spellcheck_word, &
+              check_previous_highlighted_spellcheck_word, set_spellcheck_delayed_command, set_spellcheck_deplacement_command, &
               set_spellcheck_delayed_commands, set_spellcheck_deplacement_commands, spellcheck_pre_command_hook, &
               spellcheck_post_command_hook, check_spellcheck_changes, spellcheck_auto_correct_previous_hook, &
-              get_spellcheck_mode_word, is_spellcheck_mode_overlay, delete_all_spellcheck_overlays, &
-              delete_spellcheck_mode_region_overlays, &
+              get_spellcheck_word, is_spellcheck_overlay, delete_all_spellcheck_overlays, &
+              delete_spellcheck_region_overlays, &
               is_spellcheck_correction_less, is_spellcheck_programming_text, is_spellcheck_mail_text, is_spellcheck_sgml_text, &
               set_local_spellcheck_generic_check_word_test_function, spellcheck_sort_procedure, spellcheck_insert_procedure, &
               initialize_spellcheck_mode
@@ -202,7 +203,7 @@ module spellcheck_mode_mod
     !> misspelled word is highlighted, and the highlight is turned off as
     !> soon as point moves off the misspelled word.
     !>
-    !> Make sure this variable is .true. if you use `spellcheck_mode_region'.
+    !> Make sure this variable is .true. if you use `spellcheck_region_highlight'.
     !> Port of flyspell.el flyspell-persistent-highlight.
     logical, public :: spellcheck_persistent_highlight = .true.
 
@@ -286,7 +287,7 @@ module spellcheck_mode_mod
     !> The threshold that determines if a region is small
     !> (`spellcheck_large_region_variable%characters').
     !> If the region is smaller than this number of characters,
-    !> `spellcheck_mode_region' checks the words sequentially using regular
+    !> `spellcheck_region_highlight' checks the words sequentially using regular
     !> flyspell methods.  Else, if the region is large, a new Ispell
     !> process is spawned for speed.
     !>
@@ -418,7 +419,7 @@ module spellcheck_mode_mod
     type(buffer_state_type), allocatable :: states(:)
 
     ! flyspell-overlay.
-    type(handle_type) :: spellcheck_mode_overlay
+    type(handle_type) :: spellcheck_highlight_overlay
     ! flyspell-last-buffer.
     type(handle_type) :: spellcheck_last_buffer
     ! flyspell-pre-buffer, flyspell-pre-column, flyspell-pre-pre-buffer and
@@ -440,9 +441,10 @@ module spellcheck_mode_mod
     integer(int64) :: spellcheck_auto_correct_previous_position = NO_POSITION
 
     ! The names of the commands and properties used as values.
-    character(len=*), parameter :: AUTO_CORRECT_WORD_NAME = "auto_correct_spellcheck_mode_word"
-    character(len=*), parameter :: AUTO_CORRECT_PREVIOUS_WORD_NAME = "auto_correct_previous_spellcheck_mode_word"
-    character(len=*), parameter :: P_SPELLCHECK_MODE_OVERLAY = "spellcheck_mode_overlay", P_FACE = "face", P_LOCAL_MAP = "local_map"
+    character(len=*), parameter :: AUTO_CORRECT_WORD_NAME = "auto_correct_spellcheck_word"
+    character(len=*), parameter :: AUTO_CORRECT_PREVIOUS_WORD_NAME = "auto_correct_previous_spellcheck_word"
+    character(len=*), parameter :: P_SPELLCHECK_HIGHLIGHT_OVERLAY = "spellcheck_highlight_overlay", P_FACE = "face", &
+                                   P_LOCAL_MAP = "local_map"
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9), FF = achar(12)
 
@@ -646,20 +648,20 @@ contains
     !> modes.  Port of flyspell.el:flyspell-generic-progmode-verify.
     recursive logical function is_spellcheck_programming_text() result(check)
         ! Point might be in front of, inside, or behind the misspelled word.
-        check = has_prog_face(point())
-        if (.not. check .and. point() /= point_minimum()) check = has_prog_face(point() - 1)
+        check = has_programming_face(point())
+        if (.not. check .and. point() /= point_minimum()) check = has_programming_face(point() - 1)
 
     contains
 
         ! Whether the face of the text at POSITION is one of
         ! `spellcheck_programming_text_faces'.
-        logical function has_prog_face(position)
+        logical function has_programming_face(position)
             integer(int64), intent(in) :: position
             type(value_type) :: face
             type(status_type) :: st
             integer :: k
 
-            has_prog_face = .false.
+            has_programming_face = .false.
             call get_text_property(position, value_type(name=P_FACE), face, st)
             if (.not. st%ok() .or. vtag(face) /= V_NAME) return
 
@@ -667,11 +669,11 @@ contains
                 if (.not. associated(spellcheck_programming_text_faces(k)%face)) cycle
 
                 if (trim(spellcheck_programming_text_faces(k)%face%name) == symbols(xsymbol(face))%name) then
-                    has_prog_face = .true.
+                    has_programming_face = .true.
                     return
                 end if
             end do
-        end function has_prog_face
+        end function has_programming_face
     end function is_spellcheck_programming_text
 
     !> Turn on `spellcheck_mode' for comments and strings.  Port of
@@ -700,8 +702,8 @@ contains
     !>
     !> Bindings:
     !> \[spellcheck_word]: correct words (using Ispell).
-    !> \[auto_correct_spellcheck_mode_word]: automatically correct word.
-    !> \[auto_correct_previous_spellcheck_mode_word]: automatically correct the last misspelled word.
+    !> \[auto_correct_spellcheck_word]: automatically correct word.
+    !> \[auto_correct_previous_spellcheck_word]: automatically correct the last misspelled word.
     !>
     !> Hooks:
     !> This runs `spellcheck_mode_hook' after flyspell mode is entered or exit.
@@ -714,8 +716,8 @@ contains
     !> Consider using the `spellcheck_parser' to check your text.  For instance
     !> consider setting it to SPELLCHECK_PARSER_TEX in `tex_mode_hook'.
     !>
-    !> \[spellcheck_mode_region] checks all words inside a region.
-    !> \[spellcheck_mode_buffer] checks the whole buffer.  Port of
+    !> \[spellcheck_region_highlight] checks all words inside a region.
+    !> \[spellcheck_buffer_highlight] checks the whole buffer.  Port of
     !> flyspell.el:flyspell-mode.
     recursive subroutine spellcheck_mode(status)
         type(status_type), intent(out) :: status
@@ -772,10 +774,10 @@ contains
     end subroutine spellcheck_lighter
 
     !> Use the correct dictionary: accept the buffer's local definitions
-    !> (`spellcheck_accept_buffer_local_defs') when the buffer has changed
+    !> (`spellcheck_accept_buffer_local_definitions') when the buffer has changed
     !> since the last flyspell operation, or with FORCE.  Port of
     !> flyspell.el:flyspell-accept-buffer-local-defs.
-    recursive subroutine accept_spellcheck_mode_buffer_local_defs(force, status)
+    recursive subroutine accept_spellcheck_buffer_local_definitions(force, status)
         logical, intent(in) :: force
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
@@ -786,7 +788,7 @@ contains
         if (.not. (force .or. .not. is_current(spellcheck_last_buffer))) return
         spellcheck_last_buffer = current_buffer()
         saved = current_buffer()
-        call spellcheck_accept_buffer_local_defs(status)
+        call spellcheck_accept_buffer_local_definitions(status)
         if (is_buffer_live(saved)) call set_buffer(saved, status)
         if (.not. status%ok()) return
         k = state()
@@ -802,11 +804,11 @@ contains
         states(k)%dash_local_dictionary = local
         states(k)%consider_dash = any(spellcheck_dictionaries_that_consider_dash_as_word_delimiter == dictionary()) .and. &
                                   len(dictionary()) > 0
-    end subroutine accept_spellcheck_mode_buffer_local_defs
+    end subroutine accept_spellcheck_buffer_local_definitions
 
     !> Flush Flyspell's caches when the Ispell process is killed.  Port of
     !> flyspell.el:flyspell-kill-ispell-hook.
-    recursive subroutine spellcheck_mode_kill_spellcheck_hook(status)
+    recursive subroutine spellcheck_kill_spellcheck_hook(status)
         type(status_type), intent(out) :: status
         integer :: k
 
@@ -817,7 +819,7 @@ contains
         do k = 1, size(states)
             if (allocated(states(k)%cache_word)) deallocate (states(k)%cache_word)
         end do
-    end subroutine spellcheck_mode_kill_spellcheck_hook
+    end subroutine spellcheck_kill_spellcheck_hook
 
     ! Turn Flyspell mode on.  If SHOW_MESSAGE is true, show a welcome message
     ! if `spellcheck_issue_message_flag' and `spellcheck_issue_welcome_flag'
@@ -842,7 +844,7 @@ contains
         ! otherwise it could be too late, the local dictionary may be
         ! forgotten!  Pass the `force' argument for the case where flyspell
         ! was active already but the buffer's local-defs have been edited.
-        call accept_spellcheck_mode_buffer_local_defs(.true., status)
+        call accept_spellcheck_buffer_local_definitions(.true., status)
         if (.not. status%ok()) return
         call set_spellcheck_delayed_commands()
         call set_spellcheck_deplacement_commands()
@@ -1179,7 +1181,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (is_current(spellcheck_timer_buffer)) call spellcheck_mode_word(status)
+        if (is_current(spellcheck_timer_buffer)) call spellcheck_word_highlight(status)
     end subroutine check_word_when_idle
 
     !> The `post_command_hook' used by flyspell to check a word on-the-fly.
@@ -1215,20 +1217,20 @@ contains
         if (associated(command, commands%transpose_characters) .and. states(k)%pre_point /= NO_POSITION) then
             saved = point()
             call goto_character(states(k)%pre_point - 1)
-            call spellcheck_mode_word(status)
+            call spellcheck_word_highlight(status)
             call goto_character(saved)
         end if
 
         if (status%ok() .and. is_spellcheck_check_pre_word()) then
             saved = point()
             call goto_character(states(k)%pre_point)
-            call spellcheck_mode_word(status)
+            call spellcheck_word_highlight(status)
             call goto_character(saved)
         end if
 
         if (status%ok()) then
             if (is_spellcheck_check_word()) then
-                call spellcheck_mode_word(status)
+                call spellcheck_word_highlight(status)
                 ! We remember which word we have just checked.  This will
                 ! be used next time we will check a word to compare the next
                 ! current word with the word that has been registered in the
@@ -1257,7 +1259,7 @@ contains
             if (is_spellcheck_check_changed_word(change%start, change%stop)) then
                 saved = point()
                 call goto_character(change%start)
-                call spellcheck_mode_word(status)
+                call spellcheck_word_highlight(status)
                 call goto_character(saved)
             end if
 
@@ -1295,12 +1297,12 @@ contains
         start = states(k)%changes(1)%start
         stop = states(k)%changes(1)%stop
         saved = point()
-        call get_spellcheck_mode_word(.false., word, word_start, word_end, found, status)
+        call get_spellcheck_word(.false., word, word_start, word_end, found, status)
         call goto_character(saved)
         if (.not. status%ok()) return
         if (found .and. word_start <= start .and. word_end >= stop) return
         call goto_character(start)
-        call spellcheck_mode_word(status)
+        call spellcheck_word_highlight(status)
         call goto_character(saved)
         states(k)%changes = states(k)%changes(1:0)
     end subroutine check_spellcheck_changes
@@ -1350,7 +1352,7 @@ contains
     ! The position of WORD before point, searching back to BOUND (no bound
     ! when absent); 0 if none.  With IGNORE_CASE, compare case-
     ! insensitively.  Port of flyspell.el:flyspell-word-search-backward.
-    recursive integer(int64) function search_spellcheck_mode_word_backward(word, bound, ignore_case) result(r)
+    recursive integer(int64) function search_spellcheck_word_backward(word, bound, ignore_case) result(r)
         character(len=*), intent(in) :: word
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: ignore_case
@@ -1386,7 +1388,7 @@ contains
             if (found == 0 .or. .not. st%ok()) exit
             if (.not. is_beginning_of_buffer()) call forward_character(st)
             p = point()
-            call get_spellcheck_mode_word(.false., found_word, lw_start, lw_end, got, st)
+            call get_spellcheck_word(.false., found_word, lw_start, lw_end, got, st)
 
             if (got) then
                 if (fold) then
@@ -1404,11 +1406,11 @@ contains
         end do
 
         call goto_character(saved)
-    end function search_spellcheck_mode_word_backward
+    end function search_spellcheck_word_backward
 
     ! The position of WORD after point, searching up to BOUND (no bound when
     ! absent); 0 if none.  Port of flyspell.el:flyspell-word-search-forward.
-    recursive integer(int64) function search_spellcheck_mode_word_forward(word, bound) result(r)
+    recursive integer(int64) function search_spellcheck_word_forward(word, bound) result(r)
         character(len=*), intent(in) :: word
         integer(int64), intent(in), optional :: bound
         character(len=:), allocatable :: not_casechars, word_regular_expression, found_word
@@ -1440,7 +1442,7 @@ contains
             if (found == 0 .or. .not. st%ok()) exit
             if (.not. is_end_of_buffer()) call backward_character(st)
             p = point()
-            call get_spellcheck_mode_word(.false., found_word, lw_start, lw_end, got, st)
+            call get_spellcheck_word(.false., found_word, lw_start, lw_end, got, st)
             if (got) got = found_word == word
 
             if (got) then
@@ -1451,7 +1453,7 @@ contains
         end do
 
         call goto_character(saved)
-    end function search_spellcheck_mode_word_forward
+    end function search_spellcheck_word_forward
 
     ! Send WORD to the speller in verbose mode and parse its answer into
     ! POSITIONS (an empty answer is the word valid); with QUIET_EXIT, mark the
@@ -1530,14 +1532,14 @@ contains
         end do
     end function is_duplication_exception
 
-    !> The command `spellcheck_mode_word': check the word before point, or the
+    !> The command `spellcheck_word_highlight': check the word before point, or the
     !> following word when `spellcheck_following_word' is true.
-    recursive subroutine execute_spellcheck_mode_word(status)
+    recursive subroutine execute_spellcheck_word_highlight(status)
         use spellcheck_mod, only: spellcheck_following_word
         type(status_type), intent(out) :: status
 
-        call spellcheck_mode_word(status, spellcheck_following_word)
-    end subroutine execute_spellcheck_mode_word
+        call spellcheck_word_highlight(status, spellcheck_following_word)
+    end subroutine execute_spellcheck_word_highlight
 
     !> Spell check a word.
     !> If the optional argument FOLLOWING, or, when called interactively
@@ -1547,9 +1549,9 @@ contains
     !> skips redundant spell-checking step.  CORRECT, if present, is false
     !> when the word was found misspelled or repeated.
     !>
-    !> See `get_spellcheck_mode_word' for details of how this finds the word to
+    !> See `get_spellcheck_word' for details of how this finds the word to
     !> spell-check.  Port of flyspell.el:flyspell-word.
-    recursive subroutine spellcheck_mode_word(status, following, known_misspelling, correct)
+    recursive subroutine spellcheck_word_highlight(status, following, known_misspelling, correct)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: following, known_misspelling
         logical, intent(out), optional :: correct
@@ -1571,7 +1573,7 @@ contains
         if (.not. status%ok()) return
         saved = point()
         ! Use the correct dictionary.
-        call accept_spellcheck_mode_buffer_local_defs(.false., status)
+        call accept_spellcheck_buffer_local_definitions(.false., status)
 
         if (.not. status%ok()) then
             call goto_character(saved)
@@ -1580,7 +1582,7 @@ contains
 
         k = state()
         cursor_location = point()
-        call get_spellcheck_mode_word(is_following, word, start, end, found, status)
+        call get_spellcheck_word(is_following, word, start, end, found, status)
 
         if (.not. status%ok() .or. .not. found) then
             call goto_character(saved)
@@ -1610,8 +1612,8 @@ contains
                 bound = start - (end - start) + skip_characters_backward(" "//TAB//LF//FF, st)
                 call goto_character(start)
                 p = 0
-                if (bound >= point_minimum()) p = search_spellcheck_mode_word_backward(word, bound, &
-                                                                                       spellcheck_case_fold_duplications)
+                if (bound >= point_minimum()) p = search_spellcheck_word_backward(word, bound, &
+                                                                                  spellcheck_case_fold_duplications)
                 duplicate = p /= 0 .and. p /= start
             end if
         end if
@@ -1722,25 +1724,25 @@ contains
 
             if (spellcheck_duplicate_distance < 0) then
                 call goto_character(start)
-                is_duplicate_misspelling = search_spellcheck_mode_word_backward(word, point_minimum()) /= 0
+                is_duplicate_misspelling = search_spellcheck_word_backward(word, point_minimum()) /= 0
 
                 if (.not. is_duplicate_misspelling) then
                     call goto_character(end)
-                    is_duplicate_misspelling = search_spellcheck_mode_word_forward(word, point_maximum()) /= 0
+                    is_duplicate_misspelling = search_spellcheck_word_forward(word, point_maximum()) /= 0
                 end if
             else if (spellcheck_duplicate_distance > 0) then
                 call goto_character(start)
-                is_duplicate_misspelling = search_spellcheck_mode_word_backward(word, start - spellcheck_duplicate_distance) /= 0
+                is_duplicate_misspelling = search_spellcheck_word_backward(word, start - spellcheck_duplicate_distance) /= 0
 
                 if (.not. is_duplicate_misspelling) then
                     call goto_character(end)
-                    is_duplicate_misspelling = search_spellcheck_mode_word_forward(word, end + spellcheck_duplicate_distance) /= 0
+                    is_duplicate_misspelling = search_spellcheck_word_forward(word, end + spellcheck_duplicate_distance) /= 0
                 end if
             end if
 
             call goto_character(here)
         end function is_duplicate_misspelling
-    end subroutine spellcheck_mode_word
+    end subroutine spellcheck_word_highlight
 
     !> Whether point is within a TeX math environment, as AUCTeX's
     !> `texmathp' tells; always .false. here, as `texmathp' is not
@@ -1789,7 +1791,7 @@ contains
     !> the word could be far away from point if point is inside whitespace
     !> or punctuation characters, or in text that belongs to a different
     !> language.  Port of flyspell.el:flyspell-get-word.
-    recursive subroutine get_spellcheck_mode_word(following, word, start, end, found, status, extra_otherchars)
+    recursive subroutine get_spellcheck_word(following, word, start, end, found, status, extra_otherchars)
         logical, intent(in) :: following
         character(len=:), allocatable, intent(out) :: word
         integer(int64), intent(out) :: start, end
@@ -1872,7 +1874,7 @@ contains
         end = point()
         call buffer_substring_no_properties(start, end, word, status)
         found = status%ok()
-    end subroutine get_spellcheck_mode_word
+    end subroutine get_spellcheck_word
 
     ! ------------------------------------------------------------------
     ! Regions
@@ -1906,7 +1908,7 @@ contains
                 count = count + 1
             end if
 
-            call spellcheck_mode_word(status)
+            call spellcheck_word_highlight(status)
             if (.not. status%ok()) exit
             call sit_for(0)
             here = point()
@@ -1917,7 +1919,7 @@ contains
         if (status%ok()) then
             call backward_character(status)
             if (spellcheck_issue_message_flag) call message("Spell Checking completed.")
-            if (status%ok()) call spellcheck_mode_word(status)
+            if (status%ok()) call spellcheck_word_highlight(status)
         end if
 
         call goto_character(saved)
@@ -1989,14 +1991,14 @@ contains
 
                 if (at /= 0) then
                     saved = point()
-                    ! Move back into the match so `get_spellcheck_mode_word' will
+                    ! Move back into the match so `get_spellcheck_word' will
                     ! find it.
                     call backward_character(st)
                     got = .false.
                     found = ""
                     ! Is this a word that matches the current dictionary?
-                    if (looking_at(word_characters, st)) call get_spellcheck_mode_word(.false., found, found_start, found_end, &
-                                                                                       got, st)
+                    if (looking_at(word_characters, st)) call get_spellcheck_word(.false., found, found_start, found_end, &
+                                                                                  got, st)
                     call goto_character(saved)
 
                     if (got) then
@@ -2033,10 +2035,10 @@ contains
                     if (matched) then
                         keep = .false.
                         ! Don't try spell-checking words whose characters
-                        ! don't match CASECHARS, because `spellcheck_mode_word' will
+                        ! don't match CASECHARS, because `spellcheck_word_highlight' will
                         ! then consider as misspelling the preceding word
                         ! that matches CASECHARS.
-                        if (got) call spellcheck_mode_word(status, known_misspelling=.true.)
+                        if (got) call spellcheck_word_highlight(status, known_misspelling=.true.)
                         ! Search for next misspelled word will begin from end
                         ! of last validated match.
                         buffer_scan_position = point()
@@ -2158,7 +2160,7 @@ contains
 
     !> Check for adjacent duplicated words (doublons) in the given region.
     !> Port of flyspell.el:flyspell-check-region-doublons.
-    recursive subroutine check_spellcheck_mode_region_doublons(beginning, end, status)
+    recursive subroutine check_spellcheck_region_doublons(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64) :: saved, at
@@ -2166,20 +2168,20 @@ contains
         saved = point()
         call goto_character(beginning)
         ! Make sure current word is checked.
-        call spellcheck_mode_word(status)
+        call spellcheck_word_highlight(status)
         if (status%ok()) call backward_word(1_int64)
 
         do while (status%ok() .and. point() < end)
             call regular_expression_search_forward("\<\(\w+\)\>[ "//LF//TAB//FF//"]+\1\>", at, status, bound=end, &
                                                    noerror=SEARCH_MOVE)
             if (.not. status%ok() .or. at == 0) exit
-            call spellcheck_mode_word(status)
+            call spellcheck_word_highlight(status)
             if (status%ok()) call backward_word(1_int64)
         end do
 
-        if (status%ok()) call spellcheck_mode_word(status)
+        if (status%ok()) call spellcheck_word_highlight(status)
         call goto_character(saved)
-    end subroutine check_spellcheck_mode_region_doublons
+    end subroutine check_spellcheck_region_doublons
 
     !> Check the region from BEGINNING to END with a separate speller run
     !> (`ispell -l', `aspell list'), then mark the words it reports.
@@ -2205,7 +2207,7 @@ contains
         spellcheck_large_region_buffer = curbuf
         spellcheck_large_region_beginning = beginning
         spellcheck_large_region_end = end
-        call accept_spellcheck_mode_buffer_local_defs(.false., status)
+        call accept_spellcheck_buffer_local_definitions(.false., status)
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         if (status%ok()) call erase_buffer(status)
@@ -2290,8 +2292,8 @@ contains
 
         if (at == 0) then
             call remove_spellcheck_localwords(buffer, status)
-            if (status%ok()) call delete_spellcheck_mode_region_overlays(beginning, end, status)
-            if (status%ok()) call check_spellcheck_mode_region_doublons(beginning, end, status)
+            if (status%ok()) call delete_spellcheck_region_overlays(beginning, end, status)
+            if (status%ok()) call check_spellcheck_region_doublons(beginning, end, status)
             if (status%ok()) call mark_spellcheck_external_words(status)
         else
             call set_error(status, GENERIC_ERROR_CODE, "Can't check region")
@@ -2315,7 +2317,7 @@ contains
     !> Make sure `spellcheck_mode' is turned on if you want the highlight of a
     !> misspelled word removed when you've corrected it.  Port of
     !> flyspell.el:flyspell-region.
-    recursive subroutine spellcheck_mode_region(beginning, end, status)
+    recursive subroutine spellcheck_region_highlight(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
         integer(int64) :: saved, lo, hi
@@ -2335,10 +2337,10 @@ contains
         end if
 
         call goto_character(saved)
-    end subroutine spellcheck_mode_region
+    end subroutine spellcheck_region_highlight
 
-    ! The command `spellcheck_mode_region'.
-    recursive subroutine execute_spellcheck_mode_region(status)
+    ! The command `spellcheck_region_highlight'.
+    recursive subroutine execute_spellcheck_region_highlight(status)
         use simple_mod, only: mark
         type(status_type), intent(out) :: status
         integer(int64) :: m
@@ -2351,15 +2353,15 @@ contains
             return
         end if
 
-        call spellcheck_mode_region(min(point(), m), max(point(), m), status)
-    end subroutine execute_spellcheck_mode_region
+        call spellcheck_region_highlight(min(point(), m), max(point(), m), status)
+    end subroutine execute_spellcheck_region_highlight
 
     !> Flyspell whole buffer.  Port of flyspell.el:flyspell-buffer.
-    recursive subroutine spellcheck_mode_buffer(status)
+    recursive subroutine spellcheck_buffer_highlight(status)
         type(status_type), intent(out) :: status
 
-        call spellcheck_mode_region(point_minimum(), point_maximum(), status)
-    end subroutine spellcheck_mode_buffer
+        call spellcheck_region_highlight(point_minimum(), point_maximum(), status)
+    end subroutine spellcheck_buffer_highlight
 
     ! ------------------------------------------------------------------
     ! Errors and overlays
@@ -2370,7 +2372,7 @@ contains
     !> instead.
     !>
     !> In general `goto_next_spellcheck_error' must be used after
-    !> `spellcheck_mode_buffer'.  Port of flyspell.el:flyspell-goto-next-error.
+    !> `spellcheck_buffer_highlight'.  Port of flyspell.el:flyspell-goto-next-error.
     recursive subroutine goto_next_spellcheck_error(status, previous)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: previous
@@ -2418,7 +2420,7 @@ contains
             end if
 
             call overlays_at(position, found)
-            if (any_spellcheck_mode_overlay(found)) exit
+            if (any_spellcheck_overlay(found)) exit
         end do
 
         call goto_character(position)
@@ -2437,47 +2439,47 @@ contains
     end subroutine execute_goto_next_spellcheck_error
 
     ! Whether one of OVERLAYS is used by flyspell.  Not a port.
-    logical function any_spellcheck_mode_overlay(overlays) result(found)
+    logical function any_spellcheck_overlay(overlays) result(found)
         type(handle_type), intent(in) :: overlays(:)
         integer :: k
 
         found = .false.
 
         do k = 1, size(overlays)
-            if (is_spellcheck_mode_overlay(overlays(k))) then
+            if (is_spellcheck_overlay(overlays(k))) then
                 found = .true.
                 return
             end if
         end do
-    end function any_spellcheck_mode_overlay
+    end function any_spellcheck_overlay
 
     !> Return .true. if O is an overlay used by flyspell.  Port of
     !> flyspell.el:flyspell-overlay-p.
-    logical function is_spellcheck_mode_overlay(o)
+    logical function is_spellcheck_overlay(o)
         type(handle_type), intent(in) :: o
         type(value_type) :: property
 
-        is_spellcheck_mode_overlay = is_overlay(o)
-        if (.not. is_spellcheck_mode_overlay) return
-        property = overlay_get(o, P_SPELLCHECK_MODE_OVERLAY)
-        is_spellcheck_mode_overlay = allocated(property%a)
-    end function is_spellcheck_mode_overlay
+        is_spellcheck_overlay = is_overlay(o)
+        if (.not. is_spellcheck_overlay) return
+        property = overlay_get(o, P_SPELLCHECK_HIGHLIGHT_OVERLAY)
+        is_spellcheck_overlay = allocated(property%a)
+    end function is_spellcheck_overlay
 
     !> Delete overlays used by flyspell in a given region.  Port of
     !> flyspell.el:flyspell-delete-region-overlays.
-    subroutine delete_spellcheck_mode_region_overlays(beginning, end, status)
+    subroutine delete_spellcheck_region_overlays(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
-        call remove_overlays(beginning, end, P_SPELLCHECK_MODE_OVERLAY, value_type(.true.), status)
-    end subroutine delete_spellcheck_mode_region_overlays
+        call remove_overlays(beginning, end, P_SPELLCHECK_HIGHLIGHT_OVERLAY, value_type(.true.), status)
+    end subroutine delete_spellcheck_region_overlays
 
     !> Delete all the overlays used by flyspell.  Port of
     !> flyspell.el:flyspell-delete-all-overlays.
     subroutine delete_all_spellcheck_overlays(status)
         type(status_type), intent(out) :: status
 
-        call delete_spellcheck_mode_region_overlays(point_minimum(), point_maximum(), status)
+        call delete_spellcheck_region_overlays(point_minimum(), point_maximum(), status)
     end subroutine delete_all_spellcheck_overlays
 
     !> Remove the flyspell overlay that are located at POSITION.  Port of
@@ -2494,10 +2496,10 @@ contains
             call overlays_at(position, found)
 
             do k = 1, size(found)
-                if (is_spellcheck_mode_overlay(found(k))) call delete_overlay(found(k))
+                if (is_spellcheck_overlay(found(k))) call delete_overlay(found(k))
             end do
-        else if (is_spellcheck_mode_overlay(spellcheck_mode_overlay)) then
-            call delete_overlay(spellcheck_mode_overlay)
+        else if (is_spellcheck_overlay(spellcheck_highlight_overlay)) then
+            call delete_overlay(spellcheck_highlight_overlay)
         end if
     end subroutine unhighlight_spellcheck_at
 
@@ -2537,7 +2539,7 @@ contains
     !> FACE and MOUSE_FACE specify the `face' and `mouse_face' properties
     !> for the overlay.  Port of flyspell.el:make-flyspell-overlay (the
     !> mouse keymap is not ported).
-    subroutine make_spellcheck_mode_overlay(beginning, end, face, mouse_face, overlay, status)
+    subroutine make_spellcheck_overlay(beginning, end, face, mouse_face, overlay, status)
         integer(int64), intent(in) :: beginning, end
         type(named_face_type), intent(in) :: face, mouse_face
         type(handle_type), intent(out) :: overlay
@@ -2546,7 +2548,7 @@ contains
         call make_overlay(overlay, beginning, end, status, front_advance=.false., rear_advance=.true.)
         if (status%ok()) call overlay_put(overlay, "face", value_type(name=trim(face%name)), status)
         if (status%ok()) call overlay_put(overlay, "mouse_face", value_type(name=trim(mouse_face%name)), status)
-        if (status%ok()) call overlay_put(overlay, P_SPELLCHECK_MODE_OVERLAY, value_type(.true.), status)
+        if (status%ok()) call overlay_put(overlay, P_SPELLCHECK_HIGHLIGHT_OVERLAY, value_type(.true.), status)
         if (status%ok()) call overlay_put(overlay, "evaporate", value_type(.true.), status)
         if (status%ok()) call overlay_put(overlay, "help_echo", value_type(text="mouse-2: correct word at point"), status)
         if (.not. status%ok()) return
@@ -2560,7 +2562,7 @@ contains
                 call overlay_put(overlay, "after_string", value_type(text=spellcheck_after_incorrect_word_string), status)
             end if
         end if
-    end subroutine make_spellcheck_mode_overlay
+    end subroutine make_spellcheck_overlay
 
     !> Set up an overlay on a misspelled word, in the buffer from BEGINNING
     !> to END.  DOUBLON true means the word is itself incorrect, but
@@ -2583,7 +2585,7 @@ contains
             call overlays_in(beginning + 1, end, found)
 
             do k = 1, size(found)
-                if (is_spellcheck_mode_overlay(found(k))) call delete_overlay(found(k))
+                if (is_spellcheck_overlay(found(k))) call delete_overlay(found(k))
             end do
         end if
 
@@ -2593,9 +2595,9 @@ contains
         ! Now we can use a new overlay.
         if (status%ok()) then
             if (doublon) then
-                call make_spellcheck_mode_overlay(beginning, end, spellcheck_duplicate, highlight, spellcheck_mode_overlay, status)
+                call make_spellcheck_overlay(beginning, end, spellcheck_duplicate, highlight, spellcheck_highlight_overlay, status)
             else
-                call make_spellcheck_mode_overlay(beginning, end, spellcheck_incorrect, highlight, spellcheck_mode_overlay, status)
+                call make_spellcheck_overlay(beginning, end, spellcheck_incorrect, highlight, spellcheck_highlight_overlay, status)
             end if
         end if
     end subroutine highlight_spellcheck_incorrect_region
@@ -2613,8 +2615,8 @@ contains
         ! We cleanup current overlay at the same position.
         call unhighlight_spellcheck_at(beginning, status)
         ! Now we can use a new overlay.
-        if (status%ok()) call make_spellcheck_mode_overlay(beginning, end, spellcheck_duplicate, highlight, &
-                                                           spellcheck_mode_overlay, status)
+        if (status%ok()) call make_spellcheck_overlay(beginning, end, spellcheck_duplicate, highlight, &
+                                                      spellcheck_highlight_overlay, status)
     end subroutine highlight_spellcheck_duplicate_region
 
     ! ------------------------------------------------------------------
@@ -2627,7 +2629,7 @@ contains
     !> proposes a replacement for that word.  With prefix arg N (ARGUMENT),
     !> check the Nth word before point that's highlighted as misspelled.
     !> Port of flyspell.el:flyspell-check-previous-highlighted-word.
-    recursive subroutine check_previous_highlighted_spellcheck_mode_word(status, argument)
+    recursive subroutine check_previous_highlighted_spellcheck_word(status, argument)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: argument
         integer(int64) :: position1, position, n, saved
@@ -2651,7 +2653,7 @@ contains
                 call overlays_at(position, found)
 
                 do k = 1, size(found)
-                    if (is_spellcheck_mode_overlay(found(k))) then
+                    if (is_spellcheck_overlay(found(k))) then
                         n = n - 1
 
                         if (n == 0) then
@@ -2673,28 +2675,28 @@ contains
         call spellcheck_word(status)
 
         if (status%ok()) then
-            ! Force `spellcheck_mode_word' re-check.
+            ! Force `spellcheck_word_highlight' re-check.
             k = state()
             if (allocated(states(k)%cache_word)) deallocate (states(k)%cache_word)
-            call spellcheck_mode_word(status)
+            call spellcheck_word_highlight(status)
         end if
 
         call goto_character(saved)
-    end subroutine check_previous_highlighted_spellcheck_mode_word
+    end subroutine check_previous_highlighted_spellcheck_word
 
-    ! The command `check_previous_highlighted_spellcheck_mode_word'.
-    recursive subroutine execute_check_previous_highlighted_spellcheck_mode_word(status)
+    ! The command `check_previous_highlighted_spellcheck_word'.
+    recursive subroutine execute_check_previous_highlighted_spellcheck_word(status)
         use execute_interactively_mod, only: current_prefix_argument, PREFIX_NUMBER, PREFIX_MINUS
         type(status_type), intent(out) :: status
 
         if (current_prefix_argument%kind == PREFIX_NUMBER) then
-            call check_previous_highlighted_spellcheck_mode_word(status, current_prefix_argument%value)
+            call check_previous_highlighted_spellcheck_word(status, current_prefix_argument%value)
         else if (current_prefix_argument%kind == PREFIX_MINUS) then
-            call check_previous_highlighted_spellcheck_mode_word(status, -1_int64)
+            call check_previous_highlighted_spellcheck_word(status, -1_int64)
         else
-            call check_previous_highlighted_spellcheck_mode_word(status)
+            call check_previous_highlighted_spellcheck_word(status)
         end if
-    end subroutine execute_check_previous_highlighted_spellcheck_mode_word
+    end subroutine execute_check_previous_highlighted_spellcheck_word
 
     ! Show CORRECTIONS (from the ring entry START on, cycling) in the echo
     ! area: "Corrections:" and the words while the text is shorter than 80
@@ -2729,10 +2731,10 @@ contains
     !> current word.  If invoked repeatedly on the same position, it
     !> cycles through the possible corrections of the current word.
     !>
-    !> See `get_spellcheck_mode_word' for details of how this finds the word to
+    !> See `get_spellcheck_word' for details of how this finds the word to
     !> spell-check.  Port of flyspell.el:flyspell-auto-correct-word
     !> (`flyspell-abbrev-p' is not ported).
-    recursive subroutine auto_correct_spellcheck_mode_word(status)
+    recursive subroutine auto_correct_spellcheck_word(status)
         type(status_type), intent(out) :: status
         integer(int64) :: position, old_maximum, start, end, length
         type(value_type) :: next_command
@@ -2768,14 +2770,14 @@ contains
         k = state()
 
         ! Flush a possibly stale cache from previous invocations of
-        ! `auto_correct_spellcheck_mode_word'/`auto_correct_previous_spellcheck_mode_word'.
-        if (.not. (associated(last_command, commands%auto_correct_spellcheck_mode_word) .or. &
-                   associated(last_command, commands%auto_correct_previous_spellcheck_mode_word))) then
+        ! `auto_correct_spellcheck_word'/`auto_correct_previous_spellcheck_word'.
+        if (.not. (associated(last_command, commands%auto_correct_spellcheck_word) .or. &
+                   associated(last_command, commands%auto_correct_previous_spellcheck_word))) then
             states(k)%has_auto_correct_region = .false.
         end if
 
         ! Use the correct dictionary.
-        call accept_spellcheck_mode_buffer_local_defs(.false., status)
+        call accept_spellcheck_buffer_local_definitions(.false., status)
         if (.not. status%ok()) return
 
         if (states(k)%auto_correct_position == position .and. states(k)%has_auto_correct_region) then
@@ -2791,7 +2793,7 @@ contains
             call goto_character(start)
             call spellcheck_insert_function(word, status)
             if (.not. status%ok()) return
-            call spellcheck_mode_word(status)
+            call spellcheck_word_highlight(status)
             if (.not. status%ok()) return
             call display_next_spellcheck_corrections(states(k)%auto_correct_ring, states(k)%ring_index)
             call adjust_spellcheck_cursor_point(position, point(), old_maximum)
@@ -2800,7 +2802,7 @@ contains
         end if
 
         ! Fetch the word to be checked.
-        call get_spellcheck_mode_word(.false., word, start, end, found, status)
+        call get_spellcheck_word(.false., word, start, end, found, status)
         if (.not. status%ok()) return
 
         if (found) then
@@ -2838,7 +2840,7 @@ contains
                         call unhighlight_spellcheck_at(start, status)
                         if (status%ok()) call delete_region(start, end, status)
                         if (status%ok()) call spellcheck_insert_function(new_word, status)
-                        if (status%ok()) call spellcheck_mode_word(status)
+                        if (status%ok()) call spellcheck_word_highlight(status)
                         if (.not. status%ok()) return
                         call display_next_spellcheck_corrections(states(k)%auto_correct_ring, 1, new_word)
                         call adjust_spellcheck_cursor_point(position, point(), old_maximum)
@@ -2849,10 +2851,10 @@ contains
             states(k)%auto_correct_position = point()
             call spellcheck_pdict_save(status, no_query=.true.)
         end if
-    end subroutine auto_correct_spellcheck_mode_word
+    end subroutine auto_correct_spellcheck_word
 
     !> Hook to track successive calls to
-    !> `auto_correct_previous_spellcheck_mode_word'.  Sets
+    !> `auto_correct_previous_spellcheck_word'.  Sets
     !> `spellcheck_auto_correct_previous_position' to none.  Port of
     !> flyspell.el:flyspell-auto-correct-previous-hook.
     recursive subroutine spellcheck_auto_correct_previous_hook(status)
@@ -2861,7 +2863,7 @@ contains
         status = status_type()
         call pre_command_hook%remove(spellcheck_auto_correct_previous_hook, local=.true.)
 
-        if (.not. associated(this_command, commands%auto_correct_previous_spellcheck_mode_word)) then
+        if (.not. associated(this_command, commands%auto_correct_previous_spellcheck_word)) then
             spellcheck_auto_correct_previous_position = NO_POSITION
         end if
     end subroutine spellcheck_auto_correct_previous_hook
@@ -2869,7 +2871,7 @@ contains
     !> Auto correct the first misspelled word that occurs before point
     !> (POSITION).  But don't look beyond what's visible on the screen.
     !> Port of flyspell.el:flyspell-auto-correct-previous-word.
-    recursive subroutine auto_correct_previous_spellcheck_mode_word(position, status)
+    recursive subroutine auto_correct_previous_spellcheck_word(position, status)
         use spellcheck_mod, only: spellcheck_following_word
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
@@ -2916,7 +2918,7 @@ contains
             got = .false.
 
             do k = 1, size(order)
-                if (.not. is_spellcheck_mode_overlay(overlay_list(order(k)))) cycle
+                if (.not. is_spellcheck_overlay(overlay_list(order(k)))) cycle
                 ! Check if its face has changed.
                 if (.not. has_incorrect_face(overlay_start(overlay_list(order(k))))) cycle
                 ! The length of the word may change so go to the start.
@@ -2932,7 +2934,7 @@ contains
             saved_following = spellcheck_following_word
             spellcheck_following_word = .true.
             call goto_character(spellcheck_auto_correct_previous_position)
-            call auto_correct_spellcheck_mode_word(status)
+            call auto_correct_spellcheck_word(status)
             spellcheck_following_word = saved_following
             ! The point may have moved so reset this.
             spellcheck_auto_correct_previous_position = point()
@@ -2954,14 +2956,14 @@ contains
             has_incorrect_face = .false.
             if (vtag(face) == V_NAME) has_incorrect_face = symbols(xsymbol(face))%name == trim(spellcheck_incorrect%name)
         end function has_incorrect_face
-    end subroutine auto_correct_previous_spellcheck_mode_word
+    end subroutine auto_correct_previous_spellcheck_word
 
-    ! The command `auto_correct_previous_spellcheck_mode_word'.
-    recursive subroutine execute_auto_correct_previous_spellcheck_mode_word(status)
+    ! The command `auto_correct_previous_spellcheck_word'.
+    recursive subroutine execute_auto_correct_previous_spellcheck_word(status)
         type(status_type), intent(out) :: status
 
-        call auto_correct_previous_spellcheck_mode_word(point(), status)
-    end subroutine execute_auto_correct_previous_spellcheck_mode_word
+        call auto_correct_previous_spellcheck_word(point(), status)
+    end subroutine execute_auto_correct_previous_spellcheck_word
 
     ! Move point after a correction: back to SAVE, shifted by the change in
     ! size if SAVE was at or after CURSOR_LOCATION.  Port of
@@ -2983,21 +2985,21 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define Flyspell mode, its keymap, faces, commands and the defaults
-    !> of the options, and put `spellcheck_mode_kill_spellcheck_hook' on
-    !> `spellcheck_kill_spellcheck_hook'.  Not a port.
+    !> of the options, and put `spellcheck_kill_spellcheck_hook' on
+    !> `spellcheck_kill_spellcheck_hook_variable'.  Not a port.
     subroutine initialize_spellcheck_mode()
         type(status_type) :: st
         type(named_face_type), pointer :: f
 
         commands%spellcheck_mode%execute => spellcheck_mode
         commands%spellcheck_programming_mode%execute => spellcheck_programming_mode
-        commands%spellcheck_mode_word%execute => execute_spellcheck_mode_word
-        commands%spellcheck_mode_region%execute => execute_spellcheck_mode_region
-        commands%spellcheck_mode_buffer%execute => spellcheck_mode_buffer
+        commands%spellcheck_word_highlight%execute => execute_spellcheck_word_highlight
+        commands%spellcheck_region_highlight%execute => execute_spellcheck_region_highlight
+        commands%spellcheck_buffer_highlight%execute => spellcheck_buffer_highlight
         commands%goto_next_spellcheck_error%execute => execute_goto_next_spellcheck_error
-        commands%auto_correct_spellcheck_mode_word%execute => auto_correct_spellcheck_mode_word
-        commands%auto_correct_previous_spellcheck_mode_word%execute => execute_auto_correct_previous_spellcheck_mode_word
-        commands%check_previous_highlighted_spellcheck_mode_word%execute => execute_check_previous_highlighted_spellcheck_mode_word
+        commands%auto_correct_spellcheck_word%execute => auto_correct_spellcheck_word
+        commands%auto_correct_previous_spellcheck_word%execute => execute_auto_correct_previous_spellcheck_word
+        commands%check_previous_highlighted_spellcheck_word%execute => execute_check_previous_highlighted_spellcheck_word
         commands%set_spellcheck_delayed_command%execute => execute_set_spellcheck_delayed_command
         commands%set_spellcheck_deplacement_command%execute => execute_set_spellcheck_deplacement_command
         commands%spellcheck_pre_command_hook%execute => spellcheck_pre_command_hook
@@ -3076,8 +3078,8 @@ contains
         major_modes%sgml_mode%spellcheck_mode_test_function => is_spellcheck_sgml_text
         major_modes%html_mode%spellcheck_mode_test_function => is_spellcheck_sgml_text
         ! Make sure we flush our caches when needed.  Do it here rather than
-        ! in `enable_spellcheck_mode', since `spellcheck_mode_region' may be used
+        ! in `enable_spellcheck_mode', since `spellcheck_region_highlight' may be used
         ! without ever turning on flyspell-mode.
-        call spellcheck_kill_spellcheck_hook%prepend(spellcheck_mode_kill_spellcheck_hook)
+        call spellcheck_kill_spellcheck_hook_variable%prepend(spellcheck_kill_spellcheck_hook)
     end subroutine initialize_spellcheck_mode
 end module spellcheck_mode_mod

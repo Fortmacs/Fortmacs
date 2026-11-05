@@ -6,7 +6,7 @@
 
 ## Ported
 
-`frame_type` (terminal, current and desired matrices, face table, cursor, root, minibuffer and selected window handles, FRAME_RIF `rif`, the font driver, FRAME_COLUMN_WIDTH/FRAME_LINE_HEIGHT, FRAME_SMALLEST_CHAR_WIDTH/FONT_HEIGHT, text_columns/text_lines),
+`frame_type` (terminal, current and desired matrices, face table, cursor, root, minibuffer and selected window handles, FRAME_RIF `redisplay_interface`, the font driver, FRAME_COLUMN_WIDTH/FRAME_LINE_HEIGHT, FRAME_SMALLEST_CHAR_WIDTH/FONT_HEIGHT, text_columns/text_lines),
 `selected_frame` (frame.c),
 `frame-selected-window`,
 `FRAME_WINDOW_P`,

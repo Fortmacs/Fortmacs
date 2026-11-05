@@ -21,30 +21,30 @@
 
 !> This package maintains a list of recently opened files and makes it
 !> easy to visit them.  The recent files list is automatically saved
-!> across Fortmacs sessions.  To enable it, turn on `recentf_mode'; visit
-!> one of the files with `recentf_open'.
+!> across Fortmacs sessions.  To enable it, turn on `recent_files_mode'; visit
+!> one of the files with `recent_files_open'.
 !>
-!> The list is saved in `recentf_save_file' in namelist syntax
+!> The list is saved in `recent_files_save_file' in namelist syntax
 !> (namelist_mod):
 !>
 !>     &recentf
-!>      recentf_files(1:2) = "~/notes.txt", "~/src/Fortmacs/src/rectangle_mod.f90",
+!>      recent_files_files(1:2) = "~/notes.txt", "~/src/Fortmacs/src/rectangle_mod.f90",
 !>     /
 !>
-!> `recentf_exclude' and `recentf_keep' are arrays of
-!> `recentf_check_type' records, each a regexp or a test;
-!> `recentf_filename_handlers' is an array of `recentf_filename_handler_type'.
+!> `recent_files_exclude' and `recent_files_keep' are arrays of
+!> `recent_files_check_type' records, each a regexp or a test;
+!> `recent_files_filename_handlers' is an array of `recent_files_filename_handler_type'.
 !>
-!> Deferred: the "Open Recent" menu with its filters (`recentf_menu_filter'
+!> Deferred: the "Open Recent" menu with its filters (`recent_files_menu_filter'
 !> and the predefined and rule based filters; there is no menu bar), the
-!> dialogs `recentf_edit_list', `recentf_open_files' and
-!> `recentf_open_more_files' (widget.el is not ported) and with them
-!> `recentf_filter_changer_current' in the saved file and the digit
-!> shortcuts; remote files (`recentf_access_file'); tracking files as
+!> dialogs `recent_files_edit_list', `recent_files_open_files' and
+!> `recent_files_open_more_files' (widget.el is not ported) and with them
+!> `recent_files_filter_changer_current' in the saved file and the digit
+!> shortcuts; remote files (`recent_files_access_file'); tracking files as
 !> they are written (`write_file_functions' is not ported); a time
-!> string in `recentf_auto_cleanup'; the warning when the list can't be
-!> saved (warnings.el); the obsolete `recentf_load_hook',
-!> `recentf_trunc_list' and `recentf_elements'.
+!> string in `recent_files_auto_cleanup'; the warning when the list can't be
+!> saved (warnings.el); the obsolete `recent_files_load_hook',
+!> `recent_files_trunc_list' and `recent_files_elements'.
 module recent_files_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
@@ -76,81 +76,84 @@ module recent_files_mod
     implicit none(type, external)
     private
 
-    public :: recentf_mode, is_recentf_enabled, is_recentf_exclude_file_by_extension, recentf_keep_default_test, &
-              recentf_add_file, recentf_remove_if_non_kept, is_recentf_include, is_recentf_keep, recentf_push, &
-              recentf_expand_file_name, recentf_apply_filename_handlers, recentf_open, recentf_open_most_recent_file, &
-              recentf_save_list, recentf_load_list, recentf_cleanup, recentf_track_opened_file, &
-              recentf_track_closed_file, abbreviate_file_name_handler, file_truename_handler, initialize_recentf
+    public :: recent_files_mode, is_recent_files_enabled, is_recent_files_exclude_file_by_extension, &
+              recent_files_keep_default_test, &
+              recent_files_add_file, recent_files_remove_if_non_kept, is_recent_files_include, is_recent_files_keep, &
+              recent_files_push, &
+              recent_files_expand_file_name, recent_files_apply_filename_handlers, recent_files_open, &
+              recent_files_open_most_recent_file, &
+              recent_files_save_list, recent_files_load_list, recent_files_cleanup, recent_files_track_opened_file, &
+              recent_files_track_closed_file, abbreviate_file_name_handler, file_truename_handler, initialize_recent_files
 
     !> A recently opened file.
-    type, public :: recentf_file_type
+    type, public :: recent_files_file_type
         character(len=:), allocatable :: name
-    end type recentf_file_type
+    end type recent_files_file_type
 
-    !> List of recently opened files for `recentf_mode'.  Port of
+    !> List of recently opened files for `recent_files_mode'.  Port of
     !> recentf.el recentf-list.
-    type(recentf_file_type), allocatable, public :: recentf_files(:)
+    type(recent_files_file_type), allocatable, public :: recent_files_files(:)
 
     abstract interface
-        !> A test on a file name for `recentf_exclude' and `recentf_keep'.
+        !> A test on a file name for `recent_files_exclude' and `recent_files_keep'.
         !> Not a port.
-        logical function recentf_test_procedure(file)
+        logical function recent_files_test_procedure(file)
             implicit none(type, external)
             character(len=*), intent(in) :: file
-        end function recentf_test_procedure
+        end function recent_files_test_procedure
 
-        !> A function of `recentf_filename_handlers': NAME transformed.
+        !> A function of `recent_files_filename_handlers': NAME transformed.
         !> Not a port.
-        subroutine recentf_filename_handler_procedure(name, result, status)
+        subroutine recent_files_filename_handler_procedure(name, result, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: name
             character(len=:), allocatable, intent(out) :: result
             type(status_type), intent(out) :: status
-        end subroutine recentf_filename_handler_procedure
+        end subroutine recent_files_filename_handler_procedure
 
-        !> `recentf_menu_action': open FILE.  Not a port.
-        recursive subroutine recentf_action_procedure(file, status)
+        !> `recent_files_menu_action': open FILE.  Not a port.
+        recursive subroutine recent_files_action_procedure(file, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: file
             type(status_type), intent(out) :: status
-        end subroutine recentf_action_procedure
+        end subroutine recent_files_action_procedure
     end interface
 
-    !> An element of `recentf_exclude' or `recentf_keep': a REGULAR_EXPRESSION, or a
+    !> An element of `recent_files_exclude' or `recent_files_keep': a REGULAR_EXPRESSION, or a
     !> TEST (when REGULAR_EXPRESSION is blank).
-    type, public :: recentf_check_type
+    type, public :: recent_files_check_type
         character(len=256) :: regular_expression = ""
-        procedure(recentf_test_procedure), pointer, nopass :: test => null()
-    end type recentf_check_type
+        procedure(recent_files_test_procedure), pointer, nopass :: test => null()
+    end type recent_files_check_type
 
-    !> An element of `recentf_filename_handlers'.
-    type, public :: recentf_filename_handler_type
-        procedure(recentf_filename_handler_procedure), pointer, nopass :: handler => null()
-    end type recentf_filename_handler_type
+    !> An element of `recent_files_filename_handlers'.
+    type, public :: recent_files_filename_handler_type
+        procedure(recent_files_filename_handler_procedure), pointer, nopass :: handler => null()
+    end type recent_files_filename_handler_type
 
-    !> `recentf_maximum_saved_items' for no limit.
-    integer, parameter, public :: RECENTF_MAXIMUM_SAVED_ITEMS_UNLIMITED = huge(0)
+    !> `recent_files_maximum_saved_items' for no limit.
+    integer, parameter, public :: RECENT_FILES_MAXIMUM_SAVED_ITEMS_UNLIMITED = huge(0)
 
     !> Maximum number of items of the recent list that will be saved.
-    !> RECENTF_MAXIMUM_SAVED_ITEMS_UNLIMITED means to save the whole list.
-    !> See the command `recentf_save_list'.  Port of recentf.el
+    !> RECENT_FILES_MAXIMUM_SAVED_ITEMS_UNLIMITED means to save the whole list.
+    !> See the command `recent_files_save_list'.  Port of recentf.el
     !> recentf-max-saved-items.
-    integer, public :: recentf_maximum_saved_items = 25
+    integer, public :: recent_files_maximum_saved_items = 25
 
     !> File to save the recent list into.  Port of recentf.el
     !> recentf-save-file (in the state directory,
     !> `~/.local/state/fortmacs/recentf').
-    character(len=:), allocatable, public :: recentf_save_file
+    character(len=:), allocatable, public :: recent_files_save_file
 
     !> Mode bits of recentf save file, as an integer, or -1.
-    !> If not -1, after writing `recentf_save_file', set its mode bits to
+    !> If not -1, after writing `recent_files_save_file', set its mode bits to
     !> this value.  This is decimal, not octal.  The default is 384 (0600
     !> in octal), which gives R/W access only to the user who owns that
     !> file.  See also the function `set_file_modes'.  Port of recentf.el
     !> recentf-save-file-modes (-1 for none).
-    integer, public :: recentf_save_file_modes = 384
+    integer, public :: recent_files_save_file_modes = 384
 
     !> List of regexps and tests for filenames excluded from the
     !> recent list.  When a filename matches any of the regexps or
@@ -158,17 +161,17 @@ module recent_files_mod
     !> list.  A test is a function that is passed a filename to check
     !> and that must return true to exclude it.  Port of recentf.el
     !> recentf-exclude.
-    type(recentf_check_type), allocatable, public :: recentf_exclude(:)
+    type(recent_files_check_type), allocatable, public :: recent_files_exclude(:)
 
-    !> List of file-name extensions that `recentf' should ignore.
+    !> List of file-name extensions that `recent_files' should ignore.
     !> This has effect only if the function
-    !> `is_recentf_exclude_file_by_extension' is in the list that is the
-    !> value of `recentf_exclude'.  If this option is empty and
-    !> `is_recentf_exclude_file_by_extension' is a member of
-    !> `recentf_exclude', a file will be ignored if its extension is in
+    !> `is_recent_files_exclude_file_by_extension' is in the list that is the
+    !> value of `recent_files_exclude'.  If this option is empty and
+    !> `is_recent_files_exclude_file_by_extension' is a member of
+    !> `recent_files_exclude', a file will be ignored if its extension is in
     !> `completion_ignored_extensions', which see.  Port of recentf.el
     !> recentf-exclude-ignored-extensions.
-    character(len=32), allocatable, public :: recentf_exclude_ignored_extensions(:)
+    character(len=32), allocatable, public :: recent_files_exclude_ignored_extensions(:)
 
     !> List of regexps and tests for filenames kept in the recent
     !> list.  Regexps and tests are tried in the specified order.
@@ -178,23 +181,23 @@ module recent_files_mod
     !> The default is to keep readable files.
     !> A test is a function that is passed a filename to check and
     !> that must return true to keep it.  Port of recentf.el recentf-keep.
-    type(recentf_check_type), allocatable, public :: recentf_keep(:)
+    type(recent_files_check_type), allocatable, public :: recent_files_keep(:)
 
     !> Function to invoke with a filename item of the recentf menu.
     !> The default is to call `find_file' to edit the selected file.  Port
     !> of recentf.el recentf-menu-action.
-    procedure(recentf_action_procedure), pointer, public :: recentf_menu_action => find_file
+    procedure(recent_files_action_procedure), pointer, public :: recent_files_menu_action => find_file
 
-    !> The setting `recentf_auto_cleanup': .false., .true. or a number of
-    !> seconds (R6-39: `recentf_auto_cleanup%seconds = 300'; negative
+    !> The setting `recent_files_auto_cleanup': .false., .true. or a number of
+    !> seconds (R6-39: `recent_files_auto_cleanup%seconds = 300'; negative
     !> when no number is set).  Not a port.
-    type, extends(choice_setting_type), public :: recentf_auto_cleanup_choice_setting_type
+    type, extends(choice_setting_type), public :: recent_files_auto_cleanup_choice_setting_type
         integer :: seconds = -1
     contains
-        procedure :: clear_kinds => recentf_auto_cleanup_clear_kinds
-        procedure :: other_value => recentf_auto_cleanup_other_value
-        procedure :: kind_hint => recentf_auto_cleanup_kind_hint
-    end type recentf_auto_cleanup_choice_setting_type
+        procedure :: clear_kinds => recent_files_auto_cleanup_clear_kinds
+        procedure :: other_value => recent_files_auto_cleanup_other_value
+        procedure :: kind_hint => recent_files_auto_cleanup_kind_hint
+    end type recent_files_auto_cleanup_choice_setting_type
 
     !> Define when to automatically cleanup the recent list.
     !> That is, remove duplicates, non-kept, and excluded files.
@@ -205,70 +208,71 @@ module recent_files_mod
     !>     Cleanup when turning the mode on (default).
     !> - .false.
     !>     Never cleanup the list automatically.
-    !> - A number of seconds (`recentf_auto_cleanup%seconds')
+    !> - A number of seconds (`recent_files_auto_cleanup%seconds')
     !>     Cleanup each time Fortmacs has been idle that number of seconds.
     !>
-    !> See also the command `recentf_cleanup', that can be used to
+    !> See also the command `recent_files_cleanup', that can be used to
     !> manually cleanup the list.  Port of recentf.el recentf-auto-cleanup
     !> (a time string is Deferred).
-    type(recentf_auto_cleanup_choice_setting_type), public :: recentf_auto_cleanup = &
-                                                 recentf_auto_cleanup_choice_setting_type(name="recentf_auto_cleanup", value=.true.)
+    type(recent_files_auto_cleanup_choice_setting_type), public :: recent_files_auto_cleanup = &
+                                                   recent_files_auto_cleanup_choice_setting_type(name="recent_files_auto_cleanup", &
+                                                                                                                 value=.true.)
 
     !> True means to initialize `file_name_history' with the recent list.
     !> If `file_name_history' is not empty, do nothing.  Port of
     !> recentf.el recentf-initialize-file-name-history.
-    logical, public :: recentf_initialize_file_name_history = .true.
+    logical, public :: recent_files_initialize_file_name_history = .true.
 
     !> Functions to post process recent file names.
     !> They are successively passed a file name to transform it.  Port of
     !> recentf.el recentf-filename-handlers (the default holds
     !> `abbreviate_file_name_handler', for `abbreviate_file_name').
-    type(recentf_filename_handler_type), allocatable, public :: recentf_filename_handlers(:)
+    type(recent_files_filename_handler_type), allocatable, public :: recent_files_filename_handlers(:)
 
     !> Whether to show verbose messages about low-level recentf actions.
     !> False means to not show messages related to the recentf machinery.
     !> True means show messages that were printed by default on Emacs <=
     !> 31.1.  Port of recentf.el recentf-show-messages.
-    logical, public :: recentf_show_messages = .true.
+    logical, public :: recent_files_show_messages = .true.
 
     !> The interval between auto saves of recently opened files, in
     !> seconds.  If set to 0, disables timer-based auto saving.  Port of
     !> recentf.el recentf-autosave-interval (0 for none).
-    integer, public :: recentf_autosave_interval = 0
+    integer, public :: recent_files_autosave_interval = 0
 
     !> True if recentf searches and matches should ignore case (false on
     !> GNU/Linux).  Port of recentf.el recentf-case-fold-search.
-    logical, parameter, public :: recentf_case_fold_search = .false.
+    logical, parameter, public :: recent_files_case_fold_search = .false.
 
-    !> Hook run after entering or leaving `recentf_mode'.
-    type(hook_type), target, public :: recentf_mode_hook = hook_type(name="recentf_mode_hook")
+    !> Hook run after entering or leaving `recent_files_mode'.
+    type(hook_type), target, public :: recent_files_mode_hook = hook_type(name="recent_files_mode_hook")
 
-    !> Keymap to use in `recentf_mode'.  Port of recentf.el
+    !> Keymap to use in `recent_files_mode'.  Port of recentf.el
     !> recentf-mode-map.
-    type(handle_type), public :: recentf_mode_map
+    type(handle_type), public :: recent_files_mode_map
 
     !> Timer used to automatically cleanup the recent list.
-    !> See also the option `recentf_auto_cleanup'.  Port of recentf.el
+    !> See also the option `recent_files_auto_cleanup'.  Port of recentf.el
     !> recentf-auto-cleanup-timer.
-    type(handle_type) :: recentf_auto_cleanup_timer
-    type(handle_type) :: recentf_autosave_timer
+    type(handle_type) :: recent_files_auto_cleanup_timer
+    type(handle_type) :: recent_files_autosave_timer
 
 contains
 
-    !> Return true if `recentf_mode' is currently enabled.  Port of
+    !> Return true if `recent_files_mode' is currently enabled.  Port of
     !> recentf.el:recentf-enabled-p.
-    logical function is_recentf_enabled()
-        is_recentf_enabled = exit_fortmacs_hook%member(recentf_save_list_adapter)
-    end function is_recentf_enabled
+    logical function is_recent_files_enabled()
+        is_recent_files_enabled = exit_fortmacs_hook%member(recent_files_save_list_adapter)
+    end function is_recent_files_enabled
 
     !> Whether to ignore FILE_NAME due to its file-name extension.
     !> This test function is meant to be added to the list in
-    !> `recentf_exclude'.  It returns true if FILE_NAME's extension is in
-    !> the list that is the value of `recentf_exclude_ignored_extensions';
+    !> `recent_files_exclude'.  It returns true if FILE_NAME's extension is in
+    !> the list that is the value of `recent_files_exclude_ignored_extensions';
     !> if that variable is empty, this function consults
     !> `completion_ignored_extensions' instead.  Port of
     !> recentf.el:recentf-exclude-file-by-extension-p.
-    logical function is_recentf_exclude_file_by_extension(file_name) result(ignored)
+    logical function is_recent_files_exclude_file_by_extension(file_name) result(ignored)
         character(len=*), intent(in) :: file_name
         character(len=:), allocatable :: extension, dotted
         logical :: found
@@ -279,10 +283,10 @@ contains
         if (.not. found) return
         dotted = "."//extension
 
-        if (allocated(recentf_exclude_ignored_extensions)) then
-            if (size(recentf_exclude_ignored_extensions) > 0) then
-                do k = 1, size(recentf_exclude_ignored_extensions)
-                    if (ends_with(dotted, trim(recentf_exclude_ignored_extensions(k)))) ignored = .true.
+        if (allocated(recent_files_exclude_ignored_extensions)) then
+            if (size(recent_files_exclude_ignored_extensions) > 0) then
+                do k = 1, size(recent_files_exclude_ignored_extensions)
+                    if (ends_with(dotted, trim(recent_files_exclude_ignored_extensions(k)))) ignored = .true.
                 end do
 
                 return
@@ -303,85 +307,85 @@ contains
             ends_with = len(suffix) > 0 .and. len(suffix) <= len(s)
             if (ends_with) ends_with = s(len(s) - len(suffix) + 1:) == suffix
         end function ends_with
-    end function is_recentf_exclude_file_by_extension
+    end function is_recent_files_exclude_file_by_extension
 
     !> Return true if FILE should be kept in the recent list.  Port of
     !> recentf.el:recentf-keep-default-predicate (no remote files).
-    logical function recentf_keep_default_test(file) result(keep)
+    logical function recent_files_keep_default_test(file) result(keep)
         character(len=*), intent(in) :: file
 
         keep = is_file_readable(file)
-    end function recentf_keep_default_test
+    end function recent_files_keep_default_test
 
     !> Return true if strings S1 and S2 have identical contents.  Port of
-    !> recentf.el:recentf-string-equal (`recentf_case_fold_search' is
+    !> recentf.el:recentf-string-equal (`recent_files_case_fold_search' is
     !> false).
-    pure logical function recentf_string_equal(s1, s2) result(same)
+    pure logical function recent_files_string_equal(s1, s2) result(same)
         character(len=*), intent(in) :: s1, s2
 
         same = len(s1) == len(s2)
         if (same) same = s1 == s2
-    end function recentf_string_equal
+    end function recent_files_string_equal
 
-    !> The index in `recentf_files' of ELEMENT, 0 if it is not there.  Port of
+    !> The index in `recent_files_files' of ELEMENT, 0 if it is not there.  Port of
     !> recentf.el:recentf-string-member.
-    integer function recentf_string_member(element) result(k)
+    integer function recent_files_string_member(element) result(k)
         character(len=*), intent(in) :: element
 
-        if (allocated(recentf_files)) then
-            do k = 1, size(recentf_files)
-                if (recentf_string_equal(element, recentf_files(k)%name)) return
+        if (allocated(recent_files_files)) then
+            do k = 1, size(recent_files_files)
+                if (recent_files_string_equal(element, recent_files_files(k)%name)) return
             end do
         end if
 
         k = 0
-    end function recentf_string_member
+    end function recent_files_string_member
 
-    !> Remove element K of `recentf_files'.  Not a port.
+    !> Remove element K of `recent_files_files'.  Not a port.
     subroutine delete_entry(k)
         integer, intent(in) :: k
-        type(recentf_file_type), allocatable :: kept(:)
+        type(recent_files_file_type), allocatable :: kept(:)
         integer :: j
 
-        allocate (kept(size(recentf_files) - 1))
+        allocate (kept(size(recent_files_files) - 1))
 
         do j = 1, size(kept)
-            call move_alloc(recentf_files(merge(j, j + 1, j < k))%name, kept(j)%name)
+            call move_alloc(recent_files_files(merge(j, j + 1, j < k))%name, kept(j)%name)
         end do
 
-        call move_alloc(kept, recentf_files)
+        call move_alloc(kept, recent_files_files)
     end subroutine delete_entry
 
     !> Push FILENAME into the recent list, if it isn't there yet.
     !> If it is there yet, move it at the beginning of the list.  Port of
     !> recentf.el:recentf-push.
-    subroutine recentf_push(filename)
+    subroutine recent_files_push(filename)
         character(len=*), intent(in) :: filename
-        type(recentf_file_type) :: file
+        type(recent_files_file_type) :: file
         integer :: k
 
-        if (.not. allocated(recentf_files)) allocate (recentf_files(0))
-        k = recentf_string_member(filename)
+        if (.not. allocated(recent_files_files)) allocate (recent_files_files(0))
+        k = recent_files_string_member(filename)
         if (k > 0) call delete_entry(k)
         file%name = filename
-        recentf_files = [file, recentf_files]
-    end subroutine recentf_push
+        recent_files_files = [file, recent_files_files]
+    end subroutine recent_files_push
 
-    !> Apply `recentf_filename_handlers' to file NAME.
+    !> Apply `recent_files_filename_handlers' to file NAME.
     !> Return the transformed file name, or NAME if any handler failed.
     !> Port of recentf.el:recentf-apply-filename-handlers.
-    function recentf_apply_filename_handlers(name) result(filename)
+    function recent_files_apply_filename_handlers(name) result(filename)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: filename, next
         type(status_type) :: st
         integer :: k
 
         filename = name
-        if (.not. allocated(recentf_filename_handlers)) return
+        if (.not. allocated(recent_files_filename_handlers)) return
 
-        do k = 1, size(recentf_filename_handlers)
-            if (.not. associated(recentf_filename_handlers(k)%handler)) cycle
-            call recentf_filename_handlers(k)%handler(filename, next, st)
+        do k = 1, size(recent_files_filename_handlers)
+            if (.not. associated(recent_files_filename_handlers(k)%handler)) cycle
+            call recent_files_filename_handlers(k)%handler(filename, next, st)
 
             if (.not. st%ok()) then
                 filename = name
@@ -390,26 +394,26 @@ contains
 
             filename = next
         end do
-    end function recentf_apply_filename_handlers
+    end function recent_files_apply_filename_handlers
 
     !> Convert file NAME to absolute, and canonicalize it.
     !> NAME is first passed to the function `expand_file_name', then to
-    !> `recentf_filename_handlers' to post process it.  Port of
+    !> `recent_files_filename_handlers' to post process it.  Port of
     !> recentf.el:recentf-expand-file-name.
-    function recentf_expand_file_name(name) result(filename)
+    function recent_files_expand_file_name(name) result(filename)
         character(len=*), intent(in) :: name
         character(len=:), allocatable :: filename, expanded
         type(status_type) :: st
 
         call expand_file_name(name, expanded, st)
         if (.not. st%ok()) expanded = name
-        filename = recentf_apply_filename_handlers(expanded)
-    end function recentf_expand_file_name
+        filename = recent_files_apply_filename_handlers(expanded)
+    end function recent_files_expand_file_name
 
     !> Whether FILENAME matches CHECK (a regexp, or a test).
     !> Not a port.
     logical function is_matching(check, filename) result(matches)
-        type(recentf_check_type), intent(in) :: check
+        type(recent_files_check_type), intent(in) :: check
         character(len=*), intent(in) :: filename
         type(status_type) :: st
 
@@ -424,71 +428,71 @@ contains
     end function is_matching
 
     !> Return true if FILENAME should be included in the recent list.
-    !> That is, if it doesn't match any of the `recentf_exclude' checks.
+    !> That is, if it doesn't match any of the `recent_files_exclude' checks.
     !> Port of recentf.el:recentf-include-p.
-    logical function is_recentf_include(filename) result(keepit)
+    logical function is_recent_files_include(filename) result(keepit)
         character(len=*), intent(in) :: filename
         integer :: k
 
         keepit = .true.
-        if (.not. allocated(recentf_exclude)) return
+        if (.not. allocated(recent_files_exclude)) return
 
-        do k = 1, size(recentf_exclude)
-            if (is_matching(recentf_exclude(k), filename)) then
+        do k = 1, size(recent_files_exclude)
+            if (is_matching(recent_files_exclude(k), filename)) then
                 keepit = .false.
                 return
             end if
         end do
-    end function is_recentf_include
+    end function is_recent_files_include
 
     !> Return true if FILENAME should be kept in the recent list.
-    !> That is, if it matches any of the `recentf_keep' checks.  Port of
+    !> That is, if it matches any of the `recent_files_keep' checks.  Port of
     !> recentf.el:recentf-keep-p.
-    logical function is_recentf_keep(filename) result(keepit)
+    logical function is_recent_files_keep(filename) result(keepit)
         character(len=*), intent(in) :: filename
         integer :: k
 
         keepit = .true.
-        if (.not. allocated(recentf_keep)) return
-        if (size(recentf_keep) == 0) return
+        if (.not. allocated(recent_files_keep)) return
+        if (size(recent_files_keep) == 0) return
         keepit = .false.
 
-        do k = 1, size(recentf_keep)
-            if (is_matching(recentf_keep(k), filename)) then
+        do k = 1, size(recent_files_keep)
+            if (is_matching(recent_files_keep(k), filename)) then
                 keepit = .true.
                 return
             end if
         end do
-    end function is_recentf_keep
+    end function is_recent_files_keep
 
     !> Add or move FILENAME at the beginning of the recent list.
-    !> Does nothing if the name satisfies any of the `recentf_exclude'
+    !> Does nothing if the name satisfies any of the `recent_files_exclude'
     !> regexps or tests.  Port of recentf.el:recentf-add-file.
-    subroutine recentf_add_file(filename)
+    subroutine recent_files_add_file(filename)
         character(len=*), intent(in) :: filename
         character(len=:), allocatable :: name
 
-        name = recentf_expand_file_name(filename)
-        if (is_recentf_include(name)) call recentf_push(name)
-    end subroutine recentf_add_file
+        name = recent_files_expand_file_name(filename)
+        if (is_recent_files_include(name)) call recent_files_push(name)
+    end subroutine recent_files_add_file
 
     !> Remove FILENAME from the recent list, if file is not kept.
     !> REMOVED says whether FILENAME has been removed.  Port of
     !> recentf.el:recentf-remove-if-non-kept.
-    subroutine recentf_remove_if_non_kept(filename, removed)
+    subroutine recent_files_remove_if_non_kept(filename, removed)
         character(len=*), intent(in) :: filename
         logical, intent(out), optional :: removed
         integer :: k
 
         if (present(removed)) removed = .false.
-        if (is_recentf_keep(filename)) return
-        k = recentf_string_member(recentf_expand_file_name(filename))
+        if (is_recent_files_keep(filename)) return
+        k = recent_files_string_member(recent_files_expand_file_name(filename))
         if (k == 0) return
         call delete_entry(k)
         if (present(removed)) removed = .true.
-    end subroutine recentf_remove_if_non_kept
+    end subroutine recent_files_remove_if_non_kept
 
-    !> `abbreviate_file_name' as a `recentf_filename_handlers' element.
+    !> `abbreviate_file_name' as a `recent_files_filename_handlers' element.
     !> Not a port.
     subroutine abbreviate_file_name_handler(name, result, status)
         character(len=*), intent(in) :: name
@@ -499,7 +503,7 @@ contains
         result = abbreviate_file_name(name)
     end subroutine abbreviate_file_name_handler
 
-    !> file-truename as a `recentf_filename_handlers' element.  Not a port.
+    !> file-truename as a `recent_files_filename_handlers' element.  Not a port.
     subroutine file_truename_handler(name, result, status)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: result
@@ -510,41 +514,41 @@ contains
 
     !> Automatic cleanup of the recent list.  Port of
     !> recentf.el:recentf-auto-cleanup.
-    subroutine execute_recentf_auto_cleanup()
+    subroutine execute_recent_files_auto_cleanup()
         type(status_type) :: st
 
-        if (is_timer(recentf_auto_cleanup_timer)) call destroy_timer(recentf_auto_cleanup_timer)
-        recentf_auto_cleanup_timer = handle_type()
-        if (.not. minor_modes%recentf_mode%enabled()) return
+        if (is_timer(recent_files_auto_cleanup_timer)) call destroy_timer(recent_files_auto_cleanup_timer)
+        recent_files_auto_cleanup_timer = handle_type()
+        if (.not. minor_modes%recent_files_mode%enabled()) return
 
-        if (recentf_auto_cleanup%seconds > 0) then
-            call execute_with_idle_timer(recentf_auto_cleanup_timer, real(recentf_auto_cleanup%seconds, real64), .true., &
-                                         recentf_cleanup_adapter, st)
-        else if (recentf_auto_cleanup%value) then
-            call recentf_cleanup()
+        if (recent_files_auto_cleanup%seconds > 0) then
+            call execute_with_idle_timer(recent_files_auto_cleanup_timer, real(recent_files_auto_cleanup%seconds, real64), .true., &
+                                         recent_files_cleanup_adapter, st)
+        else if (recent_files_auto_cleanup%value) then
+            call recent_files_cleanup()
         end if
-    end subroutine execute_recentf_auto_cleanup
+    end subroutine execute_recent_files_auto_cleanup
 
-    !> Prompt for FILE in `recentf_files' and visit it.
-    !> Enable `recentf_mode' if it isn't already.  Port of
-    !> recentf.el:recentf-open (also `recentf').
-    recursive subroutine recentf_open(status)
+    !> Prompt for FILE in `recent_files_files' and visit it.
+    !> Enable `recent_files_mode' if it isn't already.  Port of
+    !> recentf.el:recentf-open (also `recent_files').
+    recursive subroutine recent_files_open(status)
         type(status_type), intent(out) :: status
         type(completion_table_type) :: table
         type(value_type), allocatable :: names(:)
         character(len=:), allocatable :: file
         integer :: k
 
-        if (.not. minor_modes%recentf_mode%enabled()) then
-            call minor_modes%recentf_mode%enable(status)
+        if (.not. minor_modes%recent_files_mode%enabled()) then
+            call minor_modes%recent_files_mode%enable(status)
             if (.not. status%ok()) return
         end if
 
-        if (.not. allocated(recentf_files)) allocate (recentf_files(0))
-        allocate (names(size(recentf_files)))
+        if (.not. allocated(recent_files_files)) allocate (recent_files_files(0))
+        allocate (names(size(recent_files_files)))
 
-        do k = 1, size(recentf_files)
-            names(k) = value_type(text=recentf_files(k)%name)
+        do k = 1, size(recent_files_files)
+            names(k) = value_type(text=recent_files_files(k)%name)
         end do
 
         table%kind = TABLE_LIST
@@ -552,15 +556,15 @@ contains
         table%category = "recentf"
         call completing_read("Open recent file: ", table, file, status, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
-        call recentf_menu_action(file, status)
-    end subroutine recentf_open
+        call recent_files_menu_action(file, status)
+    end subroutine recent_files_open
 
     !> Open the Nth most recent file.
     !> Optional argument N must be a valid digit number.  It defaults to 1.
     !> 1 opens the most recent file, 2 the second most recent one, etc..
     !> 0 opens the tenth most recent file.  Port of
     !> recentf.el:recentf-open-most-recent-file.
-    recursive subroutine recentf_open_most_recent_file(n_in, status)
+    recursive subroutine recent_files_open_most_recent_file(n_in, status)
         integer(int64), intent(in) :: n_in
         type(status_type), intent(out) :: status
         integer(int64) :: n
@@ -576,68 +580,68 @@ contains
             return
         end if
 
-        if (.not. allocated(recentf_files)) allocate (recentf_files(0))
+        if (.not. allocated(recent_files_files)) allocate (recent_files_files(0))
 
-        if (n > size(recentf_files)) then
+        if (n > size(recent_files_files)) then
             call set_error(status, GENERIC_ERROR_CODE, "Not that many recent files")
             return
         end if
 
-        call recentf_menu_action(recentf_files(n)%name, status)
-    end subroutine recentf_open_most_recent_file
+        call recent_files_menu_action(recent_files_files(n)%name, status)
+    end subroutine recent_files_open_most_recent_file
 
-    recursive subroutine execute_recentf_open_most_recent_file(status)
+    recursive subroutine execute_recent_files_open_most_recent_file(status)
         type(status_type), intent(out) :: status
 
-        call recentf_open_most_recent_file(prefix_numeric_value(current_prefix_argument), status)
-    end subroutine execute_recentf_open_most_recent_file
+        call recent_files_open_most_recent_file(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_recent_files_open_most_recent_file
 
     !> Insert the name of the file just opened or written into the recent
     !> list.  Port of recentf.el:recentf-track-opened-file.
-    recursive subroutine recentf_track_opened_file(status)
+    recursive subroutine recent_files_track_opened_file(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (allocated(buffers(current)%filename)) call recentf_add_file(buffers(current)%filename)
-    end subroutine recentf_track_opened_file
+        if (allocated(buffers(current)%filename)) call recent_files_add_file(buffers(current)%filename)
+    end subroutine recent_files_track_opened_file
 
     !> Update the recent list when a buffer is closed.
     !> That is, remove a non kept file from the recent list.  Port of
     !> recentf.el:recentf-track-closed-file.
-    recursive subroutine recentf_track_closed_file(status)
+    recursive subroutine recent_files_track_closed_file(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (allocated(buffers(current)%filename)) call recentf_remove_if_non_kept(buffers(current)%filename)
-    end subroutine recentf_track_closed_file
+        if (allocated(buffers(current)%filename)) call recent_files_remove_if_non_kept(buffers(current)%filename)
+    end subroutine recent_files_track_closed_file
 
-    !> Cancel `recentf_autosave_timer', if set.  Port of
+    !> Cancel `recent_files_autosave_timer', if set.  Port of
     !> recentf.el:recentf--cancel-autosave-timer.
-    subroutine recentf_cancel_autosave_timer()
-        if (is_timer(recentf_autosave_timer)) call destroy_timer(recentf_autosave_timer)
-        recentf_autosave_timer = handle_type()
-    end subroutine recentf_cancel_autosave_timer
+    subroutine recent_files_cancel_autosave_timer()
+        if (is_timer(recent_files_autosave_timer)) call destroy_timer(recent_files_autosave_timer)
+        recent_files_autosave_timer = handle_type()
+    end subroutine recent_files_cancel_autosave_timer
 
-    !> Set or cancel an invocation of `recentf_save_list' on a timer.
-    !> If `recentf_mode' is enabled, set the timer, otherwise cancel the
+    !> Set or cancel an invocation of `recent_files_save_list' on a timer.
+    !> If `recent_files_mode' is enabled, set the timer, otherwise cancel the
     !> timer.  Port of recentf.el:recentf--manage-autosave-timer.
-    subroutine recentf_manage_autosave_timer()
+    subroutine recent_files_manage_autosave_timer()
         type(status_type) :: st
 
-        if (minor_modes%recentf_mode%enabled() .and. recentf_autosave_interval > 0 .and. &
-            .not. is_timer(recentf_autosave_timer)) then
-            call execute_with_timer(recentf_autosave_timer, real(recentf_autosave_interval, real64), &
-                                    recentf_save_list_adapter, st, real(recentf_autosave_interval, real64))
+        if (minor_modes%recent_files_mode%enabled() .and. recent_files_autosave_interval > 0 .and. &
+            .not. is_timer(recent_files_autosave_timer)) then
+            call execute_with_timer(recent_files_autosave_timer, real(recent_files_autosave_interval, real64), &
+                                    recent_files_save_list_adapter, st, real(recent_files_autosave_interval, real64))
         else
-            call recentf_cancel_autosave_timer()
+            call recent_files_cancel_autosave_timer()
         end if
-    end subroutine recentf_manage_autosave_timer
+    end subroutine recent_files_manage_autosave_timer
 
     !> Save the recent list.
-    !> Write data into the file specified by `recentf_save_file'.  Port of
+    !> Write data into the file specified by `recent_files_save_file'.  Port of
     !> recentf.el:recentf-save-list (INTERACTIVE says it was called as a
     !> command).
-    recursive subroutine recentf_save_list(interactive)
+    recursive subroutine recent_files_save_list(interactive)
         logical, intent(in), optional :: interactive
         type(namelist_group_type) :: group
         type(namelist_item_type) :: item
@@ -649,24 +653,24 @@ contains
 
         inter = .false.
         if (present(interactive)) inter = interactive
-        if (.not. allocated(recentf_files)) allocate (recentf_files(0))
+        if (.not. allocated(recent_files_files)) allocate (recent_files_files(0))
         group%name = "recentf"
-        n = min(size(recentf_files), max(recentf_maximum_saved_items, 0))
+        n = min(size(recent_files_files), max(recent_files_maximum_saved_items, 0))
 
         if (n == 0) then
-            item = namelist_item_type(name="recentf_files")
+            item = namelist_item_type(name="recent_files_files")
             call item%append_logical(.false.)
         else
-            item = namelist_item_type(name="recentf_files", subscripted=.true., lower=1, upper=n)
+            item = namelist_item_type(name="recent_files_files", subscripted=.true., lower=1, upper=n)
 
             do k = 1, n
-                call item%append_string(recentf_files(k)%name)
+                call item%append_string(recent_files_files(k)%name)
             end do
         end if
 
         call group%append(item)
-        call expand_file_name(recentf_save_file, file, st)
-        if (.not. st%ok()) file = recentf_save_file
+        call expand_file_name(recent_files_save_file, file, st)
+        if (.not. st%ok()) file = recent_files_save_file
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *temp*"), h, st)
         call set_buffer(h, st)
@@ -678,31 +682,31 @@ contains
         call set_buffer(old, st)
         ! (The warning when it fails is Deferred: warnings.el is not ported.)
         if (.not. wst%ok()) return
-        if (inter .or. recentf_show_messages) call message(wrote)
-        if (recentf_save_file_modes >= 0) call set_file_modes(recentf_save_file, recentf_save_file_modes, st)
-    end subroutine recentf_save_list
+        if (inter .or. recent_files_show_messages) call message(wrote)
+        if (recent_files_save_file_modes >= 0) call set_file_modes(recent_files_save_file, recent_files_save_file_modes, st)
+    end subroutine recent_files_save_list
 
     ! Not a port.
-    recursive subroutine recentf_save_list_adapter(status)
+    recursive subroutine recent_files_save_list_adapter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call recentf_save_list()
-    end subroutine recentf_save_list_adapter
+        call recent_files_save_list()
+    end subroutine recent_files_save_list_adapter
 
-    recursive subroutine execute_recentf_save_list(status)
+    recursive subroutine execute_recent_files_save_list(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call recentf_save_list(.true.)
-    end subroutine execute_recentf_save_list
+        call recent_files_save_list(.true.)
+    end subroutine execute_recent_files_save_list
 
     !> Load a previously saved recent list.
-    !> Read data from the file specified by `recentf_save_file'.
-    !> When `recentf_initialize_file_name_history' is true, initialize an
+    !> Read data from the file specified by `recent_files_save_file'.
+    !> When `recent_files_initialize_file_name_history' is true, initialize an
     !> empty `file_name_history' with the recent list.  Port of
     !> recentf.el:recentf-load-list.
-    recursive subroutine recentf_load_list(status)
+    recursive subroutine recent_files_load_list(status)
         type(status_type), intent(out) :: status
         type(namelist_group_type), allocatable :: groups(:)
         type(value_type) :: history
@@ -712,8 +716,8 @@ contains
         integer :: g, k, j
 
         status = status_type()
-        call expand_file_name(recentf_save_file, file, st)
-        if (.not. st%ok()) file = recentf_save_file
+        call expand_file_name(recent_files_save_file, file, st)
+        if (.not. st%ok()) file = recent_files_save_file
         if (.not. is_file_readable(file)) return
         call file_text(file, text, status)
         if (.not. status%ok()) return
@@ -725,38 +729,38 @@ contains
 
             do k = 1, size(groups(g)%items)
                 associate (it => groups(g)%items(k))
-                    if (it%name /= "recentf_files") cycle
-                    if (allocated(recentf_files)) deallocate (recentf_files)
-                    allocate (recentf_files(0))
+                    if (it%name /= "recent_files_files") cycle
+                    if (allocated(recent_files_files)) deallocate (recent_files_files)
+                    allocate (recent_files_files(0))
                     if (.not. it%subscripted) cycle
-                    deallocate (recentf_files)
-                    allocate (recentf_files(size(it%values)))
+                    deallocate (recent_files_files)
+                    allocate (recent_files_files(size(it%values)))
 
                     do j = 1, size(it%values)
-                        recentf_files(j)%name = ""
-                        if (it%values(j)%kind == NAMELIST_STRING) recentf_files(j)%name = it%values(j)%string
+                        recent_files_files(j)%name = ""
+                        if (it%values(j)%kind == NAMELIST_STRING) recent_files_files(j)%name = it%values(j)%string
                     end do
                 end associate
             end do
         end do
 
-        if (.not. recentf_initialize_file_name_history) return
+        if (.not. recent_files_initialize_file_name_history) return
         call symbol_value(value_type(name="file_name_history"), history, st)
         if (allocated(history%a)) return
-        allocate (names(size(recentf_files)))
+        allocate (names(size(recent_files_files)))
 
-        do k = 1, size(recentf_files)
-            names(k) = value_type(text=abbreviate_file_name(recentf_files(k)%name))
+        do k = 1, size(recent_files_files)
+            names(k) = value_type(text=abbreviate_file_name(recent_files_files(k)%name))
         end do
 
         call set(value_type(name="file_name_history"), make_list(names), st)
-    end subroutine recentf_load_list
+    end subroutine recent_files_load_list
 
-    recursive subroutine execute_recentf_load_list(status)
+    recursive subroutine execute_recent_files_load_list(status)
         type(status_type), intent(out) :: status
 
-        call recentf_load_list(status)
-    end subroutine execute_recentf_load_list
+        call recent_files_load_list(status)
+    end subroutine execute_recent_files_load_list
 
     !> The text of FILE.  Not a port.
     recursive subroutine file_text(file, text, status)
@@ -780,31 +784,31 @@ contains
     !> Cleanup the recent list.
     !> That is, remove duplicates, non-kept, and excluded files.  Port of
     !> recentf.el:recentf-cleanup.
-    recursive subroutine recentf_cleanup()
-        type(recentf_file_type), allocatable :: newlist(:)
+    recursive subroutine recent_files_cleanup()
+        type(recent_files_file_type), allocatable :: newlist(:)
         character(len=:), allocatable :: f
         character(len=12) :: buffer
         integer :: n, k, m, j
         logical :: dup
 
         call message("Cleaning up the recentf list...")
-        if (.not. allocated(recentf_files)) allocate (recentf_files(0))
-        allocate (newlist(size(recentf_files)))
+        if (.not. allocated(recent_files_files)) allocate (recent_files_files(0))
+        allocate (newlist(size(recent_files_files)))
         n = 0
         m = 0
 
-        do k = 1, size(recentf_files)
-            f = recentf_expand_file_name(recentf_files(k)%name)
+        do k = 1, size(recent_files_files)
+            f = recent_files_expand_file_name(recent_files_files(k)%name)
             dup = .false.
 
             do j = 1, m
-                if (recentf_string_equal(newlist(j)%name, f)) then
+                if (recent_files_string_equal(newlist(j)%name, f)) then
                     dup = .true.
                     exit
                 end if
             end do
 
-            if (is_recentf_include(f) .and. is_recentf_keep(f) .and. .not. dup) then
+            if (is_recent_files_include(f) .and. is_recent_files_keep(f) .and. .not. dup) then
                 m = m + 1
                 newlist(m)%name = f
             else
@@ -815,108 +819,108 @@ contains
 
         write (buffer, "(i0)") n
         call message("Cleaning up the recentf list...done ("//trim(buffer)//" removed)")
-        if (allocated(recentf_files)) deallocate (recentf_files)
-        allocate (recentf_files(m))
+        if (allocated(recent_files_files)) deallocate (recent_files_files)
+        allocate (recent_files_files(m))
 
         do k = 1, m
-            call move_alloc(newlist(k)%name, recentf_files(k)%name)
+            call move_alloc(newlist(k)%name, recent_files_files(k)%name)
         end do
-    end subroutine recentf_cleanup
+    end subroutine recent_files_cleanup
 
     ! Not a port.
-    recursive subroutine recentf_cleanup_adapter(status)
+    recursive subroutine recent_files_cleanup_adapter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call recentf_cleanup()
-    end subroutine recentf_cleanup_adapter
+        call recent_files_cleanup()
+    end subroutine recent_files_cleanup_adapter
 
     !> Toggle keeping track of opened files (Recentf mode).
     !> This mode maintains a list of recently opened files and makes it
     !> easy to visit them.  The recent files list is automatically saved
     !> across Fortmacs sessions.
     !>
-    !> You can use `recentf_open' to visit files.
+    !> You can use `recent_files_open' to visit files.
     !>
     !> By default, only operations like opening a file, writing a buffer
     !> to a file, and closing a buffer is counted as "operating" on the
     !> file.  Port of recentf.el:recentf-mode (no "Open Recent" menu).
-    recursive subroutine recentf_mode(status)
+    recursive subroutine recent_files_mode(status)
         type(status_type), intent(out) :: status
 
-        call minor_modes%recentf_mode%command(status)
-    end subroutine recentf_mode
+        call minor_modes%recent_files_mode%command(status)
+    end subroutine recent_files_mode
 
     !> The body of Recentf mode.  Port of recentf.el:recentf-mode (its
     !> body).
-    recursive subroutine recentf_mode_body(enable, status)
+    recursive subroutine recent_files_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (enable .and. is_recentf_enabled()) return
+        if (enable .and. is_recent_files_enabled()) return
 
         if (enable) then
-            call recentf_load_list(status)
+            call recent_files_load_list(status)
         else
-            call recentf_save_list(mode_called_interactively)
+            call recent_files_save_list(mode_called_interactively)
         end if
 
-        call execute_recentf_auto_cleanup()
-        call recentf_manage_autosave_timer()
+        call execute_recent_files_auto_cleanup()
+        call recent_files_manage_autosave_timer()
 
         if (enable) then
-            call find_file_hook%prepend(recentf_track_opened_file)
-            call close_buffer_hook%prepend(recentf_track_closed_file)
-            call exit_fortmacs_hook%prepend(recentf_save_list_adapter)
+            call find_file_hook%prepend(recent_files_track_opened_file)
+            call close_buffer_hook%prepend(recent_files_track_closed_file)
+            call exit_fortmacs_hook%prepend(recent_files_save_list_adapter)
         else
-            call find_file_hook%remove(recentf_track_opened_file)
-            call close_buffer_hook%remove(recentf_track_closed_file)
-            call exit_fortmacs_hook%remove(recentf_save_list_adapter)
+            call find_file_hook%remove(recent_files_track_opened_file)
+            call close_buffer_hook%remove(recent_files_track_closed_file)
+            call exit_fortmacs_hook%remove(recent_files_save_list_adapter)
         end if
-    end subroutine recentf_mode_body
+    end subroutine recent_files_mode_body
 
     !> Define the mode, the commands and the options' defaults.  Not a port.
-    subroutine initialize_recentf()
-        if (.not. allocated(recentf_save_file)) recentf_save_file = state_directory()//"recentf"
-        if (.not. allocated(recentf_files)) allocate (recentf_files(0))
-        if (.not. allocated(recentf_exclude)) allocate (recentf_exclude(0))
-        if (.not. allocated(recentf_exclude_ignored_extensions)) allocate (recentf_exclude_ignored_extensions(0))
+    subroutine initialize_recent_files()
+        if (.not. allocated(recent_files_save_file)) recent_files_save_file = state_directory()//"recentf"
+        if (.not. allocated(recent_files_files)) allocate (recent_files_files(0))
+        if (.not. allocated(recent_files_exclude)) allocate (recent_files_exclude(0))
+        if (.not. allocated(recent_files_exclude_ignored_extensions)) allocate (recent_files_exclude_ignored_extensions(0))
 
-        if (.not. allocated(recentf_keep)) then
-            allocate (recentf_keep(1))
-            recentf_keep(1)%test => recentf_keep_default_test
+        if (.not. allocated(recent_files_keep)) then
+            allocate (recent_files_keep(1))
+            recent_files_keep(1)%test => recent_files_keep_default_test
         end if
 
-        if (.not. allocated(recentf_filename_handlers)) then
-            allocate (recentf_filename_handlers(1))
-            recentf_filename_handlers(1)%handler => abbreviate_file_name_handler
+        if (.not. allocated(recent_files_filename_handlers)) then
+            allocate (recent_files_filename_handlers(1))
+            recent_files_filename_handlers(1)%handler => abbreviate_file_name_handler
         end if
 
-        call minor_modes%recentf_mode%define("recentf_mode", global=.true., hook=recentf_mode_hook, keymap=.true., &
-                                             body=recentf_mode_body)
-        recentf_mode_map = minor_modes%recentf_mode%map
-        commands%recentf_mode%execute => recentf_mode
-        commands%recentf_open%execute => recentf_open
-        commands%recentf%execute => recentf_open
-        commands%recentf_open_most_recent_file%execute => execute_recentf_open_most_recent_file
-        commands%recentf_save_list%execute => execute_recentf_save_list
-        commands%recentf_load_list%execute => execute_recentf_load_list
-        commands%recentf_cleanup%execute => recentf_cleanup_adapter
-    end subroutine initialize_recentf
+        call minor_modes%recent_files_mode%define("recent_files_mode", global=.true., hook=recent_files_mode_hook, keymap=.true., &
+                                                  body=recent_files_mode_body)
+        recent_files_mode_map = minor_modes%recent_files_mode%map
+        commands%recent_files_mode%execute => recent_files_mode
+        commands%recent_files_open%execute => recent_files_open
+        commands%recent_files%execute => recent_files_open
+        commands%recent_files_open_most_recent_file%execute => execute_recent_files_open_most_recent_file
+        commands%recent_files_save_list%execute => execute_recent_files_save_list
+        commands%recent_files_load_list%execute => execute_recent_files_load_list
+        commands%recent_files_cleanup%execute => recent_files_cleanup_adapter
+    end subroutine initialize_recent_files
 
-    !> Forget the seconds of `recentf_auto_cleanup', as any assignment to it does.
+    !> Forget the seconds of `recent_files_auto_cleanup', as any assignment to it does.
     !> Not a port.
-    subroutine recentf_auto_cleanup_clear_kinds(self)
-        class(recentf_auto_cleanup_choice_setting_type), intent(inout) :: self
+    subroutine recent_files_auto_cleanup_clear_kinds(self)
+        class(recent_files_auto_cleanup_choice_setting_type), intent(inout) :: self
 
         self%seconds = -1
-    end subroutine recentf_auto_cleanup_clear_kinds
+    end subroutine recent_files_auto_cleanup_clear_kinds
 
-    !> The seconds of `recentf_auto_cleanup' as help shows it (`%seconds = N'); "" when
+    !> The seconds of `recent_files_auto_cleanup' as help shows it (`%seconds = N'); "" when
     !> none is set.  Not a port.
-    function recentf_auto_cleanup_other_value(self) result(text)
-        class(recentf_auto_cleanup_choice_setting_type), intent(in) :: self
+    function recent_files_auto_cleanup_other_value(self) result(text)
+        class(recent_files_auto_cleanup_choice_setting_type), intent(in) :: self
         character(len=:), allocatable :: text
         character(len=32) :: component_text
 
@@ -926,15 +930,15 @@ contains
             write (component_text, '("%seconds = ", i0)') self%seconds
             text = trim(component_text)
         end if
-    end function recentf_auto_cleanup_other_value
+    end function recent_files_auto_cleanup_other_value
 
-    !> The assignment that sets the number or procedure `recentf_auto_cleanup' takes, for the error of a rejected
+    !> The assignment that sets the number or procedure `recent_files_auto_cleanup' takes, for the error of a rejected
     !> value.  Not a port.
-    function recentf_auto_cleanup_kind_hint(self, number) result(text)
-        class(recentf_auto_cleanup_choice_setting_type), intent(in) :: self
+    function recent_files_auto_cleanup_kind_hint(self, number) result(text)
+        class(recent_files_auto_cleanup_choice_setting_type), intent(in) :: self
         character(len=*), intent(in) :: number
         character(len=:), allocatable :: text
 
         text = "a number of seconds is `"//trim(self%name)//"%seconds = "//number//"'"
-    end function recentf_auto_cleanup_kind_hint
+    end function recent_files_auto_cleanup_kind_hint
 end module recent_files_mod

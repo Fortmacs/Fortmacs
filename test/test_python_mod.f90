@@ -111,9 +111,9 @@ contains
                     new_unittest("python-indent-after-block-1", test_python_indent_after_block_1), &
                     new_unittest("python-indent-after-block-2", test_python_indent_after_block_2), &
                     new_unittest("python-indent-after-block-3", test_python_indent_after_block_3), &
-                    new_unittest("python-indent-after-async-block-1", test_python_indent_after_async_block_1), &
-                    new_unittest("python-indent-after-async-block-2", test_python_indent_after_async_block_2), &
-                    new_unittest("python-indent-after-async-block-3", test_python_indent_after_async_block_3), &
+                    new_unittest("python-indent-after-async-block-1", test_python_indent_after_asynchronous_block_1), &
+                    new_unittest("python-indent-after-async-block-2", test_python_indent_after_asynchronous_block_2), &
+                    new_unittest("python-indent-after-async-block-3", test_python_indent_after_asynchronous_block_3), &
                     new_unittest("python-indent-after-backslash-1", test_python_indent_after_backslash_1), &
                     new_unittest("python-indent-after-backslash-2", test_python_indent_after_backslash_2), &
                     new_unittest("python-indent-after-backslash-3", test_python_indent_after_backslash_3), &
@@ -1146,7 +1146,7 @@ contains
         if (.false.) call python_indent_line(st)
     end subroutine test_python_indent_after_block_3
 
-    subroutine test_python_indent_after_async_block_1(error)
+    subroutine test_python_indent_after_asynchronous_block_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -1164,9 +1164,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_after_async_block_1
+    end subroutine test_python_indent_after_asynchronous_block_1
 
-    subroutine test_python_indent_after_async_block_2(error)
+    subroutine test_python_indent_after_asynchronous_block_2(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -1184,9 +1184,9 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_after_async_block_2
+    end subroutine test_python_indent_after_asynchronous_block_2
 
-    subroutine test_python_indent_after_async_block_3(error)
+    subroutine test_python_indent_after_asynchronous_block_3(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: shortage
@@ -1204,7 +1204,7 @@ contains
         if (allocated(error)) return
         if (.false.) shortage = 0
         if (.false.) call python_indent_line(st)
-    end subroutine test_python_indent_after_async_block_3
+    end subroutine test_python_indent_after_asynchronous_block_3
 
     subroutine test_python_indent_after_backslash_1(error)
         type(error_type), allocatable, intent(out) :: error
@@ -5063,7 +5063,7 @@ contains
         call py_buffer(LF &
                        //"class Class:"//LF &
                        //LF &
-                       //"    def __init__(self, a, b):"//LF &
+                       //"    def __initialize__(self, a, b):"//LF &
                        //"        self.a = a"//LF &
                        //"        self.b = b"//LF &
                        //LF &

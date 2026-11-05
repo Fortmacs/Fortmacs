@@ -49,12 +49,12 @@ module face_realization_mod
     use error_mod, only: status_type
     use value_mod, only: value_type, symbols, xsymbol, xstring, xfixnum, list_elements, xhandle, vtag, V_NULL, V_INTEGER, &
                          V_NAME, V_STRING, V_ARRAY, V_WINDOW
-    use glyph_matrices_mod, only: face_type, FACE_TTY_DEFAULT_COLOR, FACE_TTY_DEFAULT_FOREGROUND_COLOR, &
-                                  FACE_TTY_DEFAULT_BACKGROUND_COLOR, FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
+    use glyph_matrices_mod, only: face_type, FACE_TERMINAL_DEFAULT_COLOR, FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR, &
+                                  FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR, FACE_NO_UNDERLINE, FACE_UNDERLINE_SINGLE, &
                                   FACE_UNDERLINE_DOUBLE_LINE, FACE_UNDERLINE_WAVE, FACE_UNDERLINE_DOTS, &
                                   FACE_UNDERLINE_DASHES, DEFAULT_FACE_ID, MODE_LINE_ACTIVE_FACE_ID, MARGIN_FACE_ID, &
-                                  BASIC_FACE_ID_SENTINEL, TTY_CAP_INVERSE, TTY_CAP_UNDERLINE, TTY_CAP_BOLD, &
-                                  TTY_CAP_DIM, TTY_CAP_ITALIC, TTY_CAP_STRIKE_THROUGH, TTY_CAP_UNDERLINE_STYLED
+                                  BASIC_FACE_ID_SENTINEL, TERMINAL_CAP_INVERSE, TERMINAL_CAP_UNDERLINE, TERMINAL_CAP_BOLD, &
+                                  TERMINAL_CAP_DIM, TERMINAL_CAP_ITALIC, TERMINAL_CAP_STRIKE_THROUGH, TERMINAL_CAP_UNDERLINE_STYLED
     use faces_mod, only: face_attributes_type, named_face_type, face_named, faces_equal, face_weight_numeric, &
                          face_slant_numeric, set_frame_display, face_specification_recalc_all, &
                          display_supports_face_attributes_p, default, &
@@ -63,9 +63,9 @@ module face_realization_mod
                          FACE_STYLE_DASHES, FACE_CLASS_COLOR, FACE_CLASS_MONO, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use frame_mod, only: frame_type, selected_frame
-    use terminal_output_mod, only: is_tty_capable
-    use terminal_colors_mod, only: tty_color_description, tty_color_assoc, tty_color_standard_values, &
-                                   tty_defined_color_count, clear_face_cache_hook
+    use terminal_output_mod, only: is_terminal_capable
+    use terminal_colors_mod, only: terminal_color_description, terminal_color_assoc, terminal_color_standard_values, &
+                                   terminal_defined_color_count, clear_face_cache_hook
     use buffer_mod, only: buffers, current, set_buffer_internal
     use text_properties_mod, only: get_text_property, next_single_property_change
     use handle_mod, only: handle_type
@@ -76,7 +76,7 @@ module face_realization_mod
 
     public :: realize_basic_faces, recompute_basic_faces, clear_face_cache, lookup_face, lookup_named_face, &
               merge_faces, face_at_buffer_position, face_at_string_position, merge_face_reference, &
-              is_tty_supports_face_attributes, &
+              is_terminal_supports_face_attributes, &
               initialize_frame_faces, frame_background_mode, is_face_differs_from_default
 
     !> Suppress/allow boldness of faces with inverse default colors.
@@ -85,7 +85,7 @@ module face_realization_mod
     !> default foreground color ignore their boldness.  Port of
     !> xfaces.c:tty_suppress_bold_inverse_default_colors_p (set by
     !> tty-suppress-bold-inverse-default-colors).
-    logical, public :: tty_suppress_bold_inverse_default_colors = .false.
+    logical, public :: terminal_suppress_bold_inverse_default_colors = .false.
 
     !> TEXT_PROPERTY_DISTANCE_LIMIT: how far redisplay looks ahead for the
     !> next face change.
@@ -95,13 +95,13 @@ module face_realization_mod
     !> cycles upstream; a chain this deep is taken as a cycle).
     integer, parameter :: MAXIMUM_MERGE_DEPTH = 32
 
-    !> TTY_SAME_COLOR_THRESHOLD: the largest color_distance at which a
+    !> TERMINAL_SAME_COLOR_THRESHOLD: the largest color_distance at which a
     !> terminal color still counts as the color asked for.
-    integer(int64), parameter :: TTY_SAME_COLOR_THRESHOLD = 10000
+    integer(int64), parameter :: TERMINAL_SAME_COLOR_THRESHOLD = 10000
 
     !> An RGB color with its terminal index (Emacs_Color).
     type :: fortmacs_color_type
-        integer(int64) :: pixel = FACE_TTY_DEFAULT_COLOR
+        integer(int64) :: pixel = FACE_TERMINAL_DEFAULT_COLOR
         integer(int64) :: red = 0, green = 0, blue = 0
     end type fortmacs_color_type
 
@@ -169,13 +169,13 @@ contains
         character(len=*), intent(in) :: term_type
         integer :: class
 
-        display_supports_face_attributes_p => is_tty_supports_face_attributes
+        display_supports_face_attributes_p => is_terminal_supports_face_attributes
         clear_face_cache_hook => clear_face_cache
         ! display-color-p: tty-display-color-p.
         class = FACE_CLASS_MONO
-        if (f%tty%tn_maximum_colors > 0) class = FACE_CLASS_COLOR
+        if (f%terminal%tn_maximum_colors > 0) class = FACE_CLASS_COLOR
         call set_frame_display(class, frame_background_mode(term_type, "unspecified-bg"), &
-                               f%tty%tn_maximum_colors, "tty")
+                               f%terminal%tn_maximum_colors, "tty")
         if (allocated(f%faces)) deallocate (f%faces)
         call face_specification_recalc_all()
         call realize_basic_faces(f)
@@ -284,13 +284,13 @@ contains
             call move_alloc(grown, f%faces)
         end if
 
-        f%faces(k) = realize_tty_face(attributes)
+        f%faces(k) = realize_terminal_face(attributes)
 
         ! On a window-system frame, the font part of
         ! xfaces.c:realize_gui_face (font_load_for_lface); its other parts
-        ! (colors, box, overline, stipple) are Deferred with the GUI, so
+        ! (colors, box, overline, stipple) are Deferred with the GRAPHICAL_USER_INTERFACE, so
         ! the face is otherwise realized as on a terminal.
-        if (associated(f%rif)) then
+        if (associated(f%redisplay_interface)) then
             if (associated(f%font_driver)) f%faces(k)%font = f%font_driver%load_for_lface(attributes)
         end if
 
@@ -299,17 +299,17 @@ contains
 
     !> The terminal face for the fully specified attributes ATTRIBUTES.
     !> Port of xfaces.c:realize_tty_face.
-    function realize_tty_face(attributes) result(face)
+    function realize_terminal_face(attributes) result(face)
         type(face_attributes_type), intent(in) :: attributes
         type(face_type) :: face
         integer(int64) :: tem
 
         face%lface = attributes
-        ! Map face attributes to TTY appearances.
-        if (face_weight_numeric(attributes%weight) > 100) face%tty_bold_p = .true.
-        if (face_slant_numeric(attributes%slant) /= 100) face%tty_italic_p = .true.
-        if (attributes%inverse_video%state /= FACE_NO) face%tty_reverse_p = .true.
-        if (attributes%strike_through%state /= FACE_NO) face%tty_strike_through_p = .true.
+        ! Map face attributes to TERMINAL appearances.
+        if (face_weight_numeric(attributes%weight) > 100) face%terminal_bold_p = .true.
+        if (face_slant_numeric(attributes%slant) /= 100) face%terminal_italic_p = .true.
+        if (attributes%inverse_video%state /= FACE_NO) face%terminal_reverse_p = .true.
+        if (attributes%strike_through%state /= FACE_NO) face%terminal_strike_through_p = .true.
 
         ! Text underline.
         select case (attributes%underline%state)
@@ -321,7 +321,7 @@ contains
             face%underline_color = 0
         case (FACE_COLOR)
             face%underline = FACE_UNDERLINE_SINGLE
-            face%underline_color = map_tty_color(attributes%underline%color, .true.)
+            face%underline_color = map_terminal_color(attributes%underline%color, .true.)
         case (FACE_PLIST)
             ! (:color COLOR :style STYLE).
             face%underline_color = 0
@@ -329,7 +329,7 @@ contains
             if (allocated(attributes%underline%color)) then
                 ! An empty color is foreground-color.
                 if (len(attributes%underline%color) > 0) then
-                    face%underline_color = map_tty_color(attributes%underline%color, .true.)
+                    face%underline_color = map_terminal_color(attributes%underline%color, .true.)
                 end if
             end if
 
@@ -350,28 +350,29 @@ contains
         end select
 
         ! Map color names to color indices.
-        face%foreground = map_tty_color(attributes%foreground, .true.)
-        face%background = map_tty_color(attributes%background, .false.)
+        face%foreground = map_terminal_color(attributes%foreground, .true.)
+        face%background = map_terminal_color(attributes%background, .false.)
 
         ! Swap colors if face is inverse-video.
-        if (face%tty_reverse_p) then
+        if (face%terminal_reverse_p) then
             tem = face%foreground
             face%foreground = face%background
             face%background = tem
         end if
 
-        if (tty_suppress_bold_inverse_default_colors .and. face%tty_bold_p .and. &
-            face%background == FACE_TTY_DEFAULT_FOREGROUND_COLOR .and. face%foreground == FACE_TTY_DEFAULT_BACKGROUND_COLOR) then
-            face%tty_bold_p = .false.
+        if (terminal_suppress_bold_inverse_default_colors .and. face%terminal_bold_p .and. &
+            face%background == FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR .and. face%foreground &
+            == FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR) then
+            face%terminal_bold_p = .false.
         end if
-    end function realize_tty_face
+    end function realize_terminal_face
 
     !> The terminal color index of COLOR, a foreground (or underline)
     !> color if FOREGROUND, else a background color: the index of COLOR in
-    !> `tty_defined_colors', else of the color approximating it
-    !> (load_color with tty_defined_color), else the default foreground or
+    !> `terminal_defined_colors', else of the color approximating it
+    !> (load_color with terminal_defined_color), else the default foreground or
     !> background.  Port of xfaces.c:map_tty_color.
-    integer(int64) function map_tty_color(color, foreground) result(pixel)
+    integer(int64) function map_terminal_color(color, foreground) result(pixel)
         character(len=:), allocatable, intent(in) :: color
         logical, intent(in) :: foreground
         integer(int64) :: default_pixel
@@ -379,79 +380,79 @@ contains
         logical :: found
         type(fortmacs_color_type) :: def
 
-        default_pixel = FACE_TTY_DEFAULT_BACKGROUND_COLOR
-        if (foreground) default_pixel = FACE_TTY_DEFAULT_FOREGROUND_COLOR
+        default_pixel = FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR
+        if (foreground) default_pixel = FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR
         pixel = default_pixel
         if (.not. allocated(color)) return
 
-        if (len(color) > 0 .and. tty_defined_color_count > 0) then
+        if (len(color) > 0 .and. terminal_defined_color_count > 0) then
             ! Associations in tty-defined-color-alist are of the form
             ! (NAME INDEX R G B).  We need the INDEX part.
-            call tty_color_assoc(color, found, index, r, g, b)
+            call terminal_color_assoc(color, found, index, r, g, b)
             if (found) pixel = index
         end if
 
         if (pixel == default_pixel) then
             ! load_color: a color that can't be loaded gives the frame's
             ! foreground or background.
-            if (tty_defined_color(color, def)) pixel = def%pixel
+            if (terminal_defined_color(color, def)) pixel = def%pixel
         end if
-    end function map_tty_color
+    end function map_terminal_color
 
     !> Look up COLOR on the terminal: DEF gets its index (the default
     !> colors for "unspecified-fg" and "unspecified-bg") and RGB values.
     !> Port of xfaces.c:tty_defined_color.
-    logical function tty_defined_color(color, def) result(status)
+    logical function terminal_defined_color(color, def) result(status)
         character(len=*), intent(in) :: color
         type(fortmacs_color_type), intent(out) :: def
 
         status = .true.
 
         if (len(color) > 0) then
-            status = tty_lookup_color(color, def)
+            status = terminal_lookup_color(color, def)
 
-            if (def%pixel == FACE_TTY_DEFAULT_COLOR) then
+            if (def%pixel == FACE_TERMINAL_DEFAULT_COLOR) then
                 if (color == "unspecified-fg") then
-                    def%pixel = FACE_TTY_DEFAULT_FOREGROUND_COLOR
+                    def%pixel = FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR
                 else if (color == "unspecified-bg") then
-                    def%pixel = FACE_TTY_DEFAULT_BACKGROUND_COLOR
+                    def%pixel = FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR
                 end if
             end if
         end if
 
-        if (def%pixel /= FACE_TTY_DEFAULT_COLOR) status = .true.
-    end function tty_defined_color
+        if (def%pixel /= FACE_TERMINAL_DEFAULT_COLOR) status = .true.
+    end function terminal_defined_color
 
-    !> Look up COLOR with tty-color-desc: TTY_COLOR gets the terminal
+    !> Look up COLOR with tty-color-desc: TERMINAL_COLOR gets the terminal
     !> color for it, STANDARD_COLOR (if present) its standard RGB values.
     !> Value is false if COLOR is not a valid color.  Port of
     !> xfaces.c:tty_lookup_color.
-    logical function tty_lookup_color(color, tty_color, standard_color) result(ok)
+    logical function terminal_lookup_color(color, terminal_color, standard_color) result(ok)
         character(len=*), intent(in) :: color
-        type(fortmacs_color_type), intent(inout) :: tty_color
+        type(fortmacs_color_type), intent(inout) :: terminal_color
         type(fortmacs_color_type), intent(out), optional :: standard_color
         character(len=:), allocatable :: name
         integer :: index, r, g, b
         logical :: found, has_rgb
 
         ok = .false.
-        call tty_color_description(color, found, index, r, g, b, name, has_rgb)
+        call terminal_color_description(color, found, index, r, g, b, name, has_rgb)
 
         if (found) then
-            tty_color%pixel = index
+            terminal_color%pixel = index
             if (.not. has_rgb) return
-            tty_color%red = r
-            tty_color%green = g
-            tty_color%blue = b
+            terminal_color%red = r
+            terminal_color%green = g
+            terminal_color%blue = b
 
             if (present(standard_color)) then
-                ! Default STANDARD_COLOR to the same as TTY_COLOR.
-                standard_color = tty_color
+                ! Default STANDARD_COLOR to the same as TERMINAL_COLOR.
+                standard_color = terminal_color
 
                 ! If the descriptor isn't exactly COLOR, look up STANDARD_COLOR
                 ! separately.
                 if (.not. (name == color .and. len(name) == len(color))) then
-                    call tty_color_standard_values(color, found, r, g, b)
+                    call terminal_color_standard_values(color, found, r, g, b)
                     if (.not. found) return
                     standard_color%red = r
                     standard_color%green = g
@@ -460,11 +461,11 @@ contains
             end if
 
             ok = .true.
-        else if (tty_defined_color_count == 0) then
+        else if (terminal_defined_color_count == 0) then
             ! Called before the colors are set up: not a failure.
             ok = .true.
         end if
-    end function tty_lookup_color
+    end function terminal_lookup_color
 
     !> The distance between colors X and Y ("Colour metric" by Thiadmer
     !> Riemersma).  Port of xfaces.c:color_distance.
@@ -1227,10 +1228,10 @@ contains
     !> close in spirit to what the attributes specify.  Port of
     !> xfaces.c:tty_supports_face_attributes_p (with the terminal part of
     !> Fdisplay_supports_face_attributes_p).
-    logical function is_tty_supports_face_attributes(attributes) result(supports)
+    logical function is_terminal_supports_face_attributes(attributes) result(supports)
         type(face_attributes_type), intent(in) :: attributes
         type(face_attributes_type) :: def_attributes
-        type(fortmacs_color_type) :: foreground_tty_color, foreground_standard_color, background_tty_color, &
+        type(fortmacs_color_type) :: foreground_terminal_color, foreground_standard_color, background_terminal_color, &
                                      background_standard_color, def_color
         integer :: weight, def_weight, slant, def_slant, test_caps
         integer(int64) :: delta_delta
@@ -1256,10 +1257,10 @@ contains
                 if (weight > 100) then
                     ! Same as default?
                     if (def_weight > 100) return
-                    test_caps = TTY_CAP_BOLD
+                    test_caps = TERMINAL_CAP_BOLD
                 else if (weight < 100) then
                     if (def_weight < 100) return
-                    test_caps = TTY_CAP_DIM
+                    test_caps = TERMINAL_CAP_DIM
                 else if (def_weight == 100) then
                     return
                 end if
@@ -1273,51 +1274,51 @@ contains
             if (slant >= 0) then
                 def_slant = face_slant_numeric(def_attributes%slant)
                 if (slant == 100 .or. slant == def_slant) return
-                test_caps = ior(test_caps, TTY_CAP_ITALIC)
+                test_caps = ior(test_caps, TERMINAL_CAP_ITALIC)
             end if
         end if
 
         ! Underlining.
         if (attributes%underline%state /= FACE_UNSPECIFIED) then
             if (attributes%underline%state == FACE_COLOR) then
-                test_caps = ior(test_caps, TTY_CAP_UNDERLINE_STYLED)
+                test_caps = ior(test_caps, TERMINAL_CAP_UNDERLINE_STYLED)
             else if (attributes%underline%state == FACE_PLIST) then
                 ! (:style STYLE ...): an unknown style is unsupported.
                 if (attributes%underline%style < FACE_STYLE_LINE .or. attributes%underline%style > FACE_STYLE_DASHES) then
                     return
                 end if
 
-                test_caps = ior(test_caps, TTY_CAP_UNDERLINE_STYLED)
+                test_caps = ior(test_caps, TERMINAL_CAP_UNDERLINE_STYLED)
             else if (attributes%underline%state == def_attributes%underline%state) then
                 return
             else
-                test_caps = ior(test_caps, TTY_CAP_UNDERLINE)
+                test_caps = ior(test_caps, TERMINAL_CAP_UNDERLINE)
             end if
         end if
 
         ! Inverse video.
         if (attributes%inverse_video%state /= FACE_UNSPECIFIED) then
             if (attributes%inverse_video%state == def_attributes%inverse_video%state) return
-            test_caps = ior(test_caps, TTY_CAP_INVERSE)
+            test_caps = ior(test_caps, TERMINAL_CAP_INVERSE)
         end if
 
         ! Strike through.
         if (attributes%strike_through%state /= FACE_UNSPECIFIED) then
             if (attributes%strike_through%state == def_attributes%strike_through%state) return
-            test_caps = ior(test_caps, TTY_CAP_STRIKE_THROUGH)
+            test_caps = ior(test_caps, TERMINAL_CAP_STRIKE_THROUGH)
         end if
 
         ! Check if foreground color is close enough.
         if (allocated(attributes%foreground)) then
             if (same_color_name(attributes%foreground, def_attributes%foreground)) return
-            if (.not. tty_lookup_color(attributes%foreground, foreground_tty_color, foreground_standard_color)) return
+            if (.not. terminal_lookup_color(attributes%foreground, foreground_terminal_color, foreground_standard_color)) return
             ! Displayed color is too different?
-            if (color_distance(foreground_tty_color, foreground_standard_color) > TTY_SAME_COLOR_THRESHOLD) return
+            if (color_distance(foreground_terminal_color, foreground_standard_color) > TERMINAL_SAME_COLOR_THRESHOLD) return
 
             ! Make sure the color is really different from the default.
             if (allocated(def_attributes%foreground)) then
-                if (tty_lookup_color(def_attributes%foreground, def_color)) then
-                    if (color_distance(foreground_tty_color, def_color) <= TTY_SAME_COLOR_THRESHOLD) return
+                if (terminal_lookup_color(def_attributes%foreground, def_color)) then
+                    if (color_distance(foreground_terminal_color, def_color) <= TERMINAL_SAME_COLOR_THRESHOLD) return
                 end if
             end if
         end if
@@ -1325,14 +1326,14 @@ contains
         ! Check if background color is close enough.
         if (allocated(attributes%background)) then
             if (same_color_name(attributes%background, def_attributes%background)) return
-            if (.not. tty_lookup_color(attributes%background, background_tty_color, background_standard_color)) return
-            if (color_distance(background_tty_color, background_standard_color) > TTY_SAME_COLOR_THRESHOLD) return
+            if (.not. terminal_lookup_color(attributes%background, background_terminal_color, background_standard_color)) return
+            if (color_distance(background_terminal_color, background_standard_color) > TERMINAL_SAME_COLOR_THRESHOLD) return
 
             if (allocated(def_attributes%background)) then
                 def_color = fortmacs_color_type()
 
-                if (tty_lookup_color(def_attributes%background, def_color)) then
-                    if (color_distance(background_tty_color, def_color) <= TTY_SAME_COLOR_THRESHOLD) return
+                if (terminal_lookup_color(def_attributes%background, def_color)) then
+                    if (color_distance(background_terminal_color, def_color) <= TERMINAL_SAME_COLOR_THRESHOLD) return
                 end if
             end if
         end if
@@ -1341,13 +1342,14 @@ contains
         ! distance between them is OK.
         if (allocated(attributes%foreground) .and. allocated(attributes%background)) then
             delta_delta = color_distance(foreground_standard_color, &
-                                         background_standard_color) - color_distance(foreground_tty_color, background_tty_color)
-            if (delta_delta > TTY_SAME_COLOR_THRESHOLD .or. delta_delta < -TTY_SAME_COLOR_THRESHOLD) return
+                                         background_standard_color) - color_distance(foreground_terminal_color, &
+                                                                                     background_terminal_color)
+            if (delta_delta > TERMINAL_SAME_COLOR_THRESHOLD .or. delta_delta < -TERMINAL_SAME_COLOR_THRESHOLD) return
         end if
 
         ! See if the capabilities we selected above are supported, with
         ! the given colors.
-        supports = is_tty_capable(selected_frame%tty, test_caps)
+        supports = is_terminal_capable(selected_frame%terminal, test_caps)
 
     contains
 
@@ -1359,7 +1361,7 @@ contains
             same_color_name = .false.
             if (allocated(b)) same_color_name = a == b .and. len(a) == len(b)
         end function same_color_name
-    end function is_tty_supports_face_attributes
+    end function is_terminal_supports_face_attributes
 
     !> Return true if the face NAME displays differently from the default
     !> face on the selected frame.  Port of
@@ -1467,10 +1469,10 @@ contains
         logical function supported(a)
             type(face_attributes_type), intent(in) :: a
 
-            if (associated(selected_frame%rif)) then
+            if (associated(selected_frame%redisplay_interface)) then
                 supported = .true.
             else
-                supported = is_tty_supports_face_attributes(a)
+                supported = is_terminal_supports_face_attributes(a)
             end if
 
             differs = supported

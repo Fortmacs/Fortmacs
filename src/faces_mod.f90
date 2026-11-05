@@ -49,7 +49,7 @@
 module faces_mod
     use, intrinsic :: iso_fortran_env, only: real64
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
-    use terminal_colors_mod, only: tty_color_values
+    use terminal_colors_mod, only: terminal_color_values
     implicit none(type, external)
     private
 
@@ -469,15 +469,15 @@ module faces_mod
     !> Face for the name in `read_multiple_choice' output.  Port of
     !> faces.el:read-multiple-choice-face.
     type(named_face_type), target, public :: read_multiple_choice_face
-    !> Face for displaying enabled items in TTY menus.  Port of
+    !> Face for displaying enabled items in TERMINAL menus.  Port of
     !> faces.el:tty-menu-enabled-face.
-    type(named_face_type), target, public :: tty_menu_enabled_face
-    !> Face for displaying disabled items in TTY menus.  Port of
+    type(named_face_type), target, public :: terminal_menu_enabled_face
+    !> Face for displaying disabled items in TERMINAL menus.  Port of
     !> faces.el:tty-menu-disabled-face.
-    type(named_face_type), target, public :: tty_menu_disabled_face
-    !> Face for displaying the currently selected item in TTY menus.
+    type(named_face_type), target, public :: terminal_menu_disabled_face
+    !> Face for displaying the currently selected item in TERMINAL menus.
     !> Port of faces.el:tty-menu-selected-face.
-    type(named_face_type), target, public :: tty_menu_selected_face
+    type(named_face_type), target, public :: terminal_menu_selected_face
     !> Face used for a matching paren.  Port of faces.el:show-paren-match.
     type(named_face_type), target, public :: show_parenthesis_match
     !> Face used for a matching paren when highlighting the whole
@@ -716,7 +716,7 @@ contains
     !> FACE_STYLE_WAVE, FACE_STYLE_DOTS and FACE_STYLE_DASHES; POSITION
     !> true draws the line at the descent of the text instead of the
     !> baseline (a number of pixels above the descent is Deferred with
-    !> the GUI).  On a terminal, the styles other than a line are drawn
+    !> the GRAPHICAL_USER_INTERFACE).  On a terminal, the styles other than a line are drawn
     !> where the terminal supports them (the Smulx or Su capability) and
     !> as a line otherwise.  The property-list form of xfaces.c's
     !> `:underline' attribute.  Not a port.
@@ -1444,20 +1444,20 @@ contains
         call read_multiple_choice_face%specification_entry(display_when(), &
                                                            face_attributes(inherits=[character(len=16) :: "help_key_binding", &
                                                                                      "underline"], weight="bold"))
-        call tty_menu_enabled_face%define("tty_menu_enabled_face", "Face for displaying enabled items in TTY menus.")
-        call tty_menu_enabled_face%specification_entry(display_when(classes=[C]), &
-                                                       face_attributes(foreground="yellow", background="blue", weight="bold"))
-        call tty_menu_enabled_face%specification_entry(display_when(), face_attributes(weight="bold"))
-        call tty_menu_disabled_face%define("tty_menu_disabled_face", "Face for displaying disabled items in TTY menus.")
-        call tty_menu_disabled_face%specification_entry(display_when(classes=[C], minimum_colors=16), &
-                                                        face_attributes(foreground="lightgray", background="blue"))
-        call tty_menu_disabled_face%specification_entry(display_when(classes=[C]), &
-                                                        face_attributes(foreground="white", background="blue"))
-        call tty_menu_disabled_face%specification_entry(display_when(), face_attributes(inherit="shadow"))
-        call tty_menu_selected_face%define("tty_menu_selected_face", &
-                                           "Face for displaying the currently selected item in TTY menus.")
-        call tty_menu_selected_face%specification_entry(display_when(classes=[C]), face_attributes(background="red"))
-        call tty_menu_selected_face%specification_entry(display_when(), face_attributes(inverse_video=.true.))
+        call terminal_menu_enabled_face%define("terminal_menu_enabled_face", "Face for displaying enabled items in TTY menus.")
+        call terminal_menu_enabled_face%specification_entry(display_when(classes=[C]), &
+                                                            face_attributes(foreground="yellow", background="blue", weight="bold"))
+        call terminal_menu_enabled_face%specification_entry(display_when(), face_attributes(weight="bold"))
+        call terminal_menu_disabled_face%define("terminal_menu_disabled_face", "Face for displaying disabled items in TTY menus.")
+        call terminal_menu_disabled_face%specification_entry(display_when(classes=[C], minimum_colors=16), &
+                                                             face_attributes(foreground="lightgray", background="blue"))
+        call terminal_menu_disabled_face%specification_entry(display_when(classes=[C]), &
+                                                             face_attributes(foreground="white", background="blue"))
+        call terminal_menu_disabled_face%specification_entry(display_when(), face_attributes(inherit="shadow"))
+        call terminal_menu_selected_face%define("terminal_menu_selected_face", &
+                                                "Face for displaying the currently selected item in TTY menus.")
+        call terminal_menu_selected_face%specification_entry(display_when(classes=[C]), face_attributes(background="red"))
+        call terminal_menu_selected_face%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call show_parenthesis_match%define("show_parenthesis_match", "Face used for a matching paren.")
         call show_parenthesis_match%specification_entry(display_when(classes=[C], backgrounds=[LIGHT]), &
                                                         face_attributes(background="turquoise"))
@@ -1539,7 +1539,7 @@ contains
     !> display, the values are those of the supported color that is its
     !> best approximation.  `found' is false when the color is not defined
     !> (or is "unspecified-fg" or "unspecified-bg").  Port of
-    !> faces.el:color-values (a character terminal's `tty_color_values').
+    !> faces.el:color-values (a character terminal's `terminal_color_values').
     subroutine color_values(color, found, r, g, b)
         character(len=*), intent(in) :: color
         logical, intent(out) :: found
@@ -1550,7 +1550,7 @@ contains
         b = 0
         found = .false.
         if (color == "unspecified-fg" .or. color == "unspecified-bg") return
-        call tty_color_values(color, found, r, g, b)
+        call terminal_color_values(color, found, r, g, b)
     end subroutine color_values
 
     !> Whether RGB is more readable against white than black.

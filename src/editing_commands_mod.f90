@@ -31,7 +31,7 @@ module editing_commands_mod
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, &
                          BEGINNING_OF_BUFFER_CODE, &
                          END_OF_BUFFER_CODE
-    use buffer_mod, only: buffers, current, BUF_BYTES_MAXIMUM, buf_fetch_byte, &
+    use buffer_mod, only: buffers, current, BUFFER_BYTES_MAXIMUM, buffer_fetch_byte, &
                           temporary_set_point_both, auto_fill_function
     use search_mod, only: scan_newline_from_point
     use insert_delete_mod, only: delete_range
@@ -47,7 +47,7 @@ module editing_commands_mod
     use display_update_mod, only: ding
     use syntax_mod, only: character_syntax_class, SWORD
     use editing_functions_mod, only: preceding_character
-    use abbreviation_mod, only: is_abbrev_mode, expand_abbrev, abbrev_reference_type, abbrev_no_self_insert
+    use abbreviation_mod, only: is_abbreviation_mode, expand_abbreviation, abbreviation_reference_type, abbreviation_no_self_insert
     implicit none(type, external)
     private
 
@@ -165,7 +165,7 @@ contains
         excessive = .false.
 
         if (present(n)) then
-            count = max(-BUF_BYTES_MAXIMUM, min(n, BUF_BYTES_MAXIMUM))
+            count = max(-BUFFER_BYTES_MAXIMUM, min(n, BUFFER_BYTES_MAXIMUM))
             excessive = count /= n
         end if
 
@@ -181,7 +181,7 @@ contains
             else
                 associate (b => buffers(current))
                     if (b%beginning_of_accessible_portion < b%end_of_accessible_portion .and. b%point /= original_point) then
-                        if (buf_fetch_byte(b, b%point_byte - 1) /= 10) shortage = shortage - 1
+                        if (buffer_fetch_byte(b, b%point_byte - 1) /= 10) shortage = shortage - 1
                     end if
                 end associate
             end if
@@ -289,23 +289,23 @@ contains
         type(status_type), intent(out) :: status
         logical :: filled
         integer(int64) :: modiff
-        type(abbrev_reference_type) :: symbol
+        type(abbreviation_reference_type) :: symbol
 
         hairy = 0
         status = status_type()
 
-        if (is_abbrev_mode()) then
+        if (is_abbreviation_mode()) then
             if (character_syntax_class(int(c)) /= SWORD .and. .not. buffers(current)%read_only .and. &
                 buffers(current)%point > buffers(current)%beginning_of_accessible_portion) then
                 if (character_syntax_class(int(preceding_character())) == SWORD) then
                     modiff = buffers(current)%text%modiff
-                    call expand_abbrev(status, symbol)
+                    call expand_abbreviation(status, symbol)
                     if (.not. status%ok()) return
 
                     ! If we expanded an abbrev which has a hook,
                     ! and the hook has a `no_self_insert' property,
                     ! return right away--don't really self-insert.
-                    if (abbrev_no_self_insert(symbol)) then
+                    if (abbreviation_no_self_insert(symbol)) then
                         hairy = 1
                         return
                     end if
@@ -469,7 +469,7 @@ contains
     !> Insert the character you type.
     !> Whichever character C you type to run this command is inserted.
     !> The numeric prefix argument N says how many times to repeat the insertion.
-    !> Before insertion, `expand_abbrev' is executed if the inserted character does
+    !> Before insertion, `expand_abbreviation' is executed if the inserted character does
     !> not have word syntax and the previous character in the buffer does.
     !> After insertion, `internal_auto_fill' is called if
     !> `auto_fill_function' is true and if the `auto_fill_characters' table has

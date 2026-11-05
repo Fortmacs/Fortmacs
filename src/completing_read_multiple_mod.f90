@@ -50,58 +50,59 @@ module completing_read_multiple_mod
     implicit none(type, external)
     private
 
-    public :: completing_read_multiple, crm_complete, crm_complete_word, crm_complete_and_exit, crm_completion_help, &
-              initialize_crm
+    public :: completing_read_multiple, completing_read_multiple_complete, completing_read_multiple_complete_word, &
+              completing_read_multiple_complete_and_exit, completing_read_multiple_completion_help, &
+              initialize_completing_read_multiple
 
     !> Separator regexp used for separating strings in
     !> `completing_read_multiple'.  It should be a regexp that does not
     !> match the list of completion candidates.  Its `separator' and
-    !> `description' (`crm_separator_string' and
-    !> `crm_separator_description') are shown as part of the prompt.  See
-    !> the user option `crm_prompt'.  Port of crm.el crm-separator.
-    character(len=:), allocatable, public :: crm_separator
+    !> `description' (`completing_read_multiple_separator_string' and
+    !> `completing_read_multiple_separator_description') are shown as part of the prompt.  See
+    !> the user option `completing_read_multiple_prompt'.  Port of crm.el crm-separator.
+    character(len=:), allocatable, public :: completing_read_multiple_separator
 
-    !> The `separator' property of `crm_separator': the separator shown in
+    !> The `separator' property of `completing_read_multiple_separator': the separator shown in
     !> the prompt.
-    character(len=:), allocatable, public :: crm_separator_string
+    character(len=:), allocatable, public :: completing_read_multiple_separator_string
 
-    !> The `description' property of `crm_separator'.
-    character(len=:), allocatable, public :: crm_separator_description
+    !> The `description' property of `completing_read_multiple_separator'.
+    character(len=:), allocatable, public :: completing_read_multiple_separator_description
 
     !> Prompt format for `completing_read_multiple'.
     !> The prompt is formatted with the keys %d, %s and %p standing for the
     !> separator description, the separator itself and the original prompt
     !> respectively.  Port of crm.el crm-prompt.
-    character(len=:), allocatable, public :: crm_prompt
+    character(len=:), allocatable, public :: completing_read_multiple_prompt
 
     !> Local keymap for minibuffer multiple input with completion.
     !> Analog of `minibuffer_local_completion_map'.  Port of crm.el
     !> crm-local-completion-map.
-    type(handle_type), public :: crm_local_completion_map
+    type(handle_type), public :: completing_read_multiple_local_completion_map
 
     !> Local keymap for minibuffer multiple input with exact match
     !> completion.  Analog of `minibuffer_local_must_match_map' for crm.
     !> Port of crm.el crm-local-must-match-map.
-    type(handle_type), public :: crm_local_must_match_map
+    type(handle_type), public :: completing_read_multiple_local_must_match_map
 
     ! crm-completion-table: the table of the current
     ! `completing_read_multiple'.
-    type(completion_table_type) :: crm_completion_table
+    type(completion_table_type) :: completing_read_multiple_completion_table
 
     ! The keymap `completing_read_multiple' uses, and the setup function
     ! it runs inside.
-    type(handle_type) :: crm_map
-    procedure(minibuffer_setup_procedure), pointer :: crm_outer_setup => null()
+    type(handle_type) :: completing_read_multiple_map
+    procedure(minibuffer_setup_procedure), pointer :: completing_read_multiple_outer_setup => null()
 
-    ! Whether `crm_complete_and_exit' should exit.
+    ! Whether `completing_read_multiple_complete_and_exit' should exit.
     logical :: doexit = .false.
 
 contains
 
     ! Function used by `completing_read_multiple' to compute completion
     ! values: the element after the last separator of STRING, completed
-    ! with `crm_completion_table'.  Port of crm.el:crm--collection-fn.
-    recursive subroutine crm_collection_fn(string, action, result, status, test, suffix)
+    ! with `completing_read_multiple_completion_table'.  Port of crm.el:crm--collection-fn.
+    recursive subroutine completing_read_multiple_collection_fn(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
@@ -115,15 +116,16 @@ contains
         beginning = 1
 
         do
-            m = string_match(crm_separator, string, st, beginning)
+            m = string_match(completing_read_multiple_separator, string, st, beginning)
             if (.not. st%ok() .or. m <= 0) exit
             beginning = match_end(0, st)
         end do
 
         off = string_index_to_offset(string, beginning)
-        call completion_table_with_context(string(1:off), crm_completion_table, string(off + 1:), action, result, &
+        call completion_table_with_context(string(1:off), completing_read_multiple_completion_table, string(off + 1:), action, &
+                                           result, &
                                            status, test, suffix)
-    end subroutine crm_collection_fn
+    end subroutine completing_read_multiple_collection_fn
 
     ! Parse the minibuffer to find the current element: its boundaries
     ! START and END.  Port of crm.el:crm--current-element.
@@ -134,7 +136,7 @@ contains
 
         beginning_of_buffer = minibuffer_prompt_end()
         saved = point()
-        call regular_expression_search_backward(crm_separator, found, st, bound=beginning_of_buffer, noerror=1)
+        call regular_expression_search_backward(completing_read_multiple_separator, found, st, bound=beginning_of_buffer, noerror=1)
 
         if (st%ok() .and. found /= 0) then
             start = match_end(0, st)
@@ -143,7 +145,7 @@ contains
         end if
 
         call goto_character(saved)
-        call regular_expression_search_forward(crm_separator, found, st, noerror=1)
+        call regular_expression_search_forward(completing_read_multiple_separator, found, st, noerror=1)
 
         if (st%ok() .and. found /= 0) then
             end = match_beginning(0, st)
@@ -156,14 +158,14 @@ contains
 
     !> Display a list of possible completions of the current minibuffer
     !> element.  Port of crm.el:crm-completion-help.
-    recursive subroutine crm_completion_help(status)
+    recursive subroutine completing_read_multiple_completion_help(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
 
         status = status_type()
         call current_element(beginning, end)
         call minibuffer_completion_help(beginning, end)
-    end subroutine crm_completion_help
+    end subroutine completing_read_multiple_completion_help
 
     !> Complete the current element.
     !> If no characters can be completed, display a list of possible
@@ -171,7 +173,7 @@ contains
     !>
     !> Return true if the current element is now a valid match; otherwise
     !> return false.  Port of crm.el:crm-complete.
-    recursive subroutine crm_complete(status)
+    recursive subroutine completing_read_multiple_complete(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
         logical :: valid
@@ -184,12 +186,12 @@ contains
         else
             valid = completion_in_region(beginning, end, minibuffer_completion_table)
         end if
-    end subroutine crm_complete
+    end subroutine completing_read_multiple_complete
 
     !> Complete the current element at most a single word.
     !> Like `minibuffer_complete_word' but for `completing_read_multiple'.
     !> Port of crm.el:crm-complete-word.
-    recursive subroutine crm_complete_word(status)
+    recursive subroutine completing_read_multiple_complete_word(status)
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
         integer :: bits
@@ -198,14 +200,14 @@ contains
         call current_element(beginning, end)
         ! (completion-in-region--single-word)
         bits = completion_do_completion(beginning, end, .true., .false.)
-    end subroutine crm_complete_word
+    end subroutine completing_read_multiple_complete_word
 
     !> Exit if all of the minibuffer elements are valid completions.
     !> Otherwise, try to complete the minibuffer contents.
     !> This behaves like `minibuffer_complete_and_exit' (which see),
     !> adjusted for the presence of multiple elements.  Port of
     !> crm.el:crm-complete-and-exit (NO_EXIT is the prefix argument).
-    recursive subroutine crm_complete_and_exit(status)
+    recursive subroutine completing_read_multiple_complete_and_exit(status)
         use execute_interactively_mod, only: current_prefix_argument
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end, m, endpos
@@ -230,14 +232,14 @@ contains
             if (.not. status%ok()) return
             more = .not. is_end_of_buffer()
             if (.not. more) exit
-            if (.not. looking_at(crm_separator, st)) exit
+            if (.not. looking_at(completing_read_multiple_separator, st)) exit
             ! Skip to the next element.
             m = match_end(0, st)
             call goto_character(m)
         end do
 
         if (doexit) call exit_minibuffer(status)
-    end subroutine crm_complete_and_exit
+    end subroutine completing_read_multiple_complete_and_exit
 
     ! Not a port.
     recursive subroutine set_doexit(status)
@@ -248,21 +250,21 @@ contains
     end subroutine set_doexit
 
     ! The minibuffer setup of `completing_read_multiple'.  Not a port.
-    subroutine crm_setup()
+    subroutine completing_read_multiple_setup()
         procedure(minibuffer_setup_procedure), pointer :: outer
         type(status_type) :: st
 
-        call use_local_map(crm_map, st)
-        outer => crm_outer_setup
-        crm_outer_setup => null()
+        call use_local_map(completing_read_multiple_map, st)
+        outer => completing_read_multiple_outer_setup
+        completing_read_multiple_outer_setup => null()
         if (associated(outer)) call outer()
-    end subroutine crm_setup
+    end subroutine completing_read_multiple_setup
 
     !> Read multiple strings in the minibuffer, with completion.
     !> The arguments are the same as those of `completing_read'.
-    !> \<crm_local_completion_map>
+    !> \<completing_read_multiple_local_completion_map>
     !> Input multiple strings by separating each one with a string that
-    !> matches the regexp `crm_separator'.  For example, if the separator
+    !> matches the regexp `completing_read_multiple_separator'.  For example, if the separator
     !> regexp is ",", entering "alice,bob,eve" specifies the strings
     !> "alice", "bob", and "eve".
     !>
@@ -292,25 +294,25 @@ contains
 
         match = REQUIRE_MATCH_NO
         if (present(require_match)) match = require_match
-        saved_table = crm_completion_table
-        saved_map = crm_map
+        saved_table = completing_read_multiple_completion_table
+        saved_map = completing_read_multiple_map
 
         if (match /= REQUIRE_MATCH_NO) then
-            crm_map = crm_local_must_match_map
+            completing_read_multiple_map = completing_read_multiple_local_must_match_map
         else
-            crm_map = crm_local_completion_map
+            completing_read_multiple_map = completing_read_multiple_local_completion_map
         end if
 
-        crm_completion_table = table
+        completing_read_multiple_completion_table = table
         fn_table%kind = TABLE_FUNCTION
-        fn_table%fn => crm_collection_fn
-        crm_outer_setup => minibuffer_setup_function
-        minibuffer_setup_function => crm_setup
+        fn_table%fn => completing_read_multiple_collection_fn
+        completing_read_multiple_outer_setup => minibuffer_setup_function
+        minibuffer_setup_function => completing_read_multiple_setup
         call completing_read(format_prompt(prompt), fn_table, input, status, test, require_match, initial_input, &
                              history, default)
         minibuffer_setup_function => null()
-        crm_completion_table = saved_table
-        crm_map = saved_map
+        completing_read_multiple_completion_table = saved_table
+        completing_read_multiple_map = saved_map
 
         if (.not. status%ok()) then
             allocate (results(0))
@@ -331,31 +333,31 @@ contains
         s = ""
         k = 1
 
-        do while (k <= len(crm_prompt))
-            if (crm_prompt(k:k) == "%" .and. k < len(crm_prompt)) then
-                select case (crm_prompt(k + 1:k + 1))
+        do while (k <= len(completing_read_multiple_prompt))
+            if (completing_read_multiple_prompt(k:k) == "%" .and. k < len(completing_read_multiple_prompt)) then
+                select case (completing_read_multiple_prompt(k + 1:k + 1))
                 case ("s")
-                    s = s//crm_separator_string
+                    s = s//completing_read_multiple_separator_string
                 case ("d")
-                    s = s//crm_separator_description
+                    s = s//completing_read_multiple_separator_description
                 case ("p")
                     s = s//prompt
                 case ("%")
                     s = s//"%"
                 case default
-                    s = s//crm_prompt(k:k + 1)
+                    s = s//completing_read_multiple_prompt(k:k + 1)
                 end select
 
                 k = k + 2
             else
-                s = s//crm_prompt(k:k)
+                s = s//completing_read_multiple_prompt(k:k)
                 k = k + 1
             end if
         end do
     end function format_prompt
 
     ! (split-string STRING crm-separator t): the parts of STRING between
-    ! matches of `crm_separator', without the empty ones.  Not a port.
+    ! matches of `completing_read_multiple_separator', without the empty ones.  Not a port.
     subroutine split_string(string, parts)
         character(len=*), intent(in) :: string
         type(string_type), allocatable, intent(out) :: parts(:)
@@ -369,7 +371,7 @@ contains
         start = 1
 
         do
-            m = string_match(crm_separator, string, st, start)
+            m = string_match(completing_read_multiple_separator, string, st, start)
 
             if (.not. st%ok() .or. m <= 0) then
                 call append(string(string_index_to_offset(string, start) + 1:))
@@ -386,7 +388,7 @@ contains
                     exit
                 end if
 
-                m = string_match(crm_separator, string, st, start + 1)
+                m = string_match(completing_read_multiple_separator, string, st, start + 1)
 
                 if (.not. st%ok() .or. m <= 0) then
                     call append(string(string_index_to_offset(string, start) + 1:))
@@ -433,30 +435,39 @@ contains
     end subroutine remap
 
     !> Define crm.el's variables, keymaps and commands.  Not a port.
-    subroutine initialize_crm()
+    subroutine initialize_completing_read_multiple()
         type(status_type) :: st
 
-        if (.not. allocated(crm_separator)) crm_separator = "[ "//achar(9)//"]*,[ "//achar(9)//"]*"
-        if (.not. allocated(crm_separator_string)) crm_separator_string = ","
-        if (.not. allocated(crm_separator_description)) crm_separator_description = "comma-separated list"
-        if (.not. allocated(crm_prompt)) crm_prompt = "[%d] %p"
-        commands%crm_complete%execute => crm_complete
-        commands%crm_complete_word%execute => crm_complete_word
-        commands%crm_completion_help%execute => crm_completion_help
-        commands%crm_complete_and_exit%execute => crm_complete_and_exit
-        if (is_keymap_live(crm_local_completion_map)) call destroy_keymap(crm_local_completion_map, st)
-        call make_sparse_keymap(crm_local_completion_map)
-        call set_keymap_parent(crm_local_completion_map, minibuffer_local_completion_map, st)
-        call remap(crm_local_completion_map, "minibuffer_complete", "crm_complete")
-        call remap(crm_local_completion_map, "minibuffer_complete_word", "crm_complete_word")
-        call remap(crm_local_completion_map, "minibuffer_completion_help", "crm_completion_help")
+        if (.not. allocated(completing_read_multiple_separator)) completing_read_multiple_separator = "[ "//achar(9)//"]*,[ " &
+                                                                                                      //achar(9)//"]*"
+        if (.not. allocated(completing_read_multiple_separator_string)) completing_read_multiple_separator_string = ","
+        if (.not. allocated(completing_read_multiple_separator_description)) completing_read_multiple_separator_description = &
+            "comma-separated list"
+        if (.not. allocated(completing_read_multiple_prompt)) completing_read_multiple_prompt = "[%d] %p"
+        commands%completing_read_multiple_complete%execute => completing_read_multiple_complete
+        commands%completing_read_multiple_complete_word%execute => completing_read_multiple_complete_word
+        commands%completing_read_multiple_completion_help%execute => completing_read_multiple_completion_help
+        commands%completing_read_multiple_complete_and_exit%execute => completing_read_multiple_complete_and_exit
+        if (is_keymap_live(completing_read_multiple_local_completion_map)) call destroy_keymap( &
+            completing_read_multiple_local_completion_map, st)
+        call make_sparse_keymap(completing_read_multiple_local_completion_map)
+        call set_keymap_parent(completing_read_multiple_local_completion_map, minibuffer_local_completion_map, st)
+        call remap(completing_read_multiple_local_completion_map, "minibuffer_complete", "completing_read_multiple_complete")
+        call remap(completing_read_multiple_local_completion_map, "minibuffer_complete_word", &
+                   "completing_read_multiple_complete_word")
+        call remap(completing_read_multiple_local_completion_map, "minibuffer_completion_help", &
+                   "completing_read_multiple_completion_help")
         ! We'd want to have multiple inheritance here.
-        if (is_keymap_live(crm_local_must_match_map)) call destroy_keymap(crm_local_must_match_map, st)
-        call make_sparse_keymap(crm_local_must_match_map)
-        call set_keymap_parent(crm_local_must_match_map, minibuffer_local_must_match_map, st)
-        call remap(crm_local_must_match_map, "minibuffer_complete", "crm_complete")
-        call remap(crm_local_must_match_map, "minibuffer_complete_word", "crm_complete_word")
-        call remap(crm_local_must_match_map, "minibuffer_completion_help", "crm_completion_help")
-        call remap(crm_local_must_match_map, "minibuffer_complete_and_exit", "crm_complete_and_exit")
-    end subroutine initialize_crm
+        if (is_keymap_live(completing_read_multiple_local_must_match_map)) call destroy_keymap( &
+            completing_read_multiple_local_must_match_map, st)
+        call make_sparse_keymap(completing_read_multiple_local_must_match_map)
+        call set_keymap_parent(completing_read_multiple_local_must_match_map, minibuffer_local_must_match_map, st)
+        call remap(completing_read_multiple_local_must_match_map, "minibuffer_complete", "completing_read_multiple_complete")
+        call remap(completing_read_multiple_local_must_match_map, "minibuffer_complete_word", &
+                   "completing_read_multiple_complete_word")
+        call remap(completing_read_multiple_local_must_match_map, "minibuffer_completion_help", &
+                   "completing_read_multiple_completion_help")
+        call remap(completing_read_multiple_local_must_match_map, "minibuffer_complete_and_exit", &
+                   "completing_read_multiple_complete_and_exit")
+    end subroutine initialize_completing_read_multiple
 end module completing_read_multiple_mod

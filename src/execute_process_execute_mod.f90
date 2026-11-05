@@ -33,7 +33,7 @@ submodule(execute_process_mod) execute_process_execute_mod
     use data_mod, only: check_string
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, BEGINNING, &
                           is_buffer_live
-    use character_mod, only: str_as_multibyte
+    use character_mod, only: string_as_multibyte
     use insert_delete_mod, only: insert, delete_range
     use editing_functions_mod, only: widen, delete_region, validate_region
     use file_input_output_mod, only: expand_file_name, file_name_as_directory, is_file_accessible_directory, &
@@ -291,7 +291,7 @@ contains
         integer(int64) :: nchars
 
         if (buffers(current)%multibyte) then
-            call str_as_multibyte(bytes, text, nchars)
+            call string_as_multibyte(bytes, text, nchars)
             call insert(text, status)
         else
             call insert(bytes, status)

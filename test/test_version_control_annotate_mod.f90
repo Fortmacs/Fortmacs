@@ -43,13 +43,17 @@ module test_version_control_annotate_mod
     use execute_process_mod, only: execute_process
     use process_mod, only: get_buffer_process, is_process_live, accept_process_output
     use bindings_mod, only: initialize_bindings
-    use version_control_hooks_mod, only: vc_handled_backends, vc_clear_context, vc_backend_named, vc_short_revision
-    use version_control_mod, only: vc_create_repository, vc_buffer_revision
+    use version_control_hooks_mod, only: version_control_handled_backends, version_control_clear_context, &
+                                         version_control_backend_named, version_control_short_revision
+    use version_control_mod, only: version_control_create_repository, version_control_buffer_revision
     use font_lock_mod, only: font_lock_ensure
-    use version_control_annotate_mod, only: vc_annotate, previous_vc_annotate_revision, next_vc_annotate_revision, &
-                                            show_vc_annotate_diff_revision_at_line, show_vc_annotate_log_revision_at_line, &
-                                            vc_annotate_current_color_map, vc_annotate_color_type, &
-                                       vc_annotate_display_mode_type, vc_annotate_very_old_color, VC_ANNOTATE_DISPLAY_MODE_FULLSCALE
+    use version_control_annotate_mod, only: version_control_annotate, previous_version_control_annotate_revision, &
+                                            next_version_control_annotate_revision, &
+                                            show_version_control_annotate_diff_revision_at_line, &
+                                            show_version_control_annotate_log_revision_at_line, &
+                                            version_control_annotate_current_color_map, version_control_annotate_color_type, &
+                                            version_control_annotate_display_mode_type, version_control_annotate_very_old_color, &
+                                            VERSION_CONTROL_ANNOTATE_DISPLAY_MODE_FULLSCALE
     implicit none(type, external)
     private
 
@@ -179,14 +183,14 @@ contains
 
         call initialize_bindings()
         call initialize_fileio()
-        call vc_clear_context()
-        vc_handled_backends = [character(len=8) :: "Git"]
+        call version_control_clear_context()
+        version_control_handled_backends = [character(len=8) :: "Git"]
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call create_directory_internal(file_name_as_directory(fortmacs_wd)//"build", st)
         call create_directory_internal(tdir(), st)
         call temporary_buffer(h)
         buffers(current)%directory = tdir()
-        call vc_create_repository(vc_backend_named("Git"), status)
+        call version_control_create_repository(version_control_backend_named("Git"), status)
         if (.not. status%ok()) return
         call git("checkout", "-q", "-b", "main")
         call write_file(tdir()//"a.txt", "one"//LF//"two"//LF)
@@ -216,11 +220,11 @@ contains
         if (is_buffer_live(buffer)) call close_buffer(buffer, st)
         if (is_buffer_live(h)) call close_buffer(h, st)
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        vc_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
-        call vc_clear_context()
+        version_control_handled_backends = [character(len=8) :: "RCS", "CVS", "SVN", "SCCS", "SRC", "Bzr", "Git", "Hg"]
+        call version_control_clear_context()
     end subroutine teardown
 
-    !> Wait for the process of BUFFER to finish (its `vc_exec_after'
+    !> Wait for the process of BUFFER to finish (its `version_control_exec_after'
     !> actions run).
     subroutine wait_buffer_process(buffer)
         type(handle_type), intent(in) :: buffer
@@ -253,9 +257,9 @@ contains
 
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
-        call vc_short_revision(buffers(current)%filename, revision, found)
-        call vc_annotate(buffers(current)%filename, revision, status, &
-                         vc_annotate_display_mode_type(kind=VC_ANNOTATE_DISPLAY_MODE_FULLSCALE))
+        call version_control_short_revision(buffers(current)%filename, revision, found)
+        call version_control_annotate(buffers(current)%filename, revision, status, &
+                                   version_control_annotate_display_mode_type(kind=VERSION_CONTROL_ANNOTATE_DISPLAY_MODE_FULLSCALE))
         if (.not. status%ok()) return
         annotate = get_buffer("*Annotate a.txt (rev "//revision//")*")
         if (.not. is_buffer_live(annotate)) return
@@ -288,7 +292,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, annotate
         type(status_type) :: st
-        type(vc_annotate_color_type), allocatable :: map(:)
+        type(version_control_annotate_color_type), allocatable :: map(:)
         type(value_type) :: v
         character(len=:), allocatable :: text, newest, oldest, very_old
         integer(int64) :: shortage
@@ -303,7 +307,7 @@ contains
             call annotate_head(buffer, annotate, st)
             call check(error, st%ok() .and. is_buffer_live(annotate), "vc-annotate: "//format_error(st))
             if (allocated(error)) exit body
-            call check(error, buffers(current)%major_mode, "vc_annotate_mode")
+            call check(error, buffers(current)%major_mode, "version_control_annotate_mode")
             if (allocated(error)) exit body
             text = buffer_string()
             call check(error, index(text, "(t 2020-01-01 1) one"//LF) > 0, text)
@@ -313,16 +317,16 @@ contains
             call font_lock_ensure(st)
             call check(error, st%ok(), "font-lock: "//format_error(st))
             if (allocated(error)) exit body
-            call vc_annotate_current_color_map(map)
-            newest = "vc_annotate_face_"//trim(map(1)%color(2:))
-            oldest = "vc_annotate_face_"//trim(map(size(map))%color(2:))
-            very_old = "vc_annotate_face_"//vc_annotate_very_old_color(2:)
+            call version_control_annotate_current_color_map(map)
+            newest = "version_control_annotate_face_"//trim(map(1)%color(2:))
+            oldest = "version_control_annotate_face_"//trim(map(size(map))%color(2:))
+            very_old = "version_control_annotate_face_"//version_control_annotate_very_old_color(2:)
             ! Line 1 is the oldest.
             call goto_character(point_minimum())
             call check(error, has_face(position_end_of_line() - 1, oldest) .or. has_face(position_end_of_line() - 1, very_old), &
                        "line 1: "//oldest)
             if (allocated(error)) exit body
-            ! Its annotation is invisible with `vc_annotate_annotation'.
+            ! Its annotation is invisible with `version_control_annotate_annotation'.
             call get_text_property(point_minimum(), value_type(name=invisible_property), v, st)
             call check(error, allocated(v%a), "annotation invisible")
             if (allocated(error)) exit body
@@ -351,13 +355,13 @@ contains
             call annotate_head(buffer, annotate, st)
             call check(error, st%ok() .and. is_buffer_live(annotate), "vc-annotate: "//format_error(st))
             if (allocated(error)) exit body
-            head = vc_buffer_revision()
-            call previous_vc_annotate_revision(1_int64, st)
+            head = version_control_buffer_revision()
+            call previous_version_control_annotate_revision(1_int64, st)
             call check(error, st%ok(), "p: "//format_error(st))
             if (allocated(error)) exit body
             call wait_buffer_process(annotate)
             call set_buffer(annotate, st)
-            previous = vc_buffer_revision()
+            previous = version_control_buffer_revision()
             call check(error, len(previous) > 0 .and. previous /= head, "previous revision: "//previous)
             if (allocated(error)) exit body
             call check(error, buffers(current)%name, "*Annotate a.txt (rev "//previous//")*")
@@ -365,12 +369,12 @@ contains
             text = buffer_string()
             call check(error, index(text, ") two"//LF) > 0 .and. index(text, "three") == 0, text)
             if (allocated(error)) exit body
-            call next_vc_annotate_revision(1_int64, st)
+            call next_version_control_annotate_revision(1_int64, st)
             call check(error, st%ok(), "n: "//format_error(st))
             if (allocated(error)) exit body
             call wait_buffer_process(annotate)
             call set_buffer(annotate, st)
-            call check(error, vc_buffer_revision(), "main")
+            call check(error, version_control_buffer_revision(), "main")
             if (allocated(error)) exit body
             text = buffer_string()
             call check(error, index(text, ") three"//LF) > 0, text)
@@ -401,7 +405,7 @@ contains
             ! Line 2, changed by "second".
             call goto_character(point_minimum())
             shortage = forward_line(1_int64)
-            call show_vc_annotate_diff_revision_at_line(st)
+            call show_version_control_annotate_diff_revision_at_line(st)
             call check(error, st%ok(), "d: "//format_error(st))
             if (allocated(error)) exit body
             d = get_buffer("*vc-diff*")
@@ -415,7 +419,7 @@ contains
             call set_buffer(annotate, st)
             call goto_character(point_minimum())
             shortage = forward_line(1_int64)
-            call show_vc_annotate_log_revision_at_line(st)
+            call show_version_control_annotate_log_revision_at_line(st)
             call check(error, st%ok(), "l: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-change-log*")
@@ -431,11 +435,11 @@ contains
         call teardown(h, buffer)
     end subroutine test_diff_log
 
-    !> `vc_git_annotate_time' reads the date of a `git blame' line, with a
+    !> `version_control_git_annotate_time' reads the date of a `git blame' line, with a
     !> time and zone when it has them, and moves past the annotation; the
     !> revision and file name of a line are extracted.
     subroutine test_annotate_time(error)
-        use version_control_git_mod, only: vc_git_annotate_time, extract_vc_git_annotate_revision_at_line
+        use version_control_git_mod, only: version_control_git_annotate_time, extract_version_control_git_annotate_revision_at_line
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -446,7 +450,7 @@ contains
         call temporary_buffer(h)
         call insert("^abc1234 (t 2026-11-03 12:00:00 +0100 1) x"//LF//"no annotation"//LF, st)
         call goto_character(point_minimum())
-        call vc_git_annotate_time(days, found)
+        call version_control_git_annotate_time(days, found)
         call check(error, found, "found")
         if (allocated(error)) return
         call check(error, abs(days*86400.0_real64 - 1793703600.0_real64) < 1.0_real64, "the time")
@@ -454,18 +458,18 @@ contains
         call check(error, point() == point_minimum() + len("^abc1234 (t 2026-11-03 12:00:00 +0100 1) "), "point")
         if (allocated(error)) return
         call goto_character(point_minimum())
-        call extract_vc_git_annotate_revision_at_line(revision, file, found)
+        call extract_version_control_git_annotate_revision_at_line(revision, file, found)
         call check(error, found .and. revision == "abc1234" .and. len(file) == 0, "revision: "//revision)
         if (allocated(error)) return
         call goto_character(position_end_of_line() + 1)
-        call vc_git_annotate_time(days, found)
+        call version_control_git_annotate_time(days, found)
         call check(error,.not. found, "no annotation")
         call close_buffer(h, st)
     end subroutine test_annotate_time
 
     !> a in a log annotates the revision at point.
     subroutine test_log_view_annotate(error)
-        use version_control_mod, only: vc_print_log
+        use version_control_mod, only: version_control_print_log
         use log_view_mod, only: log_view_annotate_version, log_view_current_tag
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, log, annotate
@@ -479,7 +483,7 @@ contains
         body: block
             call check(error, st%ok(), "setup: "//format_error(st))
             if (allocated(error)) exit body
-            call vc_print_log(st, "", 500_int64)
+            call version_control_print_log(st, "", 500_int64)
             call check(error, st%ok(), "vc-print-log: "//format_error(st))
             if (allocated(error)) exit body
             log = get_buffer("*vc-change-log*")

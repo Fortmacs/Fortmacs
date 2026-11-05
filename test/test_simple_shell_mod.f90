@@ -64,8 +64,8 @@ contains
                     new_unittest("shell-command-insert-here", test_insert_here), &
                     new_unittest("shell-command-on-region-replace", test_replace), &
                     new_unittest("shell-command-error-buffer", test_error_buffer), &
-                    new_unittest("simple-tests-async-shell-command-30280", test_async_30280), &
-                    new_unittest("shell-command-async", test_async), &
+                    new_unittest("simple-tests-async-shell-command-30280", test_asynchronous_30280), &
+                    new_unittest("shell-command-async", test_asynchronous), &
                     new_unittest("shell-command-keys", test_keys) &
                     ]
     end subroutine collect_simple_shell_mod
@@ -348,11 +348,12 @@ contains
     end subroutine wait_process
 
     !> Port of simple-tests.el simple-tests-async-shell-command-30280 (sh
-    !> commands instead of an Emacs in batch mode): with ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER,
+    !> commands instead of an Emacs in batch mode): with ASYNCHRONOUS_SHELL_COMMAND_BUFFER_NEW_BUFFER,
     !> a second command gets a new buffer.
-    subroutine test_async_30280(error)
-        use simple_mod, only: async_shell_command, async_shell_command_buffer, async_shell_command_display_buffer, &
-                              ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER, ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER
+    subroutine test_asynchronous_30280(error)
+        use simple_mod, only: asynchronous_shell_command, asynchronous_shell_command_buffer, &
+                              asynchronous_shell_command_display_buffer, ASYNCHRONOUS_SHELL_COMMAND_BUFFER_NEW_BUFFER, &
+                              ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER
         use buffer_mod, only: generate_new_buffer_name
         use process_mod, only: get_buffer_process, delete_process, accept_process_output
         type(error_type), allocatable, intent(out) :: error
@@ -365,15 +366,15 @@ contains
 
         call initialize_bindings()
         call fresh("*shell-test*", h)
-        async_shell_command_buffer = ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER
-        async_shell_command_display_buffer = .false.
+        asynchronous_shell_command_buffer = ASYNCHRONOUS_SHELL_COMMAND_BUFFER_NEW_BUFFER
+        asynchronous_shell_command_display_buffer = .false.
         first = generate_new_buffer_name("name")
         ! One command has no output, the other does.
-        call async_shell_command("sleep 8", st, output_buffer_name=first)
+        call asynchronous_shell_command("sleep 8", st, output_buffer_name=first)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         second = generate_new_buffer_name("name")
-        call async_shell_command("echo hello", st, output_buffer_name=first)
+        call asynchronous_shell_command("echo hello", st, output_buffer_name=first)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         ! First command should neither have nor display output.
@@ -414,14 +415,14 @@ contains
             call close_buffer(buffer, st)
         end do
 
-        async_shell_command_buffer = ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER
-        async_shell_command_display_buffer = .true.
+        asynchronous_shell_command_buffer = ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER
+        asynchronous_shell_command_display_buffer = .true.
         call close_buffer(h, st)
-    end subroutine test_async_30280
+    end subroutine test_asynchronous_30280
 
     !> A trailing & runs the command asynchronously in *Async Shell
     !> Command*, in Shell Command mode, with "Shell" as its process.
-    subroutine test_async(error)
+    subroutine test_asynchronous(error)
         use process_mod, only: get_buffer_process
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer
@@ -445,7 +446,7 @@ contains
         if (.not. allocated(error)) call check(error, last_message, "echo async: finished.")
         call close_buffer(buffer, st)
         call close_buffer(h, st)
-    end subroutine test_async
+    end subroutine test_asynchronous
 
     !> M-! and C-u M-| through the command loop.
     subroutine test_keys(error)

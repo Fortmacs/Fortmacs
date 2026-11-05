@@ -41,7 +41,7 @@ module test_parenthesis_mod
     use bindings_mod, only: initialize_bindings
     use timer_mod, only: execute_with_timer, destroy_timer
     use keyboard_mod, only: read_event, set_input_fd, discard_input
-    use system_dependent_mod, only: fortmacs_tty_type, open_pty, close_fd, initialize_system_modes, reset_system_modes, &
+    use system_dependent_mod, only: fortmacs_terminal_type, open_pty, close_fd, initialize_system_modes, reset_system_modes, &
                                     fortmacs_write
     use test_support_mod, only: show_alone
     implicit none(type, external)
@@ -366,7 +366,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, key_timer
         type(status_type) :: st
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(value_type) :: ev
         integer(int32) :: slave
         logical :: have

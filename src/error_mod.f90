@@ -108,9 +108,9 @@ module error_mod
     !> coding.c's `coding-system-error': an invalid coding system.
     integer(int32), parameter, public :: CODING_SYSTEM_ERROR_CODE = 29
 
-    !> vc-hooks.el's `vc-not-supported': a VC method a backend doesn't
+    !> vc-hooks.el's `vc-not-supported': a VERSION_CONTROL method a backend doesn't
     !> implement (its data: the method and the backend).
-    integer(int32), parameter, public :: VC_NOT_SUPPORTED_CODE = 30
+    integer(int32), parameter, public :: VERSION_CONTROL_NOT_SUPPORTED_CODE = 30
 
     !> fileio.c's `file-notify-error' (a `file-error'): file notification
     !> failed (report_file_notify_error).
@@ -141,11 +141,11 @@ module error_mod
     !> of arguments (its data: the procedure's name and the number).
     integer(int32), parameter, public :: WRONG_NUMBER_OF_ARGUMENTS_CODE = 37
 
-    !> imenu.el's `imenu_unavailable': the buffer has no index (its data:
+    !> imenu.el's `index_menu_unavailable': the buffer has no index (its data:
     !> the message).
-    integer(int32), parameter, public :: IMENU_UNAVAILABLE_CODE = 38
+    integer(int32), parameter, public :: INDEX_MENU_UNAVAILABLE_CODE = 38
 
-    integer(int32), parameter :: last_code = IMENU_UNAVAILABLE_CODE
+    integer(int32), parameter :: last_code = INDEX_MENU_UNAVAILABLE_CODE
     integer, parameter :: name_length = 26, message_length = 48
 
     !> `error_conditions' names, indexed by code.
@@ -161,11 +161,11 @@ module error_mod
                                                                    "file_already_exists", "mark_inactive", "search_failed", &
                                                                   "invalid_regular_expression", "permission_denied", "scan_error", &
                                                                    "file_date_error", "end_of_file", "invalid_read_syntax", &
-                                                                   "coding_system_error", "vc_not_supported", &
+                                                                   "coding_system_error", "version_control_not_supported", &
                                                                    "file_notify_error", "bookmark_errors", &
                                                                    "bookmark_error_no_filename", "user_search_failed", &
                                                                    "inhibited_interaction", "top_level", &
-                                                                   "wrong_number_of_arguments", "imenu_unavailable"]
+                                                                   "wrong_number_of_arguments", "index_menu_unavailable"]
 
     !> `error_message' strings, indexed by code.
     character(len=message_length), parameter :: messages(0:last_code) = [character(len=message_length) :: &

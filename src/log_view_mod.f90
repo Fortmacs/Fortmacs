@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Log View mode, the major mode of VC's log buffers: moving between
+!> Log View mode, the major mode of VERSION_CONTROL's log buffers: moving between
 !> log messages (n, p, TAB, <backtab>) and files, marking entries
 !> (m, u, U), expanding short entries (RET), diffs of an entry or a
 !> region (d, =, D, M-RET, M-n, M-p), visiting (f) or annotating (a) a
@@ -27,7 +27,7 @@
 !>
 !> The buffer-local variables `log_view_file_regular_expression', `log_view_message_regular_expression',
 !> `log_view_per_file_logs', `log_view_expanded_log_entry_function',
-!> `log_view_vc_fileset' and `log_view_vc_backend' are set with
+!> `log_view_version_control_fileset' and `log_view_version_control_backend' are set with
 !> `set_log_view_file_regular_expression' and its siblings, as `set_local' does.
 !>
 !> Deferred: `log_view_modify_change_comment' (e, needing the backend's
@@ -73,8 +73,9 @@ module log_view_mod
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight
     use keymap_mod, only: keymap_set
     use file_input_output_mod, only: is_file_directory
-    use version_control_hooks_mod, only: vc_backends
-    use version_control_mod, only: vc_fileset_type, vc_diff_internal, vc_find_revision, vc_root_directory, vc_allow_async_diff
+    use version_control_hooks_mod, only: version_control_backends
+    use version_control_mod, only: version_control_fileset_type, version_control_diff_internal, version_control_find_revision, &
+                                   version_control_root_directory, version_control_allow_asynchronous_diff
     use string_type_mod, only: string_type, prepend_string, append_string
     implicit none(type, external)
     private
@@ -86,11 +87,13 @@ module log_view_mod
               log_view_get_marked, log_view_toggle_entry_display, log_view_display_entry_and_diff, &
               log_view_beginning_of_entry, log_view_end_of_entry, log_view_find_revision, log_view_diff, &
               log_view_diff_changeset, log_view_diff_common, log_view_copy_revision, log_view_annotate_version, &
-              log_view_vc_annotate_procedure, &
-              log_view_file_regular_expression, log_view_message_regular_expression, log_view_per_file_logs, log_view_vc_fileset, &
-              log_view_vc_backend, &
+              log_view_version_control_annotate_procedure, &
+              log_view_file_regular_expression, log_view_message_regular_expression, log_view_per_file_logs, &
+              log_view_version_control_fileset, &
+              log_view_version_control_backend, &
               set_log_view_file_regular_expression, set_log_view_message_regular_expression, set_log_view_per_file_logs, &
-              set_log_view_expanded_log_entry_function, set_log_view_vc_fileset, set_log_view_vc_backend, &
+              set_log_view_expanded_log_entry_function, set_log_view_version_control_fileset, &
+              set_log_view_version_control_backend, &
               set_log_view_font_lock_keywords, log_view_font_lock_keywords, initialize_log_view
 
     abstract interface
@@ -104,20 +107,20 @@ module log_view_mod
             logical, intent(out) :: found
         end subroutine log_view_entry_procedure
 
-        !> vc-annotate.el's `vc_annotate' of revision REVISION of FILE with
+        !> vc-annotate.el's `version_control_annotate' of revision REVISION of FILE with
         !> BACKEND (no display mode, buffer or line).  Not a port.
-        recursive subroutine log_view_vc_annotate_procedure(file, revision, backend, status)
+        recursive subroutine log_view_version_control_annotate_procedure(file, revision, backend, status)
             import :: status_type
             implicit none(type, external)
             character(len=*), intent(in) :: file, revision
             integer, intent(in) :: backend
             type(status_type), intent(out) :: status
-        end subroutine log_view_vc_annotate_procedure
+        end subroutine log_view_version_control_annotate_procedure
     end interface
 
-    !> vc-annotate.el's `vc_annotate' for `log_view_annotate_version',
+    !> vc-annotate.el's `version_control_annotate' for `log_view_annotate_version',
     !> associated once VC-Annotate is loaded (version_control_annotate_mod).
-    procedure(log_view_vc_annotate_procedure), pointer, public :: log_view_vc_annotate => null()
+    procedure(log_view_version_control_annotate_procedure), pointer, public :: log_view_version_control_annotate => null()
 
     !> Hook run at the end of `log_view_mode'.
     type(hook_type), target, public :: log_view_mode_hook = hook_type(name="log_view_mode_hook")
@@ -136,7 +139,7 @@ module log_view_mod
     !> `log_view_file_regular_expression').
     !> The match group number 1 should match the file name itself.
     character(len=*), parameter, public :: LOG_VIEW_FILE_REGULAR_EXPRESSION_DEFAULT = &
-                                           "^\(?:Working file: \(?1:.+\)" &       ! RCS and CVS.
+                                           "^\(?:Working file: \(?1:.+\)" &       ! RCS and CONCURRENT_VERSIONS_SYSTEM.
                                            //"\|\(?:SCCS/s\.\|Changes to \)\(?1:.+\):" & ! SCCS and Darcs.
                                            //"\)"//achar(10)  ! Include the \n for font-lock reasons.
 
@@ -144,7 +147,8 @@ module log_view_mod
     !> of `log_view_message_regular_expression').
     !> The match group number 1 should match the revision number itself.
     character(len=*), parameter, public :: LOG_VIEW_MESSAGE_REGULAR_EXPRESSION_DEFAULT = &
-                                           "^\(?:revision \(?1:[.0-9]+\)\(?:"//achar(9)//".*\)?" & ! RCS and CVS.
+                                           ! RCS and CONCURRENT_VERSIONS_SYSTEM.
+                                           "^\(?:revision \(?1:[.0-9]+\)\(?:"//achar(9)//".*\)?" &
                                            //"\|r\(?1:[0-9]+\) | .* | .*" &                         ! Subversion.
                                            //"\|D \(?1:[.0-9]+\) .*" &                              ! SCCS.
                                            ! Darcs doesn't have revision names.  VC-darcs uses patch names
@@ -269,9 +273,9 @@ contains
         end if
     end function log_view_per_file_logs
 
-    !> The current buffer's `log_view_vc_fileset': the VC fileset
+    !> The current buffer's `log_view_version_control_fileset': the VERSION_CONTROL fileset
     !> corresponding to the current log (HAS .false. for none).  Not a port.
-    subroutine log_view_vc_fileset(fileset, has)
+    subroutine log_view_version_control_fileset(fileset, has)
         type(string_type), allocatable, intent(out) :: fileset(:)
         logical, intent(out) :: has
         integer :: k
@@ -285,17 +289,17 @@ contains
         else
             allocate (fileset(0))
         end if
-    end subroutine log_view_vc_fileset
+    end subroutine log_view_version_control_fileset
 
-    !> The current buffer's `log_view_vc_backend': the VC backend that
+    !> The current buffer's `log_view_version_control_backend': the VERSION_CONTROL backend that
     !> created the current log (0 for none).  Not a port.
-    integer function log_view_vc_backend() result(b)
+    integer function log_view_version_control_backend() result(b)
         integer :: k
 
         b = 0
         k = local_index()
         if (k > 0) b = locals(k)%backend
-    end function log_view_vc_backend
+    end function log_view_version_control_backend
 
     !> The current buffer's `log_view_font_lock_keywords' (the default
     !> highlights the file and message lines when not set).  Not a port.
@@ -360,24 +364,24 @@ contains
         locals(k)%expanded => fn
     end subroutine set_log_view_expanded_log_entry_function
 
-    !> Give the current buffer its own `log_view_vc_fileset', FILESET (set_local).  Not a port.
-    subroutine set_log_view_vc_fileset(fileset)
+    !> Give the current buffer its own `log_view_version_control_fileset', FILESET (set_local).  Not a port.
+    subroutine set_log_view_version_control_fileset(fileset)
         type(string_type), intent(in) :: fileset(:)
         integer :: k
 
         call make_local_entry(k)
         locals(k)%has_fileset = .true.
         locals(k)%fileset = fileset
-    end subroutine set_log_view_vc_fileset
+    end subroutine set_log_view_version_control_fileset
 
-    !> Give the current buffer its own `log_view_vc_backend', B (set_local).  Not a port.
-    subroutine set_log_view_vc_backend(b)
+    !> Give the current buffer its own `log_view_version_control_backend', B (set_local).  Not a port.
+    subroutine set_log_view_version_control_backend(b)
         integer, intent(in) :: b
         integer :: k
 
         call make_local_entry(k)
         locals(k)%backend = b
-    end subroutine set_log_view_vc_backend
+    end subroutine set_log_view_version_control_backend
 
     !> Give the current buffer its own `log_view_font_lock_keywords', KEYWORDS (set_local).  Not a port.
     subroutine set_log_view_font_lock_keywords(keywords)
@@ -394,7 +398,7 @@ contains
     ! The mode
     ! ------------------------------------------------------------------
 
-    !> Major mode for browsing CVS log output.  Port of
+    !> Major mode for browsing CONCURRENT_VERSIONS_SYSTEM log output.  Port of
     !> log-view.el:log-view-mode.
     recursive subroutine log_view_mode(status)
         type(status_type), intent(out) :: status
@@ -1112,7 +1116,7 @@ contains
         logical :: has, several
 
         status = status_type()
-        call log_view_vc_fileset(fileset, has)
+        call log_view_version_control_fileset(fileset, has)
         file = ""
         if (size(fileset) > 0) file = fileset(1)%text
 
@@ -1144,7 +1148,7 @@ contains
 
         if (status%ok()) then
             call log_view_current_tag(tag, has)
-            call vc_find_revision(file, tag, buffer, status, log_view_vc_backend())
+            call version_control_find_revision(file, tag, buffer, status, log_view_version_control_backend())
         end if
 
         call goto_character(original_point)
@@ -1173,10 +1177,10 @@ contains
         if (status%ok()) then
             call log_view_current_tag(tag, has)
 
-            if (.not. associated(log_view_vc_annotate)) then
+            if (.not. associated(log_view_version_control_annotate)) then
                 call set_error(status, GENERIC_ERROR_CODE, "VC-Annotate is not loaded")
             else
-                call log_view_vc_annotate(file, tag, log_view_vc_backend(), status)
+                call log_view_version_control_annotate(file, tag, log_view_version_control_backend(), status)
             end if
         end if
 
@@ -1222,7 +1226,7 @@ contains
         integer :: b
 
         status = status_type()
-        b = log_view_vc_backend()
+        b = log_view_version_control_backend()
 
         if (b > 0) then
             ! (eq (vc-call-backend ... 'revision-granularity) 'file): every
@@ -1230,7 +1234,7 @@ contains
             continue
         end if
 
-        call vc_root_directory(root, found, status)
+        call version_control_root_directory(root, found, status)
         if (.not. status%ok()) return
         saved = buffers(current)%directory
         if (found) buffers(current)%directory = root
@@ -1246,7 +1250,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: whole_changeset
         character(len=:), allocatable :: to, fr, previous_value, file
-        type(vc_fileset_type) :: fs
+        type(version_control_fileset_type) :: fs
         integer(int64) :: fr_beginning, original_point, last
         logical :: has_to, has_fr, whole, changes, has, previous
         type(string_type), allocatable :: fileset(:)
@@ -1270,14 +1274,14 @@ contains
             previous = end >= last
         end if
 
-        fs%backend = log_view_vc_backend()
+        fs%backend = log_view_version_control_backend()
 
         if (previous) then
             has = .false.
 
             if (fs%backend > 0) then
-                if (associated(vc_backends(fs%backend)%previous_revision)) then
-                    call vc_backends(fs%backend)%previous_revision("", fr, previous_value, has)
+                if (associated(version_control_backends(fs%backend)%previous_revision)) then
+                    call version_control_backends(fs%backend)%previous_revision("", fr, previous_value, has)
                 end if
             end if
 
@@ -1299,20 +1303,20 @@ contains
             if (.not. status%ok()) return
             call append_string(fs%files, file)
         else
-            call log_view_vc_fileset(fileset, has)
+            call log_view_version_control_fileset(fileset, has)
             fs%files = fileset
         end if
 
         if (len(to) == 0) then
             if (len(fr) == 0) then
-                call vc_diff_internal(vc_allow_async_diff, fs, changes, status)
+                call version_control_diff_internal(version_control_allow_asynchronous_diff, fs, changes, status)
             else
-                call vc_diff_internal(vc_allow_async_diff, fs, changes, status, rev1=fr)
+                call version_control_diff_internal(version_control_allow_asynchronous_diff, fs, changes, status, rev1=fr)
             end if
         else if (len(fr) == 0) then
-            call vc_diff_internal(vc_allow_async_diff, fs, changes, status, rev2=to)
+            call version_control_diff_internal(version_control_allow_asynchronous_diff, fs, changes, status, rev2=to)
         else
-            call vc_diff_internal(vc_allow_async_diff, fs, changes, status, fr, to)
+            call version_control_diff_internal(version_control_allow_asynchronous_diff, fs, changes, status, fr, to)
         end if
     end subroutine log_view_diff_common
 

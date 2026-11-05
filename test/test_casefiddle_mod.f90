@@ -293,15 +293,15 @@ contains
 
     contains
 
-        subroutine symbols(init, with_words, with_symbols)
-            character(len=*), intent(in) :: init, with_words, with_symbols
+        subroutine symbols(initialize, with_words, with_symbols)
+            character(len=*), intent(in) :: initialize, with_words, with_symbols
 
             if (allocated(error)) return
             case_identifiers_as_words = .false.
-            call check(error, upcase_initials_string(init) == with_words, init//" words")
+            call check(error, upcase_initials_string(initialize) == with_words, initialize//" words")
             if (allocated(error)) return
             case_identifiers_as_words = .true.
-            call check(error, upcase_initials_string(init) == with_symbols, init//" symbols")
+            call check(error, upcase_initials_string(initialize) == with_symbols, initialize//" symbols")
         end subroutine symbols
     end subroutine test_identifiers_as_words
 

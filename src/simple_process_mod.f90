@@ -31,11 +31,11 @@ submodule(simple_mod) simple_process_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, current_buffer, is_buffer_live
     use editing_functions_mod, only: point_maximum, is_end_of_buffer
     use editing_commands_mod, only: forward_line, beginning_of_line
-    use process_mod, only: process_list, process_status, process_id, process_name, process_tty_name, &
+    use process_mod, only: process_list, process_status, process_id, process_name, process_terminal_name, &
                            process_buffer, process_command, process_query_on_exit_flag, &
                            delete_process, get_process
     use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
-                                  set_tabulated_list_entries, set_tabulated_list_sort_key, tabulated_list_init_header, &
+                                  set_tabulated_list_entries, set_tabulated_list_sort_key, tabulated_list_initialize_header, &
                                   tabulated_list_print, tabulated_list_get_id, tabulated_list_revert_hook
     use files_mod, only: revert_buffer
     use window_mod, only: display_buffer
@@ -204,7 +204,7 @@ contains
                         e%columns(4)%text = "--"
                     end if
 
-                    e%columns(5)%text = process_tty_name(processes(k))
+                    e%columns(5)%text = process_terminal_name(processes(k))
                     if (len(e%columns(5)%text) == 0) e%columns(5)%text = "--"
                     e%columns(6)%text = "--"
                     e%columns(7)%text = command_text
@@ -218,7 +218,7 @@ contains
 
         ! (push ... tabulated-list-entries): the newest first.
         call set_tabulated_list_entries(entries(n:1:-1))
-        call tabulated_list_init_header()
+        call tabulated_list_initialize_header()
     end subroutine list_processes_refresh
 
     !> Display a list of all processes that are Fortmacs sub-processes.

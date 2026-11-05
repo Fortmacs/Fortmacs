@@ -21,7 +21,7 @@
 
 !> CSS mode (`css_mode', `css_base_mode') and SCSS mode (`scss_mode'):
 !> the syntax tables, Font Lock keywords with color fontification
-!> (`css_fontify_colors'), SMIE indentation, completion at point of
+!> (`css_fontify_colors'), SIMPLE_MINDED_INDENTATION_ENGINE indentation, completion at point of
 !> properties, values, pseudo-classes and -elements, at-rules, bang-rules
 !> and selectors, `css_cycle_color_format' (C-c C-f), `css_fill_paragraph'
 !> and `css_current_rule_name'.
@@ -73,22 +73,41 @@ module css_mode_mod
     use fill_mod, only: fill_paragraph, fill_paragraph_function, adaptive_fill_function
     use electric_mod, only: electric_indent_characters_value, electric_indent_characters_set_local
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
-    use simple_minded_indentation_engine_mod, only: smie_prec_type, smie_precs_type, smie_prec2_type, smie_grammar_type, &
-                                                    smie_rule_result_type, smie_indent_type, smie_expression_type, &
-                                                    smie_precs_to_prec2, smie_prec2_to_grammar, smie_setup, &
-                                                    smie_default_forward_token, smie_default_backward_token, &
-                                                    smie_backward_expression, is_smie_rule_hanging, &
-                                                    is_smie_rule_beginning_of_line, smie_rule_parent, smie_indent_virtual, &
-                                                    SMIE_ASSOC, SMIE_LEFT, SMIE_AFTER, SMIE_BEFORE, SMIE_ELEMENT, SMIE_LIST_INTRO, &
-                                                    SMIE_RULE_NONE, SMIE_RULE_OFFSET, SMIE_RULE_COLUMN, SMIE_RULE_YES, &
-                                                    SMIE_INDENT_COLUMN
+    use simple_minded_indentation_engine_mod, only: simple_minded_indentation_engine_prec_type, &
+                                                    simple_minded_indentation_engine_precs_type, &
+                                                    simple_minded_indentation_engine_prec2_type, &
+                                                    simple_minded_indentation_engine_grammar_type, &
+                                                    simple_minded_indentation_engine_rule_result_type, &
+                                                    simple_minded_indentation_engine_indent_type, &
+                                                    simple_minded_indentation_engine_expression_type, &
+                                                    simple_minded_indentation_engine_precs_to_prec2, &
+                                                    simple_minded_indentation_engine_prec2_to_grammar, &
+                                                    simple_minded_indentation_engine_setup, &
+                                                    simple_minded_indentation_engine_default_forward_token, &
+                                                    simple_minded_indentation_engine_default_backward_token, &
+                                                    simple_minded_indentation_engine_backward_expression, &
+                                                    is_simple_minded_indentation_engine_rule_hanging, &
+                                                    is_simple_minded_indentation_engine_rule_beginning_of_line, &
+                                                    simple_minded_indentation_engine_rule_parent, &
+                                                    simple_minded_indentation_engine_indent_virtual, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_ASSOC, SIMPLE_MINDED_INDENTATION_ENGINE_LEFT, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_AFTER, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_BEFORE, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_ELEMENT, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_LIST_INTRO, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_RULE_NONE, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_RULE_OFFSET, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_RULE_COLUMN, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_RULE_YES, &
+                                                    SIMPLE_MINDED_INDENTATION_ENGINE_INDENT_COLUMN
     use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, completion_table_type, &
                                              completion_test_procedure, TABLE_FUNCTION, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, &
                                              COMPLETION_FINISHED
     use minibuffer_reading_mod, only: try_completion, all_completions, is_exact_completion
     use minibuffer_mod, only: completion_at_point_functions
     use regular_expression_optimization_mod, only: regular_expression_optimization
-    use index_menu_mod, only: imenu_previous_index_position_function, imenu_extract_index_name_function, imenu_space_replacement
+    use index_menu_mod, only: index_menu_previous_index_position_function, index_menu_extract_index_name_function, &
+                              index_menu_space_replacement
     implicit none(type, external)
     private
 
@@ -98,8 +117,11 @@ module css_mode_mod
               css_rgb_to_named_color_or_hexadecimal, css_cycle_color_format, css_join_nested_selectors, &
               css_previous_index_position, extract_css_index_name, css_current_rule_name, css_mdn_find_symbol, &
               css_rgb_color, css_hsl_color, css_hexadecimal_color, css_hexadecimal_alpha, css_named_color, css_compute_color, &
-              css_fontify_region, css_smie_forward_token, css_smie_backward_token, css_smie_rules, css_fill_paragraph, &
-              css_adaptive_fill, is_scss_smie_not_interpolation, css_font_lock_keywords_of, scss_font_lock_keywords
+              css_fontify_region, css_simple_minded_indentation_engine_forward_token, &
+              css_simple_minded_indentation_engine_backward_token, css_simple_minded_indentation_engine_rules, &
+              css_fill_paragraph, &
+              css_adaptive_fill, is_scss_simple_minded_indentation_engine_not_interpolation, css_font_lock_keywords_of, &
+              scss_font_lock_keywords
     public :: css_list_procedure
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
@@ -203,8 +225,8 @@ module css_mode_mod
     !> css-font-lock-keywords.
     type(font_lock_keyword_type), allocatable, public :: css_font_lock_keywords(:)
 
-    !> The SMIE grammar of CSS mode.  Port of css-mode.el css-smie-grammar.
-    type(smie_grammar_type), target, public :: css_smie_grammar
+    !> The SIMPLE_MINDED_INDENTATION_ENGINE grammar of CSS mode.  Port of css-mode.el css-smie-grammar.
+    type(simple_minded_indentation_engine_grammar_type), target, public :: css_simple_minded_indentation_engine_grammar
 
     ! One buffer's css--at-ids, css--bang-ids (true: SCSS's too) and
     ! css--nested-selectors-allowed.
@@ -2547,7 +2569,7 @@ contains
     end function css_join_nested_selectors
 
     !> Move to the start of the CSS section before point, FOUND if there
-    !> is one (an `imenu_previous_index_position_function').  Port of
+    !> is one (an `index_menu_previous_index_position_function').  Port of
     !> css-mode.el:css--prev-index-position.
     recursive subroutine css_previous_index_position(found)
         logical, intent(out) :: found
@@ -2613,7 +2635,7 @@ contains
 
     !> NAME gets the name of the CSS section whose name the last search
     !> matched, with those it is nested in (an
-    !> `imenu_extract_index_name_function').  Port of
+    !> `index_menu_extract_index_name_function').  Port of
     !> css-mode.el:css--extract-index-name.
     recursive subroutine extract_css_index_name(name)
         character(len=:), allocatable, intent(out) :: name
@@ -2838,7 +2860,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Return true if point looks to be inside a CSS selector.
-    ! This function is intended to be good enough to help SMIE during
+    ! This function is intended to be good enough to help SIMPLE_MINDED_INDENTATION_ENGINE during
     ! tokenization, but should not be regarded as a reliable function for
     ! determining whether point is within a selector.  Port of
     ! css-mode.el:css--colon-inside-selector-p.
@@ -2865,20 +2887,20 @@ contains
 
     !> Whether the "}" before point doesn't end an interpolation #{$...}.
     !> Port of css-mode.el:scss-smie--not-interpolation-p.
-    logical function is_scss_smie_not_interpolation()
+    logical function is_scss_simple_minded_indentation_engine_not_interpolation()
         type(status_type) :: st
         integer(int64) :: original_point
 
         original_point = point()
         call forward_character(st, -1_int64)
-        is_scss_smie_not_interpolation = skip_characters_backward("-[:alnum:]", st) == 0
+        is_scss_simple_minded_indentation_engine_not_interpolation = skip_characters_backward("-[:alnum:]", st) == 0
 
-        if (.not. is_scss_smie_not_interpolation) then
-            is_scss_smie_not_interpolation = .not. looking_back("#{\$", st, point() - 3)
+        if (.not. is_scss_simple_minded_indentation_engine_not_interpolation) then
+            is_scss_simple_minded_indentation_engine_not_interpolation = .not. looking_back("#{\$", st, point() - 3)
         end if
 
         call goto_character(original_point)
-    end function is_scss_smie_not_interpolation
+    end function is_scss_simple_minded_indentation_engine_not_interpolation
 
     ! The token of a colon after point: in a selector or function call, or
     ! of a property.
@@ -2895,9 +2917,9 @@ contains
         end if
     end function colon_token
 
-    !> The SMIE forward token function of CSS mode.  Port of
+    !> The SIMPLE_MINDED_INDENTATION_ENGINE forward token function of CSS mode.  Port of
     !> css-mode.el:css-smie--forward-token.
-    recursive subroutine css_smie_forward_token(token, status)
+    recursive subroutine css_simple_minded_indentation_engine_forward_token(token, status)
         character(len=:), allocatable, intent(out) :: token
         type(status_type), intent(out) :: status
         logical :: moved, hanging
@@ -2907,7 +2929,7 @@ contains
         hanging = .false.
 
         if (preceding_character() == iachar("}")) then
-            if (is_scss_smie_not_interpolation()) then
+            if (is_scss_simple_minded_indentation_engine_not_interpolation()) then
                 ! FIXME: If the next char is not whitespace, what should we do?
                 c = following_character()
 
@@ -2939,13 +2961,13 @@ contains
                 token = match_string_no_properties(0)
             end if
         else
-            call smie_default_forward_token(token, status)
+            call simple_minded_indentation_engine_default_forward_token(token, status)
         end if
-    end subroutine css_smie_forward_token
+    end subroutine css_simple_minded_indentation_engine_forward_token
 
-    !> The SMIE backward token function of CSS mode.  Port of
+    !> The SIMPLE_MINDED_INDENTATION_ENGINE backward token function of CSS mode.  Port of
     !> css-mode.el:css-smie--backward-token.
-    recursive subroutine css_smie_backward_token(token, status)
+    recursive subroutine css_simple_minded_indentation_engine_backward_token(token, status)
         character(len=:), allocatable, intent(out) :: token
         type(status_type), intent(out) :: status
         integer(int64) :: position
@@ -2959,7 +2981,7 @@ contains
 
         if (c == iachar("}")) then
             ! FIXME: If the next char is not whitespace, what should we do?
-            if (is_scss_smie_not_interpolation()) then
+            if (is_scss_simple_minded_indentation_engine_not_interpolation()) then
                 if (position > point()) then
                     token = ";"
                     return
@@ -2976,63 +2998,70 @@ contains
                 token = achar(following_character())
             end if
         else
-            call smie_default_backward_token(token, status)
+            call simple_minded_indentation_engine_default_backward_token(token, status)
         end if
-    end subroutine css_smie_backward_token
+    end subroutine css_simple_minded_indentation_engine_backward_token
 
-    !> The SMIE rules of CSS mode.  Port of css-mode.el:css-smie-rules.
-    recursive subroutine css_smie_rules(method, argument, result, status)
+    !> The SIMPLE_MINDED_INDENTATION_ENGINE rules of CSS mode.  Port of css-mode.el:css-smie-rules.
+    recursive subroutine css_simple_minded_indentation_engine_rules(method, argument, result, status)
         integer, intent(in) :: method
         character(len=*), intent(in) :: argument
-        type(smie_rule_result_type), intent(out) :: result
+        type(simple_minded_indentation_engine_rule_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        type(smie_expression_type) :: res
-        type(smie_indent_type) :: indent
+        type(simple_minded_indentation_engine_expression_type) :: res
+        type(simple_minded_indentation_engine_indent_type) :: indent
 
         status = status_type()
-        result = smie_rule_result_type()
+        result = simple_minded_indentation_engine_rule_result_type()
 
         select case (method)
-        case (SMIE_ELEMENT)
+        case (SIMPLE_MINDED_INDENTATION_ENGINE_ELEMENT)
             if (argument == "basic") then
-                result = smie_rule_result_type(kind=SMIE_RULE_OFFSET, value=int(css_indent_offset%value))
+                result = simple_minded_indentation_engine_rule_result_type(kind=SIMPLE_MINDED_INDENTATION_ENGINE_RULE_OFFSET, &
+                                                                           value=int(css_indent_offset%value))
             else if (argument == "arg") then
-                result = smie_rule_result_type(kind=SMIE_RULE_OFFSET, value=0)
+                result = simple_minded_indentation_engine_rule_result_type(kind=SIMPLE_MINDED_INDENTATION_ENGINE_RULE_OFFSET, &
+                                                                           value=0)
             end if
-        case (SMIE_LIST_INTRO)
+        case (SIMPLE_MINDED_INDENTATION_ENGINE_LIST_INTRO)
             ! "" stands for BEGINNING_OF_BUFFER (bug#15467).
-            if (argument == ";" .or. argument == "" .or. argument == ":-property") result = smie_rule_result_type( &
-                                                                                            kind=SMIE_RULE_YES)
-        case (SMIE_BEFORE)
+            if (argument == ";" .or. argument == "" .or. argument == ":-property") result = &
+                simple_minded_indentation_engine_rule_result_type( &
+                kind=SIMPLE_MINDED_INDENTATION_ENGINE_RULE_YES)
+        case (SIMPLE_MINDED_INDENTATION_ENGINE_BEFORE)
             if (argument == "{") then
-                if (is_smie_rule_hanging(status) .or. is_smie_rule_beginning_of_line()) then
-                    call smie_backward_expression(res, status, token=";")
+                if (is_simple_minded_indentation_engine_rule_hanging(status) &
+                    .or. is_simple_minded_indentation_engine_rule_beginning_of_line()) then
+                    call simple_minded_indentation_engine_backward_expression(res, status, token=";")
 
                     if (following_character() /= iachar("{")) then
-                        indent = smie_indent_virtual(status)
+                        indent = simple_minded_indentation_engine_indent_virtual(status)
 
-                        if (indent%kind == SMIE_INDENT_COLUMN) then
-                            result = smie_rule_result_type(kind=SMIE_RULE_COLUMN, value=indent%column)
+                        if (indent%kind == SIMPLE_MINDED_INDENTATION_ENGINE_INDENT_COLUMN) then
+                            result = simple_minded_indentation_engine_rule_result_type( &
+                                     kind=SIMPLE_MINDED_INDENTATION_ENGINE_RULE_COLUMN, value=indent%column)
                         end if
                     end if
                 end if
             else if (argument == "(") then
-                if (is_smie_rule_hanging(status)) then
-                    result = smie_rule_parent(status, 0)
-                else if (.not. is_smie_rule_beginning_of_line()) then
-                    result = smie_rule_result_type(kind=SMIE_RULE_OFFSET, value=0)
+                if (is_simple_minded_indentation_engine_rule_hanging(status)) then
+                    result = simple_minded_indentation_engine_rule_parent(status, 0)
+                else if (.not. is_simple_minded_indentation_engine_rule_beginning_of_line()) then
+                    result = simple_minded_indentation_engine_rule_result_type(kind=SIMPLE_MINDED_INDENTATION_ENGINE_RULE_OFFSET, &
+                                                                               value=0)
                 end if
             end if
-        case (SMIE_AFTER)
+        case (SIMPLE_MINDED_INDENTATION_ENGINE_AFTER)
             if (argument == ":-property") then
-                if (is_smie_rule_hanging(status)) then
-                    result = smie_rule_result_type(kind=SMIE_RULE_OFFSET, value=int(css_indent_offset%value))
+                if (is_simple_minded_indentation_engine_rule_hanging(status)) then
+                    result = simple_minded_indentation_engine_rule_result_type(kind=SIMPLE_MINDED_INDENTATION_ENGINE_RULE_OFFSET, &
+                                                                               value=int(css_indent_offset%value))
                 end if
             end if
         case default
             continue
         end select
-    end subroutine css_smie_rules
+    end subroutine css_simple_minded_indentation_engine_rules
 
     ! ------------------------------------------------------------------
     ! Filling
@@ -3211,7 +3240,7 @@ contains
                 back = skip_characters_backward(" "//TAB, st)
 
                 if (.not. is_beginning_of_line()) then
-                    if (is_scss_smie_not_interpolation()) call newline(st)
+                    if (is_scss_simple_minded_indentation_engine_not_interpolation()) call newline(st)
                 end if
 
                 call excursion_end(saved)
@@ -3346,8 +3375,8 @@ contains
     ! Not a port.
     subroutine initialize_rules()
         type(syntax_highlight_type) :: hl(2)
-        type(smie_precs_type) :: precs
-        type(smie_prec2_type) :: prec2
+        type(simple_minded_indentation_engine_precs_type) :: precs
+        type(simple_minded_indentation_engine_prec2_type) :: prec2
         type(status_type) :: st
 
         allocate (propertize_rules%rules(1))
@@ -3355,16 +3384,16 @@ contains
         hl(1) = syntax_highlight_type(group=1, syntax="|")
         hl(2) = syntax_highlight_type(group=2, syntax="|")
         propertize_rules%rules(1)%highlights = hl
-        precs = smie_precs_type()
-        call precs%append(SMIE_ASSOC, [character(len=1) :: ";"])
+        precs = simple_minded_indentation_engine_precs_type()
+        call precs%append(SIMPLE_MINDED_INDENTATION_ENGINE_ASSOC, [character(len=1) :: ";"])
         ! Colons that belong to a CSS property.  These get a higher
         ! precedence than other colons, such as colons in selectors, which
         ! are represented by a plain ":" token.
-        call precs%append(SMIE_LEFT, [character(len=10) :: ":-property"])
-        call precs%append(SMIE_ASSOC, [character(len=1) :: ","])
-        call precs%append(SMIE_ASSOC, [character(len=1) :: ":"])
-        call smie_precs_to_prec2(precs, prec2)
-        call smie_prec2_to_grammar(prec2, css_smie_grammar, st)
+        call precs%append(SIMPLE_MINDED_INDENTATION_ENGINE_LEFT, [character(len=10) :: ":-property"])
+        call precs%append(SIMPLE_MINDED_INDENTATION_ENGINE_ASSOC, [character(len=1) :: ","])
+        call precs%append(SIMPLE_MINDED_INDENTATION_ENGINE_ASSOC, [character(len=1) :: ":"])
+        call simple_minded_indentation_engine_precs_to_prec2(precs, prec2)
+        call simple_minded_indentation_engine_prec2_to_grammar(prec2, css_simple_minded_indentation_engine_grammar, st)
     end subroutine initialize_rules
 
     !> Generic mode to edit Cascading Style Sheets (CSS).
@@ -3385,7 +3414,7 @@ contains
         call comment_end_skip%set_local("[ "//TAB//"]*\*+/")
         call electric_indent_characters_set_local([css_electric_keys, electric_indent_characters_value()])
         ! The default "." creates ambiguity with class selectors.
-        call imenu_space_replacement%set_local(" ")
+        call index_menu_space_replacement%set_local(" ")
         call major_modes%css_base_mode%end(saved, status)
     end subroutine css_base_mode
 
@@ -3411,11 +3440,13 @@ contains
         call syntax_propertize_function%set_local(css_syntax_propertize_function)
         call fill_paragraph_function%set_local(css_fill_paragraph)
         call adaptive_fill_function%set_local(css_adaptive_fill)
-        call smie_setup(css_smie_grammar, css_smie_rules, css_smie_forward_token, css_smie_backward_token)
+        call simple_minded_indentation_engine_setup(css_simple_minded_indentation_engine_grammar, &
+                                   css_simple_minded_indentation_engine_rules, css_simple_minded_indentation_engine_forward_token, &
+                                                    css_simple_minded_indentation_engine_backward_token)
         call font_lock_fontify_region_function_set_local(css_fontify_region)
         call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
-        call imenu_previous_index_position_function%set_local(css_previous_index_position)
-        call imenu_extract_index_name_function%set_local(extract_css_index_name)
+        call index_menu_previous_index_position_function%set_local(css_previous_index_position)
+        call index_menu_extract_index_name_function%set_local(extract_css_index_name)
         call add_log_current_subprogram_function%set_local(css_current_rule_name)
         call major_modes%css_mode%end(saved, status)
     end subroutine css_mode

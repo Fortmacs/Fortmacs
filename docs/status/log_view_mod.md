@@ -23,7 +23,7 @@ marking (`log-view-mark-entry` m, `log-view-unmark-entry` u, `log-view-unmark-al
 `log-view-diff` (d, =),
 `log-view-diff-changeset` (D),
 `log-view-copy-revision-as-kill` (w),
-`log-view-annotate-version` (a, calling `vc_annotate` through the pointer `log_view_vc_annotate`),
+`log-view-annotate-version` (a, calling `version_control_annotate` through the pointer `log_view_version_control_annotate`),
 the faces
 
 ## Deferred

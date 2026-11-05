@@ -1189,7 +1189,7 @@ contains
     recursive subroutine rectangle_exchange_point_and_mark(argument, status)
         logical, intent(in) :: argument
         type(status_type), intent(out) :: status
-        integer(int64) :: p, m, startcol, endcol, cp, cm
+        integer(int64) :: p, m, startcol, endcol, cp, cursor_motion
         logical :: repeat
 
         status = status_type()
@@ -1212,11 +1212,11 @@ contains
         if (p < m) then
             call rectangle_position_columns(p, m, startcol, endcol)
             cp = startcol
-            cm = endcol
+            cursor_motion = endcol
         else
             call rectangle_position_columns(m, p, startcol, endcol)
             cp = endcol
-            cm = startcol
+            cursor_motion = startcol
         end if
 
         if (repeat) this_command => commands%exchange_point_and_mark
@@ -1224,7 +1224,7 @@ contains
         call goto_character(p)
 
         if (repeat) then
-            call rectangle_column_position(cm, .false.)
+            call rectangle_column_position(cursor_motion, .false.)
         else
             call rectangle_column_position(cp, .false.)
         end if
@@ -1235,7 +1235,7 @@ contains
         if (repeat) then
             call rectangle_column_position(cp, .true.)
         else
-            call rectangle_column_position(cm, .true.)
+            call rectangle_column_position(cursor_motion, .true.)
         end if
     end subroutine rectangle_exchange_point_and_mark
 

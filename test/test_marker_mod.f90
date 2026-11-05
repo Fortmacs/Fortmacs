@@ -28,7 +28,7 @@ module test_marker_mod
     use error_mod, only: status_type, GENERIC_ERROR_CODE, INVALID_HANDLE_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, &
-                          set_buffer, current_buffer, is_buffer_live, buf_bytes, &
+                          set_buffer, current_buffer, is_buffer_live, buffer_bytes, &
                           temporary_set_point_both, erase_buffer
     use marker_mod, only: byte_to_character, character_to_byte, copy_marker, copy_marker_at, count_markers, &
                           destroy_marker, make_marker, marker_buffer, marker_byte_position, &
@@ -376,7 +376,7 @@ contains
         call erase_buffer(st)
         call check(error, st%ok(), "erase failed")
         if (allocated(error)) return
-        call check(error, buf_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte), "")
+        call check(error, buffer_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte), "")
         if (allocated(error)) return
         call check(error, position_of(m) == 1 .and. buffers(current)%point == 1, "positions after erase")
         call destroy_marker(m, st)

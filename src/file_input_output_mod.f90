@@ -40,7 +40,7 @@ module file_input_output_mod
     use error_mod, only: status_type, set_error, FILE_ERROR_CODE, FILE_MISSING_CODE, FILE_ALREADY_EXISTS_CODE, &
                          GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, PERMISSION_DENIED_CODE, FILE_DATE_ERROR_CODE, &
                          ARGUMENTS_OUT_OF_RANGE_CODE
-    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buf_bytes, barf_if_buffer_read_only, &
+    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buffer_bytes, barf_if_buffer_read_only, &
                           deactivate_mark_variable, current_buffer, buffer_visited_file_modtime
     use marker_mod, only: character_to_byte, byte_to_character, set_marker, marker_position, destroy_marker
     use handle_mod, only: handle_type
@@ -162,7 +162,7 @@ module file_input_output_mod
     !>
     !> The default value is `select_safe_coding_system' (which see).  Port
     !> of coding.c select-safe-coding-system-function (null when unset;
-    !> mule_commands_mod points it there).
+    !> multilingual_environment_commands_mod points it there).
     procedure(select_safe_coding_system_procedure), pointer, public :: select_safe_coding_system_function => null()
 
     !> What `rename_file' calls (through Lisp upstream) to move a
@@ -1213,7 +1213,7 @@ contains
         character(len=:), allocatable :: from, to
         character(len=READ_BUFFER_SIZE) :: chunk
         type(file_status_type) :: st, out_st
-        type(status_type) :: st_io
+        type(status_type) :: st_input_output
         integer(int32) :: err, ifd, ofd, new_mask, preserved, default_permissions, mask
         integer(int64) :: nread, written
         logical :: ok, keep, preserve_ids, preserve_permission_bits, already_exists
@@ -1303,9 +1303,9 @@ contains
         end if
 
         do
-            call fortmacs_read(ifd, chunk, nread, st_io, err)
+            call fortmacs_read(ifd, chunk, nread, st_input_output, err)
 
-            if (.not. st_io%ok()) then
+            if (.not. st_input_output%ok()) then
                 call close_fd(ifd)
                 call close_fd(ofd)
                 call report_file_errno("Read error", from, err, status)
@@ -1313,9 +1313,9 @@ contains
             end if
 
             if (nread == 0) exit
-            call fortmacs_full_write(ofd, chunk(1:nread), written, st_io, err)
+            call fortmacs_full_write(ofd, chunk(1:nread), written, st_input_output, err)
 
-            if (.not. st_io%ok() .or. written /= nread) then
+            if (.not. st_input_output%ok() .or. written /= nread) then
                 call close_fd(ifd)
                 call close_fd(ofd)
                 call report_file_errno("Write error", to, err, status)
@@ -1825,7 +1825,7 @@ contains
 
         beginning_of_accessible_portion_byte = buffers(current)%beginning_of_accessible_portion_byte
         end_of_accessible_portion_byte = buffers(current)%end_of_accessible_portion_byte
-        old = buf_bytes(buffers(current), beginning_of_accessible_portion_byte, end_of_accessible_portion_byte)
+        old = buffer_bytes(buffers(current), beginning_of_accessible_portion_byte, end_of_accessible_portion_byte)
         n = len(text, kind=int64)
         ! Compare the beginning of the converted string with the buffer
         ! text.
@@ -1954,11 +1954,11 @@ contains
             e = end
             call validate_region(s, e, status)
             if (.not. status%ok()) return
-            text = buf_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
+            text = buffer_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
         else
             s = BEGINNING
             e = buffers(current)%text%z
-            text = buf_bytes(buffers(current), BEGINNING_BYTE, buffers(current)%text%z_byte)
+            text = buffer_bytes(buffers(current), BEGINNING_BYTE, buffers(current)%text%z_byte)
         end if
 
         call choose_write_coding_system(s, e, absname, coding, status)

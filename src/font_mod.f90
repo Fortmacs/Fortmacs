@@ -32,7 +32,7 @@
 !>
 !> Only the metrics redisplay needs are ported.  Deferred: font specs and
 !> entities, font-related Lisp functions, fontsets, font backends (the
-!> GUI step brings one: FreeType rasterizing and HarfBuzz shaping, bound
+!> GRAPHICAL_USER_INTERFACE step brings one: FreeType rasterizing and HarfBuzz shaping, bound
 !> in src/sys), glyph codes other than characters, compositions,
 !> underline position and thickness, vertical centering.
 module font_mod

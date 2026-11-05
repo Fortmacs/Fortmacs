@@ -51,8 +51,8 @@ module search_mod
     use data_mod, only: logical_setting_type
     use character_mod, only: string_character_and_length, character_bytes, is_character_head
     use case_table_mod, only: case_canon
-    use buffer_mod, only: buffers, current, buf_prev_char_len, temporary_set_point_both, buf_fetch_char, &
-                          buf_next_char_len, current_buffer
+    use buffer_mod, only: buffers, current, buffer_previous_character_length, temporary_set_point_both, buffer_fetch_character, &
+                          buffer_next_character_length, current_buffer
     use marker_mod, only: character_to_byte, byte_to_character
     implicit none(type, external)
     private
@@ -431,7 +431,7 @@ contains
 
         if (counted == count) then
             position = position - 1
-            pbyte = pbyte - buf_prev_char_len(buffers(current), pbyte)
+            pbyte = pbyte - buffer_previous_character_length(buffers(current), pbyte)
         end if
 
         if (present(byte_position)) byte_position = pbyte
@@ -924,7 +924,7 @@ contains
         integer(int32), intent(in) :: pattern(:)
         logical, intent(in) :: fold
         integer(int64) :: n, position, position_byte, this_position, this_position_byte, this_length, match_byte, nchars
-        integer(int32) :: buf_ch
+        integer(int32) :: buffer_ch
 
         n = count
         position = start
@@ -942,11 +942,11 @@ contains
                         if (position + nchars > limit .or. position_byte + length_byte > limit_byte) exit forward
 
                         do while (this_length < nchars)
-                            buf_ch = buf_fetch_char(b, this_position_byte)
-                            if (fold) buf_ch = case_canon(buf_ch)
-                            if (buf_ch /= pattern(this_length + 1)) exit
+                            buffer_ch = buffer_fetch_character(b, this_position_byte)
+                            if (fold) buffer_ch = case_canon(buffer_ch)
+                            if (buffer_ch /= pattern(this_length + 1)) exit
                             this_length = this_length + 1
-                            this_position_byte = this_position_byte + buf_next_char_len(b, this_position_byte)
+                            this_position_byte = this_position_byte + buffer_next_character_length(b, this_position_byte)
                         end do
 
                         if (this_length == nchars) then
@@ -956,7 +956,7 @@ contains
                             exit
                         end if
 
-                        position_byte = position_byte + buf_next_char_len(b, position_byte)
+                        position_byte = position_byte + buffer_next_character_length(b, position_byte)
                         position = position + 1
                     end do
 
@@ -974,10 +974,10 @@ contains
 
                         do while (this_length < nchars)
                             this_position = this_position - 1
-                            this_position_byte = this_position_byte - buf_prev_char_len(b, this_position_byte)
-                            buf_ch = buf_fetch_char(b, this_position_byte)
-                            if (fold) buf_ch = case_canon(buf_ch)
-                            if (buf_ch /= pattern(nchars - this_length)) exit
+                            this_position_byte = this_position_byte - buffer_previous_character_length(b, this_position_byte)
+                            buffer_ch = buffer_fetch_character(b, this_position_byte)
+                            if (fold) buffer_ch = case_canon(buffer_ch)
+                            if (buffer_ch /= pattern(nchars - this_length)) exit
                             this_length = this_length + 1
                         end do
 
@@ -989,7 +989,7 @@ contains
                         end if
 
                         position = position - 1
-                        position_byte = position_byte - buf_prev_char_len(b, position_byte)
+                        position_byte = position_byte - buffer_previous_character_length(b, position_byte)
                     end do
 
                     n = n + 1

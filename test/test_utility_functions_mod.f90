@@ -57,7 +57,7 @@ module test_utility_functions_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, is_buffer_live
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string, goto_character, point_minimum, point_maximum, point, delete_region
-    use character_mod, only: str_to_multibyte
+    use character_mod, only: string_to_multibyte
     implicit none(type, external)
     private
 
@@ -552,9 +552,9 @@ contains
         if (allocated(error)) return
         call check(error, encoded_region("foobar", .false., status=st) == "Zm9vYmFy")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(126)), .false., status=st) == "FPucA9l+")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(126)), .false., status=st) == "FPucA9l+")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(127)), .false., status=st) == "FPucA9l/")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(127)), .false., status=st) == "FPucA9l/")
     end subroutine test_base64_encode_region
 
     subroutine test_base64_encode_string(error)
@@ -581,7 +581,7 @@ contains
         if (allocated(error)) return
         call check(error, base64_encode_string(test_bytes(127), multibyte=.false.) == "FPucA9l/")
         if (allocated(error)) return
-        call check(error, base64_encode_string(str_to_multibyte(test_bytes(127))) == "FPucA9l/", "raw bytes")
+        call check(error, base64_encode_string(string_to_multibyte(test_bytes(127))) == "FPucA9l/", "raw bytes")
         if (allocated(error)) return
         r = base64_encode_string("ƒ", status=st)
         call check(error, st%code == GENERIC_ERROR_CODE .and. &
@@ -614,9 +614,9 @@ contains
         if (allocated(error)) return
         call check(error, encoded_region("foobar", .true., status=st) == "Zm9vYmFy")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(126)), .true., status=st) == "FPucA9l-")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(126)), .true., status=st) == "FPucA9l-")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(127)), .true., status=st) == "FPucA9l_")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(127)), .true., status=st) == "FPucA9l_")
         if (allocated(error)) return
         ! url variant no padding
         call check(error, encoded_region("", .true., .true., st) == "")
@@ -633,9 +633,9 @@ contains
         if (allocated(error)) return
         call check(error, encoded_region("foobar", .true., .true., st) == "Zm9vYmFy")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(126)), .true., .true., st) == "FPucA9l-")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(126)), .true., .true., st) == "FPucA9l-")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(test_bytes(127)), .true., .true., st) == "FPucA9l_")
+        call check(error, encoded_region(string_to_multibyte(test_bytes(127)), .true., .true., st) == "FPucA9l_")
         if (allocated(error)) return
         ! url variant no line break no padding
         call check(error, encoded_region(repeat("f", 100), .true., .true., st) == repeat("Zm", 66)//"Zg")
@@ -650,10 +650,10 @@ contains
         if (allocated(error)) return
         call check(error, encoded_region(repeat("foobar", 15), .true., .true., st) == repeat("Zm9vYmFyZm9vYmFy", 7)//"Zm9vYmFy")
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(repeat(test_bytes(126), 10)), .true., .true., st) &
+        call check(error, encoded_region(string_to_multibyte(repeat(test_bytes(126), 10)), .true., .true., st) &
                    == repeat("FPucA9l-", 10))
         if (allocated(error)) return
-        call check(error, encoded_region(str_to_multibyte(repeat(test_bytes(127), 10)), .true., .true., st) &
+        call check(error, encoded_region(string_to_multibyte(repeat(test_bytes(127), 10)), .true., .true., st) &
                    == repeat("FPucA9l_", 10))
         if (allocated(error)) return
         call check(error, encoded_region("ƒ", .true., status=st) == "ƒ" .and. st%code == GENERIC_ERROR_CODE, &
@@ -840,7 +840,7 @@ contains
         call delete_region(point_minimum(), point_maximum(), st)
         call insert("FPucA9l+", st)
         call base64_decode_region(point_minimum(), point_maximum(), length, st)
-        call check(error, st%ok() .and. length == 6 .and. buffer_string() == str_to_multibyte(test_bytes(126)), "raw bytes")
+        call check(error, st%ok() .and. length == 6 .and. buffer_string() == string_to_multibyte(test_bytes(126)), "raw bytes")
 
         if (allocated(error)) then
             call leave(h, old)

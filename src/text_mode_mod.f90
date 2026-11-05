@@ -30,7 +30,7 @@ module text_mode_mod
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
-    use abbreviation_mod, only: abbrev_table_type
+    use abbreviation_mod, only: abbreviation_table_type
     implicit none(type, external)
     private
 
@@ -56,7 +56,7 @@ module text_mode_mod
 
     !> Abbrev table for `text_mode'.  Port of text-mode.el
     !> text-mode-abbrev-table (made by define-derived-mode).
-    type(abbrev_table_type), target, public :: text_mode_abbrev_table
+    type(abbreviation_table_type), target, public :: text_mode_abbreviation_table
 
 contains
 
@@ -105,7 +105,7 @@ contains
     subroutine initialize_text_mode()
         if (.not. is_syntax_table_live(text_mode_syntax_table)) call initialize_text_mode_syntax_table()
         call major_modes%text_mode%define("text_mode", "Text", text_mode, text_mode_hook, &
-                                          syntax_table=text_mode_syntax_table, abbrev_table=text_mode_abbrev_table)
+                                          syntax_table=text_mode_syntax_table, abbreviation_table=text_mode_abbreviation_table)
         text_mode_map = major_modes%text_mode%map
         commands%text_mode%execute => text_mode
     end subroutine initialize_text_mode

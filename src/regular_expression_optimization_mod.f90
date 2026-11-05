@@ -21,7 +21,7 @@
 
 !> `regular_expression_optimization' returns a regexp matching any of a list of strings,
 !> merging common prefixes and suffixes so the regexp matcher need not
-!> backtrack; `regular_expression_optimization_charset' a regexp matching any of a set of
+!> backtrack; `regular_expression_optimization_character_set' a regexp matching any of a set of
 !> characters; `regular_expression_optimization_depth' the number of groups of a regexp.
 !>
 !> The strings are given as a character array whose elements' trailing
@@ -37,7 +37,7 @@ module regular_expression_optimization_mod
     implicit none(type, external)
     private
 
-    public :: regular_expression_optimization, regular_expression_optimization_charset, regular_expression_optimization_depth
+    public :: regular_expression_optimization, regular_expression_optimization_character_set, regular_expression_optimization_depth
 
     !> PARENTHESIS of `regular_expression_optimization': REGULAR_EXPRESSION_OPTIMIZATION_SHY
     !> (a shy group if a postfix operator needs one), REGULAR_EXPRESSION_OPTIMIZATION_GROUP
@@ -303,7 +303,7 @@ contains
         logical, intent(in) :: parenthesis, lax
         character(len=*), intent(in), optional :: open
         character(len=:), allocatable :: regular_expression
-        character(len=:), allocatable :: open_group, close_group, open_charset, close_charset, prefix, xiffus, first
+        character(len=:), allocatable :: open_group, close_group, open_character_set, close_character_set, prefix, xiffus, first
         ! (Results of recursive calls go through these first: gfortran
         ! garbles two such results in one concatenation.)
         character(len=:), allocatable :: sub1, sub2
@@ -322,12 +322,12 @@ contains
 
         close_group = ""
         if (parenthesis) close_group = "\)"
-        open_charset = open_group
-        close_charset = close_group
+        open_character_set = open_group
+        close_character_set = close_group
 
         if (lax) then
-            open_charset = ""
-            close_charset = ""
+            open_character_set = ""
+            close_character_set = ""
         end if
 
         if (size(strings) == 0) then
@@ -337,7 +337,7 @@ contains
 
         if (size(strings) == 1) then
             if (nchars(strings(1)%text) == 1) then
-                regular_expression = open_charset//regular_expression_quote(strings(1)%text)//close_charset
+                regular_expression = open_character_set//regular_expression_quote(strings(1)%text)//close_character_set
             else
                 regular_expression = open_group//regular_expression_quote(strings(1)%text)//close_group
             end if
@@ -347,7 +347,7 @@ contains
 
         if (len(strings(1)%text) == 0) then
             sub1 = option_group(strings(2:), .true., .true.)
-            regular_expression = open_charset//sub1//"?"//close_charset
+            regular_expression = open_character_set//sub1//"?"//close_character_set
             return
         end if
 
@@ -377,10 +377,10 @@ contains
                 ! several one-char strings: take them and recurse
                 ! on the rest (first so as to match the longest).
                 sub1 = option_group(rest, .false., .false.)
-                regular_expression = open_group//sub1//"\|"//regular_expression_optimization_charset(letters)//close_group
+                regular_expression = open_group//sub1//"\|"//regular_expression_optimization_character_set(letters)//close_group
             else
                 ! all are one-char strings: just return a character set.
-                regular_expression = open_charset//regular_expression_optimization_charset(letters)//close_charset
+                regular_expression = open_character_set//regular_expression_optimization_character_set(letters)//close_character_set
             end if
 
             return
@@ -503,12 +503,12 @@ contains
     !> CHARS should be a list of characters.
     !> If CHARS is the empty list, the return value is a regexp that
     !> never matches anything.  Port of regexp-opt.el:regexp-opt-charset.
-    function regular_expression_optimization_charset(chars) result(regular_expression)
+    function regular_expression_optimization_character_set(chars) result(regular_expression)
         integer(int32), intent(in) :: chars(:)
         character(len=:), allocatable :: regular_expression
         integer(int32), allocatable :: set(:)
         integer(int32) :: start, end, c, temporary
-        character(len=:), allocatable :: charset, bracket, dash, caret, whole
+        character(len=:), allocatable :: character_set, bracket, dash, caret, whole
         integer :: i, j
 
         bracket = ""
@@ -546,7 +546,7 @@ contains
 
         start = -1
         end = -2
-        charset = ""
+        character_set = ""
 
         do i = 1, size(set)
             c = set(i)
@@ -561,7 +561,7 @@ contains
         end do
 
         call flush ()
-        whole = bracket//charset//caret//dash
+        whole = bracket//character_set//caret//dash
 
         if (len(whole) == 0) then
             regular_expression = regular_expression_unmatchable
@@ -582,14 +582,14 @@ contains
             if (end > start + 2) then
                 call character_to_string(start, first, st)
                 call character_to_string(end, last, st)
-                charset = charset//first//"-"//last
+                character_set = character_set//first//"-"//last
             else
                 do while (end >= start)
                     call character_to_string(start, first, st)
-                    charset = charset//first
+                    character_set = character_set//first
                     start = start + 1
                 end do
             end if
         end subroutine flush
-    end function regular_expression_optimization_charset
+    end function regular_expression_optimization_character_set
 end module regular_expression_optimization_mod

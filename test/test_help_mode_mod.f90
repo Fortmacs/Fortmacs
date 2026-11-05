@@ -39,9 +39,9 @@ module test_help_mode_mod
     use window_mod, only: delete_other_windows, resize_window_tree, switch_to_buffer
     use bindings_mod, only: initialize_bindings
     use keyboard_mod, only: discard_input
-    use help_mode_mod, only: help_mode, help_make_xrefs, help_xref_item_type, help_xref_stack, help_xref_forward_stack, &
-                             help_xref_stack_item, help_xref_go_back, help_xref_go_forward, help_go_back, help_go_forward, &
-                             help_follow_name
+    use help_mode_mod, only: help_mode, help_make_cross_references, help_cross_reference_item_type, help_cross_reference_stack, &
+                             help_cross_reference_forward_stack, help_cross_reference_stack_item, help_cross_reference_go_back, &
+                             help_cross_reference_go_forward, help_go_back, help_go_forward, help_follow_name
     use help_functions_mod, only: describe_function
     use button_mod, only: button_type, button_kind_type, button_at, push_button
     implicit none(type, external)
@@ -61,15 +61,15 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("help-mode-tests-make-xrefs", test_make_xrefs), &
-                    new_unittest("help-mode-tests-xref-button", test_xref_button), &
+                    new_unittest("help-mode-tests-make-xrefs", test_make_cross_references), &
+                    new_unittest("help-mode-tests-xref-button", test_cross_reference_button), &
                     new_unittest("help-mode-tests-xref-go-back", test_xref_go_back), &
                     new_unittest("help-mode-tests-xref-go-forward", test_xref_go_forward), &
                     new_unittest("help-mode-tests-go-back", test_go_back), &
                     new_unittest("help-mode-tests-go-back-no-stack", test_go_back_no_stack), &
                     new_unittest("help-mode-tests-go-forward", test_go_forward), &
                     new_unittest("help-mode-tests-go-forward-no-stack", test_go_forward_no_stack), &
-                    new_unittest("help-mode-tests-do-xref", test_do_xref), &
+                    new_unittest("help-mode-tests-do-xref", test_do_cross_reference), &
                     new_unittest("help-mode-tests-follow-symbol", test_follow_symbol), &
                     new_unittest("help-mode-tests-follow-symbol-no-symbol", test_follow_symbol_no_symbol), &
                     new_unittest("help-mode-back-forward-buttons", test_back_forward_buttons) &
@@ -93,10 +93,10 @@ contains
 
     !> Empty xref stacks and no current item.
     subroutine empty_stacks()
-        if (allocated(help_xref_stack)) deallocate (help_xref_stack)
-        if (allocated(help_xref_forward_stack)) deallocate (help_xref_forward_stack)
-        allocate (help_xref_stack(0), help_xref_forward_stack(0))
-        help_xref_stack_item%describe => null()
+        if (allocated(help_cross_reference_stack)) deallocate (help_cross_reference_stack)
+        if (allocated(help_cross_reference_forward_stack)) deallocate (help_cross_reference_forward_stack)
+        allocate (help_cross_reference_stack(0), help_cross_reference_forward_stack(0))
+        help_cross_reference_stack_item%describe => null()
     end subroutine empty_stacks
 
     !> A stack item's procedure: replace the buffer text with "bar".
@@ -111,7 +111,7 @@ contains
 
     !> A stack of one item showing "bar" with point at 2.
     subroutine bar_stack(stack)
-        type(help_xref_item_type), allocatable, intent(out) :: stack(:)
+        type(help_cross_reference_item_type), allocatable, intent(out) :: stack(:)
 
         allocate (stack(1))
         stack(1)%position = 2
@@ -165,7 +165,7 @@ contains
         call set_buffer(old, st)
     end function help_text
 
-    subroutine test_make_xrefs(error)
+    subroutine test_make_cross_references(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
@@ -175,8 +175,8 @@ contains
                     "backward_character"//RQ//" and the variable "//LQ//"fill_column"//RQ//", and M-x backward_character."//LF &
                     //LF, st)
         call help_mode(st)
-        call help_make_xrefs(st)
-        call check(error, st%ok(), "help_make_xrefs")
+        call help_make_cross_references(st)
+        call check(error, st%ok(), "help_make_cross_references")
         if (allocated(error)) return
         ! The first paragraph is skipped.
         call check(error, button_type_name(position_of("backward_character")) == "", "first paragraph")
@@ -193,9 +193,9 @@ contains
                    ", like "//LQ//"backward_character"//RQ//"."//LF//LF//"Move point N characters forward.  See also "//LQ// &
                    "backward_character"//RQ//" and the variable "//LQ//"fill_column"//RQ//", and M-x backward_character."//LF, &
                    buffer_string())
-    end subroutine test_make_xrefs
+    end subroutine test_make_cross_references
 
-    subroutine test_xref_button(error)
+    subroutine test_cross_reference_button(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: NAMES(3) = [character(len=17) :: "forward_character", "fill_paragraph", "upcase_word"]
         type(status_type) :: st
@@ -207,7 +207,7 @@ contains
         do k = 1, size(NAMES)
             call erase_buffer(st)
             call insert("x"//LF//LF//"See also the function "//LQ//trim(NAMES(k))//RQ//".", st)
-            call help_make_xrefs(st)
+            call help_make_cross_references(st)
             beginning = position_of(trim(NAMES(k)))
             call check(error, button_type_name(beginning - 1) == "", "before "//trim(NAMES(k)))
             if (allocated(error)) return
@@ -216,16 +216,16 @@ contains
             call check(error, button_type_name(beginning) == "help_function", trim(NAMES(k)))
             if (allocated(error)) return
         end do
-    end subroutine test_xref_button
+    end subroutine test_cross_reference_button
 
     subroutine test_xref_go_back(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
         call temporary_buffer()
-        call bar_stack(help_xref_stack)
+        call bar_stack(help_cross_reference_stack)
         call insert("foo", st)
-        call help_xref_go_back(current_buffer(), st)
+        call help_cross_reference_go_back(current_buffer(), st)
         call check(error, st%ok() .and. point() == 2 .and. buffer_string() == "bar", buffer_string())
     end subroutine test_xref_go_back
 
@@ -234,9 +234,9 @@ contains
         type(status_type) :: st
 
         call temporary_buffer()
-        call bar_stack(help_xref_forward_stack)
+        call bar_stack(help_cross_reference_forward_stack)
         call insert("foo", st)
-        call help_xref_go_forward(current_buffer(), st)
+        call help_cross_reference_go_forward(current_buffer(), st)
         call check(error, st%ok() .and. point() == 2 .and. buffer_string() == "bar", buffer_string())
     end subroutine test_xref_go_forward
 
@@ -245,7 +245,7 @@ contains
         type(status_type) :: st
 
         call temporary_buffer()
-        call bar_stack(help_xref_stack)
+        call bar_stack(help_cross_reference_stack)
         call insert("foo", st)
         call help_go_back(st)
         call check(error, st%ok() .and. point() == 2 .and. buffer_string() == "bar", buffer_string())
@@ -265,7 +265,7 @@ contains
         type(status_type) :: st
 
         call temporary_buffer()
-        call bar_stack(help_xref_forward_stack)
+        call bar_stack(help_cross_reference_forward_stack)
         call insert("foo", st)
         call help_go_forward(st)
         call check(error, st%ok() .and. point() == 2 .and. buffer_string() == "bar", buffer_string())
@@ -294,7 +294,7 @@ contains
         call switch_to_buffer("*scratch*", st)
     end subroutine fresh_window
 
-    subroutine test_do_xref(error)
+    subroutine test_do_cross_reference(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -306,7 +306,7 @@ contains
         call help_follow_name(st, 3_int64)
         text = help_text()
         call check(error, st%ok() .and. index(text, "upcase_word is ") == 1, text)
-    end subroutine test_do_xref
+    end subroutine test_do_cross_reference
 
     subroutine test_follow_symbol(error)
         type(error_type), allocatable, intent(out) :: error
@@ -350,7 +350,7 @@ contains
         call check(error, index(text, "backward_character is ") == 1 .and. index(text, LF//LF//"[back]"//LF) == len(text) - 8, &
                    text)
         if (allocated(error)) return
-        call check(error, size(help_xref_stack) == 1, "one item on the stack")
+        call check(error, size(help_cross_reference_stack) == 1, "one item on the stack")
         if (allocated(error)) return
         ! Push [back] in *Help*.
         call set_buffer(get_buffer("*Help*"), st)

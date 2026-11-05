@@ -50,8 +50,9 @@ module test_info_mod
                         info_follow_nearest_node, info_extract_pointer, info_build_node_completions, info_toc, &
                         info_history, info_search, info_search_backward, info_index, info_index_next, &
                         info_virtual_index, info_history_variable, info_history_entry_type
-    use incremental_search_mod, only: isearch_mode, isearch_process_search_string, isearch_repeat_forward, &
-                                      isearch_delete_character, isearch_done, isearch_success, isearch_error
+    use incremental_search_mod, only: incremental_search_mode, incremental_search_process_search_string, &
+                                      incremental_search_repeat_forward, incremental_search_delete_character, &
+                                      incremental_search_done, incremental_search_success, incremental_search_error
     implicit none(type, external)
     private
 
@@ -88,7 +89,7 @@ contains
                     new_unittest("info-search-split", test_search_split), &
                     new_unittest("info-index", test_index), &
                     new_unittest("info-virtual-index", test_virtual_index), &
-                    new_unittest("info-isearch", test_isearch) &
+                    new_unittest("info-isearch", test_incremental_search) &
                     ]
     end subroutine collect_info_mod
 
@@ -707,7 +708,8 @@ contains
         ! `info_history_nodes' being global).
         if (.not. allocated(error)) then
             call property_at("Second Chapter:: for", "font_lock_face", value, found)
-            call check(error, symbol_text(value) == "info_xref" .or. symbol_text(value) == "info_xref_visited", &
+            call check(error, &
+                       symbol_text(value) == "info_cross_reference" .or. symbol_text(value) == "info_cross_reference_visited", &
                        "a link: "//symbol_text(value))
         end if
 
@@ -885,7 +887,7 @@ contains
         call done(old, configuration)
     end subroutine test_virtual_index
 
-    subroutine test_isearch(error)
+    subroutine test_incremental_search(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
         type(window_configuration_type) :: configuration
@@ -895,34 +897,34 @@ contains
         call visit("test", "Top", old, configuration, error)
         call info_history_variable(history)
         h0 = size(history)
-        call isearch_mode(.true.)
-        call isearch_process_search_string("Some text", "Some text")
+        call incremental_search_mode(.true.)
+        call incremental_search_process_search_string("Some text", "Some text")
         ! Isearch fails once at the end of the initial node.
-        call check(error,.not. isearch_success, "fails in the initial node")
-        if (.not. allocated(error)) call check(error, allocated(isearch_error), "an error")
-        if (.not. allocated(error)) call check(error, isearch_error, "end of node")
+        call check(error,.not. incremental_search_success, "fails in the initial node")
+        if (.not. allocated(error)) call check(error, allocated(incremental_search_error), "an error")
+        if (.not. allocated(error)) call check(error, incremental_search_error, "end of node")
         call check_node(error, "Top", status_type())
 
         ! C-s goes on through the other nodes.
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(prefix_argument_type())
-            call check(error, isearch_success, "found in another node")
+            call incremental_search_repeat_forward(prefix_argument_type())
+            call check(error, incremental_search_success, "found in another node")
         end if
 
         call check_node(error, "Section One", status_type())
 
         ! DEL goes back to the initial node with the state it restores.
         if (.not. allocated(error)) then
-            call isearch_delete_character()
+            call incremental_search_delete_character()
             call check_node(error, "Top", status_type())
         end if
 
         if (.not. allocated(error)) then
-            call isearch_repeat_forward(prefix_argument_type())
+            call incremental_search_repeat_forward(prefix_argument_type())
             call check_node(error, "Section One", status_type())
         end if
 
-        call isearch_done()
+        call incremental_search_done()
 
         ! Only the node where Isearch ended is added to the history.
         if (.not. allocated(error)) then
@@ -931,5 +933,5 @@ contains
         end if
 
         call done(old, configuration)
-    end subroutine test_isearch
+    end subroutine test_incremental_search
 end module test_info_mod

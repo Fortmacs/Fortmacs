@@ -33,11 +33,11 @@ module glyph_matrices_mod
     implicit none(type, external)
     private
 
-    !> dispextern.h: FACE_TTY_DEFAULT_COLOR and friends (unsigned -1, -2,
+    !> dispextern.h: FACE_TERMINAL_DEFAULT_COLOR and friends (unsigned -1, -2,
     !> -3 upstream).  Real colors are >= 0.
-    integer(int64), parameter, public :: FACE_TTY_DEFAULT_COLOR = -1, &
-                                         FACE_TTY_DEFAULT_FOREGROUND_COLOR = -2, &
-                                         FACE_TTY_DEFAULT_BACKGROUND_COLOR = -3
+    integer(int64), parameter, public :: FACE_TERMINAL_DEFAULT_COLOR = -1, &
+                                         FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR = -2, &
+                                         FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR = -3
 
     !> enum face_underline_type (the order of terminfo's Smulx).
     integer, parameter, public :: FACE_NO_UNDERLINE = 0, &
@@ -73,11 +73,11 @@ module glyph_matrices_mod
                                          MARGIN_FACE_ID = 21, &
                                          BASIC_FACE_ID_SENTINEL = 22
 
-    !> Terminal capabilities a face may need (dispextern.h TTY_CAP_*),
+    !> Terminal capabilities a face may need (dispextern.h TERMINAL_CAP_*),
     !> for term.c:tty_capable_p.
-    integer, parameter, public :: TTY_CAP_INVERSE = 2, TTY_CAP_UNDERLINE = 4, TTY_CAP_BOLD = 8, &
-                                  TTY_CAP_DIM = 16, TTY_CAP_ITALIC = 32, TTY_CAP_STRIKE_THROUGH = 64, &
-                                  TTY_CAP_UNDERLINE_STYLED = 128
+    integer, parameter, public :: TERMINAL_CAP_INVERSE = 2, TERMINAL_CAP_UNDERLINE = 4, TERMINAL_CAP_BOLD = 8, &
+                                  TERMINAL_CAP_DIM = 16, TERMINAL_CAP_ITALIC = 32, TERMINAL_CAP_STRIKE_THROUGH = 64, &
+                                  TERMINAL_CAP_UNDERLINE_STYLED = 128
 
     !> enum glyph_type: the kinds of glyphs in use.
     integer, parameter, public :: CHARACTER_GLYPH = 0, STRETCH_GLYPH = 4
@@ -101,10 +101,10 @@ module glyph_matrices_mod
 
     !> The terminal parts of struct face.
     type, public :: face_type
-        integer(int64) :: foreground = FACE_TTY_DEFAULT_COLOR
-        integer(int64) :: background = FACE_TTY_DEFAULT_COLOR
-        logical :: tty_bold_p = .false., tty_italic_p = .false., &
-                   tty_reverse_p = .false., tty_strike_through_p = .false.
+        integer(int64) :: foreground = FACE_TERMINAL_DEFAULT_COLOR
+        integer(int64) :: background = FACE_TERMINAL_DEFAULT_COLOR
+        logical :: terminal_bold_p = .false., terminal_italic_p = .false., &
+                   terminal_reverse_p = .false., terminal_strike_through_p = .false.
         integer :: underline = FACE_NO_UNDERLINE
         !> 0 for the default underline color.
         integer(int64) :: underline_color = 0
@@ -145,90 +145,90 @@ module glyph_matrices_mod
     !> and termhooks.h's clear_frame_hook, in use).  Coordinates are
     !> pixels from the top left corner of the frame; upstream passes the
     !> window and converts (WINDOW_TO_FRAME_PIXEL_X).  A terminal frame has
-    !> none (FRAME_RIF is NULL) and is written through terminal_output_mod.
+    !> none (FRAME_REDISPLAY_INTERFACE is NULL) and is written through terminal_output_mod.
     type, abstract, public :: redisplay_interface_type
     contains
         !> Clear the whole frame (clear_frame_hook).
-        procedure(rif_clear_frame_procedure), deferred :: clear_frame
+        procedure(redisplay_interface_clear_frame_procedure), deferred :: clear_frame
         !> Draw `len' glyphs of `row' from glyph `start', the first with its
         !> left edge at `x', the row's top at `y', clipped at `clip_x'
         !> (the right edge of the window) (write_glyphs).
-        procedure(rif_write_glyphs_procedure), deferred :: write_glyphs
+        procedure(redisplay_interface_write_glyphs_procedure), deferred :: write_glyphs
         !> Clear from `x' to `to_x' (exclusive) the `height' pixels of a
         !> row starting at `y' (clear_end_of_line).
-        procedure(rif_clear_end_of_line_procedure), deferred :: clear_end_of_line
+        procedure(redisplay_interface_clear_end_of_line_procedure), deferred :: clear_end_of_line
         !> Draw the border between side-by-side windows from (x, y0) to
         !> (x, y1) in face `face_id' (draw_vertical_window_border).
-        procedure(rif_draw_vertical_window_border_procedure), deferred :: draw_vertical_window_border
+        procedure(redisplay_interface_draw_vertical_window_border_procedure), deferred :: draw_vertical_window_border
         !> Draw a cursor of kind `cursor_type' (FILLED_BOX_CURSOR, ...)
         !> `width' by `height' at (x, y) if `on_p' (draw_window_cursor).
-        procedure(rif_draw_window_cursor_procedure), deferred :: draw_window_cursor
+        procedure(redisplay_interface_draw_window_cursor_procedure), deferred :: draw_window_cursor
         !> Make what was drawn visible (flush_display).
-        procedure(rif_flush_display_procedure), deferred :: flush_display
+        procedure(redisplay_interface_flush_display_procedure), deferred :: flush_display
     end type redisplay_interface_type
 
     abstract interface
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_clear_frame_procedure(self)
+        subroutine redisplay_interface_clear_frame_procedure(self)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
-        end subroutine rif_clear_frame_procedure
+        end subroutine redisplay_interface_clear_frame_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_write_glyphs_procedure(self, row, start, len, x, y, clip_x)
+        subroutine redisplay_interface_write_glyphs_procedure(self, row, start, len, x, y, clip_x)
             import :: redisplay_interface_type, glyph_row_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
             type(glyph_row_type), intent(in) :: row
             integer, intent(in) :: start, len, x, y, clip_x
-        end subroutine rif_write_glyphs_procedure
+        end subroutine redisplay_interface_write_glyphs_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_clear_end_of_line_procedure(self, x, y, height, to_x)
+        subroutine redisplay_interface_clear_end_of_line_procedure(self, x, y, height, to_x)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
             integer, intent(in) :: x, y, height, to_x
-        end subroutine rif_clear_end_of_line_procedure
+        end subroutine redisplay_interface_clear_end_of_line_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_draw_vertical_window_border_procedure(self, x, y0, y1, face_id)
+        subroutine redisplay_interface_draw_vertical_window_border_procedure(self, x, y0, y1, face_id)
             import :: redisplay_interface_type, int32
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
             integer, intent(in) :: x, y0, y1
             integer(int32), intent(in) :: face_id
-        end subroutine rif_draw_vertical_window_border_procedure
+        end subroutine redisplay_interface_draw_vertical_window_border_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_draw_window_cursor_procedure(self, x, y, width, height, cursor_type, on_p, active_p)
+        subroutine redisplay_interface_draw_window_cursor_procedure(self, x, y, width, height, cursor_type, on_p, active_p)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
             integer, intent(in) :: x, y, width, height, cursor_type
             logical, intent(in) :: on_p, active_p
-        end subroutine rif_draw_window_cursor_procedure
+        end subroutine redisplay_interface_draw_window_cursor_procedure
 
         ! Not a port: the interface of a redisplay interface hook.
-        subroutine rif_flush_display_procedure(self)
+        subroutine redisplay_interface_flush_display_procedure(self)
             import :: redisplay_interface_type
             implicit none(type, external)
             class(redisplay_interface_type), intent(inout) :: self
-        end subroutine rif_flush_display_procedure
+        end subroutine redisplay_interface_flush_display_procedure
     end interface
 
-    public :: face_tty_specified_color, is_glyph_equal, is_character_glyph_space
+    public :: face_terminal_specified_color, is_glyph_equal, is_character_glyph_space
 
 contains
 
     !> Whether `color' is a real color rather than a default.
     !> Port of dispextern.h:face_tty_specified_color.
-    elemental logical function face_tty_specified_color(color)
+    elemental logical function face_terminal_specified_color(color)
         integer(int64), intent(in) :: color
 
-        face_tty_specified_color = color >= 0
-    end function face_tty_specified_color
+        face_terminal_specified_color = color >= 0
+    end function face_terminal_specified_color
 
     !> dispextern.h:GLYPH_EQUAL_P for character and stretch glyphs.
     !> Port of dispextern.h:GLYPH_EQUAL_P (in part).

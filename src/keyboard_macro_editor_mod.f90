@@ -22,10 +22,10 @@
 !> The printed form of keyboard macros (`format_keyboard_macro'), which
 !> keyboard_macros_mod shows in the echo area.
 !>
-!> Deferred: the macro editor (`edit_keyboard_macro', `edmacro_mode', C-x C-k
+!> Deferred: the macro editor (`edit_keyboard_macro', `keyboard_macro_editor_mode', C-x C-k
 !> e and RET, `insert_keyboard_macro'), `read_keyboard_macro' and the parsing of
-!> macro text (`edmacro_parse_keys'), and menu-bar and mouse events in
-!> macros (`edmacro_fix_menu_commands': macros here hold characters and
+!> macro text (`keyboard_macro_editor_parse_keys'), and menu-bar and mouse events in
+!> macros (`keyboard_macro_editor_fix_menu_commands': macros here hold characters and
 !> function keys only).
 module keyboard_macro_editor_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -45,23 +45,24 @@ module keyboard_macro_editor_mod
 
     public :: format_keyboard_macro
 
-    !> Values of `format_keyboard_macro''s VERBOSE: EDMACRO_COMPACT (a compact 80-column
-    !> format), EDMACRO_ONE_LINE (everything on one line) and EDMACRO_VERBOSE (one command per line,
+    !> Values of `format_keyboard_macro''s VERBOSE: KEYBOARD_MACRO_EDITOR_COMPACT (a compact 80-column
+    !> format), KEYBOARD_MACRO_EDITOR_ONE_LINE (everything on one line) and KEYBOARD_MACRO_EDITOR_VERBOSE (one command per line,
     !> with comments).
-    integer, parameter, public :: EDMACRO_COMPACT = 0, EDMACRO_ONE_LINE = 1, EDMACRO_VERBOSE = 2
+    integer, parameter, public :: KEYBOARD_MACRO_EDITOR_COMPACT = 0, KEYBOARD_MACRO_EDITOR_ONE_LINE = 1, &
+                                  KEYBOARD_MACRO_EDITOR_VERBOSE = 2
 
     !> True if `edit_keyboard_macro' should leave 8-bit characters intact.
     !> Default false means to write characters above \177 in octal
     !> notation.  Port of edmacro.el edmacro-eight-bits.
-    logical, public :: edmacro_eight_bits = .false.
+    logical, public :: keyboard_macro_editor_eight_bits = .false.
 
 contains
 
     !> Return the keyboard macro MACRO as a human-readable string.
     !> This string is suitable for passing to `read_keyboard_macro'.
     !> Second argument VERBOSE means to put one command per line with
-    !> comments (EDMACRO_VERBOSE).  If VERBOSE is EDMACRO_ONE_LINE, put
-    !> everything on one line.  If VERBOSE is omitted or EDMACRO_COMPACT,
+    !> comments (KEYBOARD_MACRO_EDITOR_VERBOSE).  If VERBOSE is KEYBOARD_MACRO_EDITOR_ONE_LINE, put
+    !> everything on one line.  If VERBOSE is omitted or KEYBOARD_MACRO_EDITOR_COMPACT,
     !> use a compact 80-column format.  Port of edmacro.el:format-kbd-macro
     !> with edmacro-format-keys (MACRO is an array of events).
     recursive function format_keyboard_macro(macro, verbose) result(res)
@@ -80,12 +81,12 @@ contains
         one_line = .false.
 
         if (present(verbose)) then
-            verb = verbose == EDMACRO_VERBOSE
-            one_line = verbose == EDMACRO_ONE_LINE
+            verb = verbose == KEYBOARD_MACRO_EDITOR_VERBOSE
+            one_line = verbose == KEYBOARD_MACRO_EDITOR_ONE_LINE
         end if
 
         maxkey = 127
-        if (edmacro_eight_bits) maxkey = 255
+        if (keyboard_macro_editor_eight_bits) maxkey = 255
         n = size(macro, kind=int64)
         allocate (rest(n + 1))
         if (n > 0) rest(1:n) = macro

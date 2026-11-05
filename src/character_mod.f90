@@ -109,9 +109,9 @@ module character_mod
     public :: is_leading_code, is_trailing_code, is_character_head, bytes_by_character_head
     public :: multibyte_length, raw_previous_character_length, string_character_and_length, &
               string_character
-    public :: multibyte_characters_in_text, parse_str_as_multibyte, &
-              str_as_multibyte, count_size_as_multibyte, str_to_multibyte, &
-              str_as_unibyte
+    public :: multibyte_characters_in_text, parse_string_as_multibyte, &
+              string_as_multibyte, count_size_as_multibyte, string_to_multibyte, &
+              string_as_unibyte
     public :: character_resolve_modifier_mask
     public :: variation_selector_number, is_character_surrogate, character_hexdigit
     public :: downcase_ascii
@@ -561,7 +561,7 @@ contains
     !> Count the characters and bytes unibyte text `string' would have as
     !> multibyte text: bytes that start no valid sequence become 2-byte
     !> raw-byte forms.  Port of character.c:parse_str_as_multibyte.
-    pure subroutine parse_str_as_multibyte(string, nchars, nbytes)
+    pure subroutine parse_string_as_multibyte(string, nchars, nbytes)
         character(len=*), intent(in) :: string
         integer(int64), intent(out) :: nchars, nbytes
         integer(int64) :: p
@@ -584,20 +584,20 @@ contains
 
             nchars = nchars + 1
         end do
-    end subroutine parse_str_as_multibyte
+    end subroutine parse_string_as_multibyte
 
     !> Unibyte text `string' rearranged as multibyte text: valid sequences are
     !> kept, other 8-bit bytes become raw-byte forms.  `nchars' receives the
     !> character count.  Port of character.c:str_as_multibyte (which works
     !> in place; this produces a new string).
-    pure subroutine str_as_multibyte(string, out, nchars)
+    pure subroutine string_as_multibyte(string, out, nchars)
         character(len=*), intent(in) :: string
         character(len=:), allocatable, intent(out) :: out
         integer(int64), intent(out), optional :: nchars
         integer(int64) :: p, q, chars, nbytes
         integer(int32) :: n, b
 
-        call parse_str_as_multibyte(string, chars, nbytes)
+        call parse_string_as_multibyte(string, chars, nbytes)
         if (present(nchars)) nchars = chars
         allocate (character(len=nbytes) :: out)
         p = 1
@@ -618,7 +618,7 @@ contains
                 q = q + 2
             end if
         end do
-    end subroutine str_as_multibyte
+    end subroutine string_as_multibyte
 
     !> Bytes `string' occupies once every non-ASCII byte becomes a raw-byte
     !> form.  Port of character.c:count_size_as_multibyte.
@@ -636,7 +636,7 @@ contains
     !> Unibyte `source' as multibyte text holding the same single-byte
     !> characters (every non-ASCII byte becomes a raw-byte form).
     !> Port of character.c:str_to_multibyte.
-    pure function str_to_multibyte(source) result(destination)
+    pure function string_to_multibyte(source) result(destination)
         character(len=*), intent(in) :: source
         character(len=:), allocatable :: destination
         integer(int64) :: i, q
@@ -657,11 +657,11 @@ contains
                 q = q + 2
             end if
         end do
-    end function str_to_multibyte
+    end function string_to_multibyte
 
     !> Multibyte `string' with raw-byte forms turned back into single bytes.
     !> Port of character.c:str_as_unibyte (which works in place).
-    pure function str_as_unibyte(string) result(out)
+    pure function string_as_unibyte(string) result(out)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: out
         character(len=len(string)) :: work
@@ -688,7 +688,7 @@ contains
         end do
 
         out = work(1:q)
-    end function str_as_unibyte
+    end function string_as_unibyte
 
     !> Fold modifier bits of `c' into the code where ASCII allows it (e.g.
     !> C-a -> 1, S-a -> A).  Port of character.c:char_resolve_modifier_mask.

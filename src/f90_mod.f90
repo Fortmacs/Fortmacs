@@ -31,7 +31,7 @@
 !> (unallocated when unset).  Functions upstream returns as (KIND NAME)
 !> give an `f90_block_type'.
 !>
-!> Deferred: the F90 menu, `f90_add_imenu_menu' (the menu bar), Hideshow
+!> Deferred: the F90 menu, `f90_add_index_menu_menu' (the menu bar), Hideshow
 !> (`hs_block_start_regular_expression' with `f90_start_block_regular_expression' and
 !> `f90_end_block_regular_expression'), `f90_backslash_not_special'
 !> (obsolete), the `delete_selection' property of
@@ -76,8 +76,8 @@ module f90_mod
     use display_engine_mod, only: message
     use window_mod, only: windows, window_start, display_buffer
     use frame_mod, only: selected_frame
-    use abbreviation_mod, only: abbrev_table_type, abbrev_mode, abbrev_all_caps, expand_abbrev, &
-                                insert_abbrev_table_description, edit_abbrevs_mode
+    use abbreviation_mod, only: abbreviation_table_type, abbreviation_mode, abbreviation_all_caps, expand_abbreviation, &
+                                insert_abbreviation_table_description, edit_abbreviations_mode
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_keywords_type, font_lock_keywords_level, FONT_LOCK_OVERRIDE_REPLACE, &
                              FONT_LOCK_OVERRIDE_KEEP, FONT_LOCK_OVERRIDE_APPEND
@@ -87,12 +87,12 @@ module f90_mod
     use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     use newcomment_mod, only: comment_start, comment_start_skip, comment_indent_function, comment_indent_type, &
                               comment_column, comment_auto_fill_only_comments, COMMENT_INDENT_COLUMN
-    use index_menu_mod, only: imenu_patterns, imenu_pattern_type, imenu_case_fold_search
+    use index_menu_mod, only: index_menu_patterns, index_menu_pattern_type, index_menu_case_fold_search
     implicit none(type, external)
     private
 
     public :: initialize_f90, f90_mode, f90_block_type
-    public :: f90_imenu_type_matcher, f90_current_subprogram
+    public :: f90_index_menu_type_matcher, f90_current_subprogram
     public :: f90_in_string, f90_in_comment, f90_line_continued, f90_current_indentation, f90_indent_to, &
               f90_looking_at_do, f90_looking_at_select_case, f90_looking_at_if_then, f90_looking_at_associate, &
               f90_looking_at_critical, f90_looking_at_end_critical, f90_looking_at_where_or_forall, &
@@ -122,9 +122,9 @@ module f90_mod
         character(len=:), allocatable :: kind, name
     end type f90_block_type
 
-    !> Value for `imenu_patterns' in F90 mode.  Port of f90.el
+    !> Value for `index_menu_patterns' in F90 mode.  Port of f90.el
     !> f90-imenu-generic-expression.
-    type(imenu_pattern_type), allocatable, public :: f90_imenu_patterns(:)
+    type(index_menu_pattern_type), allocatable, public :: f90_index_menu_patterns(:)
 
     !> Extra indentation applied to DO blocks.  Port of f90.el f90-do-indent.
     type(integer_setting_type), target, public :: f90_do_indent = integer_setting_type(name="f90_do_indent", value=3)
@@ -303,7 +303,7 @@ module f90_mod
     !> Keymap used in F90 mode.  Port of f90.el f90-mode-map.
     type(handle_type), public :: f90_mode_map
     !> Abbrev table for F90 mode.  Port of f90.el f90-mode-abbrev-table.
-    type(abbrev_table_type), target, public :: f90_mode_abbrev_table
+    type(abbreviation_table_type), target, public :: f90_mode_abbreviation_table
 
     !> Temporary position used to speed up region operations (0 for none).
     !> Port of f90.el f90-cache-position.
@@ -354,11 +354,11 @@ contains
         call initialize_regular_expressions()
         call initialize_syntax_table()
         call initialize_keywords()
-        call initialize_abbrevs()
+        call initialize_abbreviations()
         call major_modes%f90_mode%define("f90_mode", "F90", f90_mode, f90_mode_hook, parent=major_modes%programming_mode, &
-                                         syntax_table=f90_mode_syntax_table, abbrev_table=f90_mode_abbrev_table)
+                                         syntax_table=f90_mode_syntax_table, abbreviation_table=f90_mode_abbreviation_table)
         f90_mode_map = major_modes%f90_mode%map
-        call keymap_set(f90_mode_map, "`", "f90_abbrev_start", st)
+        call keymap_set(f90_mode_map, "`", "f90_abbreviation_start", st)
         call keymap_set(f90_mode_map, "C-c ;", "f90_comment_region", st)
         call keymap_set(f90_mode_map, "C-M-a", "f90_beginning_of_subprogram", st)
         call keymap_set(f90_mode_map, "C-M-e", "f90_end_of_subprogram", st)
@@ -409,52 +409,53 @@ contains
         commands%f90_fill_paragraph%execute => execute_f90_fill_paragraph
         commands%f90_match_end%execute => execute_f90_match_end
         commands%f90_insert_end%execute => execute_f90_insert_end
-        commands%f90_abbrev_start%execute => execute_f90_abbrev_start
-        commands%f90_abbrev_help%execute => execute_f90_abbrev_help
+        commands%f90_abbreviation_start%execute => execute_f90_abbreviation_start
+        commands%f90_abbreviation_help%execute => execute_f90_abbreviation_help
         commands%f90_upcase_keywords%execute => execute_f90_upcase_keywords
         commands%f90_capitalize_keywords%execute => execute_f90_capitalize_keywords
         commands%f90_downcase_keywords%execute => execute_f90_downcase_keywords
         commands%f90_upcase_region_keywords%execute => execute_f90_upcase_region_keywords
         commands%f90_capitalize_region_keywords%execute => execute_f90_capitalize_region_keywords
         commands%f90_downcase_region_keywords%execute => execute_f90_downcase_region_keywords
-        call initialize_imenu_patterns()
+        call initialize_index_menu_patterns()
     end subroutine initialize_f90
 
-    ! Make `f90_imenu_patterns'.  Port of f90.el
+    ! Make `f90_index_menu_patterns'.  Port of f90.el
     ! f90-imenu-generic-expression (its value).
-    subroutine initialize_imenu_patterns()
+    subroutine initialize_index_menu_patterns()
         character(len=*), parameter :: AMP = achar(38), Q = '"', NAME = "\(\(?:\sw\|\s_\)+\)"
         character(len=*), parameter :: GOOD_CHARACTER = "[^!"//Q//AMP//LF//" "//TAB//"]", &
                                        NOT_E = "[^e!"//LF//Q//AMP//" "//TAB//"]", &
                                        NOT_N = "[^n!"//LF//Q//AMP//" "//TAB//"]", &
                                        NOT_D = "[^d!"//LF//Q//AMP//" "//TAB//"]"
 
-        if (allocated(f90_imenu_patterns)) return
-        allocate (f90_imenu_patterns(5))
-        f90_imenu_patterns(1) = imenu_pattern_type(menu_title="", regular_expression="^[ "//TAB//"0-9]*program[ "//TAB// &
-                                                   "]+"//NAME, subexpression=1)
-        f90_imenu_patterns(2) = imenu_pattern_type(menu_title="Submodules", regular_expression="^[ "//TAB// &
-                                                   "0-9]*submodule[ "//TAB//"]*([^)"//LF//"]+)[ "//TAB//"]*"// &
-                                                   NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
-        f90_imenu_patterns(3) = imenu_pattern_type(menu_title="Modules", regular_expression="^[ "//TAB//"0-9]*module[ "// &
-                                                   TAB//"]+"//NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
-        f90_imenu_patterns(4) = imenu_pattern_type(menu_title="Types", matcher=f90_imenu_type_matcher, &
-                                                   subexpression=1)
+        if (allocated(f90_index_menu_patterns)) return
+        allocate (f90_index_menu_patterns(5))
+        f90_index_menu_patterns(1) = index_menu_pattern_type(menu_title="", regular_expression="^[ "//TAB//"0-9]*program[ "//TAB// &
+                                                             "]+"//NAME, subexpression=1)
+        f90_index_menu_patterns(2) = index_menu_pattern_type(menu_title="Submodules", regular_expression="^[ "//TAB// &
+                                                             "0-9]*submodule[ "//TAB//"]*([^)"//LF//"]+)[ "//TAB//"]*"// &
+                                                             NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
+        f90_index_menu_patterns(3) = index_menu_pattern_type(menu_title="Modules", &
+                                                             regular_expression="^[ "//TAB//"0-9]*module[ "// &
+                                                             TAB//"]+"//NAME//"[ "//TAB//"]*\(!\|$\)", subexpression=1)
+        f90_index_menu_patterns(4) = index_menu_pattern_type(menu_title="Types", matcher=f90_index_menu_type_matcher, &
+                                                             subexpression=1)
         ! At least three non-space characters before function/subroutine.
         ! Check that the last three non-space characters do not spell E N D.
         ! Less than three non-space characters before function/subroutine.
-        f90_imenu_patterns(5) = imenu_pattern_type(menu_title="Procedures", regular_expression="^[ "//TAB//"0-9]*\("// &
-                                                   "[^!"//Q//AMP//LF//"]*\("//NOT_E//GOOD_CHARACTER//GOOD_CHARACTER// &
-                                                   "\|"//GOOD_CHARACTER//NOT_N//GOOD_CHARACTER//"\|"//GOOD_CHARACTER// &
-                                                   GOOD_CHARACTER//NOT_D//"\)"//"\|"//GOOD_CHARACTER//"?"//GOOD_CHARACTER// &
-                                                   "?"//"\)"//"[ "//TAB//"]*\(function\|subroutine\)[ "// &
-                                                   TAB//"]+"//NAME, subexpression=4)
-    end subroutine initialize_imenu_patterns
+        f90_index_menu_patterns(5) = index_menu_pattern_type(menu_title="Procedures", regular_expression="^[ "//TAB//"0-9]*\("// &
+                                                             "[^!"//Q//AMP//LF//"]*\("//NOT_E//GOOD_CHARACTER//GOOD_CHARACTER// &
+                                                             "\|"//GOOD_CHARACTER//NOT_N//GOOD_CHARACTER//"\|"//GOOD_CHARACTER// &
+                                                          GOOD_CHARACTER//NOT_D//"\)"//"\|"//GOOD_CHARACTER//"?"//GOOD_CHARACTER// &
+                                                             "?"//"\)"//"[ "//TAB//"]*\(function\|subroutine\)[ "// &
+                                                             TAB//"]+"//NAME, subexpression=4)
+    end subroutine initialize_index_menu_patterns
 
     !> Search backward for the start of a derived type.
     !> Set subexpression 1 in the match data to the name of the type
     !> (FOUND if there is one).  Port of f90.el:f90-imenu-type-matcher.
-    subroutine f90_imenu_type_matcher(found)
+    subroutine f90_index_menu_type_matcher(found)
         logical, intent(out) :: found
         type(status_type) :: st
         integer(int64) :: at, here, end
@@ -483,7 +484,7 @@ contains
             call goto_character(here)
             if (found) exit
         end do
-    end subroutine f90_imenu_type_matcher
+    end subroutine f90_index_menu_type_matcher
 
     ! Set the regexps of F90 mode.  Port of the values of f90.el's regexp
     ! variables.
@@ -870,10 +871,10 @@ contains
 
     !> Abbrevs have generally two letters, except standard types `c, `i, `r, `t.
     !> Port of the value of f90.el's f90-mode-abbrev-table.
-    subroutine initialize_abbrevs()
-        call f90_mode_abbrev_table%define_table("f90_mode_abbrev_table")
+    subroutine initialize_abbreviations()
+        call f90_mode_abbreviation_table%define_table("f90_mode_abbreviation_table")
         ! Accept ` as the first char of an abbrev.  Also allow _ in abbrevs.
-        f90_mode_abbrev_table%regular_expression = "\(?:[^[:word:]_`]\|^\)\(`?[[:word:]_]+\)[^[:word:]_]*"
+        f90_mode_abbreviation_table%regular_expression = "\(?:[^[:word:]_`]\|^\)\(`?[[:word:]_]+\)[^[:word:]_]*"
         call a("`al", "allocate")
         call a("`ab", "allocatable")
         call a("`ai", "abstract interface")
@@ -939,12 +940,12 @@ contains
 
     contains
 
-        subroutine a(abbrev, expansion)
-            character(len=*), intent(in) :: abbrev, expansion
+        subroutine a(abbreviation, expansion)
+            character(len=*), intent(in) :: abbreviation, expansion
 
-            call f90_mode_abbrev_table%define(abbrev, expansion, system=.true.)
+            call f90_mode_abbreviation_table%define(abbreviation, expansion, system=.true.)
         end subroutine a
-    end subroutine initialize_abbrevs
+    end subroutine initialize_abbreviations
 
     ! ------------------------------------------------------------------
     ! Small helpers
@@ -2623,7 +2624,7 @@ contains
     end subroutine execute_f90_indent_line
 
     !> Re-indent current line, insert a newline and indent the newline.
-    !> An abbrev before point is expanded if the variable `abbrev_mode' is true.
+    !> An abbrev before point is expanded if the variable `abbreviation_mode' is true.
     !> If run in the middle of a line, the line is not broken.  Port of
     !> f90.el:f90-indent-new-line.
     recursive subroutine f90_indent_new_line(status)
@@ -2632,8 +2633,8 @@ contains
 
         status = status_type()
 
-        if (associated(abbrev_mode)) then
-            if (abbrev_mode%value) call expand_abbrev(status)
+        if (associated(abbreviation_mode)) then
+            if (abbreviation_mode%value) call expand_abbreviation(status)
         end if
 
         if (.not. status%ok()) return
@@ -3484,7 +3485,7 @@ contains
     !> Typing `\[help_command] or `? lists all the F90 abbrevs.
     !> Any other key combination is executed normally.  Port of
     !> f90.el:f90-abbrev-start.
-    recursive subroutine execute_f90_abbrev_start(status)
+    recursive subroutine execute_f90_abbreviation_start(status)
         use value_mod, only: value_type
         type(status_type), intent(out) :: status
         type(handle_type) :: map
@@ -3496,33 +3497,33 @@ contains
         call self_insert_command(1_int64, int(iachar("`"), int64), status)
         if (.not. status%ok()) return
 
-        if (associated(abbrev_mode)) then
-            if (abbrev_mode%value) then
+        if (associated(abbreviation_mode)) then
+            if (abbreviation_mode%value) then
                 call make_sparse_keymap(map)
                 key(1) = value_type(int(iachar("?"), int64))
-                call define_key(map, key, value_type(name="f90_abbrev_help"), st)
+                call define_key(map, key, value_type(name="f90_abbreviation_help"), st)
                 key(1) = value_type(HELP_CHARACTER)
-                call define_key(map, key, value_type(name="f90_abbrev_help"), st)
+                call define_key(map, key, value_type(name="f90_abbreviation_help"), st)
                 call set_transient_map(map)
             end if
         end if
-    end subroutine execute_f90_abbrev_start
+    end subroutine execute_f90_abbreviation_start
 
     !> List the currently defined abbrevs in F90 mode.  Port of
     !> f90.el:f90-abbrev-help.
-    recursive subroutine execute_f90_abbrev_help(status)
+    recursive subroutine execute_f90_abbreviation_help(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, window
 
         call message("Listing abbrev table...")
-        call f90_prepare_abbrev_list_buffer(buffer, status)
+        call f90_prepare_abbreviation_list_buffer(buffer, status)
         if (status%ok()) call display_buffer(buffer, window, status)
         if (status%ok()) call message("Listing abbrev table...done")
-    end subroutine execute_f90_abbrev_help
+    end subroutine execute_f90_abbreviation_help
 
     !> Create a buffer listing the F90 mode abbreviations.  Port of
     !> f90.el:f90-prepare-abbrev-list-buffer.
-    recursive subroutine f90_prepare_abbrev_list_buffer(buffer, status)
+    recursive subroutine f90_prepare_abbreviation_list_buffer(buffer, status)
         type(handle_type), intent(out) :: buffer
         type(status_type), intent(out) :: status
         type(handle_type) :: old
@@ -3533,16 +3534,16 @@ contains
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         if (status%ok()) call erase_buffer(status)
-        if (status%ok()) call insert_abbrev_table_description(f90_mode_abbrev_table, status, .true.)
+        if (status%ok()) call insert_abbreviation_table_description(f90_mode_abbreviation_table, status, .true.)
 
         if (status%ok()) then
             call goto_character(point_minimum())
             call restore_buffer_modified(.false.)
-            call edit_abbrevs_mode(status)
+            call edit_abbreviations_mode(status)
         end if
 
         call set_buffer(old, st)
-    end subroutine f90_prepare_abbrev_list_buffer
+    end subroutine f90_prepare_abbreviation_list_buffer
 
     !> Upcase all F90 keywords in the buffer.  Port of
     !> f90.el:f90-upcase-keywords.
@@ -3911,7 +3912,7 @@ contains
         call comment_start%set_local("!")
         call comment_start_skip%set_local("!+ *")
         call comment_indent_function%set_local(f90_comment_indent_function)
-        call abbrev_all_caps%set_local(.true.)
+        call abbreviation_all_caps%set_local(.true.)
         call normal_auto_fill_function%set_local(f90_do_auto_fill)
         call indent_tabs_mode%set_local(.false.) ! auto buffer local
         call fill_paragraph_function%set_local(f90_fill_paragraph)
@@ -3924,8 +3925,8 @@ contains
         levels(4) = font_lock_keywords_level(f90_font_lock_keywords_3)
         levels(5) = font_lock_keywords_level(f90_font_lock_keywords_4)
         call font_lock_defaults%set_local(levels=levels, keywords_only=.false., case_fold=.true.)
-        call imenu_case_fold_search%set_local(.true.)
-        call imenu_patterns%set_local(f90_imenu_patterns)
+        call index_menu_case_fold_search%set_local(.true.)
+        call index_menu_patterns%set_local(f90_index_menu_patterns)
         call major_modes%f90_mode%end(saved, status)
     end subroutine f90_mode
 end module f90_mod

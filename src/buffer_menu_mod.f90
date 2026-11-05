@@ -75,7 +75,7 @@ module buffer_menu_mod
                                   set_tabulated_list_format, set_tabulated_list_entries, &
                                   set_tabulated_list_use_header_line, tabulated_list_get_id, tabulated_list_get_entry, &
                                   tabulated_list_set_column, tabulated_list_delete_entry, tabulated_list_print, &
-                                  tabulated_list_print_entry, tabulated_list_init_header, tabulated_list_revert_hook
+                                  tabulated_list_print_entry, tabulated_list_initialize_header, tabulated_list_revert_hook
     use faces_mod, only: named_face_type, display_when, face_attributes
     implicit none(type, external)
     private
@@ -1344,7 +1344,7 @@ contains
         call set_tabulated_list_format(format)
         call set_tabulated_list_use_header_line(buffer_menu_use_header_line)
         call set_tabulated_list_entries(entries(1:n))
-        call tabulated_list_init_header()
+        call tabulated_list_initialize_header()
     end subroutine list_buffers_refresh
 
     ! A sortable column NAME, WIDTH wide, PAD_RIGHT spaces after it.

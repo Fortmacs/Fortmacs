@@ -94,7 +94,7 @@ module keyboard_mod
     private
 
     public :: current_input_meta_mode, set_input_meta_mode, set_input_fd, keyboard_store_bytes, &
-              tty_read_avail_input, unread_command_events, &
+              terminal_read_avail_input, unread_command_events, &
               discard_input, is_input_pending, read_event, has_unread_command_events, read_input_event, store_event, &
               unread_post_input_method_events, unread_input_method_events
     public :: read_key_sequence, command_loop_step, command_loop, &
@@ -745,9 +745,9 @@ module keyboard_mod
 
         !> Do whatever is right to suspend the current frame.
         !> Calls `suspend_fortmacs' if invoked from the controlling tty device,
-        !> `suspend_tty' from a secondary tty device, and
+        !> `suspend_terminal' from a secondary tty device, and
         !> `iconify_or_deiconify_frame' from a graphical frame.
-        !> Port of frame.el:suspend-frame (`suspend_tty' and
+        !> Port of frame.el:suspend-frame (`suspend_terminal' and
         !> `iconify_or_deiconify_frame' are not ported yet).
         recursive module subroutine suspend_frame(status)
             implicit none(type, external)
@@ -966,7 +966,7 @@ contains
     !> the number of bytes (0 at end of file).  Port of
     !> keyboard.c:tty_read_avail_input (with keyboard.c:gobble_input, which
     !> reads what one terminal has).
-    subroutine tty_read_avail_input(nread, status)
+    subroutine terminal_read_avail_input(nread, status)
         integer(int64), intent(out) :: nread
         type(status_type), intent(out) :: status
         character(len=4096) :: buffer
@@ -977,7 +977,7 @@ contains
         call fortmacs_read(input_fd, buffer, nread, status)
         if (.not. status%ok()) return
         if (nread > 0) call keyboard_store_bytes(buffer(1:nread))
-    end subroutine tty_read_avail_input
+    end subroutine terminal_read_avail_input
 
     !> Push `evs' to be read before any other input, in order.
     !> Like setting keyboard.c:Vunread_command_events.  Not a port.
@@ -1516,7 +1516,7 @@ contains
                 end if
             end do waiting
 
-            call tty_read_avail_input(nread, status)
+            call terminal_read_avail_input(nread, status)
             if (.not. status%ok()) return
             ! End of file: the terminal went away.
             if (nread == 0) return

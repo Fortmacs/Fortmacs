@@ -42,7 +42,7 @@ module undo_mod
     use handle_mod, only: handle_type, has_handle
     use buffer_mod, only: buffers, current, buffer_handle, is_buffer_live, resolve_buffer, set_buffer, &
                           undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, UE_POINT, &
-                          UE_FIRST_CHANGE, buffer_visited_file_modtime, buf_bytes
+                          UE_FIRST_CHANGE, buffer_visited_file_modtime, buffer_bytes
     use marker_mod, only: character_to_byte
     use error_mod, only: status_type
     implicit none(type, external)
@@ -204,8 +204,8 @@ contains
     subroutine record_change(beginning, length)
         integer(int64), intent(in) :: beginning, length
 
-        call record_delete(beginning, buf_bytes(buffers(current), character_to_byte(beginning), &
-                                                character_to_byte(beginning + length)), &
+        call record_delete(beginning, buffer_bytes(buffers(current), character_to_byte(beginning), &
+                                                   character_to_byte(beginning + length)), &
                            length)
         call record_insert(beginning, length)
     end subroutine record_change

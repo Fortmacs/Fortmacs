@@ -76,7 +76,7 @@ module help_mod
     use display_engine_mod, only: message
     use minibuffer_reading_mod, only: completion_obarray_table, minibuffer_local_map
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
-    use help_mode_mod, only: help_mode, help_mode_map, initialize_help_mode, help_make_xrefs, help_setup_xref
+    use help_mode_mod, only: help_mode, help_mode_map, initialize_help_mode, help_make_cross_references, help_setup_cross_reference
     use frame_mod, only: selected_frame, selected_window
     use window_mod, only: windows, is_window_live, same_window, window_leaves, temporary_buffer_window_show, &
                           is_position_visible_in_window, QR_WINDOW, QR_FRAME, QR_OTHER, display_buffer, &
@@ -282,7 +282,7 @@ contains
     !> Each substring of the form \{MAPVAR} is replaced by a summary of
     !> the value of MAPVAR as a keymap.  This summary is similar to the one
     !> produced by `describe_bindings'.  The summary ends in two newlines
-    !> (used by the helper function `help_make_xrefs' to find the end of the
+    !> (used by the helper function `help_make_cross_references' to find the end of the
     !> summary).
     !>
     !> \= quotes the following character and is discarded; thus, \=\= puts \=
@@ -481,7 +481,7 @@ contains
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
-        call help_make_xrefs(status)
+        call help_make_cross_references(status)
         if (.not. status%ok()) return
         call set_buffer_read_only(buffer, .true., status)
         call temporary_buffer_window_show(buffer, window, status)
@@ -808,7 +808,7 @@ contains
         if (.not. status%ok()) return
         ! Its stack item (describe-key--helper, which looks the keys up
         ! again in the buffer they were typed in) is Deferred.
-        call help_setup_xref(.true., status)
+        call help_setup_cross_reference(.true., status)
         if (.not. status%ok()) return
         lead = description//" runs the command "//name//found_in(keys)//", which is "
         text = lead
@@ -1905,7 +1905,7 @@ contains
                     s = key_description(events)
                 end if
             else
-                ! These should be rare nowadays, replaced by `kmacro's.
+                ! These should be rare nowadays, replaced by `keyboard_macro's.
                 s = "Keyboard Macro"
             end if
         else if (vtag(definition) == V_KEYMAP) then
@@ -2050,16 +2050,16 @@ contains
     end function compare_digits
 
     !> Append to `text' the description of the runs FROM .. TO of
-    !> characters bound alike to DEFS in a keymap's char-table, reached by
+    !> characters bound alike to DEFINITIONS in a keymap's char-table, reached by
     !> PREFIX: a run of one character is described as the character, a
     !> longer one as "FIRST .. LAST"; a run that crosses the end of the
     !> 5-byte characters is split there.  Port of
     !> keymap.c:describe_vector (a char-table; KEYMAP_P true) with the
     !> help.el:describe-map describer, as keymap.c:Fhelp__describe_vector
     !> calls it.
-    subroutine describe_character_table(from, to, defs, prefix, transl, partial, shadow, mention_shadow, text)
+    subroutine describe_character_table(from, to, definitions, prefix, transl, partial, shadow, mention_shadow, text)
         integer(int64), intent(in) :: from(:), to(:)
-        type(value_type), intent(in) :: defs(:), prefix(:), shadow(:)
+        type(value_type), intent(in) :: definitions(:), prefix(:), shadow(:)
         logical, intent(in) :: transl, partial, mention_shadow
         character(len=:), allocatable, intent(inout) :: text
         integer(int64), parameter :: MAXIMUM_5_BYTE_CHARACTER = int(z"3FFF7F", int64)
@@ -2083,16 +2083,16 @@ contains
                 m = m + 1
                 rf(m) = from(order(k))
                 rt(m) = MAXIMUM_5_BYTE_CHARACTER
-                rd(m) = defs(order(k))
+                rd(m) = definitions(order(k))
                 m = m + 1
                 rf(m) = MAXIMUM_5_BYTE_CHARACTER + 1
                 rt(m) = to(order(k))
-                rd(m) = defs(order(k))
+                rd(m) = definitions(order(k))
             else
                 m = m + 1
                 rf(m) = from(order(k))
                 rt(m) = to(order(k))
-                rd(m) = defs(order(k))
+                rd(m) = definitions(order(k))
             end if
         end do
 

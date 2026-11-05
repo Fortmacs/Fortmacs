@@ -739,16 +739,20 @@ function oassign(i, val, ind) {
 }
 
 # Fortran expression for docstring d (lines joined by \036), indented.
-function docexpr(d, ind,    n, i, lines, out, line, piece) {
+function docexpr(d, ind,    n, i, lines, out, line, piece, k) {
     if (d == "") return "\"\""
     n = split(d, lines, "\036")
     out = ""
     for (i = 1; i <= n; i++) {
         line = lines[i]
-        # Long lines go in pieces, to stay within 132 columns.
+        # Long lines go in pieces, to stay within 132 columns, each ending
+        # after a character that cannot be part of a name, as lit does.
         while (length(line) > 90) {
-            piece = substr(line, 1, 90)
-            line = substr(line, 91)
+            for (k = 90; k > 1; k--)
+                if (substr(line, k, 1) !~ /[A-Za-z0-9_]/) break
+            if (k == 1) k = 90
+            piece = substr(line, 1, k)
+            line = substr(line, k + 1)
             out = out q(piece) "// &\n" ind
         }
         out = out q(line)

@@ -47,15 +47,15 @@
 module insert_delete_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, MEMORY_FULL_CODE
-    use character_mod, only: character_string, multibyte_characters_in_text, string_character_and_length, str_to_multibyte, &
+    use character_mod, only: character_string, multibyte_characters_in_text, string_character_and_length, string_to_multibyte, &
                              MAXIMUM_MULTIBYTE_LENGTH
     use handle_mod, only: handle_type
-    use buffer_mod, only: buffers, current, BEGINNING, BUF_BYTES_MAXIMUM, GAP_BYTES_DFL, &
-                          GAP_BYTES_MINIMUM, modiff_increment, buf_compute_unchanged, &
-                          buf_bytes, barf_if_buffer_read_only, deactivate_mark_variable, buf_next_char_len, &
+    use buffer_mod, only: buffers, current, BEGINNING, BUFFER_BYTES_MAXIMUM, GAP_BYTES_DFL, &
+                          GAP_BYTES_MINIMUM, modiff_increment, buffer_compute_unchanged, &
+                          buffer_bytes, barf_if_buffer_read_only, deactivate_mark_variable, buffer_next_character_length, &
                           current_buffer, set_buffer, set_buffer_if_live, is_buffer_live, set_buffer_internal
     use marker_mod, only: character_to_byte, byte_to_character, markers, clear_character_position_cache, copy_marker_at, &
-                          marker_position, destroy_marker, buf_charpos_to_bytepos
+                          marker_position, destroy_marker, buffer_character_position_to_byte_position
     use undo_mod, only: record_insert, record_delete, record_first_change, undo_auto_undoable_change
     use intervals_mod, only: offset_intervals, graft_intervals_into_buffer, copy_intervals
     use text_properties_mod, only: verify_interval_modification, report_interval_modification, inhibit_modification_hooks, &
@@ -190,7 +190,7 @@ contains
         logical, intent(in) :: newgap
         integer(int64) :: n
 
-        if (.not. newgap) call buf_compute_unchanged(buffers(current), character_position, buffers(current)%text%gpt)
+        if (.not. newgap) call buffer_compute_unchanged(buffers(current), character_position, buffers(current)%text%gpt)
 
         associate (t => buffers(current)%text)
             ! Bytes [bytepos, gpt_byte) move up to the end of the gap.
@@ -210,7 +210,7 @@ contains
         integer(int64), intent(in) :: character_position, byte_position
         integer(int64) :: n
 
-        call buf_compute_unchanged(buffers(current), character_position, buffers(current)%text%gpt)
+        call buffer_compute_unchanged(buffers(current), character_position, buffers(current)%text%gpt)
 
         associate (t => buffers(current)%text)
             ! Bytes [gpt_byte, bytepos) move down from after the gap.
@@ -254,13 +254,13 @@ contains
         associate (t => buffers(current)%text)
             current_size = t%z_byte - BEGINNING + t%gap_size
 
-            if (BUF_BYTES_MAXIMUM - current_size < nbytes_requested) then
+            if (BUFFER_BYTES_MAXIMUM - current_size < nbytes_requested) then
                 call set_error(status, GENERIC_ERROR_CODE, "Maximum buffer size exceeded")
                 return
             end if
 
             ! Get enough to last a while.
-            nbytes_added = min(nbytes_requested + GAP_BYTES_DFL, BUF_BYTES_MAXIMUM - current_size)
+            nbytes_added = min(nbytes_requested + GAP_BYTES_DFL, BUFFER_BYTES_MAXIMUM - current_size)
             allocate (character(len=current_size + nbytes_added) :: grown, stat=astat)
 
             if (astat /= 0) then
@@ -494,7 +494,7 @@ contains
             to = to(1:n)
         else
             ! Convert single-byte to multibyte.
-            to = str_to_multibyte(from)
+            to = string_to_multibyte(from)
         end if
     end function copy_text
 
@@ -661,9 +661,9 @@ contains
         at = buffers(current)%point
         call prepare_to_modify_buffer(at, at, status)
         if (.not. status%ok()) return
-        from_byte = buf_charpos_to_bytepos(buffer, from)
-        to_byte = buf_charpos_to_bytepos(buffer, from + nchars)
-        text = copy_text(buf_bytes(buffers(buffer), from_byte, to_byte), buffers(buffer)%multibyte, buffers(current)%multibyte)
+        from_byte = buffer_character_position_to_byte_position(buffer, from)
+        to_byte = buffer_character_position_to_byte_position(buffer, from + nchars)
+        text = copy_text(buffer_bytes(buffers(buffer), from_byte, to_byte), buffers(buffer)%multibyte, buffers(current)%multibyte)
         ! Get the intervals for the part of the text we are inserting.
         call copy_intervals(buffers(buffer)%text%intervals, from, nchars, starts, ends, plists)
         at = buffers(current)%point
@@ -876,8 +876,9 @@ contains
         ! Make sure the gap is somewhere in or next to what we are deleting.
         if (from > buffers(current)%text%gpt) call gap_right(from, from_byte)
         if (to < buffers(current)%text%gpt) call gap_left(to, to_byte, .false.)
-        if (present(deleted)) deleted = buf_bytes(buffers(current), from_byte, to_byte)
-        if (buffers(current)%undo_enabled) call record_delete(from, buf_bytes(buffers(current), from_byte, to_byte), nchars_delete)
+        if (present(deleted)) deleted = buffer_bytes(buffers(current), from_byte, to_byte)
+        if (buffers(current)%undo_enabled) call record_delete(from, buffer_bytes(buffers(current), from_byte, to_byte), &
+                                                              nchars_delete)
         ! Relocate all markers pointing into the new, larger gap.
         call adjust_markers_for_delete(from, from_byte, to, to_byte)
 
@@ -952,7 +953,7 @@ contains
         if (from > buffers(current)%text%gpt) call gap_right(from, from_byte)
         if (to < buffers(current)%text%gpt) call gap_left(to, to_byte, .false.)
         has_deletion = buffers(current)%undo_enabled
-        if (has_deletion) deletion = buf_bytes(buffers(current), from_byte, to_byte)
+        if (has_deletion) deletion = buffer_bytes(buffers(current), from_byte, to_byte)
 
         associate (b => buffers(current), t => buffers(current)%text)
             t%gap_size = t%gap_size + nbytes_delete
@@ -1124,7 +1125,7 @@ contains
                     position_byte = from_byte
 
                     do while (position < mk%character_position .and. position_byte < buffers(current)%text%z_byte)
-                        position_byte = position_byte + buf_next_char_len(buffers(current), position_byte)
+                        position_byte = position_byte + buffer_next_character_length(buffers(current), position_byte)
                         position = position + 1
                     end do
 
@@ -1190,7 +1191,7 @@ contains
 
         call prepare_to_modify_buffer(start, end, status)
         if (.not. status%ok()) return
-        call buf_compute_unchanged(buffers(current), start - 1, end)
+        call buffer_compute_unchanged(buffers(current), start - 1, end)
         if (buffers(current)%text%modiff <= buffers(current)%text%save_modiff) call record_first_change()
 
         associate (t => buffers(current)%text)

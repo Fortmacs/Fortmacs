@@ -39,11 +39,12 @@ module fortmacs_diff_help_mod
     use interval_tree_mod, only: make_overlay, overlay_put
     use window_mod, only: window_body_width
     use frame_mod, only: selected_frame
-    use fortmacs_diff_settings_mod, only: ediff_sessions, ediff_display_help_hook
+    use fortmacs_diff_settings_mod, only: fortmacs_diff_sessions, fortmacs_diff_display_help_hook
     implicit none(type, external)
     private
 
-    public :: set_ediff_help_message, ediff_help_message_line_length, indent_ediff_help_message, set_ediff_help_overlays
+    public :: set_fortmacs_diff_help_message, fortmacs_diff_help_message_line_length, indent_fortmacs_diff_help_message, &
+              set_fortmacs_diff_help_overlays
 
     character, parameter :: LF = achar(10)
 
@@ -52,13 +53,13 @@ module fortmacs_diff_help_mod
 
     !> The head of the full help message.  Port of ediff-help.el
     !> ediff-long-help-message-head.
-    character(len=*), parameter, public :: EDIFF_LONG_HELP_MESSAGE_HEAD = &
+    character(len=*), parameter, public :: FORTMACS_DIFF_LONG_HELP_MESSAGE_HEAD = &
                                            "    Move around      |      Toggle features      |        Manipulate"//LF// &
                                            "=====================|===========================|============================="
 
     !> The tail of the full-help message.  Port of ediff-help.el
     !> ediff-long-help-message-tail.
-    character(len=*), parameter, public :: EDIFF_LONG_HELP_MESSAGE_TAIL = &
+    character(len=*), parameter, public :: FORTMACS_DIFF_LONG_HELP_MESSAGE_TAIL = &
                                            "=====================|===========================|============================="//LF// &
                                            "    R -show registry |     = -compare regions    |  M   -show session group"//LF// &
                                            "    D -diff output   |     E -browse Ediff manual|  G   -send bug report"//LF// &
@@ -72,7 +73,7 @@ module fortmacs_diff_help_mod
     !> Help message usually used for 3-way comparison.
     !> Normally, not a user option.  See `ediff_help_message' for details.
     !> Port of ediff-help.el ediff-long-help-message-compare3.
-    character(len=*), parameter, public :: EDIFF_LONG_HELP_MESSAGE_COMPARE3 = LF// &
+    character(len=*), parameter, public :: FORTMACS_DIFF_LONG_HELP_MESSAGE_COMPARE3 = LF// &
                                            "p,DEL -previous diff |     | -vert/horiz split   | xy -copy buf X's region to Y"//LF// &
                                            "n,SPC -next diff     |     h -highlighting       | rx -restore buf X's old diff"//LF// &
                                            "    j -jump to diff  |     @ -auto-refinement    |  * -refine current region"//LF// &
@@ -85,7 +86,7 @@ module fortmacs_diff_help_mod
     !> Help message usually used for 2-way comparison.
     !> Normally, not a user option.  See `ediff_help_message' for details.
     !> Port of ediff-help.el ediff-long-help-message-compare2.
-    character(len=*), parameter, public :: EDIFF_LONG_HELP_MESSAGE_COMPARE2 = LF// &
+    character(len=*), parameter, public :: FORTMACS_DIFF_LONG_HELP_MESSAGE_COMPARE2 = LF// &
                                            "p,DEL -previous diff |     | -vert/horiz split   |a/b -copy A/B's region to B/A"//LF// &
                                            "n,SPC -next diff     |     h -highlighting       | rx -restore buf X's old diff"//LF// &
                                            "    j -jump to diff  |     @ -auto-refinement    |  * -refine current region"//LF// &
@@ -98,7 +99,7 @@ module fortmacs_diff_help_mod
     !> Help message for merge sessions.
     !> Normally, not a user option.  See `ediff_help_message' for details.
     !> Port of ediff-help.el ediff-long-help-message-merge.
-    character(len=*), parameter, public :: EDIFF_LONG_HELP_MESSAGE_MERGE = LF// &
+    character(len=*), parameter, public :: FORTMACS_DIFF_LONG_HELP_MESSAGE_MERGE = LF// &
                                            "p,DEL -previous diff |     | -vert/horiz split   |  x -copy buf X's region to C"//LF// &
                                            "n,SPC -next diff     |     h -highlighting       |  r -restore buf C's old diff"//LF// &
                                            "    j -jump to diff  |     @ -auto-refinement    |  * -refine current region"//LF// &
@@ -113,20 +114,20 @@ module fortmacs_diff_help_mod
 
     !> Contents of the brief help message.  Port of ediff-help.el
     !> ediff-brief-message-string.
-    character(len=*), parameter, public :: EDIFF_BRIEF_MESSAGE_STRING = " Type ? for help"
+    character(len=*), parameter, public :: FORTMACS_DIFF_BRIEF_MESSAGE_STRING = " Type ? for help"
 
     !> If true, Ediff displays a long help message.  Short help message
     !> otherwise.  Port of ediff-help.el ediff-use-long-help-message (each
     !> session takes its own value when it starts).
-    logical, public :: ediff_use_long_help_message = .false.
+    logical, public :: fortmacs_diff_use_long_help_message = .false.
 
 contains
 
     !> Mark each command of the help message in the current buffer (the
-    !> control buffer) with an overlay whose `ediff_help_info' property
+    !> control buffer) with an overlay whose `fortmacs_diff_help_info' property
     !> is the command's key, highlighted under the mouse.  Port of
     !> ediff-help.el:ediff-set-help-overlays.
-    subroutine set_ediff_help_overlays(status)
+    subroutine set_fortmacs_diff_help_overlays(status)
         type(status_type), intent(out) :: status
         integer(int64) :: found, beginning, end
         type(handle_type) :: overlay
@@ -148,30 +149,30 @@ contains
             if (.not. status%ok()) return
             call overlay_put(overlay, "mouse_face", value_type(name=HIGHLIGHT_FACE), status)
             if (.not. status%ok()) return
-            call overlay_put(overlay, "ediff_help_info", value_type(text=command), status)
+            call overlay_put(overlay, "fortmacs_diff_help_info", value_type(text=command), status)
             if (.not. status%ok()) return
         end do
-    end subroutine set_ediff_help_overlays
+    end subroutine set_fortmacs_diff_help_overlays
 
     !> The length of the first line of the help message in the current
     !> buffer (the second one with the long message).  Port of
     !> ediff-help.el:ediff-help-message-line-length.
-    integer function ediff_help_message_line_length(k) result(n)
+    integer function fortmacs_diff_help_message_line_length(k) result(n)
         integer, intent(in) :: k
         integer(int64) :: original_point, shortage
 
         original_point = point()
         call goto_character(point_minimum())
-        if (ediff_sessions(k)%use_long_help_message) shortage = forward_line(1_int64)
+        if (fortmacs_diff_sessions(k)%use_long_help_message) shortage = forward_line(1_int64)
         call end_of_line(1_int64)
         n = int(current_column())
         call goto_character(original_point)
-    end function ediff_help_message_line_length
+    end function fortmacs_diff_help_message_line_length
 
     !> Center the help message in the control window: indent each line of
     !> the current buffer by half the room the window leaves.  Port of
     !> ediff-help.el:ediff-indent-help-message.
-    subroutine indent_ediff_help_message(k, status)
+    subroutine indent_fortmacs_diff_help_message(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
         integer(int64) :: original_point, shortage
@@ -179,7 +180,7 @@ contains
 
         width = window_body_width(selected_frame%selected_window, status)
         if (.not. status%ok()) return
-        shift = max(0, width - ediff_help_message_line_length(k))/2
+        shift = max(0, width - fortmacs_diff_help_message_line_length(k))/2
         original_point = point()
         call goto_character(point_minimum())
 
@@ -196,38 +197,41 @@ contains
         end do
 
         call goto_character(original_point)
-    end subroutine indent_ediff_help_message
+    end subroutine indent_fortmacs_diff_help_message
 
     !> Compose the help message of session K: the long one for its kind
     !> of job, the brief one, and the one to show
-    !> (`ediff_use_long_help_message'); then run `ediff_display_help_hook'.
+    !> (`fortmacs_diff_use_long_help_message'); then run `fortmacs_diff_display_help_hook'.
     !> Port of ediff-help.el:ediff-set-help-message (the user's message
     !> functions and the word-mode and narrowing messages are deferred
     !> with those jobs).
-    recursive subroutine set_ediff_help_message(k, status)
+    recursive subroutine set_fortmacs_diff_help_message(k, status)
         integer, intent(in) :: k
         type(status_type), intent(out) :: status
 
-        if (ediff_sessions(k)%merge_job) then
-            ediff_sessions(k)%long_help_message = EDIFF_LONG_HELP_MESSAGE_HEAD//EDIFF_LONG_HELP_MESSAGE_MERGE// &
-                                                  EDIFF_LONG_HELP_MESSAGE_TAIL
-        else if (ediff_sessions(k)%diff3_job) then
-            ediff_sessions(k)%long_help_message = EDIFF_LONG_HELP_MESSAGE_HEAD//EDIFF_LONG_HELP_MESSAGE_COMPARE3// &
-                                                  EDIFF_LONG_HELP_MESSAGE_TAIL
+        if (fortmacs_diff_sessions(k)%merge_job) then
+            fortmacs_diff_sessions(k)%long_help_message = FORTMACS_DIFF_LONG_HELP_MESSAGE_HEAD &
+                                                          //FORTMACS_DIFF_LONG_HELP_MESSAGE_MERGE// &
+                                                          FORTMACS_DIFF_LONG_HELP_MESSAGE_TAIL
+        else if (fortmacs_diff_sessions(k)%diff3_job) then
+            fortmacs_diff_sessions(k)%long_help_message = FORTMACS_DIFF_LONG_HELP_MESSAGE_HEAD &
+                                                          //FORTMACS_DIFF_LONG_HELP_MESSAGE_COMPARE3// &
+                                                          FORTMACS_DIFF_LONG_HELP_MESSAGE_TAIL
         else
-            ediff_sessions(k)%long_help_message = EDIFF_LONG_HELP_MESSAGE_HEAD//EDIFF_LONG_HELP_MESSAGE_COMPARE2// &
-                                                  EDIFF_LONG_HELP_MESSAGE_TAIL
+            fortmacs_diff_sessions(k)%long_help_message = FORTMACS_DIFF_LONG_HELP_MESSAGE_HEAD &
+                                                          //FORTMACS_DIFF_LONG_HELP_MESSAGE_COMPARE2// &
+                                                          FORTMACS_DIFF_LONG_HELP_MESSAGE_TAIL
         end if
 
         ! Long brief msg, not multiframe --- put in the middle.
-        ediff_sessions(k)%brief_help_message = EDIFF_BRIEF_MESSAGE_STRING
+        fortmacs_diff_sessions(k)%brief_help_message = FORTMACS_DIFF_BRIEF_MESSAGE_STRING
 
-        if (ediff_sessions(k)%use_long_help_message) then
-            ediff_sessions(k)%help_message = ediff_sessions(k)%long_help_message
+        if (fortmacs_diff_sessions(k)%use_long_help_message) then
+            fortmacs_diff_sessions(k)%help_message = fortmacs_diff_sessions(k)%long_help_message
         else
-            ediff_sessions(k)%help_message = ediff_sessions(k)%brief_help_message
+            fortmacs_diff_sessions(k)%help_message = fortmacs_diff_sessions(k)%brief_help_message
         end if
 
-        call ediff_display_help_hook%execute(status)
-    end subroutine set_ediff_help_message
+        call fortmacs_diff_display_help_hook%execute(status)
+    end subroutine set_fortmacs_diff_help_message
 end module fortmacs_diff_help_mod

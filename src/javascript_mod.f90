@@ -19,22 +19,22 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> JavaScript mode (`js_mode', `js_base_mode', `javascript_mode') and
-!> `js_json_mode': the syntax table and regexp literals
-!> (`js_syntax_propertize'), the three Font Lock levels (with the class
-!> declarations of `js_enabled_frameworks', variable declarations and
+!> JavaScript mode (`javascript_mode', `javascript_base_mode') and
+!> `javascript_json_mode': the syntax table and regexp literals
+!> (`javascript_syntax_propertize'), the three Font Lock levels (with the class
+!> declarations of `javascript_enabled_frameworks', variable declarations and
 !> formal parameters), the parse cache of functions, macros and classes
-!> (`js__ensure_cache') with `js_syntactic_context' and
-!> `js_beginning_of_function'/`js_end_of_function', and indentation
-!> (`js_indent_line', with C comments lined up by `js_comment_lineup_function').
+!> (`javascript__ensure_cache') with `javascript_syntactic_context' and
+!> `javascript_beginning_of_function'/`javascript_end_of_function', and indentation
+!> (`javascript_indent_line', with C comments lined up by `javascript_comment_lineup_function').
 !>
-!> Deferred: JSX (`js_jsx_syntax', its detection, `js_jsx_mode' and its
-!> indentation and keywords), filling (`js_fill_paragraph',
-!> `js_do_auto_fill' and the CC Mode paragraph variables they need),
+!> Deferred: JSX (`javascript_jsx_syntax', its detection, `javascript_jsx_mode' and its
+!> indentation and keywords), filling (`javascript_fill_paragraph',
+!> `javascript_do_auto_fill' and the CC Mode paragraph variables they need),
 !> `comment_line_break_function' (`c_indent_new_comment_line'), Imenu,
 !> `which_function', `prettify_symbols', `electric_layout_rules', the
-!> hideshow variables, `js_use_syntactic_mode_name', the obsolete MozRepl
-!> variables and `js_ts_mode'.
+!> hideshow variables, `javascript_use_syntactic_mode_name', the obsolete MozRepl
+!> variables and `javascript_ts_mode'.
 module javascript_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
@@ -65,13 +65,13 @@ module javascript_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_keywords_type, font_lock_keywords_level, font_lock_match_highlight_type, &
                              FONT_LOCK_OVERRIDE_REPLACE
-    use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, cpp_font_lock_keywords, &
-                             font_lock_apply_highlight, CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES
+    use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored, c_preprocessor_font_lock_keywords, &
+                             font_lock_apply_highlight, C_PREPROCESSOR_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES
     use expression_motion_mod, only: forward_expression, backward_expression, forward_group, backward_group, up_group, &
                                      beginning_of_subprogram_function, end_of_subprogram_function
     use newcomment_mod, only: comment_start, comment_start_skip, comment_end
     use electric_mod, only: electric_indent_characters_value, electric_indent_characters_set_local
-    use programming_mode_mod, only: prog_first_column
+    use programming_mode_mod, only: programming_first_column
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type, &
                                      syntax_property_type, &
                                      syntax_propertize_extend_region_functions, syntax_propertize_multiline
@@ -80,75 +80,81 @@ module javascript_mod
     implicit none(type, external)
     private
 
-    public :: initialize_js, js_base_mode, js_mode, js_json_mode, js_indent_line, js_beginning_of_function, &
-              js_end_of_function, js_syntactic_context, js_syntax_propertize, js_font_lock_syntactic_face_function, &
-              js_regular_expression_search_forward, js_regular_expression_search_backward, is_js_continued_expression, &
-              js_proper_indentation, &
-              js_flush_caches, js_ensure_cache
+    public :: initialize_javascript, javascript_base_mode, javascript_mode, javascript_json_mode, javascript_indent_line, &
+              javascript_beginning_of_function, &
+              javascript_end_of_function, javascript_syntactic_context, javascript_syntax_propertize, &
+              javascript_font_lock_syntactic_face_function, &
+              javascript_regular_expression_search_forward, javascript_regular_expression_search_backward, &
+              is_javascript_continued_expression, &
+              javascript_proper_indentation, &
+              javascript_flush_caches, javascript_ensure_cache
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
-    !> Values of `js_indent_first_init' besides .true. and .false.
-    integer, parameter, public :: JS_INDENT_FIRST_INIT_DYNAMIC = 2
+    !> Values of `javascript_indent_first_initializer' besides .true. and .false.
+    integer, parameter, public :: JAVASCRIPT_INDENT_FIRST_INITIALIZER_DYNAMIC = 2
 
-    !> The syntactic contexts of `js_syntactic_context'.
-    integer, parameter, public :: JS_CONTEXT_TOPLEVEL = 0, JS_CONTEXT_FUNCTION = 1, JS_CONTEXT_MACRO = 2, &
-                                  JS_CONTEXT_CLASS = 3
+    !> The syntactic contexts of `javascript_syntactic_context'.
+    integer, parameter, public :: JAVASCRIPT_CONTEXT_TOPLEVEL = 0, JAVASCRIPT_CONTEXT_FUNCTION = 1, JAVASCRIPT_CONTEXT_MACRO = 2, &
+                                  JAVASCRIPT_CONTEXT_CLASS = 3
 
-    !> Number of spaces for each indentation step in `js_mode'.  Port of
+    !> Number of spaces for each indentation step in `javascript_mode'.  Port of
     !> js.el js-indent-level.
-    type(integer_setting_type), target, public :: js_indent_level = integer_setting_type(name="js_indent_level", value=4)
+    type(integer_setting_type), target, public :: javascript_indent_level = integer_setting_type(name="javascript_indent_level", &
+                                                                                                 value=4)
 
     !> Number of additional spaces for indenting continued expressions.
-    !> The value must be no less than minus `js_indent_level'.  Port of
+    !> The value must be no less than minus `javascript_indent_level'.  Port of
     !> js.el js-expr-indent-offset.
-    type(integer_setting_type), target, public :: js_expression_indent_offset = &
-                                                  integer_setting_type(name="js_expression_indent_offset", value=0)
+    type(integer_setting_type), target, public :: javascript_expression_indent_offset = &
+                                                  integer_setting_type(name="javascript_expression_indent_offset", value=0)
 
     !> Number of additional spaces for indenting expressions in
     !> parentheses.  The value must be no less than minus
-    !> `js_indent_level'.  Port of js.el js-paren-indent-offset.
-    type(integer_setting_type), target, public :: js_parenthesis_indent_offset = &
-                                                  integer_setting_type(name="js_parenthesis_indent_offset", value=0)
+    !> `javascript_indent_level'.  Port of js.el js-paren-indent-offset.
+    type(integer_setting_type), target, public :: javascript_parenthesis_indent_offset = &
+                                                  integer_setting_type(name="javascript_parenthesis_indent_offset", value=0)
 
     !> Number of additional spaces for indenting expressions in square
-    !> braces.  The value must be no less than minus `js_indent_level'.
+    !> braces.  The value must be no less than minus `javascript_indent_level'.
     !> Port of js.el js-square-indent-offset.
-    type(integer_setting_type), target, public :: js_square_indent_offset = &
-                                                  integer_setting_type(name="js_square_indent_offset", value=0)
+    type(integer_setting_type), target, public :: javascript_square_indent_offset = &
+                                                  integer_setting_type(name="javascript_square_indent_offset", value=0)
 
     !> Number of additional spaces for indenting expressions in curly
-    !> braces.  The value must be no less than minus `js_indent_level'.
+    !> braces.  The value must be no less than minus `javascript_indent_level'.
     !> Port of js.el js-curly-indent-offset.
-    type(integer_setting_type), target, public :: js_curly_indent_offset = &
-                                                  integer_setting_type(name="js_curly_indent_offset", value=0)
+    type(integer_setting_type), target, public :: javascript_curly_indent_offset = &
+                                                  integer_setting_type(name="javascript_curly_indent_offset", value=0)
 
     !> Number of additional spaces for indenting the contents of a switch
     !> block.  The value must not be negative.  Port of js.el
     !> js-switch-indent-offset.
-    type(integer_setting_type), target, public :: js_switch_indent_offset = &
-                                                  integer_setting_type(name="js_switch_indent_offset", value=0)
+    type(integer_setting_type), target, public :: javascript_switch_indent_offset = &
+                                                  integer_setting_type(name="javascript_switch_indent_offset", value=0)
 
-    !> Treat nested functions as top-level functions in `js_mode'.
+    !> Treat nested functions as top-level functions in `javascript_mode'.
     !> This applies to function movement, marking, and so on.  Port of
     !> js.el js-flat-functions.
-    type(logical_setting_type), target, public :: js_flat_functions = logical_setting_type(name="js_flat_functions", value=.false.)
+    type(logical_setting_type), target, public :: javascript_flat_functions = logical_setting_type( &
+                                                  name="javascript_flat_functions", value=.false.)
 
-    !> Align continuation of non-empty ([{ lines in `js_mode'.  Port of
+    !> Align continuation of non-empty ([{ lines in `javascript_mode'.  Port of
     !> js.el js-indent-align-list-continuation.
-    type(logical_setting_type), target, public :: js_indent_align_list_continuation = &
-                                                  logical_setting_type(name="js_indent_align_list_continuation", value=.true.)
+    type(logical_setting_type), target, public :: javascript_indent_align_list_continuation = &
+                                                  logical_setting_type(name="javascript_indent_align_list_continuation", &
+                                                                       value=.true.)
 
-    !> Lineup function for `cc_mode_style', for C comments in `js_mode'.
+    !> Lineup function for `cc_mode_style', for C comments in `javascript_mode'.
     !> Port of js.el js-comment-lineup-func (its default is
     !> `c_lineup_c_comments').
-    procedure(c_lineup_procedure), pointer, public :: js_comment_lineup_function => null()
+    procedure(c_lineup_procedure), pointer, public :: javascript_comment_lineup_function => null()
 
-    !> Frameworks recognized by `js_mode'.
+    !> Frameworks recognized by `javascript_mode'.
     !> To improve performance, you may turn off some frameworks you seldom
     !> use, either globally or on a per-buffer basis.  Port of js.el
-    !> js-enabled-frameworks (the names of `js__available_frameworks').
-    character(len=12), allocatable, public :: js_enabled_frameworks(:)
+    !> js-enabled-frameworks (the names of `javascript__available_frameworks').
+    character(len=12), allocatable, public :: javascript_enabled_frameworks(:)
 
     !> True means specially indent the first variable declaration's
     !> initializer.  Normally, the first declaration's initializer is
@@ -176,7 +182,7 @@ module javascript_mod
     !>         },
     !>         bar = 2;
     !>
-    !> If this option has the value JS_INDENT_FIRST_INIT_DYNAMIC, if there
+    !> If this option has the value JAVASCRIPT_INDENT_FIRST_INITIALIZER_DYNAMIC, if there
     !> is only one declaration, don't indent the first one's initializer;
     !> otherwise, indent it.
     !>
@@ -190,8 +196,8 @@ module javascript_mod
     !>         bar = 2;
     !>
     !> Port of js.el js-indent-first-init.
-    type(choice_setting_type), target, public :: js_indent_first_init = &
-                                                 choice_setting_type(name="js_indent_first_init")
+    type(choice_setting_type), target, public :: javascript_indent_first_initializer = &
+                                                 choice_setting_type(name="javascript_indent_first_initializer")
 
     !> Use "chained" indentation.
     !> Chained indentation applies when the current line starts with ".".
@@ -202,26 +208,27 @@ module javascript_mod
     !>                .chained;
     !>
     !> Port of js.el js-chain-indent.
-    type(logical_setting_type), target, public :: js_chain_indent = logical_setting_type(name="js_chain_indent", value=.false.)
+    type(logical_setting_type), target, public :: javascript_chain_indent = logical_setting_type(name="javascript_chain_indent", &
+                                                                                                 value=.false.)
 
-    !> Hook run after entering `js_base_mode'.  Port of the
+    !> Hook run after entering `javascript_base_mode'.  Port of the
     !> js-base-mode-hook define-derived-mode defines.
-    type(hook_type), target, public :: js_base_mode_hook = hook_type(name="js_base_mode_hook")
-    !> Hook run after entering `js_mode'.  Port of the js-mode-hook
+    type(hook_type), target, public :: javascript_base_mode_hook = hook_type(name="javascript_base_mode_hook")
+    !> Hook run after entering `javascript_mode'.  Port of the js-mode-hook
     !> define-derived-mode defines.
-    type(hook_type), target, public :: js_mode_hook = hook_type(name="js_mode_hook")
-    !> Hook run after entering `js_json_mode'.  Port of the
+    type(hook_type), target, public :: javascript_mode_hook = hook_type(name="javascript_mode_hook")
+    !> Hook run after entering `javascript_json_mode'.  Port of the
     !> js-json-mode-hook define-derived-mode defines.
-    type(hook_type), target, public :: js_json_mode_hook = hook_type(name="js_json_mode_hook")
+    type(hook_type), target, public :: javascript_json_mode_hook = hook_type(name="javascript_json_mode_hook")
 
-    !> Keymap for `js_mode'.
-    type(handle_type), public :: js_mode_map
-    !> Keymap for `js_base_mode'.
-    type(handle_type), public :: js_base_mode_map
-    !> Keymap for `js_json_mode'.
-    type(handle_type), public :: js_json_mode_map
-    !> Syntax table for `js_mode'.  Port of js.el js-mode-syntax-table.
-    type(handle_type), public :: js_mode_syntax_table
+    !> Keymap for `javascript_mode'.
+    type(handle_type), public :: javascript_mode_map
+    !> Keymap for `javascript_base_mode'.
+    type(handle_type), public :: javascript_base_mode_map
+    !> Keymap for `javascript_json_mode'.
+    type(handle_type), public :: javascript_json_mode_map
+    !> Syntax table for `javascript_mode'.  Port of js.el js-mode-syntax-table.
+    type(handle_type), public :: javascript_mode_syntax_table
 
     ! js--available-frameworks.
     character(len=12), parameter :: AVAILABLE_FRAMEWORKS(6) = [character(len=12) :: "javascript", "mochikit", &
@@ -250,9 +257,9 @@ module javascript_mod
 
     ! One buffer's parse cache and frameworks: js--cache-end, the pitems
     ! (identified by their index; 1 is js--initial-pitem), js--quick-match-re
-    ! and js--quick-match-re-func, and its own `js_enabled_frameworks' (if
+    ! and js--quick-match-re-func, and its own `javascript_enabled_frameworks' (if
     ! `has_frameworks').
-    type :: js_local_type
+    type :: javascript_local_type
         integer(int64) :: serial = 0
         integer(int64) :: cache_end = 1
         type(pitem_type), allocatable :: pitems(:)
@@ -260,9 +267,9 @@ module javascript_mod
         character(len=:), allocatable :: quick_match_regular_expression, quick_match_regular_expression_function
         logical :: has_frameworks = .false.
         character(len=12), allocatable :: frameworks(:)
-    end type js_local_type
+    end type javascript_local_type
 
-    type(js_local_type), allocatable, target :: locals(:)
+    type(javascript_local_type), allocatable, target :: locals(:)
 
     ! js--guess-function-name-start (0 for nil).
     integer(int64) :: guess_function_name_start = 0
@@ -270,87 +277,87 @@ module javascript_mod
     ! js--tmp-location (0 for nil).
     integer(int64) :: temporary_location = 0
 
-    ! The syntax-propertize rules of `js_syntax_propertize'.
+    ! The syntax-propertize rules of `javascript_syntax_propertize'.
     type(syntax_propertize_rules_type) :: propertize_rules
 
-    ! The END of the current `js_syntax_propertize'.
+    ! The END of the current `javascript_syntax_propertize'.
     integer(int64) :: propertize_end = 0
 
     ! The keywords of the three levels.
     type(font_lock_keyword_type), allocatable :: keywords_1(:), keywords_2(:), keywords_3(:)
 
     ! The regexps of js.el.
-    character(len=*), parameter :: JS_NAME_START_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_NAME_START_REGULAR_EXPRESSION = &
                                    "[[:alpha:]_$]"
-    character(len=*), parameter :: JS_NAME_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_NAME_REGULAR_EXPRESSION = &
                                    "[[:alpha:]_$]\(?:\s_\|\sw\)*"
-    character(len=*), parameter :: JS_OBJFIELD_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_OBJFIELD_REGULAR_EXPRESSION = &
                                    "[[:alpha:]_$]\(?:\s_\|\sw\)*:"
-    character(len=*), parameter :: JS_DOTTED_NAME_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_DOTTED_NAME_REGULAR_EXPRESSION = &
                                    "[[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_$]\(?" &
                                    //":\s_\|\sw\)*\)*"
-    character(len=*), parameter :: JS_OPTION_CPP_START = &
+    character(len=*), parameter :: JAVASCRIPT_OPTION_C_PREPROCESSOR_START = &
                                    "^\s-*#\s-*\([[:alnum:]]+\)"
-    character(len=*), parameter :: JS_PLAIN_METHOD_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_PLAIN_METHOD_REGULAR_EXPRESSION = &
                                    "^\s-*?\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha" &
                                    //":]_$]\(?:\s_\|\sw\)*\)*\)\.prototype\.\([[:alpha:]" &
                                    //"_$]\(?:\s_\|\sw\)*\)\s-*?=\s-*?\(\(?:async[ "//TAB//LF//"]+\)" &
                                    //"function\)\_>"
-    character(len=*), parameter :: JS_PLAIN_CLASS_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_PLAIN_CLASS_REGULAR_EXPRESSION = &
                                    "^\s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:" &
                                    //"]_$]\(?:\s_\|\sw\)*\)*\)\.prototype\s-*=\s-*{"
-    character(len=*), parameter :: JS_MP_CLASS_DECLARATION_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_MP_CLASS_DECLARATION_REGULAR_EXPRESSION = &
                                    "^\s-*var\s-+\([[:alpha:]_$]\(?:\s_\|\sw\)*\)\s-*=\" &
                                    //"s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_" &
                                    //"$]\(?:\s_\|\sw\)*\)*\)\.extend\(?:Final\)?\s-*(\s-" &
                                    //"*{?\s-*$"
-    character(len=*), parameter :: JS_PROTOTYPE_OBSOLETE_CLASS_DECLARATION_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_PROTOTYPE_OBSOLETE_CLASS_REGULAR_EXPRESSION = &
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //"(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*=\s-*Cla" &
                                    //"ss\.create()"
-    character(len=*), parameter :: JS_PROTOTYPE_OBJEXTEND_CLASS_DECLARATION_REGULAR_EXPRESSION_1 = &
+    character(len=*), parameter :: JAVASCRIPT_PROTOTYPE_OBJEXTEND_CLASS_REGULAR_EXPRESSION_1 = &
                                    "^\s-*Object\.extend\s-*(\([[:alpha:]_$]\(?:\s_\|\s" &
                                    //"w\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*,\s" &
                                    //"-*{"
-    character(len=*), parameter :: JS_PROTOTYPE_OBJEXTEND_CLASS_DECLARATION_REGULAR_EXPRESSION_2 = &
+    character(len=*), parameter :: JAVASCRIPT_PROTOTYPE_OBJEXTEND_CLASS_REGULAR_EXPRESSION_2 = &
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //"(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*=\s-*Obj" &
                                    //"ect\.extend\s-*("
-    character(len=*), parameter :: JS_PROTOTYPE_CLASS_DECLARATION_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_PROTOTYPE_CLASS_DECLARATION_REGULAR_EXPRESSION = &
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //")\s-*=\s-*Class\.create\s-*(\s-*\(?:\([[:alpha:]_$" &
                                    //"]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*" &
                                    //"\)*\)\s-*,\s-*\)?{?"
-    character(len=*), parameter :: JS_DOJO_CLASS_DECLARATION_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_DOJO_CLASS_DECLARATION_REGULAR_EXPRESSION = &
                                    "^\s-*dojo\.declare\s-*(""\([[:alpha:]_$]\(?:\s_\|\s" &
                                    //"w\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)"
-    character(len=*), parameter :: JS_EXTJS_CLASS_DECLARATION_REGULAR_EXPRESSION_1 = &
+    character(len=*), parameter :: JAVASCRIPT_EXTJS_CLASS_DECLARATION_REGULAR_EXPRESSION_1 = &
                                    "^\s-*Ext\.extend\s-*(\s-*\([[:alpha:]_$]\(?:\s_\|\" &
                                    //"sw\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*,\" &
                                    //"s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_" &
                                    //"$]\(?:\s_\|\sw\)*\)*\)"
-    character(len=*), parameter :: JS_EXTJS_CLASS_DECLARATION_REGULAR_EXPRESSION_2 = &
+    character(len=*), parameter :: JAVASCRIPT_EXTJS_CLASS_DECLARATION_REGULAR_EXPRESSION_2 = &
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //")\s-*=\s-*Ext\.extend\s-*(\s-*\([[:alpha:]_$]\(?:\" &
                                    //"s_\|\sw\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)"
-    character(len=*), parameter :: JS_MOCHIKIT_CLASS_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_MOCHIKIT_CLASS_REGULAR_EXPRESSION = &
                                    "^\s-*MochiKit\.Base\.update\s-*(\s-*\([[:alpha:]_$" &
                                    //"]\(?:\s_\|\sw\)*\(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*" &
                                    //"\)*\)"
-    character(len=*), parameter :: JS_FUNCTION_HEADING_1_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_FUNCTION_HEADING_1_REGULAR_EXPRESSION = &
                                    "^\s-*function\(?:\s-\|\*\)+\([[:alpha:]_$]\(?:\s_\" &
                                    //"|\sw\)*\)"
-    character(len=*), parameter :: JS_FUNCTION_HEADING_2_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_FUNCTION_HEADING_2_REGULAR_EXPRESSION = &
                                    "^\s-*\([[:alpha:]_$]\(?:\s_\|\sw\)*\)\s-*:\s-*func" &
                                    //"tion\_>"
-    character(len=*), parameter :: JS_FUNCTION_HEADING_3_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_FUNCTION_HEADING_3_REGULAR_EXPRESSION = &
                                    "^\s-*\(?:var\s-+\)?\([[:alpha:]_$]\(?:\s_\|\sw\)*\" &
                                    //"(?:\.[[:alpha:]_$]\(?:\s_\|\sw\)*\)*\)\s-*=\s-*fun" &
                                    //"ction\_>"
-    character(len=*), parameter :: JS_MACRO_DECLARATION_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_MACRO_DECLARATION_REGULAR_EXPRESSION = &
                                    "^\s-*#\s-*define\s-+\([[:alpha:]_$]\(?:\s_\|\sw\)*" &
                                    //"\)\s-*("
-    character(len=*), parameter :: JS_KEYWORD_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_KEYWORD_REGULAR_EXPRESSION = &
                                    "\_<\(a\(?:bstract\|sync\|wait\)\|break\|c\(?:a\(?:" &
                                    //"se\|tch\)\|lass\|on\(?:st\|tinue\)\)\|d\(?:e\(?:bu" &
                                    //"gger\|fault\|lete\)\|o\)\|e\(?:lse\|num\|x\(?:port" &
@@ -361,10 +368,10 @@ module javascript_mod
                                    //"tatic\|uper\|witch\|ynchronized\)\|t\(?:hrows?\|r\" &
                                    //"(?:ansient\|y\)\|ypeof\)\|using\|v\(?:ar\|o\(?:id\" &
                                    //"|latile\)\)\|w\(?:hile\|ith\)\|yield\)\_>"
-    character(len=*), parameter :: JS_BASIC_TYPE_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_BASIC_TYPE_REGULAR_EXPRESSION = &
                                    "\_<\(b\(?:oolean\|yte\)\|char\|double\|float\|int\" &
                                    //"|long\|short\|void\)\_>"
-    character(len=*), parameter :: JS_CONSTANT_REGULAR_EXPRESSION = &
+    character(len=*), parameter :: JAVASCRIPT_CONSTANT_REGULAR_EXPRESSION = &
                                    "\_<\(Infinity\|NaN\|arguments\|false\|null\|t\(?:h" &
                                    //"is\|rue\)\|undefined\)\_>"
     character(len=*), parameter :: REGULAR_EXPRESSION_LITERAL_REGULAR_EXPRESSION = &
@@ -444,7 +451,7 @@ contains
     ! buffer).  Not a port.
     recursive subroutine make_local_entry(k)
         integer, intent(out) :: k
-        type(js_local_type) :: entry
+        type(javascript_local_type) :: entry
 
         k = local_index()
         if (k > 0 .or. current == 0) return
@@ -462,7 +469,7 @@ contains
     ! Give L its initial state: an empty cache holding js--initial-pitem.
     ! Not a port.
     subroutine clear_local(l)
-        type(js_local_type), intent(inout) :: l
+        type(javascript_local_type), intent(inout) :: l
 
         l%serial = 0
         l%cache_end = 1
@@ -481,12 +488,12 @@ contains
     ! kill-all-local-variables: forget the current buffer's js.el
     ! variables.
     ! Not a port.
-    subroutine clear_js_locals()
+    subroutine clear_javascript_locals()
         integer :: k
 
         k = local_index()
         if (k > 0) call clear_local(locals(k))
-    end subroutine clear_js_locals
+    end subroutine clear_javascript_locals
 
     ! The current buffer's local state (made if needed).
     ! Not a port.
@@ -494,7 +501,7 @@ contains
         call make_local_entry(k)
     end function here
 
-    ! Whether FRAMEWORK is in the current buffer's `js_enabled_frameworks'.
+    ! Whether FRAMEWORK is in the current buffer's `javascript_enabled_frameworks'.
     ! Not a port.
     recursive logical function framework_enabled(framework)
         character(len=*), intent(in) :: framework
@@ -505,8 +512,8 @@ contains
 
         if (locals(k)%has_frameworks) then
             if (any(locals(k)%frameworks == framework)) framework_enabled = .true.
-        else if (allocated(js_enabled_frameworks)) then
-            if (any(js_enabled_frameworks == framework)) framework_enabled = .true.
+        else if (allocated(javascript_enabled_frameworks)) then
+            if (any(javascript_enabled_frameworks == framework)) framework_enabled = .true.
         end if
     end function framework_enabled
 
@@ -535,48 +542,48 @@ contains
         select case (i)
         case (1)
             name = "Plain"
-            declaration = JS_PLAIN_CLASS_REGULAR_EXPRESSION
+            declaration = JAVASCRIPT_PLAIN_CLASS_REGULAR_EXPRESSION
             prototype = .true.
             framework = "javascript"
         case (2)
             name = "MochiKit"
-            declaration = JS_MOCHIKIT_CLASS_REGULAR_EXPRESSION
+            declaration = JAVASCRIPT_MOCHIKIT_CLASS_REGULAR_EXPRESSION
             prototype = .true.
             framework = "mochikit"
         case (3)
             name = "Prototype (Obsolete)"
-            declaration = JS_PROTOTYPE_OBSOLETE_CLASS_DECLARATION_REGULAR_EXPRESSION
+            declaration = JAVASCRIPT_PROTOTYPE_OBSOLETE_CLASS_REGULAR_EXPRESSION
             framework = "prototype"
         case (4)
             name = "Prototype (Modern)"
-            declaration = JS_PROTOTYPE_CLASS_DECLARATION_REGULAR_EXPRESSION
+            declaration = JAVASCRIPT_PROTOTYPE_CLASS_DECLARATION_REGULAR_EXPRESSION
             framework = "prototype"
         case (5)
             name = "Prototype (Object.extend)"
-            declaration = JS_PROTOTYPE_OBJEXTEND_CLASS_DECLARATION_REGULAR_EXPRESSION_1
+            declaration = JAVASCRIPT_PROTOTYPE_OBJEXTEND_CLASS_REGULAR_EXPRESSION_1
             prototype = .true.
             framework = "prototype"
         case (6)
             name = "Prototype (Object.extend) 2"
-            declaration = JS_PROTOTYPE_OBJEXTEND_CLASS_DECLARATION_REGULAR_EXPRESSION_2
+            declaration = JAVASCRIPT_PROTOTYPE_OBJEXTEND_CLASS_REGULAR_EXPRESSION_2
             prototype = .true.
             framework = "prototype"
         case (7)
             name = "Dojo"
-            declaration = JS_DOJO_CLASS_DECLARATION_REGULAR_EXPRESSION
+            declaration = JAVASCRIPT_DOJO_CLASS_DECLARATION_REGULAR_EXPRESSION
             framework = "dojo"
         case (8)
             name = "ExtJS (style 1)"
-            declaration = JS_EXTJS_CLASS_DECLARATION_REGULAR_EXPRESSION_1
+            declaration = JAVASCRIPT_EXTJS_CLASS_DECLARATION_REGULAR_EXPRESSION_1
             prototype = .true.
             framework = "extjs"
         case (9)
             name = "ExtJS (style 2)"
-            declaration = JS_EXTJS_CLASS_DECLARATION_REGULAR_EXPRESSION_2
+            declaration = JAVASCRIPT_EXTJS_CLASS_DECLARATION_REGULAR_EXPRESSION_2
             framework = "extjs"
         case default
             name = "Merrill Press"
-            declaration = JS_MP_CLASS_DECLARATION_REGULAR_EXPRESSION
+            declaration = JAVASCRIPT_MP_CLASS_DECLARATION_REGULAR_EXPRESSION
             framework = "merrillpress"
         end select
     end subroutine class_style
@@ -611,7 +618,7 @@ contains
         if (framework_enabled(framework)) s = string
     end function when_enabled
 
-    ! Internal function used by `js_mode' for caching buffer constructs.
+    ! Internal function used by `javascript_mode' for caching buffer constructs.
     ! This updates js--quick-match-re, based on the current set of enabled
     ! frameworks.  Port of js.el:js--update-quick-match-re.
     recursive subroutine update_quick_match_regular_expression()
@@ -804,7 +811,7 @@ contains
     recursive function forward_pstate() result(items)
         integer, allocatable :: items(:)
 
-        items = pstate_items(forward_text_property("js_pstate"))
+        items = pstate_items(forward_text_property("javascript_pstate"))
     end function forward_pstate
 
     ! js--backward-pstate.
@@ -812,7 +819,7 @@ contains
     recursive function backward_pstate() result(items)
         integer, allocatable :: items(:)
 
-        items = pstate_items(backward_text_property("js_pstate"))
+        items = pstate_items(backward_text_property("javascript_pstate"))
     end function backward_pstate
 
     ! Go to the h-end of pitem ID.  Port of js.el:js--pitem-goto-h-end.
@@ -920,7 +927,7 @@ contains
         call syntax_parser_state(state)
     end function parser_state_at
 
-    ! Helper function for `js_regular_expression_search_forward': search COUNT times for
+    ! Helper function for `javascript_regular_expression_search_forward': search COUNT times for
     ! REGULAR_EXPRESSION before BOUND (0 for none), ignoring strings, comments and
     ! macros; FAILED when a search fails (search-failed).  Port of
     ! js.el:js--re-search-forward-inner.
@@ -998,7 +1005,7 @@ contains
         end function in_new_macro
     end subroutine regular_expression_search_forward_inner
 
-    ! Auxiliary function for `js_regular_expression_search_backward'.  Port of
+    ! Auxiliary function for `javascript_regular_expression_search_backward'.  Port of
     ! js.el:js--re-search-backward-inner.
     recursive subroutine regular_expression_search_backward_inner(regular_expression, bound, count_in, failed)
         character(len=*), intent(in) :: regular_expression
@@ -1081,7 +1088,7 @@ contains
     !> If invoked while inside a macro, it treats the contents of the
     !> macro as normal text.  Port of js.el:js--re-search-forward (with
     !> NOERROR).
-    recursive logical function js_regular_expression_search_forward(regular_expression, bound, count) result(found)
+    recursive logical function javascript_regular_expression_search_forward(regular_expression, bound, count) result(found)
         character(len=*), intent(in) :: regular_expression
         integer(int64), intent(in), optional :: bound
         integer, intent(in), optional :: count
@@ -1104,7 +1111,7 @@ contains
 
         found = .not. failed
         if (failed) call goto_character(saved_point)
-    end function js_regular_expression_search_forward
+    end function javascript_regular_expression_search_forward
 
     !> Search backward, ignoring strings, preprocessor macros, and comments.
     !>
@@ -1113,7 +1120,7 @@ contains
     !>
     !> If invoked while inside a macro, treat the macro as normal text.
     !> Port of js.el:js--re-search-backward (with NOERROR).
-    recursive logical function js_regular_expression_search_backward(regular_expression, bound, count) result(found)
+    recursive logical function javascript_regular_expression_search_backward(regular_expression, bound, count) result(found)
         character(len=*), intent(in) :: regular_expression
         integer(int64), intent(in), optional :: bound
         integer, intent(in), optional :: count
@@ -1121,8 +1128,8 @@ contains
 
         n = 1
         if (present(count)) n = count
-        found = js_regular_expression_search_forward(regular_expression, bound, -n)
-    end function js_regular_expression_search_backward
+        found = javascript_regular_expression_search_forward(regular_expression, bound, -n)
+    end function javascript_regular_expression_search_backward
 
     ! Go to the end of a preprocessor directive: the end of the closest
     ! following line that doesn't end with a line continuation backslash.
@@ -1180,13 +1187,13 @@ contains
         found = .false.
 
         if (point() <= start) then
-            if (at(JS_OPTION_CPP_START)) found = .true.
+            if (at(JAVASCRIPT_OPTION_C_PREPROCESSOR_START)) found = .true.
         end if
 
         if (.not. found) call goto_character(start)
     end function beginning_of_macro
 
-    ! Simple implementation of `c_backward_syntactic_whitespace' for `js_mode'.
+    ! Simple implementation of `c_backward_syntactic_whitespace' for `javascript_mode'.
     ! Port of js.el:js--backward-syntactic-ws (no LIMIT).
     recursive subroutine backward_syntactic_whitespace()
         integer(int64) :: original_point, position
@@ -1205,7 +1212,7 @@ contains
         end do
     end subroutine backward_syntactic_whitespace
 
-    ! Simple implementation of `c_forward_syntactic_whitespace' for `js_mode'.
+    ! Simple implementation of `c_forward_syntactic_whitespace' for `javascript_mode'.
     ! Port of js.el:js--forward-syntactic-ws (no LIMIT).
     recursive subroutine forward_syntactic_whitespace()
         integer(int64) :: position
@@ -1266,7 +1273,7 @@ contains
     ! Move forward over a whole JavaScript expression.
     ! This function doesn't move over expressions continued across lines.
     ! Port of js.el:js--forward-expression.
-    recursive subroutine js_forward_expression(status)
+    recursive subroutine javascript_forward_expression(status)
         type(status_type), intent(out) :: status
         logical :: moved, continued
         integer :: c
@@ -1287,11 +1294,11 @@ contains
 
             if (next_character() /= 10) exit
             call goto_character(point() + 1)
-            continued = is_js_continued_expression()
+            continued = is_javascript_continued_expression()
             call goto_character(point() - 1)
             if (.not. continued) exit
         end do
-    end subroutine js_forward_expression
+    end subroutine javascript_forward_expression
 
     ! Move forward over a JavaScript function declaration.
     ! This puts point at the `function' keyword.
@@ -1318,7 +1325,7 @@ contains
             moved = forward_comment(huge(1_int64))
         end if
 
-        if (at(JS_NAME_REGULAR_EXPRESSION)) then
+        if (at(JAVASCRIPT_NAME_REGULAR_EXPRESSION)) then
             name = match_string_no_properties(0)
             anonymous = .false.
             call goto_character(me(0))
@@ -1357,8 +1364,8 @@ contains
         prologue_begin = 0
         here_position = point()
         call goto_character(line_beginning_position())
-        heading = at(JS_FUNCTION_HEADING_2_REGULAR_EXPRESSION)
-        if (.not. heading) heading = at(JS_FUNCTION_HEADING_3_REGULAR_EXPRESSION)
+        heading = at(JAVASCRIPT_FUNCTION_HEADING_2_REGULAR_EXPRESSION)
+        if (.not. heading) heading = at(JAVASCRIPT_FUNCTION_HEADING_3_REGULAR_EXPRESSION)
         call goto_character(here_position)
 
         if (heading) then
@@ -1368,7 +1375,7 @@ contains
 
         moved = skip_syntax_backward("w_")
         found = at("\_<function\_>")
-        if (.not. found) found = js_regular_expression_search_backward("\_<function\_>")
+        if (.not. found) found = javascript_regular_expression_search_backward("\_<function\_>")
 
         if (found) then
             start = mb(0)
@@ -1389,14 +1396,14 @@ contains
         call goto_character(original_point)
     end function function_prologue_beginning
 
-    ! Helper function for `js_beginning_of_function'.
+    ! Helper function for `javascript_beginning_of_function'.
     ! Go to previous defun-beginning and return the parse state for it, or
     ! none if we went all the way back to bob and don't find anything.
     ! Port of js.el:js--beginning-of-defun-raw.
     recursive function beginning_of_subprogram_raw() result(pstate)
         integer, allocatable :: pstate(:)
 
-        call js_ensure_cache()
+        call javascript_ensure_cache()
 
         do
             pstate = backward_pstate()
@@ -1466,7 +1473,7 @@ contains
         end do
     end function beginning_of_function_nested
 
-    ! Helper function for `js_beginning_of_function'.  Port of
+    ! Helper function for `javascript_beginning_of_function'.  Port of
     ! js.el:js--beginning-of-defun-flat.
     recursive logical function beginning_of_function_flat() result(found)
         integer, allocatable :: pstate(:)
@@ -1476,10 +1483,10 @@ contains
         if (found) call goto_character(pitem_h_begin(pstate(1)))
     end function beginning_of_function_flat
 
-    !> Value of `beginning_of_subprogram_function' for `js_mode': move to the
+    !> Value of `beginning_of_subprogram_function' for `javascript_mode': move to the
     !> beginning of the ARGth function (default 1; backward), returning
     !> whether one was found.  Port of js.el:js-beginning-of-defun.
-    recursive subroutine js_beginning_of_function(argument, found)
+    recursive subroutine javascript_beginning_of_function(argument, found)
         integer(int64), intent(in) :: argument
         logical, intent(out) :: found
         type(status_type) :: st
@@ -1491,15 +1498,15 @@ contains
         do while (.not. is_end_of_buffer() .and. n < 0)
             n = n + 1
 
-            if (.not. js_flat_functions%value) then
-                if (js_syntactic_context() == JS_CONTEXT_FUNCTION) then
-                    call js_end_of_function(1_int64)
+            if (.not. javascript_flat_functions%value) then
+                if (javascript_syntactic_context() == JAVASCRIPT_CONTEXT_FUNCTION) then
+                    call javascript_end_of_function(1_int64)
                 else if (function_prologue_beginning() > 0) then
-                    call js_end_of_function(1_int64)
+                    call javascript_end_of_function(1_int64)
                 end if
             end if
 
-            if (js_regular_expression_search_forward("\_<function\_>")) then
+            if (javascript_regular_expression_search_forward("\_<function\_>")) then
                 call goto_character(function_prologue_beginning())
                 found = .true.
             else
@@ -1518,15 +1525,15 @@ contains
             if (prologue_begin > 0 .and. prologue_begin < point()) then
                 call goto_character(prologue_begin)
                 found = .true.
-            else if (js_flat_functions%value) then
+            else if (javascript_flat_functions%value) then
                 found = beginning_of_function_flat()
             else if (beginning_of_function_nested() > 0) then
                 found = .true.
             end if
         end do
-    end subroutine js_beginning_of_function
+    end subroutine javascript_beginning_of_function
 
-    ! `js_beginning_of_function' as a `beginning_of_subprogram_function'.
+    ! `javascript_beginning_of_function' as a `beginning_of_subprogram_function'.
     ! Not a port.
     recursive subroutine beginning_of_subprogram_adapter(argument, found, status)
         integer(int64), intent(in) :: argument
@@ -1534,13 +1541,13 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call js_beginning_of_function(argument, found)
+        call javascript_beginning_of_function(argument, found)
     end subroutine beginning_of_subprogram_adapter
 
-    !> Flush the `js_mode' syntax cache after position BEGINNING.
+    !> Flush the `javascript_mode' syntax cache after position BEGINNING.
     !> BEGINNING defaults to `point_minimum', meaning to flush the entire cache.
     !> Port of js.el:js--flush-caches.
-    recursive subroutine js_flush_caches(beginning)
+    recursive subroutine javascript_flush_caches(beginning)
         integer(int64), intent(in), optional :: beginning
         integer(int64) :: b
         integer :: k
@@ -1550,9 +1557,9 @@ contains
         b = 1
         if (present(beginning)) b = beginning
         locals(k)%cache_end = min(locals(k)%cache_end, b)
-    end subroutine js_flush_caches
+    end subroutine javascript_flush_caches
 
-    ! `js_flush_caches' in `before_change_functions'.
+    ! `javascript_flush_caches' in `before_change_functions'.
     ! Not a port.
     recursive subroutine flush_caches_hook(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
@@ -1560,7 +1567,7 @@ contains
 
         status = status_type()
         if (end < 0) return
-        call js_flush_caches(beginning)
+        call javascript_flush_caches(beginning)
     end subroutine flush_caches_hook
 
     ! The pitems OPEN_ITEMS with the top one popped if it ended at
@@ -1576,7 +1583,7 @@ contains
         top = open_items(1)
 
         if (parenthesis_depth <= locals(k)%pitems(top)%parenthesis_depth) then
-            call put_text_property(point() - 1, point(), value_type(name="js_pend"), value_type(int(top, int64)), st)
+            call put_text_property(point() - 1, point(), value_type(name="javascript_pend"), value_type(int(top, int64)), st)
             locals(k)%pitems(top)%b_end = point()
             ! open-items must contain at least two items for this to work,
             ! but because we push a dummy item to start with, that
@@ -1647,13 +1654,13 @@ contains
         call goto_character(position)
         call goto_character(line_beginning_position())
 
-        if (at(JS_FUNCTION_HEADING_3_REGULAR_EXPRESSION)) then
+        if (at(JAVASCRIPT_FUNCTION_HEADING_3_REGULAR_EXPRESSION)) then
             if (me(0) == position) then
                 guess_function_name_start = mb(1)
                 name = match_string_no_properties(1)
                 found = .true.
             end if
-        else if (at(JS_FUNCTION_HEADING_2_REGULAR_EXPRESSION)) then
+        else if (at(JAVASCRIPT_FUNCTION_HEADING_2_REGULAR_EXPRESSION)) then
             if (me(0) == position) then
                 guess_function_name_start = mb(1)
                 name = match_string_no_properties(1)
@@ -1677,21 +1684,21 @@ contains
         original_point = point()
 
         do
-            end_property = forward_text_property("js_pend")
+            end_property = forward_text_property("javascript_pend")
             if (.not. allocated(end_property%a)) exit
             locals(k)%pitems(int(xfixnum(end_property)))%b_end = 0
         end do
 
         call goto_character(original_point)
         ! Remove any cache properties after this point
-        call remove_text_properties(point(), point_maximum(), list(value_type(name="js_pstate"), value_type(name="t"), &
-                                                                   value_type(name="js_pend"), value_type(name="t")), &
+        call remove_text_properties(point(), point_maximum(), list(value_type(name="javascript_pstate"), value_type(name="t"), &
+                                                                   value_type(name="javascript_pend"), value_type(name="t")), &
                                     changed, st)
     end subroutine clear_stale_cache
 
     !> Ensures brace cache is valid up to the character before LIMIT.
     !> LIMIT defaults to point.  Port of js.el:js--ensure-cache.
-    recursive subroutine js_ensure_cache(limit_in)
+    recursive subroutine javascript_ensure_cache(limit_in)
         integer(int64), intent(in), optional :: limit_in
         type(silent_modifications_type) :: silent
         type(parse_state_type) :: parse
@@ -1723,14 +1730,14 @@ contains
         allocate (open_items(0))
 
         if (.not. is_beginning_of_buffer()) then
-            open_items = pstate_items(property_at(point() - 1, "js_pstate"))
+            open_items = pstate_items(property_at(point() - 1, "javascript_pstate"))
 
             if (size(open_items) == 0) then
-                call previous_single_property_change(point(), value_type(name="js_pstate"), position, found, st, &
+                call previous_single_property_change(point(), value_type(name="javascript_pstate"), position, found, st, &
                                                      limit=point_minimum())
                 if (.not. found) position = point_minimum()
                 call goto_character(position)
-                if (.not. is_beginning_of_buffer()) open_items = pstate_items(property_at(point() - 1, "js_pstate"))
+                if (.not. is_beginning_of_buffer()) open_items = pstate_items(property_at(point() - 1, "javascript_pstate"))
             end if
         end if
 
@@ -1789,7 +1796,7 @@ contains
 
                     add = .true.
                 end if
-            else if (at(JS_MACRO_DECLARATION_REGULAR_EXPRESSION)) then
+            else if (at(JAVASCRIPT_MACRO_DECLARATION_REGULAR_EXPRESSION)) then
                 ! Macro
                 name = match_string_no_properties(1)
                 ! Macros often contain unbalanced parentheses.  Make sure
@@ -1799,7 +1806,7 @@ contains
                 call update_parse()
                 item = make_pitem(parse%depth, PITEM_MACRO, original_match_start, name, .false.)
                 add = .true.
-            else if (at(JS_PLAIN_METHOD_REGULAR_EXPRESSION)) then
+            else if (at(JAVASCRIPT_PLAIN_METHOD_REGULAR_EXPRESSION)) then
                 ! "Prototype function" declaration
                 name = split_name(match_string_no_properties(1))//"."//match_string_no_properties(2)
                 call goto_character(mb(3))
@@ -1813,7 +1820,7 @@ contains
                 ! Class definition
                 context = context_from_pstate(open_items)
 
-                if (context == JS_CONTEXT_TOPLEVEL) then
+                if (context == JAVASCRIPT_CONTEXT_TOPLEVEL) then
                     do i = 1, NSTYLES
                         call class_style(i, style_name, declaration, prototype, framework)
                         if (.not. framework_enabled(framework)) cycle
@@ -1833,7 +1840,7 @@ contains
                 call update_parse()
                 open_items = [item, open_items]
                 v = pstate_value(open_items)
-                call put_text_property(point() - 1, point(), value_type(name="js_pstate"), v, st)
+                call put_text_property(point() - 1, point(), value_type(name="javascript_pstate"), v, st)
             else
                 call goto_character(original_match_end)
             end if
@@ -1872,16 +1879,16 @@ contains
 
             call pop_if_ended(open_items, parse%depth)
         end subroutine update_parse
-    end subroutine js_ensure_cache
+    end subroutine javascript_ensure_cache
 
-    ! Helper function for `js_end_of_function'.  Port of
+    ! Helper function for `javascript_end_of_function'.  Port of
     ! js.el:js--end-of-defun-flat.
     recursive subroutine end_of_function_flat()
         type(value_type) :: v
 
-        do while (js_regular_expression_search_forward("}"))
-            call js_ensure_cache()
-            v = property_at(point() - 1, "js_pend")
+        do while (javascript_regular_expression_search_forward("}"))
+            call javascript_ensure_cache()
+            v = property_at(point() - 1, "javascript_pend")
 
             if (allocated(v%a)) then
                 if (pitem_type_of(int(xfixnum(v))) == PITEM_FUNCTION) return
@@ -1891,7 +1898,7 @@ contains
         call goto_character(point_maximum())
     end subroutine end_of_function_flat
 
-    ! Helper function for `js_end_of_function'.  Port of
+    ! Helper function for `javascript_end_of_function'.  Port of
     ! js.el:js--end-of-defun-nested.
     recursive subroutine end_of_function_nested()
         type(status_type) :: st
@@ -1922,7 +1929,7 @@ contains
         ! Otherwise, go to the end of the next function...
         found = .false.
 
-        do while (js_regular_expression_search_forward("\_<function\_>"))
+        do while (javascript_regular_expression_search_forward("\_<function\_>"))
             call goto_character(mb(0))
             found = forward_function_declaration(name, anonymous)
             if (found) exit
@@ -1936,9 +1943,9 @@ contains
         end if
     end subroutine end_of_function_nested
 
-    !> Value of `end_of_subprogram_function' for `js_mode': move to the end of
+    !> Value of `end_of_subprogram_function' for `javascript_mode': move to the end of
     !> the ARGth function.  Port of js.el:js-end-of-defun.
-    recursive subroutine js_end_of_function(argument)
+    recursive subroutine javascript_end_of_function(argument)
         integer(int64), intent(in) :: argument
         type(status_type) :: st
         character(len=:), allocatable :: name
@@ -1949,9 +1956,9 @@ contains
 
         do while (.not. is_beginning_of_buffer() .and. n < 0)
             n = n + 1
-            call js_beginning_of_function(1_int64, found)
-            call js_beginning_of_function(1_int64, found)
-            if (.not. is_beginning_of_buffer()) call js_end_of_function(1_int64)
+            call javascript_beginning_of_function(1_int64, found)
+            call javascript_beginning_of_function(1_int64, found)
+            if (.not. is_beginning_of_buffer()) call javascript_end_of_function(1_int64)
         end do
 
         do while (n > 0)
@@ -1960,7 +1967,7 @@ contains
             ! look for function backward. if we're inside it, go to that
             ! function's end. otherwise, search for the next function's end
             ! and go there
-            if (js_flat_functions%value) then
+            if (javascript_flat_functions%value) then
                 call end_of_function_flat()
             else
                 ! if we're doing nested functions, see whether we're in the
@@ -1980,15 +1987,15 @@ contains
                 end if
             end if
         end do
-    end subroutine js_end_of_function
+    end subroutine javascript_end_of_function
 
-    ! `js_end_of_function' as an `end_of_subprogram_function'.
+    ! `javascript_end_of_function' as an `end_of_subprogram_function'.
     ! Not a port.
     recursive subroutine end_of_subprogram_adapter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call js_end_of_function(1_int64)
+        call javascript_end_of_function(1_int64)
     end subroutine end_of_subprogram_adapter
 
     ! Return whether point is inside the given pitem's header or body.
@@ -1997,7 +2004,7 @@ contains
         integer, intent(in) :: pitem
         integer :: k
 
-        call js_ensure_cache()
+        call javascript_ensure_cache()
         k = here()
         is_inside_pitem = .false.
         if (.not. point() > locals(k)%pitems(pitem)%h_begin) return
@@ -2018,7 +2025,7 @@ contains
         beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
         end_of_accessible_portion = buffers(current)%end_of_accessible_portion
         call widen()
-        call js_ensure_cache()
+        call javascript_ensure_cache()
         pstate = backward_pstate()
         call goto_character(original_point)
         if (size(pstate) == 0) pstate = [1]
@@ -2045,32 +2052,32 @@ contains
 
         select case (type)
         case (PITEM_FUNCTION)
-            context = JS_CONTEXT_FUNCTION
+            context = JAVASCRIPT_CONTEXT_FUNCTION
         case (PITEM_MACRO)
-            context = JS_CONTEXT_MACRO
+            context = JAVASCRIPT_CONTEXT_MACRO
         case (PITEM_TOPLEVEL)
-            context = JS_CONTEXT_TOPLEVEL
+            context = JAVASCRIPT_CONTEXT_TOPLEVEL
         case default
-            context = JS_CONTEXT_CLASS
+            context = JAVASCRIPT_CONTEXT_CLASS
         end select
     end function context_from_pstate
 
-    !> Return the JavaScript syntactic context at point (a JS_CONTEXT_*
+    !> Return the JavaScript syntactic context at point (a JAVASCRIPT_CONTEXT_*
     !> value).  Port of js.el:js-syntactic-context.
-    recursive integer function js_syntactic_context() result(context)
+    recursive integer function javascript_syntactic_context() result(context)
         context = context_from_pstate(parse_state_at_point())
-    end function js_syntactic_context
+    end function javascript_syntactic_context
 
-    ! The command `js_syntactic_context': also display a message with the
+    ! The command `javascript_syntactic_context': also display a message with the
     ! context.
-    recursive subroutine execute_js_syntactic_context(status)
+    recursive subroutine execute_javascript_syntactic_context(status)
         use display_engine_mod, only: message
         type(status_type), intent(out) :: status
         character(len=*), parameter :: NAMES(0:3) = [character(len=8) :: "toplevel", "function", "macro", "class"]
 
         status = status_type()
-        call message("Syntactic context: "//trim(NAMES(js_syntactic_context())))
-    end subroutine execute_js_syntactic_context
+        call message("Syntactic context: "//trim(NAMES(javascript_syntactic_context())))
+    end subroutine execute_javascript_syntactic_context
 
     ! ------------------------------------------------------------------
     ! Font Lock
@@ -2115,7 +2122,7 @@ contains
             list_begin = point()
             call goto_character(line_beginning_position())
 
-            if (at(JS_DOJO_CLASS_DECLARATION_REGULAR_EXPRESSION)) then
+            if (at(JAVASCRIPT_DOJO_CLASS_DECLARATION_REGULAR_EXPRESSION)) then
                 call goto_character(me(0))
                 if (at("""\s-*,\s-*\[")) is_inside_dojo_class_list = me(0) == list_begin + 1
             end if
@@ -2149,7 +2156,7 @@ contains
                 else if (c == iachar(",")) then
                     call forward_character(st, 1_int64)
                     more = .true.
-                else if (at(JS_NAME_REGULAR_EXPRESSION)) then
+                else if (at(JAVASCRIPT_NAME_REGULAR_EXPRESSION)) then
                     if (apply) call highlight_variable()
                     call goto_character(me(0))
                     more = .true.
@@ -2169,14 +2176,14 @@ contains
             moved = forward_comment(huge(1_int64))
 
             do
-                if (.not. at(JS_OBJFIELD_REGULAR_EXPRESSION)) exit
+                if (.not. at(JAVASCRIPT_OBJFIELD_REGULAR_EXPRESSION)) exit
                 call goto_character(me(0))
                 moved = forward_comment(huge(1_int64))
                 c = next_character()
 
                 if (c == iachar("[") .or. c == iachar("{")) then
                     more = forward_destructuring_specification(apply)
-                else if (at(JS_NAME_REGULAR_EXPRESSION)) then
+                else if (at(JAVASCRIPT_NAME_REGULAR_EXPRESSION)) then
                     if (apply) call highlight_variable()
                     call goto_character(me(0))
                     more = .true.
@@ -2240,7 +2247,7 @@ contains
 
             if (.not. ok) exit
 
-            if (at(JS_NAME_REGULAR_EXPRESSION)) then
+            if (at(JAVASCRIPT_NAME_REGULAR_EXPRESSION)) then
                 call highlight_variable()
                 call goto_character(me(0))
             else
@@ -2255,7 +2262,7 @@ contains
 
             if (next_character() == iachar("=")) then
                 call forward_character(status, 1_int64)
-                call js_forward_expression(status)
+                call javascript_forward_expression(status)
                 ! (scan-error: stop.)
                 if (.not. status%ok()) exit
                 moved = forward_comment(huge(1_int64))
@@ -2271,7 +2278,7 @@ contains
         found = .false.
     end subroutine variable_declaration_matcher
 
-    ! Font lock function used by `js_mode'.
+    ! Font lock function used by `javascript_mode'.
     ! This performs fontification according to js--class-styles.  Port of
     ! js.el:js--class-decl-matcher.
     recursive subroutine class_declaration_matcher(limit, found, status)
@@ -2286,7 +2293,7 @@ contains
         status = status_type()
         found = .false.
         if (.not. any_framework_enabled()) return
-        call js_ensure_cache(limit)
+        call javascript_ensure_cache(limit)
         k = here()
 
         do
@@ -2299,7 +2306,7 @@ contains
             do i = 1, NSTYLES
                 call class_style(i, name, declaration, prototype, framework)
                 if (.not. framework_enabled(framework)) cycle
-                if (js_syntactic_context() /= JS_CONTEXT_TOPLEVEL) cycle
+                if (javascript_syntactic_context() /= JAVASCRIPT_CONTEXT_TOPLEVEL) cycle
 
                 if (at(declaration)) then
                     call goto_character(me(0))
@@ -2471,7 +2478,7 @@ contains
     ! Not a port.
     subroutine initialize_keywords()
         character(len=*), parameter :: TY = "font_lock_type_face", VA = "font_lock_variable_name_face"
-        type(font_lock_keyword_type), allocatable :: cpp(:), grown(:)
+        type(font_lock_keyword_type), allocatable :: c_preprocessor(:), grown(:)
         type(font_lock_keyword_type) :: kw(14)
         integer :: n
         type(font_lock_highlight_type) :: h1(1), h2(2), a(1)
@@ -2480,25 +2487,25 @@ contains
         allocate (none(0))
         kw(1) = font_lock_keyword("\_<import\_>")
         h1(1) = h(1, "font_lock_function_name_face")
-        kw(2) = font_lock_keyword(JS_FUNCTION_HEADING_1_REGULAR_EXPRESSION, highlights=h1)
-        kw(3) = font_lock_keyword(JS_FUNCTION_HEADING_2_REGULAR_EXPRESSION, highlights=h1)
+        kw(2) = font_lock_keyword(JAVASCRIPT_FUNCTION_HEADING_1_REGULAR_EXPRESSION, highlights=h1)
+        kw(3) = font_lock_keyword(JAVASCRIPT_FUNCTION_HEADING_2_REGULAR_EXPRESSION, highlights=h1)
         keywords_1 = kw(1:3)
         h1(1) = h(1, "font_lock_keyword_face")
-        kw(4) = font_lock_keyword(JS_KEYWORD_REGULAR_EXPRESSION, highlights=h1)
+        kw(4) = font_lock_keyword(JAVASCRIPT_KEYWORD_REGULAR_EXPRESSION, highlights=h1)
         h1(1) = h(0, TY)
-        kw(5) = font_lock_keyword(JS_BASIC_TYPE_REGULAR_EXPRESSION, highlights=h1)
+        kw(5) = font_lock_keyword(JAVASCRIPT_BASIC_TYPE_REGULAR_EXPRESSION, highlights=h1)
         h1(1) = h(0, "font_lock_constant_face")
-        kw(6) = font_lock_keyword(JS_CONSTANT_REGULAR_EXPRESSION, highlights=h1)
+        kw(6) = font_lock_keyword(JAVASCRIPT_CONSTANT_REGULAR_EXPRESSION, highlights=h1)
         keywords_2 = kw(1:6)
         ! This goes before keywords-2 so it gets used preferentially
         ! instead of the keywords in keywords-2.  Don't use override
         ! because that will override syntactic fontification too, which
         ! will fontify commented-out directives as if they weren't
         ! commented out.
-        cpp = cpp_font_lock_keywords()
-        allocate (keywords_3(size(cpp) + size(keywords_2)))
-        keywords_3(1:size(cpp)) = cpp
-        keywords_3(size(cpp) + 1:) = keywords_2
+        c_preprocessor = c_preprocessor_font_lock_keywords()
+        allocate (keywords_3(size(c_preprocessor) + size(keywords_2)))
+        keywords_3(1:size(c_preprocessor)) = c_preprocessor
+        keywords_3(size(c_preprocessor) + 1:) = keywords_2
         h1(1) = h(1, "font_lock_constant_face")
         kw(1) = font_lock_keyword("\.\(prototype\)\_>", highlights=h1)
         ! Highlights class being declared, in parts
@@ -2542,7 +2549,8 @@ contains
         kw(11) = font_lock_keyword(FORMAL_PARAMETERS_REGULAR_EXPRESSION, highlights=a)
         ! continued formal parameter list
         h1(1) = h(0, VA)
-        a(1) = font_lock_anchored(h1, regular_expression=JS_NAME_REGULAR_EXPRESSION, pre_match_form=parameters_continued_pre, &
+        a(1) = font_lock_anchored(h1, regular_expression=JAVASCRIPT_NAME_REGULAR_EXPRESSION, &
+                                  pre_match_form=parameters_continued_pre, &
                                   post_match_form=end_of_line_form)
         kw(12) = font_lock_keyword(CONTINUED_PARAMETERS_REGULAR_EXPRESSION, highlights=a)
         n = size(keywords_3)
@@ -2554,7 +2562,7 @@ contains
 
     !> Return syntactic face given STATE.  Port of
     !> js.el:js-font-lock-syntactic-face-function.
-    subroutine js_font_lock_syntactic_face_function(state, face)
+    subroutine javascript_font_lock_syntactic_face_function(state, face)
         type(parse_state_type), intent(in) :: state
         character(len=:), allocatable, intent(out) :: face
         integer(int64) :: original_point
@@ -2575,7 +2583,7 @@ contains
         else
             face = "font_lock_comment_face"
         end if
-    end subroutine js_font_lock_syntactic_face_function
+    end subroutine javascript_font_lock_syntactic_face_function
 
     ! ------------------------------------------------------------------
     ! Syntax properties
@@ -2658,7 +2666,7 @@ contains
     !> The `syntax_propertize_function' of JavaScript mode: JavaScript
     !> allows immediate regular expression objects, written /.../.  Port of
     !> js.el:js-syntax-propertize.
-    recursive subroutine js_syntax_propertize(start, end, status)
+    recursive subroutine javascript_syntax_propertize(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
 
@@ -2667,7 +2675,7 @@ contains
         call syntax_propertize_regular_expression(end)
         propertize_end = end
         call propertize_rules%apply(point(), end, status)
-    end subroutine js_syntax_propertize
+    end subroutine javascript_syntax_propertize
 
     ! ------------------------------------------------------------------
     ! Indentation
@@ -2698,7 +2706,7 @@ contains
             call backward_syntactic_whitespace()
             if (previous_character() == iachar(")")) call backward_group(1_int64, st)
             question = .false.
-            if (js_regular_expression_search_backward("[?:{]\|\_<case\_>")) question = next_character() == iachar("?")
+            if (javascript_regular_expression_search_backward("[?:{]\|\_<case\_>")) question = next_character() == iachar("?")
             call goto_character(original_point)
 
             if (.not. question) then
@@ -2796,7 +2804,7 @@ contains
 
     !> Return true if the current line continues an expression.  Port of
     !> js.el:js--continued-expression-p.
-    recursive logical function is_js_continued_expression() result(continued)
+    recursive logical function is_javascript_continued_expression() result(continued)
         type(parse_state_type) :: state
         integer(int64) :: original_point
         type(status_type) :: st
@@ -2840,7 +2848,7 @@ contains
         end if
 
         call goto_character(original_point)
-    end function is_js_continued_expression
+    end function is_javascript_continued_expression
 
     ! Skip a term before point; return t if a term was skipped.  Port of
     ! js.el:js--skip-term-backward.
@@ -2860,7 +2868,7 @@ contains
             ! First skip whitespace.
             moved = skip_syntax_backward(" ")
             ! Now if we're looking at closing paren, skip to the opener.
-            ! This doesn't strictly follow JS syntax, in that we might skip
+            ! This doesn't strictly follow JAVASCRIPT syntax, in that we might skip
             ! something nonsensical like "()[]{}", but it is enough if it
             ! works ok for valid input.
             c = previous_character()
@@ -2875,7 +2883,7 @@ contains
         ! Maybe skip over a symbol.
         save_point = point()
 
-        if (skip_syntax_backward("w_") < 0 .and. at(JS_NAME_REGULAR_EXPRESSION)) then
+        if (skip_syntax_backward("w_") < 0 .and. at(JAVASCRIPT_NAME_REGULAR_EXPRESSION)) then
             ! Skipped.
             term_skipped = .true.
             moved = skip_syntax_backward(" ")
@@ -2910,9 +2918,9 @@ contains
         found = .true.
     end function skip_terms_backward
 
-    ! Helper for `js_proper_indentation' that handles chained expressions:
+    ! Helper for `javascript_proper_indentation' that handles chained expressions:
     ! the indentation of the current line if it is a chained expression
-    ! line (`found'), when `js_chain_indent' is true.  Port of
+    ! line (`found'), when `javascript_chain_indent' is true.  Port of
     ! js.el:js--chained-expression-p.
     recursive subroutine is_chained_expression(column, found)
         integer, intent(out) :: column
@@ -2921,11 +2929,11 @@ contains
 
         column = 0
         found = .false.
-        if (.not. js_chain_indent%value) return
+        if (.not. javascript_chain_indent%value) return
         original_point = point()
 
         if (next_character() == iachar(".")) then
-            if (is_js_continued_expression()) then
+            if (is_javascript_continued_expression()) then
                 if (find_newline_backward()) then
                     if (skip_terms_backward()) then
                         column = int(current_column())
@@ -2963,20 +2971,20 @@ contains
                 found = at("\_<do\_>")
             else
                 position = line_beginning_position()
-                if (js_regular_expression_search_backward("\_<do\_>", position)) continue
+                if (javascript_regular_expression_search_backward("\_<do\_>", position)) continue
                 found = at("\_<do\_>")
 
                 if (.not. found) then
                     saved_indent = current_indentation()
 
                     do
-                        if (.not. js_regular_expression_search_backward("^\s-*\_<")) exit
+                        if (.not. javascript_regular_expression_search_backward("^\s-*\_<")) exit
                         if (current_indentation() == saved_indent) exit
                     end do
 
                     if (at("\s-*\_<do\_>")) then
                         position = point()
-                        found = .not. js_regular_expression_search_forward("\_<while\_>", line_end_position())
+                        found = .not. javascript_regular_expression_search_forward("\_<while\_>", line_end_position())
                         call goto_character(position)
                         if (found) found = current_indentation() == saved_indent
                     end if
@@ -2988,7 +2996,7 @@ contains
         call restore_match(saved)
     end function is_end_of_do_while_loop
 
-    ! Helper function for `js_proper_indentation'.
+    ! Helper function for `javascript_proper_indentation'.
     ! Return the proper indentation of the current line if it starts the
     ! body of a control statement without braces (`found').  Port of
     ! js.el:js--ctrl-statement-indentation.
@@ -3007,7 +3015,7 @@ contains
         start = point()
         ok = line_beginning_position() /= point_minimum()
         if (ok) ok = .not. at("[{]")
-        if (ok) ok = js_regular_expression_search_backward("[[:graph:]]")
+        if (ok) ok = javascript_regular_expression_search_backward("[[:graph:]]")
 
         if (ok) then
             if (.not. is_end_of_buffer()) call forward_character(st, 1_int64)
@@ -3029,7 +3037,7 @@ contains
 
         if (ok) then
             call goto_character(mb(0))
-            column = int(current_indentation() + js_indent_level%value)
+            column = int(current_indentation() + javascript_indent_level%value)
             found = .true.
         end if
 
@@ -3043,7 +3051,7 @@ contains
         same_line = position >= line_beginning_position() .and. position <= line_end_position()
     end function same_line
 
-    ! Helper function for `js_proper_indentation'.
+    ! Helper function for `javascript_proper_indentation'.
     ! Return the proper indentation of the current line if it belongs to a
     ! declaration statement spanning multiple lines (`found').  Port of
     ! js.el:js--multi-line-declaration-indentation.
@@ -3178,8 +3186,8 @@ contains
         call goto_character(original_point)
     end function array_comp_indentation
 
-    ! Helper function for `js_proper_indentation'.
-    ! Depending on the value of `js_indent_first_init', move point to the
+    ! Helper function for `javascript_proper_indentation'.
+    ! Depending on the value of `javascript_indent_first_initializer', move point to the
     ! end of a variable declaration keyword so that indentation is aligned
     ! to that column.  Port of js.el:js--maybe-goto-declaration-keyword-end.
     recursive subroutine maybe_goto_declaration_keyword_end(parse_status)
@@ -3188,9 +3196,9 @@ contains
         integer(int64) :: declaration_keyword_end, original_point
         logical :: comma_p, moved
 
-        if (js_indent_first_init%value) then
+        if (javascript_indent_first_initializer%value) then
             if (at(DECLARATION_KEYWORD_REGULAR_EXPRESSION)) call goto_character(me(0) + 1)
-        else if (js_indent_first_init%choice == JS_INDENT_FIRST_INIT_DYNAMIC) then
+        else if (javascript_indent_first_initializer%choice == JAVASCRIPT_INDENT_FIRST_INITIALIZER_DYNAMIC) then
             if (.not. at(DECLARATION_KEYWORD_REGULAR_EXPRESSION)) return
             declaration_keyword_end = me(0)
             original_point = point()
@@ -3213,7 +3221,7 @@ contains
         if (.false.) moved = .true.
     end subroutine maybe_goto_declaration_keyword_end
 
-    ! Helper function for `js_proper_indentation'.
+    ! Helper function for `javascript_proper_indentation'.
     ! Return true if the last non-comment, non-whitespace token of the
     ! current line is the "=>" token (of an arrow function).  Port of
     ! js.el:js--broken-arrow-terminates-line-p.
@@ -3237,7 +3245,7 @@ contains
         integer(int64), intent(in) :: start
         procedure(c_lineup_procedure), pointer :: fn
 
-        fn => js_comment_lineup_function
+        fn => javascript_comment_lineup_function
         if (.not. associated(fn)) fn => c_lineup_c_comments
         ! (c-comment-prefix-regexp as js-mode sets it.)
         get_c_offset = fn(start, "//+\|\**")
@@ -3246,7 +3254,7 @@ contains
     !> Return the proper indentation for the current line, whose line
     !> beginning has the parse state PARSE_STATUS.  Port of
     !> js.el:js--proper-indentation (JSX is deferred).
-    recursive integer function js_proper_indentation(parse_status) result(column)
+    recursive integer function javascript_proper_indentation(parse_status) result(column)
         type(parse_state_type), intent(in) :: parse_status
         type(status_type) :: st
         integer(int64) :: original_point, bracket, beginning, moved
@@ -3272,7 +3280,7 @@ contains
 
         if (next_character() == iachar("#")) then
             call forward_character(st, 1_int64)
-            found = is_at(CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES)
+            found = is_at(C_PREPROCESSOR_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES)
             call forward_character(st, -1_int64)
 
             if (found) then
@@ -3323,10 +3331,10 @@ contains
             ! "default".
             same_indent_p = at("[]})]")
             switch_keyword_p = at("default\_>\|case\_>[^:]")
-            continued_expression_p = is_js_continued_expression()
+            continued_expression_p = is_javascript_continued_expression()
             ! go to the opening char
             call goto_character(bracket)
-            nothing_after = .not. js_indent_align_list_continuation%value
+            nothing_after = .not. javascript_indent_align_list_continuation%value
             if (.not. nothing_after) nothing_after = at("[({[]\s-*\(/[/*]\|$\)")
 
             if (.not. nothing_after) then
@@ -3349,21 +3357,21 @@ contains
                 if (same_indent_p) then
                     continue
                 else if (continued_expression_p) then
-                    indent = indent + int(2*js_indent_level%value + js_expression_indent_offset%value)
+                    indent = indent + int(2*javascript_indent_level%value + javascript_expression_indent_offset%value)
                 else
-                    indent = indent + int(js_indent_level%value)
+                    indent = indent + int(javascript_indent_level%value)
                     c = after_character_at(bracket)
 
                     if (c == iachar("(")) then
-                        indent = indent + int(js_parenthesis_indent_offset%value)
+                        indent = indent + int(javascript_parenthesis_indent_offset%value)
                     else if (c == iachar("[")) then
-                        indent = indent + int(js_square_indent_offset%value)
+                        indent = indent + int(javascript_square_indent_offset%value)
                     else if (c == iachar("{")) then
-                        indent = indent + int(js_curly_indent_offset%value)
+                        indent = indent + int(javascript_curly_indent_offset%value)
                     end if
                 end if
 
-                if (in_switch_p) indent = indent + int(js_switch_indent_offset%value)
+                if (in_switch_p) indent = indent + int(javascript_switch_indent_offset%value)
                 column = indent
             else
                 ! If there is something following the opening paren/bracket,
@@ -3375,17 +3383,17 @@ contains
 
                 column = int(current_column())
             end if
-        else if (is_js_continued_expression()) then
-            column = int(js_indent_level%value + js_expression_indent_offset%value)
+        else if (is_javascript_continued_expression()) then
+            column = int(javascript_indent_level%value + javascript_expression_indent_offset%value)
         else
-            column = int(prog_first_column())
+            column = int(programming_first_column())
         end if
 
         call goto_character(original_point)
-    end function js_proper_indentation
+    end function javascript_proper_indentation
 
     !> Indent the current line as JavaScript.  Port of js.el:js-indent-line.
-    recursive subroutine js_indent_line(status)
+    recursive subroutine javascript_indent_line(status)
         type(status_type), intent(out) :: status
         type(parse_state_type) :: parse_status
         integer(int64) :: original_point, offset, beginning_of_line
@@ -3398,9 +3406,9 @@ contains
         parse_status = parser_state_at(beginning_of_line)
         call goto_character(original_point)
         if (parse_status%instring >= 0) return
-        call indent_line_to(int(js_proper_indentation(parse_status), int64), status)
+        call indent_line_to(int(javascript_proper_indentation(parse_status), int64), status)
         if (offset > 0) call forward_character(status, offset)
-    end subroutine js_indent_line
+    end subroutine javascript_indent_line
 
     ! ------------------------------------------------------------------
     ! Modes
@@ -3415,8 +3423,8 @@ contains
         character(len=*), parameter :: PUNCT = "%&+-<=>|"
         integer :: i
 
-        call make_syntax_table(js_mode_syntax_table, st)
-        t = js_mode_syntax_table
+        call make_syntax_table(javascript_mode_syntax_table, st)
+        t = javascript_mode_syntax_table
 
         do i = 1, len(PUNCT)
             call modify_syntax_entry(iachar(PUNCT(i:i)), iachar(PUNCT(i:i)), ".", st, t)
@@ -3451,17 +3459,17 @@ contains
     !> Generic major mode for editing JavaScript.
     !>
     !> This mode is intended to be inherited by concrete major modes.
-    !> Currently there is `js_mode'.  Port of js.el:js-base-mode (the
+    !> Currently there is `javascript_mode'.  Port of js.el:js-base-mode (the
     !> hideshow variables are deferred).
-    recursive subroutine js_base_mode(status)
+    recursive subroutine javascript_base_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(js_mode_syntax_table)) call initialize_js()
-        call major_modes%js_base_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(javascript_mode_syntax_table)) call initialize_javascript()
+        call major_modes%javascript_base_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call major_modes%js_base_mode%end(saved, status)
-    end subroutine js_base_mode
+        call major_modes%javascript_base_mode%end(saved, status)
+    end subroutine javascript_base_mode
 
     ! The setup js-mode and js-json-mode share.  Port of js.el:js--mode-setup.
     recursive subroutine mode_setup()
@@ -3476,8 +3484,8 @@ contains
         levels(2) = font_lock_keywords_level(keywords_1)
         levels(3) = font_lock_keywords_level(keywords_2)
         levels(4) = font_lock_keywords_level(keywords_3)
-        call font_lock_defaults%set_local(levels=levels, syntactic_face_function=js_font_lock_syntactic_face_function)
-        call syntax_propertize_function%set_local(js_syntax_propertize)
+        call font_lock_defaults%set_local(levels=levels, syntactic_face_function=javascript_font_lock_syntactic_face_function)
+        call syntax_propertize_function%set_local(javascript_syntax_propertize)
         call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, local=.true.)
         call parse_expression_ignore_comments%set_local(.true.)
         ! Comments
@@ -3493,26 +3501,26 @@ contains
     end subroutine mode_setup
 
     !> Major mode for editing JavaScript.  Port of js.el:js-mode.
-    recursive subroutine js_mode(status)
+    recursive subroutine javascript_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(js_mode_syntax_table)) call initialize_js()
-        call major_modes%js_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(javascript_mode_syntax_table)) call initialize_javascript()
+        call major_modes%javascript_mode%begin(saved, status)
         if (.not. status%ok()) return
         call mode_setup()
-        call major_modes%js_mode%end(saved, status)
-    end subroutine js_mode
+        call major_modes%javascript_mode%end(saved, status)
+    end subroutine javascript_mode
 
     !> Major mode for editing JSON.  Port of js.el:js-json-mode
     !> (`editorconfig_indent_size_variables' is deferred).
-    recursive subroutine js_json_mode(status)
+    recursive subroutine javascript_json_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
         integer :: k
 
-        if (.not. is_syntax_table_live(js_mode_syntax_table)) call initialize_js()
-        call major_modes%js_json_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(javascript_mode_syntax_table)) call initialize_javascript()
+        call major_modes%javascript_json_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! Reuse most of `js-mode', but not as parent (bug#67463).
         call mode_setup()
@@ -3523,8 +3531,8 @@ contains
         ! regexp matchers nor #! thingies (and `js-enabled-frameworks' is
         ! nil).
         call syntax_propertize_function%set_local(ignore_propertize)
-        call major_modes%js_json_mode%end(saved, status)
-    end subroutine js_json_mode
+        call major_modes%javascript_json_mode%end(saved, status)
+    end subroutine javascript_json_mode
 
     ! The `syntax_propertize_function' ignore.
     ! Not a port.
@@ -3536,56 +3544,58 @@ contains
         if (start > end) continue
     end subroutine ignore_propertize
 
-    ! `js_indent_line' as an `indent_line_function'.
+    ! `javascript_indent_line' as an `indent_line_function'.
     ! Not a port.
     recursive subroutine indent_line_adapter(status, noindent)
         type(status_type), intent(out) :: status
         logical, intent(out) :: noindent
 
         noindent = .false.
-        call js_indent_line(status)
+        call javascript_indent_line(status)
     end subroutine indent_line_adapter
 
-    ! The command `js_indent_line'.
-    recursive subroutine execute_js_indent_line(status)
+    ! The command `javascript_indent_line'.
+    recursive subroutine execute_javascript_indent_line(status)
         type(status_type), intent(out) :: status
 
-        call js_indent_line(status)
-    end subroutine execute_js_indent_line
+        call javascript_indent_line(status)
+    end subroutine execute_javascript_indent_line
 
     !> Define JavaScript mode: its variables, tables and commands.
     !> Not a port.
-    recursive subroutine initialize_js()
-        if (is_syntax_table_live(js_mode_syntax_table)) return
-        call forward_setting(js_indent_level)
-        call forward_setting(js_expression_indent_offset)
-        call forward_setting(js_parenthesis_indent_offset)
-        call forward_setting(js_square_indent_offset)
-        call forward_setting(js_curly_indent_offset)
-        call forward_setting(js_switch_indent_offset)
-        call forward_setting(js_flat_functions)
-        call forward_setting(js_indent_align_list_continuation)
-        call forward_setting(js_indent_first_init)
-        call forward_setting(js_chain_indent)
-        if (.not. associated(js_comment_lineup_function)) js_comment_lineup_function => c_lineup_c_comments
-        if (.not. allocated(js_enabled_frameworks)) js_enabled_frameworks = AVAILABLE_FRAMEWORKS
+    recursive subroutine initialize_javascript()
+        if (is_syntax_table_live(javascript_mode_syntax_table)) return
+        call forward_setting(javascript_indent_level)
+        call forward_setting(javascript_expression_indent_offset)
+        call forward_setting(javascript_parenthesis_indent_offset)
+        call forward_setting(javascript_square_indent_offset)
+        call forward_setting(javascript_curly_indent_offset)
+        call forward_setting(javascript_switch_indent_offset)
+        call forward_setting(javascript_flat_functions)
+        call forward_setting(javascript_indent_align_list_continuation)
+        call forward_setting(javascript_indent_first_initializer)
+        call forward_setting(javascript_chain_indent)
+        if (.not. associated(javascript_comment_lineup_function)) javascript_comment_lineup_function => c_lineup_c_comments
+        if (.not. allocated(javascript_enabled_frameworks)) javascript_enabled_frameworks = AVAILABLE_FRAMEWORKS
         call initialize_syntax_table()
         call initialize_rules()
         call initialize_keywords()
-        call append_locals_clearer(clear_js_locals)
-        call major_modes%js_base_mode%define("js_base_mode", "JavaScript", js_base_mode, js_base_mode_hook, &
-                                             parent=major_modes%programming_mode, syntax_table=js_mode_syntax_table)
-        js_base_mode_map = major_modes%js_base_mode%map
-        call major_modes%js_mode%define("js_mode", "JavaScript", js_mode, js_mode_hook, parent=major_modes%js_base_mode)
-        js_mode_map = major_modes%js_mode%map
-        call major_modes%js_json_mode%define("js_json_mode", "JSON", js_json_mode, js_json_mode_hook, &
-                                             parent=major_modes%programming_mode, syntax_table=js_mode_syntax_table)
-        js_json_mode_map = major_modes%js_json_mode%map
-        commands%js_base_mode%execute => js_base_mode
-        commands%js_mode%execute => js_mode
-        commands%javascript_mode%execute => js_mode
-        commands%js_json_mode%execute => js_json_mode
-        commands%js_indent_line%execute => execute_js_indent_line
-        commands%js_syntactic_context%execute => execute_js_syntactic_context
-    end subroutine initialize_js
+        call append_locals_clearer(clear_javascript_locals)
+        call major_modes%javascript_base_mode%define("javascript_base_mode", "JavaScript", javascript_base_mode, &
+                                                     javascript_base_mode_hook, &
+                                                     parent=major_modes%programming_mode, syntax_table=javascript_mode_syntax_table)
+        javascript_base_mode_map = major_modes%javascript_base_mode%map
+        call major_modes%javascript_mode%define("javascript_mode", "JavaScript", javascript_mode, javascript_mode_hook, &
+                                                parent=major_modes%javascript_base_mode)
+        javascript_mode_map = major_modes%javascript_mode%map
+        call major_modes%javascript_json_mode%define("javascript_json_mode", "JSON", javascript_json_mode, &
+                                                     javascript_json_mode_hook, &
+                                                     parent=major_modes%programming_mode, syntax_table=javascript_mode_syntax_table)
+        javascript_json_mode_map = major_modes%javascript_json_mode%map
+        commands%javascript_base_mode%execute => javascript_base_mode
+        commands%javascript_mode%execute => javascript_mode
+        commands%javascript_json_mode%execute => javascript_json_mode
+        commands%javascript_indent_line%execute => execute_javascript_indent_line
+        commands%javascript_syntactic_context%execute => execute_javascript_syntactic_context
+    end subroutine initialize_javascript
 end module javascript_mod

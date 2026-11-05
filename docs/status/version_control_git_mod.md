@@ -71,7 +71,7 @@
 `vc-git-resolve-conflicts`,
 `vc-git-resolve-when-done`,
 `vc-git-conflicted-files`,
-`vc-git--cmds-in-progress` (`vc_git_commands_in_progress_type`),
+`vc-git--cmds-in-progress` (`version_control_git_commands_in_progress_type`),
 the annotate functions: `vc-git-annotate-command`,
 `vc-git-annotate-time`,
 `vc-git-annotate-extract-revision-at-line`,

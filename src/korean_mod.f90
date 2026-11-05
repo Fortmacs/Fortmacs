@@ -1,4 +1,4 @@
-! korean_mod.f90 -- the korean coding systems of type `charset' and `iso-2022'.
+! korean_mod.f90 -- the korean coding systems of type `character_set' and `iso-2022'.
 ! Ported from GNU Emacs 31.1 lisp/language/korean.el.
 !
 ! Copyright (C) 1998, 2001-2026 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' and `iso-2022' that korean.el defines, with their
+!> The coding systems of type `character_set' and `iso-2022' that korean.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -36,39 +36,42 @@ submodule(coding_mod) korean_mod
 
 contains
 
-    !> Port of the `charset' and `iso-2022' coding systems of korean.el.
+    !> Port of the `character_set' and `iso-2022' coding systems of korean.el.
     module subroutine initialize_korean()
         call define_iso_2022_coding_system("korean-iso-8bit", iachar("K"), &
                                            doc="ISO 2022 based EUC encoding for Korean KSC5601 (MIME:EUC-KR)" &
                                            //".", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "korean-ksc5601", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "korean-ksc5601", &
-                                                                  "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "korean-ksc5601", "", &
+                                                    ""], &
+                                        request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "korean-ksc5601", &
+                                                                        "ascii"], &
                                            request_registers=[integer :: 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) ::], &
-                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "korean-ksc5601"], &
-                                           mime_charset="euc-kr")
+                                           character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", &
+                                                                "korean-ksc5601"], &
+                                           mime_character_set="euc-kr")
         call define_coding_system_alias("euc-kr", "korean-iso-8bit")
         call define_coding_system_alias("euc-korea", "korean-iso-8bit")
         call define_coding_system_alias("ks_c_5601-1987", "korean-iso-8bit")
         call define_iso_2022_coding_system("iso-2022-kr", iachar("k"), &
                                            doc="ISO 2022 based 7-bit encoding for Korean KSC5601 (MIME:ISO-2" &
                                            //"022-KR).", &
-                                           initial=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LENGTH) :: "korean-ksc5601", &
-                                                                  "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "", "", ""], &
+                                        request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "korean-ksc5601", &
+                                                                        "ascii"], &
                                            request_registers=[integer :: 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) :: &
                                                   "ascii-at-eol", "ascii-at-cntl", "7-bit", "designation", "locking-shift", &
                                                   "designation-bol"], &
-                                           charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "korean-ksc5601"], &
-                                           mime_charset="iso-2022-kr", suitable_for_keyboard=.true.)
+                                           character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", &
+                                                                "korean-ksc5601"], &
+                                           mime_character_set="iso-2022-kr", suitable_for_keyboard=.true.)
         call define_coding_system_alias("korean-iso-7bit-lock", "iso-2022-kr")
-        call define_charset_coding_system("korean-cp949", iachar("K"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "ascii", "cp949"], &
-                                          doc="CP949 (Microsoft Unified Hangul Code)")
+        call define_character_set_coding_system("korean-cp949", iachar("K"), &
+                                               character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "cp949"], &
+                                                doc="CP949 (Microsoft Unified Hangul Code)")
         call define_coding_system_alias("cp949", "korean-cp949")
     end subroutine initialize_korean
 
@@ -82,7 +85,7 @@ contains
                                          //achar(9)//"quail-hangul-switch-hanja"//achar(10)//"and the following key bindings ar" &
                                          //"e available within Korean input methods:"//achar(10)//"  F9, Hangul_Hanja:" &
                                          //achar(9)//"hangul-to-hanja-conversion", &
-                                         charsets=[character(len=40) :: "korean-ksc5601", "cp949"], &
+                                         character_sets=[character(len=40) :: "korean-ksc5601", "cp949"], &
                                          sample_text="Hangul (한글)"//achar(9)//"안녕하세요, 안녕하십니까", &
                                          coding_systems=[character(len=40) :: "iso-2022-kr", "korean-iso-8bit", "korean-cp949"], &
                                       coding_system_order=[character(len=40) :: "korean-iso-8bit", "korean-cp949", "iso-2022-kr"], &

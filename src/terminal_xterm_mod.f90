@@ -21,7 +21,7 @@
 
 !> `xterm_function_map' maps the escape sequences xterm (and most
 !> terminals emulating it) send for cursor, editing, function and keypad
-!> keys, with modifiers, to function-key events; `terminal_init_xterm'
+!> keys, with modifiers, to function-key events; `terminal_initialize_xterm'
 !> installs it in input-decode-map and registers xterm's colors
 !> (`xterm_register_default_colors': 8, 16, 88, 256 or 24-bit).
 !> Upstream spells the ~350 sequences out; here the regular families are
@@ -41,12 +41,12 @@ module terminal_xterm_mod
     use keymap_mod, only: make_sparse_keymap, define_key, set_keymap_parent, &
                           is_keymap_live, apply_modifiers
     use keyboard_mod, only: input_decode_map
-    use terminal_colors_mod, only: tty_color_clear, tty_color_define, tty_display_color_cells, clear_face_cache_hook
+    use terminal_colors_mod, only: terminal_color_clear, terminal_color_define, terminal_display_color_cells, clear_face_cache_hook
     use terminal_colors_rgb_mod, only: color_name_count, color_names, color_rgbs
     implicit none(type, external)
     private
 
-    public :: xterm_function_map, xterm_rxvt_function_map, terminal_init_xterm
+    public :: xterm_function_map, xterm_rxvt_function_map, terminal_initialize_xterm
     public :: xterm_color_type, xterm_standard_colors, xterm_rgb_convert_to_16bit, xterm_register_default_colors
 
     integer(int64), parameter :: M_SHIFT = int(CHARACTER_SHIFT, int64), &
@@ -330,12 +330,12 @@ contains
 
     !> Make input-decode-map translate xterm's escape sequences, leaving
     !> its own bindings in front, then register xterm's colors for
-    !> `tty_display_color_cells' colors; `status' gets the error for an
+    !> `terminal_display_color_cells' colors; `status' gets the error for an
     !> unsupported count.  Port of term/xterm.el:terminal-init-xterm
     !> (xterm--init: the xterm--push-map onto input-decode-map and
     !> xterm-register-default-colors parts); an existing parent of
     !> input-decode-map is replaced, not composed.
-    subroutine terminal_init_xterm(status)
+    subroutine terminal_initialize_xterm(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: map
 
@@ -348,7 +348,7 @@ contains
         call set_keymap_parent(input_decode_map, map, status)
         if (.not. status%ok()) return
         call xterm_register_default_colors(xterm_standard_colors, status)
-    end subroutine terminal_init_xterm
+    end subroutine terminal_initialize_xterm
 
     !> Convert an 8-bit primary color value PRIM to a corresponding 16-bit value.
     !> Port of term/xterm.el:xterm-rgb-convert-to-16bit.
@@ -361,7 +361,7 @@ contains
     !> Register the default set of colors for xterm or compatible emulator.
     !>
     !> This function registers the number of colors returned by
-    !> display-color-cells (`tty_display_color_cells').  The first (16)
+    !> display-color-cells (`terminal_display_color_cells').  The first (16)
     !> colors are taken from COLORS, which see, while the rest are computed
     !> assuming either the 88- or 256-color standard color scheme supported
     !> by latest versions of xterm.  `status' gets an error for any other
@@ -373,15 +373,15 @@ contains
         integer :: ncolors, i, index, r, g, b, color
         character(len=48) :: name
 
-        ncolors = tty_display_color_cells
+        ncolors = terminal_display_color_cells
         ! Clear the 8 default tty colors registered by startup.el
-        if (ncolors > 0) call tty_color_clear()
+        if (ncolors > 0) call terminal_color_clear()
         ! Only register as many colors as are supported by the display.
         i = 1
 
         do while (ncolors > 0 .and. i <= size(colors))
-            call tty_color_define(trim(colors(i)%name), colors(i)%index, status, &
-                                  xterm_rgb_convert_to_16bit(colors(i)%rgb))
+            call terminal_color_define(trim(colors(i)%name), colors(i)%index, status, &
+                                       xterm_rgb_convert_to_16bit(colors(i)%rgb))
             if (.not. status%ok()) return
             i = i + 1
             ncolors = ncolors - 1
@@ -397,7 +397,7 @@ contains
 
                 do i = 1, color_name_count
                     if (.not. any(xterm_standard_colors%name == color_names(i))) then
-                        call tty_color_define(trim(color_names(i)), index, status, color_rgbs(:, i))
+                        call terminal_color_define(trim(color_names(i)), index, status, color_rgbs(:, i))
                         if (.not. status%ok()) return
                         index = index + 1
                     end if
@@ -412,8 +412,8 @@ contains
                     ! This and other formulas taken from 256colres.pl and
                     ! 88colres.pl in the xterm distribution.
                     write (name, '("color-", i0)') 256 - ncolors
-                    call tty_color_define(trim(name), 256 - ncolors, status, &
-                                          xterm_rgb_convert_to_16bit([cube_level(r), cube_level(g), cube_level(b)]))
+                    call terminal_color_define(trim(name), 256 - ncolors, status, &
+                                               xterm_rgb_convert_to_16bit([cube_level(r), cube_level(g), cube_level(b)]))
                     if (.not. status%ok()) return
                     b = b + 1
 
@@ -434,7 +434,7 @@ contains
                 do while (ncolors > 0)
                     color = xterm_rgb_convert_to_16bit(8 + (24 - ncolors)*10)
                     write (name, '("color-", i0)') 256 - ncolors
-                    call tty_color_define(trim(name), 256 - ncolors, status, [color, color, color])
+                    call terminal_color_define(trim(name), 256 - ncolors, status, [color, color, color])
                     if (.not. status%ok()) return
                     ncolors = ncolors - 1
                 end do
@@ -446,8 +446,8 @@ contains
 
                 do while (ncolors > 8)
                     write (name, '("color-", i0)') 88 - ncolors
-                    call tty_color_define(trim(name), 88 - ncolors, status, &
-                                          xterm_rgb_convert_to_16bit([levels(r), levels(g), levels(b)]))
+                    call terminal_color_define(trim(name), 88 - ncolors, status, &
+                                               xterm_rgb_convert_to_16bit([levels(r), levels(g), levels(b)]))
                     if (.not. status%ok()) return
                     b = b + 1
 
@@ -474,7 +474,7 @@ contains
                     end if
 
                     write (name, '("color-", i0)') 88 - ncolors
-                    call tty_color_define(trim(name), 88 - ncolors, status, [color, color, color])
+                    call terminal_color_define(trim(name), 88 - ncolors, status, [color, color, color])
                     if (.not. status%ok()) return
                     ncolors = ncolors - 1
                 end do

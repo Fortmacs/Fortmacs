@@ -67,7 +67,7 @@ module autorevert_mod
                               FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE, FILE_NOTIFY_CREATED, FILE_NOTIFY_DELETED, &
                               FILE_NOTIFY_CHANGED, FILE_NOTIFY_RENAMED, FILE_NOTIFY_ATTRIBUTE_CHANGED, FILE_NOTIFY_STOPPED
     use inotify_mod, only: watch_descriptor_type, operator(==)
-    use version_control_hooks_mod, only: vc_refresh_state
+    use version_control_hooks_mod, only: version_control_refresh_state
     implicit none(type, external)
     private
 
@@ -176,7 +176,7 @@ module autorevert_mod
     !> machine, if it does not apply to too many version controlled
     !> buffers.  CPU usage depends on the version control system.  Port
     !> of autorevert.el auto-revert-check-vc-info.
-    logical, public :: auto_revert_check_vc_info = .false.
+    logical, public :: auto_revert_check_version_control_info = .false.
 
     !> When true, Global Auto-Revert Mode will not revert this buffer.
     !> Port of autorevert.el global-auto-revert-ignore-buffer (no
@@ -1269,10 +1269,10 @@ contains
             end if
         end if
 
-        if (.not. tail .and. (revert /= BUFFER_STALE_NO .or. auto_revert_check_vc_info)) then
+        if (.not. tail .and. (revert /= BUFFER_STALE_NO .or. auto_revert_check_version_control_info)) then
             saved_in_progress = revert_buffer_in_progress
             revert_buffer_in_progress = .true.
-            call vc_refresh_state(st)
+            call version_control_refresh_state(st)
             revert_buffer_in_progress = saved_in_progress
         end if
     end subroutine auto_revert_handler

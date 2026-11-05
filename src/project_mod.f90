@@ -28,9 +28,9 @@
 !> files, buffers and name; a backend extends it and overrides `root'
 !> (required) and any of the others.
 !>
-!> The VC-aware backend (`try_vc_project', `vc_project_type') finds a
-!> project root by the markers of the VC backends (`.git', ...) and
-!> `project_vc_extra_root_markers', and lists the files with `git
+!> The VC-aware backend (`try_version_control_project', `version_control_project_type') finds a
+!> project root by the markers of the VERSION_CONTROL backends (`.git', ...) and
+!> `project_version_control_extra_root_markers', and lists the files with `git
 !> ls-files' (other backends with `find').  A transient project
 !> (`transient_project_type') is a directory chosen by the user.
 !>
@@ -80,14 +80,16 @@ module project_mod
     use window_mod, only: switch_to_buffer, display_buffer, pop_to_buffer_same_window, other_buffer
     use derived_mod, only: provided_mode_derived_p
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, NAMELIST_STRING
-    use version_control_hooks_mod, only: vc_handled_backends, vc_directory_exclusions, vc_ignore_directory_regular_expression, &
-                                         vc_backends, vc_backend_named
-    use version_control_mod, only: vc_responsible_backend
-    use version_control_git_mod, only: vc_git_command, vc_git_program_version, vc_git_root, vc_git_use_literal_pathspecs
-    use version_control_directory_mod, only: vc_directory
-    use directory_editor_mode_mod, only: dired
+    use version_control_hooks_mod, only: version_control_handled_backends, version_control_directory_exclusions, &
+                                         version_control_ignore_directory_regular_expression, version_control_backends, &
+                                         version_control_backend_named
+    use version_control_mod, only: version_control_responsible_backend
+    use version_control_git_mod, only: version_control_git_command, version_control_git_program_version, version_control_git_root, &
+                                       version_control_git_use_literal_pathspecs
+    use version_control_directory_mod, only: version_control_directory
+    use directory_editor_mode_mod, only: directory_editor
     use shell_mod, only: shell
-    use command_interpreter_mod, only: comint_check_process
+    use command_interpreter_mod, only: command_interpreter_check_process
     use compile_mod, only: recompile, compilation_directory
     use grep_mod, only: find_program, grep_find_ignored_files
     use simple_mod, only: execute_process_shell_command
@@ -95,18 +97,20 @@ module project_mod
     implicit none(type, external)
     private
 
-    public :: initialize_project, get_current_project, find_project_in_directory, try_vc_project, &
+    public :: initialize_project, get_current_project, find_project_in_directory, try_version_control_project, &
               combine_project_directories, subtract_project_directories, remember_project, forget_project, &
               known_project_roots, read_project_directory, read_project_name, read_project, project_prefixed_buffer_name, &
               find_file_in_project, find_file_in_project_root, find_project_file, find_project_or_external_file, &
-              find_project_directory, dired_in_project, vc_directory_in_project, shell_in_project, compile_in_project, &
-              recompile_in_project, shell_command_in_project, async_shell_command_in_project, &
+              find_project_directory, directory_editor_in_project, version_control_directory_in_project, shell_in_project, &
+              compile_in_project, &
+              recompile_in_project, shell_command_in_project, asynchronous_shell_command_in_project, &
               execute_extended_command_in_project, execute_any_command_in_project, &
               execute_prefix_or_any_command_in_project, switch_to_project_buffer, display_project_buffer, &
               list_project_buffers, list_project_buffers_in_buffer_menu, close_project_buffers, &
               save_some_project_buffers, switch_project, remember_projects_under, forget_zombie_projects, &
               forget_projects_under, is_local_project, read_project_file_relative, read_project_file_absolute, &
-              project_clear_cache, project_files_in_directory, project_vc_ignores_of, vc_git_project_list_files, &
+              project_clear_cache, project_files_in_directory, project_version_control_ignores_of, &
+              version_control_git_project_list_files, &
               is_project_buffer_matching, project_buffers_to_close, find_project_regular_expression, &
               find_project_or_external_regular_expression, read_project_regular_expression
     public :: project_and, project_or, project_not, project_major_mode, project_derived_mode, &
@@ -114,7 +118,7 @@ module project_mod
 
     !> A project: what the procedures of `project_find_functions' give.  A
     !> backend extends it and overrides `root' (required) and any of the
-    !> other procedures; `transient_project_type' and `vc_project_type' are
+    !> other procedures; `transient_project_type' and `version_control_project_type' are
     !> the two built in.  Port of project.el's project instance (the
     !> generic functions are the type-bound procedures).
     type, abstract, public :: project_type
@@ -228,7 +232,7 @@ module project_mod
             type(handle_type), intent(in) :: buffer
         end function project_buffer_test_procedure
 
-        !> `project_vc_external_roots_function': the external roots of
+        !> `project_version_control_external_roots_function': the external roots of
         !> the current buffer.  Not a port.
         subroutine project_external_roots_procedure(roots)
             import :: string_type
@@ -243,7 +247,7 @@ module project_mod
 
     !> A transient project: a project rooted in a directory the user chose,
     !> including all the files under the directory except for those that
-    !> match entries in `vc_directory_exclusions' or
+    !> match entries in `version_control_directory_exclusions' or
     !> `grep_find_ignored_files_variable'.  Port of project.el's (transient
     !> . DIRECTORY) instance.
     type, extends(project_type), public :: transient_project_type
@@ -253,21 +257,21 @@ module project_mod
         procedure :: root => transient_project_root
     end type transient_project_type
 
-    !> A project of the VC-aware backend: its VC BACKEND (as in
-    !> `vc_handled_backends'; "" when the root was found by an extra root
+    !> A project of the VC-aware backend: its VERSION_CONTROL BACKEND (as in
+    !> `version_control_handled_backends'; "" when the root was found by an extra root
     !> marker outside of any repository) and root DIRECTORY.  Port of
     !> project.el's (vc BACKEND ROOT) instance.
-    type, extends(project_type), public :: vc_project_type
+    type, extends(project_type), public :: version_control_project_type
         character(len=:), allocatable :: backend
         character(len=:), allocatable :: directory
     contains
-        procedure :: root => vc_project_root
-        procedure :: external_roots => vc_project_external_roots
-        procedure :: name => vc_project_name
-        procedure :: ignores => vc_project_ignores
-        procedure :: list_files => vc_project_list_files
-        procedure :: buffers => vc_project_buffers
-    end type vc_project_type
+        procedure :: root => version_control_project_root
+        procedure :: external_roots => version_control_project_external_roots
+        procedure :: name => version_control_project_name
+        procedure :: ignores => version_control_project_ignores
+        procedure :: list_files => version_control_project_list_files
+        procedure :: buffers => version_control_project_buffers
+    end type version_control_project_type
 
     ! A procedure of `project_find_functions'.
     type :: project_find_entry_type
@@ -292,12 +296,12 @@ module project_mod
         procedure :: execute => project_find_hook_execute
     end type project_find_hook_type
 
-    !> An element of `project_vc_backend_markers': the root MARKER of the
-    !> VC BACKEND (a base file name or a glob pattern for such).
-    type, public :: project_vc_backend_marker_type
+    !> An element of `project_version_control_backend_markers': the root MARKER of the
+    !> VERSION_CONTROL BACKEND (a base file name or a glob pattern for such).
+    type, public :: project_version_control_backend_marker_type
         character(len=8) :: backend = ""
         character(len=16) :: marker = ""
-    end type project_vc_backend_marker_type
+    end type project_version_control_backend_marker_type
 
     !> An element of `project_list_exclude': a project root REGULAR_EXPRESSION (""
     !> for none), or a TEST of the project.
@@ -364,7 +368,7 @@ module project_mod
     end type project_prune_zombie_projects_type
 
     !> The values of the cache timeouts that mean no time-based expiration.
-    real, parameter, public :: PROJECT_VC_CACHE_TIMEOUT_UNLIMITED = -1.0
+    real, parameter, public :: PROJECT_VERSION_CONTROL_CACHE_TIMEOUT_UNLIMITED = -1.0
 
     ! ------------------------------------------------------------------
     ! Settings
@@ -415,19 +419,19 @@ module project_mod
 
     !> List of patterns to add to the ignores of a VC-aware project.
     !> Port of project.el project-vc-ignores.
-    character(len=:), allocatable, public :: project_vc_ignores(:)
+    character(len=:), allocatable, public :: project_version_control_ignores(:)
 
     !> True to consider submodules part of the parent project.  Port of
     !> project.el project-vc-merge-submodules.
-    logical, public :: project_vc_merge_submodules = .true.
+    logical, public :: project_version_control_merge_submodules = .true.
 
     !> When true, the VC-aware project backend includes untracked files.
     !> Port of project.el project-vc-include-untracked.
-    logical, public :: project_vc_include_untracked = .true.
+    logical, public :: project_version_control_include_untracked = .true.
 
     !> When not "", the name of the current VC-aware project.  Port of
     !> project.el project-vc-name.
-    character(len=:), allocatable, public :: project_vc_name
+    character(len=:), allocatable, public :: project_version_control_name
 
     !> List of additional markers to signal project roots.
     !>
@@ -442,15 +446,15 @@ module project_mod
     !>
     !> These will be used in addition to regular directory markers such as
     !> ".git", ".hg", and so on, depending on the value of
-    !> `vc_handled_backends'.  It is most useful when a project has
+    !> `version_control_handled_backends'.  It is most useful when a project has
     !> subdirectories inside it that need to be considered as separate
-    !> projects.  It can also be used for projects outside of VC
+    !> projects.  It can also be used for projects outside of VERSION_CONTROL
     !> repositories.
     !>
     !> In either case, their behavior will still obey the relevant
-    !> variables, such as `project_vc_ignores' or `project_vc_name'.
+    !> variables, such as `project_version_control_ignores' or `project_version_control_name'.
     !> Port of project.el project-vc-extra-root-markers.
-    character(len=:), allocatable, public :: project_vc_extra_root_markers(:)
+    character(len=:), allocatable, public :: project_version_control_extra_root_markers(:)
 
     !> Function that returns a list of external roots.
     !>
@@ -460,25 +464,25 @@ module project_mod
     !> The directory names should be absolute.  Used in the VC-aware
     !> project backend implementation of the external roots (null: none).
     !> Port of project.el project-vc-external-roots-function.
-    procedure(project_external_roots_procedure), pointer, public :: project_vc_external_roots_function => null()
+    procedure(project_external_roots_procedure), pointer, public :: project_version_control_external_roots_function => null()
 
-    !> Records assigning root markers to VC backends.
-    !> See `project_vc_extra_root_markers' for the marker value format.
+    !> Records assigning root markers to VERSION_CONTROL backends.
+    !> See `project_version_control_extra_root_markers' for the marker value format.
     !> Port of project.el project-vc-backend-markers-alist.
-    type(project_vc_backend_marker_type), allocatable, public :: project_vc_backend_markers(:)
+    type(project_version_control_backend_marker_type), allocatable, public :: project_version_control_backend_markers(:)
 
     !> Number of seconds to cache a value in VC-aware project methods
-    !> (PROJECT_VC_CACHE_TIMEOUT_UNLIMITED disables time-based expiration).
+    !> (PROJECT_VERSION_CONTROL_CACHE_TIMEOUT_UNLIMITED disables time-based expiration).
     !> Port of project.el project-vc-cache-timeout.
-    real, public :: project_vc_cache_timeout = 2.0
+    real, public :: project_version_control_cache_timeout = 2.0
 
     !> Number of seconds to cache non-essential information.
-    !> The format of the value is same as `project_vc_cache_timeout', but
+    !> The format of the value is same as `project_version_control_cache_timeout', but
     !> while the former is intended for interactive commands, this variable
     !> uses higher numbers, intended for "background" things.  It is used
     !> when `get_current_project' does not prompt.  Port of project.el
     !> project-vc-non-essential-cache-timeout.
-    real, public :: project_vc_non_essential_cache_timeout = 300.0
+    real, public :: project_version_control_non_essential_cache_timeout = 300.0
 
     !> If true, `list_files' is allowed to return relative file names.
     !> The file names should be relative to the project root.  And this
@@ -591,21 +595,21 @@ module project_mod
     ! A VC-aware search cached for a directory (project.el's `project-vc'
     ! file property): whether a project was FOUND, the PROJECT, and the
     ! clock COUNT when it was cached.
-    type :: vc_cache_entry_type
+    type :: version_control_cache_entry_type
         character(len=:), allocatable :: directory
         logical :: found = .false.
-        type(vc_project_type) :: project
+        type(version_control_project_type) :: project
         integer(int64) :: count = 0
-    end type vc_cache_entry_type
+    end type version_control_cache_entry_type
 
-    type(vc_cache_entry_type), allocatable :: vc_cache(:)
+    type(version_control_cache_entry_type), allocatable :: version_control_cache(:)
 
     ! The markers' regexps and the matches of the last directory looked
-    ! at by `try_vc_search'.
+    ! at by `try_version_control_search'.
     type(string_type), allocatable :: marker_regular_expressions(:)
     type(string_type), allocatable :: last_matches(:)
     ! The status of the last expansion in `has_marker', checked by
-    ! `try_vc_search' after the search.
+    ! `try_version_control_search' after the search.
     type(status_type) :: marker_status
 
     ! The project of each Buffer Menu listing project buffers (the
@@ -938,7 +942,7 @@ contains
     !> The "transient" project is a kind of project which denotes a
     !> project rooted in that directory and includes all the files under
     !> the directory except for those that match entries in
-    !> `vc_directory_exclusions' or `grep_find_ignored_files_variable'.
+    !> `version_control_directory_exclusions' or `grep_find_ignored_files_variable'.
     !>
     !> See `project_find_functions' for the general form of the project.
     !> Port of project.el:project-current.
@@ -1050,7 +1054,7 @@ contains
         name = file_name_nondirectory(directory_file_name(self%root()))
     end function project_name
 
-    !> The directories of `vc_directory_exclusions' and the files of
+    !> The directories of `version_control_directory_exclusions' and the files of
     !> `grep_find_ignored_files' for DIRECTORY.  Port of
     !> project.el:project-ignores.
     function project_ignores(self, directory) result(ignores)
@@ -1071,9 +1075,9 @@ contains
 
         allocate (ignores(0))
 
-        if (allocated(vc_directory_exclusions)) then
-            do k = 1, size(vc_directory_exclusions)
-                call append_string(ignores, trim(vc_directory_exclusions(k))//"/")
+        if (allocated(version_control_directory_exclusions)) then
+            do k = 1, size(version_control_directory_exclusions)
+                call append_string(ignores, trim(version_control_directory_exclusions(k))//"/")
             end do
         end if
 
@@ -1345,11 +1349,11 @@ contains
     !> Forget the VC-aware project of every directory.  Port of
     !> project.el:project--clear-cache.
     subroutine project_clear_cache()
-        if (allocated(vc_cache)) deallocate (vc_cache)
-        allocate (vc_cache(0))
+        if (allocated(version_control_cache)) deallocate (version_control_cache)
+        allocate (version_control_cache(0))
     end subroutine project_clear_cache
 
-    !> The index in `vc_cache' of DIRECTORY's entry if it is younger than
+    !> The index in `version_control_cache' of DIRECTORY's entry if it is younger than
     !> TIMEOUT seconds (0 for none).  Port of project.el:project--get-cached.
     integer function cached_index(directory, timeout) result(k)
         character(len=*), intent(in) :: directory
@@ -1358,10 +1362,11 @@ contains
         integer :: i
 
         k = 0
-        if (.not. allocated(vc_cache)) return
+        if (.not. allocated(version_control_cache)) return
 
-        do i = 1, size(vc_cache)
-            if (vc_cache(i)%directory == directory .and. len(vc_cache(i)%directory) == len(directory)) then
+        do i = 1, size(version_control_cache)
+            if (version_control_cache(i)%directory == directory .and. len(version_control_cache(i)%directory) == len(directory)) &
+                then
                 k = i
                 exit
             end if
@@ -1370,7 +1375,7 @@ contains
         if (k == 0) return
         if (timeout < 0) return
         call system_clock(now, rate)
-        if (real(now - vc_cache(k)%count, real64)/real(rate, real64) >= timeout) k = 0
+        if (real(now - version_control_cache(k)%count, real64)/real(rate, real64) >= timeout) k = 0
     end function cached_index
 
     !> Cache PROJECT (none unless FOUND) for DIRECTORY.  Port of
@@ -1378,57 +1383,58 @@ contains
     subroutine set_cached(directory, found, project)
         character(len=*), intent(in) :: directory
         logical, intent(in) :: found
-        type(vc_project_type), intent(in) :: project
-        type(vc_cache_entry_type) :: entry
+        type(version_control_project_type), intent(in) :: project
+        type(version_control_cache_entry_type) :: entry
         integer(int64) :: rate
         integer :: i
 
-        if (.not. allocated(vc_cache)) allocate (vc_cache(0))
+        if (.not. allocated(version_control_cache)) allocate (version_control_cache(0))
         entry%directory = directory
         entry%found = found
         entry%project = project
         call system_clock(entry%count, rate)
 
-        do i = 1, size(vc_cache)
-            if (vc_cache(i)%directory == directory .and. len(vc_cache(i)%directory) == len(directory)) then
-                vc_cache(i) = entry
+        do i = 1, size(version_control_cache)
+            if (version_control_cache(i)%directory == directory .and. len(version_control_cache(i)%directory) == len(directory)) &
+                then
+                version_control_cache(i) = entry
                 return
             end if
         end do
 
-        vc_cache = [vc_cache, entry]
+        version_control_cache = [version_control_cache, entry]
     end subroutine set_cached
 
     !> The project of DIRECTORY from the VC-aware backend.
     !>
     !> The value is cached, and depending on whether `get_current_project'
-    !> prompts, the timeout is `project_vc_cache_timeout' or
-    !> `project_vc_non_essential_cache_timeout'.  Port of
+    !> prompts, the timeout is `project_version_control_cache_timeout' or
+    !> `project_version_control_non_essential_cache_timeout'.  Port of
     !> project.el:project-try-vc.
-    recursive subroutine try_vc_project(directory, project, status)
+    recursive subroutine try_version_control_project(directory, project, status)
         character(len=*), intent(in) :: directory
         class(project_type), allocatable, intent(out) :: project
         type(status_type), intent(out) :: status
-        type(vc_project_type) :: res
+        type(version_control_project_type) :: res
         real :: timeout
         logical :: found
         integer :: k
 
         status = status_type()
-        timeout = project_vc_cache_timeout
-        if (non_essential) timeout = project_vc_non_essential_cache_timeout
+        timeout = project_version_control_cache_timeout
+        if (non_essential) timeout = project_version_control_non_essential_cache_timeout
         k = cached_index(directory, timeout)
 
         if (k /= 0) then
-            if (vc_cache(k)%found) allocate (project, source=vc_cache(k)%project)
+            if (version_control_cache(k)%found) allocate (project, source=version_control_cache(k)%project)
             return
         end if
 
-        call try_vc_search(directory, res, found, status)
+        call try_version_control_search(directory, res, found, status)
         if (.not. status%ok()) return
         call set_cached(directory, found, res)
         if (found) allocate (project, source=res)
-    end subroutine try_vc_project
+    end subroutine try_version_control_project
 
     !> Whether directory D has a file matching one of `marker_regular_expressions',
     !> the matches kept in `last_matches'.  Not a port.
@@ -1460,19 +1466,19 @@ contains
     end function has_marker
 
     !> Search the VC-aware project of DIRECTORY: the nearest directory with a
-    !> marker of `project_vc_backend_markers' (for the backends of
-    !> `vc_handled_backends') or `project_vc_extra_root_markers'; the root
+    !> marker of `project_version_control_backend_markers' (for the backends of
+    !> `version_control_handled_backends') or `project_version_control_extra_root_markers'; the root
     !> of the superproject of a Git submodule when
-    !> `project_vc_merge_submodules'.  Port of
+    !> `project_version_control_merge_submodules'.  Port of
     !> project.el:project-try-vc--search.
-    recursive subroutine try_vc_search(directory, project, found, status, extra_markers)
+    recursive subroutine try_version_control_search(directory, project, found, status, extra_markers)
         character(len=*), intent(in) :: directory
-        type(vc_project_type), intent(out) :: project
+        type(version_control_project_type), intent(out) :: project
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: extra_markers
         type(string_type), allocatable :: markers(:), saved_regular_expressions(:), saved_matches(:)
-        type(vc_project_type) :: parent
+        type(version_control_project_type) :: parent
         character(len=:), allocatable :: root, backend, stop, up, marker
         logical :: has_root, parent_found, use_extra
         integer :: b, k
@@ -1481,16 +1487,16 @@ contains
         found = .false.
         allocate (markers(0))
 
-        if (allocated(vc_handled_backends)) then
-            do b = 1, size(vc_handled_backends)
-                marker = backend_marker(trim(vc_handled_backends(b)))
+        if (allocated(version_control_handled_backends)) then
+            do b = 1, size(version_control_handled_backends)
+                marker = backend_marker(trim(version_control_handled_backends(b)))
                 if (len(marker) > 0) call append_string(markers, marker)
             end do
         end if
 
         use_extra = .true.
         if (present(extra_markers)) use_extra = extra_markers
-        if (use_extra) call append_strings(markers, trimmed_strings(project_vc_extra_root_markers))
+        if (use_extra) call append_strings(markers, trimmed_strings(project_version_control_extra_root_markers))
         if (allocated(marker_regular_expressions)) call move_alloc(marker_regular_expressions, saved_regular_expressions)
         if (allocated(last_matches)) call move_alloc(last_matches, saved_matches)
         allocate (marker_regular_expressions(0))
@@ -1500,18 +1506,19 @@ contains
         end do
 
         stop = locate_dominating_stop_directory_regular_expression
-        if (allocated(vc_ignore_directory_regular_expression)) stop = vc_ignore_directory_regular_expression
+        if (allocated(version_control_ignore_directory_regular_expression)) stop = &
+            version_control_ignore_directory_regular_expression
         marker_status = status_type()
         call locate_dominating_file(directory, "", root, has_root, stop, has_marker)
         backend = ""
 
-        if (has_root .and. allocated(vc_handled_backends)) then
-            do b = 1, size(vc_handled_backends)
-                marker = backend_marker(trim(vc_handled_backends(b)))
+        if (has_root .and. allocated(version_control_handled_backends)) then
+            do b = 1, size(version_control_handled_backends)
+                marker = backend_marker(trim(version_control_handled_backends(b)))
 
                 if (len(marker) > 0) then
                     if (has_string(last_matches, marker)) then
-                        backend = trim(vc_handled_backends(b))
+                        backend = trim(version_control_handled_backends(b))
                         exit
                     end if
                 end if
@@ -1524,18 +1531,18 @@ contains
         if (.not. status%ok()) return
 
         do while (has_root .and. backend == "Git")
-            if (.not. project_vc_merge_submodules) exit
+            if (.not. project_version_control_merge_submodules) exit
             if (.not. is_submodule(root, status)) exit
             if (.not. status%ok()) return
             up = file_name_directory(directory_file_name(root))
-            call vc_git_root(up, root, has_root)
+            call version_control_git_root(up, root, has_root)
         end do
 
         if (.not. has_root) return
 
         if (len(backend) == 0) then
             ! Avoid submodules scan.
-            call try_vc_search(root, parent, parent_found, status, extra_markers=.false.)
+            call try_version_control_search(root, parent, parent_found, status, extra_markers=.false.)
             if (.not. status%ok()) return
             if (parent_found) backend = parent%backend
         end if
@@ -1543,9 +1550,9 @@ contains
         project%backend = backend
         project%directory = root
         found = .true.
-    end subroutine try_vc_search
+    end subroutine try_version_control_search
 
-    !> The root marker of BACKEND in `project_vc_backend_markers' ("" for
+    !> The root marker of BACKEND in `project_version_control_backend_markers' ("" for
     !> none).  Not a port.
     function backend_marker(backend) result(marker)
         character(len=*), intent(in) :: backend
@@ -1553,9 +1560,9 @@ contains
         integer :: k
 
         marker = ""
-        if (.not. allocated(project_vc_backend_markers)) return
-        k = findloc(project_vc_backend_markers%backend, backend, dim=1)
-        if (k > 0) marker = trim(project_vc_backend_markers(k)%marker)
+        if (.not. allocated(project_version_control_backend_markers)) return
+        k = findloc(project_version_control_backend_markers%backend, backend, dim=1)
+        if (k > 0) marker = trim(project_version_control_backend_markers(k)%marker)
     end function backend_marker
 
     !> Whether ROOT is a Git submodule (its .git a file pointing into the
@@ -1581,19 +1588,19 @@ contains
 
     !> The root of a VC-aware project.  Port of project.el:project-root
     !> (the method for a VC-aware project).
-    function vc_project_root(self) result(root)
-        class(vc_project_type), intent(in) :: self
+    function version_control_project_root(self) result(root)
+        class(version_control_project_type), intent(in) :: self
         character(len=:), allocatable :: root
 
         root = ""
         if (allocated(self%directory)) root = self%directory
-    end function vc_project_root
+    end function version_control_project_root
 
-    !> The directories of `project_vc_external_roots_function' outside of
+    !> The directories of `project_version_control_external_roots_function' outside of
     !> the root.  Port of project.el:project-external-roots (the method
     !> for a VC-aware project).
-    function vc_project_external_roots(self, status) result(roots)
-        class(vc_project_type), intent(in) :: self
+    function version_control_project_external_roots(self, status) result(roots)
+        class(version_control_project_type), intent(in) :: self
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: roots(:)
         type(string_type), allocatable :: given(:), root(:), combined(:)
@@ -1602,8 +1609,8 @@ contains
         allocate (roots(0))
         allocate (given(0))
 
-        if (associated(project_vc_external_roots_function)) then
-            call project_vc_external_roots_function(given)
+        if (associated(project_version_control_external_roots_function)) then
+            call project_version_control_external_roots_function(given)
 
             do k = 1, size(given)
                 given(k)%text = file_name_as_directory(given(k)%text)
@@ -1615,13 +1622,13 @@ contains
         combined = combine_project_directories(given, status)
         if (.not. status%ok()) return
         roots = subtract_project_directories(combined, root)
-    end function vc_project_external_roots
+    end function version_control_project_external_roots
 
-    !> The VC backend of DIRECTORY in PROJECT: the project's own under its root,
+    !> The VERSION_CONTROL backend of DIRECTORY in PROJECT: the project's own under its root,
     !> else the backend responsible for DIRECTORY ("" for none).  Port of
     !> project.el:project-vc--backend.
-    function project_vc_backend(project, directory) result(backend)
-        class(vc_project_type), intent(in) :: project
+    function project_version_control_backend(project, directory) result(backend)
+        class(version_control_project_type), intent(in) :: project
         character(len=*), intent(in) :: directory
         character(len=:), allocatable :: backend
         type(status_type) :: st
@@ -1634,17 +1641,17 @@ contains
             return
         end if
 
-        ! Don't presume other DIRs are under the same VCS as the project's
+        ! Don't presume other DIRs are under the same VERSION_CONTROLS as the project's
         ! root.
-        b = vc_responsible_backend(directory, st, no_error=.true.)
-        if (st%ok() .and. b > 0) backend = vc_backends(b)%name
-    end function project_vc_backend
+        b = version_control_responsible_backend(directory, st, no_error=.true.)
+        if (st%ok() .and. b > 0) backend = version_control_backends(b)%name
+    end function project_version_control_backend
 
     !> The files of a VC-aware project in DIRECTORIES (its root when absent),
-    !> listed by the VC backend.  Port of project.el:project-files (the
+    !> listed by the VERSION_CONTROL backend.  Port of project.el:project-files (the
     !> method for a VC-aware project).
-    recursive subroutine vc_project_list_files(self, files, status, directories)
-        class(vc_project_type), intent(in) :: self
+    recursive subroutine version_control_project_list_files(self, files, status, directories)
+        class(version_control_project_type), intent(in) :: self
         type(string_type), allocatable, intent(out) :: files(:)
         type(status_type), intent(out) :: status
         type(string_type), intent(in), optional :: directories(:)
@@ -1663,14 +1670,15 @@ contains
         end if
 
         do k = 1, size(roots)
-            ignores = trimmed_strings(project_vc_ignores)
-            backend = project_vc_backend(self, roots(k)%text)
+            ignores = trimmed_strings(project_version_control_ignores)
+            backend = project_version_control_backend(self, roots(k)%text)
 
             if (backend == "Git") then
-                call vc_git_project_list_files(roots(k)%text, ignores, more, status)
+                call version_control_git_project_list_files(roots(k)%text, ignores, more, status)
             else if (len(backend) > 0) then
                 ! vc-default-project-list-files.
-                call project_files_in_directory(roots(k)%text, project_vc_ignores_of(roots(k)%text, backend, ignores), &
+                call project_files_in_directory(roots(k)%text, project_version_control_ignores_of(roots(k)%text, backend, &
+                                                                                                  ignores), &
                                                 more, status)
             else
                 call default_ignores("", defaults)
@@ -1681,14 +1689,14 @@ contains
             if (.not. status%ok()) return
             call append_strings(files, more)
         end do
-    end subroutine vc_project_list_files
+    end subroutine version_control_project_list_files
 
     !> The files of the Git repository at DIRECTORY, with `git ls-files', except
     !> those EXTRA_IGNORES match (globs as in `project_ignores'): tracked
-    !> and, with `project_vc_include_untracked', untracked files; the files
-    !> of the submodules too with `project_vc_merge_submodules'.  Port of
+    !> and, with `project_version_control_include_untracked', untracked files; the files
+    !> of the submodules too with `project_version_control_merge_submodules'.  Port of
     !> project.el:vc-git-project-list-files.
-    recursive subroutine vc_git_project_list_files(directory_name, extra_ignores, files, status)
+    recursive subroutine version_control_git_project_list_files(directory_name, extra_ignores, files, status)
         character(len=*), intent(in) :: directory_name
         type(string_type), intent(in) :: extra_ignores(:)
         type(string_type), allocatable, intent(out) :: files(:)
@@ -1704,14 +1712,15 @@ contains
 
         allocate (files(0))
         status = status_type()
-        git_version = version(vc_git_program_version())
+        git_version = version(version_control_git_program_version())
         status = git_version%status
         if (.not. status%ok()) return
         new_enough = version("2.13") <= git_version
 
         if (size(extra_ignores) > 0 .and. .not. new_enough) then
             ! Need newer Git to use negative pathspec like we do.
-            call project_files_in_directory(directory_name, project_vc_ignores_of(directory_name, "Git", extra_ignores), files, &
+            call project_files_in_directory(directory_name, project_version_control_ignores_of(directory_name, "Git", &
+                                                                                               extra_ignores), files, &
                                             status)
             return
         end if
@@ -1726,7 +1735,7 @@ contains
         call append_argument("-c")
         call append_argument("--exclude-standard")
         if (sparse) call append_argument("--sparse")
-        if (project_vc_include_untracked) call append_argument("-o")
+        if (project_version_control_include_untracked) call append_argument("-o")
         if (dedup) call append_argument("--deduplicate")
 
         if (size(extra_ignores) > 0) then
@@ -1756,10 +1765,10 @@ contains
 
         call temporary_begin(old, temporary, directory)
         call git_submodules(submodules)
-        saved_literal = vc_git_use_literal_pathspecs
-        vc_git_use_literal_pathspecs = .false.
-        call vc_git_command(0, none, arguments, status, current=.true.)
-        vc_git_use_literal_pathspecs = saved_literal
+        saved_literal = version_control_git_use_literal_pathspecs
+        version_control_git_use_literal_pathspecs = .false.
+        call version_control_git_command(0, none, arguments, status, current=.true.)
+        version_control_git_use_literal_pathspecs = saved_literal
         text = buffer_string()
         call temporary_end(old, temporary)
         if (.not. status%ok()) return
@@ -1791,12 +1800,12 @@ contains
             point = nul + 1
         end do
 
-        if (project_vc_merge_submodules) then
+        if (project_version_control_merge_submodules) then
             ! Unfortunately, 'ls-files --recurse-submodules' conflicts with '-o'.
             do k = 1, size(submodules)
                 module = submodules(k)%text
                 if (.not. is_file_directory(directory//module)) cycle
-                call vc_git_project_list_files(directory//module, extra_ignores, sub_files, status)
+                call version_control_git_project_list_files(directory//module, extra_ignores, sub_files, status)
                 if (.not. status%ok()) return
 
                 if (project_files_relative_names) then
@@ -1832,7 +1841,7 @@ contains
             item%text = argument
             arguments = [arguments, item]
         end subroutine append_argument
-    end subroutine vc_git_project_list_files
+    end subroutine version_control_git_project_list_files
 
     !> The paths of the submodules in the .gitmodules file of
     !> `default_directory'.  Port of project.el:project--git-submodules.
@@ -1862,19 +1871,20 @@ contains
 
     !> The ignores of a VC-aware project in DIRECTORY.  Port of
     !> project.el:project-ignores (the method for a VC-aware project).
-    function vc_project_ignores(self, directory) result(ignores)
-        class(vc_project_type), intent(in) :: self
+    function version_control_project_ignores(self, directory) result(ignores)
+        class(version_control_project_type), intent(in) :: self
         character(len=*), intent(in) :: directory
         type(string_type), allocatable :: ignores(:)
 
-        ignores = project_vc_ignores_of(directory, project_vc_backend(self, directory), trimmed_strings(project_vc_ignores))
-    end function vc_project_ignores
+        ignores = project_version_control_ignores_of(directory, project_version_control_backend(self, directory), &
+                                                     trimmed_strings(project_version_control_ignores))
+    end function version_control_project_ignores
 
     !> The ignores of DIRECTORY under BACKEND: the patterns of the backend's
     !> ignore file (made "rooted" where they contain a slash), then
-    !> EXTRA_IGNORES, then the directories of `vc_directory_exclusions'.
+    !> EXTRA_IGNORES, then the directories of `version_control_directory_exclusions'.
     !> Port of project.el:project--vc-ignores.
-    function project_vc_ignores_of(directory, backend, extra_ignores) result(ignores)
+    function project_version_control_ignores_of(directory, backend, extra_ignores) result(ignores)
         character(len=*), intent(in) :: directory, backend
         type(string_type), intent(in) :: extra_ignores(:)
         type(string_type), allocatable :: ignores(:)
@@ -1886,7 +1896,7 @@ contains
         allocate (ignores(0))
 
         if (len(backend) > 0) then
-            call vc_ignore_completion_table(backend, directory, entries)
+            call version_control_ignore_completion_table(backend, directory, entries)
 
             do k = 1, size(entries)
                 entry = entries(k)%text
@@ -1917,17 +1927,17 @@ contains
 
         call append_strings(ignores, extra_ignores)
 
-        if (allocated(vc_directory_exclusions)) then
-            do k = 1, size(vc_directory_exclusions)
-                call append_string(ignores, trim(vc_directory_exclusions(k))//"/")
+        if (allocated(version_control_directory_exclusions)) then
+            do k = 1, size(version_control_directory_exclusions)
+                call append_string(ignores, trim(version_control_directory_exclusions(k))//"/")
             end do
         end if
-    end function project_vc_ignores_of
+    end function project_version_control_ignores_of
 
     !> The patterns of the files BACKEND ignores in DIRECTORY: the lines of its
     !> ignore file, without comments and blank lines.  Port of
     !> vc.el:vc-default-ignore-completion-table, with vc.el:vc--read-lines.
-    subroutine vc_ignore_completion_table(backend, directory, entries)
+    subroutine version_control_ignore_completion_table(backend, directory, entries)
         character(len=*), intent(in) :: backend, directory
         type(string_type), allocatable, intent(out) :: entries(:)
         character(len=:), allocatable :: file, text
@@ -1936,10 +1946,10 @@ contains
         integer :: b, point, newline
 
         allocate (entries(0))
-        b = vc_backend_named(backend)
+        b = version_control_backend_named(backend)
         if (b <= 0) return
-        if (.not. associated(vc_backends(b)%find_ignore_file)) return
-        call vc_backends(b)%find_ignore_file(directory, file, found)
+        if (.not. associated(version_control_backends(b)%find_ignore_file)) return
+        call version_control_backends(b)%find_ignore_file(directory, file, found)
         if (.not. found) return
         if (.not. file_exists(file)) return
         call file_text(file, text, found)
@@ -1964,13 +1974,13 @@ contains
 
             point = newline + 1
         end do
-    end subroutine vc_ignore_completion_table
+    end subroutine version_control_ignore_completion_table
 
     !> The live buffers under the root of a VC-aware project, except those
     !> of submodules when they are not merged.  Port of
     !> project.el:project-buffers (the method for a VC-aware project).
-    function vc_project_buffers(self, status) result(buffer_handles)
-        class(vc_project_type), intent(in) :: self
+    function version_control_project_buffers(self, status) result(buffer_handles)
+        class(version_control_project_type), intent(in) :: self
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: buffer_handles(:)
         type(handle_type), allocatable :: all(:)
@@ -1985,7 +1995,7 @@ contains
         if (.not. status%ok()) return
         allocate (modules(0))
 
-        if (.not. project_vc_merge_submodules) then
+        if (.not. project_version_control_merge_submodules) then
             root_is_submodule = is_submodule(root, status)
             if (.not. status%ok()) return
 
@@ -2017,24 +2027,24 @@ contains
 
             if (.not. inside) buffer_handles = [buffer_handles, all(k)]
         end do
-    end function vc_project_buffers
+    end function version_control_project_buffers
 
-    !> The name of a VC-aware project: `project_vc_name' if set, else the
+    !> The name of a VC-aware project: `project_version_control_name' if set, else the
     !> base name of its root.  Port of project.el:project-name (the method
     !> for a VC-aware project).
-    function vc_project_name(self) result(name)
-        class(vc_project_type), intent(in) :: self
+    function version_control_project_name(self) result(name)
+        class(version_control_project_type), intent(in) :: self
         character(len=:), allocatable :: name
 
-        if (allocated(project_vc_name)) then
-            if (len(project_vc_name) > 0) then
-                name = project_vc_name
+        if (allocated(project_version_control_name)) then
+            if (len(project_version_control_name) > 0) then
+                name = project_version_control_name
                 return
             end if
         end if
 
         name = file_name_nondirectory(directory_file_name(self%root()))
-    end function vc_project_name
+    end function version_control_project_name
 
     !> A sorted and culled list of directory names: the directories of
     !> DIRECTORIES, without non-existing directories and directories a parent
@@ -3060,7 +3070,7 @@ contains
     !>
     !> If INCLUDE_ALL is .true., or with prefix argument when called
     !> interactively, include all files under the project root, except for
-    !> VCS directories listed in `vc_directory_exclusions'.  Port of
+    !> VERSION_CONTROLS directories listed in `version_control_directory_exclusions'.  Port of
     !> project.el:project-find-file.
     recursive subroutine find_project_file(status, include_all)
         type(status_type), intent(out) :: status
@@ -3108,7 +3118,7 @@ contains
     !>
     !> If INCLUDE_ALL is .true., or with prefix argument when called
     !> interactively, include all files under the project root, except for
-    !> VCS directories listed in `vc_directory_exclusions'.  Port of
+    !> VERSION_CONTROLS directories listed in `version_control_directory_exclusions'.  Port of
     !> project.el:project-or-external-find-file.
     recursive subroutine find_project_or_external_file(status, include_all)
         type(status_type), intent(out) :: status
@@ -3206,26 +3216,26 @@ contains
     !> part of "future history".
     !>
     !> If INCLUDE_ALL is .true., or with prefix argument when called
-    !> interactively, include all files from DIRECTORIES, except for VCS
-    !> directories listed in `vc_directory_exclusions'.  Port of
+    !> interactively, include all files from DIRECTORIES, except for VERSION_CONTROLS
+    !> directories listed in `version_control_directory_exclusions'.  Port of
     !> project.el:project-find-file-in.
     recursive subroutine find_file_in_project(suggested_filename, directories, project, status, include_all)
         type(string_type), intent(in) :: suggested_filename(:), directories(:)
         class(project_type), intent(in) :: project
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: include_all
-        type(string_type), allocatable :: vc_directories_ignores(:), all_files(:), more(:)
+        type(string_type), allocatable :: version_control_directories_ignores(:), all_files(:), more(:)
         character(len=:), allocatable :: file, saved_directory
         logical :: all, saved_ignore_case
         integer :: k
 
         all = .false.
         if (present(include_all)) all = include_all
-        allocate (vc_directories_ignores(0))
+        allocate (version_control_directories_ignores(0))
 
-        if (all .and. allocated(vc_directory_exclusions)) then
-            do k = 1, size(vc_directory_exclusions)
-                call append_string(vc_directories_ignores, trim(vc_directory_exclusions(k))//"/")
+        if (all .and. allocated(version_control_directory_exclusions)) then
+            do k = 1, size(version_control_directory_exclusions)
+                call append_string(version_control_directories_ignores, trim(version_control_directory_exclusions(k))//"/")
             end do
         end if
 
@@ -3233,7 +3243,7 @@ contains
             allocate (all_files(0))
 
             do k = 1, size(directories)
-                call project_files_in_directory(directories(k)%text, vc_directories_ignores, more, status)
+                call project_files_in_directory(directories(k)%text, version_control_directories_ignores, more, status)
                 if (.not. status%ok()) return
                 call append_strings(all_files, more)
             end do
@@ -3544,7 +3554,7 @@ contains
         call set_default_directory(saved_directory)
         completion_ignore_case = saved_ignore_case
         if (.not. status%ok()) return
-        call dired(directory, status)
+        call directory_editor(directory, status)
     end subroutine find_project_directory
 
     ! ------------------------------------------------------------------
@@ -3587,25 +3597,25 @@ contains
 
     !> Start Dired in the current project's root.  Port of
     !> project.el:project-dired.
-    recursive subroutine dired_in_project(status)
+    recursive subroutine directory_editor_in_project(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root
 
         call current_root(root, status)
         if (.not. status%ok()) return
-        call dired(root, status)
-    end subroutine dired_in_project
+        call directory_editor(root, status)
+    end subroutine directory_editor_in_project
 
     !> Run VC-Dir in the current project's root.  Port of
     !> project.el:project-vc-dir.
-    recursive subroutine vc_directory_in_project(status)
+    recursive subroutine version_control_directory_in_project(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root
 
         call current_root(root, status)
         if (.not. status%ok()) return
-        call vc_directory(root, status)
-    end subroutine vc_directory_in_project
+        call version_control_directory(root, status)
+    end subroutine version_control_directory_in_project
 
     !> Start an inferior shell in the current project's root directory.
     !> If a buffer already exists for running a shell in the project's
@@ -3639,7 +3649,7 @@ contains
         shell_buffer = get_buffer(shell_buffer_name)
 
         if (is_buffer_live(shell_buffer) .and. current_prefix_argument%kind == PREFIX_NONE) then
-            if (comint_check_process(shell_buffer)) then
+            if (command_interpreter_check_process(shell_buffer)) then
                 call pop_to_buffer_same_window(shell_buffer, status)
             else
                 call shell(result, status, buffer_name=buffers(shell_buffer%index)%name)
@@ -3651,13 +3661,13 @@ contains
         call restore_directory(saved)
     end subroutine shell_in_project
 
-    !> Run `async_shell_command' in the current project's root directory.
+    !> Run `asynchronous_shell_command' in the current project's root directory.
     !> Port of project.el:project-async-shell-command.
-    recursive subroutine async_shell_command_in_project(status)
+    recursive subroutine asynchronous_shell_command_in_project(status)
         type(status_type), intent(out) :: status
 
-        call execute_in_root(commands%async_shell_command, status)
-    end subroutine async_shell_command_in_project
+        call execute_in_root(commands%asynchronous_shell_command, status)
+    end subroutine asynchronous_shell_command_in_project
 
     !> Run `shell_command' in the current project's root directory.
     !> Port of project.el:project-shell-command.
@@ -4386,13 +4396,14 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: st
 
-        if (.not. allocated(project_find_functions%entries)) call project_find_functions%append(try_vc_project)
+        if (.not. allocated(project_find_functions%entries)) call project_find_functions%append(try_version_control_project)
         if (.not. associated(project_prompter)) project_prompter => read_project_directory
         if (.not. associated(project_read_file_name_function)) project_read_file_name_function => read_project_file_relative
         if (.not. associated(project_buffers_viewer)) project_buffers_viewer => list_project_buffers_in_buffer_menu
-        if (.not. allocated(project_vc_ignores)) allocate (character(len=0) :: project_vc_ignores(0))
-        if (.not. allocated(project_vc_extra_root_markers)) allocate (character(len=0) :: project_vc_extra_root_markers(0))
-        if (.not. allocated(project_vc_name)) project_vc_name = ""
+        if (.not. allocated(project_version_control_ignores)) allocate (character(len=0) :: project_version_control_ignores(0))
+        if (.not. allocated(project_version_control_extra_root_markers)) allocate (character( &
+                                                                            len=0) :: project_version_control_extra_root_markers(0))
+        if (.not. allocated(project_version_control_name)) project_version_control_name = ""
         if (.not. allocated(project_list_file)) project_list_file = state_directory()//"projects"
         if (.not. allocated(project_list_exclude)) allocate (project_list_exclude(0))
 
@@ -4400,14 +4411,14 @@ contains
             project_prune_zombie_projects%prompt => is_local_project
         end if
 
-        if (.not. allocated(project_vc_backend_markers)) then
-            project_vc_backend_markers = [project_vc_backend_marker_type("Git", ".git"), &
-                                          project_vc_backend_marker_type("Hg", ".hg"), &
-                                          project_vc_backend_marker_type("Bzr", ".bzr"), &
-                                          project_vc_backend_marker_type("SVN", ".svn"), &
-                                          project_vc_backend_marker_type("DARCS", "_darcs"), &
-                                          project_vc_backend_marker_type("Fossil", ".fslckout"), &
-                                          project_vc_backend_marker_type("Got", ".got")]
+        if (.not. allocated(project_version_control_backend_markers)) then
+            project_version_control_backend_markers = [project_version_control_backend_marker_type("Git", ".git"), &
+                                                       project_version_control_backend_marker_type("Hg", ".hg"), &
+                                                       project_version_control_backend_marker_type("Bzr", ".bzr"), &
+                                                       project_version_control_backend_marker_type("SVN", ".svn"), &
+                                                       project_version_control_backend_marker_type("DARCS", "_darcs"), &
+                                                       project_version_control_backend_marker_type("Fossil", ".fslckout"), &
+                                                       project_version_control_backend_marker_type("Got", ".got")]
         end if
 
         if (.not. allocated(project_close_buffer_conditions%conditions)) then
@@ -4421,9 +4432,9 @@ contains
                                                                     project_not(project_major_mode("help_mode")), &
                                                                     project_not(project_derived_mode("gnus_mode"))))
             call project_close_buffer_conditions%append(project_derived_mode("compilation_mode"))
-            call project_close_buffer_conditions%append(project_derived_mode("dired_mode"))
+            call project_close_buffer_conditions%append(project_derived_mode("directory_editor_mode"))
             call project_close_buffer_conditions%append(project_derived_mode("diff_mode"))
-            call project_close_buffer_conditions%append(project_derived_mode("comint_mode"))
+            call project_close_buffer_conditions%append(project_derived_mode("command_interpreter_mode"))
             call project_close_buffer_conditions%append(project_derived_mode("eshell_mode"))
             call project_close_buffer_conditions%append(project_derived_mode("change_log_mode"))
         end if
@@ -4436,7 +4447,7 @@ contains
             project_switch_commands(1)%label = "Find file"
             project_switch_commands(2)%command => commands%find_project_directory
             project_switch_commands(2)%label = "Find directory"
-            project_switch_commands(3)%command => commands%vc_directory_in_project
+            project_switch_commands(3)%command => commands%version_control_directory_in_project
             project_switch_commands(3)%label = "VC-Dir"
             project_switch_commands(4)%command => commands%execute_any_command_in_project
             project_switch_commands(4)%label = "Other"
@@ -4445,17 +4456,17 @@ contains
         call forward_setting(project_current_directory_override)
         call forward_setting(project_directory_history)
         call forward_setting(project_name_history)
-        if (.not. allocated(vc_cache)) allocate (vc_cache(0))
+        if (.not. allocated(version_control_cache)) allocate (version_control_cache(0))
         commands%find_project_file%execute => execute_find_project_file
         commands%find_project_or_external_file%execute => execute_find_project_or_external_file
         commands%find_project_regular_expression%execute => execute_find_project_regular_expression
         commands%find_project_or_external_regular_expression%execute => execute_find_project_or_external_regular_expression
         commands%find_file_in_project_root%execute => execute_find_file_in_project_root
         commands%find_project_directory%execute => find_project_directory
-        commands%dired_in_project%execute => dired_in_project
-        commands%vc_directory_in_project%execute => vc_directory_in_project
+        commands%directory_editor_in_project%execute => directory_editor_in_project
+        commands%version_control_directory_in_project%execute => version_control_directory_in_project
         commands%shell_in_project%execute => shell_in_project
-        commands%async_shell_command_in_project%execute => async_shell_command_in_project
+        commands%asynchronous_shell_command_in_project%execute => asynchronous_shell_command_in_project
         commands%shell_command_in_project%execute => shell_command_in_project
         commands%compile_in_project%execute => compile_in_project
         commands%recompile_in_project%execute => execute_recompile_in_project
@@ -4482,10 +4493,10 @@ contains
         commands%find_project_or_external_regular_expression%project_aware = .true.
         commands%find_file_in_project_root%project_aware = .true.
         commands%find_project_directory%project_aware = .true.
-        commands%dired_in_project%project_aware = .true.
-        commands%vc_directory_in_project%project_aware = .true.
+        commands%directory_editor_in_project%project_aware = .true.
+        commands%version_control_directory_in_project%project_aware = .true.
         commands%shell_in_project%project_aware = .true.
-        commands%async_shell_command_in_project%project_aware = .true.
+        commands%asynchronous_shell_command_in_project%project_aware = .true.
         commands%shell_command_in_project%project_aware = .true.
         commands%compile_in_project%project_aware = .true.
         commands%recompile_in_project%project_aware = .true.
@@ -4502,7 +4513,7 @@ contains
         commands%switch_project%project_aware = .true.
         call make_sparse_keymap(project_prefix_map)
         call keymap_set(project_prefix_map, "!", "shell_command_in_project", st)
-        call keymap_set(project_prefix_map, "&", "async_shell_command_in_project", st)
+        call keymap_set(project_prefix_map, "&", "asynchronous_shell_command_in_project", st)
         call keymap_set(project_prefix_map, "f", "find_project_file", st)
         call keymap_set(project_prefix_map, "F", "find_project_or_external_file", st)
         call keymap_set(project_prefix_map, "g", "find_project_regular_expression", st)
@@ -4510,8 +4521,8 @@ contains
         call keymap_set(project_prefix_map, "b", "switch_to_project_buffer", st)
         call keymap_set(project_prefix_map, "s", "shell_in_project", st)
         call keymap_set(project_prefix_map, "d", "find_project_directory", st)
-        call keymap_set(project_prefix_map, "D", "dired_in_project", st)
-        call keymap_set(project_prefix_map, "v", "vc_directory_in_project", st)
+        call keymap_set(project_prefix_map, "D", "directory_editor_in_project", st)
+        call keymap_set(project_prefix_map, "v", "version_control_directory_in_project", st)
         call keymap_set(project_prefix_map, "c", "compile_in_project", st)
         call keymap_set(project_prefix_map, "k", "close_project_buffers", st)
         call keymap_set(project_prefix_map, "p", "switch_project", st)

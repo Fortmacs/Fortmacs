@@ -19,22 +19,22 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Incremental search: C-s and C-r.  As upstream, `isearch_mode' makes
-!> `isearch_mode_map' the overriding terminal-local map and installs a
+!> Incremental search: C-s and C-r.  As upstream, `incremental_search_mode' makes
+!> `incremental_search_mode_map' the overriding terminal-local map and installs a
 !> pre-command hook; keys bound there extend or move the search, and any
 !> other command ends the search first and then runs as usual.
 !>
 !> Literal and regexp search (C-M-s, C-M-r, M-r), with lax whitespace
 !> matching (M-s SPC).  Modes change how the search is done with the
-!> buffer-local `isearch_search_function_function', `isearch_wrap_function',
-!> `isearch_push_state_function' and `isearch_filter_test_function', and
-!> `isearch_mode_hook' and `isearch_mode_end_hook' (Info searches through
+!> buffer-local `incremental_search_search_function_function', `incremental_search_wrap_function',
+!> `incremental_search_push_state_function' and `incremental_search_filter_test_function', and
+!> `incremental_search_mode_hook' and `incremental_search_mode_end_hook' (Info searches through
 !> its nodes).  Not ported yet: word, identifier and char-fold search
-!> (`isearch_regular_expression_function', `search_default_mode'),
+!> (`incremental_search_regular_expression_function', `search_default_mode'),
 !> highlighting the match and lazy highlighting (faces from overlays),
 !> C-M-w (identifier syntax: forward-symbol), reading a kill with the
-!> minibuffer (`isearch_paste_from_clipboard_history', C-u M-y), search through invisible text, scrolling during search
-!> (`isearch_allow_scroll'), `isearch_allow_motion', query-replace and
+!> minibuffer (`incremental_search_paste_from_clipboard_history', C-u M-y), search through invisible text, scrolling during search
+!> (`incremental_search_allow_scroll'), `incremental_search_allow_motion', query-replace and
 !> occur from isearch, the help map, input methods, completion, the
 !> minibuffer's own isearch keys while editing the string.
 module incremental_search_mod
@@ -52,7 +52,7 @@ module incremental_search_mod
     use character_mod, only: string_character_and_length, MAXIMUM_CHARACTER, &
                              CHARACTER_SHIFT
     use case_table_mod, only: downcase
-    use buffer_mod, only: buffers, current, transient_mark_mode, buf_fetch_char
+    use buffer_mod, only: buffers, current, transient_mark_mode, buffer_fetch_character
     use marker_mod, only: character_to_byte
     use syntax_mod, only: character_syntax, forward_word
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_buffer, &
@@ -78,22 +78,30 @@ module incremental_search_mod
     implicit none(type, external)
     private
 
-    public :: isearch_forward_command, isearch_backward_command, isearch_mode, isearch_done, &
-              isearch_update, isearch_exit, isearch_cancel, isearch_abort, &
-              isearch_repeat_forward, isearch_repeat_backward, isearch_delete_character, &
-              isearch_delete_end_character, isearch_printing_character, isearch_process_search_string, &
-              isearch_paste_string, isearch_paste_character, isearch_paste_word_or_character, isearch_paste_line, &
-              isearch_paste, isearch_paste_previous_only, &
-              isearch_beginning_of_buffer, isearch_end_of_buffer, isearch_ring_advance, &
-              isearch_ring_retreat, isearch_toggle_case_fold, isearch_edit_string, &
-              isearch_message_prefix, initialize_isearch, isearch_forward_regular_expression_command, &
-              isearch_backward_regular_expression_command, isearch_toggle_regular_expression, isearch_toggle_lax_whitespace, &
-              is_isearch_no_upper_case, word_search_regular_expression, isearch_search_function_default, set_isearch_wrapped
-    public :: isearch_search_procedure, isearch_search_function_procedure, isearch_wrap_procedure, isearch_pop_procedure, &
-              isearch_push_state_procedure, isearch_filter_procedure, isearch_message_procedure, isearch_message_display, &
-              set_isearch_barrier, set_isearch_original_point
+    public :: incremental_search_forward_command, incremental_search_backward_command, incremental_search_mode, &
+              incremental_search_done, &
+              incremental_search_update, incremental_search_exit, incremental_search_cancel, incremental_search_abort, &
+              incremental_search_repeat_forward, incremental_search_repeat_backward, incremental_search_delete_character, &
+              incremental_search_delete_end_character, incremental_search_printing_character, &
+              incremental_search_process_search_string, &
+              incremental_search_paste_string, incremental_search_paste_character, incremental_search_paste_word_or_character, &
+              incremental_search_paste_line, &
+              incremental_search_paste, incremental_search_paste_previous_only, &
+              incremental_search_beginning_of_buffer, incremental_search_end_of_buffer, incremental_search_ring_advance, &
+              incremental_search_ring_retreat, incremental_search_toggle_case_fold, incremental_search_edit_string, &
+              incremental_search_message_prefix, initialize_incremental_search, &
+              incremental_search_forward_regular_expression_command, &
+              incremental_search_backward_regular_expression_command, incremental_search_toggle_regular_expression, &
+              incremental_search_toggle_lax_whitespace, &
+              is_incremental_search_no_upper_case, word_search_regular_expression, incremental_search_search_function_default, &
+              set_incremental_search_wrapped
+    public :: incremental_search_search_procedure, incremental_search_search_function_procedure, &
+              incremental_search_wrap_procedure, incremental_search_pop_procedure, &
+              incremental_search_push_state_procedure, incremental_search_filter_procedure, incremental_search_message_procedure, &
+              incremental_search_message_display, &
+              set_incremental_search_barrier, set_incremental_search_original_point
 
-    !> Values of `isearch_case_fold_search': CASE_FOLD_NO, CASE_FOLD_YES, and CASE_FOLD_YES (set by
+    !> Values of `incremental_search_case_fold_search': CASE_FOLD_NO, CASE_FOLD_YES, and CASE_FOLD_YES (set by
     !> M-c: fold even when the string has upper-case letters).
     integer, parameter, public :: CASE_FOLD_NO = 0, CASE_FOLD_YES = 1, CASE_FOLD_FORCED = 2
 
@@ -137,11 +145,11 @@ module incremental_search_mod
     !>
     !> If the value is a string, it applies to both ordinary and regexp
     !> incremental search.  If the value is unallocated, or
-    !> `isearch_lax_whitespace' is false for ordinary incremental search, or
-    !> `isearch_regular_expression_lax_whitespace' is false for regexp incremental
+    !> `incremental_search_lax_whitespace' is false for ordinary incremental search, or
+    !> `incremental_search_regular_expression_lax_whitespace' is false for regexp incremental
     !> search, then each space you type matches literally, against one
     !> space.  Port of isearch.el search-whitespace-regexp (made "[ \t]+"
-    !> by initialize_isearch).
+    !> by initialize_incremental_search).
     character(len=:), allocatable, public :: search_whitespace_regular_expression
 
     !> If true, a space will match a sequence of whitespace chars.
@@ -150,9 +158,9 @@ module incremental_search_mod
     !> variable `search_whitespace_regular_expression'.  If the value is false, each
     !> space you type matches literally, against one space.  You can
     !> toggle the value of this variable by the command
-    !> `isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during
+    !> `incremental_search_toggle_lax_whitespace', usually bound to `M-s SPC' during
     !> isearch.  Port of isearch.el isearch-lax-whitespace.
-    logical, public :: isearch_lax_whitespace = .true.
+    logical, public :: incremental_search_lax_whitespace = .true.
 
     !> If true, a space will match a sequence of whitespace chars.
     !> When you enter a space or spaces in regexp incremental search, it
@@ -160,55 +168,56 @@ module incremental_search_mod
     !> variable `search_whitespace_regular_expression'.  If the value is false, each
     !> space you type matches literally, against one space.  You can
     !> toggle the value of this variable by the command
-    !> `isearch_toggle_lax_whitespace', usually bound to `M-s SPC' during
+    !> `incremental_search_toggle_lax_whitespace', usually bound to `M-s SPC' during
     !> isearch.  Port of isearch.el isearch-regexp-lax-whitespace.
-    logical, public :: isearch_regular_expression_lax_whitespace = .false.
+    logical, public :: incremental_search_regular_expression_lax_whitespace = .false.
 
     !> isearch.el isearch-mode: whether Isearch mode is on.
-    logical, public, protected :: isearch_active = .false.
+    logical, public, protected :: incremental_search_active = .false.
 
-    !> Keymap for `isearch_mode'.  Port of isearch.el isearch-mode-map.
-    type(handle_type), public, protected :: isearch_mode_map
+    !> Keymap for `incremental_search_mode'.  Port of isearch.el isearch-mode-map.
+    type(handle_type), public, protected :: incremental_search_mode_map
 
     !> The search string and the message shown for it (isearch.el's
     !> isearch-string and isearch-message), in UTF-8.
-    character(len=:), allocatable, public, protected :: isearch_string, isearch_message
+    character(len=:), allocatable, public, protected :: incremental_search_string, incremental_search_message
     !> Why the search string fails (isearch-error; unallocated for none).
-    character(len=:), allocatable, public, protected :: isearch_error
+    character(len=:), allocatable, public, protected :: incremental_search_error
     !> Searching forward (isearch-forward), and whether the search succeeds
     !> (isearch-success).
-    logical, public, protected :: isearch_forward = .true., isearch_success = .true.
+    logical, public, protected :: incremental_search_forward = .true., incremental_search_success = .true.
     !> Whether the search wrapped (isearch-wrapped).
-    logical, public, protected :: isearch_wrapped = .false.
+    logical, public, protected :: incremental_search_wrapped = .false.
     !> Searching for a regexp (isearch-regexp).
-    logical, public, protected :: isearch_regular_expression = .false.
+    logical, public, protected :: incremental_search_regular_expression = .false.
     !> The other end of the match, where the search started and the
     !> barrier (isearch-other-end, isearch-opoint, isearch-barrier; 0 for
     !> none).
-    integer(int64), public, protected :: isearch_other_end = 0, isearch_original_point = 0, isearch_barrier = 0
+    integer(int64), public, protected :: incremental_search_other_end = 0, incremental_search_original_point = 0, &
+                                         incremental_search_barrier = 0
     !> Whether the search ignores case (isearch-case-fold-search; a CASE_FOLD_
     !> value).
-    integer, public, protected :: isearch_case_fold_search = CASE_FOLD_YES
-    integer :: isearch_last_case_fold_search = CASE_FOLD_YES
+    integer, public, protected :: incremental_search_case_fold_search = CASE_FOLD_YES
+    integer :: incremental_search_last_case_fold_search = CASE_FOLD_YES
     !> isearch-adjusted: ADJUSTED_NO, ADJUSTED_PENDING (shows "pending"), or ADJUSTED_TOGGLE.
     integer, parameter :: ADJUSTED_NO = 0, ADJUSTED_PENDING = 1, ADJUSTED_TOGGLE = 2
-    integer :: isearch_adjusted = ADJUSTED_NO
-    logical :: isearch_paste_flag = .false.
-    logical :: isearch_just_started = .false.
+    integer :: incremental_search_adjusted = ADJUSTED_NO
+    logical :: incremental_search_paste_flag = .false.
+    logical :: incremental_search_just_started = .false.
     !> Whether the search is nonincremental (isearch-nonincremental).
-    logical, public, protected :: isearch_nonincremental = .false.
-    integer(int64) :: isearch_paste_previous_point = 0
+    logical, public, protected :: incremental_search_nonincremental = .false.
+    integer(int64) :: incremental_search_paste_previous_point = 0
 
     !> isearch.el search-ring-yank-pointer and
     !> regexp-search-ring-yank-pointer: 0-based, -1 for none.
     integer :: search_ring_paste_pointer = -1, regular_expression_search_ring_paste_pointer = -1
 
     abstract interface
-        !> A search function, as `isearch_search_function_function' returns:
+        !> A search function, as `incremental_search_search_function_function' returns:
         !> search for the first occurrence of STRING from point, BOUND (0
         !> for none) and NOERROR as for `regular_expression_search_forward'.  POSITION is where
         !> the search left point, 0 if it found nothing.  Not a port.
-        recursive subroutine isearch_search_procedure(string, bound, noerror, position, status)
+        recursive subroutine incremental_search_search_procedure(string, bound, noerror, position, status)
             import :: int64, status_type
             implicit none(type, external)
             character(len=*), intent(in) :: string
@@ -216,94 +225,94 @@ module incremental_search_mod
             logical, intent(in) :: noerror
             integer(int64), intent(out) :: position
             type(status_type), intent(out) :: status
-        end subroutine isearch_search_procedure
+        end subroutine incremental_search_search_procedure
 
-        !> An `isearch_wrap_function': wrap the search when it has failed,
+        !> An `incremental_search_wrap_function': wrap the search when it has failed,
         !> typically moving point.  Not a port.
-        recursive subroutine isearch_wrap_procedure()
+        recursive subroutine incremental_search_wrap_procedure()
             implicit none(type, external)
-        end subroutine isearch_wrap_procedure
+        end subroutine incremental_search_wrap_procedure
 
-        !> The function an `isearch_push_state_function' saves: restore
+        !> The function an `incremental_search_push_state_function' saves: restore
         !> the mode-specific state DATA it saved.  Not a port.
-        recursive subroutine isearch_pop_procedure(data)
+        recursive subroutine incremental_search_pop_procedure(data)
             implicit none(type, external)
             character(len=*), intent(in) :: data
-        end subroutine isearch_pop_procedure
+        end subroutine incremental_search_pop_procedure
 
-        !> An `isearch_message_function': display the search prompt
-        !> (C_Q_HACK and ELLIPSIS as for `isearch_message').  Not a port.
-        recursive subroutine isearch_message_procedure(c_q_hack, ellipsis)
+        !> An `incremental_search_message_function': display the search prompt
+        !> (C_Q_HACK and ELLIPSIS as for `incremental_search_message').  Not a port.
+        recursive subroutine incremental_search_message_procedure(c_q_hack, ellipsis)
             implicit none(type, external)
             logical, intent(in) :: c_q_hack, ellipsis
-        end subroutine isearch_message_procedure
+        end subroutine incremental_search_message_procedure
 
-        !> An `isearch_filter_test_function': whether the match from BEGINNING to
+        !> An `incremental_search_filter_test_function': whether the match from BEGINNING to
         !> END is one to stop at.  Not a port.
-        recursive logical function isearch_filter_procedure(beginning, end)
+        recursive logical function incremental_search_filter_procedure(beginning, end)
             import :: int64
             implicit none(type, external)
             integer(int64), intent(in) :: beginning, end
-        end function isearch_filter_procedure
+        end function incremental_search_filter_procedure
     end interface
 
     abstract interface
-        !> An `isearch_search_function_function': set FN to the search
+        !> An `incremental_search_search_function_function': set FN to the search
         !> function to use.  Not a port.
-        recursive subroutine isearch_search_function_procedure(fn)
-            import :: isearch_search_procedure
+        recursive subroutine incremental_search_search_function_procedure(fn)
+            import :: incremental_search_search_procedure
             implicit none(type, external)
-            procedure(isearch_search_procedure), pointer, intent(out) :: fn
-        end subroutine isearch_search_function_procedure
+            procedure(incremental_search_search_procedure), pointer, intent(out) :: fn
+        end subroutine incremental_search_search_function_procedure
 
-        !> An `isearch_push_state_function': save the mode-specific
+        !> An `incremental_search_push_state_function': save the mode-specific
         !> state as DATA, to be restored by POP.  Not a port.
-        recursive subroutine isearch_push_state_procedure(data, pop)
-            import :: isearch_pop_procedure
+        recursive subroutine incremental_search_push_state_procedure(data, pop)
+            import :: incremental_search_pop_procedure
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: data
-            procedure(isearch_pop_procedure), pointer, intent(out) :: pop
-        end subroutine isearch_push_state_procedure
+            procedure(incremental_search_pop_procedure), pointer, intent(out) :: pop
+        end subroutine incremental_search_push_state_procedure
     end interface
 
     !> One element of isearch-isearch_commands (isearch.el isearch--state).
-    type :: isearch_state_type
+    type :: incremental_search_state_type
         character(len=:), allocatable :: string, message, error
         integer(int64) :: point = 0, other_end = 0, barrier = 0
         logical :: success = .true., forward = .true., wrapped = .false.
         integer :: case_fold = CASE_FOLD_YES
         !> The function restoring the mode-specific state, and that state.
-        procedure(isearch_pop_procedure), pointer, nopass :: pop_function => null()
+        procedure(incremental_search_pop_procedure), pointer, nopass :: pop_function => null()
         character(len=:), allocatable :: pop_data
-    end type isearch_state_type
+    end type incremental_search_state_type
 
     !> One buffer's values of the Isearch function variables.
     type :: local_functions_type
         integer(int64) :: serial = 0
-        procedure(isearch_search_function_procedure), pointer, nopass :: search_function => null()
-        procedure(isearch_wrap_procedure), pointer, nopass :: wrap => null()
-        procedure(isearch_push_state_procedure), pointer, nopass :: push_state => null()
-        procedure(isearch_filter_procedure), pointer, nopass :: filter => null()
-        procedure(isearch_message_procedure), pointer, nopass :: message => null()
+        procedure(incremental_search_search_function_procedure), pointer, nopass :: search_function => null()
+        procedure(incremental_search_wrap_procedure), pointer, nopass :: wrap => null()
+        procedure(incremental_search_push_state_procedure), pointer, nopass :: push_state => null()
+        procedure(incremental_search_filter_procedure), pointer, nopass :: filter => null()
+        procedure(incremental_search_message_procedure), pointer, nopass :: message => null()
     end type local_functions_type
 
     !> The buffers' values of the Isearch function variables.
     type(local_functions_type), allocatable :: local_functions(:)
 
     !> Non-default value overrides the behavior of
-    !> `isearch_search_function_default'.  This variable's value should be a
+    !> `incremental_search_search_function_default'.  This variable's value should be a
     !> subroutine, which will be called with one argument, and should set
     !> it to a function that takes three arguments: STRING, BOUND, and
     !> NOERROR.  STRING is the string to be searched for.  See
     !> `regular_expression_search_forward' for the meaning of BOUND and NOERROR
     !> arguments.
     !>
-    !> This returned function will be used by `isearch_search_string' to
+    !> This returned function will be used by `incremental_search_search_string' to
     !> search for the first occurrence of STRING.  Port of isearch.el
     !> isearch-search-fun-function (set with `set_local'; null for
-    !> `isearch_search_function_default').
-    type, public :: isearch_search_function_function_type
-        character(len=32) :: name = "isearch_search_function_function"
+    !> `incremental_search_search_function_default').
+    type, public :: incremental_search_search_function_function_type
+        character(len=32) :: name = "incremental_search_search_function_function"
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => search_function_clear_local
@@ -311,7 +320,7 @@ module incremental_search_mod
         procedure, nopass :: set_local => search_function_set_local
         !> Set FN to the current buffer's value (null for the default).
         procedure, nopass :: current => current_search_function
-    end type isearch_search_function_function_type
+    end type incremental_search_search_function_function_type
 
     !> Function to call to wrap the search when search is failed.
     !> The function is called with no parameters, and would typically
@@ -320,8 +329,8 @@ module incremental_search_mod
     !> If null, move point to the beginning of the buffer for a forward
     !> search, or to the end of the buffer for a backward search.  Port
     !> of isearch.el isearch-wrap-function (set with `set_local').
-    type, public :: isearch_wrap_function_type
-        character(len=32) :: name = "isearch_wrap_function"
+    type, public :: incremental_search_wrap_function_type
+        character(len=32) :: name = "incremental_search_wrap_function"
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => wrap_clear_local
@@ -329,13 +338,13 @@ module incremental_search_mod
         procedure, nopass :: set_local => wrap_set_local
         !> The current buffer's value (null when unset).
         procedure, nopass :: current => current_wrap
-    end type isearch_wrap_function_type
+    end type incremental_search_wrap_function_type
 
     !> Function to save a function restoring the mode-specific Isearch
     !> state to the search status stack.  Port of isearch.el
     !> isearch-push-state-function (set with `set_local').
-    type, public :: isearch_push_state_function_type
-        character(len=32) :: name = "isearch_push_state_function"
+    type, public :: incremental_search_push_state_function_type
+        character(len=32) :: name = "incremental_search_push_state_function"
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => push_state_clear_local
@@ -343,7 +352,7 @@ module incremental_search_mod
         procedure, nopass :: set_local => push_state_set_local
         !> The current buffer's value (null when unset).
         procedure, nopass :: current => current_push_state
-    end type isearch_push_state_function_type
+    end type incremental_search_push_state_function_type
 
     !> Test to filter hits of Isearch and replace commands.
     !> Isearch hits that don't satisfy the test will be skipped.
@@ -353,10 +362,10 @@ module incremental_search_mod
     !> returns false, Isearch and replace commands will continue
     !> searching without stopping at resp. replacing this match.  Port
     !> of isearch.el isearch-filter-predicate (set with `set_local'; the
-    !> default `isearch_filter_visible' is Deferred with search through
+    !> default `incremental_search_filter_visible' is Deferred with search through
     !> invisible text, so null stops at every match).
-    type, public :: isearch_filter_test_function_type
-        character(len=32) :: name = "isearch_filter_test_function"
+    type, public :: incremental_search_filter_test_function_type
+        character(len=32) :: name = "incremental_search_filter_test_function"
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => filter_clear_local
@@ -364,13 +373,13 @@ module incremental_search_mod
         procedure, nopass :: set_local => filter_set_local
         !> The current buffer's value (null for the default).
         procedure, nopass :: current => current_filter
-    end type isearch_filter_test_function_type
+    end type incremental_search_filter_test_function_type
 
     !> Function to call to display the search prompt.
-    !> If null, use function `isearch_message'.  Port of isearch.el
+    !> If null, use function `incremental_search_message'.  Port of isearch.el
     !> isearch-message-function (set with `set_local').
-    type, public :: isearch_message_function_type
-        character(len=32) :: name = "isearch_message_function"
+    type, public :: incremental_search_message_function_type
+        character(len=32) :: name = "incremental_search_message_function"
     contains
         !> Set the current buffer's value to null (unset).
         procedure, nopass :: clear_local => message_clear_local
@@ -378,41 +387,41 @@ module incremental_search_mod
         procedure, nopass :: set_local => message_set_local
         !> The current buffer's value (null when unset).
         procedure, nopass :: current => current_message_function
-    end type isearch_message_function_type
+    end type incremental_search_message_function_type
 
     !> See the type.  Port of isearch.el isearch-message-function.
-    type(isearch_message_function_type), public :: isearch_message_function
+    type(incremental_search_message_function_type), public :: incremental_search_message_function
 
     !> A string added to the Isearch prompt (unallocated for none), as
     !> "history " when searching a comint's input history.  Port of
     !> isearch.el isearch-message-prefix-add.
-    character(len=:), allocatable, public :: isearch_message_prefix_add
+    character(len=:), allocatable, public :: incremental_search_message_prefix_add
 
     !> See the type.  Port of isearch.el isearch-search-fun-function.
-    type(isearch_search_function_function_type), public :: isearch_search_function_function
+    type(incremental_search_search_function_function_type), public :: incremental_search_search_function_function
     !> See the type.  Port of isearch.el isearch-wrap-function.
-    type(isearch_wrap_function_type), public :: isearch_wrap_function
+    type(incremental_search_wrap_function_type), public :: incremental_search_wrap_function
     !> See the type.  Port of isearch.el isearch-push-state-function.
-    type(isearch_push_state_function_type), public :: isearch_push_state_function
+    type(incremental_search_push_state_function_type), public :: incremental_search_push_state_function
     !> See the type.  Port of isearch.el isearch-filter-predicate.
-    type(isearch_filter_test_function_type), public :: isearch_filter_test_function
+    type(incremental_search_filter_test_function_type), public :: incremental_search_filter_test_function
 
     !> Function(s) to call after starting up an incremental search.
     !> Port of isearch.el isearch-mode-hook.
-    type(hook_type), target, public :: isearch_mode_hook = hook_type(name="isearch_mode_hook")
+    type(hook_type), target, public :: incremental_search_mode_hook = hook_type(name="incremental_search_mode_hook")
 
     !> Function(s) to call after terminating an incremental search.
-    !> When these functions are called, `isearch_mode_end_hook_quit' is
+    !> When these functions are called, `incremental_search_mode_end_hook_quit' is
     !> true if the user quits the search.  Port of isearch.el
     !> isearch-mode-end-hook.
-    type(hook_type), target, public :: isearch_mode_end_hook = hook_type(name="isearch_mode_end_hook")
+    type(hook_type), target, public :: incremental_search_mode_end_hook = hook_type(name="incremental_search_mode_end_hook")
 
-    !> True while running `isearch_mode_end_hook' if the user quits the
+    !> True while running `incremental_search_mode_end_hook' if the user quits the
     !> search.  Port of isearch.el isearch-mode-end-hook-quit.
-    logical, public, protected :: isearch_mode_end_hook_quit = .false.
+    logical, public, protected :: incremental_search_mode_end_hook_quit = .false.
 
     !> isearch-isearch_commands: the states, newest last.
-    type(isearch_state_type), allocatable :: isearch_commands(:)
+    type(incremental_search_state_type), allocatable :: incremental_search_commands(:)
     integer :: ncmds = 0
 
     !> isearch--saved-local-map and isearch--saved-overriding-local-map.
@@ -421,10 +430,10 @@ module incremental_search_mod
 
     !> Face for highlighting Isearch matches.  Port of isearch.el isearch
     !> (Isearch's own highlighting is Deferred: the face serves Ispell).
-    type(named_face_type), target, public :: isearch
+    type(named_face_type), target, public :: incremental_search
 
     !> Face for lazy highlighting of matches other than the current one.
-    !> Used in Isearch when `isearch_lazy_highlight' is true, and in
+    !> Used in Isearch when `incremental_search_lazy_highlight' is true, and in
     !> `query_replace' when `query_replace_lazy_highlight' is true (both
     !> Deferred: the face serves Occur's current line).  Port of isearch.el
     !> lazy-highlight.
@@ -513,7 +522,7 @@ contains
     !> If REGEXP-FLAG is true, disregard letters preceded by `\' (but
     !> not `\\') since they have special meaning in a regexp.  Port of
     !> isearch.el:isearch-no-upper-case-p.
-    logical function is_isearch_no_upper_case(string, regular_expression_flag) result(none)
+    logical function is_incremental_search_no_upper_case(string, regular_expression_flag) result(none)
         character(len=*), intent(in) :: string
         logical, intent(in) :: regular_expression_flag
         integer(int32), allocatable :: chars(:)
@@ -554,7 +563,7 @@ contains
                 end if
             end if
         end if
-    end function is_isearch_no_upper_case
+    end function is_incremental_search_no_upper_case
 
     !> Return a regexp which matches words, ignoring punctuation.
     !> Given STRING, a string of words separated by word delimiters,
@@ -645,7 +654,7 @@ contains
         type(value_type) :: ring
         type(status_type) :: status
 
-        call symbol_value(value_type(name=ring_name(isearch_regular_expression)), ring, status)
+        call symbol_value(value_type(name=ring_name(incremental_search_regular_expression)), ring, status)
         if (.not. status%ok()) ring = value_type()
         call list_elements(ring, elements)
     end subroutine search_ring_entries
@@ -653,7 +662,7 @@ contains
     !> Add STRING to the beginning of the search ring.
     !> REGULAR_EXPRESSION if .true. says use the regexp search ring.  Port of
     !> isearch.el:isearch-update-ring (no text properties on STRING).
-    subroutine isearch_update_ring(string, regular_expression)
+    subroutine incremental_search_update_ring(string, regular_expression)
         character(len=*), intent(in) :: string
         logical, intent(in) :: regular_expression
         logical :: saved
@@ -664,10 +673,10 @@ contains
                                                                          search_ring_maximum, regular_expression), &
                             keep_all=.true.)
         history_delete_duplicates = saved
-    end subroutine isearch_update_ring
+    end subroutine incremental_search_update_ring
 
     !> Port of isearch.el:isearch-ring-adjust1.
-    subroutine isearch_ring_adjust1(advance)
+    subroutine incremental_search_ring_adjust1(advance)
         logical, intent(in) :: advance
         type(value_type), allocatable :: ring(:)
         integer :: length, paste_pointer
@@ -676,7 +685,7 @@ contains
         length = size(ring)
         if (length == 0) return
 
-        if (isearch_regular_expression) then
+        if (incremental_search_regular_expression) then
             paste_pointer = regular_expression_search_ring_paste_pointer
         else
             paste_pointer = search_ring_paste_pointer
@@ -685,44 +694,44 @@ contains
         if (paste_pointer < 0) paste_pointer = merge(0, -1, advance)
         paste_pointer = modulo(paste_pointer + merge(-1, 1, advance), length)
 
-        if (isearch_regular_expression) then
+        if (incremental_search_regular_expression) then
             regular_expression_search_ring_paste_pointer = paste_pointer
         else
             search_ring_paste_pointer = paste_pointer
         end if
 
         if (vtag(ring(paste_pointer + 1)) == V_STRING) then
-            isearch_string = xstring(ring(paste_pointer + 1))
-            isearch_message = isearch_string
+            incremental_search_string = xstring(ring(paste_pointer + 1))
+            incremental_search_message = incremental_search_string
         end if
-    end subroutine isearch_ring_adjust1
+    end subroutine incremental_search_ring_adjust1
 
     !> Port of isearch.el:isearch-ring-adjust (`search_ring_update' .false.:
     !> edit the string in the minibuffer).
-    subroutine isearch_ring_adjust(advance, status)
+    subroutine incremental_search_ring_adjust(advance, status)
         logical, intent(in) :: advance
         type(status_type), intent(out) :: status
 
-        call isearch_ring_adjust1(advance)
+        call incremental_search_ring_adjust1(advance)
         ! Otherwise, edit the search string instead.
-        call isearch_edit_string(status)
-    end subroutine isearch_ring_adjust
+        call incremental_search_edit_string(status)
+    end subroutine incremental_search_ring_adjust
 
     !> Advance to the next search string in the ring.  Port of
     !> isearch.el:isearch-ring-advance.
-    subroutine isearch_ring_advance(status)
+    subroutine incremental_search_ring_advance(status)
         type(status_type), intent(out) :: status
 
-        call isearch_ring_adjust(.true., status)
-    end subroutine isearch_ring_advance
+        call incremental_search_ring_adjust(.true., status)
+    end subroutine incremental_search_ring_advance
 
     !> Retreat to the previous search string in the ring.  Port of
     !> isearch.el:isearch-ring-retreat.
-    subroutine isearch_ring_retreat(status)
+    subroutine incremental_search_ring_retreat(status)
         type(status_type), intent(out) :: status
 
-        call isearch_ring_adjust(.false., status)
-    end subroutine isearch_ring_retreat
+        call incremental_search_ring_adjust(.false., status)
+    end subroutine incremental_search_ring_retreat
 
     ! ------------------------------------------------------------------
     ! States
@@ -730,47 +739,47 @@ contains
 
     !> Port of isearch.el:isearch--get-state.
     recursive function get_state() result(s)
-        type(isearch_state_type) :: s
+        type(incremental_search_state_type) :: s
 
-        s%string = isearch_string
-        s%message = isearch_message
+        s%string = incremental_search_string
+        s%message = incremental_search_message
         s%point = point()
-        s%success = isearch_success
-        s%forward = isearch_forward
-        s%other_end = isearch_other_end
-        if (allocated(isearch_error)) s%error = isearch_error
-        s%wrapped = isearch_wrapped
-        s%barrier = isearch_barrier
-        s%case_fold = isearch_case_fold_search
+        s%success = incremental_search_success
+        s%forward = incremental_search_forward
+        s%other_end = incremental_search_other_end
+        if (allocated(incremental_search_error)) s%error = incremental_search_error
+        s%wrapped = incremental_search_wrapped
+        s%barrier = incremental_search_barrier
+        s%case_fold = incremental_search_case_fold_search
 
         block
-            procedure(isearch_push_state_procedure), pointer :: push
-            push => isearch_push_state_function%current()
+            procedure(incremental_search_push_state_procedure), pointer :: push
+            push => incremental_search_push_state_function%current()
             if (associated(push)) call push(s%pop_data, s%pop_function)
         end block
     end function get_state
 
     !> Port of isearch.el:isearch--set-state.
     recursive subroutine set_state(s)
-        type(isearch_state_type), intent(in) :: s
+        type(incremental_search_state_type), intent(in) :: s
 
-        isearch_string = s%string
-        isearch_message = s%message
-        isearch_success = s%success
-        isearch_forward = s%forward
-        isearch_other_end = s%other_end
-        if (allocated(isearch_error)) deallocate (isearch_error)
-        if (allocated(s%error)) isearch_error = s%error
-        isearch_wrapped = s%wrapped
-        isearch_barrier = s%barrier
-        isearch_case_fold_search = s%case_fold
+        incremental_search_string = s%string
+        incremental_search_message = s%message
+        incremental_search_success = s%success
+        incremental_search_forward = s%forward
+        incremental_search_other_end = s%other_end
+        if (allocated(incremental_search_error)) deallocate (incremental_search_error)
+        if (allocated(s%error)) incremental_search_error = s%error
+        incremental_search_wrapped = s%wrapped
+        incremental_search_barrier = s%barrier
+        incremental_search_case_fold_search = s%case_fold
         if (associated(s%pop_function)) call s%pop_function(s%pop_data)
         call goto_character(s%point)
     end subroutine set_state
 
     ! Not a port.
     logical function same_state(a, b)
-        type(isearch_state_type), intent(in) :: a, b
+        type(incremental_search_state_type), intent(in) :: a, b
 
         same_state = a%string == b%string .and. len(a%string) == len(b%string) .and. &
                      a%message == b%message .and. len(a%message) == len(b%message) .and. &
@@ -782,31 +791,31 @@ contains
     end function same_state
 
     !> Port of isearch.el:isearch-push-state.
-    recursive subroutine isearch_push_state()
-        type(isearch_state_type), allocatable :: grown(:)
+    recursive subroutine incremental_search_push_state()
+        type(incremental_search_state_type), allocatable :: grown(:)
         integer :: k
 
-        if (.not. allocated(isearch_commands)) allocate (isearch_commands(16))
+        if (.not. allocated(incremental_search_commands)) allocate (incremental_search_commands(16))
 
-        if (ncmds == size(isearch_commands)) then
-            allocate (grown(2*size(isearch_commands)))
+        if (ncmds == size(incremental_search_commands)) then
+            allocate (grown(2*size(incremental_search_commands)))
 
             do k = 1, ncmds
-                grown(k) = isearch_commands(k)
+                grown(k) = incremental_search_commands(k)
             end do
 
-            call move_alloc(grown, isearch_commands)
+            call move_alloc(grown, incremental_search_commands)
         end if
 
         ncmds = ncmds + 1
-        isearch_commands(ncmds) = get_state()
-    end subroutine isearch_push_state
+        incremental_search_commands(ncmds) = get_state()
+    end subroutine incremental_search_push_state
 
     !> Port of isearch.el:isearch-pop-state.
-    recursive subroutine isearch_pop_state()
+    recursive subroutine incremental_search_pop_state()
         ncmds = ncmds - 1
-        if (ncmds > 0) call set_state(isearch_commands(ncmds))
-    end subroutine isearch_pop_state
+        if (ncmds > 0) call set_state(incremental_search_commands(ncmds))
+    end subroutine incremental_search_pop_state
 
     ! ------------------------------------------------------------------
     ! Starting and ending
@@ -827,116 +836,116 @@ contains
     !> cancels input back to what has been found successfully.  C-g when
     !> search is successful aborts and moves point to starting point.
     !> Port of isearch.el:isearch-forward.
-    subroutine isearch_forward_command(status)
+    subroutine incremental_search_forward_command(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.true., current_prefix_argument%kind /= PREFIX_NONE)
-    end subroutine isearch_forward_command
+        call incremental_search_mode(.true., current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine incremental_search_forward_command
 
     !> Do incremental search backward.
     !> With a prefix argument, do a regular expression search instead.
-    !> See the command `isearch_forward' for more information.  Port of
+    !> See the command `incremental_search_forward' for more information.  Port of
     !> isearch.el:isearch-backward.
-    subroutine isearch_backward_command(status)
+    subroutine incremental_search_backward_command(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.false., current_prefix_argument%kind /= PREFIX_NONE)
-    end subroutine isearch_backward_command
+        call incremental_search_mode(.false., current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine incremental_search_backward_command
 
     !> Do incremental search forward for regular expression.
     !> With a prefix argument, do a regular string search instead.
     !> Like ordinary incremental search except that your input is treated
-    !> as a regexp.  See the command `isearch_forward' for more
+    !> as a regexp.  See the command `incremental_search_forward' for more
     !> information.
     !>
     !> In incremental searches, a space or spaces normally matches any
     !> whitespace defined by the variable `search_whitespace_regular_expression'.  To
     !> search for a literal space and nothing else, enter C-q SPC.  To
-    !> toggle whitespace matching, use `isearch_toggle_lax_whitespace',
+    !> toggle whitespace matching, use `incremental_search_toggle_lax_whitespace',
     !> usually bound to `M-s SPC' during isearch.  This command does not
     !> support character folding.  Port of
     !> isearch.el:isearch-forward-regexp.
-    subroutine isearch_forward_regular_expression_command(status)
+    subroutine incremental_search_forward_regular_expression_command(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.true., current_prefix_argument%kind == PREFIX_NONE)
-    end subroutine isearch_forward_regular_expression_command
+        call incremental_search_mode(.true., current_prefix_argument%kind == PREFIX_NONE)
+    end subroutine incremental_search_forward_regular_expression_command
 
     !> Do incremental search backward for regular expression.
     !> With a prefix argument, do a regular string search instead.
     !> Like ordinary incremental search except that your input is treated
-    !> as a regexp.  See the command `isearch_forward_regular_expression' for more
+    !> as a regexp.  See the command `incremental_search_forward_regular_expression' for more
     !> information.  Port of isearch.el:isearch-backward-regexp.
-    subroutine isearch_backward_regular_expression_command(status)
+    subroutine incremental_search_backward_regular_expression_command(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_mode(.false., current_prefix_argument%kind == PREFIX_NONE)
-    end subroutine isearch_backward_regular_expression_command
+        call incremental_search_mode(.false., current_prefix_argument%kind == PREFIX_NONE)
+    end subroutine incremental_search_backward_regular_expression_command
 
     !> Start Isearch minor mode.
-    !> It is called by the function `isearch_forward' and other related
+    !> It is called by the function `incremental_search_forward' and other related
     !> functions.  The arg FORWARD means searching in the forward
     !> direction.  The arg REGULAR_EXPRESSION .true. does an incremental regular
     !> expression search.  Port of isearch.el:isearch-mode (no OP-FUN,
     !> RECURSIVE-EDIT or REGEXP-FUNCTION).
-    recursive subroutine isearch_mode(forward, regular_expression)
+    recursive subroutine incremental_search_mode(forward, regular_expression)
         logical, intent(in) :: forward
         logical, intent(in), optional :: regular_expression
         type(status_type) :: status
 
         ! Initialize global vars.
-        isearch_forward = forward
-        isearch_regular_expression = flag(regular_expression)
-        isearch_last_case_fold_search = isearch_case_fold_search
-        isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, case_fold_search%value)
-        isearch_string = ""
-        isearch_message = ""
+        incremental_search_forward = forward
+        incremental_search_regular_expression = flag(regular_expression)
+        incremental_search_last_case_fold_search = incremental_search_case_fold_search
+        incremental_search_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, case_fold_search%value)
+        incremental_search_string = ""
+        incremental_search_message = ""
         ncmds = 0
-        isearch_success = .true.
-        isearch_wrapped = .false.
-        isearch_barrier = point()
-        isearch_adjusted = ADJUSTED_NO
-        isearch_paste_flag = .false.
-        if (allocated(isearch_error)) deallocate (isearch_error)
-        isearch_other_end = 0
-        isearch_just_started = .true.
-        isearch_original_point = point()
+        incremental_search_success = .true.
+        incremental_search_wrapped = .false.
+        incremental_search_barrier = point()
+        incremental_search_adjusted = ADJUSTED_NO
+        incremental_search_paste_flag = .false.
+        if (allocated(incremental_search_error)) deallocate (incremental_search_error)
+        incremental_search_other_end = 0
+        incremental_search_just_started = .true.
+        incremental_search_original_point = point()
         search_ring_paste_pointer = -1
         regular_expression_search_ring_paste_pointer = -1
-        isearch_active = .true.
+        incremental_search_active = .true.
 
         ! Prevent successive calls overriding original map in
-        ! `isearch_done'.  (Bug#79368)
-        if (.not. same_handle(overriding_terminal_local_map, isearch_mode_map)) then
+        ! `incremental_search_done'.  (Bug#79368)
+        if (.not. same_handle(overriding_terminal_local_map, incremental_search_mode_map)) then
             saved_local_map = overriding_terminal_local_map
         end if
 
-        overriding_terminal_local_map = isearch_mode_map
-        call isearch_mode_hook%execute(status)
+        overriding_terminal_local_map = incremental_search_mode_map
+        call incremental_search_mode_hook%execute(status)
         ! Remember the initial map possibly modified by external packages
         ! in isearch-mode-hook.  (Bug#16035)
         saved_overriding_local_map = overriding_terminal_local_map
         ! Pushing the initial state used to be before running
         ! isearch-mode-hook, but a hook might set
-        ! `isearch_push_state_function' used in `isearch_push_state' to
+        ! `incremental_search_push_state_function' used in `incremental_search_push_state' to
         ! save mode-specific initial state.  (Bug#4994)
-        call isearch_push_state()
-        call isearch_update()
-        call pre_command_hook%prepend(isearch_pre_command_hook)
-    end subroutine isearch_mode
+        call incremental_search_push_state()
+        call incremental_search_update()
+        call pre_command_hook%prepend(incremental_search_pre_command_hook)
+    end subroutine incremental_search_mode
 
     !> This is called after every isearch command to update the display.
     !> Port of isearch.el:isearch-update (no slow-terminal window, hscroll
     !> or highlighting).
-    subroutine isearch_update()
-        if (.not. is_input_pending()) call isearch_message_show()
-        isearch_adjusted = ADJUSTED_NO
-        isearch_paste_flag = .false.
-    end subroutine isearch_update
+    subroutine incremental_search_update()
+        if (.not. is_input_pending()) call incremental_search_message_show()
+        incremental_search_adjusted = ADJUSTED_NO
+        incremental_search_paste_flag = .false.
+    end subroutine incremental_search_update
 
     !> Exit Isearch mode.
     !> Called by all commands that terminate isearch-mode.
@@ -946,33 +955,33 @@ contains
     !> NOPUSH is t and EDIT is t.
     !> If NOPUSH is .true., we don't push the string on the search ring.
     !> Port of isearch.el:isearch-done (no intangible text).
-    recursive subroutine isearch_done(nopush, edit)
+    recursive subroutine incremental_search_done(nopush, edit)
         logical, intent(in), optional :: nopush, edit
         type(status_type) :: status
 
-        call pre_command_hook%remove(isearch_pre_command_hook)
+        call pre_command_hook%remove(incremental_search_pre_command_hook)
         overriding_terminal_local_map = saved_local_map
         saved_local_map = null_handle()
-        isearch_active = .false.
+        incremental_search_active = .false.
 
-        if (len(isearch_string) > 0 .and. .not. flag(nopush)) then
+        if (len(incremental_search_string) > 0 .and. .not. flag(nopush)) then
             ! Update the ring data.
-            call isearch_update_ring(isearch_string, isearch_regular_expression)
+            call incremental_search_update_ring(incremental_search_string, incremental_search_regular_expression)
         end if
 
-        isearch_mode_end_hook_quit = flag(nopush) .and. .not. flag(edit)
-        call isearch_mode_end_hook%execute(status)
-        isearch_mode_end_hook_quit = .false.
+        incremental_search_mode_end_hook_quit = flag(nopush) .and. .not. flag(edit)
+        call incremental_search_mode_end_hook%execute(status)
+        incremental_search_mode_end_hook_quit = .false.
 
         ! If there was movement, mark the starting position.  Maybe should
         ! test difference between and set mark only if > threshold.
-        if (point() /= isearch_original_point) then
+        if (point() /= incremental_search_original_point) then
             if (.not. (transient_mark_mode%value .and. buffers(current)%mark_active)) then
-                call push_mark(isearch_original_point, nomsg=.true.)
+                call push_mark(incremental_search_original_point, nomsg=.true.)
                 if (minibuf_level == 0 .and. .not. flag(edit)) call message("Mark saved where search started")
             end if
         end if
-    end subroutine isearch_done
+    end subroutine incremental_search_done
 
     ! Not a port.
     logical function flag(x)
@@ -985,71 +994,71 @@ contains
     !> Exit search normally.
     !> However, if this is the first command after starting incremental
     !> search and `search_nonincremental_instead' is true, do a
-    !> nonincremental search instead via `isearch_edit_string'.  Port of
+    !> nonincremental search instead via `incremental_search_edit_string'.  Port of
     !> isearch.el:isearch-exit.
-    subroutine isearch_exit(status)
+    subroutine incremental_search_exit(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
         status = status_type()
 
-        if (search_nonincremental_instead .and. len(isearch_string) == 0) then
-            saved = isearch_nonincremental
-            isearch_nonincremental = .true.
+        if (search_nonincremental_instead .and. len(incremental_search_string) == 0) then
+            saved = incremental_search_nonincremental
+            incremental_search_nonincremental = .true.
             ! This calls isearch-done as well.
-            call isearch_edit_string(status)
-            isearch_nonincremental = saved
+            call incremental_search_edit_string(status)
+            incremental_search_nonincremental = saved
         else
-            call isearch_done()
+            call incremental_search_done()
         end if
-    end subroutine isearch_exit
+    end subroutine incremental_search_exit
 
     !> Terminate the search and go back to the starting point.  Port of
     !> isearch.el:isearch-cancel.
-    subroutine isearch_cancel(status)
+    subroutine incremental_search_cancel(status)
         type(status_type), intent(out) :: status
 
-        call goto_character(isearch_original_point)
+        call goto_character(incremental_search_original_point)
         ! Exit isearch..
-        call isearch_done(nopush=.true.)
+        call incremental_search_done(nopush=.true.)
         ! ..and pass on quit signal.
         call set_error(status, QUIT_CODE)
-    end subroutine isearch_cancel
+    end subroutine incremental_search_cancel
 
     !> Abort incremental search mode if searching is successful, making a
     !> `quit' occur.  Otherwise, revert to previous successful search and continue
-    !> searching.  Use `isearch_exit' to quit without that.  Port of
+    !> searching.  Use `incremental_search_exit' to quit without that.  Port of
     !> isearch.el:isearch-abort.
-    subroutine isearch_abort(status)
+    subroutine incremental_search_abort(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         call discard_input()
 
-        if (isearch_success .and. .not. allocated(isearch_error)) then
+        if (incremental_search_success .and. .not. allocated(incremental_search_error)) then
             ! If search is successful and has no incomplete regexp, move
             ! back to starting point and really do quit.
-            isearch_success = .false.
-            call isearch_cancel(status)
+            incremental_search_success = .false.
+            call incremental_search_cancel(status)
         else
             ! If search is failing, or has an incomplete regexp, rub out
             ! until it is once more successful.
-            do while ((.not. isearch_success .or. allocated(isearch_error)) .and. ncmds > 1)
-                call isearch_pop_state()
+            do while ((.not. incremental_search_success .or. allocated(incremental_search_error)) .and. ncmds > 1)
+                call incremental_search_pop_state()
             end do
 
-            call isearch_update()
+            call incremental_search_update()
         end if
-    end subroutine isearch_abort
+    end subroutine incremental_search_abort
 
     !> Decide whether to exit Isearch mode before executing the command.
     !> Don't exit Isearch if the key sequence that invoked this command
-    !> is bound in `isearch_mode_map', or if the invoked command is a
+    !> is bound in `incremental_search_mode_map', or if the invoked command is a
     !> prefix argument command.  Otherwise, exit Isearch (when
     !> `search_exit_option' is t) before the command is executed globally
     !> with terminated Isearch.  Port of isearch.el:isearch-pre-command-hook
     !> (isearch-allow-prefix t, no scrolling or motion).
-    recursive subroutine isearch_pre_command_hook(hook_status)
+    recursive subroutine incremental_search_pre_command_hook(hook_status)
         type(status_type), intent(out) :: hook_status
         type(value_type) :: binding
         type(status_type) :: status
@@ -1062,7 +1071,7 @@ contains
         ! Don't exit Isearch for isearch key bindings.
         if (allocated(this_command_keys)) then
             if (size(this_command_keys) > 0) then
-                call lookup_key(make_keymap_reference(isearch_mode_map), this_command_keys, binding, status)
+                call lookup_key(make_keymap_reference(incremental_search_mode_map), this_command_keys, binding, status)
                 if (status%ok() .and. vtag(binding) /= V_INTEGER .and. is_command(binding)) return
             end if
         end if
@@ -1074,8 +1083,8 @@ contains
             associated(this_command, commands%negative_argument)) return
         ! Other characters terminate the search and are then executed
         ! normally.
-        if (search_exit_option) call isearch_done()
-    end subroutine isearch_pre_command_hook
+        if (search_exit_option) call incremental_search_done()
+    end subroutine incremental_search_pre_command_hook
 
     ! ------------------------------------------------------------------
     ! Messages
@@ -1085,61 +1094,63 @@ contains
     !> isearch.el:isearch-message (no face on the failing part).
     ! (funcall (or isearch-message-function #'isearch-message) C-Q-HACK
     ! ELLIPSIS).
-    recursive subroutine isearch_message_show(c_q_hack, ellipsis)
+    recursive subroutine incremental_search_message_show(c_q_hack, ellipsis)
         logical, intent(in), optional :: c_q_hack, ellipsis
-        procedure(isearch_message_procedure), pointer :: f
+        procedure(incremental_search_message_procedure), pointer :: f
 
         f => current_message_function()
 
         if (associated(f)) then
             call f(flag(c_q_hack), flag(ellipsis))
         else
-            call isearch_message_display(flag(c_q_hack), flag(ellipsis))
+            call incremental_search_message_display(flag(c_q_hack), flag(ellipsis))
         end if
-    end subroutine isearch_message_show
+    end subroutine incremental_search_message_show
 
     !> Generate and print the message string.  Port of
     !> isearch.el:isearch-message (no face for the failing part).
-    subroutine isearch_message_display(c_q_hack, ellipsis)
+    subroutine incremental_search_message_display(c_q_hack, ellipsis)
         logical, intent(in) :: c_q_hack, ellipsis
 
-        call message_nolog(isearch_message_string(c_q_hack, ellipsis))
-    end subroutine isearch_message_display
+        call message_nolog(incremental_search_message_string(c_q_hack, ellipsis))
+    end subroutine incremental_search_message_display
 
     ! Port of isearch.el:isearch-message, in part.
-    function isearch_message_string(c_q_hack, ellipsis) result(m)
+    function incremental_search_message_string(c_q_hack, ellipsis) result(m)
         logical, intent(in) :: c_q_hack
         logical, intent(in), optional :: ellipsis
         character(len=:), allocatable :: m
 
-        m = isearch_message_prefix(isearch_nonincremental, flag(ellipsis))
-        if (allocated(isearch_message)) m = m//isearch_text_description(isearch_message)
-        m = m//isearch_message_suffix(c_q_hack)
-    end function isearch_message_string
+        m = incremental_search_message_prefix(incremental_search_nonincremental, flag(ellipsis))
+        if (allocated(incremental_search_message)) m = m//incremental_search_text_description(incremental_search_message)
+        m = m//incremental_search_message_suffix(c_q_hack)
+    end function incremental_search_message_string
 
     !> Return position of first mismatch in search string, or -1 if
     !> none.  Port of isearch.el:isearch-fail-pos (MESSAGE absent).
-    integer(int64) function isearch_fail_position() result(position)
+    integer(int64) function incremental_search_fail_position() result(position)
         integer :: k
 
         position = -1
-        if (isearch_success .and. .not. allocated(isearch_error)) return
+        if (incremental_search_success .and. .not. allocated(incremental_search_error)) return
         k = ncmds
 
         do while (k >= 1)
-            if (isearch_commands(k)%success .and. .not. allocated(isearch_commands(k)%error)) exit
+            if (incremental_search_commands(k)%success .and. .not. allocated(incremental_search_commands(k)%error)) exit
             k = k - 1
         end do
 
         position = 0
         if (k < 1) return
-        if (.not. allocated(isearch_commands(k)%string) .or. .not. allocated(isearch_string)) return
+        if (.not. allocated(incremental_search_commands(k)%string) .or. .not. allocated(incremental_search_string)) return
 
-        if (len(isearch_commands(k)%string) < len(isearch_string)) then
-            if (isearch_string(1:len(isearch_commands(k)%string)) == isearch_commands(k)%string) position = count_characters_of( &
-                                                                                                         isearch_commands(k)%string)
+        if (len(incremental_search_commands(k)%string) < len(incremental_search_string)) then
+          if (incremental_search_string(1:len(incremental_search_commands(k)%string)) == incremental_search_commands(k)%string) then
+                position = count_characters_of( &
+                           incremental_search_commands(k)%string)
+            end if
         end if
-    end function isearch_fail_position
+    end function incremental_search_fail_position
 
     !> The number of characters of `s'.  Not a port.
     integer(int64) function count_characters_of(s)
@@ -1153,11 +1164,11 @@ contains
         end do
     end function count_characters_of
 
-    !> How `isearch_message' displays: each character as
+    !> How `incremental_search_message' displays: each character as
     !> isearch-text-char-description shows it, control characters as ^C
     !> and DEL as ^? (upstream puts these on the characters as `display'
     !> properties).  Port of isearch.el:isearch-text-char-description.
-    function isearch_text_description(text) result(shown)
+    function incremental_search_text_description(text) result(shown)
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: shown
         integer :: i, c
@@ -1175,13 +1186,13 @@ contains
                 shown = shown//text(i:i)
             end if
         end do
-    end function isearch_text_description
+    end function incremental_search_text_description
 
     !> The prompt before the search string ("I-search: ", "Failing
     !> wrapped I-search backward: ", ...).  Port of
     !> isearch.el:isearch-message-prefix (no lazy count, multi-buffer or
     !> input method).
-    function isearch_message_prefix(nonincremental, ellipsis) result(m)
+    function incremental_search_message_prefix(nonincremental, ellipsis) result(m)
         logical, intent(in) :: nonincremental
         logical, intent(in), optional :: ellipsis
         character(len=:), allocatable :: m
@@ -1192,37 +1203,38 @@ contains
         ! If about to search, and previous search regexp was invalid, check
         ! that it still is.  If it is valid now, let the message we display
         ! while searching say that it is valid.
-        if (allocated(isearch_error) .and. flag(ellipsis)) then
-            call regular_expression_search_forward(isearch_string, position, status, bound=point(), noerror=SEARCH_NOERROR)
-            if (status%ok()) deallocate (isearch_error)
+        if (allocated(incremental_search_error) .and. flag(ellipsis)) then
+            call regular_expression_search_forward(incremental_search_string, position, status, bound=point(), &
+                                                   noerror=SEARCH_NOERROR)
+            if (status%ok()) deallocate (incremental_search_error)
         end if
 
         m = ""
-        if (.not. isearch_success) m = "failing "
-        if (isearch_adjusted == ADJUSTED_PENDING) m = m//"pending "
+        if (.not. incremental_search_success) m = "failing "
+        if (incremental_search_adjusted == ADJUSTED_PENDING) m = m//"pending "
 
-        if (isearch_wrapped) then
-            if (isearch_forward) then
-                if (point() > isearch_original_point) m = m//"over"
+        if (incremental_search_wrapped) then
+            if (incremental_search_forward) then
+                if (point() > incremental_search_original_point) m = m//"over"
             else
-                if (point() < isearch_original_point) m = m//"over"
+                if (point() < incremental_search_original_point) m = m//"over"
             end if
 
             m = m//"wrapped "
         end if
 
-        if (.not. isearch_success) then
+        if (.not. incremental_search_success) then
             ! widen-automatically is t.
             associate (b => buffers(current))
                 if (b%beginning_of_accessible_portion /= 1 .or. b%end_of_accessible_portion /= b%text%z) m = m//"narrowed "
             end associate
 
-            if (isearch_case_fold_search == CASE_FOLD_NO) m = m//"case-sensitive "
+            if (incremental_search_case_fold_search == CASE_FOLD_NO) m = m//"case-sensitive "
         end if
 
         ! isearch--describe-regexp-mode.
-        if (isearch_regular_expression) m = m//"regexp "
-        if (allocated(isearch_message_prefix_add)) m = m//isearch_message_prefix_add
+        if (incremental_search_regular_expression) m = m//"regexp "
+        if (allocated(incremental_search_message_prefix_add)) m = m//incremental_search_message_prefix_add
 
         if (nonincremental) then
             m = m//"search"
@@ -1230,50 +1242,50 @@ contains
             m = m//"I-search"
         end if
 
-        if (.not. isearch_forward) m = m//" backward"
+        if (.not. incremental_search_forward) m = m//" backward"
         m = m//": "
         ! Capitalize the first letter (ASCII here).
         c = iachar(m(1:1))
         if (c >= iachar("a") .and. c <= iachar("z")) m(1:1) = achar(c - 32)
-    end function isearch_message_prefix
+    end function incremental_search_message_prefix
 
     !> Port of isearch.el:isearch-message-suffix.
-    function isearch_message_suffix(c_q_hack) result(m)
+    function incremental_search_message_suffix(c_q_hack) result(m)
         logical, intent(in) :: c_q_hack
         character(len=:), allocatable :: m
 
         m = ""
         if (c_q_hack) m = "^Q"
-        if (allocated(isearch_error)) m = m//" ["//isearch_error//"]"
-    end function isearch_message_suffix
+        if (allocated(incremental_search_error)) m = m//" ["//incremental_search_error//"]"
+    end function incremental_search_message_suffix
 
     ! ------------------------------------------------------------------
     ! Searching
     ! ------------------------------------------------------------------
 
     !> Return the function to use for the search.
-    !> Can be changed via `isearch_search_function_function' for special
+    !> Can be changed via `incremental_search_search_function_function' for special
     !> needs.  Port of isearch.el:isearch-search-fun.
-    recursive function isearch_search_function() result(fn)
-        procedure(isearch_search_procedure), pointer :: fn
-        procedure(isearch_search_function_procedure), pointer :: f
+    recursive function incremental_search_search_function() result(fn)
+        procedure(incremental_search_search_procedure), pointer :: fn
+        procedure(incremental_search_search_function_procedure), pointer :: f
 
-        call isearch_search_function_function%current(f)
+        call incremental_search_search_function_function%current(f)
 
         if (associated(f)) then
             call f(fn)
         else
-            fn => isearch_search_function_default()
+            fn => incremental_search_search_function_default()
         end if
-    end function isearch_search_function
+    end function incremental_search_search_function
 
     !> Return default functions to use for the search.  Port of
-    !> isearch.el:isearch-search-fun-default (no `isearch_regular_expression_function').
-    function isearch_search_function_default() result(fn)
-        procedure(isearch_search_procedure), pointer :: fn
+    !> isearch.el:isearch-search-fun-default (no `incremental_search_regular_expression_function').
+    function incremental_search_search_function_default() result(fn)
+        procedure(incremental_search_search_procedure), pointer :: fn
 
         fn => default_search
-    end function isearch_search_function_default
+    end function incremental_search_search_function_default
 
     ! The function isearch-search-fun-default returns.
     ! Port of isearch.el:isearch-search-fun-default (the function it returns).
@@ -1287,7 +1299,7 @@ contains
         integer :: ne
         logical :: had_spaces
 
-        if (isearch_regular_expression) then
+        if (incremental_search_regular_expression) then
             regular_expression = string
         else
             regular_expression = regular_expression_quote(string)
@@ -1299,18 +1311,19 @@ contains
         had_spaces = allocated(search_spaces_regular_expression)
         if (had_spaces) saved_spaces = search_spaces_regular_expression
         if (allocated(search_spaces_regular_expression)) deallocate (search_spaces_regular_expression)
-        if (merge(isearch_regular_expression_lax_whitespace, isearch_lax_whitespace, isearch_regular_expression) .and. &
+        if (merge(incremental_search_regular_expression_lax_whitespace, incremental_search_lax_whitespace, &
+                  incremental_search_regular_expression) .and. &
             allocated(search_whitespace_regular_expression)) search_spaces_regular_expression = search_whitespace_regular_expression
         ne = 0
         if (noerror) ne = SEARCH_NOERROR
 
         if (bound > 0) then
-            if (isearch_forward) then
+            if (incremental_search_forward) then
                 call regular_expression_search_forward(regular_expression, position, status, bound=bound, noerror=ne)
             else
                 call regular_expression_search_backward(regular_expression, position, status, bound=bound, noerror=ne)
             end if
-        else if (isearch_forward) then
+        else if (incremental_search_forward) then
             call regular_expression_search_forward(regular_expression, position, status, noerror=ne)
         else
             call regular_expression_search_backward(regular_expression, position, status, noerror=ne)
@@ -1326,13 +1339,13 @@ contains
     !> true.  An error of the search is in `status'.  Port of
     !> isearch.el:isearch-search-string (BOUND absent, NOERROR .true.; no
     !> translation-table-for-input).
-    recursive logical function isearch_search_string(string, status) result(found)
+    recursive logical function incremental_search_search_string(string, status) result(found)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
-        procedure(isearch_search_procedure), pointer :: function_name
+        procedure(incremental_search_search_procedure), pointer :: function_name
         integer(int64) :: position, original_point
 
-        function_name => isearch_search_function()
+        function_name => incremental_search_search_function()
         original_point = point()
         call function_name(string, 0_int64, .true., position, status)
         found = status%ok() .and. position > 0
@@ -1342,61 +1355,62 @@ contains
         else
             call goto_character(original_point)
         end if
-    end function isearch_search_string
+    end function incremental_search_search_string
 
     ! (funcall isearch-filter-predicate BEGINNING END).  Not a port.
     recursive logical function filter_accepts(beginning, end) result(accepts)
         integer(int64), intent(in) :: beginning, end
-        procedure(isearch_filter_procedure), pointer :: f
+        procedure(incremental_search_filter_procedure), pointer :: f
 
-        f => isearch_filter_test_function%current()
+        f => incremental_search_filter_test_function%current()
         accepts = .true.
         if (associated(f)) accepts = f(beginning, end)
     end function filter_accepts
 
     !> Do the search with the current search string.  Port of
     !> isearch.el:isearch-search.
-    recursive subroutine isearch_search()
+    recursive subroutine incremental_search_search()
         type(status_type) :: status, st
         logical :: saved_fold, found, retry
         integer(int64) :: mb, me
 
-        if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
-            isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
-                                             is_isearch_no_upper_case(isearch_string, isearch_regular_expression))
+        if (incremental_search_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
+            incremental_search_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
+                                                        is_incremental_search_no_upper_case(incremental_search_string, &
+                                                                                            incremental_search_regular_expression))
         end if
 
         saved_fold = case_fold_search%value
-        case_fold_search = isearch_case_fold_search /= CASE_FOLD_NO
-        if (allocated(isearch_error)) deallocate (isearch_error)
+        case_fold_search = incremental_search_case_fold_search /= CASE_FOLD_NO
+        if (allocated(incremental_search_error)) deallocate (incremental_search_error)
         mb = 0
         me = 0
         retry = .true.
 
         do while (retry)
-            found = isearch_search_string(isearch_string, status)
+            found = incremental_search_search_string(incremental_search_string, status)
             ! An error leaves isearch-success as it was.
             if (.not. status%ok()) exit
-            isearch_success = found
+            incremental_search_success = found
 
             ! Clear RETRY unless the search test says to skip this
             ! search hit.
-            if (isearch_success) then
+            if (incremental_search_success) then
                 mb = match_beginning(0, st)
                 me = match_end(0, st)
             end if
 
-            if (.not. isearch_success) then
+            if (.not. incremental_search_success) then
                 retry = .false.
             else if (filter_accepts(mb, me)) then
                 retry = .false.
             else if (mb == me) then
                 ! Advance point on empty matches before retrying
-                if (merge(is_end_of_buffer(), is_beginning_of_buffer(), isearch_forward)) then
+                if (merge(is_end_of_buffer(), is_beginning_of_buffer(), incremental_search_forward)) then
                     retry = .false.
-                    isearch_success = .false.
+                    incremental_search_success = .false.
                 else
-                    call forward_character(st, merge(1_int64, -1_int64, isearch_forward))
+                    call forward_character(st, merge(1_int64, -1_int64, incremental_search_forward))
                 end if
             end if
         end do
@@ -1406,39 +1420,41 @@ contains
         if (status%code == FM_INVALID_REGULAR_EXPRESSION) then
             ! (car (cdr lossage)): the message string, without the quotes
             ! the error data print with.
-            isearch_error = status%detail(2:len(status%detail) - 1)
+            incremental_search_error = status%detail(2:len(status%detail) - 1)
 
-            if (index(isearch_error, "Premature ") == 1 .or. index(isearch_error, "Unmatched ") == 1) then
-                isearch_error = "incomplete input"
-            else if (.not. isearch_regular_expression .and. index(isearch_error, "Regular expression too big") == 1 .and. &
-                     isearch_lax_whitespace .and. allocated(search_whitespace_regular_expression)) then
-                isearch_error = "Too many spaces for whitespace matching"
+            if (index(incremental_search_error, "Premature ") == 1 .or. index(incremental_search_error, "Unmatched ") == 1) then
+                incremental_search_error = "incomplete input"
+            else if (.not. incremental_search_regular_expression .and. index(incremental_search_error, &
+                                                                             "Regular expression too big") == 1 .and. &
+                     incremental_search_lax_whitespace .and. allocated(search_whitespace_regular_expression)) then
+                incremental_search_error = "Too many spaces for whitespace matching"
             end if
         else if (status%code == SEARCH_FAILED_CODE .or. status%code == USER_SEARCH_FAILED_CODE) then
-            isearch_success = .false.
+            incremental_search_success = .false.
             call failure_data(status)
         else if (.not. status%ok()) then
             ! Stack overflow in regexp search.
-            isearch_error = error_message(status%code)
-            if (allocated(status%detail)) isearch_error = status%detail
+            incremental_search_error = error_message(status%code)
+            if (allocated(status%detail)) incremental_search_error = status%detail
         end if
 
-        isearch_just_started = .false.
+        incremental_search_just_started = .false.
 
-        if (isearch_success) then
-            if (isearch_forward) then
-                isearch_other_end = mb
+        if (incremental_search_success) then
+            if (incremental_search_forward) then
+                incremental_search_other_end = mb
             else
-                isearch_other_end = me
+                incremental_search_other_end = me
             end if
         else
             ! Ding if failed this time after succeeding last time.
-            if (isearch_commands(ncmds)%success) call ding()
-            if (associated(isearch_commands(ncmds)%pop_function)) call isearch_commands(ncmds)%pop_function(isearch_commands( &
-                                                                                                            ncmds)%pop_data)
-            call goto_character(isearch_commands(ncmds)%point)
+            if (incremental_search_commands(ncmds)%success) call ding()
+            if (associated(incremental_search_commands(ncmds)%pop_function)) call incremental_search_commands(ncmds)%pop_function( &
+                incremental_search_commands( &
+                ncmds)%pop_data)
+            call goto_character(incremental_search_commands(ncmds)%point)
         end if
-    end subroutine isearch_search
+    end subroutine incremental_search_search
 
     ! (setq isearch-error (nth 2 lossage)): the second datum of a
     ! search-failed error, whose data print as "REGULAR_EXPRESSION", "MESSAGE".
@@ -1459,7 +1475,7 @@ contains
         do i = n - 1, 4, -1
             if (d(i:i) == '"' .and. d(i - 2:i - 1) == ", ") then
                 if (d(i - 3:i - 3) == '"') then
-                    isearch_error = unquote(d(i + 1:n - 1))
+                    incremental_search_error = unquote(d(i + 1:n - 1))
                     return
                 end if
             end if
@@ -1501,7 +1517,7 @@ contains
         saved_fold = case_fold_search%value
         case_fold_search = fold
 
-        if (isearch_regular_expression) then
+        if (incremental_search_regular_expression) then
             found = looking_at(string, status)
         else
             found = looking_at(regular_expression_quote(string), status)
@@ -1514,99 +1530,102 @@ contains
 
     !> Do the search and update the display.  Port of
     !> isearch.el:isearch-search-and-update.
-    subroutine isearch_search_and_update()
+    subroutine incremental_search_search_and_update()
         integer(int64) :: mend
         logical :: fold
 
         ! Unsuccessful regexp search may become successful by addition of
         ! characters which make isearch-string valid.
-        if (isearch_success .or. isearch_regular_expression) then
+        if (incremental_search_success .or. incremental_search_regular_expression) then
             ! In reverse search, adding stuff at the end may cause zero or
             ! many more chars to be matched, in the string following point.
             ! Allow all those possibilities without moving point as long as
             ! the match does not extend past search origin.
-            fold = isearch_case_fold_search /= CASE_FOLD_NO
+            fold = incremental_search_case_fold_search /= CASE_FOLD_NO
 
-            if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
-                fold = is_isearch_no_upper_case(isearch_string, isearch_regular_expression)
+            if (incremental_search_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
+                fold = is_incremental_search_no_upper_case(incremental_search_string, incremental_search_regular_expression)
             end if
 
             if (reverse_match_here()) then
-                isearch_success = .true.
-                if (allocated(isearch_error)) deallocate (isearch_error)
-                isearch_other_end = mend
+                incremental_search_success = .true.
+                if (allocated(incremental_search_error)) deallocate (incremental_search_error)
+                incremental_search_other_end = mend
 
-                if (isearch_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
-                    isearch_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
-                                                     is_isearch_no_upper_case(isearch_string, isearch_regular_expression))
+                if (incremental_search_case_fold_search == CASE_FOLD_YES .and. .not. search_upper_case%is_off()) then
+                    incremental_search_case_fold_search = merge(CASE_FOLD_YES, CASE_FOLD_NO, &
+                                                                is_incremental_search_no_upper_case(incremental_search_string, &
+                                                                                             incremental_search_regular_expression))
                 end if
             else
                 ! Not regexp, not reverse, or no match at point.
                 ! Do the following before moving point.
-                call isearch_message_show(ellipsis=.true.)
+                call incremental_search_message_show(ellipsis=.true.)
 
-                if (isearch_other_end /= 0 .and. isearch_adjusted == ADJUSTED_NO) then
-                    if (isearch_forward) then
-                        call goto_character(isearch_other_end)
+                if (incremental_search_other_end /= 0 .and. incremental_search_adjusted == ADJUSTED_NO) then
+                    if (incremental_search_forward) then
+                        call goto_character(incremental_search_other_end)
                     else
-                        call goto_character(min(isearch_original_point, isearch_barrier, isearch_other_end + 1))
+                        call goto_character(min(incremental_search_original_point, incremental_search_barrier, &
+                                                incremental_search_other_end + 1))
                     end if
                 end if
 
-                call isearch_search()
+                call incremental_search_search()
             end if
         end if
 
-        call isearch_push_state()
-        call isearch_update()
+        call incremental_search_push_state()
+        call incremental_search_update()
 
     contains
 
         logical function reverse_match_here()
             reverse_match_here = .false.
-            if (isearch_forward .or. isearch_adjusted /= ADJUSTED_NO) return
-            if (.not. looking_at_string(isearch_string, fold, mend)) return
-            reverse_match_here = isearch_paste_flag .or. mend <= min(isearch_original_point, isearch_barrier)
+            if (incremental_search_forward .or. incremental_search_adjusted /= ADJUSTED_NO) return
+            if (.not. looking_at_string(incremental_search_string, fold, mend)) return
+            reverse_match_here = incremental_search_paste_flag .or. mend <= min(incremental_search_original_point, &
+                                                                                incremental_search_barrier)
         end function reverse_match_here
-    end subroutine isearch_search_and_update
+    end subroutine incremental_search_search_and_update
 
     !> Utility for isearch-repeat-forward and isearch-repeat-backward.
     !> Port of isearch.el:isearch-repeat (isearch-wrap-pause t,
-    !> `isearch_repeat_on_direction_change' .false.).
-    recursive subroutine isearch_repeat(forward, count)
+    !> `incremental_search_repeat_on_direction_change' .false.).
+    recursive subroutine incremental_search_repeat(forward, count)
         logical, intent(in) :: forward
         integer(int64), intent(in), optional :: count
-        procedure(isearch_wrap_procedure), pointer :: wrap
+        procedure(incremental_search_wrap_procedure), pointer :: wrap
         type(value_type), allocatable :: ring(:)
         type(status_type) :: status
         integer(int64) :: n
         integer :: outer
 
-        if (isearch_forward .eqv. forward) then
+        if (incremental_search_forward .eqv. forward) then
             ! C-s in forward or C-r in reverse.
-            if (len(isearch_string) == 0) then
+            if (len(incremental_search_string) == 0) then
                 ! If search string is empty, use last one.
                 call search_ring_entries(ring)
 
                 if (size(ring) == 0) then
-                    isearch_error = "No previous search string"
+                    incremental_search_error = "No previous search string"
                 else
-                    if (vtag(ring(1)) == V_STRING) isearch_string = xstring(ring(1))
-                    isearch_message = isearch_string
-                    isearch_case_fold_search = isearch_last_case_fold_search
+                    if (vtag(ring(1)) == V_STRING) incremental_search_string = xstring(ring(1))
+                    incremental_search_message = incremental_search_string
+                    incremental_search_case_fold_search = incremental_search_last_case_fold_search
                     ! After taking the last element, adjust ring to
                     ! previous one.
-                    call isearch_ring_adjust1(.false.)
+                    call incremental_search_ring_adjust1(.false.)
                 end if
-            else if (.not. isearch_success) then
+            else if (.not. incremental_search_success) then
                 ! If already have what to search for, repeat it.
                 ! Set isearch-wrapped before calling isearch-wrap-function
-                isearch_wrapped = .true.
-                wrap => isearch_wrap_function%current()
+                incremental_search_wrapped = .true.
+                wrap => incremental_search_wrap_function%current()
 
                 if (associated(wrap)) then
                     call wrap()
-                else if (isearch_forward) then
+                else if (incremental_search_forward) then
                     call goto_character(point_minimum())
                 else
                     call goto_character(point_maximum())
@@ -1614,15 +1633,15 @@ contains
             end if
         else
             ! C-s in reverse or C-r in forward, change direction.
-            isearch_forward = .not. isearch_forward
-            isearch_success = .true.
+            incremental_search_forward = .not. incremental_search_forward
+            incremental_search_success = .true.
         end if
 
         ! For subsequent \| if regexp.
-        isearch_barrier = point()
+        incremental_search_barrier = point()
 
-        if (len(isearch_string) == 0) then
-            isearch_success = .true.
+        if (len(incremental_search_string) == 0) then
+            incremental_search_success = .true.
         else
             ! For the case when count > 1, don't keep intermediate states
             ! added to isearch-isearch_commands by isearch-push-state in this loop.
@@ -1634,131 +1653,132 @@ contains
                 n = n - 1
                 if (n < 0) exit
 
-                if (isearch_success .and. point() == isearch_other_end .and. .not. isearch_just_started) then
+                if (incremental_search_success .and. point() == incremental_search_other_end &
+                    .and. .not. incremental_search_just_started) then
                     ! If repeating a search that found an empty string,
                     ! ensure we advance.
-                    if (merge(is_end_of_buffer(), is_beginning_of_buffer(), isearch_forward)) then
+                    if (merge(is_end_of_buffer(), is_beginning_of_buffer(), incremental_search_forward)) then
                         ! If there's nowhere to advance to, fail (and wrap
                         ! next time).
-                        isearch_success = .false.
+                        incremental_search_success = .false.
                         call ding()
                     else
-                        call forward_character(status, merge(1_int64, -1_int64, isearch_forward))
-                        call isearch_search()
+                        call forward_character(status, merge(1_int64, -1_int64, incremental_search_forward))
+                        call incremental_search_search()
                     end if
                 else
-                    call isearch_search()
+                    call incremental_search_search()
                 end if
 
                 ! Update isearch-isearch_commands, so if isearch-search fails later, it
                 ! can restore old successful state from isearch-isearch_commands.
-                if (n > 0) call isearch_push_state()
+                if (n > 0) call incremental_search_push_state()
                 ! Stop looping on failure.
-                if (.not. isearch_success .or. allocated(isearch_error)) n = 0
+                if (.not. incremental_search_success .or. allocated(incremental_search_error)) n = 0
             end do
 
             ncmds = outer
         end if
 
-        call isearch_push_state()
-        call isearch_update()
-    end subroutine isearch_repeat
+        call incremental_search_push_state()
+        call incremental_search_update()
+    end subroutine incremental_search_repeat
 
     !> Repeat incremental search forwards.
     !> With a numeric argument, repeat the search ARGUMENT times.
     !> A negative argument searches backwards.  Port of
     !> isearch.el:isearch-repeat-forward.
-    recursive subroutine isearch_repeat_forward(argument)
+    recursive subroutine incremental_search_repeat_forward(argument)
         type(prefix_argument_type), intent(in) :: argument
         integer(int64) :: count
 
         if (argument%kind == PREFIX_NONE) then
-            call isearch_repeat(.true.)
+            call incremental_search_repeat(.true.)
             return
         end if
 
         count = prefix_numeric_value(argument)
 
         if (count < 0) then
-            call isearch_repeat_backward(prefix_argument_type(PREFIX_NUMBER, abs(count)))
+            call incremental_search_repeat_backward(prefix_argument_type(PREFIX_NUMBER, abs(count)))
             ! Reverse the direction back.
-            call isearch_repeat(.true.)
+            call incremental_search_repeat(.true.)
         else
             ! Take into account one iteration to reverse direction.
-            if (.not. isearch_forward) count = count + 1
-            call isearch_repeat(.true., count)
+            if (.not. incremental_search_forward) count = count + 1
+            call incremental_search_repeat(.true., count)
         end if
-    end subroutine isearch_repeat_forward
+    end subroutine incremental_search_repeat_forward
 
     !> Repeat incremental search backwards.
     !> With a numeric argument, repeat the search ARGUMENT times.
     !> A negative argument searches forwards.  Port of
     !> isearch.el:isearch-repeat-backward.
-    recursive subroutine isearch_repeat_backward(argument)
+    recursive subroutine incremental_search_repeat_backward(argument)
         type(prefix_argument_type), intent(in) :: argument
         integer(int64) :: count
 
         if (argument%kind == PREFIX_NONE) then
-            call isearch_repeat(.false.)
+            call incremental_search_repeat(.false.)
             return
         end if
 
         count = prefix_numeric_value(argument)
 
         if (count < 0) then
-            call isearch_repeat_forward(prefix_argument_type(PREFIX_NUMBER, abs(count)))
+            call incremental_search_repeat_forward(prefix_argument_type(PREFIX_NUMBER, abs(count)))
             ! Reverse the direction back.
-            call isearch_repeat(.false.)
+            call incremental_search_repeat(.false.)
         else
             ! Take into account one iteration to reverse direction.
-            if (isearch_forward) count = count + 1
-            call isearch_repeat(.false., count)
+            if (incremental_search_forward) count = count + 1
+            call incremental_search_repeat(.false., count)
         end if
-    end subroutine isearch_repeat_backward
+    end subroutine incremental_search_repeat_backward
 
     !> Go to the first occurrence of the current search string.
     !> Move point to the beginning of the buffer and search forwards from
     !> the top.  With a numeric argument, go to the ARGth absolute
     !> occurrence counting from the beginning of the buffer.  Port of
     !> isearch.el:isearch-beginning-of-buffer.
-    recursive subroutine isearch_beginning_of_buffer(argument)
+    recursive subroutine incremental_search_beginning_of_buffer(argument)
         integer(int64), intent(in) :: argument
         logical :: current_forward
 
         if (argument < 0) then
-            call isearch_end_of_buffer(abs(argument))
+            call incremental_search_end_of_buffer(abs(argument))
             return
         end if
 
         ! For the case when the match is at is_beginning_of_buffer, don't forward char in
         ! isearch-repeat.
-        isearch_just_started = .true.
+        incremental_search_just_started = .true.
         call goto_character(point_minimum())
-        current_forward = isearch_forward
-        call isearch_repeat(.true., argument)
-        if (.not. (current_forward .eqv. isearch_forward)) call isearch_repeat(current_forward)
-    end subroutine isearch_beginning_of_buffer
+        current_forward = incremental_search_forward
+        call incremental_search_repeat(.true., argument)
+        if (.not. (current_forward .eqv. incremental_search_forward)) call incremental_search_repeat(current_forward)
+    end subroutine incremental_search_beginning_of_buffer
 
     !> Go to the last occurrence of the current search string.
     !> Move point to the end of the buffer and search backwards from the
     !> bottom.  With a numeric argument, go to the ARGth absolute
     !> occurrence counting from the end of the buffer.  Port of
     !> isearch.el:isearch-end-of-buffer.
-    recursive subroutine isearch_end_of_buffer(argument)
+    recursive subroutine incremental_search_end_of_buffer(argument)
         integer(int64), intent(in) :: argument
         logical :: current_forward
 
         if (argument < 0) then
-            call isearch_beginning_of_buffer(abs(argument))
+            call incremental_search_beginning_of_buffer(abs(argument))
             return
         end if
 
-        isearch_just_started = .true.
+        incremental_search_just_started = .true.
         call goto_character(point_maximum())
-        current_forward = isearch_forward
-        call isearch_repeat(.false., argument)
-        if (.not. (current_forward .eqv. isearch_forward)) call isearch_repeat(current_forward)
-    end subroutine isearch_end_of_buffer
+        current_forward = incremental_search_forward
+        call incremental_search_repeat(.false., argument)
+        if (.not. (current_forward .eqv. incremental_search_forward)) call incremental_search_repeat(current_forward)
+    end subroutine incremental_search_end_of_buffer
 
     ! ------------------------------------------------------------------
     ! Editing the search string
@@ -1766,59 +1786,60 @@ contains
 
     !> Undo last input item during a search.
     !> An input item is the result of a command that pushes a new state
-    !> of isearch to `isearch_commands'.  If no input items have been entered
+    !> of isearch to `incremental_search_commands'.  If no input items have been entered
     !> yet, just beep.  Port of isearch.el:isearch-delete-char.
-    subroutine isearch_delete_character()
+    subroutine incremental_search_delete_character()
         if (ncmds <= 1) then
             call ding()
         else
-            call isearch_pop_state()
+            call incremental_search_pop_state()
         end if
 
-        call isearch_update()
-    end subroutine isearch_delete_character
+        call incremental_search_update()
+    end subroutine incremental_search_delete_character
 
     !> Delete character from end of search string and search again.
-    !> Unlike `isearch_delete_character', it only deletes the last character,
+    !> Unlike `incremental_search_delete_character', it only deletes the last character,
     !> but doesn't cancel the effect of other isearch command.
     !> If search string is empty, just beep.  Port of
     !> isearch.el:isearch-del-char.
-    subroutine isearch_delete_end_character(argument)
+    subroutine incremental_search_delete_end_character(argument)
         integer(int64), intent(in) :: argument
 
-        if (len(isearch_string) == 0) then
+        if (len(incremental_search_string) == 0) then
             call ding()
         else
-            isearch_string = drop_characters(isearch_string, int(min(argument, int(nchars(isearch_string), int64))))
-            isearch_message = isearch_string
+            incremental_search_string = drop_characters(incremental_search_string, int(min(argument, &
+                                                                                    int(nchars(incremental_search_string), int64))))
+            incremental_search_message = incremental_search_string
         end if
 
         ! Do the following before moving point.
-        call isearch_message_show()
+        call incremental_search_message_show()
         ! Use the isearch-other-end as new starting point to be able to
         ! find the remaining part of the search string again.
-        if (isearch_other_end /= 0) call goto_character(isearch_other_end)
-        call isearch_search()
-        call isearch_push_state()
-        call isearch_update()
-    end subroutine isearch_delete_end_character
+        if (incremental_search_other_end /= 0) call goto_character(incremental_search_other_end)
+        call incremental_search_search()
+        call incremental_search_push_state()
+        call incremental_search_update()
+    end subroutine incremental_search_delete_end_character
 
     !> Add this ordinary printing CHAR to the search string and search.
     !> With argument, add COUNT copies of the character.  Port of
     !> isearch.el:isearch-printing-char.
-    subroutine isearch_printing_character(char, count)
+    subroutine incremental_search_printing_character(char, count)
         integer(int64), intent(in) :: char, count
         integer(int64) :: c
 
         c = char
         if (c == ior(int(CHARACTER_SHIFT, int64), 32_int64)) c = 32
-        call isearch_process_search_character(c, count)
-    end subroutine isearch_printing_character
+        call incremental_search_process_search_character(c, count)
+    end subroutine incremental_search_printing_character
 
     !> Add CHAR to the search string, COUNT times.
     !> Search is updated accordingly.  Port of
     !> isearch.el:isearch-process-search-char.
-    subroutine isearch_process_search_character(char, count)
+    subroutine incremental_search_process_search_character(char, count)
         integer(int64), intent(in) :: char, count
         character(len=:), allocatable :: one, string
         type(status_type) :: st
@@ -1828,11 +1849,11 @@ contains
         ! + because it matches at least once.
         select case (char)
         case (iachar("*"), iachar("?"))
-            call isearch_fallback(.false.)
+            call incremental_search_fallback(.false.)
         case (iachar("}"))
-            call isearch_fallback(.true., .true.)
+            call incremental_search_fallback(.true., .true.)
         case (iachar("|"))
-            call isearch_fallback(.true., .false., .true.)
+            call incremental_search_fallback(.true., .false., .true.)
         case default
             continue
         end select
@@ -1842,21 +1863,21 @@ contains
         if (count > 1) string = repeat(one, int(count))
         ! Append the char(s) to the search string, update the message and
         ! re-search.
-        call isearch_process_search_string(string, string)
-    end subroutine isearch_process_search_character
+        call incremental_search_process_search_string(string, string)
+    end subroutine incremental_search_process_search_character
 
     !> Port of isearch.el:isearch-process-search-string.
-    subroutine isearch_process_search_string(string, message)
+    subroutine incremental_search_process_search_string(string, message)
         character(len=*), intent(in) :: string, message
 
-        isearch_string = isearch_string//string
-        isearch_message = isearch_message//message
-        call isearch_search_and_update()
-    end subroutine isearch_process_search_string
+        incremental_search_string = incremental_search_string//string
+        incremental_search_message = incremental_search_message//message
+        call incremental_search_search_and_update()
+    end subroutine incremental_search_process_search_string
 
     !> Return .true. if STRING ends in an odd number of backslashes.  Port of
     !> isearch.el:isearch-backslash.
-    pure logical function isearch_backslash(string)
+    pure logical function incremental_search_backslash(string)
         character(len=*), intent(in) :: string
         integer :: n
 
@@ -1867,12 +1888,12 @@ contains
             n = n + 1
         end do
 
-        isearch_backslash = mod(n, 2) == 1
-    end function isearch_backslash
+        incremental_search_backslash = mod(n, 2) == 1
+    end function incremental_search_backslash
 
     !> Return point to previous successful match to allow regexp
     !> liberalization.  Respects C-s and C-r by stopping at
-    !> `isearch_barrier' as needed.
+    !> `incremental_search_barrier' as needed.
     !>
     !> Do nothing if a backslash is escaping the liberalizing character.
     !> If WANT-BACKSLASH is .true., invert this behavior (for \} and \|).
@@ -1882,7 +1903,7 @@ contains
     !>
     !> If optional TO-BARRIER .true., ignore previous matches and go
     !> exactly to the barrier.  Port of isearch.el:isearch-fallback.
-    subroutine isearch_fallback(want_backslash, allow_invalid, to_barrier)
+    subroutine incremental_search_fallback(want_backslash, allow_invalid, to_barrier)
         logical, intent(in) :: want_backslash
         logical, intent(in), optional :: allow_invalid, to_barrier
         integer :: frame, previous
@@ -1891,18 +1912,18 @@ contains
         integer(int32) :: lchar
         logical :: skip
 
-        if (.not. isearch_regular_expression) return
-        if (isearch_backslash(isearch_string) .neqv. want_backslash) return
+        if (.not. incremental_search_regular_expression) return
+        if (incremental_search_backslash(incremental_search_string) .neqv. want_backslash) return
 
         ! We have to check 2 stack frames because the last might be
         ! invalid just because of a backslash.
-        if (allocated(isearch_error) .and. ncmds >= 2 .and. .not. flag(allow_invalid)) then
-            if (allocated(isearch_commands(ncmds - 1)%error)) return
+        if (allocated(incremental_search_error) .and. ncmds >= 2 .and. .not. flag(allow_invalid)) then
+            if (allocated(incremental_search_commands(ncmds - 1)%error)) return
         end if
 
         if (flag(to_barrier)) then
-            call goto_character(isearch_barrier)
-            isearch_adjusted = ADJUSTED_PENDING
+            call goto_character(incremental_search_barrier)
+            incremental_search_adjusted = ADJUSTED_PENDING
             return
         end if
 
@@ -1915,15 +1936,15 @@ contains
         previous = ncmds - 1
 
         do while (previous >= 1)
-            skip = allocated(isearch_commands(frame)%error)
+            skip = allocated(incremental_search_commands(frame)%error)
 
             if (.not. skip) then
-                string = isearch_commands(frame)%string
+                string = incremental_search_commands(frame)%string
                 lchar = 0
                 if (len(string) > 0) lchar = iachar(string(len(string):len(string)))
 
                 ! The operators aren't always operators; check backslashes.
-                if (isearch_backslash(isearch_commands(previous)%string)) then
+                if (incremental_search_backslash(incremental_search_commands(previous)%string)) then
                     skip = lchar == iachar("}")
                 else
                     skip = lchar == iachar("*") .or. lchar == iachar("?") .or. lchar == iachar("+")
@@ -1939,45 +1960,46 @@ contains
         ! `frame' now refers the most recent valid regexp that is not at
         ! all optional in its last term.  Now dig one level deeper and find
         ! what matched before that.
-        last_other_end = isearch_barrier
+        last_other_end = incremental_search_barrier
 
         if (previous >= 1) then
-            if (isearch_commands(previous)%other_end /= 0) last_other_end = isearch_commands(previous)%other_end
+            if (incremental_search_commands(previous)%other_end /= 0) last_other_end = incremental_search_commands( &
+                                                                                       previous)%other_end
         end if
 
-        if (isearch_forward) then
-            call goto_character(max(last_other_end, isearch_barrier))
+        if (incremental_search_forward) then
+            call goto_character(max(last_other_end, incremental_search_barrier))
         else
-            call goto_character(min(last_other_end, isearch_barrier))
+            call goto_character(min(last_other_end, incremental_search_barrier))
         end if
 
-        isearch_adjusted = ADJUSTED_PENDING
-    end subroutine isearch_fallback
+        incremental_search_adjusted = ADJUSTED_PENDING
+    end subroutine incremental_search_fallback
 
     !> Pull STRING into search string.  Port of
     !> isearch.el:isearch-yank-string.
-    subroutine isearch_paste_string(string)
+    subroutine incremental_search_paste_string(string)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: s
 
         s = string
 
         ! Downcase the string if not supposed to case-fold pasted strings.
-        if (isearch_case_fold_search /= CASE_FOLD_NO .and. search_upper_case%choice == SEARCH_UPPER_CASE_NOT_PASTED) then
+        if (incremental_search_case_fold_search /= CASE_FOLD_NO .and. search_upper_case%choice == SEARCH_UPPER_CASE_NOT_PASTED) then
             s = downcase_string(s)
         end if
 
-        if (isearch_regular_expression) s = regular_expression_quote(s)
+        if (incremental_search_regular_expression) s = regular_expression_quote(s)
         ! Don't move cursor in reverse search.
-        isearch_paste_flag = .true.
-        call isearch_process_search_string(s, s)
-    end subroutine isearch_paste_string
+        incremental_search_paste_flag = .true.
+        call incremental_search_process_search_string(s, s)
+    end subroutine incremental_search_paste_string
 
     !> Pull the text from point to the point reached by `jump': 1 moves
     !> forward `argument' characters, 2 to the end of the line (`argument' lines
     !> on), 3 over `argument' words or characters (isearch--yank-char-or-syntax
     !> with word syntax).  Port of isearch.el:isearch-yank-internal.
-    subroutine isearch_paste_internal(jump, argument)
+    subroutine incremental_search_paste_internal(jump, argument)
         integer, intent(in) :: jump
         integer(int64), intent(in) :: argument
         character(len=:), allocatable :: text
@@ -1985,8 +2007,10 @@ contains
         integer(int64) :: saved, from, k
 
         saved = point()
-        if (.not. isearch_forward .and. isearch_other_end /= 0) call goto_character(isearch_other_end)
-        if (.not. isearch_success .and. isearch_paste_previous_point /= 0) call goto_character(isearch_paste_previous_point)
+        if (.not. incremental_search_forward .and. incremental_search_other_end /= 0) call goto_character( &
+            incremental_search_other_end)
+        if (.not. incremental_search_success .and. incremental_search_paste_previous_point /= 0) call goto_character( &
+            incremental_search_paste_previous_point)
         from = point()
 
         if (jump == 1) then
@@ -2004,30 +2028,30 @@ contains
             call goto_character(position_end_of_line(merge(argument + 1, argument, is_end_of_line())))
         end if
 
-        isearch_paste_previous_point = point()
-        if (isearch_success) isearch_paste_previous_point = 0
+        incremental_search_paste_previous_point = point()
+        if (incremental_search_success) incremental_search_paste_previous_point = 0
         call buffer_substring(from, point(), text, status)
         call goto_character(saved)
-        call isearch_paste_string(text)
-    end subroutine isearch_paste_internal
+        call incremental_search_paste_string(text)
+    end subroutine incremental_search_paste_internal
 
     !> Pull next character from buffer into search string.
     !> If optional ARGUMENT is given, pull in the next ARGUMENT characters.  Port of
     !> isearch.el:isearch-yank-char.
-    subroutine isearch_paste_character(argument)
+    subroutine incremental_search_paste_character(argument)
         integer(int64), intent(in) :: argument
 
-        call isearch_paste_internal(1, argument)
-    end subroutine isearch_paste_character
+        call incremental_search_paste_internal(1, argument)
+    end subroutine incremental_search_paste_character
 
     !> Pull next character or word from buffer into search string.
     !> If optional ARGUMENT is given, pull in the next ARGUMENT characters/words.
     !> Port of isearch.el:isearch-yank-word-or-char.
-    subroutine isearch_paste_word_or_character(argument)
+    subroutine incremental_search_paste_word_or_character(argument)
         integer(int64), intent(in) :: argument
 
-        call isearch_paste_internal(3, argument)
-    end subroutine isearch_paste_word_or_character
+        call incremental_search_paste_internal(3, argument)
+    end subroutine incremental_search_paste_word_or_character
 
     !> The character at `position', or 0 at the end of the accessible region
     !> ((or (char-after POSITION) 0)).  Not a port.
@@ -2038,128 +2062,128 @@ contains
 
         if (position >= buffers(current)%beginning_of_accessible_portion .and. position < buffers( &
             current)%end_of_accessible_portion) then
-            character_after = buf_fetch_char(buffers(current), character_to_byte(position))
+            character_after = buffer_fetch_character(buffers(current), character_to_byte(position))
         end if
     end function character_after
 
     !> Pull rest of line from buffer into search string.
     !> If optional ARGUMENT is given, paste the next ARGUMENT lines.  Port of
     !> isearch.el:isearch-yank-line.
-    subroutine isearch_paste_line(argument)
+    subroutine incremental_search_paste_line(argument)
         integer(int64), intent(in) :: argument
 
-        call isearch_paste_internal(2, argument)
-    end subroutine isearch_paste_line
+        call incremental_search_paste_internal(2, argument)
+    end subroutine incremental_search_paste_line
 
     !> Pull string from clipboard history into search string.  Port of
     !> isearch.el:isearch-yank-kill.
-    subroutine isearch_paste(status)
+    subroutine incremental_search_paste(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
 
-        if (.not. isearch_active) call isearch_mode(.true.)
+        if (.not. incremental_search_active) call incremental_search_mode(.true.)
         call current_clipboard_entry(0_int64, text, status)
-        if (status%ok()) call isearch_paste_string(text)
-    end subroutine isearch_paste
+        if (status%ok()) call incremental_search_paste_string(text)
+    end subroutine incremental_search_paste
 
     !> Replace just-pasted search string with previously cut string.
     !> When this command is called not immediately after a
-    !> `isearch_paste' or a `isearch_paste_previous_only', it only pops the
+    !> `incremental_search_paste' or a `incremental_search_paste_previous_only', it only pops the
     !> last cut string.  Port of isearch.el:isearch-yank-pop-only (no
     !> C-u: reading from the clipboard history needs the minibuffer completion).
-    subroutine isearch_paste_previous_only(status)
+    subroutine incremental_search_paste_previous_only(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
 
         ! (Upstream's list also has isearch-yank-pop, which is not ported:
         ! Deferred.)
-        if (.not. (associated(last_command, commands%isearch_paste) .or. &
-                   associated(last_command, commands%isearch_paste_previous_only))) then
-            call isearch_paste(status)
+        if (.not. (associated(last_command, commands%incremental_search_paste) .or. &
+                   associated(last_command, commands%incremental_search_paste_previous_only))) then
+            call incremental_search_paste(status)
         else
-            call isearch_pop_state()
+            call incremental_search_pop_state()
             call current_clipboard_entry(1_int64, text, status)
-            if (status%ok()) call isearch_paste_string(text)
+            if (status%ok()) call incremental_search_paste_string(text)
         end if
-    end subroutine isearch_paste_previous_only
+    end subroutine incremental_search_paste_previous_only
 
     !> Print STRING at the end of the isearch prompt for 1 second.
     !> Port of isearch.el:isearch--momentary-message.
-    subroutine isearch_momentary_message(string)
+    subroutine incremental_search_momentary_message(string)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: m
 
-        m = isearch_message_prefix(isearch_nonincremental)
-        if (allocated(isearch_message)) m = m//isearch_text_description(isearch_message)
+        m = incremental_search_message_prefix(incremental_search_nonincremental)
+        if (allocated(incremental_search_message)) m = m//incremental_search_text_description(incremental_search_message)
         call message_nolog(m//" ["//string//"]")
         call sit_for(1000)
-    end subroutine isearch_momentary_message
+    end subroutine incremental_search_momentary_message
 
     !> Toggle case folding in searching on or off.
-    !> Toggles the value of the variable `isearch_case_fold_search'.
+    !> Toggles the value of the variable `incremental_search_case_fold_search'.
     !> Port of isearch.el:isearch-toggle-case-fold.
-    subroutine isearch_toggle_case_fold()
-        if (.not. isearch_active) call isearch_mode(.true.)
+    subroutine incremental_search_toggle_case_fold()
+        if (.not. incremental_search_active) call incremental_search_mode(.true.)
 
-        if (isearch_case_fold_search /= CASE_FOLD_NO) then
-            isearch_case_fold_search = CASE_FOLD_NO
-            call isearch_momentary_message("case sensitive")
+        if (incremental_search_case_fold_search /= CASE_FOLD_NO) then
+            incremental_search_case_fold_search = CASE_FOLD_NO
+            call incremental_search_momentary_message("case sensitive")
         else
-            isearch_case_fold_search = CASE_FOLD_FORCED
-            call isearch_momentary_message("case insensitive")
+            incremental_search_case_fold_search = CASE_FOLD_FORCED
+            call incremental_search_momentary_message("case insensitive")
         end if
 
-        isearch_success = .true.
-        isearch_adjusted = ADJUSTED_TOGGLE
-        call isearch_update()
-    end subroutine isearch_toggle_case_fold
+        incremental_search_success = .true.
+        incremental_search_adjusted = ADJUSTED_TOGGLE
+        call incremental_search_update()
+    end subroutine incremental_search_toggle_case_fold
 
     !> Toggle regexp searching on or off.  Port of
     !> isearch.el:isearch-toggle-regexp.
-    subroutine isearch_toggle_regular_expression()
-        if (.not. isearch_active) call isearch_mode(.true.)
-        isearch_regular_expression = .not. isearch_regular_expression
-        isearch_success = .true.
-        isearch_adjusted = ADJUSTED_TOGGLE
-        call isearch_update()
-    end subroutine isearch_toggle_regular_expression
+    subroutine incremental_search_toggle_regular_expression()
+        if (.not. incremental_search_active) call incremental_search_mode(.true.)
+        incremental_search_regular_expression = .not. incremental_search_regular_expression
+        incremental_search_success = .true.
+        incremental_search_adjusted = ADJUSTED_TOGGLE
+        call incremental_search_update()
+    end subroutine incremental_search_toggle_regular_expression
 
     !> Toggle lax-whitespace searching on or off.
     !> In ordinary search, toggles the value of the variable
-    !> `isearch_lax_whitespace'.  In regexp search, toggles the value of
-    !> the variable `isearch_regular_expression_lax_whitespace'.  Port of
+    !> `incremental_search_lax_whitespace'.  In regexp search, toggles the value of
+    !> the variable `incremental_search_regular_expression_lax_whitespace'.  Port of
     !> isearch.el:isearch-toggle-lax-whitespace.
-    subroutine isearch_toggle_lax_whitespace()
+    subroutine incremental_search_toggle_lax_whitespace()
         logical :: on
 
-        if (.not. isearch_active) call isearch_mode(.true.)
+        if (.not. incremental_search_active) call incremental_search_mode(.true.)
 
-        if (isearch_regular_expression) then
-            isearch_regular_expression_lax_whitespace = .not. isearch_regular_expression_lax_whitespace
-            on = isearch_regular_expression_lax_whitespace
+        if (incremental_search_regular_expression) then
+            incremental_search_regular_expression_lax_whitespace = .not. incremental_search_regular_expression_lax_whitespace
+            on = incremental_search_regular_expression_lax_whitespace
         else
-            isearch_lax_whitespace = .not. isearch_lax_whitespace
-            on = isearch_lax_whitespace
+            incremental_search_lax_whitespace = .not. incremental_search_lax_whitespace
+            on = incremental_search_lax_whitespace
         end if
 
         if (on) then
-            call isearch_momentary_message("match spaces loosely")
+            call incremental_search_momentary_message("match spaces loosely")
         else
-            call isearch_momentary_message("match spaces literally")
+            call incremental_search_momentary_message("match spaces literally")
         end if
 
-        isearch_success = .true.
-        isearch_adjusted = ADJUSTED_TOGGLE
-        call isearch_update()
-    end subroutine isearch_toggle_lax_whitespace
+        incremental_search_success = .true.
+        incremental_search_adjusted = ADJUSTED_TOGGLE
+        call incremental_search_update()
+    end subroutine incremental_search_toggle_lax_whitespace
 
     !> Edit the search string in the minibuffer.
     !> RET resumes incremental searching with the edited string.  Port of
     !> isearch.el:isearch-edit-string with with-isearch-suspended (no
     !> minibuffer-local-isearch-map).
-    recursive subroutine isearch_edit_string(status)
+    recursive subroutine incremental_search_edit_string(status)
         type(status_type), intent(out) :: status
-        type(isearch_state_type), allocatable :: saved_commands(:)
+        type(incremental_search_state_type), allocatable :: saved_commands(:)
         type(value_type), allocatable :: ring(:)
         character(len=:), allocatable :: new_string, new_message, saved_error, input
         logical :: new_forward, new_nonincremental, saved_success, saved_wrapped, &
@@ -2167,48 +2191,48 @@ contains
         integer :: new_case_fold, saved_ncmds, saved_adjusted
         integer(int64) :: saved_barrier, saved_original_point, old_point, old_other_end, fail_position
         integer :: histpos
-        type(isearch_state_type) :: now
+        type(incremental_search_state_type) :: now
 
         status = status_type()
-        new_nonincremental = isearch_nonincremental
+        new_nonincremental = incremental_search_nonincremental
         ! Locally bind all isearch global variables to protect them from
         ! recursive isearching.
-        new_string = isearch_string
-        new_message = isearch_message
-        new_forward = isearch_forward
-        new_case_fold = isearch_case_fold_search
+        new_string = incremental_search_string
+        new_message = incremental_search_message
+        new_forward = incremental_search_forward
+        new_case_fold = incremental_search_case_fold_search
         saved_ncmds = ncmds
-        if (ncmds > 0) saved_commands = isearch_commands(1:ncmds)
-        saved_success = isearch_success
-        saved_wrapped = isearch_wrapped
-        saved_barrier = isearch_barrier
-        saved_adjusted = isearch_adjusted
-        saved_paste_flag = isearch_paste_flag
-        had_error = allocated(isearch_error)
-        if (had_error) saved_error = isearch_error
-        saved_original_point = isearch_original_point
-        fail_position = isearch_fail_position()
+        if (ncmds > 0) saved_commands = incremental_search_commands(1:ncmds)
+        saved_success = incremental_search_success
+        saved_wrapped = incremental_search_wrapped
+        saved_barrier = incremental_search_barrier
+        saved_adjusted = incremental_search_adjusted
+        saved_paste_flag = incremental_search_paste_flag
+        had_error = allocated(incremental_search_error)
+        if (had_error) saved_error = incremental_search_error
+        saved_original_point = incremental_search_original_point
+        fail_position = incremental_search_fail_position()
 
-        if (isearch_regular_expression) then
+        if (incremental_search_regular_expression) then
             histpos = regular_expression_search_ring_paste_pointer + 1
         else
             histpos = search_ring_paste_pointer + 1
         end if
 
         ! Actually terminate isearching until editing is done.
-        call isearch_done(nopush=.true., edit=.true.)
+        call incremental_search_done(nopush=.true., edit=.true.)
         ! Save old point and isearch-other-end before reading from
         ! minibuffer that can change their values.
         old_point = point()
-        old_other_end = isearch_other_end
+        old_other_end = incremental_search_other_end
         ! Don't add a new search string to the search ring here; it should
-        ! be added only by `isearch_update_ring' called from `isearch_done'.
+        ! be added only by `incremental_search_update_ring' called from `incremental_search_done'.
         saved_history_append = history_append_new_input
         history_append_new_input = .false.
-        if (fail_position < 0) fail_position = count_characters_of(isearch_string)
-        call read_from_minibuffer(isearch_message_prefix(isearch_nonincremental), input, status, &
-                                  initial_input=isearch_string, position=fail_position + 1, &
-                                  history=ring_name(isearch_regular_expression), &
+        if (fail_position < 0) fail_position = count_characters_of(incremental_search_string)
+        call read_from_minibuffer(incremental_search_message_prefix(incremental_search_nonincremental), input, status, &
+                                  initial_input=incremental_search_string, position=fail_position + 1, &
+                                  history=ring_name(incremental_search_regular_expression), &
                                   history_position=histpos)
         history_append_new_input = saved_history_append
 
@@ -2218,15 +2242,16 @@ contains
         end if
 
         ! Always resume isearching by restarting it.
-        if (.not. isearch_active) call isearch_mode(isearch_forward, isearch_regular_expression)
+        if (.not. incremental_search_active) call incremental_search_mode(incremental_search_forward, &
+                                                                          incremental_search_regular_expression)
         ! Copy new local values to isearch globals.
-        isearch_string = new_string
-        isearch_message = new_message
-        isearch_forward = new_forward
-        isearch_nonincremental = new_nonincremental
-        isearch_case_fold_search = new_case_fold
+        incremental_search_string = new_string
+        incremental_search_message = new_message
+        incremental_search_forward = new_forward
+        incremental_search_nonincremental = new_nonincremental
+        incremental_search_case_fold_search = new_case_fold
         ! Restore the minibuffer message before moving point.
-        call isearch_message_show()
+        call incremental_search_message_show()
         ! Set point at the start (end) of old match if forward (backward),
         ! so after exiting minibuffer isearch resumes at the start (end) of
         ! this match and can find it again.
@@ -2234,64 +2259,64 @@ contains
 
         if (status%ok()) then
             ! Empty isearch-string means use default.
-            if (len(isearch_string) == 0) then
+            if (len(incremental_search_string) == 0) then
                 call search_ring_entries(ring)
-                isearch_string = ""
-                if (size(ring) > 0) isearch_string = xstring(ring(1))
-                isearch_message = isearch_string
+                incremental_search_string = ""
+                if (size(ring) > 0) incremental_search_string = xstring(ring(1))
+                incremental_search_message = incremental_search_string
                 ! After taking the last element, adjust ring to previous
                 ! one.
-                call isearch_ring_adjust1(.false.)
+                call incremental_search_ring_adjust1(.false.)
             end if
 
             ! Reinvoke the pending search.
-            call isearch_search()
+            call incremental_search_search()
             ! If no code has changed the search parameters, then pushing a
             ! new state of Isearch should not be necessary.
             now = get_state()
 
             if (ncmds == 0) then
-                call isearch_push_state()
-            else if (.not. same_state(isearch_commands(ncmds), now)) then
-                call isearch_push_state()
+                call incremental_search_push_state()
+            else if (.not. same_state(incremental_search_commands(ncmds), now)) then
+                call incremental_search_push_state()
             end if
 
-            call isearch_update()
+            call incremental_search_update()
 
-            if (isearch_nonincremental) then
-                call isearch_done()
+            if (incremental_search_nonincremental) then
+                call incremental_search_done()
                 ! The search done message is confusing when the string is
                 ! empty, so erase it.
-                if (len(isearch_string) == 0) call message("")
+                if (len(incremental_search_string) == 0) call message("")
             end if
         end if
 
         ! The let's bindings end.
         ncmds = saved_ncmds
-        if (saved_ncmds > 0) isearch_commands(1:saved_ncmds) = saved_commands
-        isearch_success = saved_success
-        isearch_wrapped = saved_wrapped
-        isearch_barrier = saved_barrier
-        isearch_adjusted = saved_adjusted
-        isearch_paste_flag = saved_paste_flag
-        if (allocated(isearch_error)) deallocate (isearch_error)
-        if (had_error) isearch_error = saved_error
-        isearch_original_point = saved_original_point
+        if (saved_ncmds > 0) incremental_search_commands(1:saved_ncmds) = saved_commands
+        incremental_search_success = saved_success
+        incremental_search_wrapped = saved_wrapped
+        incremental_search_barrier = saved_barrier
+        incremental_search_adjusted = saved_adjusted
+        incremental_search_paste_flag = saved_paste_flag
+        if (allocated(incremental_search_error)) deallocate (incremental_search_error)
+        if (had_error) incremental_search_error = saved_error
+        incremental_search_original_point = saved_original_point
         ! Handle abort-recursive-edit.
-        if (status%code == QUIT_CODE) call isearch_abort(status)
-    end subroutine isearch_edit_string
+        if (status%code == QUIT_CODE) call incremental_search_abort(status)
+    end subroutine incremental_search_edit_string
 
     !> Quote special characters for incremental search.
     !> With argument, add COUNT copies of the character.  Port of
     !> isearch.el:isearch-quote-char.
-    subroutine isearch_quote_character(count, status)
+    subroutine incremental_search_quote_character(count, status)
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
         type(value_type) :: ev
         logical :: have
         integer(int64) :: c
 
-        call message_nolog(isearch_message_string(.true.))
+        call message_nolog(incremental_search_message_string(.true.))
         call read_event(ev, have, status)
         if (.not. status%ok() .or. .not. have) return
         c = -1
@@ -2302,8 +2327,8 @@ contains
             return
         end if
 
-        call isearch_process_search_character(c, count)
-    end subroutine isearch_quote_character
+        call incremental_search_process_search_character(c, count)
+    end subroutine incremental_search_quote_character
 
     ! ------------------------------------------------------------------
     ! Commands and the keymap
@@ -2314,151 +2339,151 @@ contains
         numeric_prefix_argument = prefix_numeric_value(current_prefix_argument)
     end function numeric_prefix_argument
 
-    subroutine execute_isearch_exit(status)
+    subroutine execute_incremental_search_exit(status)
         type(status_type), intent(out) :: status
 
-        call isearch_exit(status)
-    end subroutine execute_isearch_exit
+        call incremental_search_exit(status)
+    end subroutine execute_incremental_search_exit
 
-    subroutine execute_isearch_cancel(status)
+    subroutine execute_incremental_search_cancel(status)
         type(status_type), intent(out) :: status
 
-        call isearch_cancel(status)
-    end subroutine execute_isearch_cancel
+        call incremental_search_cancel(status)
+    end subroutine execute_incremental_search_cancel
 
-    subroutine execute_isearch_abort(status)
+    subroutine execute_incremental_search_abort(status)
         type(status_type), intent(out) :: status
 
-        call isearch_abort(status)
-    end subroutine execute_isearch_abort
+        call incremental_search_abort(status)
+    end subroutine execute_incremental_search_abort
 
-    subroutine execute_isearch_repeat_forward(status)
-        type(status_type), intent(out) :: status
-
-        status = status_type()
-        call isearch_repeat_forward(current_prefix_argument)
-    end subroutine execute_isearch_repeat_forward
-
-    subroutine execute_isearch_repeat_backward(status)
+    subroutine execute_incremental_search_repeat_forward(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_repeat_backward(current_prefix_argument)
-    end subroutine execute_isearch_repeat_backward
+        call incremental_search_repeat_forward(current_prefix_argument)
+    end subroutine execute_incremental_search_repeat_forward
 
-    subroutine execute_isearch_delete_character(status)
+    subroutine execute_incremental_search_repeat_backward(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_delete_character()
-    end subroutine execute_isearch_delete_character
+        call incremental_search_repeat_backward(current_prefix_argument)
+    end subroutine execute_incremental_search_repeat_backward
 
-    subroutine execute_isearch_delete_end_character(status)
+    subroutine execute_incremental_search_delete_character(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_delete_end_character(numeric_prefix_argument())
-    end subroutine execute_isearch_delete_end_character
+        call incremental_search_delete_character()
+    end subroutine execute_incremental_search_delete_character
 
-    subroutine execute_isearch_printing_character(status)
+    subroutine execute_incremental_search_delete_end_character(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call incremental_search_delete_end_character(numeric_prefix_argument())
+    end subroutine execute_incremental_search_delete_end_character
+
+    subroutine execute_incremental_search_printing_character(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (vtag(last_command_event) /= V_INTEGER) return
-        call isearch_printing_character(xfixnum(last_command_event), numeric_prefix_argument())
-    end subroutine execute_isearch_printing_character
+        call incremental_search_printing_character(xfixnum(last_command_event), numeric_prefix_argument())
+    end subroutine execute_incremental_search_printing_character
 
-    subroutine execute_isearch_quote_character(status)
+    subroutine execute_incremental_search_quote_character(status)
         type(status_type), intent(out) :: status
 
-        call isearch_quote_character(numeric_prefix_argument(), status)
-    end subroutine execute_isearch_quote_character
+        call incremental_search_quote_character(numeric_prefix_argument(), status)
+    end subroutine execute_incremental_search_quote_character
 
-    subroutine execute_isearch_paste_character(status)
-        type(status_type), intent(out) :: status
-
-        status = status_type()
-        call isearch_paste_character(numeric_prefix_argument())
-    end subroutine execute_isearch_paste_character
-
-    subroutine execute_isearch_paste_word_or_character(status)
+    subroutine execute_incremental_search_paste_character(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_paste_word_or_character(numeric_prefix_argument())
-    end subroutine execute_isearch_paste_word_or_character
+        call incremental_search_paste_character(numeric_prefix_argument())
+    end subroutine execute_incremental_search_paste_character
 
-    subroutine execute_isearch_paste_line(status)
+    subroutine execute_incremental_search_paste_word_or_character(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_paste_line(numeric_prefix_argument())
-    end subroutine execute_isearch_paste_line
+        call incremental_search_paste_word_or_character(numeric_prefix_argument())
+    end subroutine execute_incremental_search_paste_word_or_character
 
-    subroutine execute_isearch_beginning_of_buffer(status)
+    subroutine execute_incremental_search_paste_line(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_beginning_of_buffer(numeric_prefix_argument())
-    end subroutine execute_isearch_beginning_of_buffer
+        call incremental_search_paste_line(numeric_prefix_argument())
+    end subroutine execute_incremental_search_paste_line
 
-    subroutine execute_isearch_end_of_buffer(status)
+    subroutine execute_incremental_search_beginning_of_buffer(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_end_of_buffer(numeric_prefix_argument())
-    end subroutine execute_isearch_end_of_buffer
+        call incremental_search_beginning_of_buffer(numeric_prefix_argument())
+    end subroutine execute_incremental_search_beginning_of_buffer
 
-    subroutine execute_isearch_paste(status)
-        type(status_type), intent(out) :: status
-
-        call isearch_paste(status)
-    end subroutine execute_isearch_paste
-
-    subroutine execute_isearch_paste_previous_only(status)
-        type(status_type), intent(out) :: status
-
-        call isearch_paste_previous_only(status)
-    end subroutine execute_isearch_paste_previous_only
-
-    subroutine execute_isearch_toggle_case_fold(status)
+    subroutine execute_incremental_search_end_of_buffer(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_toggle_case_fold()
-    end subroutine execute_isearch_toggle_case_fold
+        call incremental_search_end_of_buffer(numeric_prefix_argument())
+    end subroutine execute_incremental_search_end_of_buffer
 
-    subroutine execute_isearch_toggle_regular_expression(status)
+    subroutine execute_incremental_search_paste(status)
+        type(status_type), intent(out) :: status
+
+        call incremental_search_paste(status)
+    end subroutine execute_incremental_search_paste
+
+    subroutine execute_incremental_search_paste_previous_only(status)
+        type(status_type), intent(out) :: status
+
+        call incremental_search_paste_previous_only(status)
+    end subroutine execute_incremental_search_paste_previous_only
+
+    subroutine execute_incremental_search_toggle_case_fold(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_toggle_regular_expression()
-    end subroutine execute_isearch_toggle_regular_expression
+        call incremental_search_toggle_case_fold()
+    end subroutine execute_incremental_search_toggle_case_fold
 
-    subroutine execute_isearch_toggle_lax_whitespace(status)
+    subroutine execute_incremental_search_toggle_regular_expression(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call isearch_toggle_lax_whitespace()
-    end subroutine execute_isearch_toggle_lax_whitespace
+        call incremental_search_toggle_regular_expression()
+    end subroutine execute_incremental_search_toggle_regular_expression
 
-    subroutine execute_isearch_edit_string(status)
+    subroutine execute_incremental_search_toggle_lax_whitespace(status)
         type(status_type), intent(out) :: status
 
-        call isearch_edit_string(status)
-    end subroutine execute_isearch_edit_string
+        status = status_type()
+        call incremental_search_toggle_lax_whitespace()
+    end subroutine execute_incremental_search_toggle_lax_whitespace
 
-    subroutine execute_isearch_ring_advance(status)
+    subroutine execute_incremental_search_edit_string(status)
         type(status_type), intent(out) :: status
 
-        call isearch_ring_advance(status)
-    end subroutine execute_isearch_ring_advance
+        call incremental_search_edit_string(status)
+    end subroutine execute_incremental_search_edit_string
 
-    subroutine execute_isearch_ring_retreat(status)
+    subroutine execute_incremental_search_ring_advance(status)
         type(status_type), intent(out) :: status
 
-        call isearch_ring_retreat(status)
-    end subroutine execute_isearch_ring_retreat
+        call incremental_search_ring_advance(status)
+    end subroutine execute_incremental_search_ring_advance
+
+    subroutine execute_incremental_search_ring_retreat(status)
+        type(status_type), intent(out) :: status
+
+        call incremental_search_ring_retreat(status)
+    end subroutine execute_incremental_search_ring_retreat
 
     !> Bind `keys' (kbd syntax) to command `command' in `map'.  Not a port.
     subroutine bind(map, keys, command)
@@ -2471,28 +2496,28 @@ contains
         call define_key(map, key, value_type(name=command), status)
     end subroutine bind
 
-    !> Register the isearch commands, build `isearch_mode_map', and bind
+    !> Register the isearch commands, build `incremental_search_mode_map', and bind
     !> C-s, C-r, C-M-s and C-M-r in `global_map'.  Port of isearch.el's
-    !> Assign WRAPPED to `isearch_wrapped', for an `isearch_wrap_function'.
-    subroutine set_isearch_wrapped(wrapped)
+    !> Assign WRAPPED to `incremental_search_wrapped', for an `incremental_search_wrap_function'.
+    subroutine set_incremental_search_wrapped(wrapped)
         logical, intent(in) :: wrapped
 
-        isearch_wrapped = wrapped
-    end subroutine set_isearch_wrapped
+        incremental_search_wrapped = wrapped
+    end subroutine set_incremental_search_wrapped
 
-    !> Assign POSITION to `isearch_barrier', for a search function.  Not a port.
-    subroutine set_isearch_barrier(position)
+    !> Assign POSITION to `incremental_search_barrier', for a search function.  Not a port.
+    subroutine set_incremental_search_barrier(position)
         integer(int64), intent(in) :: position
 
-        isearch_barrier = position
-    end subroutine set_isearch_barrier
+        incremental_search_barrier = position
+    end subroutine set_incremental_search_barrier
 
-    !> Assign POSITION to `isearch_original_point', for a search function.  Not a port.
-    subroutine set_isearch_original_point(position)
+    !> Assign POSITION to `incremental_search_original_point', for a search function.  Not a port.
+    subroutine set_incremental_search_original_point(position)
         integer(int64), intent(in) :: position
 
-        isearch_original_point = position
-    end subroutine set_isearch_original_point
+        incremental_search_original_point = position
+    end subroutine set_incremental_search_original_point
 
     ! ------------------------------------------------------------------
     ! The buffer-local function variables
@@ -2527,16 +2552,16 @@ contains
 
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
-    subroutine clear_isearch_locals()
+    subroutine clear_incremental_search_locals()
         integer :: k
 
         k = local_slot()
         if (k > 0) local_functions(k) = local_functions_type()
-    end subroutine clear_isearch_locals
+    end subroutine clear_incremental_search_locals
 
     ! Not a port.
     subroutine search_function_set_local(fn)
-        procedure(isearch_search_function_procedure) :: fn
+        procedure(incremental_search_search_function_procedure) :: fn
         integer :: k
 
         call make_local_slot(k)
@@ -2545,7 +2570,7 @@ contains
 
     ! Not a port.
     subroutine current_search_function(fn)
-        procedure(isearch_search_function_procedure), pointer, intent(out) :: fn
+        procedure(incremental_search_search_function_procedure), pointer, intent(out) :: fn
         integer :: k
 
         fn => null()
@@ -2555,7 +2580,7 @@ contains
 
     ! Not a port.
     subroutine wrap_set_local(fn)
-        procedure(isearch_wrap_procedure) :: fn
+        procedure(incremental_search_wrap_procedure) :: fn
         integer :: k
 
         call make_local_slot(k)
@@ -2564,7 +2589,7 @@ contains
 
     ! Not a port.
     function current_wrap() result(fn)
-        procedure(isearch_wrap_procedure), pointer :: fn
+        procedure(incremental_search_wrap_procedure), pointer :: fn
         integer :: k
 
         fn => null()
@@ -2574,7 +2599,7 @@ contains
 
     ! Not a port.
     subroutine push_state_set_local(fn)
-        procedure(isearch_push_state_procedure) :: fn
+        procedure(incremental_search_push_state_procedure) :: fn
         integer :: k
 
         call make_local_slot(k)
@@ -2583,7 +2608,7 @@ contains
 
     ! Not a port.
     function current_push_state() result(fn)
-        procedure(isearch_push_state_procedure), pointer :: fn
+        procedure(incremental_search_push_state_procedure), pointer :: fn
         integer :: k
 
         fn => null()
@@ -2593,7 +2618,7 @@ contains
 
     ! Not a port.
     subroutine message_set_local(fn)
-        procedure(isearch_message_procedure) :: fn
+        procedure(incremental_search_message_procedure) :: fn
         integer :: k
 
         call make_local_slot(k)
@@ -2602,7 +2627,7 @@ contains
 
     ! Not a port.
     function current_message_function() result(fn)
-        procedure(isearch_message_procedure), pointer :: fn
+        procedure(incremental_search_message_procedure), pointer :: fn
         integer :: k
 
         fn => null()
@@ -2652,7 +2677,7 @@ contains
 
     ! Not a port.
     subroutine filter_set_local(fn)
-        procedure(isearch_filter_procedure) :: fn
+        procedure(incremental_search_filter_procedure) :: fn
         integer :: k
 
         call make_local_slot(k)
@@ -2661,7 +2686,7 @@ contains
 
     ! Not a port.
     function current_filter() result(fn)
-        procedure(isearch_filter_procedure), pointer :: fn
+        procedure(incremental_search_filter_procedure), pointer :: fn
         integer :: k
 
         fn => null()
@@ -2670,27 +2695,27 @@ contains
     end function current_filter
 
     !> isearch-mode-map and global bindings.  Not a port.
-    subroutine initialize_isearch(global_map)
+    subroutine initialize_incremental_search(global_map)
         type(handle_type), intent(in) :: global_map
         type(handle_type) :: meta_map
         type(value_type) :: key(1)
         type(status_type) :: status
 
-        call append_locals_clearer(clear_isearch_locals)
-        call isearch%define("isearch", "Face for highlighting Isearch matches.")
-        call isearch%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
-                                                      backgrounds=[FACE_BACKGROUND_LIGHT]), &
-                                         face_attributes(background="magenta3", foreground="lightskyblue1"))
-        call isearch%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
-                                                      backgrounds=[FACE_BACKGROUND_DARK]), &
-                                         face_attributes(background="palevioletred2", foreground="brown4"))
-        call isearch%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
-                                         face_attributes(background="magenta4", foreground="cyan1"))
-        call isearch%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=8), &
-                                         face_attributes(background="magenta4", foreground="cyan1"))
-        call isearch%specification_entry(display_when(), face_attributes(inverse_video=.true.))
+        call append_locals_clearer(clear_incremental_search_locals)
+        call incremental_search%define("incremental_search", "Face for highlighting Isearch matches.")
+        call incremental_search%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                                 backgrounds=[FACE_BACKGROUND_LIGHT]), &
+                                                    face_attributes(background="magenta3", foreground="lightskyblue1"))
+        call incremental_search%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
+                                                                 backgrounds=[FACE_BACKGROUND_DARK]), &
+                                                    face_attributes(background="palevioletred2", foreground="brown4"))
+        call incremental_search%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=16), &
+                                                    face_attributes(background="magenta4", foreground="cyan1"))
+        call incremental_search%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=8), &
+                                                    face_attributes(background="magenta4", foreground="cyan1"))
+        call incremental_search%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call lazy_highlight%define("lazy_highlight", "Face for lazy highlighting of matches other than the current one."// &
-                                   new_line("a")//"Used in Isearch when `isearch_lazy_highlight' is true,"// &
+                                   new_line("a")//"Used in Isearch when `incremental_search_lazy_highlight' is true,"// &
                                    new_line("a")//"and in `query_replace' when `query_replace_lazy_highlight' is true.")
         call lazy_highlight%specification_entry(display_when(classes=[FACE_CLASS_COLOR], minimum_colors=88, &
                                                              backgrounds=[FACE_BACKGROUND_LIGHT]), &
@@ -2705,83 +2730,84 @@ contains
         call lazy_highlight%specification_entry(display_when(), face_attributes(underline=.true.))
         call forward_setting(search_ring)
         call forward_setting(regular_expression_search_ring)
-        commands%isearch_forward%execute => isearch_forward_command
-        commands%isearch_backward%execute => isearch_backward_command
-        commands%isearch_forward_regular_expression%execute => isearch_forward_regular_expression_command
-        commands%isearch_backward_regular_expression%execute => isearch_backward_regular_expression_command
-        commands%isearch_toggle_regular_expression%execute => execute_isearch_toggle_regular_expression
-        commands%isearch_toggle_lax_whitespace%execute => execute_isearch_toggle_lax_whitespace
-        commands%isearch_exit%execute => execute_isearch_exit
-        commands%isearch_cancel%execute => execute_isearch_cancel
-        commands%isearch_abort%execute => execute_isearch_abort
-        commands%isearch_repeat_forward%execute => execute_isearch_repeat_forward
-        commands%isearch_repeat_backward%execute => execute_isearch_repeat_backward
-        commands%isearch_delete_character%execute => execute_isearch_delete_character
-        commands%isearch_delete_end_character%execute => execute_isearch_delete_end_character
-        commands%isearch_printing_character%execute => execute_isearch_printing_character
-        commands%isearch_quote_character%execute => execute_isearch_quote_character
-        commands%isearch_paste_character%execute => execute_isearch_paste_character
-        commands%isearch_paste_line%execute => execute_isearch_paste_line
-        commands%isearch_paste_word_or_character%execute => execute_isearch_paste_word_or_character
-        commands%isearch_beginning_of_buffer%execute => execute_isearch_beginning_of_buffer
-        commands%isearch_end_of_buffer%execute => execute_isearch_end_of_buffer
-        commands%isearch_toggle_case_fold%execute => execute_isearch_toggle_case_fold
-        commands%isearch_edit_string%execute => execute_isearch_edit_string
-        commands%isearch_ring_advance%execute => execute_isearch_ring_advance
-        commands%isearch_ring_retreat%execute => execute_isearch_ring_retreat
-        commands%isearch_paste%execute => execute_isearch_paste
-        commands%isearch_paste_previous_only%execute => execute_isearch_paste_previous_only
+        commands%incremental_search_forward%execute => incremental_search_forward_command
+        commands%incremental_search_backward%execute => incremental_search_backward_command
+        commands%incremental_search_forward_regular_expression%execute => incremental_search_forward_regular_expression_command
+        commands%incremental_search_backward_regular_expression%execute => incremental_search_backward_regular_expression_command
+        commands%incremental_search_toggle_regular_expression%execute => execute_incremental_search_toggle_regular_expression
+        commands%incremental_search_toggle_lax_whitespace%execute => execute_incremental_search_toggle_lax_whitespace
+        commands%incremental_search_exit%execute => execute_incremental_search_exit
+        commands%incremental_search_cancel%execute => execute_incremental_search_cancel
+        commands%incremental_search_abort%execute => execute_incremental_search_abort
+        commands%incremental_search_repeat_forward%execute => execute_incremental_search_repeat_forward
+        commands%incremental_search_repeat_backward%execute => execute_incremental_search_repeat_backward
+        commands%incremental_search_delete_character%execute => execute_incremental_search_delete_character
+        commands%incremental_search_delete_end_character%execute => execute_incremental_search_delete_end_character
+        commands%incremental_search_printing_character%execute => execute_incremental_search_printing_character
+        commands%incremental_search_quote_character%execute => execute_incremental_search_quote_character
+        commands%incremental_search_paste_character%execute => execute_incremental_search_paste_character
+        commands%incremental_search_paste_line%execute => execute_incremental_search_paste_line
+        commands%incremental_search_paste_word_or_character%execute => execute_incremental_search_paste_word_or_character
+        commands%incremental_search_beginning_of_buffer%execute => execute_incremental_search_beginning_of_buffer
+        commands%incremental_search_end_of_buffer%execute => execute_incremental_search_end_of_buffer
+        commands%incremental_search_toggle_case_fold%execute => execute_incremental_search_toggle_case_fold
+        commands%incremental_search_edit_string%execute => execute_incremental_search_edit_string
+        commands%incremental_search_ring_advance%execute => execute_incremental_search_ring_advance
+        commands%incremental_search_ring_retreat%execute => execute_incremental_search_ring_retreat
+        commands%incremental_search_paste%execute => execute_incremental_search_paste
+        commands%incremental_search_paste_previous_only%execute => execute_incremental_search_paste_previous_only
         if (.not. allocated(search_whitespace_regular_expression)) search_whitespace_regular_expression = "[ "//achar(9)//"]+"
-        if (is_keymap_live(isearch_mode_map)) call destroy_keymap(isearch_mode_map, status)
-        call make_keymap(isearch_mode_map)
+        if (is_keymap_live(incremental_search_mode_map)) call destroy_keymap(incremental_search_mode_map, status)
+        call make_keymap(incremental_search_mode_map)
         ! Make all multibyte characters search for themselves.
-        call define_key_range(isearch_mode_map, 256_int64, int(MAXIMUM_CHARACTER, int64), &
-                              value_type(name="isearch_printing_character"), status)
+        call define_key_range(incremental_search_mode_map, 256_int64, int(MAXIMUM_CHARACTER, int64), &
+                              value_type(name="incremental_search_printing_character"), status)
         ! Single-byte printing chars extend the search string by default.
-        call define_key_range(isearch_mode_map, 32_int64, 255_int64, value_type(name="isearch_printing_character"), status)
+        call define_key_range(incremental_search_mode_map, 32_int64, 255_int64, &
+                              value_type(name="incremental_search_printing_character"), status)
         ! To handle local bindings with meta char prefix keys, define
         ! another full keymap.
         call make_sparse_keymap(meta_map)
         key(1) = value_type(27_int64)
-        call define_key(isearch_mode_map, key, make_keymap_reference(meta_map), status)
+        call define_key(incremental_search_mode_map, key, make_keymap_reference(meta_map), status)
         ! Several non-printing chars change the searching behavior.
-        call bind(isearch_mode_map, "C-s", "isearch_repeat_forward")
-        call bind(isearch_mode_map, "C-r", "isearch_repeat_backward")
+        call bind(incremental_search_mode_map, "C-s", "incremental_search_repeat_forward")
+        call bind(incremental_search_mode_map, "C-r", "incremental_search_repeat_backward")
         ! Define M-C-s and M-C-r like C-s and C-r so that the same key
         ! combinations can be used to repeat regexp isearches that can be
         ! used to start these searches.
-        call bind(isearch_mode_map, "C-M-s", "isearch_repeat_forward")
-        call bind(isearch_mode_map, "C-M-r", "isearch_repeat_backward")
-        call bind(isearch_mode_map, "DEL", "isearch_delete_character")
-        call bind(isearch_mode_map, "<backspace>", "undefined")
-        call bind(isearch_mode_map, "C-g", "isearch_abort")
-        call bind(isearch_mode_map, "ESC ESC ESC", "isearch_cancel")
-        call bind(isearch_mode_map, "C-q", "isearch_quote_character")
-        call bind(isearch_mode_map, "RET", "isearch_exit")
-        call bind(isearch_mode_map, "<return>", "isearch_exit")
-        call bind(isearch_mode_map, "C-j", "isearch_printing_character")
-        call bind(isearch_mode_map, "TAB", "isearch_printing_character")
-        call bind(isearch_mode_map, "S-SPC", "isearch_printing_character")
-        call bind(isearch_mode_map, "C-M-d", "isearch_delete_end_character")
-        call bind(isearch_mode_map, "C-w", "isearch_paste_word_or_character")
-        call bind(isearch_mode_map, "C-M-y", "isearch_paste_character")
-        call bind(isearch_mode_map, "M-s C-e", "isearch_paste_line")
-        call bind(isearch_mode_map, "M-s M-<", "isearch_beginning_of_buffer")
-        call bind(isearch_mode_map, "M-s M->", "isearch_end_of_buffer")
-        call bind(isearch_mode_map, "M-n", "isearch_ring_advance")
-        call bind(isearch_mode_map, "M-p", "isearch_ring_retreat")
-        call bind(isearch_mode_map, "C-y", "isearch_paste")
-        call bind(isearch_mode_map, "M-y", "isearch_paste_previous_only")
-        call bind(isearch_mode_map, "M-c", "isearch_toggle_case_fold")
-        call bind(isearch_mode_map, "M-s c", "isearch_toggle_case_fold")
-        call bind(isearch_mode_map, "M-r", "isearch_toggle_regular_expression")
-        call bind(isearch_mode_map, "M-s r", "isearch_toggle_regular_expression")
-        call bind(isearch_mode_map, "M-s SPC", "isearch_toggle_lax_whitespace")
-        call bind(isearch_mode_map, "M-e", "isearch_edit_string")
-        call bind(isearch_mode_map, "M-s e", "isearch_edit_string")
-        call bind(global_map, "C-s", "isearch_forward")
-        call bind(global_map, "C-r", "isearch_backward")
-        call bind(global_map, "C-M-s", "isearch_forward_regular_expression")
-        call bind(global_map, "C-M-r", "isearch_backward_regular_expression")
-    end subroutine initialize_isearch
+        call bind(incremental_search_mode_map, "C-M-s", "incremental_search_repeat_forward")
+        call bind(incremental_search_mode_map, "C-M-r", "incremental_search_repeat_backward")
+        call bind(incremental_search_mode_map, "DEL", "incremental_search_delete_character")
+        call bind(incremental_search_mode_map, "<backspace>", "undefined")
+        call bind(incremental_search_mode_map, "C-g", "incremental_search_abort")
+        call bind(incremental_search_mode_map, "ESC ESC ESC", "incremental_search_cancel")
+        call bind(incremental_search_mode_map, "C-q", "incremental_search_quote_character")
+        call bind(incremental_search_mode_map, "RET", "incremental_search_exit")
+        call bind(incremental_search_mode_map, "<return>", "incremental_search_exit")
+        call bind(incremental_search_mode_map, "C-j", "incremental_search_printing_character")
+        call bind(incremental_search_mode_map, "TAB", "incremental_search_printing_character")
+        call bind(incremental_search_mode_map, "S-SPC", "incremental_search_printing_character")
+        call bind(incremental_search_mode_map, "C-M-d", "incremental_search_delete_end_character")
+        call bind(incremental_search_mode_map, "C-w", "incremental_search_paste_word_or_character")
+        call bind(incremental_search_mode_map, "C-M-y", "incremental_search_paste_character")
+        call bind(incremental_search_mode_map, "M-s C-e", "incremental_search_paste_line")
+        call bind(incremental_search_mode_map, "M-s M-<", "incremental_search_beginning_of_buffer")
+        call bind(incremental_search_mode_map, "M-s M->", "incremental_search_end_of_buffer")
+        call bind(incremental_search_mode_map, "M-n", "incremental_search_ring_advance")
+        call bind(incremental_search_mode_map, "M-p", "incremental_search_ring_retreat")
+        call bind(incremental_search_mode_map, "C-y", "incremental_search_paste")
+        call bind(incremental_search_mode_map, "M-y", "incremental_search_paste_previous_only")
+        call bind(incremental_search_mode_map, "M-c", "incremental_search_toggle_case_fold")
+        call bind(incremental_search_mode_map, "M-s c", "incremental_search_toggle_case_fold")
+        call bind(incremental_search_mode_map, "M-r", "incremental_search_toggle_regular_expression")
+        call bind(incremental_search_mode_map, "M-s r", "incremental_search_toggle_regular_expression")
+        call bind(incremental_search_mode_map, "M-s SPC", "incremental_search_toggle_lax_whitespace")
+        call bind(incremental_search_mode_map, "M-e", "incremental_search_edit_string")
+        call bind(incremental_search_mode_map, "M-s e", "incremental_search_edit_string")
+        call bind(global_map, "C-s", "incremental_search_forward")
+        call bind(global_map, "C-r", "incremental_search_backward")
+        call bind(global_map, "C-M-s", "incremental_search_forward_regular_expression")
+        call bind(global_map, "C-M-r", "incremental_search_backward_regular_expression")
+    end subroutine initialize_incremental_search
 end module incremental_search_mod

@@ -71,15 +71,15 @@ module process_mod
                           set_marker, character_to_byte
     use insert_delete_mod, only: insert, insert_before_markers
     use editing_functions_mod, only: goto_character, widen, narrow_to_region, set_point_from_marker
-    use character_mod, only: str_as_multibyte, str_as_unibyte
+    use character_mod, only: string_as_multibyte, string_as_unibyte
     use coding_mod, only: default_process_coding_system, coding_system_for_read, coding_system_for_write, &
                           last_coding_system_used, check_coding_system, coding_system_type, coding_system_end_of_line_type, &
                           decode_coding_bytes, encode_coding_text, END_OF_LINE_DOS
     use file_input_output_mod, only: is_file_directory, report_file_errno, expand_file_name
     use execute_process_mod, only: get_current_directory, locate_program, initialize_callproc, make_environment_block
-    use system_dependent_mod, only: fortmacs_spawn_async, fortmacs_kill, ignore_sigpipe, fortmacs_full_write, close_fd, &
+    use system_dependent_mod, only: fortmacs_spawn_asynchronous, fortmacs_kill, ignore_sigpipe, fortmacs_full_write, close_fd, &
                                     fortmacs_strsignal, fortmacs_strerror, fortmacs_dup_cloexec, fortmacs_number_processors, &
-                                    ENOENT, EPIPE, set_tty_size
+                                    ENOENT, EPIPE, set_terminal_size
     use system_worker_mod, only: worker_message_type, start_reader, take_worker_messages, worker_wake_fd, &
                                  wait_for_worker_messages, worker_count, WORKER_OUTPUT, WORKER_EXIT
     use display_engine_mod, only: message, mode_line_process_status
@@ -93,7 +93,8 @@ module process_mod
     public :: make_process, start_process, delete_process, destroy_process, is_process, is_process_live, &
               get_process, get_buffer_process, process_list, process_status, process_exit_status, process_id, &
               process_name, process_command, process_buffer, set_process_buffer, process_mark, &
-              set_process_filter, set_process_sentinel, process_tty_name, set_process_window_size, set_process_query_on_exit_flag, &
+              set_process_filter, set_process_sentinel, process_terminal_name, set_process_window_size, &
+              set_process_query_on_exit_flag, &
               process_filter, process_sentinel, &
               process_query_on_exit_flag, interrupt_process, stop_process, quit_process, signal_process, &
               suspend_process, continue_process, &
@@ -176,7 +177,7 @@ module process_mod
         !> Descriptor for sending input (p->outfd), -1 when closed.
         integer(int32) :: outfd = -1
         logical :: pty = .false.
-        character(len=:), allocatable :: tty_name
+        character(len=:), allocatable :: terminal_name
         logical :: stop_without_query = .false.
         !> In the process list (not deleted).
         logical :: listed = .false.
@@ -295,7 +296,7 @@ contains
         processes(i)%name = name1
         processes(i)%state = ST_RUN
         call make_marker(processes(i)%mark)
-        processes(i)%tty_name = ""
+        processes(i)%terminal_name = ""
         processes(i)%carryover = ""
         processes(i)%decode_coding_system = trim(default_process_coding_system(1))
         processes(i)%encode_coding_system = trim(default_process_coding_system(2))
@@ -545,7 +546,7 @@ contains
     !> This is the terminal that the process itself reads and writes on,
     !> not the name of the pty that Fortmacs uses to talk with that terminal.
     !> Port of process.c:Fprocess_tty_name.
-    function process_tty_name(process) result(name)
+    function process_terminal_name(process) result(name)
         type(handle_type), intent(in) :: process
         character(len=:), allocatable :: name
         type(status_type) :: st
@@ -553,8 +554,8 @@ contains
 
         name = ""
         call resolve(process, i, st)
-        if (st%ok()) name = processes(i)%tty_name
-    end function process_tty_name
+        if (st%ok()) name = processes(i)%terminal_name
+    end function process_terminal_name
 
     !> Tell PROCESS that it has logical window size WIDTH by HEIGHT.
     !> TOLD is true if PROCESS was successfully told about the window size,
@@ -579,7 +580,7 @@ contains
         end if
 
         if (.not. processes(i)%reading .or. processes(i)%outfd < 0) return
-        call set_tty_size(processes(i)%outfd, int(width, int32), int(height, int32), st)
+        call set_terminal_size(processes(i)%outfd, int(width, int32), int(height, int32), st)
         told = st%ok()
     end subroutine set_process_window_size
 
@@ -853,7 +854,7 @@ contains
         !> :coding: the coding systems for decoding and encoding (each ""
         !> for the default).
         character(len=*), intent(in), optional :: coding(2)
-        character(len=:), allocatable :: current_directory, path, tty_name
+        character(len=:), allocatable :: current_directory, path, terminal_name
         type(string_type), allocatable :: argv(:), environment_variables(:), overrides(:)
         integer(int64) :: i, k
         integer(int32) :: err, to_child, from_child, pid, worker
@@ -953,7 +954,8 @@ contains
             call make_environment_block(current_directory, environment_variables)
         end if
 
-        err = fortmacs_spawn_async(path, argv, current_directory, pty, to_child, from_child, pid, tty_name, environment_variables)
+        err = fortmacs_spawn_asynchronous(path, argv, current_directory, pty, to_child, from_child, pid, terminal_name, &
+                                          environment_variables)
 
         if (err /= 0) then
             call report_file_errno("Doing vfork", "", err, status)
@@ -964,7 +966,7 @@ contains
         processes(i)%pid = pid
         processes(i)%alive = .true.
         processes(i)%pty = pty
-        processes(i)%tty_name = tty_name
+        processes(i)%terminal_name = terminal_name
         processes(i)%outfd = to_child
 
         if (pty) then
@@ -1264,7 +1266,7 @@ contains
         if (buffers(b)%multibyte) then
             call insert_before_markers(text, status)
         else
-            call insert_before_markers(str_as_unibyte(text), status)
+            call insert_before_markers(string_as_unibyte(text), status)
         end if
 
         after = buffers(b)%point
@@ -1589,7 +1591,7 @@ contains
     !> (SIGNALS_VIA_CHARACTERS), other signals to the terminal's foreground
     !> group.  Port of process.c:process_send_signal.
     subroutine process_send_signal(i, signo, status, current_group)
-        use system_dependent_mod, only: fortmacs_get_tty_pgrp, fortmacs_tty_signal_character
+        use system_dependent_mod, only: fortmacs_get_terminal_pgrp, fortmacs_terminal_signal_character
         integer(int64), intent(in) :: i
         integer, intent(in) :: signo
         type(status_type), intent(out) :: status
@@ -1614,7 +1616,7 @@ contains
         if (group .and. processes(i)%outfd >= 0) then
             ! If possible, send signals to the entire pgrp by sending an
             ! input character to it.
-            c = fortmacs_tty_signal_character(processes(i)%outfd, signo)
+            c = fortmacs_terminal_signal_character(processes(i)%outfd, signo)
 
             if (c >= 0) then
                 call send_process(i, achar(c), status)
@@ -1622,7 +1624,7 @@ contains
             end if
 
             ! Get the current pgrp using the tty itself.
-            gid = fortmacs_get_tty_pgrp(processes(i)%outfd)
+            gid = fortmacs_get_terminal_pgrp(processes(i)%outfd)
             ! If we can't get the information, assume the shell owns the
             ! tty.
             if (gid == -1) gid = processes(i)%pid
@@ -1644,7 +1646,7 @@ contains
     !> the current buffer's process.  Port of
     !> process.c:Fprocess_running_child_p.
     integer(int32) function process_running_child(process, status)
-        use system_dependent_mod, only: fortmacs_get_tty_pgrp
+        use system_dependent_mod, only: fortmacs_get_terminal_pgrp
         type(handle_type), intent(in), optional :: process
         !> Set when PROCESS is not a live subprocess (the result is then
         !> `PROCESS_RUNNING_CHILD_UNKNOWN').
@@ -1660,7 +1662,7 @@ contains
             if (.not. processes(i)%reading) then
                 call set_error(st, GENERIC_ERROR_CODE, "Process "//processes(i)%name//" is not active")
             else
-                gid = fortmacs_get_tty_pgrp(processes(i)%outfd)
+                gid = fortmacs_get_terminal_pgrp(processes(i)%outfd)
 
                 if (gid == processes(i)%pid) then
                     process_running_child = 0
@@ -1830,7 +1832,7 @@ contains
         type(status_type) :: st
 
         call encode_coding_text(text, processes(i)%encode_coding_system, bytes, used, st)
-        if (.not. st%ok()) bytes = str_as_unibyte(text)
+        if (.not. st%ok()) bytes = string_as_unibyte(text)
         last_coding_system_used = used
         if (.not. status%ok()) return
     end function encode_for_process

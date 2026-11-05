@@ -50,7 +50,7 @@ module simple_mod
                         append_locals_clearer
     use character_mod, only: MAXIMUM_CHARACTER, CHARACTER_META, character_resolve_modifier_mask, multibyte_characters_in_text
     use case_table_mod, only: downcase
-    use buffer_mod, only: resolve_buffer, buf_bytes, BEGINNING, BEGINNING_BYTE, buffer_serial_live
+    use buffer_mod, only: resolve_buffer, buffer_bytes, BEGINNING, BEGINNING_BYTE, buffer_serial_live
     use marker_mod, only: character_to_byte
     use buffer_mod, only: barf_if_buffer_read_only, buffers, current, transient_mark_mode, deactivate_mark_variable, &
                           inhibit_read_only, auto_fill_procedure, undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, &
@@ -94,7 +94,7 @@ module simple_mod
     use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, replace_match, &
                           regular_expression_quote, SEARCH_NOERROR, SEARCH_MOVE, match_beginning
     use hooks_mod, only: hook_type
-    use abbreviation_mod, only: abbrev_table_type
+    use abbreviation_mod, only: abbreviation_table_type
     use insert_delete_mod, only: insert_before_markers
     use editing_functions_mod, only: character_before, is_end_of_line, point_marker, delete_and_extract_region, character_after, &
                                      position_beginning_of_line, inhibit_field_text_motion
@@ -113,7 +113,7 @@ module simple_mod
 
     !> kmacro.el:kmacro-keyboard-quit, which `keyboard_quit' calls (set by
     !> keyboard_macros_mod, which sits above this module); null for none.
-    procedure(redisplay_procedure), pointer, public :: kmacro_keyboard_quit_hook => null()
+    procedure(redisplay_procedure), pointer, public :: keyboard_macro_keyboard_quit_hook => null()
 
     public :: execute_extended_command, read_extended_command
     public :: compose_mail, compose_mail_other_window, initialize_simple_mail
@@ -139,7 +139,7 @@ module simple_mod
     !> null and the configuration sets `mail_user_agent =>
     !> sendmail_user_agent').
     type(mail_user_agent_type), pointer, public :: mail_user_agent => null()
-    public :: async_shell_command, shell_command_sentinel
+    public :: asynchronous_shell_command, shell_command_sentinel
     public :: set_next_error_function, has_next_error_function, is_next_error_buffer, next_error_find_buffer, &
               next_error, next_error_internal, next_error_found, initialize_simple_next_error
     public :: fundamental_mode, special_mode, initialize_simple_modes, messages_buffer_mode, messages_buffer
@@ -209,8 +209,8 @@ module simple_mod
     public :: shows_current_buffer, is_position_visible_in_window
 
     public :: delete_indentation, delete_blank_lines, fixup_whitespace, delete_horizontal_space, &
-              delete_all_space, just_one_space, rfc822_goto_eoh, cycle_spacing, transpose_characters, transpose_words, &
-              transpose_lines, transpose_subr, transpose_subr_1, transpose_mover_procedure, back_to_indentation, &
+              delete_all_space, just_one_space, rfc822_goto_end_of_headers, cycle_spacing, transpose_characters, transpose_words, &
+              transpose_lines, transpose_subroutine, transpose_subroutine_1, transpose_mover_procedure, back_to_indentation, &
               beginning_of_buffer, end_of_buffer
 
     !> String for filling to insert at front of new line, or unallocated
@@ -341,7 +341,7 @@ module simple_mod
     type(handle_type), public :: messages_buffer_mode_map
     !> Abbrev table for `special_mode'.  Port of simple.el
     !> special-mode-abbrev-table (made by define-derived-mode).
-    type(abbrev_table_type), target, public :: special_mode_abbrev_table
+    type(abbreviation_table_type), target, public :: special_mode_abbreviation_table
 
     !> Hook run after entering or leaving `transient_mark_mode'.
     type(hook_type), target, public :: transient_mark_mode_hook = hook_type(name="transient_mark_mode_hook")
@@ -728,9 +728,9 @@ module simple_mod
         !>
         !> If COMMAND ends in `&', execute it asynchronously.
         !> The output appears in the buffer whose name is specified
-        !> by `shell_command_buffer_name_async'.  That buffer is in major
-        !> mode specified by the variable `async_shell_command_mode'.  You
-        !> can also use `async_shell_command' that automatically adds `&'.
+        !> by `shell_command_buffer_name_asynchronous'.  That buffer is in major
+        !> mode specified by the variable `asynchronous_shell_command_mode'.  You
+        !> can also use `asynchronous_shell_command' that automatically adds `&'.
         !>
         !> Otherwise, COMMAND is executed synchronously.
         !> The output appears in the buffer named by
@@ -831,12 +831,12 @@ module simple_mod
         !>
         !> The output appears in OUTPUT_BUFFER (a buffer) or the buffer
         !> named OUTPUT_BUFFER_NAME, and defaults to
-        !> `shell_command_buffer_name_async' if both are absent.  That
+        !> `shell_command_buffer_name_asynchronous' if both are absent.  That
         !> buffer is in major mode specified by the variable
-        !> `async_shell_command_mode'.
+        !> `asynchronous_shell_command_mode'.
         !>
-        !> You can customize `async_shell_command_buffer' to specify what to
-        !> do when the buffer specified by `shell_command_buffer_name_async'
+        !> You can customize `asynchronous_shell_command_buffer' to specify what to
+        !> do when the buffer specified by `shell_command_buffer_name_asynchronous'
         !> is already taken by another running shell command.
         !>
         !> Optional argument ERROR_BUFFER is for backward compatibility; it
@@ -847,13 +847,13 @@ module simple_mod
         !> `start_process' directly, since it offers more control and does
         !> not impose the use of a shell (with its need to quote arguments).
         !> Port of simple.el:async-shell-command.  (In simple_shell_mod.)
-        module subroutine async_shell_command(command, status, output_buffer, output_buffer_name, error_buffer)
+        module subroutine asynchronous_shell_command(command, status, output_buffer, output_buffer_name, error_buffer)
             implicit none(type, external)
             character(len=*), intent(in) :: command
             type(status_type), intent(out) :: status
             type(handle_type), intent(in), optional :: output_buffer
             character(len=*), intent(in), optional :: output_buffer_name, error_buffer
-        end subroutine async_shell_command
+        end subroutine asynchronous_shell_command
 
         !> Sentinel for asynchronous shell commands: the default sentinel,
         !> then point set in the output buffer after the command (see
@@ -1050,7 +1050,7 @@ module simple_mod
 
     !> Name of the output buffer for asynchronous shell commands.  Port of
     !> simple.el shell-command-buffer-name-async.
-    character(len=*), parameter, public :: shell_command_buffer_name_async = "*Async Shell Command*"
+    character(len=*), parameter, public :: shell_command_buffer_name_asynchronous = "*Async Shell Command*"
 
     !> Switch used to have the shell execute its command line argument.
     !> Port of simple.el shell-command-switch.
@@ -1065,7 +1065,7 @@ module simple_mod
                                          string_setting_type(name="shell_command_default_error_buffer")
 
     !> If true, show current directory when prompting for a shell command.
-    !> This affects `shell_command' and `async_shell_command'.  Port of
+    !> This affects `shell_command' and `asynchronous_shell_command'.  Port of
     !> simple.el shell-command-prompt-show-cwd.
     type(logical_setting_type), public :: shell_command_prompt_show_current_working_directory = &
                                           logical_setting_type(name="shell_command_prompt_show_current_working_directory", &
@@ -1096,52 +1096,55 @@ module simple_mod
     type(choice_setting_type), public :: shell_command_keep_output = &
                                          choice_setting_type(name="shell_command_keep_output")
 
-    !> Values of `async_shell_command_buffer' (see there).
-    integer, parameter, public :: ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS = 0, &
-                                  ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER = 1, ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER = 2, &
-                                  ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER = 3, ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER = 4
+    !> Values of `asynchronous_shell_command_buffer' (see there).
+    integer, parameter, public :: ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS = 0, &
+                                  ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER = 1, &
+                                  ASYNCHRONOUS_SHELL_COMMAND_BUFFER_NEW_BUFFER = 2, &
+                                  ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER = 3, &
+                                  ASYNCHRONOUS_SHELL_COMMAND_BUFFER_RENAME_BUFFER = 4
 
     !> What to do when the output buffer is used by another shell command.
     !> This option specifies how to resolve the conflict where a new
     !> command wants to direct its output to the buffer whose name is
-    !> stored in `shell_command_buffer_name_async', but that buffer is
+    !> stored in `shell_command_buffer_name_asynchronous', but that buffer is
     !> already taken by another running shell command.
     !>
-    !> The value ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS is used to ask for
+    !> The value ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS is used to ask for
     !> confirmation before killing the already running process and running
-    !> a new process in the same buffer, ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER for
+    !> a new process in the same buffer, ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER for
     !> confirmation before running the command in a new buffer with a name
-    !> other than the default buffer name, ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER for doing the
-    !> same without confirmation, ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER for
+    !> other than the default buffer name, ASYNCHRONOUS_SHELL_COMMAND_BUFFER_NEW_BUFFER for doing the
+    !> same without confirmation, ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER for
     !> confirmation before renaming the existing output buffer and running
-    !> a new command in the default buffer, ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER for doing
+    !> a new command in the default buffer, ASYNCHRONOUS_SHELL_COMMAND_BUFFER_RENAME_BUFFER for doing
     !> the same without confirmation.  Port of simple.el
-    !> `async_shell_command_buffer' (ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS is
-    !> `confirm-kill-process', ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER `confirm-new-buffer',
-    !> ASYNC_SHELL_COMMAND_BUFFER_NEW_BUFFER `new-buffer', ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER
-    !> `confirm-rename-buffer', ASYNC_SHELL_COMMAND_BUFFER_RENAME_BUFFER `rename-buffer').
-    type(integer_setting_type), public :: async_shell_command_buffer = &
-                                          integer_setting_type(name="async_shell_command_buffer", &
-                                                               value=ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER)
+    !> `asynchronous_shell_command_buffer' (ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS is
+    !> `confirm-kill-process', ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER `confirm-new-buffer',
+    !> ASYNCHRONOUS_SHELL_COMMAND_BUFFER_NEW_BUFFER `new-buffer', ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_RENAME_BUFFER
+    !> `confirm-rename-buffer', ASYNCHRONOUS_SHELL_COMMAND_BUFFER_RENAME_BUFFER `rename-buffer').
+    type(integer_setting_type), public :: asynchronous_shell_command_buffer = &
+                                          integer_setting_type(name="asynchronous_shell_command_buffer", &
+                                                               value=ASYNCHRONOUS_SHELL_COMMAND_BUFFER_CONFIRM_NEW_BUFFER)
 
     !> Whether to display the command buffer immediately.
     !> If true, display the buffer immediately; if false, wait until there
     !> is output.  Port of simple.el:async-shell-command-display-buffer.
-    type(logical_setting_type), public :: async_shell_command_display_buffer = &
-                                          logical_setting_type(name="async_shell_command_display_buffer", value=.true.)
+    type(logical_setting_type), public :: asynchronous_shell_command_display_buffer = &
+                                          logical_setting_type(name="asynchronous_shell_command_display_buffer", value=.true.)
 
     !> Number of display columns available for asynchronous shell command
     !> output.  If negative, use the shell default number (usually 80
     !> columns).  If a natural number, tell the shell to use that number
     !> of columns for command output.  Port of simple.el
-    !> `async_shell_command_width' (a negative value for none).
-    type(integer_setting_type), public :: async_shell_command_width = &
-                                          integer_setting_type(name="async_shell_command_width", value=-1)
+    !> `asynchronous_shell_command_width' (a negative value for none).
+    type(integer_setting_type), public :: asynchronous_shell_command_width = &
+                                          integer_setting_type(name="asynchronous_shell_command_width", value=-1)
 
     !> Major mode to use for the output of asynchronous `shell_command'.
     !> Port of simple.el:async-shell-command-mode (`shell_command_mode'
     !> when it is null).
-    type(function_setting_type), public :: async_shell_command_mode = function_setting_type(name="async_shell_command_mode")
+    type(function_setting_type), public :: asynchronous_shell_command_mode = function_setting_type( &
+                                           name="asynchronous_shell_command_mode")
 
     !> Keymap used for completing shell commands in minibuffer.  Port of
     !> simple.el minibuffer-local-shell-command-map (without its
@@ -1149,7 +1152,7 @@ module simple_mod
     type(handle_type), public :: minibuffer_local_shell_command_map
 
     abstract interface
-        !> A motion for `transpose_subr': move over N objects.  Not a port.
+        !> A motion for `transpose_subroutine': move over N objects.  Not a port.
         subroutine transpose_mover_procedure(n, status)
             import :: int64, status_type
             implicit none(type, external)
@@ -1889,7 +1892,7 @@ contains
         type(status_type), intent(out) :: status
 
         if (is_region_active()) call deactivate_mark()
-        if (associated(kmacro_keyboard_quit_hook)) call kmacro_keyboard_quit_hook()
+        if (associated(keyboard_macro_keyboard_quit_hook)) call keyboard_macro_keyboard_quit_hook()
         defining_keyboard_macro = DEFINING_KEYBOARD_MACRO_NO
         call set_error(status, QUIT_CODE)
     end subroutine execute_keyboard_quit
@@ -4232,7 +4235,7 @@ contains
         e = min(buffers(current)%text%z, max(start, end))
         n = 0
         if (e <= s) return
-        text = buf_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
+        text = buffer_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
         n = newlines_in(text)
         ! (if (is_beginning_of_line) (1- (line-number-at-pos)) (line-number-at-pos)) at
         ! the end of the region narrowed to.
@@ -4271,7 +4274,7 @@ contains
             end if
 
             line = 1
-            if (position_byte > start_byte) line = newlines_in(buf_bytes(b, start_byte, position_byte)) + 1
+            if (position_byte > start_byte) line = newlines_in(buffer_bytes(b, start_byte, position_byte)) + 1
         end associate
     end function line_number_at_position
 
@@ -5119,7 +5122,7 @@ contains
     !> The end of the header is the start of the next line, if there is one,
     !> else the end of the last line.  This function obeys RFC 822 (or later).
     !> Port of simple.el:rfc822-goto-eoh.
-    recursive subroutine rfc822_goto_eoh(status)
+    recursive subroutine rfc822_goto_end_of_headers(status)
         type(status_type), intent(out) :: status
         integer(int64) :: found
 
@@ -5127,7 +5130,7 @@ contains
         call regular_expression_search_forward("^\([:"//achar(10)//"]\|[^: "//achar(9)//achar(10)//"]+[ "//achar(9)//achar(10)// &
                                                "]\)", found, status, noerror=SEARCH_MOVE)
         if (found /= 0) call goto_character(match_beginning(0, status))
-    end subroutine rfc822_goto_eoh
+    end subroutine rfc822_goto_end_of_headers
 
     !> Manipulate whitespace around point in a smart way.
     !> Repeated calls perform the actions in `cycle_spacing_actions' one
@@ -5293,7 +5296,7 @@ contains
             if (.not. allocated(read_only%a)) call goto_character(point() - 1)
         end if
 
-        call transpose_subr(move_characters, argument, status)
+        call transpose_subroutine(move_characters, argument, status)
     end subroutine transpose_characters
 
     !> Interchange words around point, leaving point at end of them.
@@ -5305,7 +5308,7 @@ contains
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call transpose_subr(move_words, argument, status)
+        call transpose_subroutine(move_words, argument, status)
     end subroutine transpose_words
 
     !> Exchange current line and previous line, leaving point after both.
@@ -5316,7 +5319,7 @@ contains
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call transpose_subr(move_lines, argument, status)
+        call transpose_subroutine(move_lines, argument, status)
     end subroutine transpose_lines
 
     ! Not a port (a mover of transpose-chars).
@@ -5368,7 +5371,7 @@ contains
     !> past ARGUMENT following (if ARGUMENT is positive) or preceding (if ARGUMENT is
     !> negative) objects, leaving point after the current object.  Port of
     !> simple.el:transpose-subr (no SPECIAL movers).
-    recursive subroutine transpose_subr(mover, argument, status)
+    recursive subroutine transpose_subroutine(mover, argument, status)
         procedure(transpose_mover_procedure) :: mover
         integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
@@ -5388,7 +5391,7 @@ contains
                 else
                     call goto_character(m)
                     call aux(1_int64, position2)
-                    if (status%ok()) call transpose_subr_1(position1, position2, status)
+                    if (status%ok()) call transpose_subroutine_1(position1, position2, status)
                 end if
             end if
 
@@ -5401,7 +5404,7 @@ contains
             if (.not. status%ok()) return
             call aux(argument, position2)
             if (.not. status%ok()) return
-            call transpose_subr_1(position1, position2, status)
+            call transpose_subroutine_1(position1, position2, status)
             if (.not. status%ok()) return
             call goto_character(position2(1))
         else
@@ -5410,7 +5413,7 @@ contains
             call goto_character(position1(1))
             call aux(argument, position2)
             if (.not. status%ok()) return
-            call transpose_subr_1(position1, position2, status)
+            call transpose_subroutine_1(position1, position2, status)
             if (.not. status%ok()) return
             call goto_character(position2(1) + (position1(2) - position1(1)))
         end if
@@ -5431,12 +5434,12 @@ contains
             if (.not. status%ok()) return
             position(2) = point()
         end subroutine aux
-    end subroutine transpose_subr
+    end subroutine transpose_subroutine
 
     !> Exchange the text of the ranges POSITION1 and POSITION2 (each two
     !> positions in either order), preserving markers at their ends.
     !> Port of simple.el:transpose-subr-1.
-    subroutine transpose_subr_1(position1_in, position2_in, status)
+    subroutine transpose_subroutine_1(position1_in, position2_in, status)
         integer(int64), intent(in) :: position1_in(2), position2_in(2)
         type(status_type), intent(out) :: status
         integer(int64) :: position1(2), position2(2), swap(2), len1, len2, boundary_position
@@ -5481,7 +5484,7 @@ contains
         end if
 
         call destroy_marker(boundary, st)
-    end subroutine transpose_subr_1
+    end subroutine transpose_subroutine_1
 
     ! The interactive whitespace and transposition commands ("*p", "*P"
     ! and "*" read the prefix argument after checking the buffer is

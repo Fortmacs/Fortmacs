@@ -65,7 +65,7 @@ module sha3_mod
 
     !> The state of a SHA-3 computation, made with the size of its digest:
     !> `sha3_context_type(digest_size=SHA3_256_DIGEST_SIZE)' (sha3.c's
-    !> sha3_224_init_ctx to sha3_512_init_ctx).  Feed it with `call
+    !> sha3_224_initialize_ctx to sha3_512_initialize_ctx).  Feed it with `call
     !> context%process_bytes(data)' and get the digest with `call
     !> context%finish(digest)'.  Port of sha3.h:struct sha3_ctx.
     type, public :: sha3_context_type

@@ -21,10 +21,10 @@
 
 !> Just-in-time Lock mode: text is fontified when redisplay is about to
 !> show it.  Redisplay calls `fontification_functions' at text whose
-!> `fontified' property is false; `jit_lock_function' fontifies a chunk
-!> from there with the functions registered in `jit_lock_functions' (Font
+!> `fontified' property is false; `just_in_time_lock_function' fontifies a chunk
+!> from there with the functions registered in `just_in_time_lock_functions' (Font
 !> Lock's `font_lock_fontify_region') and marks it fontified.  A change
-!> marks the changed text as not fontified (`jit_lock_after_change').
+!> marks the changed text as not fontified (`just_in_time_lock_after_change').
 !>
 !> Deferred: stealth fontification (`jit-lock-stealth-time' and its
 !> companions), deferred fontification (`jit-lock-defer-time'), contextual
@@ -50,8 +50,9 @@ module just_in_time_lock_mod
     implicit none(type, external)
     private
 
-    public :: initialize_jit_lock, jit_lock_mode, jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_function, &
-              jit_lock_fontify_now, jit_lock_after_change, is_jit_lock_mode
+    public :: initialize_just_in_time_lock, just_in_time_lock_mode, just_in_time_lock_register, just_in_time_lock_unregister, &
+              just_in_time_lock_refontify, just_in_time_lock_function, &
+              just_in_time_lock_fontify_now, just_in_time_lock_after_change, is_just_in_time_lock_mode
 
     !> Jit-lock asks to fontify chunks of at most this many characters at
     !> a time.
@@ -66,62 +67,63 @@ module just_in_time_lock_mod
     !> The optimum value is a little over the typical number of buffer
     !> characters which fit in a typical window.  Port of
     !> jit-lock.el:jit-lock-chunk-size.
-    integer(int64), public :: jit_lock_chunk_size = 1500
+    integer(int64), public :: just_in_time_lock_chunk_size = 1500
 
     !> Functions to do the actual fontification.
     !> They are called with two arguments: the START and END of the region
     !> to fontify, and give the part they actually fontified.  Port of
     !> jit-lock.el:jit-lock-functions.
-    type(region_hook_type), target, public :: jit_lock_functions = region_hook_type(name="jit_lock_functions")
+    type(region_hook_type), target, public :: just_in_time_lock_functions = region_hook_type(name="just_in_time_lock_functions")
 
     !> Hook that can extend the text to refontify after a change.
     !> This is run after every buffer change.  The functions are called
     !> with the three arguments of `after_change_functions': START END
     !> OLD-LEN.  The extended region to refontify is returned indirectly
-    !> by modifying the variables `jit_lock_start' and `jit_lock_end'.
+    !> by modifying the variables `just_in_time_lock_start' and `just_in_time_lock_end'.
     !>
     !> Note that extending the region this way is not strictly necessary,
     !> except that the nature of the redisplay code tends to otherwise
     !> leave some of the rehighlighted text displayed with the old
     !> highlight until the next redisplay.  Port of
     !> jit-lock.el:jit-lock-after-change-extend-region-functions.
-    type(after_change_hook_type), target, public :: jit_lock_after_change_extend_region_functions = &
-                                                    after_change_hook_type(name="jit_lock_after_change_extend_region_functions")
+    type(after_change_hook_type), target, public :: just_in_time_lock_after_change_extend_region_functions = &
+                                                    after_change_hook_type( &
+                                                    name="just_in_time_lock_after_change_extend_region_functions")
 
     !> The region to refontify after a change, as the functions of
-    !> `jit_lock_after_change_extend_region_functions' extend it.  Port of
+    !> `just_in_time_lock_after_change_extend_region_functions' extend it.  Port of
     !> jit-lock.el's jit-lock-start and jit-lock-end.
-    integer(int64), public :: jit_lock_start = 0, jit_lock_end = 0
+    integer(int64), public :: just_in_time_lock_start = 0, just_in_time_lock_end = 0
 
     !> The buffers in Just-in-time Lock mode (the buffer-local
-    !> `jit_lock_mode'), by serial number.
+    !> `just_in_time_lock_mode'), by serial number.
     integer(int64), allocatable :: on(:)
 
 contains
 
     !> Set up Just-in-time Lock (as loading jit-lock.el does).  Not a port.
-    subroutine initialize_jit_lock()
-        call append_locals_clearer(clear_jit_lock_locals)
-    end subroutine initialize_jit_lock
+    subroutine initialize_just_in_time_lock()
+        call append_locals_clearer(clear_just_in_time_lock_locals)
+    end subroutine initialize_just_in_time_lock
 
-    !> kill-all-local-variables: `jit_lock_mode' is buffer-local.
+    !> kill-all-local-variables: `just_in_time_lock_mode' is buffer-local.
     !> Not a port.
-    subroutine clear_jit_lock_locals()
-        call set_jit_lock_mode(.false.)
-    end subroutine clear_jit_lock_locals
+    subroutine clear_just_in_time_lock_locals()
+        call set_just_in_time_lock_mode(.false.)
+    end subroutine clear_just_in_time_lock_locals
 
     !> Whether Just-in-time Lock mode is on in the current buffer (the
-    !> variable `jit_lock_mode').  Not a port.
-    logical function is_jit_lock_mode()
-        is_jit_lock_mode = .false.
+    !> variable `just_in_time_lock_mode').  Not a port.
+    logical function is_just_in_time_lock_mode()
+        is_just_in_time_lock_mode = .false.
         if (current == 0) return
         if (.not. allocated(on)) return
-        is_jit_lock_mode = any(on == buffers(current)%serial)
-    end function is_jit_lock_mode
+        is_just_in_time_lock_mode = any(on == buffers(current)%serial)
+    end function is_just_in_time_lock_mode
 
     !> Record whether Just-in-time Lock mode is on in the current buffer.
     !> Not a port.
-    subroutine set_jit_lock_mode(argument)
+    subroutine set_just_in_time_lock_mode(argument)
         logical, intent(in) :: argument
         integer(int64), allocatable :: kept(:)
 
@@ -134,7 +136,7 @@ contains
             kept = pack(on, on /= buffers(current)%serial)
             call move_alloc(kept, on)
         end if
-    end subroutine set_jit_lock_mode
+    end subroutine set_just_in_time_lock_mode
 
     !> Toggle Just-in-time Lock mode.
     !> Turn Just-in-time Lock mode on if and only if ARGUMENT is true.
@@ -150,39 +152,39 @@ contains
     !>   areas.  This is useful if buffer fontification is too slow for
     !>   large buffers.
     !>
-    !> `jit_lock_mode' is not a regular minor mode, and it doesn't
+    !> `just_in_time_lock_mode' is not a regular minor mode, and it doesn't
     !> follow the regular conventions to switch the functionality on or
     !> off.  Instead, an ARGUMENT of false will switch it off, and true will
     !> switch it on.  Port of jit-lock.el:jit-lock-mode (stealth, deferred
     !> and contextual fontification need timers and are deferred).
-    subroutine jit_lock_mode(argument, status)
+    subroutine just_in_time_lock_mode(argument, status)
         logical, intent(in) :: argument
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call set_jit_lock_mode(argument)
+        call set_just_in_time_lock_mode(argument)
 
         if (argument) then
             ! Turn Just-in-time Lock mode on.
             ! Mark the buffer for refontification.
-            call jit_lock_refontify(status)
+            call just_in_time_lock_refontify(status)
             if (.not. status%ok()) return
             ! Setup our hooks.
-            call after_change_functions%prepend(jit_lock_after_change, local=.true.)
-            call fontification_functions%prepend(jit_lock_function, local=.true.)
+            call after_change_functions%prepend(just_in_time_lock_after_change, local=.true.)
+            call fontification_functions%prepend(just_in_time_lock_function, local=.true.)
         else
             ! Turn Just-in-time Lock mode off: remove hooks.
-            call after_change_functions%remove(jit_lock_after_change, local=.true.)
-            call fontification_functions%remove(jit_lock_function)
+            call after_change_functions%remove(just_in_time_lock_after_change, local=.true.)
+            call fontification_functions%remove(just_in_time_lock_function)
         end if
-    end subroutine jit_lock_mode
+    end subroutine just_in_time_lock_mode
 
     !> Register FUNCTION as a fontification function to be called in this
     !> buffer.  FUNCTION will be called with two arguments START and END
     !> indicating the region that needs to be (re)fontified.  If true,
     !> Port of jit-lock.el:jit-lock-register (without CONTEXTUAL:
     !> contextual refontification needs timers).
-    subroutine jit_lock_register(function, status)
+    subroutine just_in_time_lock_register(function, status)
         interface
             subroutine function(beginning, end, done_beginning, done_end, status)
                 import :: int64, status_type
@@ -194,14 +196,14 @@ contains
         end interface
         type(status_type), intent(out) :: status
 
-        call jit_lock_functions%prepend(function, local=.true.)
-        call jit_lock_mode(.true., status)
-    end subroutine jit_lock_register
+        call just_in_time_lock_functions%prepend(function, local=.true.)
+        call just_in_time_lock_mode(.true., status)
+    end subroutine just_in_time_lock_register
 
     !> Unregister FUNCTION as a fontification function.
     !> Only applies to the current buffer.  Port of
     !> jit-lock.el:jit-lock-unregister.
-    subroutine jit_lock_unregister(function, status)
+    subroutine just_in_time_lock_unregister(function, status)
         interface
             subroutine function(beginning, end, done_beginning, done_end, status)
                 import :: int64, status_type
@@ -215,14 +217,14 @@ contains
         type(region_entry_type), allocatable :: functions(:)
 
         status = status_type()
-        call jit_lock_functions%remove(function, local=.true.)
-        functions = jit_lock_functions%functions()
-        if (size(functions) == 0) call jit_lock_mode(.false., status)
-    end subroutine jit_lock_unregister
+        call just_in_time_lock_functions%remove(function, local=.true.)
+        functions = just_in_time_lock_functions%functions()
+        if (size(functions) == 0) call just_in_time_lock_mode(.false., status)
+    end subroutine just_in_time_lock_unregister
 
     !> Force refontification of the region BEGINNING..END (default whole buffer).
     !> Port of jit-lock.el:jit-lock-refontify.
-    subroutine jit_lock_refontify(status, beginning, end)
+    subroutine just_in_time_lock_refontify(status, beginning, end)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: beginning, end
         type(silent_modifications_type) :: silent
@@ -239,33 +241,33 @@ contains
         call put_text_property(b, e, value_type(name="fontified"), value_type(), status)
         call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, status)
         call silent_modifications_end(silent)
-    end subroutine jit_lock_refontify
+    end subroutine just_in_time_lock_refontify
 
     !> Fontify current buffer starting at position START.
     !> This function is added to `fontification_functions' when
-    !> `jit_lock_mode' is active.  Port of jit-lock.el:jit-lock-function
+    !> `just_in_time_lock_mode' is active.  Port of jit-lock.el:jit-lock-function
     !> (without deferral, which needs a timer).
-    subroutine jit_lock_function(start, status)
+    subroutine just_in_time_lock_function(start, status)
         integer(int64), intent(in) :: start
         type(status_type), intent(out) :: status
         integer(int64) :: cend, vend
         logical :: found
 
         status = status_type()
-        if (.not. is_jit_lock_mode()) return
+        if (.not. is_just_in_time_lock_mode()) return
         ! No deferral.
-        cend = min(point_maximum(), start + jit_lock_chunk_size)
+        cend = min(point_maximum(), start + just_in_time_lock_chunk_size)
         call next_single_property_change(start, value_type(name="invisible"), vend, found, status, cend)
         if (.not. found) vend = cend
         ! Presumably if we're called it means START is not at the end of
         ! the buffer (nor invisible) and hence VEND > START.
-        call jit_lock_fontify_now(status, start, vend)
-    end subroutine jit_lock_function
+        call just_in_time_lock_fontify_now(status, start, vend)
+    end subroutine just_in_time_lock_function
 
-    !> Execute `jit_lock_functions' on BEGINNING..END: TIGHT_BEGINNING and TIGHT_END give
+    !> Execute `just_in_time_lock_functions' on BEGINNING..END: TIGHT_BEGINNING and TIGHT_END give
     !> the part all of them fontified, LOOSE_BEGINNING and LOOSE_END the part some
     !> of them did.  Port of jit-lock.el:jit-lock--run-functions.
-    subroutine jit_lock_execute_functions(beginning, end, tight_beginning, tight_end, loose_beginning, loose_end, status)
+    subroutine just_in_time_lock_execute_functions(beginning, end, tight_beginning, tight_end, loose_beginning, loose_end, status)
         integer(int64), intent(in) :: beginning, end
         integer(int64), intent(out) :: tight_beginning, tight_end, loose_beginning, loose_end
         type(status_type), intent(out) :: status
@@ -280,7 +282,7 @@ contains
         tight_end = end
         loose_beginning = beginning
         loose_end = end
-        functions = jit_lock_functions%functions()
+        functions = just_in_time_lock_functions%functions()
 
         do i = 1, size(functions)
             this_beginning = beginning
@@ -310,12 +312,12 @@ contains
             tight_beginning = min(tight_beginning, beginning)
             tight_end = max(tight_end, end)
         end if
-    end subroutine jit_lock_execute_functions
+    end subroutine just_in_time_lock_execute_functions
 
     !> Fontify current buffer from START to END.
     !> Defaults to the whole buffer.  END can be out of bounds.  Port of
     !> jit-lock.el:jit-lock-fontify-now.
-    subroutine jit_lock_fontify_now(status, start_in, end_in)
+    subroutine just_in_time_lock_fontify_now(status, start_in, end_in)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start_in, end_in
         type(silent_modifications_type) :: silent
@@ -348,7 +350,8 @@ contains
                 ! first, to make sure that we don't indefinitely re-execute
                 ! this fontification if an error occurs.
                 call put_text_property(start, next, value_type(name="fontified"), value_type(.true.), status)
-                call jit_lock_execute_functions(start, next, tight_beginning, tight_end, loose_beginning, loose_end, status)
+                call just_in_time_lock_execute_functions(start, next, tight_beginning, tight_end, loose_beginning, loose_end, &
+                                                         status)
                 if (.not. status%ok()) exit
 
                 ! In case we fontified more than requested, take advantage
@@ -369,7 +372,7 @@ contains
         call set_match_data(saved_match)
         call goto_character(point_value)
         call silent_modifications_end(silent)
-    end subroutine jit_lock_fontify_now
+    end subroutine just_in_time_lock_fontify_now
 
     !> Mark the rest of the buffer as not fontified after a change.
     !> Installed on `after_change_functions'.
@@ -379,34 +382,35 @@ contains
     !> refontified in case the syntax of those lines has changed.  Port of
     !> jit-lock.el:jit-lock-after-change (the deferred contextual
     !> refontification is not ported).
-    subroutine jit_lock_after_change(start, end, old_length, status)
+    subroutine just_in_time_lock_after_change(start, end, old_length, status)
         integer(int64), intent(in) :: start, end, old_length
         type(status_type), intent(out) :: status
         type(silent_modifications_type) :: silent
         integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion, saved_start, saved_end
 
         status = status_type()
-        if (.not. is_jit_lock_mode()) return
-        saved_start = jit_lock_start
-        saved_end = jit_lock_end
-        jit_lock_start = start
-        jit_lock_end = end
+        if (.not. is_just_in_time_lock_mode()) return
+        saved_start = just_in_time_lock_start
+        saved_end = just_in_time_lock_end
+        just_in_time_lock_start = start
+        just_in_time_lock_end = end
         call silent_modifications_begin(silent)
-        call jit_lock_after_change_extend_region_functions%execute(start, end, old_length, status)
+        call just_in_time_lock_after_change_extend_region_functions%execute(start, end, old_length, status)
 
         if (status%ok()) then
             ! Make sure we change at least one char (in case of deletions).
-            jit_lock_end = min(max(jit_lock_end, start + 1), point_maximum())
+            just_in_time_lock_end = min(max(just_in_time_lock_end, start + 1), point_maximum())
             ! Request refontification.
             beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
             end_of_accessible_portion = buffers(current)%end_of_accessible_portion
             call widen()
-            call put_text_property(jit_lock_start, jit_lock_end, value_type(name="fontified"), value_type(), status)
+            call put_text_property(just_in_time_lock_start, just_in_time_lock_end, value_type(name="fontified"), value_type(), &
+                                   status)
             call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, status)
         end if
 
         call silent_modifications_end(silent)
-        jit_lock_start = saved_start
-        jit_lock_end = saved_end
-    end subroutine jit_lock_after_change
+        just_in_time_lock_start = saved_start
+        just_in_time_lock_end = saved_end
+    end subroutine just_in_time_lock_after_change
 end module just_in_time_lock_mod

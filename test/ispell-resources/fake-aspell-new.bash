@@ -25,7 +25,7 @@ show_vv()
     printf  '%s\n' "@(#) International Ispell Version 3.1.20 (but really Aspell 0.60.0)"
 }
 
-in_dictionary()
+in_dict()
 {
     local x=$1
     for y in ${sessiondict[@]}; do
@@ -51,7 +51,7 @@ imitate_pipe()
 	    for b in $a ; do
 		if [[ "$b" == '^' ]] ; then
 		    printf ''
-		elif in_dictionary "$b" || in_dictionary "${b#^}" ; then
+		elif in_dict "$b" || in_dict "${b#^}" ; then
 		    printf '*\n'
 		elif [[ "$b" == '^tarampampamtararam' || "$b" == 'tarampampamtararam' ]] ; then
 		    printf '# tarampampamtararam 0\n' # wrong word

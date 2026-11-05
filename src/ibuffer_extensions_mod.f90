@@ -38,7 +38,7 @@
 !> step 26), `ibuffer_repair_saved_filters' and the old format of saved
 !> filters, a fractional size read by `ibuffer_filter_by_size_gt' and
 !> `ibuffer_filter_by_size_lt' (read as its integer part),
-!> `ibuffer_do_isearch' and `ibuffer_do_isearch_regular_expression' (misearch.el),
+!> `ibuffer_do_incremental_search' and `ibuffer_do_incremental_search_regular_expression' (misearch.el),
 !> `ibuffer_do_print' (lpr.el), the mouse commands
 !> (`ibuffer_mouse_filter_by_mode', `ibuffer_mouse_toggle_filter_group');
 !> remote files in `ibuffer_diff_with_file' (`diff-file-local-copy').  Not
@@ -117,8 +117,8 @@ contains
     end if
 
     if (.not. ibuffer_view_ibuffer) then
-        if (ibuffer_buf%index == 0) return
-        if (ibuffer_buf%index == buffer%index) return
+        if (ibuffer_buffer%index == 0) return
+        if (ibuffer_buffer%index == buffer%index) return
     end if
 
     filters = locals(k)%qualifiers
@@ -2157,10 +2157,10 @@ contains
             end if
         end if
 
-        if (major_mode_of(buffer) /= "dired_mode") return
+        if (major_mode_of(buffer) /= "directory_editor_mode") return
         old = current_buffer()
         call set_buffer(buffer, st)
-        directory = dired_directory_of()
+        directory = directory_editor_directory_of()
         call set_buffer(old, st)
         if (len(directory) > 0) is_dissociated = .not. file_exists(file_name_directory(directory))
     end function is_dissociated
@@ -2243,14 +2243,14 @@ contains
         is_read_only = buffers(buffer%index)%read_only
     end function is_read_only
 
-    !> Mark all `dired' buffers.  Port of
+    !> Mark all `directory_editor' buffers.  Port of
     !> ibuf-ext.el:ibuffer-mark-dired-buffers.
-    recursive subroutine ibuffer_mark_dired_buffers(status)
+    recursive subroutine ibuffer_mark_directory_editor_buffers(status)
         type(status_type), intent(out) :: status
 
-        mark_on_regular_expression = "dired_mode"
+        mark_on_regular_expression = "directory_editor_mode"
         call ibuffer_mark_on_buffer(mode_is, status)
-    end subroutine ibuffer_mark_dired_buffers
+    end subroutine ibuffer_mark_directory_editor_buffers
 
     !> View lines which match REGULAR_EXPRESSION in all marked buffers.
     !> Optional argument NLINES says how many lines of context to display:
@@ -3876,7 +3876,7 @@ contains
         end if
     end subroutine ibuffer_bs_toggle_all
 
-    module procedure initialize_ibuf_ext
+    module procedure initialize_ibuffer_extensions
     type(status_type) :: st
     type(handle_type) :: m
 
@@ -3987,7 +3987,7 @@ contains
     commands%ibuffer_mark_old_buffers%execute => ibuffer_mark_old_buffers
     commands%ibuffer_mark_special_buffers%execute => ibuffer_mark_special_buffers
     commands%ibuffer_mark_read_only_buffers%execute => ibuffer_mark_read_only_buffers
-    commands%ibuffer_mark_dired_buffers%execute => ibuffer_mark_dired_buffers
+    commands%ibuffer_mark_directory_editor_buffers%execute => ibuffer_mark_directory_editor_buffers
     commands%ibuffer_do_occur%execute => execute_ibuffer_do_occur
     m = ibuffer_mode_map
     call keymap_set(m, "=", "ibuffer_diff_with_file", st)
@@ -3999,7 +3999,7 @@ contains
     call keymap_set(m, "* u", "ibuffer_mark_unsaved_buffers", st)
     call keymap_set(m, "* s", "ibuffer_mark_special_buffers", st)
     call keymap_set(m, "* r", "ibuffer_mark_read_only_buffers", st)
-    call keymap_set(m, "* /", "ibuffer_mark_dired_buffers", st)
+    call keymap_set(m, "* /", "ibuffer_mark_directory_editor_buffers", st)
     call keymap_set(m, "* e", "ibuffer_mark_dissociated_buffers", st)
     call keymap_set(m, "* h", "ibuffer_mark_help_buffers", st)
     call keymap_set(m, "* z", "ibuffer_mark_compressed_file_buffers", st)
@@ -4082,7 +4082,7 @@ contains
     call keymap_set(m, "C-c C-a", "ibuffer_auto_mode", st)
     ! (ibuffer-mode-filter-group-map)
     call make_filter_group_map()
-    end procedure initialize_ibuf_ext
+    end procedure initialize_ibuffer_extensions
 
     ! Not a port.
     subroutine make_filter_group_map()

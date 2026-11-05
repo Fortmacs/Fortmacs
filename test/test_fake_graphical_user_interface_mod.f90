@@ -1,7 +1,7 @@
 ! test_fake_graphical_user_interface_mod.f90 -- redisplay on a fake window-system frame:
 ! layout in pixels through the redisplay interface (fake_graphical_user_interface_mod), and
 ! the same text as on a terminal.
-! Own tests; upstream's xdisp-tests.el needs Lisp and real GUI frames.
+! Own tests; upstream's xdisp-tests.el needs Lisp and real GRAPHICAL_USER_INTERFACE frames.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -35,8 +35,8 @@ module test_fake_graphical_user_interface_mod
     use faces_mod, only: initialize_faces
     use face_realization_mod, only: initialize_frame_faces
     use terminfo_mod, only: terminfo_type, builtin_xterm
-    use terminal_output_mod, only: initialize_tty_entry
-    use terminal_state_mod, only: tty_take_output
+    use terminal_output_mod, only: initialize_terminal_entry
+    use terminal_state_mod, only: terminal_take_output
     use frame_mod, only: frame_type
     use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows, &
                           window_end
@@ -105,7 +105,7 @@ contains
     !> whole), ^A and wide characters, the cursor and the echo area.
     subroutine test_same_text(error)
         type(error_type), allocatable, intent(out) :: error
-        type(frame_type) :: tty, f
+        type(frame_type) :: terminal, f
         type(fake_device_type), target :: device
         type(fake_font_driver_type), target :: driver
         type(terminfo_type) :: ti
@@ -126,14 +126,14 @@ contains
         call goto_character(26_int64)
         ! The terminal.
         call builtin_xterm(ti)
-        call initialize_tty_entry(tty%tty, ti, "xterm-256color", -1_int32, st)
+        call initialize_terminal_entry(terminal%terminal, ti, "xterm-256color", -1_int32, st)
         call initialize_faces()
-        call initialize_frame_faces(tty, "xterm-256color")
-        call initialize_frame_windows(tty)
-        call set_window_buffer(tty%selected_window, h, st)
+        call initialize_frame_faces(terminal, "xterm-256color")
+        call initialize_frame_windows(terminal)
+        call set_window_buffer(terminal%selected_window, h, st)
         last_message = "Hello"
-        call redisplay_internal(tty, st)
-        out = tty_take_output(tty%tty)
+        call redisplay_internal(terminal, st)
+        out = terminal_take_output(terminal%terminal)
         ! The fake frame, as large.
         call fake_frame(f, device, driver, 80, 24, h)
         call redisplay_internal(f, st)
@@ -144,9 +144,9 @@ contains
             codes = device%column_text(r*FAKE_LINE_HEIGHT, 80)
 
             do k = 1, 80
-                if (codes(k) /= tty%current_matrix%rows(r)%glyphs(k)%ch) then
+                if (codes(k) /= terminal%current_matrix%rows(r)%glyphs(k)%ch) then
                     write (message, '("row ",i0,", column ",i0,": ",i0," /= ",i0)') r, k, codes(k), &
-                        tty%current_matrix%rows(r)%glyphs(k)%ch
+                        terminal%current_matrix%rows(r)%glyphs(k)%ch
                     call check(error, .false., trim(message))
                     return
                 end if
@@ -164,7 +164,7 @@ contains
         if (allocated(error)) return
         ! The cursor (on the e at column 14 of the second line) as a box
         ! over its cell.
-        call check(error, tty%cursor_vertical_position == 1 .and. tty%cursor_horizontal_position == 14, "terminal cursor")
+        call check(error, terminal%cursor_vertical_position == 1 .and. terminal%cursor_horizontal_position == 14, "terminal cursor")
         if (allocated(error)) return
         call check(error, device%cursor_type == FILLED_BOX_CURSOR .and. &
                    device%cursor_x == 14*FAKE_COLUMN_WIDTH .and. device%cursor_y == FAKE_LINE_HEIGHT .and. &
@@ -176,7 +176,7 @@ contains
         call check(error, device%text_at(FAKE_LINE_HEIGHT, 77*FAKE_COLUMN_WIDTH), "h \", &
                    device%text_at(FAKE_LINE_HEIGHT, 77*FAKE_COLUMN_WIDTH))
         last_message = ""
-        call delete_frame_windows(tty)
+        call delete_frame_windows(terminal)
         call delete_frame_windows(f)
         call close_buffer(h, st)
     end subroutine test_same_text

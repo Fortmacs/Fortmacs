@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Makefile mode: `makefile_mode' and its variants `makefile_automake_mode',
-!> `makefile_gmake_mode', `makefile_makepp_mode', `makefile_bsdmake_mode'
+!> `makefile_gnu_make_mode', `makefile_makepp_mode', `makefile_bsdmake_mode'
 !> and `makefile_imake_mode', with dependency motion (M-n, M-p), target and
 !> macro pickup and insertion (C-c C-p, C-c C-f, C-c :, the electric keys
 !> of `makefile_electric_keys'), completion at point, GNU make function
@@ -36,7 +36,7 @@
 !>
 !> Deferred: the obsolete macro and target browser (C-c C-b,
 !> `makefile_switch_to_browser' and the `makefile_browser_*' commands and
-!> options, obsolete since 30.1), the Makefile menu, `cpp_font_lock_keywords' in
+!> options, obsolete since 30.1), the Makefile menu, `c_preprocessor_font_lock_keywords' in
 !> `makefile_imake_font_lock_keywords' (font-lock.el's C preprocessor
 !> keywords), and the obsolete `makefile_generate_temporary_filename'.
 module make_mode_mod
@@ -89,20 +89,20 @@ module make_mode_mod
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
     use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     use newcomment_mod, only: comment_start, comment_end, comment_start_skip
-    use abbreviation_mod, only: abbrev_table_type
-    use dynamic_abbreviation_mod, only: dabbrev_abbrev_skip_leading_regular_expression
+    use abbreviation_mod, only: abbreviation_table_type
+    use dynamic_abbreviation_mod, only: dynamic_abbreviation_skip_leading_regular_expression
     use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use minibuffer_reading_mod, only: completion_table_type, read_string
     use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, COMPLETION_SOLE, COMPLETION_FINISHED
     use minibuffer_mod, only: completing_read, completion_at_point_functions
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
-    use index_menu_mod, only: imenu_patterns, imenu_pattern_type
+    use index_menu_mod, only: index_menu_patterns, index_menu_pattern_type
     use string_type_mod, only: string_type, prepend_string
     implicit none(type, external)
     private
 
-    public :: initialize_make_mode, makefile_mode, makefile_automake_mode, makefile_gmake_mode, makefile_makepp_mode, &
+    public :: initialize_make_mode, makefile_mode, makefile_automake_mode, makefile_gnu_make_mode, makefile_makepp_mode, &
               makefile_bsdmake_mode, makefile_imake_mode, makefile_next_dependency, makefile_previous_dependency, &
               makefile_electric_dot, makefile_insert_special_target, makefile_electric_equal, makefile_insert_macro, &
               makefile_insert_macro_reference, makefile_insert_target, makefile_insert_target_reference, makefile_electric_colon, &
@@ -110,7 +110,7 @@ module make_mode_mod
               makefile_pickup_filenames_as_targets, makefile_completions_at_point, makefile_backslash_region, &
               makefile_fill_paragraph, makefile_create_up_to_date_overview, makefile_query_by_make_minus_q, &
               makefile_cleanup_continuations_function, makefile_warn_suspicious_lines, makefile_warn_continuations, &
-              makefile_insert_gmake_function, makefile_match_function_end, makefile_match_dependency, &
+              makefile_insert_gnu_make_function, makefile_match_function_end, makefile_match_dependency, &
               makefile_match_action, makefile_do_macro_insertion, makefile_remember_target, makefile_remember_macro, &
               makefile_format_macro_reference, makefile_add_log_target, makefile_syntax_propertize_function, &
               makefile_make_font_lock_keywords, makefile_target_table, makefile_macro_table, makefile_has_prereqs, &
@@ -196,8 +196,8 @@ module make_mode_mod
     type(hook_type), target, public :: makefile_mode_hook = hook_type(name="makefile_mode_hook")
     !> Normal hook run by `makefile_automake_mode'.
     type(hook_type), target, public :: makefile_automake_mode_hook = hook_type(name="makefile_automake_mode_hook")
-    !> Normal hook run by `makefile_gmake_mode'.
-    type(hook_type), target, public :: makefile_gmake_mode_hook = hook_type(name="makefile_gmake_mode_hook")
+    !> Normal hook run by `makefile_gnu_make_mode'.
+    type(hook_type), target, public :: makefile_gnu_make_mode_hook = hook_type(name="makefile_gnu_make_mode_hook")
     !> Normal hook run by `makefile_makepp_mode'.
     type(hook_type), target, public :: makefile_makepp_mode_hook = hook_type(name="makefile_makepp_mode_hook")
     !> Normal hook run by `makefile_bsdmake_mode'.
@@ -249,9 +249,9 @@ module make_mode_mod
     character(len=:), allocatable, public :: makefile_bsdmake_rule_action_regular_expression
 
     !> Imenu generic expression for Makefile mode.  See
-    !> `imenu_patterns'.  Port of make-mode.el
+    !> `index_menu_patterns'.  Port of make-mode.el
     !> makefile-imenu-generic-expression.
-    type(imenu_pattern_type), allocatable, public :: makefile_imenu_patterns(:)
+    type(index_menu_pattern_type), allocatable, public :: makefile_index_menu_patterns(:)
 
     !> Regex used to find macro assignment lines in a makefile.  Port of
     !> make-mode.el makefile-macroassign-regex.
@@ -280,7 +280,7 @@ module make_mode_mod
 
     !> List of keywords understood by gmake.  Port of make-mode.el
     !> makefile-gmake-statements.
-    character(len=*), parameter, public :: makefile_gmake_statements(*) = &
+    character(len=*), parameter, public :: makefile_gnu_make_statements(*) = &
                                            [character(len=15) :: "-sinclude", "sinclude", "ifdef", "ifndef", "ifeq", "ifneq", &
                                                            "-include", "define", "endef", "export", "override define", "override", &
                                                                   "unexport", "vpath", "undefine", "else", "endif", "include"]
@@ -322,7 +322,7 @@ module make_mode_mod
     type(font_lock_keyword_type), allocatable, public :: makefile_automake_font_lock_keywords(:)
     !> Keywords to highlight in GNUmakefile mode.  Port of make-mode.el
     !> makefile-gmake-font-lock-keywords.
-    type(font_lock_keyword_type), allocatable, public :: makefile_gmake_font_lock_keywords(:)
+    type(font_lock_keyword_type), allocatable, public :: makefile_gnu_make_font_lock_keywords(:)
     !> Keywords to highlight in Makeppfile mode.  Port of make-mode.el
     !> makefile-makepp-font-lock-keywords.
     type(font_lock_keyword_type), allocatable, public :: makefile_makepp_font_lock_keywords(:)
@@ -370,7 +370,7 @@ module make_mode_mod
 
     !> Abbrev table in use in Makefile buffers.  Port of make-mode.el
     !> makefile-mode-abbrev-table.
-    type(abbrev_table_type), target, public :: makefile_mode_abbrev_table
+    type(abbreviation_table_type), target, public :: makefile_mode_abbreviation_table
 
     !> The keymap that is used in Makefile mode.  Port of make-mode.el
     !> makefile-mode-map.
@@ -485,13 +485,13 @@ contains
                                         "el.elc", "y.c", "s.o"]
         end if
 
-        if (.not. allocated(makefile_imenu_patterns)) then
-            allocate (makefile_imenu_patterns(2))
-            makefile_imenu_patterns(1) = imenu_pattern_type(menu_title="Dependencies", &
-                                                            matcher=makefile_previous_dependency, subexpression=1)
-            makefile_imenu_patterns(2) = imenu_pattern_type(menu_title="Macro Assignment", &
-                                                            regular_expression=makefile_macroassign_regular_expression, &
-                                                            subexpression=1)
+        if (.not. allocated(makefile_index_menu_patterns)) then
+            allocate (makefile_index_menu_patterns(2))
+            makefile_index_menu_patterns(1) = index_menu_pattern_type(menu_title="Dependencies", &
+                                                                      matcher=makefile_previous_dependency, subexpression=1)
+            makefile_index_menu_patterns(2) = index_menu_pattern_type(menu_title="Macro Assignment", &
+                                                                      regular_expression=makefile_macroassign_regular_expression, &
+                                                                      subexpression=1)
         end if
 
         if (.not. allocated(makefile_runtime_macros)) then
@@ -503,16 +503,16 @@ contains
         call initialize_syntax_tables()
         call initialize_keywords()
         call initialize_rules()
-        call makefile_mode_abbrev_table%define_table("makefile_mode_abbrev_table")
+        call makefile_mode_abbreviation_table%define_table("makefile_mode_abbreviation_table")
         call append_locals_clearer(clear_make_locals)
         call major_modes%makefile_mode%define("makefile_mode", "Makefile", makefile_mode, makefile_mode_hook, &
                                               parent=major_modes%programming_mode, syntax_table=makefile_mode_syntax_table, &
-                                              abbrev_table=makefile_mode_abbrev_table)
+                                              abbreviation_table=makefile_mode_abbreviation_table)
         makefile_mode_map = major_modes%makefile_mode%map
         call major_modes%makefile_automake_mode%define("makefile_automake_mode", "Makefile.am", makefile_automake_mode, &
                                                        makefile_automake_mode_hook, parent=major_modes%makefile_mode)
-        call major_modes%makefile_gmake_mode%define("makefile_gmake_mode", "GNUmakefile", makefile_gmake_mode, &
-                                                    makefile_gmake_mode_hook, parent=major_modes%makefile_mode)
+        call major_modes%makefile_gnu_make_mode%define("makefile_gnu_make_mode", "GNUmakefile", makefile_gnu_make_mode, &
+                                                       makefile_gnu_make_mode_hook, parent=major_modes%makefile_mode)
         call major_modes%makefile_makepp_mode%define("makefile_makepp_mode", "Makeppfile", makefile_makepp_mode, &
                                                      makefile_makepp_mode_hook, parent=major_modes%makefile_mode)
         call major_modes%makefile_bsdmake_mode%define("makefile_bsdmake_mode", "BSDmakefile", makefile_bsdmake_mode, &
@@ -525,11 +525,11 @@ contains
         call keymap_set(makefile_mode_map, "C-c C-c", "comment_region", st)
         call keymap_set(makefile_mode_map, "C-c C-p", "makefile_pickup_everything", st)
         call keymap_set(makefile_mode_map, "C-c C-u", "makefile_create_up_to_date_overview", st)
-        call keymap_set(makefile_mode_map, "C-c TAB", "makefile_insert_gmake_function", st)
+        call keymap_set(makefile_mode_map, "C-c TAB", "makefile_insert_gnu_make_function", st)
         call keymap_set(makefile_mode_map, "C-c C-\", "makefile_backslash_region", st)
         call keymap_set(makefile_mode_map, "C-c RET C-a", "makefile_automake_mode", st)
         call keymap_set(makefile_mode_map, "C-c RET C-b", "makefile_bsdmake_mode", st)
-        call keymap_set(makefile_mode_map, "C-c RET C-g", "makefile_gmake_mode", st)
+        call keymap_set(makefile_mode_map, "C-c RET C-g", "makefile_gnu_make_mode", st)
         call keymap_set(makefile_mode_map, "C-c RET TAB", "makefile_imake_mode", st)
         call keymap_set(makefile_mode_map, "C-c RET RET", "makefile_mode", st)
         call keymap_set(makefile_mode_map, "C-c RET C-p", "makefile_makepp_mode", st)
@@ -539,7 +539,7 @@ contains
         call keymap_set(makefile_mode_map, "C-M-i", "completion_at_point", st)
         commands%makefile_mode%execute => makefile_mode
         commands%makefile_automake_mode%execute => makefile_automake_mode
-        commands%makefile_gmake_mode%execute => makefile_gmake_mode
+        commands%makefile_gnu_make_mode%execute => makefile_gnu_make_mode
         commands%makefile_makepp_mode%execute => makefile_makepp_mode
         commands%makefile_bsdmake_mode%execute => makefile_bsdmake_mode
         commands%makefile_imake_mode%execute => makefile_imake_mode
@@ -559,7 +559,7 @@ contains
         commands%makefile_pickup_filenames_as_targets%execute => makefile_pickup_filenames_as_targets
         commands%makefile_backslash_region%execute => execute_makefile_backslash_region
         commands%makefile_create_up_to_date_overview%execute => makefile_create_up_to_date_overview
-        commands%makefile_insert_gmake_function%execute => makefile_insert_gmake_function
+        commands%makefile_insert_gnu_make_function%execute => makefile_insert_gnu_make_function
     end subroutine initialize_make_mode
 
     !> One level of makefile-dependency-regex's elems-re.
@@ -856,7 +856,7 @@ contains
     subroutine initialize_keywords()
         character(len=*), parameter :: KW = "font_lock_keyword_face", FN = "font_lock_function_name_face", &
                                        VA = "font_lock_variable_name_face", TY = "font_lock_type_face", &
-                                       PERL = "makefile_makepp_perl", SH = "makefile_shell", TG = "makefile_targets"
+                                       PERL = "makefile_makepp_perl", SHELL = "makefile_shell", TG = "makefile_targets"
         integer, parameter :: PREPEND = FONT_LOCK_OVERRIDE_PREPEND, APPEND = FONT_LOCK_OVERRIDE_APPEND, &
                               T = FONT_LOCK_OVERRIDE_REPLACE
         type(font_lock_keyword_type) :: extra(16)
@@ -877,13 +877,13 @@ contains
         h1(1) = h(1, FN, PREPEND)
         extra(3) = font_lock_keyword("[^$]\$[({]\([-a-zA-Z0-9_.]+\s \)", highlights=h1)
         ! $(shell ...) ${shell ...}
-        h1(1) = h(1, SH, PREPEND, .true.)
+        h1(1) = h(1, SHELL, PREPEND, .true.)
         a(1) = font_lock_anchored(h1, matcher=makefile_match_function_end)
         extra(4) = font_lock_keyword("[^$]\$\([({]\)shell[ "//TAB//"]+", highlights=a)
-        makefile_gmake_font_lock_keywords = makefile_make_font_lock_keywords(makefile_variable_use_regular_expression, .true., &
-                                                                             makefile_gmake_statements, &
-                                                                             "^\(?: [ "//TAB//"]*\)?if\(n\)\(?:def\|eq\)\>", &
-                                                                             extra(1:4))
+        makefile_gnu_make_font_lock_keywords = makefile_make_font_lock_keywords(makefile_variable_use_regular_expression, .true., &
+                                                                                makefile_gnu_make_statements, &
+                                                                                "^\(?: [ "//TAB//"]*\)?if\(n\)\(?:def\|eq\)\>", &
+                                                                                extra(1:4))
         ! makepp.
         h1(1) = h(1, TG, APPEND)
         extra(1) = font_lock_keyword("[^$]\(\$[({]\(?:output\|stem\|target\)s?\_>.*?[})]\)", highlights=h1)
@@ -897,7 +897,7 @@ contains
         h1(1) = h(1, FN, PREPEND)
         extra(3) = font_lock_keyword("[^$]\$\(?:((?\|{{?\|\[\[?\)\([-a-zA-Z0-9_.]+\s \)", highlights=h1)
         ! $(shell ...) $((shell ...)) ${...} ${{...}} $[...] $[[...]]
-        h1(1) = h(1, SH, PREPEND, .true.)
+        h1(1) = h(1, SHELL, PREPEND, .true.)
         a(1) = font_lock_anchored(h1, matcher=makefile_match_function_end)
         extra(4) = font_lock_keyword("[^$]\$\(((?\|{{?\|\[\[?\)shell\(?:[-_]\(?:global[-_]\)?once\)?[ "//TAB//"]+", &
                                      highlights=a)
@@ -1155,7 +1155,7 @@ contains
     !> Major mode for editing standard Makefiles.
     !>
     !> If you are editing a file for a different make, try one of the
-    !> variants `makefile_automake_mode', `makefile_gmake_mode',
+    !> variants `makefile_automake_mode', `makefile_gnu_make_mode',
     !> `makefile_makepp_mode', `makefile_bsdmake_mode' or,
     !> `makefile_imake_mode'.  All but the last should be correctly
     !> chosen based on the file name, except if it is *.mk.  This
@@ -1227,9 +1227,9 @@ contains
         ! Add-log.
         call add_log_current_subprogram_function%set_local(makefile_add_log_target)
         ! Imenu.
-        call imenu_patterns%set_local(makefile_imenu_patterns)
+        call index_menu_patterns%set_local(makefile_index_menu_patterns)
         ! Dabbrev.
-        call dabbrev_abbrev_skip_leading_regular_expression%set_local("\$")
+        call dynamic_abbreviation_skip_leading_regular_expression%set_local("\$")
         ! Filling.
         call fill_paragraph_function%set_local(makefile_fill_paragraph)
         ! Comment stuff.
@@ -1258,22 +1258,22 @@ contains
 
     !> An adapted `makefile_mode' that knows about gmake.  Port of
     !> make-mode.el:makefile-gmake-mode.
-    recursive subroutine makefile_gmake_mode(status)
+    recursive subroutine makefile_gnu_make_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
         if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call initialize_make_mode()
-        call major_modes%makefile_gmake_mode%begin(saved, status)
+        call major_modes%makefile_gnu_make_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call set_font_lock_defaults(makefile_gmake_font_lock_keywords)
-        call major_modes%makefile_gmake_mode%end(saved, status)
-    end subroutine makefile_gmake_mode
+        call set_font_lock_defaults(makefile_gnu_make_font_lock_keywords)
+        call major_modes%makefile_gnu_make_mode%end(saved, status)
+    end subroutine makefile_gnu_make_mode
 
     !> An adapted `makefile_mode' that knows about makepp.  Port of
     !> make-mode.el:makefile-makepp-mode.
     recursive subroutine makefile_makepp_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_pattern_type), allocatable :: old(:), patterns(:)
+        type(index_menu_pattern_type), allocatable :: old(:), patterns(:)
         logical :: saved
 
         if (.not. is_syntax_table_live(makefile_mode_syntax_table)) call initialize_make_mode()
@@ -1281,12 +1281,12 @@ contains
         if (.not. status%ok()) return
         call makefile_rule_action_regular_expression%set_local(makefile_makepp_rule_action_regular_expression)
         call set_font_lock_defaults(makefile_makepp_font_lock_keywords)
-        old = imenu_patterns%current()
+        old = index_menu_patterns%current()
         allocate (patterns(size(old) + 1))
-        patterns(1) = imenu_pattern_type(menu_title="Functions", regular_expression="^[ "//TAB//"]*\(?:make\)?sub[ "//TAB// &
-                                         "]+\([A-Za-z0-9_]+\)", subexpression=1)
+        patterns(1) = index_menu_pattern_type(menu_title="Functions", regular_expression="^[ "//TAB//"]*\(?:make\)?sub[ "//TAB// &
+                                              "]+\([A-Za-z0-9_]+\)", subexpression=1)
         patterns(2:) = old
-        call imenu_patterns%set_local(patterns)
+        call index_menu_patterns%set_local(patterns)
         call major_modes%makefile_makepp_mode%end(saved, status)
     end subroutine makefile_makepp_mode
 
@@ -2443,7 +2443,7 @@ contains
     !> Asks for the name of the function to use (with completion).
     !> Then prompts for all required parameters.  Port of
     !> make-mode.el:makefile-insert-gmake-function.
-    recursive subroutine makefile_insert_gmake_function(status)
+    recursive subroutine makefile_insert_gnu_make_function(status)
         type(status_type), intent(out) :: status
         type(completion_table_type) :: table
         type(value_type), allocatable :: items(:)
@@ -2477,7 +2477,7 @@ contains
         end do
 
         call insert(makefile_format_macro_reference(name//" "//arguments)//" ", status)
-    end subroutine makefile_insert_gmake_function
+    end subroutine makefile_insert_gnu_make_function
 
     ! ------------------------------------------------------------------
     ! Utility functions

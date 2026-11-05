@@ -6,8 +6,8 @@
 
 ## Ported
 
-`tty_display_info_type` (capabilities, modes, cursor-motion state),
-the output buffer (`tty_output`, `tty_flush`)
+`terminal_display_info_type` (capabilities, modes, cursor-motion state),
+the output buffer (`terminal_output`, `terminal_flush`)
 
 ## Deferred
 

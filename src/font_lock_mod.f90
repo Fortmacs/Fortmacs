@@ -77,8 +77,9 @@ module font_lock_mod
     use data_mod, only: string_setting_type, forward_setting, choice_setting_type
     use newcomment_mod, only: comment_start, comment_start_skip, comment_end_skip, comment_normalize_variables
     use insert_delete_mod, only: after_change_functions
-    use just_in_time_lock_mod, only: jit_lock_register, jit_lock_unregister, jit_lock_refontify, jit_lock_fontify_now, &
-                                     jit_lock_after_change_extend_region_functions, jit_lock_start, jit_lock_end, is_jit_lock_mode
+    use just_in_time_lock_mod, only: just_in_time_lock_register, just_in_time_lock_unregister, just_in_time_lock_refontify, &
+                                     just_in_time_lock_fontify_now, just_in_time_lock_after_change_extend_region_functions, &
+                                     just_in_time_lock_start, just_in_time_lock_end, is_just_in_time_lock_mode
     use text_properties_mod, only: previous_single_property_change
     use error_mod, only: format_error
     use modes_mod, only: minor_modes
@@ -90,19 +91,19 @@ module font_lock_mod
     implicit none(type, external)
     private
     public :: font_lock_forget_defaults, font_lock_fontify_region_procedure, font_lock_fontify_region_function_set_local
-    public :: cpp_font_lock_keywords, font_lock_apply_highlight
+    public :: c_preprocessor_font_lock_keywords, font_lock_apply_highlight
 
-    !> Regular expression used in `cpp_font_lock_keywords'.  Port of
+    !> Regular expression used in `c_preprocessor_font_lock_keywords'.  Port of
     !> font-lock.el cpp-font-lock-keywords-source-directives.
-    character(len=*), parameter, public :: CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES = &
+    character(len=*), parameter, public :: C_PREPROCESSOR_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES = &
                                    "define\|e\(?:l\(?:if\|se\)\|ndif\|rror\)\|file\|i\(?:f\(?:n?def\)?\|mport\|nclude\)\|line\|"// &
                                            "pragma\|undef\|warning"
 
     !> Regular expression depth of
-    !> `CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES'.  Used in
-    !> `cpp_font_lock_keywords'.
+    !> `C_PREPROCESSOR_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES'.  Used in
+    !> `c_preprocessor_font_lock_keywords'.
     !> Port of font-lock.el:cpp-font-lock-keywords.source-depth.
-    integer, parameter, public :: CPP_FONT_LOCK_KEYWORDS_SOURCE_DEPTH = 0
+    integer, parameter, public :: C_PREPROCESSOR_FONT_LOCK_KEYWORDS_SOURCE_DEPTH = 0
     public :: initialize_font_lock, is_font_lock_specified, font_lock_mode_internal, font_lock_set_defaults, &
               font_lock_fontify_buffer, font_lock_unfontify_buffer, font_lock_fontify_region, font_lock_unfontify_region, &
               font_lock_flush, font_lock_ensure, font_lock_update, font_lock_default_fontify_region, &
@@ -153,7 +154,7 @@ module font_lock_mod
 
     !> Support modes for Font Lock mode (`font_lock_support_mode'): none, or
     !> Just-in-time Lock mode.
-    integer, parameter, public :: FONT_LOCK_SUPPORT_MODE_NONE = 0, FONT_LOCK_SUPPORT_MODE_JIT_LOCK = 1
+    integer, parameter, public :: FONT_LOCK_SUPPORT_MODE_NONE = 0, FONT_LOCK_SUPPORT_MODE_JUST_IN_TIME_LOCK = 1
 
     !> Support mode for Font Lock mode.
     !> If FONT_LOCK_SUPPORT_MODE_NONE, means support for Font Lock mode is never
@@ -161,7 +162,7 @@ module font_lock_mod
     !>
     !> The value of this variable is used when Font Lock mode is turned on.
     !> Port of font-lock.el:font-lock-support-mode.
-    integer, public :: font_lock_support_mode = FONT_LOCK_SUPPORT_MODE_JIT_LOCK
+    integer, public :: font_lock_support_mode = FONT_LOCK_SUPPORT_MODE_JUST_IN_TIME_LOCK
 
     !> Keywords a major mode gets in addition to (or instead of) its own
     !> (`font_lock_add_keywords').
@@ -234,7 +235,7 @@ module font_lock_mod
         !> Jit-lock's local values of `font_lock_flush_function',
         !> `font_lock_ensure_function' and `font_lock_fontify_buffer_function'
         !> (font-lock-turn-on-thing-lock).
-        logical :: jit_lock = .false.
+        logical :: just_in_time_lock = .false.
         !> The buffer's own `font_lock_syntactic_face_function' (from the
         !> OTHER-VARS of `font_lock_defaults').
         logical :: has_syntactic_face = .false.
@@ -642,19 +643,20 @@ contains
         integer :: k
 
         status = status_type()
-        if (font_lock_support_mode /= FONT_LOCK_SUPPORT_MODE_JIT_LOCK) return
+        if (font_lock_support_mode /= FONT_LOCK_SUPPORT_MODE_JUST_IN_TIME_LOCK) return
         ! Prepare for jit-lock.
         call remove_after_change_function()
         call make_local_entry(k)
-        locals(k)%jit_lock = .true.
+        locals(k)%just_in_time_lock = .true.
         ! Don't fontify eagerly (and don't abort if the buffer is large).
         locals(k)%fontified = .true.
         ! Use jit-lock.
-        call jit_lock_register(jit_fontify_region, status)
+        call just_in_time_lock_register(just_in_time_fontify_region, status)
         if (.not. status%ok()) return
         ! Tell jit-lock how we extend the region to refontify.
-        call jit_lock_after_change_extend_region_functions%prepend(font_lock_extend_jit_lock_region_after_change, &
-                                                                   local=.true.)
+        call just_in_time_lock_after_change_extend_region_functions%prepend( &
+            font_lock_extend_just_in_time_lock_region_after_change, &
+            local=.true.)
     end subroutine font_lock_turn_on_thing_lock
 
     !> Turn off the support mode.  Port of
@@ -664,23 +666,23 @@ contains
         integer :: k
 
         status = status_type()
-        if (.not. is_jit_lock_mode()) return
-        call jit_lock_unregister(jit_fontify_region, status)
+        if (.not. is_just_in_time_lock_mode()) return
+        call just_in_time_lock_unregister(just_in_time_fontify_region, status)
         ! Reset local vars to the non-jit-lock case.
         k = local_index()
-        if (k > 0) locals(k)%jit_lock = .false.
+        if (k > 0) locals(k)%just_in_time_lock = .false.
     end subroutine font_lock_turn_off_thing_lock
 
-    !> `font_lock_fontify_region' as a function of `jit_lock_functions':
+    !> `font_lock_fontify_region' as a function of `just_in_time_lock_functions':
     !> DONE_BEGINNING and DONE_END give the region actually fontified
     !> (jit-lock-bounds).  Not a port.
-    subroutine jit_fontify_region(beginning, end, done_beginning, done_end, status)
+    subroutine just_in_time_fontify_region(beginning, end, done_beginning, done_end, status)
         integer(int64), intent(in) :: beginning, end
         integer(int64), intent(out) :: done_beginning, done_end
         type(status_type), intent(out) :: status
 
         call font_lock_fontify_region(beginning, end, status, done_beginning=done_beginning, done_end=done_end)
-    end subroutine jit_fontify_region
+    end subroutine just_in_time_fontify_region
 
     !> Font lock keywords for C preprocessor directives.
     !> `c_mode', `c++_mode' and `objc_mode' have their own font lock
@@ -688,7 +690,7 @@ contains
     !> other modes in which C preprocessor directives are used, e.g.
     !> `asm_mode' and `ld_script_mode'.
     !> Port of font-lock.el:cpp-font-lock-keywords.
-    function cpp_font_lock_keywords() result(kw)
+    function c_preprocessor_font_lock_keywords() result(kw)
         type(font_lock_keyword_type), allocatable :: kw(:)
         type(font_lock_highlight_type) :: h1(1), h2(2), a(1)
         character(len=*), parameter :: P = "font_lock_variable_name_face"
@@ -708,7 +710,7 @@ contains
         h2(1) = font_lock_highlight(1, "font_lock_function_name_face", FONT_LOCK_OVERRIDE_PREPEND)
         ! Macro arguments.
         h1(1) = font_lock_highlight(1, P, FONT_LOCK_OVERRIDE_PREPEND)
-        h2(2) = font_lock_anchored(h1, matcher=cpp_macro_argument)
+        h2(2) = font_lock_anchored(h1, matcher=c_preprocessor_macro_argument)
         kw(3) = font_lock_keyword("^#[ "//achar(9)//"]*define[ "//achar(9)//"]+\([[:alpha:]_][[:alnum:]_$]*\)(", &
                                   highlights=h2)
         ! Fontify symbol names in #elif or #if ... defined preprocessor
@@ -720,14 +722,14 @@ contains
         ! Fontify otherwise as symbol names, and the preprocessor directive
         ! names.
         h2(1) = font_lock_highlight(1, "font_lock_preprocessor_face", FONT_LOCK_OVERRIDE_PREPEND)
-        h2(2) = font_lock_highlight(2 + CPP_FONT_LOCK_KEYWORDS_SOURCE_DEPTH, P, laxmatch=.true.)
-        kw(5) = font_lock_keyword("^\(#[ "//achar(9)//"]*\(?:"//CPP_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES &
+        h2(2) = font_lock_highlight(2 + C_PREPROCESSOR_FONT_LOCK_KEYWORDS_SOURCE_DEPTH, P, laxmatch=.true.)
+        kw(5) = font_lock_keyword("^\(#[ "//achar(9)//"]*\(?:"//C_PREPROCESSOR_FONT_LOCK_KEYWORDS_SOURCE_DIRECTIVES &
                                   //"\)\)\>[ "//achar(9)//"!]*\([[:alpha:]_][[:alnum:]_]*\)?", highlights=h2)
-    end function cpp_font_lock_keywords
+    end function c_preprocessor_font_lock_keywords
 
-    ! The matcher of macro arguments in `cpp_font_lock_keywords'.
+    ! The matcher of macro arguments in `c_preprocessor_font_lock_keywords'.
     ! Port of font-lock.el:cpp-font-lock-keywords (in part: its macro argument matcher).
-    subroutine cpp_macro_argument(limit, found, status)
+    subroutine c_preprocessor_macro_argument(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
@@ -740,19 +742,19 @@ contains
         call regular_expression_search_forward("\(?:\([[:alpha:]_][[:alnum:]_]*\)[,]?\)", position, status, bound=close_position, &
                                                noerror=SEARCH_NOERROR)
         found = position > 0
-    end subroutine cpp_macro_argument
+    end subroutine c_preprocessor_macro_argument
 
-    !> Function meant for `jit_lock_after_change_extend_region_functions'.
+    !> Function meant for `just_in_time_lock_after_change_extend_region_functions'.
     !> This function does 2 things:
     !> - extend the region so that it not only includes the part that was
     !>   modified but also the surrounding text whose highlighting may
     !>   change as a consequence.
     !> - anticipate (part of) the region extension that will happen later
     !>   in `font_lock_default_fontify_region', in order to avoid the need
-    !>   for double-redisplay in `jit_lock_fontify_now'.
+    !>   for double-redisplay in `just_in_time_lock_fontify_now'.
     !> Port of font-lock.el:font-lock-extend-jit-lock-region-after-change
     !> (in part: without font-lock-extend-after-change-region-function).
-    subroutine font_lock_extend_jit_lock_region_after_change(beginning_in, end_in, old_length, status)
+    subroutine font_lock_extend_just_in_time_lock_region_after_change(beginning_in, end_in, old_length, status)
         integer(int64), intent(in) :: beginning_in, end_in, old_length
         type(status_type), intent(out) :: status
         type(value_type) :: v
@@ -794,19 +796,19 @@ contains
 
         ! Finally, pre-enlarge the region to a whole number of lines.
         call goto_character(beginning)
-        beginning = min(jit_lock_start, line_beginning_position())
+        beginning = min(just_in_time_lock_start, line_beginning_position())
         call goto_character(end)
 
         if (point() == line_beginning_position()) then
-            end = max(jit_lock_end, point())
+            end = max(just_in_time_lock_end, point())
         else
-            end = max(jit_lock_end, line_beginning_position(2_int64))
+            end = max(just_in_time_lock_end, line_beginning_position(2_int64))
         end if
 
-        jit_lock_start = beginning
-        jit_lock_end = end
+        just_in_time_lock_start = beginning
+        just_in_time_lock_end = end
         call goto_character(point_value)
-    end subroutine font_lock_extend_jit_lock_region_after_change
+    end subroutine font_lock_extend_just_in_time_lock_region_after_change
 
     !> Restart fontification in current buffer after recomputing from
     !> defaults.  Recompute fontification variables using
@@ -1071,8 +1073,8 @@ contains
         k = local_index()
 
         if (k > 0) then
-            if (locals(k)%jit_lock) then
-                call jit_lock_refontify(status, point_minimum(), point_maximum())
+            if (locals(k)%just_in_time_lock) then
+                call just_in_time_lock_refontify(status, point_minimum(), point_maximum())
                 return
             end if
         end if
@@ -1168,8 +1170,8 @@ contains
         if (present(end)) e = end
         k = local_index()
 
-        if (locals(k)%jit_lock) then
-            call jit_lock_refontify(status, b, e)
+        if (locals(k)%just_in_time_lock) then
+            call just_in_time_lock_refontify(status, b, e)
         else
             call font_lock_after_change_function(b, e, 0_int64, status)
         end if
@@ -1195,15 +1197,15 @@ contains
         k = local_index()
 
         if (k /= 0) then
-            if (locals(k)%jit_lock) then
-                call jit_lock_fontify_now(status, b, e)
+            if (locals(k)%just_in_time_lock) then
+                call just_in_time_lock_fontify_now(status, b, e)
                 return
             else if (locals(k)%fontified) then
                 return
             end if
         end if
 
-        ! (font-lock-ensure-function without JIT Lock, also in a buffer
+        ! (font-lock-ensure-function without JUST_IN_TIME Lock, also in a buffer
         ! where Font Lock mode is off.)
         point_value = point()
         call font_lock_fontify_region(b, e, status)

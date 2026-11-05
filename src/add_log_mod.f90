@@ -76,7 +76,7 @@ module add_log_mod
     use minibuffer_mod, only: read_file_name
     use replace_mod, only: format_prompt
     use startup_mod, only: user_mail_address_value
-    use version_control_hooks_mod, only: vc_working_revision
+    use version_control_hooks_mod, only: version_control_working_revision
     use keymap_mod, only: keymap_set
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
@@ -626,7 +626,7 @@ contains
     end subroutine read_change_log_name
 
     !> Return version number of current buffer's file.
-    !> This is the value returned by `vc_working_revision' or, if that is
+    !> This is the value returned by `version_control_working_revision' or, if that is
     !> unallocated, by matching `change_log_version_number_regular_expressions'
     !> (VERSION unallocated for none).  Port of
     !> add-log.el:change-log-version-number-search.
@@ -651,7 +651,7 @@ contains
         if (allocated(buffers(current)%filename)) then
             ! A copy: the backend can grow (reallocate) the buffer registry.
             file = buffers(current)%filename
-            call vc_working_revision(file, version, has_revision)
+            call version_control_working_revision(file, version, has_revision)
             if (has_revision) return
             if (allocated(version)) deallocate (version)
         end if
@@ -768,7 +768,7 @@ contains
                 if (is_buffer_live(get_file_buffer(try)) .or. file_exists(try)) then
                     found = .true.
                 else if (allocated(change_log_directory_files)) then
-                    ! Stop at VCS root?
+                    ! Stop at VERSION_CONTROLS root?
                     do k = 1, size(change_log_directory_files)
                         call expand_file_name(trim(change_log_directory_files(k)), try, st, directory)
 

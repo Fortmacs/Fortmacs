@@ -66,12 +66,12 @@ module multilingual_environment_mod
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, CODING_SYSTEM_ERROR_CODE, format_message
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, make_list, vtag, V_STRING
-    use character_mod, only: downcase_ascii, str_to_multibyte
+    use character_mod, only: downcase_ascii, string_to_multibyte
     use data_mod, only: forward_setting, default_value, set_default
     use utility_functions_mod, only: put
     use commands_mod, only: commands
     use execute_interactively_mod, only: current_prefix_argument
-    use buffer_mod, only: buffers, current, buf_bytes, BEGINNING_BYTE, current_buffer, is_buffer_live, set_buffer, &
+    use buffer_mod, only: buffers, current, buffer_bytes, BEGINNING_BYTE, current_buffer, is_buffer_live, set_buffer, &
                           restore_buffer_modified
     use keymap_mod, only: define_key, key_parse, make_sparse_keymap
     use search_mod, only: string_match, match_beginning, match_end, case_fold_search
@@ -83,7 +83,7 @@ module multilingual_environment_mod
                           coding_system_subsidiaries, coding_system_change_end_of_line_conversion, &
                           coding_system_change_text_conversion, coding_system_mnemonic, coding_system_doc_string, &
                           coding_system_aliases, coding_system_equal, coding_system_priority_list, set_coding_system_priority, &
-                          coding_system_mime_charset, coding_system_charset_list, coding_system_list, &
+                          coding_system_mime_character_set, coding_system_character_set_list, coding_system_list, &
                           is_coding_system_prefer_utf_8, is_coding_system_ascii_compatible, find_coding_systems_text, &
                           check_coding_systems_text, coding_system_list_entry_type, unencodable_type, END_OF_LINE_UNIX, &
                           END_OF_LINE_DOS, END_OF_LINE_MAC, END_OF_LINE_UNDECIDED, is_coding_system_iso_7_bit, &
@@ -107,8 +107,9 @@ module multilingual_environment_mod
     use data_mod, only: string_setting_type
     use minibuffer_reading_mod, only: completion_ignore_case
     use help_mod, only: substitute_command_keys
-    use character_set_mod, only: set_charset_priority, charset_description, CHARSET_NAME_LENGTH, current_iso639_language, &
-                                 charsets, find_charset, charset_list, charset_characters, decode_character
+    use character_set_mod, only: set_character_set_priority, character_set_description, CHARACTER_SET_NAME_LENGTH, &
+                                 current_iso639_language, character_sets, find_character_set, character_set_list, &
+                                 character_set_characters, decode_character
     use help_mod, only: with_output_to_temporary_buffer
     use buffer_mod, only: header_line_format_type, current_input_method_procedure
     use keyboard_mod, only: ring_bell
@@ -117,7 +118,8 @@ module multilingual_environment_mod
 
     public :: universal_coding_system_argument, set_buffer_process_coding_system, set_terminal_coding_system, &
               set_keyboard_coding_system
-    public :: initialize_mule, find_auto_coding, set_auto_coding, auto_codings_lookup, after_insert_file_set_coding_1, &
+    public :: initialize_multilingual_environment, find_auto_coding, set_auto_coding, auto_codings_lookup, &
+              after_insert_file_set_coding_1, &
               find_new_buffer_file_coding_system, merge_coding_systems, set_buffer_file_coding_system, &
               revert_buffer_with_coding_system, prefer_coding_system, set_default_coding_systems, &
               select_safe_coding_system, describe_coding_system, describe_current_coding_system, read_coding_system, &
@@ -125,9 +127,9 @@ module multilingual_environment_mod
     public :: define_language_environment, find_language_environment, set_language_environment, &
               reset_language_environment, describe_language_environment, read_language_name, &
               language_environment_procedure, language_environment_type, language_environments
-    public :: set_locale_environment, find_locale_entry, locale_charset_to_coding_system, locale_translate, &
+    public :: set_locale_environment, find_locale_entry, locale_character_set_to_coding_system, locale_translate, &
               get_locale_names, set_display_table_and_terminal_coding_system
-    public :: list_character_sets, list_charset_characters, describe_character_set, read_charset
+    public :: list_character_sets, list_character_set_characters, describe_character_set, read_character_set
     public :: register_input_method, find_input_method, read_input_method_name, activate_input_method, &
               deactivate_input_method, set_input_method, toggle_input_method, activate_transient_input_method, &
               deactivate_transient_input_method, describe_input_method, describe_current_input_method, &
@@ -135,7 +137,7 @@ module multilingual_environment_mod
 
     !> The keys of a language environment's information that
     !> `read_language_name' can ask for (get-language-info's KEY):
-    !> `documentation', `charset', `sample-text', `coding-system',
+    !> `documentation', `character_set', `sample-text', `coding-system',
     !> `coding-priority', `input-method' and `tutorial'.
     integer, parameter, public :: LANGUAGE_INFO_DOCUMENTATION = 1, LANGUAGE_INFO_CHARSET = 2, &
                                   LANGUAGE_INFO_SAMPLE_TEXT = 3, LANGUAGE_INFO_CODING_SYSTEM = 4, &
@@ -161,8 +163,8 @@ module multilingual_environment_mod
         character(len=:), allocatable :: documentation
         !> Whether it has a `documentation' key (a text, or none).
         logical :: has_documentation = .false.
-        !> `charset': the charsets it supports.
-        character(len=CHARSET_NAME_LENGTH), allocatable :: charsets(:)
+        !> `character_set': the charsets it supports.
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: character_sets(:)
         !> `sample-text': the string its expression gives.
         character(len=:), allocatable :: sample_text
         !> `coding-system': the coding systems it uses.
@@ -264,7 +266,7 @@ module multilingual_environment_mod
     type(hook_type), target, public :: exit_language_environment_hook = &
                                        hook_type(name="exit_language_environment_hook")
 
-    !> An entry of `locale_language_names', `locale_charset_language_names'
+    !> An entry of `locale_language_names', `locale_character_set_language_names'
     !> or `locale_preferred_coding_systems': a regexp matched against the
     !> start of a downcased locale name, and the language environment
     !> and coding system it names ("" when absent).
@@ -501,7 +503,7 @@ module multilingual_environment_mod
     !> locale.  This language name is used if the locale is not listed in
     !> `locale_language_names'.  Port of mule-cmds.el
     !> locale-charset-language-names.
-    type(locale_entry_type), public :: locale_charset_language_names(9) = [ &
+    type(locale_entry_type), public :: locale_character_set_language_names(9) = [ &
                                        locale_entry_type(regular_expression=".*8859[-_]?1\>", language="Latin-1", &
                                                          coding_system=""), &
                                        locale_entry_type(regular_expression=".*8859[-_]?2\>", language="Latin-2", &
@@ -567,8 +569,8 @@ module multilingual_environment_mod
                                                          coding_system="japanese-shift-jis") &
                                        ]
 
-    ! The charset list_charset_characters shows, for its body in the buffer.
-    character(len=:), allocatable :: listed_charset
+    ! The charset list_character_set_characters shows, for its body in the buffer.
+    character(len=:), allocatable :: listed_character_set
 
     !> File name for the system's file of locale-name aliases, or "" if none.
     !> Port of mule-cmds.el locale-translation-file-name.
@@ -625,7 +627,7 @@ module multilingual_environment_mod
 
     !> Keymap for Mule (Multilingual environment) specific commands.
     !> Port of mule-cmds.el mule-keymap (the ported commands: c, f, k, p, r and t).
-    type(handle_type), public :: mule_keymap
+    type(handle_type), public :: multilingual_environment_keymap
 
     !> Per-buffer `buffer_file_coding_system_explicit': the coding systems
     !> the user gave for reading and for writing the buffer's file
@@ -678,7 +680,7 @@ contains
     !> and C-x \ in CONTROL_X_MAP, C-h C, C-h L and C-h I in HELP_MAP, and
     !> C-\ in GLOBAL_MAP.  Port of the top-level forms of mule.el, mule-cmds.el
     !> and mule-diag.el (and of bindings.el's C-\ and C-x \).
-    subroutine initialize_mule(global_map, control_x_map, help_map)
+    subroutine initialize_multilingual_environment(global_map, control_x_map, help_map)
         type(handle_type), intent(in) :: global_map, control_x_map, help_map
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
@@ -746,31 +748,31 @@ contains
         commands%reset_language_environment%execute => execute_reset_language_environment
         commands%describe_language_environment%execute => execute_describe_language_environment
         commands%list_character_sets%execute => execute_list_character_sets
-        commands%list_charset_characters%execute => execute_list_charset_characters
+        commands%list_character_set_characters%execute => execute_list_character_set_characters
         commands%describe_character_set%execute => execute_describe_character_set
         commands%set_input_method%execute => execute_set_input_method
         commands%toggle_input_method%execute => execute_toggle_input_method
         commands%activate_transient_input_method%execute => execute_activate_transient_input_method
         commands%describe_input_method%execute => execute_describe_input_method
         if (.not. allocated(input_methods)) allocate (input_methods(0))
-        call make_sparse_keymap(mule_keymap)
-        call bind(mule_keymap, "f", "set_buffer_file_coding_system")
-        call bind(mule_keymap, "c", "universal_coding_system_argument")
-        call bind(mule_keymap, "r", "revert_buffer_with_coding_system")
-        call bind(mule_keymap, "p", "set_buffer_process_coding_system")
-        call bind(mule_keymap, "t", "set_terminal_coding_system")
-        call bind(mule_keymap, "k", "set_keyboard_coding_system")
-        call bind(mule_keymap, "l", "set_language_environment")
-        call bind(mule_keymap, "C-\", "set_input_method")
+        call make_sparse_keymap(multilingual_environment_keymap)
+        call bind(multilingual_environment_keymap, "f", "set_buffer_file_coding_system")
+        call bind(multilingual_environment_keymap, "c", "universal_coding_system_argument")
+        call bind(multilingual_environment_keymap, "r", "revert_buffer_with_coding_system")
+        call bind(multilingual_environment_keymap, "p", "set_buffer_process_coding_system")
+        call bind(multilingual_environment_keymap, "t", "set_terminal_coding_system")
+        call bind(multilingual_environment_keymap, "k", "set_keyboard_coding_system")
+        call bind(multilingual_environment_keymap, "l", "set_language_environment")
+        call bind(multilingual_environment_keymap, "C-\", "set_input_method")
         ! Keep "C-x C-m ..." for mule specific commands.
         call key_parse("C-m", key, st)
-        call define_key(control_x_map, key, keymap_value(mule_keymap), st)
+        call define_key(control_x_map, key, keymap_value(multilingual_environment_keymap), st)
         call bind(help_map, "C", "describe_coding_system")
         call bind(help_map, "L", "describe_language_environment")
         call bind(help_map, "I", "describe_input_method")
         call bind(global_map, "C-\", "toggle_input_method")
         call bind(control_x_map, "\", "activate_transient_input_method")
-    end subroutine initialize_mule
+    end subroutine initialize_multilingual_environment
 
     !> MAP as a keymap value, for binding it as a prefix.  Not a port.
     function keymap_value(map) result(v)
@@ -834,14 +836,14 @@ contains
         if (multibyte) then
             subject = text
         else
-            subject = str_to_multibyte(text)
+            subject = string_to_multibyte(text)
         end if
 
         saved = case_fold_search%value
         case_fold_search%value = .true.
 
         do k = 1, size(auto_coding_regular_expressions)
-            if (string_match(str_to_multibyte(auto_coding_regular_expressions(k)%pattern), subject, st, &
+            if (string_match(string_to_multibyte(auto_coding_regular_expressions(k)%pattern), subject, st, &
                              inhibit_modify=.true.) > 0) then
                 coding = auto_coding_regular_expressions(k)%coding
                 exit
@@ -1298,7 +1300,7 @@ contains
     function buffer_text() result(text)
         character(len=:), allocatable :: text
 
-        text = buf_bytes(buffers(current), BEGINNING_BYTE, buffers(current)%text%z_byte)
+        text = buffer_bytes(buffers(current), BEGINNING_BYTE, buffers(current)%text%z_byte)
     end function buffer_text
 
     !> Whether NAME is in NAMES.  Not a port.
@@ -1354,7 +1356,7 @@ contains
 
                 do k = 1, size(prio)
                     cs = prio(k)%name
-                    if (len(coding_system_mime_charset(cs)) == 0) cycle
+                    if (len(coding_system_mime_character_set(cs)) == 0) cycle
                     if (.not. (all .or. has_coding_system(coding_system_base(cs), bcss))) cycle
                     if (coding_system_base(cs) == current_coding) cycle
                     default = cs
@@ -1408,7 +1410,7 @@ contains
             if (len(buffer_file_coding_system%value) > 0) cs = merge_coding_systems(cs, buffer_file_coding_system%value)
         end if
 
-        if (interactive .and. coding_system_charset_list(cs) /= "emacs") then
+        if (interactive .and. coding_system_character_set_list(cs) /= "emacs") then
             ! Check whether save would succeed, and jump to the offending
             ! char(s) if not.
             call find_coding_systems_text(buffer_text(), css, all)
@@ -1979,7 +1981,7 @@ contains
                     preferred = prio(1)%name
                     base = coding_system_base(preferred)
 
-                    if (len(coding_system_mime_charset(preferred)) > 0 .and. .not. has_base(defaults(1:nd), base)) then
+                    if (len(coding_system_mime_character_set(preferred)) > 0 .and. .not. has_base(defaults(1:nd), base)) then
                         call append(defaults, nd, preferred)
                     end if
                 end if
@@ -2132,7 +2134,7 @@ contains
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: text
 
-        text = buf_bytes(buffers(current), character_to_byte(from), character_to_byte(to))
+        text = buffer_bytes(buffers(current), character_to_byte(from), character_to_byte(to))
     end function region_text
 
     ! Append the coding system NAME to LIST (N used).  Not a port.
@@ -2279,9 +2281,9 @@ contains
             integer :: n
 
             b = character_to_byte(position)
-            s = buf_bytes(buffers(current), b, b + 1)
-            n = multibyte_length(buf_bytes(buffers(current), b, min(b + 5, buffers(current)%text%z_byte)), 1_int64, .false.)
-            if (n > 1) s = buf_bytes(buffers(current), b, b + n)
+            s = buffer_bytes(buffers(current), b, b + 1)
+            n = multibyte_length(buffer_bytes(buffers(current), b, min(b + 5, buffers(current)%text%z_byte)), 1_int64, .false.)
+            if (n > 1) s = buffer_bytes(buffers(current), b, b + n)
         end function character_at
     end subroutine select_safe_coding_system_interactively
 
@@ -2411,7 +2413,7 @@ contains
     recursive subroutine describe_coding_system(coding_system, status)
         character(len=*), intent(in) :: coding_system
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: s, t, charsets
+        character(len=:), allocatable :: s, t, character_sets
         character(len=40) :: subs(0:2)
 
         if (len(coding_system) == 0) then
@@ -2454,10 +2456,10 @@ contains
             s = s//"CR"//LF
         end select
 
-        charsets = coding_system_charset_list(coding_system)
+        character_sets = coding_system_character_set_list(coding_system)
 
-        if (coding_system_base(coding_system) /= "raw-text" .and. len(charsets) > 0) then
-            s = s//"This coding system encodes the following charsets:"//LF//"  "//charsets
+        if (coding_system_base(coding_system) /= "raw-text" .and. len(character_sets) > 0) then
+            s = s//"This coding system encodes the following charsets:"//LF//"  "//character_sets
         end if
 
         call with_help_window(s, status)
@@ -2659,14 +2661,14 @@ contains
     !> `language_environment_type' for the meanings of the keys.
     !> HAS_DOCUMENTATION without DOCUMENTATION gives it a documentation
     !> key with no text.  Port of mule-cmds.el:set-language-info-alist (the menus are Not applicable).
-    subroutine define_language_environment(name, documentation, has_documentation, charsets, sample_text, &
+    subroutine define_language_environment(name, documentation, has_documentation, character_sets, sample_text, &
                                            coding_systems, coding_system_order, nonascii_translation, input_method, &
                                            unibyte_display, tutorial, iso639_language, setup_function, exit_function)
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: documentation, sample_text, nonascii_translation, input_method
         character(len=*), intent(in), optional :: unibyte_display, tutorial, iso639_language
         logical, intent(in), optional :: has_documentation
-        character(len=*), intent(in), optional :: charsets(:), coding_systems(:), coding_system_order(:)
+        character(len=*), intent(in), optional :: character_sets(:), coding_systems(:), coding_system_order(:)
         procedure(language_environment_procedure), optional :: setup_function, exit_function
         type(language_environment_type), allocatable :: grown(:)
         type(status_type) :: status
@@ -2699,7 +2701,7 @@ contains
             if (present(documentation)) environment%documentation = documentation
             if (present(documentation)) environment%has_documentation = .true.
             if (present(has_documentation)) environment%has_documentation = has_documentation
-            if (present(charsets)) environment%charsets = charsets
+            if (present(character_sets)) environment%character_sets = character_sets
             if (present(sample_text)) environment%sample_text = sample_text
             if (present(coding_systems)) environment%coding_systems = coding_systems
             if (present(coding_system_order)) environment%coding_system_order = coding_system_order
@@ -2755,7 +2757,7 @@ contains
         case (LANGUAGE_INFO_DOCUMENTATION)
             has_key = environment%has_documentation
         case (LANGUAGE_INFO_CHARSET)
-            has_key = allocated(environment%charsets)
+            has_key = allocated(environment%character_sets)
         case (LANGUAGE_INFO_SAMPLE_TEXT)
             has_key = allocated(environment%sample_text)
         case (LANGUAGE_INFO_CODING_SYSTEM)
@@ -2853,7 +2855,7 @@ contains
                                                                                 "utf-8")
         ! Put the highest priority to the charset iso-8859-1 to prefer the
         ! registry iso8859-1 over iso8859-2 in font selection.
-        call set_charset_priority([character(len=CHARSET_NAME_LENGTH) :: "iso-8859-1"], status)
+        call set_character_set_priority([character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-1"], status)
     end subroutine reset_language_environment
 
     recursive subroutine execute_reset_language_environment(status)
@@ -2914,7 +2916,7 @@ contains
         end if
 
         ! set-language-environment-nonascii-translation has no effect now.
-        call set_language_environment_charset(id, status)
+        call set_language_environment_character_set(id, status)
         if (.not. status%ok()) return
 
         if (associated(language_environments(id)%setup_function)) then
@@ -2959,44 +2961,45 @@ contains
     ! priorities to such charsets that are supported by the coding
     ! systems of higher priorities in this environment.
     ! Port of mule-cmds.el:set-language-environment-charset.
-    subroutine set_language_environment_charset(id, status)
+    subroutine set_language_environment_character_set(id, status)
         integer, intent(in) :: id
         type(status_type), intent(out) :: status
-        character(len=CHARSET_NAME_LENGTH), allocatable :: priority_charsets(:)
-        character(len=:), allocatable :: charset_list
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: priority_character_sets(:)
+        character(len=:), allocatable :: character_set_list
         integer :: i, first, last
 
         status = status_type()
-        allocate (priority_charsets(0))
+        allocate (priority_character_sets(0))
 
-        if (allocated(language_environments(id)%charsets)) then
-            priority_charsets = language_environments(id)%charsets
+        if (allocated(language_environments(id)%character_sets)) then
+            priority_character_sets = language_environments(id)%character_sets
         end if
 
         if (allocated(language_environments(id)%coding_system_order)) then
             do i = 1, size(language_environments(id)%coding_system_order)
-                charset_list = coding_system_charset_list(trim(language_environments(id)%coding_system_order(i)))
+                character_set_list = coding_system_character_set_list(trim(language_environments(id)%coding_system_order(i)))
                 ! A list of charsets (not `iso-2022' or `emacs-mule').
-                if (any(charset_list == [character(len=10) :: "iso-2022", "emacs-mule", ""])) cycle
+                if (any(character_set_list == [character(len=10) :: "iso-2022", "emacs-mule", ""])) cycle
                 first = 1
 
-                do while (first <= len(charset_list))
-                    last = index(charset_list(first:), " ")
+                do while (first <= len(character_set_list))
+                    last = index(character_set_list(first:), " ")
 
                     if (last == 0) then
-                        last = len(charset_list) + 1
+                        last = len(character_set_list) + 1
                     else
                         last = first + last - 1
                     end if
 
-                    priority_charsets = [character(len=CHARSET_NAME_LENGTH) :: priority_charsets, charset_list(first:last - 1)]
+                    priority_character_sets = [character(len=CHARACTER_SET_NAME_LENGTH) :: priority_character_sets, &
+                                               character_set_list(first:last - 1)]
                     first = last + 1
                 end do
             end do
         end if
 
-        if (size(priority_charsets) > 0) call set_charset_priority(priority_charsets, status)
-    end subroutine set_language_environment_charset
+        if (size(priority_character_sets) > 0) call set_character_set_priority(priority_character_sets, status)
+    end subroutine set_language_environment_character_set
 
     recursive subroutine execute_set_language_environment(status)
         type(status_type), intent(out) :: status
@@ -3053,14 +3056,14 @@ contains
 
             text = text//"Character sets:"//LF
 
-            if (.not. allocated(environment%charsets)) then
+            if (.not. allocated(environment%character_sets)) then
                 text = text//"  nothing specific to "//name//LF
-            else if (size(environment%charsets) == 0) then
+            else if (size(environment%character_sets) == 0) then
                 text = text//"  nothing specific to "//name//LF
             else
-                do i = 1, size(environment%charsets)
-                    text = text//"  "//trim(environment%charsets(i))//": "// &
-                           charset_description(trim(environment%charsets(i)))//LF
+                do i = 1, size(environment%character_sets)
+                    text = text//"  "//trim(environment%character_sets(i))//": "// &
+                           character_set_description(trim(environment%character_sets(i)))//LF
                 end do
             end if
 
@@ -3129,11 +3132,11 @@ contains
     !> Matching is done ignoring case and any hyphens and underscores in the
     !> names.  E.g. `ISO_8859-1' and `iso88591' both match `iso-8859-1'.
     !> Port of mule-cmds.el:locale-charset-match-p.
-    logical function is_locale_charset_match(charset1, charset2)
+    logical function is_locale_character_set_match(charset1, charset2)
         character(len=*), intent(in) :: charset1, charset2
 
-        is_locale_charset_match = downcase_ascii(without_separators(charset1)) == downcase_ascii(without_separators(charset2))
-    end function is_locale_charset_match
+        is_locale_character_set_match = downcase_ascii(without_separators(charset1)) == downcase_ascii(without_separators(charset2))
+    end function is_locale_character_set_match
 
     ! TEXT without its `-' and `_' characters.  Not a port.
     pure function without_separators(text) result(kept)
@@ -3148,8 +3151,8 @@ contains
         end do
     end function without_separators
 
-    !> Find coding system corresponding to CHARSET.
-    !> CHARSET is any sort of non-Emacs charset name, such as might be used
+    !> Find coding system corresponding to CHARACTER_SET.
+    !> CHARACTER_SET is any sort of non-Emacs charset name, such as might be used
     !> in a locale codeset, or elsewhere.  It is matched to a coding system
     !> in the coding system list, treating case and the characters `-' and
     !> `_' as insignificant.  The coding system base is returned ("" if
@@ -3157,8 +3160,8 @@ contains
     !> returned.
     !> Port of mule-cmds.el:locale-charset-to-coding-system
     !> (`locale-charset-alist' is empty in Emacs, so it is not kept).
-    function locale_charset_to_coding_system(charset) result(coding_system)
-        character(len=*), intent(in) :: charset
+    function locale_character_set_to_coding_system(character_set) result(coding_system)
+        character(len=*), intent(in) :: character_set
         character(len=:), allocatable :: coding_system
         type(coding_system_list_entry_type), allocatable :: names(:)
         integer :: k
@@ -3168,12 +3171,12 @@ contains
 
         ! `coding-system-alist' has the latest defined first.
         do k = size(names), 1, -1
-            if (is_locale_charset_match(charset, names(k)%name)) then
+            if (is_locale_character_set_match(character_set, names(k)%name)) then
                 coding_system = coding_system_base(names(k)%name)
                 return
             end if
         end do
-    end function locale_charset_to_coding_system
+    end function locale_character_set_to_coding_system
 
     !> Expand LOCALE according to `locale_translation_file_name', if possible.
     !> For example, translate "swedish" into "sv_SE.ISO8859-1".  Port of
@@ -3182,7 +3185,7 @@ contains
         character(len=*), intent(in) :: locale
         character(len=:), allocatable :: translated, line
         character(len=1024) :: record
-        integer :: unit, io_status, locale_length, i, first_kept
+        integer :: unit, input_output_status, locale_length, i, first_kept
         logical :: exists
 
         translated = locale
@@ -3190,13 +3193,13 @@ contains
         if (len(locale_translation_file_name) == 0) return
         inquire (file=locale_translation_file_name, exist=exists)
         if (.not. exists) return
-        open (newunit=unit, file=locale_translation_file_name, status="old", action="read", iostat=io_status)
-        if (io_status /= 0) return
+        open (newunit=unit, file=locale_translation_file_name, status="old", action="read", iostat=input_output_status)
+        if (input_output_status /= 0) return
         locale_length = len(locale)
 
         do
-            read (unit, "(a)", iostat=io_status) record
-            if (io_status /= 0) exit
+            read (unit, "(a)", iostat=input_output_status) record
+            if (input_output_status /= 0) exit
             line = trim(record)
             if (len(line) <= locale_length) cycle
             if (line(1:locale_length) /= locale) cycle
@@ -3319,7 +3322,7 @@ contains
     !> By default, this function will redraw the current frame.  If
     !> INHIBIT_REFRESH is true, this isn't done.
     !>
-    !> See also `locale_charset_language_names', `locale_language_names',
+    !> See also `locale_character_set_language_names', `locale_language_names',
     !> `locale_preferred_coding_systems' and `locale_coding_system'.
     !>
     !> Port of mule-cmds.el:set-locale-environment (FRAME waits for more
@@ -3341,7 +3344,7 @@ contains
         character(len=*), parameter :: LOWER_LETTERS = "abcdefghijklmnopqrstuvwxyz"
         character(len=:), allocatable :: locale, language_name, coding_system, keyboard_coding, default_coding
         logical :: exists, found
-        integer :: i, k, language_entry, charset_entry, preferred_entry, end_of_line_type, id
+        integer :: i, k, language_entry, character_set_entry, preferred_entry, end_of_line_type, id
 
         status = status_type()
         call initialize_language_environments()
@@ -3383,7 +3386,7 @@ contains
 
         locale = downcase_ascii(locale)
         language_entry = find_locale_entry(locale, locale_language_names)
-        charset_entry = find_locale_entry(locale, locale_charset_language_names)
+        character_set_entry = find_locale_entry(locale, locale_character_set_language_names)
         default_coding = default_buffer_file_coding_system()
         end_of_line_type = END_OF_LINE_UNDECIDED
         if (len(default_coding) > 0) end_of_line_type = coding_system_end_of_line_type(default_coding)
@@ -3399,9 +3402,9 @@ contains
                 k = index(locale(i + 1:), "@")
 
                 if (k == 0) then
-                    coding_system = locale_charset_to_coding_system(locale(i + 1:))
+                    coding_system = locale_character_set_to_coding_system(locale(i + 1:))
                 else if (k > 1) then
-                    coding_system = locale_charset_to_coding_system(locale(i + 1:i + k - 1))
+                    coding_system = locale_character_set_to_coding_system(locale(i + 1:i + k - 1))
                 end if
             end if
         end if
@@ -3413,9 +3416,9 @@ contains
             ! What locale_preferred_coding_systems specifies has higher
             ! priority.
             if (len(coding_system) == 0) coding_system = trim(locale_language_names(language_entry)%coding_system)
-        else if (charset_entry /= 0) then
-            ! Otherwise use what locale_charset_language_names lists.
-            language_name = trim(locale_charset_language_names(charset_entry)%language)
+        else if (character_set_entry /= 0) then
+            ! Otherwise use what locale_character_set_language_names lists.
+            language_name = trim(locale_character_set_language_names(character_set_entry)%language)
         end if
 
         ! If a specific END_OF_LINE conversion was specified in the default
@@ -3538,23 +3541,23 @@ contains
     function list_character_sets_1(sort_key) result(text)
         character(len=*), intent(in) :: sort_key
         character(len=:), allocatable :: text
-        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: names(:)
         integer, allocatable :: main_entries(:), supplementary_entries(:), dimensions(:), chars(:), final_characters(:)
         type(status_type) :: st
         integer :: i, id
 
-        names = charset_list()
+        names = character_set_list()
         allocate (dimensions(size(names)), chars(size(names)), final_characters(size(names)))
         allocate (main_entries(0), supplementary_entries(0))
 
         ! Pushed onto the lists: the earliest defined first.
         do i = size(names), 1, -1
-            id = find_charset(trim(names(i)))
-            dimensions(i) = charsets(id)%dimension
-            chars(i) = charset_characters(trim(names(i)), st)
-            final_characters(i) = charsets(id)%iso_final
+            id = find_character_set(trim(names(i)))
+            dimensions(i) = character_sets(id)%dimension
+            chars(i) = character_set_characters(trim(names(i)), st)
+            final_characters(i) = character_sets(id)%iso_final
 
-            if (charsets(id)%supplementary .and. .not. charsets(id)%internal) then
+            if (character_sets(id)%supplementary .and. .not. character_sets(id)%internal) then
                 supplementary_entries = [supplementary_entries, i]
             else
                 main_entries = [main_entries, i]
@@ -3643,7 +3646,7 @@ contains
     ! Port of mule-diag.el:list-character-sets-2.
     function list_character_sets_2() result(text)
         character(len=:), allocatable :: text
-        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: names(:)
         type(status_type) :: st
         character(len=32) :: buffer
         integer :: i, id
@@ -3658,50 +3661,50 @@ contains
                "##"//TAB//"ISO-FINAL-CHAR (character code of ISO-2022's final character)"//LF// &
                "##"//TAB//TAB//"-1 means that no final character is assigned."//LF// &
                "##"//TAB//"DESCRIPTION (describing string of the charset)"//LF
-        names = charset_list()
+        names = character_set_list()
 
         do i = 1, size(names)
-            id = find_charset(trim(names(i)))
-            write (buffer, "(i0, ':', i0, ':', i0)") charsets(id)%dimension, charset_characters(trim(names(i)), st), &
-                charsets(id)%iso_final
-            text = text//trim(names(i))//":"//trim(buffer)//":"//charsets(id)%docstring//LF
+            id = find_character_set(trim(names(i)))
+            write (buffer, "(i0, ':', i0, ':', i0)") character_sets(id)%dimension, character_set_characters(trim(names(i)), st), &
+                character_sets(id)%iso_final
+            text = text//trim(names(i))//":"//trim(buffer)//":"//character_sets(id)%docstring//LF
         end do
     end function list_character_sets_2
 
     !> Read a character set from the minibuffer, prompting with string PROMPT.
-    !> It must be an Emacs character set listed in `charset_list'.
+    !> It must be an Emacs character set listed in `character_set_list'.
     !> Return the charset name ("" for empty input).  DEFAULT_VALUE is the
     !> default value.
     !> Port of mule-diag.el:read-charset.
-    recursive subroutine read_charset(prompt, charset, status, default_value, initial_input)
+    recursive subroutine read_character_set(prompt, character_set, status, default_value, initial_input)
         character(len=*), intent(in) :: prompt
-        character(len=:), allocatable, intent(out) :: charset
+        character(len=:), allocatable, intent(out) :: character_set
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: default_value, initial_input
-        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: names(:)
         type(value_type), allocatable :: items(:)
         integer :: i
 
-        names = charset_list()
+        names = character_set_list()
         allocate (items(size(names)))
 
         do i = 1, size(names)
             items(i) = value_type(text=trim(names(i)))
         end do
 
-        call completing_read(prompt, completion_list_table(make_list(items)), charset, status, &
-                             require_match=REQUIRE_MATCH_YES, initial_input=initial_input, history="charset_history", &
+        call completing_read(prompt, completion_list_table(make_list(items)), character_set, status, &
+                             require_match=REQUIRE_MATCH_YES, initial_input=initial_input, history="character_set_history", &
                              default=default_value)
-    end subroutine read_charset
+    end subroutine read_character_set
 
-    ! The characters of CHARSET with code points ROW*256+MINIMUM_CODE to
+    ! The characters of CHARACTER_SET with code points ROW*256+MINIMUM_CODE to
     ! ROW*256+MAXIMUM_CODE (ROW is the first byte of a 2-dimensional charset, 0
     ! for a 1-dimensional one).
     ! Port of mule-diag.el:list-block-of-chars.
-    function list_block_of_characters(charset, row, minimum_code, maximum_code) result(text)
+    function list_block_of_characters(character_set, row, minimum_code, maximum_code) result(text)
         use keymap_mod, only: single_key_description
         use character_mod, only: character_string, MAXIMUM_MULTIBYTE_LENGTH
-        character(len=*), intent(in) :: charset
+        character(len=*), intent(in) :: character_set
         integer, intent(in) :: row, minimum_code, maximum_code
         character(len=:), allocatable :: text
         character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
@@ -3727,7 +3730,7 @@ contains
             if (i < minimum_code) then
                 c = 32
             else
-                c = decode_character(charset, int(row*256 + i, int64), st)
+                c = decode_character(character_set, int(row*256 + i, int64), st)
                 ! A gap in the mapping.
                 if (c < 0) c = 32
             end if
@@ -3752,104 +3755,104 @@ contains
         text = text//LF
     end function list_block_of_characters
 
-    !> Display a list of characters in character set CHARSET.
+    !> Display a list of characters in character set CHARACTER_SET.
     !> Port of mule-diag.el:list-charset-chars.
-    recursive subroutine list_charset_characters(charset, status)
-        character(len=*), intent(in) :: charset
+    recursive subroutine list_character_set_characters(character_set, status)
+        character(len=*), intent(in) :: character_set
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         integer :: i, id
 
-        id = find_charset(charset)
+        id = find_character_set(character_set)
 
         if (id == 0) then
-            call set_error(status, GENERIC_ERROR_CODE, "Invalid character set: "//charset)
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid character set: "//character_set)
             return
         end if
 
-        associate (cs => charsets(id))
+        associate (cs => character_sets(id))
             if (cs%dimension > 2) then
                 call set_error(status, GENERIC_ERROR_CODE, "Can only list 1- and 2-dimensional charsets")
                 return
             end if
 
-            text = "Characters in the coded character set "//charset//"."//LF
+            text = "Characters in the coded character set "//character_set//"."//LF
 
             if (cs%dimension == 1) then
-                text = text//list_block_of_characters(charset, 0, cs%given_code_space(1), cs%given_code_space(2))
+                text = text//list_block_of_characters(character_set, 0, cs%given_code_space(1), cs%given_code_space(2))
             else
                 do i = cs%given_code_space(3), cs%given_code_space(4)
-                    text = text//list_block_of_characters(charset, i, cs%given_code_space(1), cs%given_code_space(2))
+                    text = text//list_block_of_characters(character_set, i, cs%given_code_space(1), cs%given_code_space(2))
                 end do
             end if
         end associate
 
-        listed_charset = charset
-        call with_output_to_temporary_buffer("*Character List*", text, status, list_charset_characters_body)
-    end subroutine list_charset_characters
+        listed_character_set = character_set
+        call with_output_to_temporary_buffer("*Character List*", text, status, list_character_set_characters_body)
+    end subroutine list_character_set_characters
 
     ! The rest of list-charset-chars's body, in *Character List*: its coding
     ! system (when the charset is also a coding system), the charset in
-    ! the mode line, a tab width of 4 and the `charset' text property.
-    ! Not a port: the body that list_charset_characters gives
+    ! the mode line, a tab width of 4 and the `character_set' text property.
+    ! Not a port: the body that list_character_set_characters gives
     ! with_output_to_temporary_buffer (the rest of upstream's body).
-    recursive subroutine list_charset_characters_body(status)
+    recursive subroutine list_character_set_characters_body(status)
         use display_engine_mod, only: tab_width
         type(status_type), intent(out) :: status
         type(header_line_format_type) :: id
 
         status = status_type()
 
-        if (is_coding_system(listed_charset)) then
-            call set_buffer_file_coding_system(listed_charset, .false., .false., .false., status)
+        if (is_coding_system(listed_character_set)) then
+            call set_buffer_file_coding_system(listed_character_set, .false., .false., .false., status)
             if (.not. status%ok()) return
         end if
 
         call id%append("%12b", "mode_line_buffer_id")
-        call id%append(" ("//listed_charset//")")
+        call id%append(" ("//listed_character_set//")")
         buffers(current)%mode_line_buffer_identification = id
         call tab_width%set_local(4_int64)
-        ! The `charset' text property upstream puts on the buffer is Deferred
-        ! with the other `charset' properties (docs/status/coding_mod.md).
-    end subroutine list_charset_characters_body
+        ! The `character_set' text property upstream puts on the buffer is Deferred
+        ! with the other `character_set' properties (docs/status/coding_mod.md).
+    end subroutine list_character_set_characters_body
 
-    recursive subroutine execute_list_charset_characters(status)
+    recursive subroutine execute_list_character_set_characters(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: charset
+        character(len=:), allocatable :: character_set
 
-        call read_charset("Character set: ", charset, status)
+        call read_character_set("Character set: ", character_set, status)
         if (.not. status%ok()) return
-        call list_charset_characters(charset, status)
-    end subroutine execute_list_charset_characters
+        call list_character_set_characters(character_set, status)
+    end subroutine execute_list_character_set_characters
 
-    !> Display information about built-in character set CHARSET.
+    !> Display information about built-in character set CHARACTER_SET.
     !> Port of mule-diag.el:describe-character-set (`:parents' is never set).
-    recursive subroutine describe_character_set(charset, status)
+    recursive subroutine describe_character_set(character_set, status)
         use character_mod, only: character_string, MAXIMUM_MULTIBYTE_LENGTH
-        character(len=*), intent(in) :: charset
+        character(len=*), intent(in) :: character_set
         type(status_type), intent(out) :: status
-        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: names(:)
         character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: text, aliases
         character(len=24) :: number
         integer :: i, id, nbytes
 
-        id = find_charset(charset)
+        id = find_character_set(character_set)
 
         if (id == 0) then
-            call set_error(status, GENERIC_ERROR_CODE, "Invalid charset: "//charset)
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid charset: "//character_set)
             return
         end if
 
-        associate (cs => charsets(id))
-            text = "Character set: "//charset
-            if (cs%name /= charset) text = text//" (alias of "//cs%name//")"
+        associate (cs => character_sets(id))
+            text = "Character set: "//character_set
+            if (cs%name /= character_set) text = text//" (alias of "//cs%name//")"
             text = text//LF//LF//cs%docstring//LF//LF//"Number of contained characters: "
 
             do i = 1, cs%dimension
                 if (i > 1) text = text//"x"
-                write (number, "(i0)") charset_characters(charset, st, i)
+                write (number, "(i0)") character_set_characters(character_set, st, i)
                 text = text//trim(number)
             end do
 
@@ -3861,13 +3864,13 @@ contains
             end if
 
             aliases = ""
-            names = charset_list()
+            names = character_set_list()
 
             ! Pushed onto the list: the earliest defined first.
             do i = size(names), 1, -1
-                if (trim(names(i)) == charset) cycle
+                if (trim(names(i)) == character_set) cycle
 
-                if (charsets(find_charset(trim(names(i))))%name == charset) then
+                if (character_sets(find_character_set(trim(names(i))))%name == character_set) then
                     if (len(aliases) > 0) aliases = aliases//", "
                     aliases = aliases//trim(names(i))
                 end if
@@ -3884,8 +3887,8 @@ contains
                 text = text//"Invalid character: "//buffer(1:nbytes)//" (code "//trim(number)//")"//LF
             end if
 
-            if (cs%emacs_mule_id >= 0) then
-                write (number, "(i0)") cs%emacs_mule_id
+            if (cs%emacs_multilingual_environment_id >= 0) then
+                write (number, "(i0)") cs%emacs_multilingual_environment_id
                 text = text//"Id in emacs-mule coding system: "//trim(number)//LF
             end if
 
@@ -3920,11 +3923,11 @@ contains
 
     recursive subroutine execute_describe_character_set(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: charset
+        character(len=:), allocatable :: character_set
 
-        call read_charset("Charset: ", charset, status)
+        call read_character_set("Charset: ", character_set, status)
         if (.not. status%ok()) return
-        call describe_character_set(charset, status)
+        call describe_character_set(character_set, status)
     end subroutine execute_describe_character_set
 
     ! ------------------------------------------------------------------

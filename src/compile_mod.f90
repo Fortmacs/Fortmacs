@@ -60,7 +60,7 @@
 !> own value is rules), FILE given as (FILE FORMAT...), HIGHLIGHT faces
 !> given as text properties other than `face' and `display',
 !> `compilation_parse_errors_filename_function',
-!> `comint_file_name_prefix' (remote files), `compilation_search_path'
+!> `command_interpreter_file_name_prefix' (remote files), `compilation_search_path'
 !> and `compilation_search_extra_path' (only the directory of the message
 !> and, with `compilation_search_all_directories', the directories
 !> entered before it are searched), `compilation_fake_location',
@@ -68,7 +68,7 @@
 !> of the font-lock keywords of the "Compilation finished" and
 !> "Compilation exited" lines, and removing the font-lock keywords when
 !> the minor modes are turned off (`font_lock_remove_keywords'); visiting
-!> a directory message with `compile_goto_error' (`dired_other_window');
+!> a directory message with `compile_goto_error' (`directory_editor_other_window');
 !> `selective_display' in `compilation_beginning_of_line';
 !> `compilation_maximum_output_line_length' (long lines are not abbreviated:
 !> needs buttons and display properties), `compilation_hidden_output',
@@ -136,7 +136,8 @@ module compile_mod
                            process_send_eof, number_processors
     use time_functions_mod, only: current_time_string
     use version_mod, only: upstream_version
-    use command_interpreter_mod, only: comint_carriage_motion, comint_inhibit_carriage_motion, comint_mode, comint_exec
+    use command_interpreter_mod, only: command_interpreter_carriage_motion, command_interpreter_inhibit_carriage_motion, &
+                                       command_interpreter_mode, command_interpreter_exec
     use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_REPLACE
@@ -146,7 +147,7 @@ module compile_mod
     private
 
     public :: compile, recompile, compilation_start, compilation_mode, stop_compilation, compilation_filter, &
-              compilation_sentinel, compilation_handle_exit, comint_carriage_motion, initialize_compile, cd
+              compilation_sentinel, compilation_handle_exit, command_interpreter_carriage_motion, initialize_compile, cd
     public :: compilation_parse_errors, compilation_ensure_parse, compilation_next_error, compilation_previous_error, &
               compilation_next_file, compilation_previous_file, compilation_display_error, compile_goto_error, &
               compilation_next_error_function, compilation_find_buffer, compilation_forget_errors, &
@@ -708,7 +709,7 @@ module compile_mod
         ! compilation-arguments.
         logical :: has_arguments = .false.
         character(len=:), allocatable :: command
-        logical :: comint = .false.
+        logical :: command_interpreter = .false.
         ! compilation--start-time.
         integer(int64) :: start_count = 0
         ! compilation-directory, if the buffer has a value of its own.
@@ -4149,7 +4150,7 @@ contains
     !> You can then use the command \[next_error] to find the next error
     !> message and move to the source code that caused it.
     !>
-    !> If optional second arg COMINT is true the buffer will be in Comint
+    !> If optional second arg COMMAND_INTERPRETER is true the buffer will be in Comint
     !> mode with `compilation_shell_minor_mode'.
     !>
     !> Interactively, prompts for the command if the variable
@@ -4165,10 +4166,10 @@ contains
     !>
     !> On most systems, termination of the main compilation process kills
     !> its subprocesses.  Port of compile.el:compile.
-    recursive subroutine compile(command, status, comint)
+    recursive subroutine compile(command, status, command_interpreter)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: comint
+        logical, intent(in), optional :: command_interpreter
         character(len=:), allocatable :: directory
 
         if (command /= compile_command_value() .or. len(command) /= len(compile_command_value())) then
@@ -4181,7 +4182,7 @@ contains
         if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         ! setq-default: the value of buffers without their own.
         compilation_directory = directory
-        call compilation_start(command, status, comint)
+        call compilation_start(command, status, command_interpreter)
     end subroutine compile
 
     !> `compile_command', set to its default value first if needed.
@@ -4223,7 +4224,7 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: edit_command
         character(len=:), allocatable :: command, saved_directory, directory, saved_command
-        logical :: edit, had_directory, comint
+        logical :: edit, had_directory, command_interpreter
         type(handle_type) :: old
         type(major_mode_type), pointer :: mode
         integer :: k
@@ -4265,19 +4266,19 @@ contains
             end if
         end if
 
-        comint = .false.
+        command_interpreter = .false.
         mode => null()
 
         if (k /= 0) then
             command = compilation_buffers(k)%command
-            comint = compilation_buffers(k)%comint
+            command_interpreter = compilation_buffers(k)%command_interpreter
             mode => compilation_buffers(k)%mode
         end if
 
         if (associated(mode)) then
-            call compilation_start(command, status, comint, mode)
+            call compilation_start(command, status, command_interpreter, mode)
         else
-            call compilation_start(command, status, comint)
+            call compilation_start(command, status, command_interpreter)
         end if
 
         call restore_directory()
@@ -4369,31 +4370,31 @@ contains
     !> `default_directory'.
     !>
     !> MODE is the major mode to set in the compilation buffer
-    !> (`compilation_mode' if absent).  COMINT true means use
-    !> `compilation_shell_minor_mode' under `comint_mode' instead (MODE t).
+    !> (`compilation_mode' if absent).  COMMAND_INTERPRETER true means use
+    !> `compilation_shell_minor_mode' under `command_interpreter_mode' instead (MODE t).
     !>
     !> The buffer is the current buffer if it has the proper major mode,
     !> else a buffer with a name based on the major mode (*compilation*,
     !> *grep*).  Port of compile.el:compilation-start (NAME-FUNCTION,
     !> HIGHLIGHT-REGEXP and CONTINUE are Deferred).
-    recursive subroutine compilation_start(command, status, comint, mode)
+    recursive subroutine compilation_start(command, status, command_interpreter, mode)
         character(len=*), intent(in) :: command
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: comint
+        logical, intent(in), optional :: command_interpreter
         type(major_mode_type), intent(in), target, optional :: mode
         character(len=:), allocatable :: thisdir, cd_directory, origdir, name_of_mode
         type(handle_type) :: outbuf, comp_process, outwin, old, process
         type(string_type), allocatable :: arguments(:), switches(:), environment_variables(:)
         type(value_type) :: inhibit
         type(status_type) :: st
-        logical :: answer, scroll, use_comint
+        logical :: answer, scroll, use_command_interpreter
         integer(int64) :: desired
         integer :: k
 
-        use_comint = .false.
-        if (present(comint)) use_comint = comint
+        use_command_interpreter = .false.
+        if (present(command_interpreter)) use_command_interpreter = command_interpreter
 
-        if (use_comint .or. .not. present(mode)) then
+        if (use_command_interpreter .or. .not. present(mode)) then
             name_of_mode = "compilation"
         else
             name_of_mode = trim(mode%name)
@@ -4464,7 +4465,7 @@ contains
         ! Select the desired mode.
         origdir = buffers(current)%directory
 
-        if (.not. use_comint) then
+        if (.not. use_command_interpreter) then
             buffers(current)%undo_enabled = .false.
             if (allocated(buffers(current)%undo_entries)) deallocate (buffers(current)%undo_entries)
 
@@ -4475,7 +4476,7 @@ contains
             end if
         else
             buffers(current)%read_only = .false.
-            call comint_mode(status)
+            call command_interpreter_mode(status)
             if (status%ok()) call minor_modes%compilation_shell_minor_mode%enable(status)
         end if
 
@@ -4510,9 +4511,9 @@ contains
         call make_current_entry(k)
         compilation_buffers(k)%has_arguments = .true.
         compilation_buffers(k)%command = command
-        compilation_buffers(k)%comint = use_comint
+        compilation_buffers(k)%command_interpreter = use_command_interpreter
         compilation_buffers(k)%mode => null()
-        if (present(mode) .and. .not. use_comint) compilation_buffers(k)%mode => mode
+        if (present(mode) .and. .not. use_command_interpreter) compilation_buffers(k)%mode => mode
         if (outwin%index /= 0 .and. .not. scroll) call set_window_start(windows(outwin%index), point_minimum(), st)
 
         ! Position point as the user will see it.
@@ -4546,10 +4547,11 @@ contains
         ! Start the compilation.
         if (.not. allocated(shell_file_name%value)) call initialize_callproc()
 
-        if (use_comint) then
+        if (use_command_interpreter) then
             call append_string(switches, shell_command_switch%value, command)
-            call comint_exec(outbuf, downcase_name(buffers(current)%mode_name), shell_file_name%value, switches, status, &
-                             environment=environment_variables)
+            call command_interpreter_exec(outbuf, downcase_name(buffers(current)%mode_name), shell_file_name%value, switches, &
+                                          status, &
+                                          environment=environment_variables)
             if (status%ok()) process = get_buffer_process(outbuf)
         else
             call append_string(arguments, shell_file_name%value, shell_command_switch%value, command)
@@ -4568,7 +4570,7 @@ contains
         call update_mode_line_process(k)
         ! Set the process as killable without query by default.
         if (compilation_always_stop%value) call set_process_query_on_exit_flag(process, .false., st)
-        call set_process_sentinel_and_filter(process,.not. use_comint)
+        call set_process_sentinel_and_filter(process,.not. use_command_interpreter)
         ! Use (point-max) here so that output comes in after the initial
         ! text, regardless of where the user sees point.
         call set_marker(process_mark(process), point_maximum(), st, outbuf)
@@ -4810,7 +4812,7 @@ contains
 
     !> Process filter for compilation buffers.
     !> Just inserts the text, handles carriage motion (see
-    !> `comint_inhibit_carriage_motion') and runs
+    !> `command_interpreter_inhibit_carriage_motion') and runs
     !> `compilation_filter_hook'.  Port of compile.el:compilation-filter
     !> (`compilation_maximum_output_line_length' and
     !> `compilation_hidden_output' are Deferred).
@@ -4843,9 +4845,9 @@ contains
         call insert(string, status)
 
         if (status%ok()) then
-            if (.not. comint_inhibit_carriage_motion%value) then
+            if (.not. command_interpreter_inhibit_carriage_motion%value) then
                 call marker_position(mark, p, st)
-                call comint_carriage_motion(p, point())
+                call command_interpreter_carriage_motion(p, point())
             end if
 
             call set_marker(mark, point(), st)

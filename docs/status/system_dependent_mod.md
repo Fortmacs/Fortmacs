@@ -6,10 +6,10 @@
 
 ## Ported
 
-`fortmacs_get_tty`,
-`fortmacs_set_tty`,
-the termios part of `initialize_system_modes` / `reset_system_modes` (raw-mode transform as pure `tty_raw_settings`),
-`get_tty_size`,
+`fortmacs_get_terminal`,
+`fortmacs_set_terminal`,
+the termios part of `initialize_system_modes` / `reset_system_modes` (raw-mode transform as pure `terminal_raw_settings`),
+`get_terminal_size`,
 `set_window_size`,
 `fortmacs_read`,
 `fortmacs_full_write`,
@@ -21,8 +21,8 @@ file wrappers returning errno (`fortmacs_open_read`, `fortmacs_creat`, access, r
 `fortmacs_get_current_directory_name` (prefers a matching $PWD),
 password-entry home directories,
 `fortmacs_strerror`,
-`child_setup_tty`,
-`fortmacs_spawn_async` (a pipe or a pty, a new session, the exec-monitor pipe, extra environment entries over the editor's own copy of its environment, read from /proc/self/environ and kept current by `system_setenv`),
+`child_setup_terminal`,
+`fortmacs_spawn_asynchronous` (a pipe or a pty, a new session, the exec-monitor pipe, extra environment entries over the editor's own copy of its environment, read from /proc/self/environ and kept current by `system_setenv`),
 `fortmacs_kill`,
 SIGPIPE ignored,
 `fortmacs_number_processors`,

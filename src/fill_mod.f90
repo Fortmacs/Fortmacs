@@ -1561,7 +1561,7 @@ contains
     !> paragraph as specified by its text properties.
     !>
     !> The fourth arg NOSQUEEZE true means to leave whitespace other
-    !> than line breaks untouched, and fifth arg TO_EOP true means
+    !> than line breaks untouched, and fifth arg TO_END_OF_PARAGRAPH true means
     !> to keep filling to the end of the paragraph (or next hard newline,
     !> if variable `use_hard_newlines' is on).
     !>
@@ -1570,11 +1570,11 @@ contains
     !> If `sentence_end_double_space' is true, then period followed by one
     !> space does not end a sentence, so don't break a line there.  Port of
     !> fill.el:fill-region (DEFAULT_JUSTIFICATION_CURRENT when absent).
-    recursive subroutine fill_region(from, to, status, justify, nosqueeze, to_eop, used)
+    recursive subroutine fill_region(from, to, status, justify, nosqueeze, to_end_of_paragraph, used)
         integer(int64), intent(in) :: from, to
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: justify
-        logical, intent(in), optional :: nosqueeze, to_eop
+        logical, intent(in), optional :: nosqueeze, to_end_of_paragraph
         character(len=:), allocatable, intent(out), optional :: used
         type(handle_type) :: start_point, maximum_marker
         type(status_type) :: st
@@ -1592,8 +1592,8 @@ contains
         call point_marker(start_point)
         call goto_character(max(from, to))
 
-        if (present(to_eop)) then
-            if (to_eop) then
+        if (present(to_end_of_paragraph)) then
+            if (to_end_of_paragraph) then
                 moved = skip_characters_backward(LF, st)
                 left = forward_paragraph(1_int64)
             end if
@@ -1675,27 +1675,27 @@ contains
     !> meaning, see `default_justification'.
     !> If HOW is DEFAULT_JUSTIFICATION_CURRENT, will justify however the `current_justification' function says to.
     !> If HOW is absent, full justification is done by default.
-    !> Second arg EOP true means that this is the last line of the paragraph, so
+    !> Second arg END_OF_PARAGRAPH true means that this is the last line of the paragraph, so
     !> it will not be stretched by full justification.
     !> Third arg NOSQUEEZE true means to leave interior whitespace unchanged,
     !> otherwise it is made canonical.  Port of fill.el:justify-current-line.
-    subroutine justify_current_line(status, how_in, eop, nosqueeze)
+    subroutine justify_current_line(status, how_in, end_of_paragraph, nosqueeze)
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: how_in
-        logical, intent(in), optional :: eop, nosqueeze
+        logical, intent(in), optional :: end_of_paragraph, nosqueeze
         type(handle_type) :: position_marker
         type(status_type) :: st
         integer(int64) :: fc, fp_end, beginning, end, indent, endcol, ncols, nspaces, current_fracspace, count, moved, &
                           position, column, savedb, savedz, n
         integer :: how
-        logical :: is_eop, no_squeeze
+        logical :: is_end_of_paragraph, no_squeeze
 
         status = status_type()
         how = DEFAULT_JUSTIFICATION_FULL
         if (present(how_in)) how = how_in
         if (how == DEFAULT_JUSTIFICATION_CURRENT) how = current_justification()
-        is_eop = .false.
-        if (present(eop)) is_eop = eop
+        is_end_of_paragraph = .false.
+        if (present(end_of_paragraph)) is_end_of_paragraph = end_of_paragraph
         no_squeeze = .false.
         if (present(nosqueeze)) no_squeeze = nosqueeze
         ! No action required for these.
@@ -1793,7 +1793,7 @@ contains
             ncols = fc - endcol
 
             ! Ncols is number of additional space chars needed
-            if (ncols > 0 .and. nspaces > 0 .and. .not. is_eop) then
+            if (ncols > 0 .and. nspaces > 0 .and. .not. is_end_of_paragraph) then
                 current_fracspace = ncols + nspaces/2
                 count = nspaces
 

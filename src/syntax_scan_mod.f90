@@ -184,7 +184,7 @@ contains
     integer function fetch(position_byte)
         integer(int64), intent(in) :: position_byte
 
-        fetch = int(buf_fetch_char(buffers(current), position_byte))
+        fetch = int(buffer_fetch_character(buffers(current), position_byte))
     end function fetch
 
     !> INC_BOTH.  Port of buffer.h:inc_both.
@@ -192,7 +192,7 @@ contains
         integer(int64), intent(inout) :: position, position_byte
 
         if (buffers(current)%multibyte) then
-            position_byte = position_byte + buf_next_char_len(buffers(current), position_byte)
+            position_byte = position_byte + buffer_next_character_length(buffers(current), position_byte)
         else
             position_byte = position_byte + 1
         end if
@@ -215,7 +215,7 @@ contains
         integer(int64), intent(in) :: byte_position
 
         if (buffers(current)%multibyte) then
-            dec_byte_position = byte_position - buf_prev_char_len(buffers(current), byte_position)
+            dec_byte_position = byte_position - buffer_previous_character_length(buffers(current), byte_position)
         else
             dec_byte_position = byte_position - 1
         end if

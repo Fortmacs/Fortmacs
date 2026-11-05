@@ -1239,7 +1239,7 @@ contains
 
     !> Load the icons for the tab buttons: on a terminal, their text.
     !> Port of tab-bar.el:tab-bar--load-buttons (the images and the menu
-    !> bar's button wait for the GUI and the menu bar).
+    !> bar's button wait for the GRAPHICAL_USER_INTERFACE and the menu bar).
     subroutine load_tab_bar_buttons()
         tab_bar_new_button = " + "
         tab_bar_close_button = " x"
@@ -1358,7 +1358,7 @@ contains
 
         if (allocated(tab_bar_separator)) then
             separator = tab_bar_separator
-        else if (associated(selected_frame%rif)) then
+        else if (associated(selected_frame%redisplay_interface)) then
             separator = " "
         else
             separator = "|"
@@ -2958,7 +2958,7 @@ contains
 
     !> The body of tab history mode.  Port of
     !> tab-bar.el:tab-bar-history-mode (its body; the images of the buttons
-    !> wait for the GUI).
+    !> wait for the GRAPHICAL_USER_INTERFACE).
     recursive subroutine tab_bar_history_mode_body(enable, status)
         logical, intent(in) :: enable
         type(status_type), intent(out) :: status

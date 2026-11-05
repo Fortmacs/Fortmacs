@@ -40,13 +40,12 @@ module test_files_mod
     use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, file_exists, &
                                      file_modes, set_file_modes, write_region, create_directory_internal, &
                                      delete_file_internal, delete_directory_internal, is_file_directory
-    use files_mod, only: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, &
-                         save_buffer, basic_save_buffer, make_backup_file_name, &
-                         normal_backup_enable_test_function, save_some_buffers, &
-                         save_buffers_exit_fortmacs, temporary_file_directory, create_directory, require_final_newline, &
-                         REQUIRE_FINAL_NEWLINE_ASK, REQUIRE_FINAL_NEWLINE_VISIT, find_file_run_dired, create_temporary_file, &
-                         mode_require_final_newline, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, &
-                         REQUIRE_FINAL_NEWLINE_VISIT_SAVE, set_require_final_newline_from_mode
+    use files_mod, only: find_file_noselect, find_file, make_file_buffer, abbreviate_file_name, save_buffer, basic_save_buffer, &
+                         make_backup_file_name, normal_backup_enable_test_function, save_some_buffers, save_buffers_exit_fortmacs, &
+                         temporary_file_directory, create_directory, require_final_newline, REQUIRE_FINAL_NEWLINE_ASK, &
+                         REQUIRE_FINAL_NEWLINE_VISIT, find_file_run_directory_editor, create_temporary_file, &
+                         mode_require_final_newline, MODE_REQUIRE_FINAL_NEWLINE_VISIT_SAVE, REQUIRE_FINAL_NEWLINE_VISIT_SAVE, &
+                         set_require_final_newline_from_mode
     use basic_subprograms_mod, only: read_y_or_n
     use read_y_or_n_each_mod, only: map_read_y_or_n, YNP_SKIP, YNP_ASK, YNP_ACT
     use fortmacs_mod, only: command_line_1
@@ -309,10 +308,10 @@ contains
         integer(int64) :: i
 
         call setup()
-        ! Without `find_file_run_dired', visiting a directory is an error.
-        find_file_run_dired = .false.
+        ! Without `find_file_run_directory_editor', visiting a directory is an error.
+        find_file_run_directory_editor = .false.
         call find_file_noselect(testdir, buffer, st)
-        find_file_run_dired = .true.
+        find_file_run_directory_editor = .true.
         call check(error, format_error(st) == abbreviate_file_name(path(""))//" is a directory" .or. &
                    format_error(st) == abbreviate_file_name(file_name_as_directory(fortmacs_wd)//testdir)// &
                    " is a directory", format_error(st))
@@ -322,7 +321,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call resolve_buffer(buffer, i, st)
-        call check(error, buffers(i)%major_mode == "dired_mode", "a Dired buffer")
+        call check(error, buffers(i)%major_mode == "directory_editor_mode", "a Dired buffer")
         call close_buffer(buffer, st)
     end subroutine test_find_directory
 

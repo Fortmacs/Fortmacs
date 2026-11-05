@@ -9,7 +9,7 @@
 the module an init.f90 uses: re-exports of the status type,
 values,
 the faces (`faces`, `face_underline`, `face_box`, the `FACE_STYLE_*` and `FACE_BOX_*` constants; the individual comint and compilation face objects are no longer exported),
-the keyboard macro settings (`kmacro_ring_maximum`, `kmacro_execute_before_append`, `kmacro_repeat_no_prefix`, `kmacro_execute_repeat_key`, `kmacro_execute_repeat_with_argument`, `edmacro_eight_bits`) and `keyboard_macro_termination_hook`,
+the keyboard macro settings (`keyboard_macro_ring_maximum`, `keyboard_macro_execute_before_append`, `keyboard_macro_repeat_no_prefix`, `keyboard_macro_execute_repeat_key`, `keyboard_macro_execute_repeat_with_argument`, `keyboard_macro_editor_eight_bits`) and `keyboard_macro_termination_hook`,
 `defcommand`,
 `keymap-global-set`,
 `global-set-key`,
@@ -28,7 +28,7 @@ app/main.f90's default `configure` is written against it (which also keeps fpm f
 processes (`make_process`, `start_process`, filters and sentinels, signals, input),
 shell commands and their settings,
 `compile` and its settings;
-the Dired file-operation options (`dired_copy_preserve_time`, `dired_recursive_copies`, `dired_do_what_i_mean_target`, `dired_create_destination_directories`, the keep-marker options and the rest),
+the Dired file-operation options (`directory_editor_copy_preserve_time`, `directory_editor_recursive_copies`, `directory_editor_do_what_i_mean_target`, `directory_editor_create_destination_directories`, the keep-marker options and the rest),
 `copy_file`,
 `rename_file`,
 `add_name_to_file`,

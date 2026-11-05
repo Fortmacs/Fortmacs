@@ -279,7 +279,7 @@ contains
         call command_loop(st)
         text = apropos_text()
         call check(error, index(text, "Type RET on an entry to view its full documentation."//LF//LF// &
-                                "comint_cut_whole_line"//TAB//"      M-x ... RET"//LF// &
+                                "command_interpreter_cut_whole_line M-x ... RET"//LF// &
                                 "  Cut current line, ignoring read-only and field properties."//LF// &
                                 "cut_line"//TAB//TAB//"      C-k, <deleteline>") == 1, text)
         if (allocated(error)) return

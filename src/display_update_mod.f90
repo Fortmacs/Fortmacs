@@ -45,16 +45,16 @@ module display_update_mod
     use frame_mod, only: frame_type, selected_frame, selected_window, frame_lines, frame_columns, &
                          frame_windows_minimum_size, resize_frame_windows, frame_top_margin, window_pixel_width, window_pixel_height
     use window_mod, only: windows, is_window_valid, window_text_columns, window_body_lines
-    use system_dependent_mod, only: get_tty_size, window_change_pending, clear_window_change
+    use system_dependent_mod, only: get_terminal_size, window_change_pending, clear_window_change
     use handle_mod, only: handle_type
     use commands_mod, only: commands
     use glyph_matrices_mod, only: glyph_type, glyph_matrix_type, glyph_row_type, &
                                   is_glyph_equal, is_character_glyph_space, &
-                                  FACE_TTY_DEFAULT_FOREGROUND_COLOR, FACE_TTY_DEFAULT_BACKGROUND_COLOR
-    use terminal_state_mod, only: tty_flush, tty_put_bytes
-    use terminal_output_mod, only: tty_cursor_to, tty_write_glyphs, tty_insert_glyphs, &
-                                   tty_delete_glyphs, tty_clear_end_of_line, tty_clear_frame, &
-                                   tty_update_end, tty_ring_bell, calculate_costs
+                                  FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR, FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR
+    use terminal_state_mod, only: terminal_flush, terminal_put_bytes
+    use terminal_output_mod, only: terminal_cursor_to, terminal_write_glyphs, terminal_insert_glyphs, &
+                                   terminal_delete_glyphs, terminal_clear_end_of_line, terminal_clear_frame, &
+                                   terminal_update_end, terminal_ring_bell, calculate_costs
     use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use keyboard_mod, only: ring_bell, bitch_at_user, redisplay_hook, is_executing_keyboard_macro
     implicit none(type, external)
@@ -121,10 +121,10 @@ contains
         type(frame_type), intent(inout) :: f
         integer :: nrows, ncols
 
-        nrows = f%tty%wcm%cm_rows
-        ncols = f%tty%wcm%cm_columns
+        nrows = f%terminal%wcm%cursor_motion_rows
+        ncols = f%terminal%wcm%cursor_motion_columns
 
-        if (associated(f%rif)) then
+        if (associated(f%redisplay_interface)) then
             nrows = 0
             ncols = 0
         end if
@@ -138,8 +138,8 @@ contains
         if (.not. allocated(f%faces)) then
             ! The realized default face of a terminal (xfaces.c).
             allocate (f%faces(0:0))
-            f%faces(0)%foreground = FACE_TTY_DEFAULT_FOREGROUND_COLOR
-            f%faces(0)%background = FACE_TTY_DEFAULT_BACKGROUND_COLOR
+            f%faces(0)%foreground = FACE_TERMINAL_DEFAULT_FOREGROUND_COLOR
+            f%faces(0)%background = FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR
         end if
 
         f%glyphs_initialized_p = .true.
@@ -219,9 +219,9 @@ contains
         integer(int32) :: width, height
         type(status_type) :: status
 
-        if (selected_frame%tty%input < 0) return
-        if (associated(selected_frame%rif)) return
-        call get_tty_size(selected_frame%tty%input, width, height, status)
+        if (selected_frame%terminal%input < 0) return
+        if (associated(selected_frame%redisplay_interface)) return
+        call get_terminal_size(selected_frame%terminal%input, width, height, status)
         ! Record the new sizes, but don't reallocate the data structures now.
         if (width > 5 .and. height > 2) call change_frame_size(selected_frame, width, height, .true., .false.)
     end subroutine handle_window_change_signal
@@ -382,12 +382,12 @@ contains
         end if
 
         ! Assign new sizes.
-        if (associated(f%rif)) then
+        if (associated(f%redisplay_interface)) then
             f%text_columns = new_text_columns
             f%text_lines = new_text_lines
         else
-            f%tty%wcm%cm_columns = new_text_columns
-            f%tty%wcm%cm_rows = new_text_lines
+            f%terminal%wcm%cursor_motion_columns = new_text_columns
+            f%terminal%wcm%cursor_motion_rows = new_text_lines
         end if
 
         if (is_window_valid(f%selected_window)) then
@@ -401,7 +401,7 @@ contains
         end if
 
         call adjust_frame_glyphs(f)
-        if (.not. associated(f%rif)) call calculate_costs(f%tty)
+        if (.not. associated(f%redisplay_interface)) call calculate_costs(f%terminal)
         f%needs_redraw = .true.
     end subroutine adjust_frame_size
 
@@ -415,15 +415,15 @@ contains
     subroutine redraw_frame(f)
         type(frame_type), intent(inout) :: f
 
-        if (associated(f%rif)) then
-            call f%rif%clear_frame()
+        if (associated(f%redisplay_interface)) then
+            call f%redisplay_interface%clear_frame()
             f%needs_redraw = .false.
             return
         end if
 
-        call tty_clear_frame(f%tty)
+        call terminal_clear_frame(f%terminal)
         call clear_current_matrices(f)
-        call tty_update_end(f%tty, is_selected_cursor_off())
+        call terminal_update_end(f%terminal, is_selected_cursor_off())
         f%needs_redraw = .false.
     end subroutine redraw_frame
 
@@ -475,13 +475,13 @@ contains
 
         status = status_type()
 
-        if (associated(selected_frame%rif)) then
+        if (associated(selected_frame%redisplay_interface)) then
             call set_error(status, GENERIC_ERROR_CODE, format_message("Device 0 is not a termcap terminal device"))
             return
         end if
 
-        call tty_put_bytes(selected_frame%tty, string)
-        call tty_flush(selected_frame%tty, status)
+        call terminal_put_bytes(selected_frame%terminal, string)
+        call terminal_flush(selected_frame%terminal, status)
     end subroutine send_string_to_terminal
 
     !> Set the cursor-visibility flag of WINDOW to SHOW.
@@ -565,12 +565,12 @@ contains
         integer, intent(in) :: vertical_position, first, n
         type(glyph_type), intent(in) :: body(:)
 
-        call tty_cursor_to(f%tty, vertical_position, first)
+        call terminal_cursor_to(f%terminal, vertical_position, first)
 
         if (first > 0) then
-            call tty_write_glyphs(f%tty, body(first + 1:first + n), f%faces, body(first))
+            call terminal_write_glyphs(f%terminal, body(first + 1:first + n), f%faces, body(first))
         else
-            call tty_write_glyphs(f%tty, body(first + 1:first + n), f%faces)
+            call terminal_write_glyphs(f%terminal, body(first + 1:first + n), f%faces)
         end if
     end subroutine write_at
 
@@ -584,9 +584,9 @@ contains
                    op2, out, delete, columns
         logical :: must_write_whole_line_p, write_spaces_p, colored_spaces_p
 
-        columns = f%tty%wcm%cm_columns
-        write_spaces_p = f%tty%must_write_spaces
-        colored_spaces_p = f%faces(0)%background /= FACE_TTY_DEFAULT_BACKGROUND_COLOR
+        columns = f%terminal%wcm%cursor_motion_columns
+        write_spaces_p = f%terminal%must_write_spaces
+        colored_spaces_p = f%faces(0)%background /= FACE_TERMINAL_DEFAULT_BACKGROUND_COLOR
         if (colored_spaces_p) write_spaces_p = .true.
         ! What the screen shows.
         must_write_whole_line_p = .not. f%current_matrix%rows(vertical_position)%enabled_p
@@ -625,10 +625,10 @@ contains
                 if (nlen > 0) call write_at(f, vertical_position, 0, nbody, nlen)
 
                 if (nlen < columns) then
-                    call tty_cursor_to(f%tty, vertical_position, nlen)
-                    call tty_clear_end_of_line(f%tty, columns)
+                    call terminal_cursor_to(f%terminal, vertical_position, nlen)
+                    call terminal_clear_end_of_line(f%terminal, columns)
                 else
-                    call tty_cursor_to(f%tty, vertical_position, 0)
+                    call terminal_cursor_to(f%terminal, vertical_position, 0)
                 end if
 
                 return
@@ -636,7 +636,7 @@ contains
 
             ! Without character insertion and deletion, rewrite each
             ! differing run.
-            if (.not. f%tty%character_ins_delete_ok) then
+            if (.not. f%terminal%character_ins_delete_ok) then
                 i = 0
 
                 do while (i < nlen)
@@ -663,8 +663,8 @@ contains
                 end do
 
                 if (olen > nlen) then
-                    call tty_cursor_to(f%tty, vertical_position, nlen)
-                    call tty_clear_end_of_line(f%tty, olen)
+                    call terminal_cursor_to(f%terminal, vertical_position, nlen)
+                    call terminal_clear_end_of_line(f%terminal, olen)
                 end if
 
                 return
@@ -731,18 +731,18 @@ contains
 
             ! Line up the leading blanks.
             if (osp > nsp) then
-                call tty_cursor_to(f%tty, vertical_position, nsp)
-                call tty_delete_glyphs(f%tty, osp - nsp)
+                call terminal_cursor_to(f%terminal, vertical_position, nsp)
+                call terminal_delete_glyphs(f%terminal, osp - nsp)
             else if (nsp > osp) then
                 ! Make room so the suffix is not pushed off the line.
                 if (endmatch /= 0 .and. nlen < olen + nsp - osp) then
-                    call tty_cursor_to(f%tty, vertical_position, nlen - endmatch + osp - nsp)
-                    call tty_delete_glyphs(f%tty, olen + nsp - osp - nlen)
+                    call terminal_cursor_to(f%terminal, vertical_position, nlen - endmatch + osp - nsp)
+                    call terminal_delete_glyphs(f%terminal, olen + nsp - osp - nlen)
                     olen = nlen - (nsp - osp)
                 end if
 
-                call tty_cursor_to(f%tty, vertical_position, osp)
-                call tty_insert_glyphs(f%tty, f%faces, len=nsp - osp)
+                call terminal_cursor_to(f%terminal, vertical_position, osp)
+                call terminal_insert_glyphs(f%terminal, f%faces, len=nsp - osp)
             end if
 
             olen = olen + nsp - osp
@@ -764,13 +764,13 @@ contains
 
                     call write_at(f, vertical_position, nsp + begmatch, nbody, out)
                     delete = olen - tem - out
-                    if (delete > 0) call tty_delete_glyphs(f%tty, delete)
-                    call tty_insert_glyphs(f%tty, f%faces, &
-                                           nbody(nsp + begmatch + out + 1:nsp + begmatch + out + nlen - olen + delete))
+                    if (delete > 0) call terminal_delete_glyphs(f%terminal, delete)
+                    call terminal_insert_glyphs(f%terminal, f%faces, &
+                                                nbody(nsp + begmatch + out + 1:nsp + begmatch + out + nlen - olen + delete))
                     olen = nlen
                 else if (olen > nlen) then
                     call write_at(f, vertical_position, nsp + begmatch, nbody, nlen - tem)
-                    call tty_delete_glyphs(f%tty, olen - nlen)
+                    call terminal_delete_glyphs(f%terminal, olen - nlen)
                     olen = nlen
                 end if
             end if
@@ -778,8 +778,8 @@ contains
 
         ! just_erase:
         if (olen > nlen) then
-            call tty_cursor_to(f%tty, vertical_position, nlen)
-            call tty_clear_end_of_line(f%tty, olen)
+            call terminal_cursor_to(f%terminal, vertical_position, nlen)
+            call terminal_clear_end_of_line(f%terminal, olen)
         end if
     end subroutine write_row
 
@@ -790,9 +790,9 @@ contains
         integer, intent(in) :: k
 
         ins_delete_cost = 9999
-        if (.not. allocated(f%tty%character_ins_delete_cost)) return
-        if (k < lbound(f%tty%character_ins_delete_cost, 1) .or. k > ubound(f%tty%character_ins_delete_cost, 1)) return
-        ins_delete_cost = f%tty%character_ins_delete_cost(k)
+        if (.not. allocated(f%terminal%character_ins_delete_cost)) return
+        if (k < lbound(f%terminal%character_ins_delete_cost, 1) .or. k > ubound(f%terminal%character_ins_delete_cost, 1)) return
+        ins_delete_cost = f%terminal%character_ins_delete_cost(k)
     end function ins_delete_cost
 
     !> Write the changed rows, the last (echo area) row first.  Port of
@@ -812,14 +812,15 @@ contains
 
     !> Leave the cursor where the frame wants it.  Port of
     !> dispnew.c:tty_set_cursor (the selected-window case).
-    subroutine tty_set_cursor(f)
+    subroutine terminal_set_cursor(f)
         type(frame_type), intent(inout) :: f
 
-        if (f%cursor_vertical_position >= 0 .and. f%cursor_vertical_position < f%tty%wcm%cm_rows .and. &
+        if (f%cursor_vertical_position >= 0 .and. f%cursor_vertical_position < f%terminal%wcm%cursor_motion_rows .and. &
             f%cursor_horizontal_position >= 0) then
-            call tty_cursor_to(f%tty, f%cursor_vertical_position, min(f%cursor_horizontal_position, f%tty%wcm%cm_columns - 1))
+            call terminal_cursor_to(f%terminal, f%cursor_vertical_position, min(f%cursor_horizontal_position, &
+                                                                                f%terminal%wcm%cursor_motion_columns - 1))
         end if
-    end subroutine tty_set_cursor
+    end subroutine terminal_set_cursor
 
     !> Make the screen show the desired matrix, then flush.  Port of
     !> dispnew.c:update_frame, dispnew.c:combine_updates and
@@ -831,9 +832,9 @@ contains
 
         status = status_type()
 
-        if (associated(f%rif)) then
+        if (associated(f%redisplay_interface)) then
             ! The windows were drawn as redisplay laid them out.
-            call f%rif%flush_display()
+            call f%redisplay_interface%flush_display()
             return
         end if
 
@@ -841,9 +842,9 @@ contains
         if (f%needs_redraw) call redraw_frame(f)
         call write_matrix(f)
         call make_matrix_current(f)
-        call tty_update_end(f%tty, is_selected_cursor_off())
-        call tty_set_cursor(f)
-        call tty_flush(f%tty, status)
+        call terminal_update_end(f%terminal, is_selected_cursor_off())
+        call terminal_set_cursor(f)
+        call terminal_flush(f%terminal, status)
         call clear_desired_matrices(f)
     end subroutine update_frame
 
@@ -860,21 +861,21 @@ contains
         integer :: x, k
 
         x = left + row%x
-        if (row%used > 0) call f%rif%write_glyphs(row, 1, row%used, x, top + row%y, right)
+        if (row%used > 0) call f%redisplay_interface%write_glyphs(row, 1, row%used, x, top + row%y, right)
 
         do k = 1, row%used
             x = x + row%glyphs(k)%pixel_width
         end do
 
-        if (x < right) call f%rif%clear_end_of_line(x, top + row%y, row%height, right)
+        if (x < right) call f%redisplay_interface%clear_end_of_line(x, top + row%y, row%height, right)
     end subroutine update_window_line
 
     !> Ring the bell of the selected frame's terminal; nothing without
     !> one.  The terminal's ring_bell_hook (term.c:tty_ring_bell).
     !> Not a port.
     subroutine frame_ring_bell()
-        if (selected_frame%tty%output < 0) return
-        call tty_ring_bell(selected_frame%tty)
+        if (selected_frame%terminal%output < 0) return
+        call terminal_ring_bell(selected_frame%terminal)
     end subroutine frame_ring_bell
 
     !> Beep, or flash the screen.

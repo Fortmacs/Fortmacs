@@ -25,7 +25,7 @@
 !> (`set_tabulated_list_format': an array of `tabulated_list_column_type'),
 !> its entries (`set_tabulated_list_entries': an array of
 !> `tabulated_list_entry_type', or a function that makes them), maybe its
-!> padding and sort key, calls `tabulated_list_init_header' and then
+!> padding and sort key, calls `tabulated_list_initialize_header' and then
 !> `tabulated_list_print'.
 !>
 !> Each entry has an ID, a string identifying it (upstream: any Lisp
@@ -76,7 +76,7 @@ module tabulated_list_mod
               tabulated_list_padding, set_tabulated_list_sort_key, clear_tabulated_list_sort_key, &
               tabulated_list_sort_key, set_tabulated_list_use_header_line, set_tabulated_list_printer, &
               tabulated_list_get_id, tabulated_list_get_entry, tabulated_list_put_tag, tabulated_list_clear_all_tags, &
-              tabulated_list_init_header, tabulated_list_revert, tabulated_list_print, tabulated_list_print_entry, &
+              tabulated_list_initialize_header, tabulated_list_revert, tabulated_list_print, tabulated_list_print_entry, &
               tabulated_list_print_column, tabulated_list_delete_entry, tabulated_list_set_column, tabulated_list_sort, &
               tabulated_list_widen_current_column, tabulated_list_narrow_current_column, tabulated_list_next_column, &
               tabulated_list_previous_column, initialize_tabulated_list
@@ -145,29 +145,29 @@ module tabulated_list_mod
         end subroutine tabulated_list_printer_procedure
     end interface
 
-    !> Indicator for columns sorted in ascending order, for GUI frames.
-    !> See `tabulated_list_tty_sort_indicator_asc' for the indicator used
+    !> Indicator for columns sorted in ascending order, for GRAPHICAL_USER_INTERFACE frames.
+    !> See `tabulated_list_terminal_sort_indicator_asc' for the indicator used
     !> on text-mode frames.  Port of tabulated-list.el
     !> tabulated-list-gui-sort-indicator-asc.
-    character(len=:), allocatable, public :: tabulated_list_gui_sort_indicator_asc
+    character(len=:), allocatable, public :: tabulated_list_graphical_sort_indicator_asc
 
-    !> Indicator for columns sorted in descending order, for GUI frames.
-    !> See `tabulated_list_tty_sort_indicator_description' for the indicator used
+    !> Indicator for columns sorted in descending order, for GRAPHICAL_USER_INTERFACE frames.
+    !> See `tabulated_list_terminal_sort_indicator_description' for the indicator used
     !> on text-mode frames.  Port of tabulated-list.el
     !> tabulated-list-gui-sort-indicator-desc.
-    character(len=:), allocatable, public :: tabulated_list_gui_sort_indicator_description
+    character(len=:), allocatable, public :: tabulated_list_graphical_sort_indicator_description
 
     !> Indicator for columns sorted in ascending order, for text-mode
-    !> frames.  See `tabulated_list_gui_sort_indicator_asc' for the
-    !> indicator used on GUI frames.  Port of tabulated-list.el
+    !> frames.  See `tabulated_list_graphical_sort_indicator_asc' for the
+    !> indicator used on GRAPHICAL_USER_INTERFACE frames.  Port of tabulated-list.el
     !> tabulated-list-tty-sort-indicator-asc.
-    character(len=:), allocatable, public :: tabulated_list_tty_sort_indicator_asc
+    character(len=:), allocatable, public :: tabulated_list_terminal_sort_indicator_asc
 
     !> Indicator for columns sorted in ascending order, for text-mode
-    !> frames.  See `tabulated_list_gui_sort_indicator_asc' for the
-    !> indicator used on GUI frames.  Port of tabulated-list.el
+    !> frames.  See `tabulated_list_graphical_sort_indicator_asc' for the
+    !> indicator used on GRAPHICAL_USER_INTERFACE frames.  Port of tabulated-list.el
     !> tabulated-list-tty-sort-indicator-desc.
-    character(len=:), allocatable, public :: tabulated_list_tty_sort_indicator_description
+    character(len=:), allocatable, public :: tabulated_list_terminal_sort_indicator_description
 
     !> Face used on fake header lines.  Port of tabulated-list.el
     !> tabulated-list-fake-header.
@@ -610,7 +610,7 @@ contains
     !> tabulated-list.el:tabulated-list-init-header (the header line's
     !> segments; the sort indicator of a text-mode frame is the one its
     !> glyphless-char-display table shows upstream).
-    subroutine tabulated_list_init_header()
+    subroutine tabulated_list_initialize_header()
         use buffer_mod, only: header_line_format_type
         type(header_line_format_type) :: header
         type(tabulated_list_column_type), allocatable :: format(:)
@@ -703,7 +703,7 @@ contains
 
             call header%append(text, face)
         end subroutine append
-    end subroutine tabulated_list_init_header
+    end subroutine tabulated_list_initialize_header
 
     ! The column names as a row of descriptors (hcols).  Not a port.
     subroutine header_row(format, row)
@@ -723,10 +723,10 @@ contains
     function asc_indicator() result(s)
         character(len=:), allocatable :: s
 
-        if (associated(selected_frame%rif)) then
-            s = tabulated_list_gui_sort_indicator_asc
+        if (associated(selected_frame%redisplay_interface)) then
+            s = tabulated_list_graphical_sort_indicator_asc
         else
-            s = tabulated_list_tty_sort_indicator_asc
+            s = tabulated_list_terminal_sort_indicator_asc
         end if
     end function asc_indicator
 
@@ -734,10 +734,10 @@ contains
     function description_indicator() result(s)
         character(len=:), allocatable :: s
 
-        if (associated(selected_frame%rif)) then
-            s = tabulated_list_gui_sort_indicator_description
+        if (associated(selected_frame%redisplay_interface)) then
+            s = tabulated_list_graphical_sort_indicator_description
         else
-            s = tabulated_list_tty_sort_indicator_description
+            s = tabulated_list_terminal_sort_indicator_description
         end if
     end function description_indicator
 
@@ -1412,7 +1412,7 @@ contains
                 call sort_by_original_index(locals(k)%entries)
                 if (allocated(locals(k)%sort_name)) deallocate (locals(k)%sort_name)
                 locals(k)%sort_flip = .false.
-                call tabulated_list_init_header()
+                call tabulated_list_initialize_header()
                 call tabulated_list_print(status, remember_position=.true.)
                 return
             end if
@@ -1506,7 +1506,7 @@ contains
             call set_tabulated_list_sort_key(name)
         end if
 
-        call tabulated_list_init_header()
+        call tabulated_list_initialize_header()
         call tabulated_list_print(status, remember_position=.true.)
     end subroutine sort_by_column_name
 
@@ -1541,7 +1541,7 @@ contains
             else
                 locals(k)%format(column_nb)%width = max(1, column_width + by)
                 call tabulated_list_print(status, remember_position=.true.)
-                call tabulated_list_init_header()
+                call tabulated_list_initialize_header()
                 return
             end if
         end do
@@ -1647,7 +1647,7 @@ contains
     !>  - Maybe set a `tabulated_list_entries' function (see below).
     !>  - Maybe set `tabulated_list_printer' (see below).
     !>  - Maybe set `tabulated_list_padding'.
-    !>  - Call `tabulated_list_init_header' to initialize
+    !>  - Call `tabulated_list_initialize_header' to initialize
     !>    `header_line_format' according to `tabulated_list_format'.
     !>
     !> An inheriting mode is usually accompanied by a "list-FOO" command
@@ -1682,16 +1682,20 @@ contains
     subroutine initialize_tabulated_list()
         type(status_type) :: st
 
-        if (.not. allocated(tabulated_list_gui_sort_indicator_asc)) then
-            tabulated_list_gui_sort_indicator_asc = char(226)//char(150)//char(188)
+        if (.not. allocated(tabulated_list_graphical_sort_indicator_asc)) then
+            tabulated_list_graphical_sort_indicator_asc = char(226)//char(150)//char(188)
         end if
 
-        if (.not. allocated(tabulated_list_gui_sort_indicator_description)) then
-            tabulated_list_gui_sort_indicator_description = char(226)//char(150)//char(178)
+        if (.not. allocated(tabulated_list_graphical_sort_indicator_description)) then
+            tabulated_list_graphical_sort_indicator_description = char(226)//char(150)//char(178)
         end if
 
-        if (.not. allocated(tabulated_list_tty_sort_indicator_asc)) tabulated_list_tty_sort_indicator_asc = "v"
-        if (.not. allocated(tabulated_list_tty_sort_indicator_description)) tabulated_list_tty_sort_indicator_description = "^"
+        if (.not. allocated(tabulated_list_terminal_sort_indicator_asc)) tabulated_list_terminal_sort_indicator_asc = "v"
+
+        if (.not. allocated(tabulated_list_terminal_sort_indicator_description)) then
+            tabulated_list_terminal_sort_indicator_description = "^"
+        end if
+
         call tabulated_list_fake_header%define("tabulated_list_fake_header", "Face used on fake header lines.")
         call tabulated_list_fake_header%specification_entry(display_when(), face_attributes(overline=.true., underline=.true., &
                                                                                             weight="bold"))

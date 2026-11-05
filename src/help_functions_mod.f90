@@ -58,7 +58,7 @@ module help_functions_mod
     use minibuffer_reading_mod, only: completion_obarray_table, completion_list_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use docstrings_mod, only: doc_entry_type, function_doc, variable_doc, function_names, variable_names
-    use help_mode_mod, only: help_setup_xref
+    use help_mode_mod, only: help_setup_cross_reference
     use help_mod, only: substitute_command_keys, with_help_window, describe_function_1_hook, documentation_hook, &
                         make_separator_line
     use data_mod, only: is_automatically_local
@@ -325,7 +325,7 @@ contains
 
         interactive_p = .false.
         if (present(interactive)) interactive_p = interactive
-        call help_setup_xref(interactive_p, status, describe_function, function)
+        call help_setup_cross_reference(interactive_p, status, describe_function, function)
         if (.not. status%ok()) return
         call describe_function_1(function, text, function//" is ")
         call with_help_window(text, status)
@@ -405,7 +405,7 @@ contains
 
         interactive_p = .false.
         if (present(interactive)) interactive_p = interactive
-        call help_setup_xref(interactive_p, status, describe_variable, variable)
+        call help_setup_cross_reference(interactive_p, status, describe_variable, variable)
         if (.not. status%ok()) return
         call describe_variable_text(variable, text, found)
         call with_help_window(text, status)
@@ -683,11 +683,11 @@ contains
         ! The item that shows the page again: the one backend's, or
         ! describe-symbol's for both.
         if (is_function_known(name) .and. is_variable_known(name)) then
-            call help_setup_xref(.false., status, describe_name, name)
+            call help_setup_cross_reference(.false., status, describe_name, name)
         else if (is_function_known(name)) then
-            call help_setup_xref(.false., status, describe_function, name)
+            call help_setup_cross_reference(.false., status, describe_function, name)
         else
-            call help_setup_xref(.false., status, describe_variable, name)
+            call help_setup_cross_reference(.false., status, describe_variable, name)
         end if
 
         if (.not. status%ok()) return

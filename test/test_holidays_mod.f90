@@ -166,7 +166,7 @@ contains
         selected_frame%root_window = null_handle()
         call ensure_frame_windows()
         call resize_window_tree(selected_frame%root_window, 0, 0, 24, 80, 80)
-        selected_frame%tty%wcm%cm_columns = 80
+        selected_frame%terminal%wcm%cursor_motion_columns = 80
     end subroutine setup
 
     ! LINES joined with newlines.

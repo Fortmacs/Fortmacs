@@ -6,7 +6,7 @@
 
 ## Ported
 
-`flyspell-mode` (its keymap: M-TAB and C-. `auto_correct_spellcheck_mode_word`, C-; `auto_correct_previous_spellcheck_mode_word`, C-, `goto_next_spellcheck_error`; the lighter " Fly/" and the dictionary's first two characters; the welcome message),
+`flyspell-mode` (its keymap: M-TAB and C-. `auto_correct_spellcheck_word`, C-; `auto_correct_previous_spellcheck_word`, C-, `goto_next_spellcheck_error`; the lighter " Fly/" and the dictionary's first two characters; the welcome message),
 `flyspell-prog-mode` (`flyspell-generic-progmode-verify` as `is_spellcheck_programming_text`, over `spellcheck_programming_text_faces`),
 `flyspell-word`,
 `flyspell-region`,

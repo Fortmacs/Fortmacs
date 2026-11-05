@@ -105,12 +105,15 @@ module info_mod
     use execute_process_mod, only: execute_process
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, find_command, is_command
     use keyboard_mod, only: this_command_keys, read_event, unread_command_events, read_key_sequence_vs, sit_for
-    use incremental_search_mod, only: isearch_active, isearch_forward, isearch_wrapped, isearch_regular_expression, &
-                                      isearch_nonincremental, isearch_lax_whitespace, isearch_regular_expression_lax_whitespace, &
-                                      search_whitespace_regular_expression, isearch_search_procedure, isearch_pop_procedure, &
-                                      isearch_search_function_default, isearch_mode_hook, isearch_mode_end_hook, &
-                                      isearch_search_function_function, isearch_wrap_function, isearch_push_state_function, &
-                                      isearch_filter_test_function, set_isearch_wrapped
+    use incremental_search_mod, only: incremental_search_active, incremental_search_forward, incremental_search_wrapped, &
+                                      incremental_search_regular_expression, incremental_search_nonincremental, &
+                                      incremental_search_lax_whitespace, incremental_search_regular_expression_lax_whitespace, &
+                                      search_whitespace_regular_expression, incremental_search_search_procedure, &
+                                      incremental_search_pop_procedure, incremental_search_search_function_default, &
+                                      incremental_search_mode_hook, incremental_search_mode_end_hook, &
+                                      incremental_search_search_function_function, incremental_search_wrap_function, &
+                                      incremental_search_push_state_function, incremental_search_filter_test_function, &
+                                      set_incremental_search_wrapped
     use keymap_mod, only: keymap_set, where_is_internal, key_description, key_binding
     use commands_mod, only: commands
     use modes_mod, only: major_modes
@@ -130,7 +133,7 @@ module info_mod
                                      completion_test_procedure, completion_obarray_table, read_string, COMPLETE_TRY, COMPLETE_ALL, &
                                       COMPLETE_TEST, COMPLETE_BOUNDARIES
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_YES
-    use text_mode_mod, only: text_mode_syntax_table, text_mode_abbrev_table, initialize_text_mode
+    use text_mode_mod, only: text_mode_syntax_table, text_mode_abbreviation_table, initialize_text_mode
     use shell_mod, only: list_buffers_directory
     use help_mod, only: substitute_command_keys, documentation_hook
     use help_mode_mod, only: help_mode
@@ -523,7 +526,7 @@ module info_mod
     !> limit.  Port of info.el Info-fontify-maximum-menu-size.
     integer, public :: info_fontify_maximum_menu_size = 400000
 
-    !> True to fontify references to visited nodes in `info_xref_visited'
+    !> True to fontify references to visited nodes in `info_cross_reference_visited'
     !> face.  Port of info.el Info-fontify-visited-nodes.
     type(logical_setting_type), public :: info_fontify_visited_nodes = &
                                           logical_setting_type(name="info_fontify_visited_nodes", value=.true.)
@@ -570,13 +573,13 @@ module info_mod
     !> `info_nth_menu_item'.  Port of info.el info-menu-star.
     type(named_face_type), target, public :: info_menu_star_face
     !> Face for unvisited Info cross-references.  Port of info.el info-xref.
-    type(named_face_type), target, public :: info_xref_face
+    type(named_face_type), target, public :: info_cross_reference_face
     !> Face for visited Info cross-references.  Port of info.el
     !> info-xref-visited.
-    type(named_face_type), target, public :: info_xref_visited_face
+    type(named_face_type), target, public :: info_cross_reference_visited_face
     !> Face for Info cross-references in a node header.  Port of info.el
     !> info-header-xref.
-    type(named_face_type), target, public :: info_header_xref_face
+    type(named_face_type), target, public :: info_header_cross_reference_face
     !> Face for Info nodes in a node header.  Port of info.el
     !> info-header-node.
     type(named_face_type), target, public :: info_header_node_face
@@ -632,13 +635,14 @@ module info_mod
     !> Setting this option to false restores the default isearch behavior
     !> with wrapping around the current Info node.  Port of info.el
     !> Info-isearch-search.
-    type(logical_setting_type), public :: info_isearch_search = logical_setting_type(name="info_isearch_search", value=.true.)
+    type(logical_setting_type), public :: info_incremental_search_search = logical_setting_type( &
+                                          name="info_incremental_search_search", value=.true.)
 
     ! info.el Info-isearch-initial-node (unallocated for nil),
     ! Info-isearch-initial-history and Info-isearch-initial-history-list.
-    character(len=:), allocatable :: isearch_initial_node
-    type(info_history_entry_type), allocatable :: isearch_initial_history(:)
-    type(info_node_reference_type), allocatable :: isearch_initial_history_nodes(:)
+    character(len=:), allocatable :: incremental_search_initial_node
+    type(info_history_entry_type), allocatable :: incremental_search_initial_history(:)
+    type(info_node_reference_type), allocatable :: incremental_search_initial_history_nodes(:)
 
     ! The value of `case_fold_search' from previous `info_search' command
     ! (Info-search-case-fold).
@@ -5617,10 +5621,10 @@ contains
         character(len=*), intent(in) :: pattern, property
         type(value_type) :: v
         integer(int64) :: original_point, pxref, plink, mb
-        logical :: has_xref
+        logical :: has_cross_reference
 
         original_point = point()
-        has_xref = refwd(pattern)
+        has_cross_reference = refwd(pattern)
         pxref = point()
         mb = mbeg(1)
         if (mb == 0) mb = mbeg(0)
@@ -5635,12 +5639,12 @@ contains
         moved = .true.
 
         if (plink < point_maximum()) then
-            if (has_xref .and. pxref <= plink) then
+            if (has_cross_reference .and. pxref <= plink) then
                 call goto_character(mb)
             else
                 call goto_character(plink)
             end if
-        else if (has_xref) then
+        else if (has_cross_reference) then
             call goto_character(mb)
         else
             moved = .false.
@@ -5653,10 +5657,10 @@ contains
         character(len=*), intent(in) :: pattern, property
         type(value_type) :: v
         integer(int64) :: original_point, pxref, plink, mb
-        logical :: has_xref
+        logical :: has_cross_reference
 
         original_point = point()
-        has_xref = rebwd(pattern)
+        has_cross_reference = rebwd(pattern)
         pxref = point()
         mb = mbeg(1)
         if (mb == 0) mb = mbeg(0)
@@ -5671,12 +5675,12 @@ contains
         moved = .true.
 
         if (plink > point_minimum()) then
-            if (has_xref .and. pxref >= plink) then
+            if (has_cross_reference .and. pxref >= plink) then
                 call goto_character(mb)
             else
                 call goto_character(plink)
             end if
-        else if (has_xref) then
+        else if (has_cross_reference) then
             call goto_character(mb)
         else
             moved = .false.
@@ -6379,7 +6383,7 @@ contains
     ! ------------------------------------------------------------------
 
     ! Search for REGULAR_EXPRESSION from point (backward if BACKWARD) up to BOUND (0
-    ! for none), skipping the matches `info_isearch_filter' rejects;
+    ! for none), skipping the matches `info_incremental_search_filter' rejects;
     ! return the position of the match found (0 if none).  Port of
     ! info.el:Info--search-loop.
     integer(int64) function search_loop(regular_expression, bound, backward) result(found)
@@ -6411,7 +6415,7 @@ contains
             if (give_up) exit
 
             if (found /= 0) then
-                if (info_isearch_filter(beginning_found, found)) exit
+                if (info_incremental_search_filter(beginning_found, found)) exit
             end if
 
             if (allocated(search_spaces_regular_expression)) deallocate (search_spaces_regular_expression)
@@ -6454,7 +6458,7 @@ contains
     ! Return true if the text from BEGINNING_FOUND to FOUND is visible and is
     ! not in the header line or a tag table.  Port of
     ! info.el:Info-isearch-filter (`search_invisible' being `open').
-    recursive logical function info_isearch_filter(beginning_found, found) result(useful)
+    recursive logical function info_incremental_search_filter(beginning_found, found) result(useful)
         integer(int64), intent(in) :: beginning_found, found
         type(status_type) :: st
         integer(int64) :: original_point, r, a, b
@@ -6486,7 +6490,7 @@ contains
         if (sbwd(US)) tags = looking(US//LF//"\(Tag Table\|Local Variables\)")
         call goto_character(original_point)
         useful = .not. (invisible .or. header .or. tags)
-    end function info_isearch_filter
+    end function info_incremental_search_filter
 
     !> Search for REGULAR_EXPRESSION, starting from point, and select node it's found
     !> in.  If BACKWARD is true, search in the reverse direction.  BOUND
@@ -6537,7 +6541,8 @@ contains
         call restore_restriction(rb, regular_expression_m)
         call goto_character(original_point)
 
-        if (isearch_active .and. info_isearch_search%value .and. .not. allocated(isearch_initial_node) .and. &
+        if (incremental_search_active .and. info_incremental_search_search%value .and. .not. allocated( &
+            incremental_search_initial_node) .and. &
             .not. has_bound .and. .not. (found > original_point_minimum .and. found < original_point_maximum)) then
             call search_failed(status, pattern, "end of node")
             return
@@ -6545,7 +6550,7 @@ contains
 
         ! If no subfiles, give error now.
         if (found == 0 .and. osubfile == achar(0)) then
-            if (isearch_active) then
+            if (incremental_search_active) then
                 call search_failed(status, pattern, "end of manual")
                 return
             end if
@@ -6632,7 +6637,7 @@ contains
                 call info_select_node(st)
                 call set_sel_window_start(ostart, st)
 
-                if (isearch_active) then
+                if (incremental_search_active) then
                     call search_failed(status, pattern, "end of manual")
                 else
                     call search_failed(status, pattern)
@@ -6658,8 +6663,8 @@ contains
 
         ! Use string-equal, not equal, to ignore text props.
         if (.not. (onode == current_node_or_empty() .and. ofile == current_file_or_empty())) then
-            if (.not. (isearch_active .and. isearch_wrapped .and. &
-                       original_point == merge(original_point_minimum, original_point_maximum, isearch_forward))) then
+            if (.not. (incremental_search_active .and. incremental_search_wrapped .and. &
+                       original_point == merge(original_point_minimum, original_point_maximum, incremental_search_forward))) then
                 k = here()
                 call push_history(locals(k)%history, ofile, onode, original_point)
             end if
@@ -6730,23 +6735,23 @@ contains
         end function quoted
     end subroutine search_failed
 
-    ! `isearch_search_function_function' of Info mode: searching through
-    ! multiple nodes if `info_isearch_search'.  Port of
+    ! `incremental_search_search_function_function' of Info mode: searching through
+    ! multiple nodes if `info_incremental_search_search'.  Port of
     ! info.el:Info-isearch-search.
-    recursive subroutine info_isearch_search_fn(fn)
-        procedure(isearch_search_procedure), pointer, intent(out) :: fn
+    recursive subroutine info_incremental_search_search_fn(fn)
+        procedure(incremental_search_search_procedure), pointer, intent(out) :: fn
 
-        if (info_isearch_search%value) then
-            fn => info_isearch_search_nodes
+        if (info_incremental_search_search%value) then
+            fn => info_incremental_search_search_nodes
         else
-            fn => isearch_search_function_default()
+            fn => incremental_search_search_function_default()
         end if
-    end subroutine info_isearch_search_fn
+    end subroutine info_incremental_search_search_fn
 
-    ! The search function `info_isearch_search_fn' returns (its lambda;
-    ! `isearch_regular_expression_function' is Deferred).
+    ! The search function `info_incremental_search_search_fn' returns (its lambda;
+    ! `incremental_search_regular_expression_function' is Deferred).
     ! Port of info.el:Info-isearch-search, in part.
-    recursive subroutine info_isearch_search_nodes(string, bound, noerror, position, status)
+    recursive subroutine info_incremental_search_search_nodes(string, bound, noerror, position, status)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: bound
         logical, intent(in) :: noerror
@@ -6759,33 +6764,34 @@ contains
         if (had) saved = info_search_whitespace_regular_expression
         if (allocated(info_search_whitespace_regular_expression)) deallocate (info_search_whitespace_regular_expression)
 
-        if (merge(isearch_regular_expression_lax_whitespace, isearch_lax_whitespace, isearch_regular_expression) .and. &
+        if (merge(incremental_search_regular_expression_lax_whitespace, incremental_search_lax_whitespace, &
+                  incremental_search_regular_expression) .and. &
             allocated(search_whitespace_regular_expression)) then
             info_search_whitespace_regular_expression = search_whitespace_regular_expression
         end if
 
-        if (isearch_regular_expression) then
+        if (incremental_search_regular_expression) then
             regular_expression = string
         else
             regular_expression = regular_expression_quote(string)
         end if
 
-        call info_search(regular_expression, status, bound, backward=.not. isearch_forward)
+        call info_search(regular_expression, status, bound, backward=.not. incremental_search_forward)
         if (allocated(info_search_whitespace_regular_expression)) deallocate (info_search_whitespace_regular_expression)
         if (had) info_search_whitespace_regular_expression = saved
         position = 0
         if (status%ok()) position = point()
         if (.false. .and. noerror) position = 0
-    end subroutine info_isearch_search_nodes
+    end subroutine info_incremental_search_search_nodes
 
-    ! `isearch_wrap_function' of Info mode.  Port of
+    ! `incremental_search_wrap_function' of Info mode.  Port of
     ! info.el:Info-isearch-wrap.
-    recursive subroutine info_isearch_wrap()
+    recursive subroutine info_incremental_search_wrap()
         type(status_type) :: st
 
-        if (info_isearch_search%value) then
-            if (allocated(isearch_initial_node)) then
-                if (isearch_forward) then
+        if (info_incremental_search_search%value) then
+            if (allocated(incremental_search_initial_node)) then
+                if (incremental_search_forward) then
                     call info_top_node(st)
                     call goto_character(point_minimum())
                 else
@@ -6793,21 +6799,21 @@ contains
                     call goto_character(point_maximum())
                 end if
             else
-                isearch_initial_node = current_node_or_empty()
-                call set_isearch_wrapped(.false.)
+                incremental_search_initial_node = current_node_or_empty()
+                call set_incremental_search_wrapped(.false.)
             end if
-        else if (isearch_forward) then
+        else if (incremental_search_forward) then
             call goto_character(point_minimum())
         else
             call goto_character(point_maximum())
         end if
-    end subroutine info_isearch_wrap
+    end subroutine info_incremental_search_wrap
 
-    ! `isearch_push_state_function' of Info mode: the current file and
+    ! `incremental_search_push_state_function' of Info mode: the current file and
     ! node.  Port of info.el:Info-isearch-push-state.
-    recursive subroutine info_isearch_push_state(data, pop)
+    recursive subroutine info_incremental_search_push_state(data, pop)
         character(len=:), allocatable, intent(out) :: data
-        procedure(isearch_pop_procedure), pointer, intent(out) :: pop
+        procedure(incremental_search_pop_procedure), pointer, intent(out) :: pop
         character(len=:), allocatable :: file, node
 
         file = info_current_file()
@@ -6816,12 +6822,12 @@ contains
         if (allocated(file)) data = data//file
         data = data//achar(0)
         if (allocated(node)) data = data//node
-        pop => info_isearch_pop_state
-    end subroutine info_isearch_push_state
+        pop => info_incremental_search_pop_state
+    end subroutine info_incremental_search_push_state
 
     ! Go back to the file and node of DATA.  Port of
     ! info.el:Info-isearch-pop-state.
-    recursive subroutine info_isearch_pop_state(data)
+    recursive subroutine info_incremental_search_pop_state(data)
         character(len=*), intent(in) :: data
         character(len=:), allocatable :: file, node, cfile, cnode
         type(status_type) :: st
@@ -6851,35 +6857,35 @@ contains
                 same = .false.
             end if
         end function same
-    end subroutine info_isearch_pop_state
+    end subroutine info_incremental_search_pop_state
 
-    ! `isearch_mode_hook' of Info mode.  Port of
+    ! `incremental_search_mode_hook' of Info mode.  Port of
     ! info.el:Info-isearch-start.
-    recursive subroutine info_isearch_start(status)
+    recursive subroutine info_incremental_search_start(status)
         type(status_type), intent(out) :: status
         integer :: k
 
         status = status_type()
         ! Don't stop at initial node for nonincremental search.
         ! Otherwise this variable is set after first search failure.
-        if (allocated(isearch_initial_node)) deallocate (isearch_initial_node)
-        if (isearch_nonincremental) isearch_initial_node = current_node_or_empty()
+        if (allocated(incremental_search_initial_node)) deallocate (incremental_search_initial_node)
+        if (incremental_search_nonincremental) incremental_search_initial_node = current_node_or_empty()
         k = here()
-        isearch_initial_history = locals(k)%history
+        incremental_search_initial_history = locals(k)%history
 
         if (allocated(info_history_nodes)) then
-            isearch_initial_history_nodes = info_history_nodes
+            incremental_search_initial_history_nodes = info_history_nodes
         else
-            allocate (isearch_initial_history_nodes(0))
+            allocate (incremental_search_initial_history_nodes(0))
         end if
 
-        call isearch_mode_end_hook%prepend(info_isearch_end, local=.true.)
-    end subroutine info_isearch_start
+        call incremental_search_mode_end_hook%prepend(info_incremental_search_end, local=.true.)
+    end subroutine info_incremental_search_start
 
     ! Remove intermediate nodes (visited while searching) from the
     ! history.  Add only the last node (where Isearch ended).  Port of
     ! info.el:Info-isearch-end.
-    recursive subroutine info_isearch_end(status)
+    recursive subroutine info_incremental_search_end(status)
         type(status_type), intent(out) :: status
         type(info_node_reference_type), allocatable :: list(:)
         integer :: k, n, m, i
@@ -6888,25 +6894,25 @@ contains
         k = here()
         n = size(locals(k)%history)
         m = 0
-        if (allocated(isearch_initial_history)) m = size(isearch_initial_history)
+        if (allocated(incremental_search_initial_history)) m = size(incremental_search_initial_history)
         if (n > m) locals(k)%history = locals(k)%history(n - m:n)
         if (.not. allocated(info_history_nodes)) allocate (info_history_nodes(0))
         m = 0
-        if (allocated(isearch_initial_history_nodes)) m = size(isearch_initial_history_nodes)
+        if (allocated(incremental_search_initial_history_nodes)) m = size(incremental_search_initial_history_nodes)
 
         if (size(info_history_nodes) > m) then
             allocate (list(m + 1))
             list(1) = info_history_nodes(1)
 
             do i = 1, m
-                list(i + 1) = isearch_initial_history_nodes(i)
+                list(i + 1) = incremental_search_initial_history_nodes(i)
             end do
 
             call move_alloc(list, info_history_nodes)
         end if
 
-        call isearch_mode_end_hook%remove(info_isearch_end, local=.true.)
-    end subroutine info_isearch_end
+        call incremental_search_mode_end_hook%remove(info_incremental_search_end, local=.true.)
+    end subroutine info_incremental_search_end
 
     ! The most recent element of the minibuffer history NAME (FOUND false
     ! if it is empty).  Not a port.
@@ -8692,7 +8698,7 @@ contains
                     call string_put_text_property(0_int64, nchars_of(txt), value_type(name="mouse_face"), &
                                                   make_symbol_reference(intern("highlight")), piece, st)
                     call string_put_text_property(0_int64, nchars_of(txt), value_type(name="font_lock_face"), &
-                                                  make_symbol_reference(intern("info_header_xref")), piece, st)
+                                                  make_symbol_reference(intern("info_header_cross_reference")), piece, st)
                     call string_put_text_property(0_int64, nchars_of(txt), value_type(name="help_echo"), &
                                                   value_type(text="mouse-2: Go to node"), piece, st)
                     call string_put_text_property(0_int64, nchars_of(txt), value_type(name="link_arguments"), &
@@ -8794,7 +8800,8 @@ contains
                 if (lower(tag) == "node") then
                     call put_text_property(nbeg, nend, value_type(name="font_lock_face"), symbol_value_of("info_header_node"), st)
                 else
-                    call put_text_property(nbeg, nend, value_type(name="font_lock_face"), symbol_value_of("info_header_xref"), st)
+                    call put_text_property(nbeg, nend, value_type(name="font_lock_face"), &
+                                           symbol_value_of("info_header_cross_reference"), st)
                     call put_text_property(tbeg, nend, value_type(name="mouse_face"), symbol_value_of("header_line_highlight"), st)
                     call put_text_property(tbeg, nend, value_type(name="help_echo"), &
                                            value_type(text="mouse-2: Go to node "//text(nbeg, nend)), st)
@@ -8880,7 +8887,7 @@ contains
                     ! multiple frame types at once.  We want this text to
                     ! be invisible on frames that can display the font
                     ! above.
-                    if (associated(selected_frame%rif)) then
+                    if (associated(selected_frame%redisplay_interface)) then
                         b1 = mbeg(2) - 1
                         e1 = mend(2)
                         call put_text_property(b1, e1, value_type(name="invisible"), value_type(.true.), st)
@@ -8952,7 +8959,8 @@ contains
 
         if (not_fontified_p) then
             do while (refwd("\(https?\|ftp\)://[^ "//TAB//LF//"""`‘({<>})’']+"))
-                call put_text_property(mbeg(0), mend(0), value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
+                call put_text_property(mbeg(0), mend(0), value_type(name="font_lock_face"), &
+                                       symbol_value_of("info_cross_reference"), st)
                 call put_text_property(mbeg(0), mend(0), value_type(name="mouse_face"), symbol_value_of("highlight"), st)
                 call put_text_property(mbeg(0), mend(0), value_type(name="help_echo"), value_type(text="mouse-2: go to this URL"), &
                                        st)
@@ -8986,7 +8994,7 @@ contains
                 if (footnote_number > 0 .and. footnote_number <= fncount) then
                     mb = mbeg(0)
                     me = mend(0)
-                    call put_text_property(mb, me, value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
+                    call put_text_property(mb, me, value_type(name="font_lock_face"), symbol_value_of("info_cross_reference"), st)
                     call put_text_property(mb, me, value_type(name="link"), value_type(.true.), st)
                     call put_text_property(mb, me, value_type(name="mouse_face"), symbol_value_of("highlight"), st)
 
@@ -9162,9 +9170,10 @@ contains
             node = trim_leading_space(canonicalize_whitespace(node))
 
             if (info_fontify_visited_nodes%value .and. visited(node)) then
-                call put_text_property(rbeg, rend, value_type(name="font_lock_face"), symbol_value_of("info_xref_visited"), st)
+                call put_text_property(rbeg, rend, value_type(name="font_lock_face"), &
+                                       symbol_value_of("info_cross_reference_visited"), st)
             else
-                call put_text_property(rbeg, rend, value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
+                call put_text_property(rbeg, rend, value_type(name="font_lock_face"), symbol_value_of("info_cross_reference"), st)
             end if
 
             ! For multiline ref, unfontify newline and surrounding whitespace
@@ -9253,10 +9262,12 @@ contains
             end if
 
             if (info_fontify_visited_nodes%value .and. visited(node)) then
-                call put_text_property(m(1, 1), m(1, 2), value_type(name="font_lock_face"), symbol_value_of("info_xref_visited"), &
+                call put_text_property(m(1, 1), m(1, 2), value_type(name="font_lock_face"), &
+                                       symbol_value_of("info_cross_reference_visited"), &
                                        st)
             else
-                call put_text_property(m(1, 1), m(1, 2), value_type(name="font_lock_face"), symbol_value_of("info_xref"), st)
+                call put_text_property(m(1, 1), m(1, 2), value_type(name="font_lock_face"), &
+                                       symbol_value_of("info_cross_reference"), st)
             end if
 
             if (not_fontified_p .and. (hide%choice == INFO_HIDE_NOTE_REFERENCES_SEE .or. hide%value)) then
@@ -9468,15 +9479,16 @@ contains
                       "orientation.  See `info_nth_menu_item'.")
         call f%specification_entry(display_when(classes=[C]), face_attributes(foreground="red1"))
         call f%specification_entry(display_when(), face_attributes(underline=.true.))
-        f => info_xref_face
-        call f%define("info_xref", "Face for unvisited Info cross-references.")
+        f => info_cross_reference_face
+        call f%define("info_cross_reference", "Face for unvisited Info cross-references.")
         call f%specification_entry(display_when(), face_attributes(inherits=[character(len=4) :: "link"]))
-        f => info_xref_visited_face
-        call f%define("info_xref_visited", "Face for visited Info cross-references.")
-        call f%specification_entry(display_when(), face_attributes(inherits=[character(len=12) :: "link_visited", "info_xref"]))
-        f => info_header_xref_face
-        call f%define("info_header_xref", "Face for Info cross-references in a node header.")
-        call f%specification_entry(display_when(), face_attributes(inherits=[character(len=9) :: "info_xref"]))
+        f => info_cross_reference_visited_face
+        call f%define("info_cross_reference_visited", "Face for visited Info cross-references.")
+        call f%specification_entry(display_when(), face_attributes(inherits=[character(len=20) :: "link_visited", &
+                                                                             "info_cross_reference"]))
+        f => info_header_cross_reference_face
+        call f%define("info_header_cross_reference", "Face for Info cross-references in a node header.")
+        call f%specification_entry(display_when(), face_attributes(inherits=[character(len=20) :: "info_cross_reference"]))
         f => info_header_node_face
         call f%define("info_header_node", "Face for Info nodes in a node header.")
         call f%specification_entry(display_when(), face_attributes(inherits=[character(len=9) :: "info_node"]))
@@ -9537,7 +9549,8 @@ contains
     !> \[info_search]        Search through this Info file for specified regexp,
     !>           and select the node in which the next occurrence is found.
     !> \[info_search_case_sensitively]        Search through this Info file for specified regexp case-sensitively.
-    !> \[isearch_forward], \[isearch_forward_regular_expression]        Use Isearch to search through multiple Info nodes.
+    !> \[incremental_search_forward], \[incremental_search_forward_regular_expression]        Use Isearch to search through multiple
+    !> Info nodes.
     !> \[info_index]        Search for a topic in this manual's Index and go to index entry.
     !> \[info_index_next]        (comma) Move to the next match from a previous \<info_mode_map>\[info_index] command.
     !> \[info_virtual_index]        Look for a string and display the index node with results.
@@ -9568,18 +9581,18 @@ contains
         call make_marker(locals(k)%tag_table_marker)
         ! (The display table for terminals that can't show the Unicode
         ! symbols of Info files, the tool bar, desktop saving, the
-        ! context menu, bookmarks and `isearch_fold_quotes_mode' are
+        ! context menu, bookmarks and `incremental_search_fold_quotes_mode' are
         ! Deferred.)
         ! do not override global header lines
         if (info_use_header_line%value) locals(k)%header_from_property = .true.
         call info_mode_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true., case_fold=.true.)
         call close_buffer_hook%prepend(info_close_buffer, local=.true.)
-        call isearch_mode_hook%prepend(info_isearch_start, local=.true.)
-        call isearch_search_function_function%set_local(info_isearch_search_fn)
-        call isearch_wrap_function%set_local(info_isearch_wrap)
-        call isearch_push_state_function%set_local(info_isearch_push_state)
-        call isearch_filter_test_function%set_local(info_isearch_filter)
+        call incremental_search_mode_hook%prepend(info_incremental_search_start, local=.true.)
+        call incremental_search_search_function_function%set_local(info_incremental_search_search_fn)
+        call incremental_search_wrap_function%set_local(info_incremental_search_wrap)
+        call incremental_search_push_state_function%set_local(info_incremental_search_push_state)
+        call incremental_search_filter_test_function%set_local(info_incremental_search_filter)
         call revert_buffer_function%set_local(info_revert_buffer_function)
         call info_set_mode_line()
         call major_modes%info_mode%end(saved, status)
@@ -9655,7 +9668,7 @@ contains
         call initialize_info_mode_syntax_table()
         call major_modes%info_mode%define("info_mode", "Info", info_mode, info_mode_hook, &
                                           parent=major_modes%special_mode, syntax_table=info_mode_syntax_table, &
-                                          abbrev_table=text_mode_abbrev_table)
+                                          abbreviation_table=text_mode_abbreviation_table)
         info_mode_map = major_modes%info_mode%map
         commands%info_mode%execute => info_mode
         commands%info%execute => execute_info

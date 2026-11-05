@@ -29,10 +29,10 @@ module test_system_dependent_mod
     use system_linux_mod, only: c_raise, cs8, echo, icanon, icrnl, iexten, ignbrk, inlcr, isig, istrip, &
                                 ixon, onlcr, opost, parenb, pollfd_type, sigwinch, tab3, termios_type, &
                                 vintr, vmin, vstop, vsusp, vtime, winsize_type
-    use system_dependent_mod, only: close_fd, fortmacs_get_tty, fortmacs_read, fortmacs_tty_type, fortmacs_write, &
-                                    get_tty_size, initialize_system_modes, input_available, &
-                                    install_window_change_handler, open_pty, reset_system_modes, set_tty_size, &
-                                    tty_raw_settings, window_change_pending, clear_window_change
+    use system_dependent_mod, only: close_fd, fortmacs_get_terminal, fortmacs_read, fortmacs_terminal_type, fortmacs_write, &
+                                    get_terminal_size, initialize_system_modes, input_available, &
+                                    install_window_change_handler, open_pty, reset_system_modes, set_terminal_size, &
+                                    terminal_raw_settings, window_change_pending, clear_window_change
     implicit none(type, external)
     private
 
@@ -71,14 +71,14 @@ contains
 
     subroutine test_raw_settings(error)
         type(error_type), allocatable, intent(out) :: error
-        type(fortmacs_tty_type) :: old, raw
+        type(fortmacs_terminal_type) :: old, raw
 
         old%main%c_iflag = ior(ior(ICRNL, INLCR), ior(ISTRIP, IXON))
         old%main%c_oflag = ior(ior(OPOST, ONLCR), TAB3)
         old%main%c_lflag = ior(ior(ECHO, ICANON), IEXTEN)
         old%main%c_cflag = PARENB
         old%main%c_cc(VSUSP) = 26
-        raw = tty_raw_settings(old, .false., .true., .true.)
+        raw = terminal_raw_settings(old, .false., .true., .true.)
 
         associate (m => raw%main)
             call check(error, iand(m%c_iflag, ior(ior(ICRNL, INLCR), ior(ISTRIP, IXON))), 0_c_int)
@@ -105,7 +105,7 @@ contains
         end associate
 
         ! Not the controlling terminal: C-g must arrive as input.
-        raw = tty_raw_settings(old, .true., .false., .false.)
+        raw = terminal_raw_settings(old, .true., .false., .false.)
         call check(error, int(raw%main%c_cc(VINTR)), 0)
         if (allocated(error)) return
         call check(error, iand(raw%main%c_iflag, IXON), IXON)
@@ -116,7 +116,7 @@ contains
     subroutine test_pty_roundtrip(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int32) :: master, slave
-        type(fortmacs_tty_type) :: old, now
+        type(fortmacs_terminal_type) :: old, now
         type(status_type) :: st
         character(len=16) :: buffer
         integer(int64) :: n
@@ -129,7 +129,7 @@ contains
             call initialize_system_modes(slave, old, st)
             call check(error, st%ok(), "initialize_system_modes failed")
             if (allocated(error)) exit run
-            call fortmacs_get_tty(slave, now, st)
+            call fortmacs_get_terminal(slave, now, st)
             call check(error, iand(now%main%c_lflag, ior(ECHO, ICANON)), 0_c_int)
             if (allocated(error)) exit run
             ! Raw input: bytes arrive without a newline, C-a included.
@@ -140,7 +140,7 @@ contains
             call check(error, buffer(1:n) == "ab"//char(1), "raw bytes garbled: "//buffer(1:n))
             if (allocated(error)) exit run
             call reset_system_modes(slave, old, st)
-            call fortmacs_get_tty(slave, now, st)
+            call fortmacs_get_terminal(slave, now, st)
             call check(error, iand(now%main%c_lflag, ICANON), ICANON)
         end block run
 
@@ -158,9 +158,9 @@ contains
         if (allocated(error)) return
 
         run: block
-            call set_tty_size(master, 132_int32, 43_int32, st)
-            call get_tty_size(slave, w, h, st)
-            call check(error, st%ok(), "get_tty_size failed")
+            call set_terminal_size(master, 132_int32, 43_int32, st)
+            call get_terminal_size(slave, w, h, st)
+            call check(error, st%ok(), "get_terminal_size failed")
             if (allocated(error)) exit run
             call check(error, w, 132_int32)
             if (allocated(error)) exit run

@@ -28,7 +28,7 @@
 !> `ansi_color_apply' and `ansi_color_filter_apply' work on strings,
 !> `ansi_color_apply_on_region' and `ansi_color_filter_region' on the
 !> buffer; `ansi_color_process_output' is on
-!> `comint_output_filter_functions' and `ansi_color_compilation_filter'
+!> `command_interpreter_output_filter_functions' and `ansi_color_compilation_filter'
 !> can be put on `compilation_filter_hook'.
 !>
 !> Deferred: the obsolete
@@ -54,15 +54,16 @@ module ansi_color_mod
     use faces_mod, only: named_face_type, face_attributes, face_box, display_when, face_attributes_type, face_named
     use commands_mod, only: commands
     use process_mod, only: get_buffer_process, process_mark
-    use command_interpreter_mod, only: comint_output_filter_functions, comint_last_output_start
+    use command_interpreter_mod, only: command_interpreter_output_filter_functions, command_interpreter_last_output_start
     use compile_mod, only: compilation_filter_start
     implicit none(type, external)
     private
 
     public :: ansi_color_filter_apply, ansi_color_apply, ansi_color_filter_region, ansi_color_apply_on_region, &
               ansi_color_apply_overlay_face, ansi_color_apply_text_property_face, ansi_color_make_extent, &
-              ansi_color_process_output, ansi_color_compilation_filter, ansi_color_for_comint_mode_on, &
-              ansi_color_for_comint_mode_off, ansi_color_for_comint_mode_filter, ansi_color_code_as_hexadecimal, &
+              ansi_color_process_output, ansi_color_compilation_filter, ansi_color_for_command_interpreter_mode_on, &
+              ansi_color_for_command_interpreter_mode_off, ansi_color_for_command_interpreter_mode_filter, &
+              ansi_color_code_as_hexadecimal, &
               initialize_ansi_color, ansi_color_face_procedure, reset_ansi_color_context, ansi_color_face_value
 
     !> A pointer to a named face, an element of
@@ -250,7 +251,7 @@ module ansi_color_mod
     !> ansi-color.el ansi-color-parameter-regexp.
     character(len=*), parameter, public :: ansi_color_parameter_regular_expression = "\([0-9]*\)[m;]"
 
-    !> Values of `ansi_color_for_comint_mode' and
+    !> Values of `ansi_color_for_command_interpreter_mode' and
     !> `ansi_color_for_compilation_mode' besides .true. and .false.
     integer, parameter, public :: ANSI_COLOR_FILTER = 2
 
@@ -261,16 +262,17 @@ module ansi_color_mod
     !> control sequences into text properties.
     !>
     !> In order for this to have any effect, `ansi_color_process_output'
-    !> must be in `comint_output_filter_functions'.
+    !> must be in `command_interpreter_output_filter_functions'.
     !>
     !> This can be used to enable colorized ls --color=yes output
     !> in shell buffers.  You set this variable by calling one of:
-    !> \[ansi_color_for_comint_mode_on]
-    !> \[ansi_color_for_comint_mode_off]
-    !> \[ansi_color_for_comint_mode_filter]
+    !> \[ansi_color_for_command_interpreter_mode_on]
+    !> \[ansi_color_for_command_interpreter_mode_off]
+    !> \[ansi_color_for_command_interpreter_mode_filter]
     !> Port of ansi-color.el ansi-color-for-comint-mode.
-    type(choice_setting_type), public :: ansi_color_for_comint_mode = choice_setting_type(name="ansi_color_for_comint_mode", &
-                                                                                          value=.true.)
+    type(choice_setting_type), public :: ansi_color_for_command_interpreter_mode = choice_setting_type( &
+                                         name="ansi_color_for_command_interpreter_mode", &
+                                         value=.true.)
 
     !> Determines what to do with compilation output.
     !> If .false., do nothing.
@@ -430,45 +432,45 @@ contains
     ! Convenience functions for comint modes (eg. shell-mode)
     ! ------------------------------------------------------------------
 
-    !> Set `ansi_color_for_comint_mode' to .true.  Port of
+    !> Set `ansi_color_for_command_interpreter_mode' to .true.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-on.
-    subroutine ansi_color_for_comint_mode_on(status)
+    subroutine ansi_color_for_command_interpreter_mode_on(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = .true.
-    end subroutine ansi_color_for_comint_mode_on
+        ansi_color_for_command_interpreter_mode = .true.
+    end subroutine ansi_color_for_command_interpreter_mode_on
 
-    !> Set `ansi_color_for_comint_mode' to .false.  Port of
+    !> Set `ansi_color_for_command_interpreter_mode' to .false.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-off.
-    subroutine ansi_color_for_comint_mode_off(status)
+    subroutine ansi_color_for_command_interpreter_mode_off(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = .false.
-    end subroutine ansi_color_for_comint_mode_off
+        ansi_color_for_command_interpreter_mode = .false.
+    end subroutine ansi_color_for_command_interpreter_mode_off
 
-    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_FILTER.  Port of
+    !> Set `ansi_color_for_command_interpreter_mode' to ANSI_COLOR_FILTER.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-filter.
-    subroutine ansi_color_for_comint_mode_filter(status)
+    subroutine ansi_color_for_command_interpreter_mode_filter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = ANSI_COLOR_FILTER
-    end subroutine ansi_color_for_comint_mode_filter
+        ansi_color_for_command_interpreter_mode = ANSI_COLOR_FILTER
+    end subroutine ansi_color_for_command_interpreter_mode_filter
 
     !> Maybe translate SGR control sequences of comint output into text
     !> properties.
     !>
-    !> Depending on variable `ansi_color_for_comint_mode' the comint
+    !> Depending on variable `ansi_color_for_command_interpreter_mode' the comint
     !> output is either not processed, SGR control sequences are filtered
     !> using `ansi_color_filter_region', or SGR control sequences are
     !> translated into text properties using `ansi_color_apply_on_region'.
     !>
     !> The comint output is assumed to lie between the marker
-    !> `comint_last_output_start' and the process-mark.
+    !> `command_interpreter_last_output_start' and the process-mark.
     !>
-    !> This is a good function to put in `comint_output_filter_functions'.
+    !> This is a good function to put in `command_interpreter_output_filter_functions'.
     !> Port of ansi-color.el:ansi-color-process-output.
     recursive subroutine ansi_color_process_output(ignored, status)
         character(len=*), intent(in) :: ignored
@@ -480,7 +482,7 @@ contains
         if (len(ignored) < 0) return
         process = get_buffer_process(current_buffer())
         if (process%index == 0) return
-        start = comint_last_output_start()
+        start = command_interpreter_last_output_start()
         if (start <= 0) start = point_minimum()
         call marker_position(process_mark(process), end, status)
 
@@ -489,9 +491,9 @@ contains
             return
         end if
 
-        if (ansi_color_for_comint_mode%is_off()) return
+        if (ansi_color_for_command_interpreter_mode%is_off()) return
 
-        select case (ansi_color_for_comint_mode%choice)
+        select case (ansi_color_for_command_interpreter_mode%choice)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(start, end)
         case default
@@ -600,7 +602,7 @@ contains
     !> `ansi_color_apply'.  Set `ansi_color_context' to empty if you don't
     !> want this.
     !>
-    !> This function can be added to `comint_preoutput_filter_functions'.
+    !> This function can be added to `command_interpreter_preoutput_filter_functions'.
     !> Port of ansi-color.el:ansi-color-filter-apply.
     function ansi_color_filter_apply(string) result(res)
         character(len=*), intent(in) :: string
@@ -653,7 +655,7 @@ contains
     !> call to `ansi_color_apply'.  Set `ansi_color_context' to empty if you
     !> don't want this.
     !>
-    !> This function can be added to `comint_preoutput_filter_functions'.
+    !> This function can be added to `command_interpreter_preoutput_filter_functions'.
     !> Port of ansi-color.el:ansi-color-apply.
     function ansi_color_apply(string) result(res)
         type(value_type), intent(in) :: string
@@ -1312,7 +1314,7 @@ contains
 
     !> Define the faces, commands and property functions of ansi-color, and put
     !> `ansi_color_process_output' first in
-    !> `comint_output_filter_functions' (as its default value lists it).
+    !> `command_interpreter_output_filter_functions' (as its default value lists it).
     !> Not a port.
     subroutine initialize_ansi_color()
         type(face_attributes_type) :: attributes
@@ -1372,10 +1374,10 @@ contains
         call ansi_color_bright_cyan%specification_entry(display_when(), face_attributes(foreground="cyan2", background="cyan2"))
         call ansi_color_bright_white%define("ansi_color_bright_white", "Face used to render bright white color code.")
         call ansi_color_bright_white%specification_entry(display_when(), face_attributes(foreground="white", background="white"))
-        commands%ansi_color_for_comint_mode_on%execute => ansi_color_for_comint_mode_on
-        commands%ansi_color_for_comint_mode_off%execute => ansi_color_for_comint_mode_off
-        commands%ansi_color_for_comint_mode_filter%execute => ansi_color_for_comint_mode_filter
+        commands%ansi_color_for_command_interpreter_mode_on%execute => ansi_color_for_command_interpreter_mode_on
+        commands%ansi_color_for_command_interpreter_mode_off%execute => ansi_color_for_command_interpreter_mode_off
+        commands%ansi_color_for_command_interpreter_mode_filter%execute => ansi_color_for_command_interpreter_mode_filter
         call append_locals_clearer(clear_ansi_color_locals)
-        call comint_output_filter_functions%prepend(ansi_color_process_output)
+        call command_interpreter_output_filter_functions%prepend(ansi_color_process_output)
     end subroutine initialize_ansi_color
 end module ansi_color_mod

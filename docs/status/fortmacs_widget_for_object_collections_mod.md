@@ -30,7 +30,7 @@
 `ewoc-buffer`,
 `ewoc-get-hf`,
 `ewoc-set-hf` (headers and footers with faces as parts);
-ewocs are handles freed with `destroy_ewoc`,
+ewocs are handles freed with `destroy_fortmacs_widget_for_object_collections`,
 their data integers the caller gives meaning to
 
 ## Deferred

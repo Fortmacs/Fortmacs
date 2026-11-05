@@ -25,8 +25,8 @@
 !> to -8, ibuffer-decompose-filter, ibuffer-and-filter, ibuffer-or-filter,
 !> ibuffer-format-qualifier and ibuffer-unary-operand (only its (not
 !> FILTER) form exists).  Modes that are not ported are replaced by ported
-!> ones: emacs-lisp-mode by sh_mode (also derived from programming_mode, with
-!> ".sh" files), html-mode and the "web" saved filters by sh_mode and
+!> ones: emacs-lisp-mode by shell_script_mode (also derived from programming_mode, with
+!> ".sh" files), html-mode and the "web" saved filters by shell_script_mode and
 !> "programming", artist-mode by fundamental_mode and text_mode.
 !> ibuffer-test-Bug25042 (a test form that signals an error) is not
 !> applicable: a test is a Fortran function.  Own tests of filter
@@ -45,7 +45,7 @@ module test_ibuffer_extensions_mod
     use files_mod, only: create_temporary_file, find_file_noselect, delete_file
     use simple_mod, only: fundamental_mode
     use text_mode_mod, only: text_mode
-    use shell_script_mod, only: sh_mode
+    use shell_script_mod, only: shell_script_mode
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input
     use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
@@ -73,7 +73,7 @@ module test_ibuffer_extensions_mod
     character(len=*), parameter :: LF = achar(10)
 
     ! Modes of the test buffers.
-    integer, parameter :: FUNDAMENTAL = 0, TEXT = 1, SH = 2
+    integer, parameter :: FUNDAMENTAL = 0, TEXT = 1, SHELL = 2
 
     ! Accumulated buffers and files to clean up.
     type(handle_type) :: test_buffers(16)
@@ -108,7 +108,7 @@ contains
                     new_unittest("ibuffer-format-qualifier", test_format_qualifier), &
                     new_unittest("ibuffer-unary-operand", test_unary_operand), &
                     new_unittest("ibuffer-filter-groups", test_filter_groups), &
-                    new_unittest("completing-read-multiple", test_crm) &
+                    new_unittest("completing-read-multiple", test_completing_read_multiple) &
                     ]
     end subroutine collect_ibuffer_extensions_mod
 
@@ -154,8 +154,8 @@ contains
         select case (mode)
         case (TEXT)
             call text_mode(st)
-        case (SH)
-            call sh_mode(st)
+        case (SHELL)
+            call shell_script_mode(st)
         case default
             call fundamental_mode(st)
         end select
@@ -415,7 +415,7 @@ contains
         call groups%append("Shell", ibuffer_used_mode("shell_mode"))
         call groups%append("Elisp", ibuffer_or(ibuffer_used_mode("emacs_lisp_mode"), &
                                                ibuffer_used_mode("lisp_interaction_mode")))
-        call groups%append("Dired", ibuffer_used_mode("dired_mode"))
+        call groups%append("Dired", ibuffer_used_mode("directory_editor_mode"))
         call groups%append("Info", ibuffer_or(ibuffer_used_mode("help_mode"), ibuffer_used_mode("debugger_mode"), &
                                               ibuffer_used_mode("custom_mode"), &
                                               ibuffer_used_mode("completion_list_mode"), &
@@ -571,14 +571,14 @@ contains
     contains
 
         subroutine body()
-            buffer = make_file_buffer("ibuf-test-4", ".sh", 0, "echo --emacs-rocks--"//LF, SH)
+            buffer = make_file_buffer("ibuf-test-4", ".sh", 0, "echo --emacs-rocks--"//LF, SHELL)
             call should(error, incl(buffer, ibuffer_file_extension("sh")), "file-extension")
             if (allocated(error)) return
             call should(error, incl(buffer, ibuffer_derived_mode("programming_mode")), "derived-mode")
             if (allocated(error)) return
-            call should(error, incl(buffer, ibuffer_used_mode("sh_mode")), "used-mode")
+            call should(error, incl(buffer, ibuffer_used_mode("shell_script_mode")), "used-mode")
             if (allocated(error)) return
-            call should(error, incl(buffer, ibuffer_major_mode("sh_mode")), "mode")
+            call should(error, incl(buffer, ibuffer_major_mode("shell_script_mode")), "mode")
             if (allocated(error)) return
             old = current_buffer()
             call set_buffer(buffer, st)
@@ -613,14 +613,14 @@ contains
     contains
 
         subroutine body()
-            buffer = make_non_file_buffer("ibuf-test-5.el", 0, "echo --It really does!--"//LF, SH)
+            buffer = make_non_file_buffer("ibuf-test-5.el", 0, "echo --It really does!--"//LF, SHELL)
             call should(error,.not. incl(buffer, ibuffer_file_extension("el")), "file-extension")
             if (allocated(error)) return
             call should(error, incl(buffer, ibuffer_size_gt(18_int64)), "size-gt")
             if (allocated(error)) return
             call should(error, incl(buffer, ibuffer_test(longer_than_18)), "test")
             if (allocated(error)) return
-            call should(error, incl(buffer, ibuffer_and(ibuffer_major_mode("sh_mode"), &
+            call should(error, incl(buffer, ibuffer_and(ibuffer_major_mode("shell_script_mode"), &
                                                         ibuffer_or(ibuffer_starred_name(), ibuffer_size_gt(18_int64)), &
                                                         ibuffer_and(ibuffer_not(ibuffer_size_gt(100_int64)), &
                                                                     ibuffer_content("[Ii]t  *really does!"), &
@@ -642,7 +642,7 @@ contains
 
         subroutine body()
             buffer = make_non_file_buffer("*ibuf-test-6*", 65, "", TEXT)
-            buf2 = make_file_buffer("ibuf-test-6a", ".sh", 0, "echo Hello, World!", SH)
+            buf2 = make_file_buffer("ibuf-test-6a", ".sh", 0, "echo Hello, World!", SHELL)
             call should(error, incl(buffer, ibuffer_starred_name()), "starred-name")
             if (allocated(error)) return
             call should(error,.not. incl(buffer, ibuffer_saved("text document")), "saved text document")
@@ -1038,7 +1038,7 @@ contains
 
     !> `completing_read_multiple' completes each element and splits the
     !> input at the separators.
-    subroutine test_crm(error)
+    subroutine test_completing_read_multiple(error)
         type(error_type), allocatable, intent(out) :: error
         type(completion_table_type) :: table
         type(string_type), allocatable :: results(:)
@@ -1061,5 +1061,5 @@ contains
         call check(error, size(results) == 2, "two elements")
         if (allocated(error)) return
         call check(error, results(1)%text == "foo" .and. results(2)%text == "bar", results(1)%text//"|"//results(2)%text)
-    end subroutine test_crm
+    end subroutine test_completing_read_multiple
 end module test_ibuffer_extensions_mod

@@ -60,7 +60,7 @@ module executable_mod
 
     !> True means offer to add a magic number to a file.
     !> This takes effect when you switch to certain major modes,
-    !> including Shell-script mode (`sh_mode').
+    !> including Shell-script mode (`shell_script_mode').
     !> When you type \[executable_set_magic], it always offers to add or
     !> update the magic number.  Port of executable.el executable-insert.
     logical, public :: executable_insert = .true.

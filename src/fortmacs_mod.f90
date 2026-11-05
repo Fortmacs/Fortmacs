@@ -43,8 +43,8 @@ module fortmacs_mod
                           switch_to_buffer_other_window, other_window
     use system_dependent_mod, only: install_interrupt_handler, install_window_change_handler, fortmacs_isatty, &
                                     fortmacs_execv, fortmacs_strerror
-    use terminal_output_mod, only: initialize_tty, delete_tty, tty_set_terminal_modes
-    use terminal_state_mod, only: tty_flush
+    use terminal_output_mod, only: initialize_terminal, delete_terminal, terminal_set_terminal_modes
+    use terminal_state_mod, only: terminal_flush
     use display_update_mod, only: adjust_frame_glyphs, frame_ring_bell, do_pending_window_change
     use display_engine_mod, only: redisplay_internal, initialize_frame_windows, message
     use face_realization_mod, only: initialize_frame_faces
@@ -53,15 +53,15 @@ module fortmacs_mod
     use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_fortmacs_hook
     use process_mod, only: kill_buffer_processes
     use bindings_mod, only: initialize_bindings
-    use terminal_xterm_mod, only: terminal_init_xterm
-    use terminal_colors_mod, only: tty_register_colors
+    use terminal_xterm_mod, only: terminal_initialize_xterm
+    use terminal_colors_mod, only: terminal_register_colors
     use names_mod, only: user_initialization_file
     use startup_mod, only: initialize_user_mail_address
     use configuration_mod, only: install_prefix, configure_info_directory, running_executable, recompile, &
                                  initialization_file_name, current_build_name, generation_of, current_generation, &
                                  switch_generation, rollback, list_generations
     use indent_mod, only: move_to_column
-    use abbreviation_mod, only: abbrevs_changed
+    use abbreviation_mod, only: abbreviations_changed
     use string_type_mod, only: string_type
     use data_mod, only: setting_errors
     use docstrings_mod, only: initialize_choice_values
@@ -408,7 +408,7 @@ contains
         type(handle_type) :: scratch
         type(status_type) :: st, option_status, color_status, locale_status
         type(string_type), allocatable :: rest(:)
-        logical :: init
+        logical :: initialize
 
         call initialize_fileio()
         call initialize_bindings()
@@ -428,14 +428,14 @@ contains
         selected_frame%needs_redraw = .true.
         ! dispnew.c:init_display and dispnew.c:init_display_interactive: the
         ! terminal TERM names.
-        call initialize_tty(selected_frame%tty, terminal_type, fd, status)
+        call initialize_terminal(selected_frame%terminal, terminal_type, fd, status)
         if (.not. status%ok()) return
         ! startup.el:command-line registers the 8 default colors, then
         ! faces.el:tty-run-terminal-initialization runs term/xterm.el,
         ! which replaces them by xterm's for the terminal's color count.
         ! Its error is shown once the editor is up.
-        call tty_register_colors(selected_frame%tty%tn_maximum_colors, .false., color_status)
-        if (xterm_like(terminal_type)) call terminal_init_xterm(color_status)
+        call terminal_register_colors(selected_frame%terminal%tn_maximum_colors, .false., color_status)
+        if (xterm_like(terminal_type)) call terminal_initialize_xterm(color_status)
         call set_input_fd(fd)
         call install_interrupt_handler()
         ! dispnew.c:init_display_interactive: SIGWINCH resizes the frame.
@@ -451,7 +451,7 @@ contains
         ! global-font-lock-mode's delayed initialization (its :init-value
         ! is true when not in batch mode), before the init file.
         call minor_modes%global_font_lock_mode%enable(st)
-        call tty_set_terminal_modes(selected_frame%tty)
+        call terminal_set_terminal_modes(selected_frame%terminal)
         ! startup.el:command-line: the mode line's strings for the
         ! end-of-line formats that aren't native to this platform, then
         ! the language environment and coding systems of the locale.
@@ -463,10 +463,10 @@ contains
         ! command-line-1 for the rest.  Errors are shown once the editor
         ! is up.
         if (present(arguments)) then
-            call command_line(arguments, rest, init, option_status)
+            call command_line(arguments, rest, initialize, option_status)
         else
             allocate (rest(0))
-            init = .true.
+            initialize = .true.
         end if
 
         ! A reminder from `execute_editor`; errors from what follows replace it.
@@ -483,7 +483,7 @@ contains
         call initialize_choice_values()
 
         if (option_status%ok()) then
-            if (init .and. present(configure)) then
+            if (initialize .and. present(configure)) then
                 call load_initialization_file(configure)
                 ! user-mail-address, unless the init file set it.
                 call initialize_user_mail_address()
@@ -494,7 +494,7 @@ contains
 
             ! If the abbrevs came entirely from the init file or the
             ! abbrevs file, they do not need saving.
-            abbrevs_changed = .false.
+            abbreviations_changed = .false.
             call command_line_1(rest, st)
             if (.not. st%ok()) call message(format_error(st))
         else
@@ -509,8 +509,8 @@ contains
         call exit_fortmacs_hook%execute(st)
         ring_bell_hook => null()
         redisplay_hook => null()
-        call delete_tty(selected_frame%tty, status)
-        call tty_flush(selected_frame%tty, st)
+        call delete_terminal(selected_frame%terminal, status)
+        call terminal_flush(selected_frame%terminal, st)
         call set_input_fd(-1_int32)
         ! shut_down_emacs: hang up the subprocesses.
         call kill_buffer_processes(null_handle())
@@ -550,16 +550,16 @@ contains
 
     !> Handle the options that startup.el handles before the init file:
     !> -q (--no-init-file) and -Q (--quick) turn off the init file
-    !> (`init' false), -no-site-file is accepted (there is no site file);
+    !> (`initialize' false), -no-site-file is accepted (there is no site file);
     !> long options may be abbreviated and take --OPTION=VALUE.  `rest'
     !> gets the arguments from the first other one on, for
     !> `command_line_1'.  Port of the option loop of startup.el:command-line
     !> (the options for X, the debugger, other users' and directories'
     !> init files, the dump and native compilation are not ported).
-    subroutine command_line(arguments, rest, init, status)
+    subroutine command_line(arguments, rest, initialize, status)
         type(string_type), intent(in) :: arguments(:)
         type(string_type), allocatable, intent(out) :: rest(:)
-        logical, intent(out) :: init
+        logical, intent(out) :: initialize
         type(status_type), intent(out) :: status
         character(len=20), parameter :: longopts(14) = [character(len=20) :: &
                                                         "--no-init-file", "--no-site-file", "--no-x-resources", &
@@ -571,7 +571,7 @@ contains
         integer :: k, eq
 
         status = status_type()
-        init = .true.
+        initialize = .true.
         k = 0
         done = .false.
 
@@ -611,7 +611,7 @@ contains
 
             select case (argi)
             case ("-Q", "-quick", "-q", "-no-init-file")
-                init = .false.
+                initialize = .false.
             case ("-no-site-file")
                 ! site-run-file: Fortmacs has no site file.
                 continue
@@ -1075,20 +1075,20 @@ contains
         type(string_type), intent(in) :: arguments(:)
         character(len=:), allocatable, intent(inout) :: reminder
         type(string_type), allocatable :: argv(:)
-        character(len=:), allocatable :: build, init
+        character(len=:), allocatable :: build, initialize
         integer(int32) :: err
         integer :: k
 
         build = current_build_name()
-        init = initialization_file_name()
+        initialize = initialization_file_name()
 
         if (.not. is_file_executable(build)) then
-            if (file_exists(init)) reminder = init//" is not built yet; run fortmacs --recompile to use it"
+            if (file_exists(initialize)) reminder = initialize//" is not built yet; run fortmacs --recompile to use it"
             return
         end if
 
         if (is_file_newer_than_file(running_executable(), build)) then
-            reminder = "Fortmacs was updated since "//init//" was built; run fortmacs --recompile"
+            reminder = "Fortmacs was updated since "//initialize//" was built; run fortmacs --recompile"
             return
         end if
 

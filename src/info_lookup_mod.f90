@@ -524,9 +524,9 @@ contains
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
         type(completion_type), allocatable, intent(out) :: completions(:)
-        integer :: k, init
+        integer :: k, initialize
 
-        if (initialized(topic, mode) == INITIALIZE_PENDING) init = info_lookup_setup_mode(topic, mode)
+        if (initialized(topic, mode) == INITIALIZE_PENDING) initialize = info_lookup_setup_mode(topic, mode)
         k = mode_cache(topic, mode)
 
         if (k > 0) then
@@ -546,9 +546,9 @@ contains
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
         type(help_mode_type), allocatable, intent(out) :: modes(:)
-        integer :: k, init, i, n
+        integer :: k, initialize, i, n
 
-        if (initialized(topic, mode) == INITIALIZE_PENDING) init = info_lookup_setup_mode(topic, mode)
+        if (initialized(topic, mode) == INITIALIZE_PENDING) initialize = info_lookup_setup_mode(topic, mode)
         k = mode_cache(topic, mode)
         n = 0
 
@@ -1142,7 +1142,7 @@ contains
 
     ! Whether the terminal can display colors (display-color-p).  Not a port.
     logical function is_display_color()
-        is_display_color = selected_frame%tty%tn_maximum_colors > 0
+        is_display_color = selected_frame%terminal%tn_maximum_colors > 0
     end function is_display_color
 
     ! STRING in lower case (downcase).  Not a port.
@@ -1155,7 +1155,7 @@ contains
 
     ! Initialize the internal data structure.  Port of
     ! info-look.el:info-lookup-setup-mode.
-    recursive integer function info_lookup_setup_mode(topic, mode) result(init)
+    recursive integer function info_lookup_setup_mode(topic, mode) result(initialize)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
         type(help_mode_type), allocatable :: others(:), refer(:)
@@ -1165,9 +1165,9 @@ contains
         type(status_type) :: st
         integer :: i, k, n, sub
 
-        init = initialized(topic, mode)
-        if (init /= INITIALIZE_PENDING) return
-        init = INITIALIZE_VOID
+        initialize = initialized(topic, mode)
+        if (initialize /= INITIALIZE_PENDING) return
+        initialize = INITIALIZE_VOID
         allocate (refer(0), completions(0))
 
         if (allocated(info_history_nodes)) then
@@ -1207,7 +1207,7 @@ contains
                 call move_alloc(joined, completions)
             end do
 
-            init = INITIALIZE_DONE
+            initialize = INITIALIZE_DONE
         end if
 
         if (allocated(info_history_nodes)) deallocate (info_history_nodes)
@@ -1223,7 +1223,7 @@ contains
             info_lookup_cache(k)%mode = mode
         end if
 
-        info_lookup_cache(k)%initialized = init
+        info_lookup_cache(k)%initialized = initialize
         call move_alloc(completions, info_lookup_cache(k)%completions)
         call move_alloc(refer, info_lookup_cache(k)%refer_modes)
     end function info_lookup_setup_mode
@@ -1778,7 +1778,7 @@ contains
     ! gawk for sh mode: there's no plain "awk" or "gawk" index entries,
     ! mung other hopefully unique ones to get to the command line options.
     ! Not a port.
-    recursive subroutine trans_gawk_sh(entry, item, found)
+    recursive subroutine trans_gawk_shell(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
         logical, intent(out) :: found
@@ -1792,7 +1792,7 @@ contains
         else
             found = .false.
         end if
-    end subroutine trans_gawk_sh
+    end subroutine trans_gawk_shell
 
     ! cfengine: index entries may be like `IsPlain()'.  Not a port.
     recursive subroutine trans_cfengine(entry, item, found)
@@ -1931,7 +1931,7 @@ contains
         call s%append("(autoconf)Macro Index", trans_prefix="AC_", &
                       prefix="^[ "//TAB//"]+-+ \(Macro\|Variable\): .*\<", suffix="\>")
         ! Automake has index entries for its notes on various autoconf
-        ! macros (eg. AC_PROG_CC).  Ensure this is after the autoconf
+        ! macros (eg. AC_PROGRAMMING_CC).  Ensure this is after the autoconf
         ! index, so as to prefer the autoconf docs.
         call s%append("(automake)Macro and Variable Index", prefix="^[ "//TAB//"]*['`‘]", suffix="['’]")
         ! Autoconf symbols are M4 macros.  Thus use M4's parser.
@@ -2091,10 +2091,10 @@ contains
         call s%append("(sed)Concept Index", trans=trans_sed)
         ! there's no plain "awk" or "gawk" index entries, mung other
         ! hopefully unique ones to get to the command line options
-        call s%append("(gawk)Index", trans=trans_gawk_sh)
+        call s%append("(gawk)Index", trans=trans_gawk_shell)
         ! bash has "." and ":" in its index, but those chars will probably
         ! never work in info, so don't bother matching them in the regexp.
-        call info_lookup_maybe_add_help(mode="sh_mode", topic="symbol", &
+        call info_lookup_maybe_add_help(mode="shell_script_mode", topic="symbol", &
                                         regular_expression="\([a-zA-Z0-9_-]+\|[!{}@*#?$]\|\[\[?\|]]?\)", doc_specification=s)
         ! This misses some things which occur as node names but not in
         ! the index.  Unfortunately it also picks up the wrong one of

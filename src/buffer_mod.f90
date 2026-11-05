@@ -59,7 +59,7 @@ module buffer_mod
     !> buffer.h: extra gap to allocate when growing, and the minimum gap.
     integer(int64), parameter, public :: GAP_BYTES_DFL = 2000, GAP_BYTES_MINIMUM = 20
     !> buffer.h:BUF_BYTES_MAX on a 64-bit host (MOST_POSITIVE_FIXNUM - 1).
-    integer(int64), parameter, public :: BUF_BYTES_MAXIMUM = 2_int64**61 - 2
+    integer(int64), parameter, public :: BUFFER_BYTES_MAXIMUM = 2_int64**61 - 2
 
     !> Port of buffer.h:struct buffer_text.  The anchor NUL bytes upstream
     !> keeps at GPT and Z (for C string searches) are not kept.
@@ -164,14 +164,14 @@ module buffer_mod
         integer(int64) :: end_of_accessible_portion = BEGINNING, end_of_accessible_portion_byte = BEGINNING_BYTE
         !> BVAR enable_multibyte_characters.
         logical :: multibyte = .true.
-        !> BVAR bidi_display_reordering (`bidi_display_reordering'): true
+        !> BVAR bidirectional_display_reordering (`bidirectional_display_reordering'): true
         !> means reorder bidirectional text for display in the visual order.
-        logical :: bidi_display_reordering = .true.
-        !> BVAR bidi_paragraph_direction (`bidi_paragraph_direction'): 0
+        logical :: bidirectional_display_reordering = .true.
+        !> BVAR bidirectional_paragraph_direction (`bidirectional_paragraph_direction'): 0
         !> to determine each paragraph's direction dynamically, 1
         !> (`left-to-right') or 2 (`right-to-left') to force it (bidirectional_mod
         !> L2R and R2L).
-        integer :: bidi_paragraph_direction = 0
+        integer :: bidirectional_paragraph_direction = 0
         !> BVAR read_only.
         logical :: read_only = .false.
         !> BVAR save_length (`buffer_saved_size'): the length of the buffer
@@ -213,13 +213,13 @@ module buffer_mod
         !> reverting; only when `read_only_mode_state_set' (bound locally).
         logical :: read_only_mode_state = .false., read_only_mode_state_set = .false.
         !> `backup_inhibited' (files.el): true means don't make a backup,
-        !> regardless of the other parameters.  Permanent-local; VC sets it
+        !> regardless of the other parameters.  Permanent-local; VERSION_CONTROL sets it
         !> for files under version control.
         logical :: backup_inhibited = .false.
-        !> `vc_mode' (vc-hooks.el): the version control status shown in the
+        !> `version_control_mode' (vc-hooks.el): the version control status shown in the
         !> mode line (" Git-main"); unallocated when the file is not under
         !> version control.  Permanent-local.
-        character(len=:), allocatable :: vc_mode
+        character(len=:), allocatable :: version_control_mode
         !> window.el's window--sides-shown: true if this buffer was shown
         !> in a side window once; `switch_to_previous_buffer' and
         !> `switch_to_next_buffer' then refrain from showing it within the
@@ -508,9 +508,9 @@ module buffer_mod
     public :: is_buffer_modified, restore_buffer_modified, &
               buffer_modified_tick, buffer_characters_modified_tick
     public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only
-    public :: modiff_increment, buf_compute_unchanged
-    public :: buffer_byte_index, buf_fetch_byte, buf_fetch_char, &
-              buf_next_char_len, buf_prev_char_len, buf_bytes
+    public :: modiff_increment, buffer_compute_unchanged
+    public :: buffer_byte_index, buffer_fetch_byte, buffer_fetch_character, &
+              buffer_next_character_length, buffer_previous_character_length, buffer_bytes
     public :: temporary_set_point_both
     public :: nsberror, buffer_enable_undo, set_buffer_modified, force_mode_line_update, buffer_file_name, &
               set_buffer_if_live, execute_buffer_list_update_hook, find_buffer, initialize_buffer_commands
@@ -1093,7 +1093,7 @@ contains
     end subroutine modiff_increment
 
     !> Port of buffer.h:BUF_COMPUTE_UNCHANGED.
-    pure subroutine buf_compute_unchanged(b, start, end)
+    pure subroutine buffer_compute_unchanged(b, start, end)
         type(buffer_type), intent(inout) :: b
         integer(int64), intent(in) :: start, end
 
@@ -1107,7 +1107,7 @@ contains
                 if (start - BEGINNING < t%beginning_unchanged) t%beginning_unchanged = start - BEGINNING
             end if
         end associate
-    end subroutine buf_compute_unchanged
+    end subroutine buffer_compute_unchanged
 
     !> Port of buffer.c:Fbuffer_modified_p (the `autosaved' state is not
     !> tracked yet).
@@ -1232,53 +1232,53 @@ contains
     end function buffer_byte_index
 
     !> Byte (0..255) at `byte_position'.  Port of buffer.h:BUF_FETCH_BYTE.
-    pure integer(int32) function buf_fetch_byte(b, byte_position)
+    pure integer(int32) function buffer_fetch_byte(b, byte_position)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: byte_position
         integer(int64) :: k
 
         k = buffer_byte_index(b, byte_position)
-        buf_fetch_byte = ichar(b%text%beginning(k:k), kind=int32)
-    end function buf_fetch_byte
+        buffer_fetch_byte = ichar(b%text%beginning(k:k), kind=int32)
+    end function buffer_fetch_byte
 
     !> Character at `byte_position'.  Port of buffer.h:BUF_FETCH_CHAR.
-    pure integer(int32) function buf_fetch_char(b, byte_position)
+    pure integer(int32) function buffer_fetch_character(b, byte_position)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: byte_position
         integer(int32) :: n
 
         if (b%multibyte) then
-            call string_character_and_length(b%text%beginning, buffer_byte_index(b, byte_position), buf_fetch_char, n)
+            call string_character_and_length(b%text%beginning, buffer_byte_index(b, byte_position), buffer_fetch_character, n)
         else
-            buf_fetch_char = buf_fetch_byte(b, byte_position)
+            buffer_fetch_character = buffer_fetch_byte(b, byte_position)
         end if
-    end function buf_fetch_char
+    end function buffer_fetch_character
 
     !> Byte length of the character at `byte_position'.
     !> Port of buffer.h:buf_next_char_len.
-    pure integer(int32) function buf_next_char_len(b, byte_position)
+    pure integer(int32) function buffer_next_character_length(b, byte_position)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: byte_position
 
-        buf_next_char_len = bytes_by_character_head(buf_fetch_byte(b, byte_position))
-    end function buf_next_char_len
+        buffer_next_character_length = bytes_by_character_head(buffer_fetch_byte(b, byte_position))
+    end function buffer_next_character_length
 
     !> Byte length of the character before `byte_position'.
     !> Port of buffer.h:buf_prev_char_len.
-    pure integer(int32) function buf_prev_char_len(b, byte_position)
+    pure integer(int32) function buffer_previous_character_length(b, byte_position)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: byte_position
         integer(int64) :: k
 
         k = byte_position
         if (byte_position > b%text%gpt_byte) k = byte_position + b%text%gap_size
-        buf_prev_char_len = raw_previous_character_length(b%text%beginning, k)
-    end function buf_prev_char_len
+        buffer_previous_character_length = raw_previous_character_length(b%text%beginning, k)
+    end function buffer_previous_character_length
 
     !> The bytes from `from_byte' up to (not including) `to_byte', joined
     !> across the gap.  Not a port; the byte-copy core of
     !> editfns.c:make_buffer_string_both.
-    pure function buf_bytes(b, from_byte, to_byte) result(s)
+    pure function buffer_bytes(b, from_byte, to_byte) result(s)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: from_byte, to_byte
         character(len=:), allocatable :: s
@@ -1298,7 +1298,7 @@ contains
                 s = t%beginning(from_byte:g - 1)//t%beginning(g + t%gap_size:to_byte - 1 + t%gap_size)
             end if
         end associate
-    end function buf_bytes
+    end function buffer_bytes
 
     !> Set point of `b' without any text-property processing.
     !> Port of intervals.c:temp_set_point_both.

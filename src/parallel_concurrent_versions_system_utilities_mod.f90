@@ -1,4 +1,4 @@
-! pcvs_utilities_mod.f90 -- utility functions for PCL-CVS.
+! parallel_concurrent_versions_system_utilities_mod.f90 -- utility functions for PCL-CVS.
 ! Ported from GNU Emacs 31.1 lisp/vc/pcvs-util.el.
 !
 ! Copyright (C) 1991-2026 Free Software Foundation, Inc.
@@ -19,11 +19,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> What Log Edit mode uses of pcvs-util.el: `cvs_insert_strings'.
+!> What Log Edit mode uses of pcvs-util.el: `concurrent_versions_system_insert_strings'.
 !>
 !> Deferred: the rest of pcvs-util.el (the buffer and string utilities
 !> of PCL-CVS, which is not ported).
-module pcvs_utilities_mod
+module parallel_concurrent_versions_system_utilities_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
     use insert_delete_mod, only: insert
@@ -36,14 +36,14 @@ module pcvs_utilities_mod
     implicit none(type, external)
     private
 
-    public :: cvs_insert_strings
+    public :: concurrent_versions_system_insert_strings
 
 contains
 
     !> Insert a list of STRINGS into the current buffer.
     !> Uses columns to keep the listing readable but compact.  Port of
     !> pcvs-util.el:cvs-insert-strings.
-    subroutine cvs_insert_strings(strings, status)
+    subroutine concurrent_versions_system_insert_strings(strings, status)
         type(string_type), intent(in) :: strings(:)
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
@@ -84,7 +84,7 @@ contains
             call insert(strings(k)%text, status)
             if (.not. status%ok()) return
         end do
-    end subroutine cvs_insert_strings
+    end subroutine concurrent_versions_system_insert_strings
 
     ! The number of characters of the UTF-8 string S (its `length').
     ! Not a port.
@@ -98,4 +98,4 @@ contains
             if (iand(ichar(s(i:i)), 192) /= 128) nchars = nchars + 1
         end do
     end function nchars
-end module pcvs_utilities_mod
+end module parallel_concurrent_versions_system_utilities_mod

@@ -87,7 +87,7 @@ module grep_mod
     use minibuffer_mod, only: completing_read, read_directory_name, completion_file_name_table, &
                               read_file_name_completion_ignore_case
     use replace_mod, only: read_regular_expression, format_prompt
-    use incremental_search_mod, only: is_isearch_no_upper_case
+    use incremental_search_mod, only: is_incremental_search_no_upper_case
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use keymap_mod, only: keymap_set, set_keymap_parent, make_sparse_keymap, current_local_map, use_local_map
     use text_mode_mod, only: text_mode_map
@@ -105,7 +105,7 @@ module grep_mod
                              FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_highlight
     use faces_mod, only: named_face_type, display_when, face_attributes
-    use version_control_hooks_mod, only: vc_directory_exclusions
+    use version_control_hooks_mod, only: version_control_directory_exclusions
     use directory_editor_mod, only: completion_ignored_extensions
     use display_engine_mod, only: message, mode_line_part_type
     use compile_mod, only: compilation_start, compilation_set_mode_locals, compilation_update_mode_line, &
@@ -359,7 +359,7 @@ module grep_mod
     !> search directory to determine whether NAME should not be recursed
     !> into.
     !>
-    !> The default value is inherited from `vc_directory_exclusions'.
+    !> The default value is inherited from `version_control_directory_exclusions'.
     !> Port of grep.el grep-find-ignored-directories.
     type(grep_ignore_type), allocatable, public :: grep_find_ignored_directories(:)
 
@@ -472,7 +472,7 @@ module grep_mod
     character(len=:), allocatable, public :: grep_program
 
     !> The default find program.
-    !> This is used by commands like `grep_find_command', `find_dired' and
+    !> This is used by commands like `grep_find_command', `find_directory_editor' and
     !> others.  Port of grep.el find-program.
     character(len=:), allocatable, public :: find_program
 
@@ -1665,7 +1665,7 @@ contains
     !> to offer.  Port of grep.el:grep-default-command.
     function grep_default_command() result(command)
         character(len=:), allocatable :: command
-        character(len=:), allocatable :: tag_default, sh_argument_regular_expression, grep_default, pattern, ext
+        character(len=:), allocatable :: tag_default, shell_argument_regular_expression, grep_default, pattern, ext
         integer(int64), allocatable :: md(:)
         type(status_type) :: st
         logical :: found, matched
@@ -1673,7 +1673,7 @@ contains
 
         tag_default = shell_quote_argument(grep_tag_default())
         ! This a regexp to match single shell arguments.
-        sh_argument_regular_expression = "\(\(?:""\(?:[^""]\|\\""\)+""\|'[^']+'\|[^""' "//TB//NEWLINE//"]\)+\)"
+        shell_argument_regular_expression = "\(\(?:""\(?:[^""]\|\\""\)+""\|'[^']+'\|[^""' "//TB//NEWLINE//"]\)+\)"
         call history_first("grep_history", grep_default, found)
 
         if (.not. found) then
@@ -1684,7 +1684,7 @@ contains
         command = grep_default
 
         ! In the default command, find the arg that specifies the pattern.
-        if (string_match("[^ ]+\s +\(?:-[^ ]+\s +\)*"//sh_argument_regular_expression//"\(\s +\(\S +\)\)?", grep_default, &
+        if (string_match("[^ ]+\s +\(?:-[^ ]+\s +\)*"//shell_argument_regular_expression//"\(\s +\(\S +\)\)?", grep_default, &
                          st) == 0) then
             ! If the string is not yet complete.
             if (string_match("\(\)\'", grep_default, st) == 0) return
@@ -2047,7 +2047,7 @@ contains
             end do
         end if
 
-        if (case_fold_search%value .and. is_isearch_no_upper_case(pattern, .true.)) call prepend("-i")
+        if (case_fold_search%value .and. is_incremental_search_no_upper_case(pattern, .true.)) call prepend("-i")
 
         if (grep_highlight_matches%choice == GREP_HIGHLIGHT_MATCHES_ALWAYS) then
             call prepend("--color=always")
@@ -3043,13 +3043,13 @@ contains
         end if
 
         if (.not. allocated(grep_find_ignored_directories)) then
-            if (.not. allocated(vc_directory_exclusions)) then
+            if (.not. allocated(version_control_directory_exclusions)) then
                 allocate (grep_find_ignored_directories(0))
             else
-                allocate (grep_find_ignored_directories(size(vc_directory_exclusions)))
+                allocate (grep_find_ignored_directories(size(version_control_directory_exclusions)))
 
-                do i = 1, size(vc_directory_exclusions)
-                    grep_find_ignored_directories(i)%name = trim(vc_directory_exclusions(i))
+                do i = 1, size(version_control_directory_exclusions)
+                    grep_find_ignored_directories(i)%name = trim(version_control_directory_exclusions(i))
                 end do
             end if
         end if

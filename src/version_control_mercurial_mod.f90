@@ -1,4 +1,4 @@
-! version_control_mercurial_mod.f90 -- VC backend for the mercurial version control system.
+! version_control_mercurial_mod.f90 -- VERSION_CONTROL backend for the mercurial version control system.
 ! Ported from GNU Emacs 31.1 lisp/vc/vc-hg.el.
 !
 ! Copyright (C) 2006-2026 Free Software Foundation, Inc.
@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The Mercurial backend of VC: whether a file is registered, its state
+!> The Mercurial backend of VERSION_CONTROL: whether a file is registered, its state
 !> (from `hg status'), working revision and symbolic revision for the
 !> mode line, registering, unregistering, reverting, checking out,
 !> deleting and renaming files, diffs, other revisions (`hg cat'), the
@@ -44,16 +44,22 @@ module version_control_mercurial_mod
     use files_mod, only: file_relative_name, file_truename, delete_file, delete_directory
     use execute_process_mod, only: execute_process
     use string_type_mod, only: string_type, append_string
-    use version_control_hooks_mod, only: vc_backends, vc_switches_type, register_vc_backend, &
-                                         vc_backend_named, vc_find_root, vc_state, vc_mode_line_state, vc_working_revision, &
-                                         vc_file_set_state, vc_display_status, vc_use_short_revision, vc_directory_entry_type, &
-                                         vc_directory_fileinfo_type, vc_directory_update_procedure, VC_DISPLAY_STATUS_NO_BACKEND, &
-                                         VC_SWITCHES_NONE, VC_SWITCHES_LIST, VC_UP_TO_DATE, VC_EDITED, VC_ADDED, VC_REMOVED, &
-                                         VC_MISSING, VC_IGNORED, VC_UNREGISTERED, VC_STATE_UNKNOWN, VC_MODEL_IMPLICIT, &
-                                         VC_RENAME_COPY, VC_RENAME_RENAME
-    use version_control_dispatcher_mod, only: vc_do_command, VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DESTINATION_CURRENT
-    use fortmacs_widget_for_object_collections_mod, only: ewoc_part_type
-    use version_control_mod, only: vc_switches
+    use version_control_hooks_mod, only: version_control_backends, version_control_switches_type, &
+                                         register_version_control_backend, version_control_backend_named, &
+                                         version_control_find_root, version_control_state, version_control_mode_line_state, &
+                                         version_control_working_revision, version_control_file_set_state, &
+                                         version_control_display_status, version_control_use_short_revision, &
+                                         version_control_directory_entry_type, version_control_directory_fileinfo_type, &
+                                         version_control_directory_update_procedure, VERSION_CONTROL_DISPLAY_STATUS_NO_BACKEND, &
+                                         VERSION_CONTROL_SWITCHES_NONE, VERSION_CONTROL_SWITCHES_LIST, VERSION_CONTROL_UP_TO_DATE, &
+                                         VERSION_CONTROL_EDITED, VERSION_CONTROL_ADDED, VERSION_CONTROL_REMOVED, &
+                                         VERSION_CONTROL_MISSING, VERSION_CONTROL_IGNORED, VERSION_CONTROL_UNREGISTERED, &
+                                         VERSION_CONTROL_STATE_UNKNOWN, VERSION_CONTROL_MODEL_IMPLICIT, &
+                                         VERSION_CONTROL_RENAME_COPY, VERSION_CONTROL_RENAME_RENAME
+    use version_control_dispatcher_mod, only: version_control_do_command, VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, &
+                                              VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, VERSION_CONTROL_DESTINATION_CURRENT
+    use fortmacs_widget_for_object_collections_mod, only: fortmacs_widget_for_object_collections_part_type
+    use version_control_mod, only: version_control_switches
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use keymap_mod, only: keymap_set
@@ -65,60 +71,65 @@ module version_control_mercurial_mod
     implicit none(type, external)
     private
 
-    public :: initialize_vc_hg, vc_hg_registered, vc_hg_state, vc_hg_state_slow, vc_hg_working_revision, &
-              vc_hg_mode_line_string, vc_hg_root, vc_hg_command, vc_hg_previous_revision, vc_hg_next_revision, &
-              vc_hg_revision_table, vc_hg_diff_flags, vc_hg_after_directory_status, vc_hg_parse_program_version
+    public :: initialize_version_control_mercurial, version_control_mercurial_registered, version_control_mercurial_state, &
+              version_control_mercurial_state_slow, version_control_mercurial_working_revision, &
+              version_control_mercurial_mode_line_string, version_control_mercurial_root, version_control_mercurial_command, &
+              version_control_mercurial_previous_revision, version_control_mercurial_next_revision, &
+              version_control_mercurial_revision_table, version_control_mercurial_diff_flags, &
+              version_control_mercurial_after_directory_status, version_control_mercurial_parse_program_version
 
     !> String or list of strings: global switches to pass to any Hg
-    !> command (VC_SWITCHES_LIST; the other kinds pass none).  Port of
+    !> command (VERSION_CONTROL_SWITCHES_LIST; the other kinds pass none).  Port of
     !> vc-hg.el vc-hg-global-switches.
-    type(vc_switches_type), public :: vc_hg_global_switches
+    type(version_control_switches_type), public :: version_control_mercurial_global_switches
 
-    !> String or list of strings specifying switches for Hg diff under VC.
-    !> If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches'.  If VC_SWITCHES_NONE, use no switches.
+    !> String or list of strings specifying switches for Hg diff under VERSION_CONTROL.
+    !> If VERSION_CONTROL_SWITCHES_UNSPECIFIED, use the value of `version_control_diff_switches'.  If VERSION_CONTROL_SWITCHES_NONE,
+    !> use no switches.
     !> Port of vc-hg.el vc-hg-diff-switches (Hg doesn't support common
     !> arguments like -u).
-    type(vc_switches_type), target, public :: vc_hg_diff_switches = vc_switches_type(kind=VC_SWITCHES_NONE)
+    type(version_control_switches_type), target, public :: version_control_mercurial_diff_switches = &
+                                                           version_control_switches_type(kind=VERSION_CONTROL_SWITCHES_NONE)
 
-    !> String or list of strings specifying switches for hg revert under VC
-    !> (VC_SWITCHES_LIST; the other kinds pass none).  Port of vc-hg.el
+    !> String or list of strings specifying switches for hg revert under VERSION_CONTROL
+    !> (VERSION_CONTROL_SWITCHES_LIST; the other kinds pass none).  Port of vc-hg.el
     !> vc-hg-revert-switches.
-    type(vc_switches_type), public :: vc_hg_revert_switches
+    type(version_control_switches_type), public :: version_control_mercurial_revert_switches
 
     !> Name of the Mercurial executable (excluding any arguments).  Port of
     !> vc-hg.el vc-hg-program.
-    character(len=:), allocatable, public :: vc_hg_program
+    character(len=:), allocatable, public :: version_control_mercurial_program
 
-    !> The value of `vc_hg_root_log_format': the "--template" argument
+    !> The value of `version_control_mercurial_root_log_format': the "--template" argument
     !> string, a regular expression matching the resulting Mercurial output,
     !> and the highlights of its match for the Log View buffer.
-    type, public :: vc_hg_root_log_format_type
+    type, public :: version_control_mercurial_root_log_format_type
         character(len=:), allocatable :: template, regular_expression
         type(font_lock_highlight_type), allocatable :: highlights(:)
-    end type vc_hg_root_log_format_type
+    end type version_control_mercurial_root_log_format_type
 
-    !> Mercurial log template for `vc_hg_print_log' short format.
+    !> Mercurial log template for `version_control_mercurial_print_log' short format.
     !> This should be a TEMPLATE, a REGULAR_EXPRESSION and KEYWORDS, where TEMPLATE
     !> is the "--template" argument string to pass to Mercurial,
     !> REGULAR_EXPRESSION is a regular expression matching the resulting Mercurial
     !> output, and KEYWORDS is a list of `font_lock_keywords' for
     !> highlighting the Log View buffer.  Port of vc-hg.el
     !> vc-hg-root-log-format.
-    type(vc_hg_root_log_format_type), public :: vc_hg_root_log_format
+    type(version_control_mercurial_root_log_format_type), public :: version_control_mercurial_root_log_format
 
-    !> The kinds of an entry of `vc_hg_symbolic_revision_styles': the active
-    !> bookmark (VC_HG_SYMBOLIC_REVISION_STYLES_ACTIVE_BOOKMARK) or a
-    !> Mercurial template (VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE).
-    integer, parameter, public :: VC_HG_SYMBOLIC_REVISION_STYLES_ACTIVE_BOOKMARK = 1, &
-                                  VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE = 2
+    !> The kinds of an entry of `version_control_mercurial_symbolic_revision_styles': the active
+    !> bookmark (VERSION_CONTROL_MERCURIAL_REVISION_STYLES_ACTIVE_BOOKMARK) or a
+    !> Mercurial template (VERSION_CONTROL_MERCURIAL_SYMBOLIC_REVISION_STYLES_TEMPLATE).
+    integer, parameter, public :: VERSION_CONTROL_MERCURIAL_REVISION_STYLES_ACTIVE_BOOKMARK = 1, &
+                                  VERSION_CONTROL_MERCURIAL_SYMBOLIC_REVISION_STYLES_TEMPLATE = 2
 
     !> One way to present versions symbolically: its kind and, for
-    !> VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE, the template (trailing
+    !> VERSION_CONTROL_MERCURIAL_SYMBOLIC_REVISION_STYLES_TEMPLATE, the template (trailing
     !> blanks are not part of it).
-    type, public :: vc_hg_symbolic_revision_style_type
-        integer :: kind = VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE
+    type, public :: version_control_mercurial_revision_style_type
+        integer :: kind = VERSION_CONTROL_MERCURIAL_SYMBOLIC_REVISION_STYLES_TEMPLATE
         character(len=128) :: template = ""
-    end type vc_hg_symbolic_revision_style_type
+    end type version_control_mercurial_revision_style_type
 
     !> List of ways to present versions symbolically.
     !> The version that we use is the first one that successfully
@@ -126,62 +137,65 @@ module version_control_mercurial_mod
     !>
     !> Each entry in the list can be either:
     !>
-    !> - VC_HG_SYMBOLIC_REVISION_STYLES_ACTIVE_BOOKMARK, which indicates
+    !> - VERSION_CONTROL_MERCURIAL_REVISION_STYLES_ACTIVE_BOOKMARK, which indicates
     !> that we should use the active bookmark if one exists.  A template can
     !> supply this information as well, but this kind is handled entirely
     !> inside Fortmacs and so is more efficient than using the generic
     !> Mercurial mechanism.
     !>
-    !> - VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE, with the Mercurial
+    !> - VERSION_CONTROL_MERCURIAL_SYMBOLIC_REVISION_STYLES_TEMPLATE, with the Mercurial
     !> template to supply to "hg parent".  "hg help template" may be useful
     !> reading.
     !>
     !> If no list entry produces a useful revision, "???" is shown.  Port
     !> of vc-hg.el vc-hg-symbolic-revision-styles.
-    type(vc_hg_symbolic_revision_style_type), allocatable, public :: vc_hg_symbolic_revision_styles(:)
+    type(version_control_mercurial_revision_style_type), allocatable :: version_control_mercurial_symbolic_revision_styles(:)
+    public :: version_control_mercurial_symbolic_revision_styles
 
     !> When enabled, the modeline contains revision information for the visited file.
     !> When not, the revision in the modeline is for the repository
     !> working copy.  .false. is the much faster setting for
     !> large repositories.  Port of vc-hg.el
     !> vc-hg-use-file-version-for-mode-line-version.
-    logical, public :: vc_hg_use_file_version_for_mode_line_version = .false.
+    logical, public :: version_control_mercurial_use_file_version_for_mode_line = .false.
 
-    !> String or list of strings specifying switches for hg log under VC
-    !> (VC_SWITCHES_LIST; the other kinds pass none).  Port of vc-hg.el
+    !> String or list of strings specifying switches for hg log under VERSION_CONTROL
+    !> (VERSION_CONTROL_SWITCHES_LIST; the other kinds pass none).  Port of vc-hg.el
     !> vc-hg-log-switches.
-    type(vc_switches_type), public :: vc_hg_log_switches
+    type(version_control_switches_type), public :: version_control_mercurial_log_switches
 
     !> If true, use `--graph' in the short log output.  Port of vc-hg.el
     !> vc-hg-log-graph.
-    logical, public :: vc_hg_log_graph = .false.
+    logical, public :: version_control_mercurial_log_graph = .false.
 
-    !> Mercurial log template for `vc_hg_print_log' long format.  Port of
+    !> Mercurial log template for `version_control_mercurial_print_log' long format.  Port of
     !> vc-hg.el vc-hg-log-format.
-    character(len=:), allocatable, public :: vc_hg_log_format
+    character(len=:), allocatable, public :: version_control_mercurial_log_format
 
     !> Hook run after entering Hg-Log-View mode.
-    type(hook_type), target, public :: vc_hg_log_view_mode_hook = hook_type(name="vc_hg_log_view_mode_hook")
+    type(hook_type), target, public :: version_control_mercurial_log_view_mode_hook = hook_type( &
+                                       name="version_control_mercurial_log_view_mode_hook")
 
-    !> The keymap of `vc_hg_log_view_mode'.
-    type(handle_type), public :: vc_hg_log_view_mode_map
+    !> The keymap of `version_control_mercurial_log_view_mode'.
+    type(handle_type), public :: version_control_mercurial_log_view_mode_map
 
-    !> Hook run by `vc_hg_log_edit_mode'.
-    type(hook_type), target, public :: vc_hg_log_edit_mode_hook = hook_type(name="vc_hg_log_edit_mode_hook")
+    !> Hook run by `version_control_mercurial_log_edit_mode'.
+    type(hook_type), target, public :: version_control_mercurial_log_edit_mode_hook = hook_type( &
+                                       name="version_control_mercurial_log_edit_mode_hook")
 
-    !> Keymap of `vc_hg_log_edit_mode'.  Port of vc-hg.el
+    !> Keymap of `version_control_mercurial_log_edit_mode'.  Port of vc-hg.el
     !> vc-hg-log-edit-mode-map.
-    type(handle_type), public :: vc_hg_log_edit_mode_map
+    type(handle_type), public :: version_control_mercurial_log_edit_mode_map
 
-    ! A `vc_hg_directory_status_files' computation waiting for its process: the
+    ! A `version_control_mercurial_directory_status_files' computation waiting for its process: the
     ! update function and the VC-Dir buffer it updates.
     type :: directory_status_type
         logical :: live = .false.
-        procedure(vc_directory_update_procedure), pointer, nopass :: update_function => null()
+        procedure(version_control_directory_update_procedure), pointer, nopass :: update_function => null()
         type(handle_type) :: buffer
     end type directory_status_type
 
-    ! The computations of `vc_hg_directory_status_files' in progress.
+    ! The computations of `version_control_mercurial_directory_status_files' in progress.
     type(directory_status_type), allocatable :: directory_states(:)
 
     !> The version of Mercurial (vc-hg--program-version), unallocated until
@@ -231,12 +245,12 @@ contains
 
     !> Append the switches of SWITCHES to FLAGS: a list, or none for the
     !> other kinds (a switches option of a single kind, as (vc-switches
-    !> 'hg 'revert) where there is no `vc_revert_switches').  Not a port.
+    !> 'hg 'revert) where there is no `version_control_revert_switches').  Not a port.
     subroutine append_switches(flags, switches)
         type(string_type), allocatable, intent(inout) :: flags(:)
-        type(vc_switches_type), intent(in) :: switches
+        type(version_control_switches_type), intent(in) :: switches
 
-        if (switches%kind == VC_SWITCHES_LIST) then
+        if (switches%kind == VERSION_CONTROL_SWITCHES_LIST) then
             if (allocated(switches%list)) call append_all(flags, switches%list)
         end if
     end subroutine append_switches
@@ -282,9 +296,9 @@ contains
     end subroutine temporary_end
 
     !> The index of the Hg backend.  Not a port.
-    integer function hg_backend_index() result(b)
-        b = vc_backend_named("Hg")
-    end function hg_backend_index
+    integer function mercurial_backend_index() result(b)
+        b = version_control_backend_named("Hg")
+    end function mercurial_backend_index
 
     !> The words of S separated by whitespace (split-string with its
     !> default separators), appended to LIST.  Not a port.
@@ -317,15 +331,15 @@ contains
     ! Internal functions
     ! ------------------------------------------------------------------
 
-    !> A wrapper around `vc_do_command' for use in version_control_mercurial_mod.
-    !> This function differs from `vc_do_command' in that
+    !> A wrapper around `version_control_do_command' for use in version_control_mercurial_mod.
+    !> This function differs from `version_control_do_command' in that
     !> - BUFFER absent means use a buffer called "*vc*" (IN_CURRENT: the
     !>   current buffer; STDERR false discards the standard error)
-    !> - it invokes `vc_hg_program' and passes `vc_hg_global_switches' to it
+    !> - it invokes `version_control_mercurial_program' and passes `version_control_mercurial_global_switches' to it
     !>   before FLAGS.
     !> Port of vc-hg.el:vc-hg-command (with vc-hg--command-1: HGPLAIN=1
     !> disables the pager).
-    recursive subroutine vc_hg_command(okstatus, files, flags, status, buffer, in_current, stderr, exit_status)
+    recursive subroutine version_control_mercurial_command(okstatus, files, flags, status, buffer, in_current, stderr, exit_status)
         integer, intent(in) :: okstatus
         type(string_type), intent(in) :: files(:), flags(:)
         type(status_type), intent(out) :: status
@@ -340,14 +354,15 @@ contains
         ! Disable pager.
         environment_variables = strings("HGPLAIN=1")
         all = strings("--config", "ui.report_untrusted=0")
-        call append_switches(all, vc_hg_global_switches)
+        call append_switches(all, version_control_mercurial_global_switches)
         call append_all(all, flags)
         to_current = .false.
         if (present(in_current)) to_current = in_current
 
         if (to_current) then
-            call vc_do_command(VC_DESTINATION_CURRENT, okstatus, vc_hg_program, files, all, status, stderr=stderr, &
-                               exit_status=exit_status, environment=environment_variables)
+            call version_control_do_command(VERSION_CONTROL_DESTINATION_CURRENT, okstatus, version_control_mercurial_program, &
+                                            files, all, status, stderr=stderr, &
+                                            exit_status=exit_status, environment=environment_variables)
         else
             if (present(buffer)) then
                 buffer_handle = buffer
@@ -356,20 +371,21 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call vc_do_command(VC_DESTINATION_CURRENT, okstatus, vc_hg_program, files, all, status, buffer=buffer_handle, &
-                               stderr=stderr, exit_status=exit_status, environment=environment_variables)
+            call version_control_do_command(VERSION_CONTROL_DESTINATION_CURRENT, okstatus, version_control_mercurial_program, &
+                                            files, all, status, buffer=buffer_handle, &
+                                            stderr=stderr, exit_status=exit_status, environment=environment_variables)
         end if
-    end subroutine vc_hg_command
+    end subroutine version_control_mercurial_command
 
     !> The root of FILE's working tree (the directory with .hg).  Port of
     !> vc-hg.el:vc-hg-root.
-    subroutine vc_hg_root(file, root, found)
+    subroutine version_control_mercurial_root(file, root, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: root
         logical, intent(out) :: found
 
-        call vc_find_root(file, ".hg", root, found)
-    end subroutine vc_hg_root
+        call version_control_find_root(file, ".hg", root, found)
+    end subroutine version_control_mercurial_root
 
     !> The output of `hg FLAGS' in a temporary buffer, in OUT; OK is false
     !> when the command fails (an exit status above OKSTATUS).  Not a port.
@@ -383,7 +399,7 @@ contains
         type(status_type) :: st
 
         call temporary_begin(old, temporary)
-        call vc_hg_command(okstatus, none, flags, st, in_current=.true.)
+        call version_control_mercurial_command(okstatus, none, flags, st, in_current=.true.)
         ok = st%ok()
         out = buffer_string()
         call temporary_end(old, temporary)
@@ -391,8 +407,8 @@ contains
 
     !> The version of Mercurial, "0" if unknown.  Port of
     !> vc-hg.el:vc-hg--program-version (the parsing is
-    !> `vc_hg_parse_program_version').
-    function vc_hg_program_version() result(version)
+    !> `version_control_mercurial_parse_program_version').
+    function version_control_mercurial_program_version() result(version)
         character(len=:), allocatable :: version
         character(len=:), allocatable :: out
         logical :: ok
@@ -405,18 +421,18 @@ contains
         call command_output(0, strings("version"), out, ok)
 
         if (ok) then
-            version = vc_hg_parse_program_version(out)
+            version = version_control_mercurial_parse_program_version(out)
         else
             version = "0"
         end if
 
         program_version = version
-    end function vc_hg_program_version
+    end function version_control_mercurial_program_version
 
     !> The version in VERSION_STRING, the output of `hg version' ("0" if
     !> none), without a trailing dot.  Port of vc-hg.el:vc-hg--program-version,
     !> in part.
-    function vc_hg_parse_program_version(version_string) result(version)
+    function version_control_mercurial_parse_program_version(version_string) result(version)
         character(len=*), intent(in) :: version_string
         character(len=:), allocatable :: version
         type(status_type) :: st
@@ -430,7 +446,7 @@ contains
             k = len(version)
             if (version(k:k) == ".") version = version(1:k - 1)
         end if
-    end function vc_hg_parse_program_version
+    end function version_control_mercurial_parse_program_version
 
     ! ------------------------------------------------------------------
     ! Properties of the backend
@@ -438,20 +454,20 @@ contains
 
     !> Hg's checkout model: `implicit'.  Port of
     !> vc-hg.el:vc-hg-checkout-model.
-    integer function vc_hg_checkout_model(files) result(model)
+    integer function version_control_mercurial_checkout_model(files) result(model)
         type(string_type), intent(in) :: files(:)
 
-        model = VC_MODEL_IMPLICIT
+        model = VERSION_CONTROL_MODEL_IMPLICIT
         if (size(files) < 0) model = 0
-    end function vc_hg_checkout_model
+    end function version_control_mercurial_checkout_model
 
     !> The working revision's symbolic name: ".".  Port of vc-hg.el
     !> vc-hg-working-revision-symbol.
-    subroutine vc_hg_working_revision_symbol(s)
+    subroutine version_control_mercurial_working_revision_symbol(s)
         character(len=:), allocatable, intent(out) :: s
 
         s = "."
-    end subroutine vc_hg_working_revision_symbol
+    end subroutine version_control_mercurial_working_revision_symbol
 
     ! ------------------------------------------------------------------
     ! State querying functions
@@ -460,7 +476,7 @@ contains
     !> Return true if FILE is registered with hg.  Port of
     !> vc-hg.el:vc-hg-registered (modeled after the similar function in
     !> vc-bzr.el).
-    logical function vc_hg_registered(file) result(registered)
+    logical function version_control_mercurial_registered(file) result(registered)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: root
         logical :: found
@@ -468,32 +484,33 @@ contains
 
         registered = .false.
         ! Short cut.
-        call vc_hg_root(file, root, found)
+        call version_control_mercurial_root(file, root, found)
         if (.not. found) return
         ! Expensive.
-        state = vc_state(file, hg_backend_index())
+        state = version_control_state(file, mercurial_backend_index())
 
-        if (state == VC_IGNORED .or. state == VC_UNREGISTERED .or. state == VC_STATE_UNKNOWN) then
+        if (state == VERSION_CONTROL_IGNORED .or. state == VERSION_CONTROL_UNREGISTERED .or. state &
+            == VERSION_CONTROL_STATE_UNKNOWN) then
             ! Clear the cache for proper fallback to another backend.
-            call vc_file_set_state(file, VC_STATE_UNKNOWN)
+            call version_control_file_set_state(file, VERSION_CONTROL_STATE_UNKNOWN)
         else
             registered = .true.
         end if
-    end function vc_hg_registered
+    end function version_control_mercurial_registered
 
-    !> Hg-specific version of `vc_state'.  Port of vc-hg.el:vc-hg-state
-    !> (`vc_hg_state_slow' always: the fast path, vc-hg-state-fast, is
+    !> Hg-specific version of `version_control_state'.  Port of vc-hg.el:vc-hg-state
+    !> (`version_control_mercurial_state_slow' always: the fast path, vc-hg-state-fast, is
     !> deferred).
-    integer function vc_hg_state(file) result(state)
+    integer function version_control_mercurial_state(file) result(state)
         character(len=*), intent(in) :: file
 
-        state = VC_STATE_UNKNOWN
-        if (.not. is_file_directory(file)) state = vc_hg_state_slow(file)
-    end function vc_hg_state
+        state = VERSION_CONTROL_STATE_UNKNOWN
+        if (.not. is_file_directory(file)) state = version_control_mercurial_state_slow(file)
+    end function version_control_mercurial_state
 
     !> Determine status of FILE by running hg.  Port of
     !> vc-hg.el:vc-hg-state-slow.
-    integer function vc_hg_state_slow(file) result(state)
+    integer function version_control_mercurial_state_slow(file) result(state)
         character(len=*), intent(in) :: file
         character(len=:), allocatable :: name, root, relative, saved, out
         type(value_type), allocatable :: argv(:), envv(:)
@@ -503,10 +520,10 @@ contains
         logical :: found
         integer :: code
 
-        state = VC_STATE_UNKNOWN
+        state = VERSION_CONTROL_STATE_UNKNOWN
         call expand_file_name(file, name, st)
         if (.not. st%ok()) return
-        call vc_hg_root(name, root, found)
+        call version_control_mercurial_root(name, root, found)
         if (.not. found) root = buffer_directory()
         relative = file_relative_name(name, root)
         call temporary_begin(old, temporary)
@@ -529,8 +546,9 @@ contains
         envv(1) = value_type(text="TERM=dumb")
         envv(2) = value_type(text="LANGUAGE=C")
         envv(3) = value_type(text="HGPLAIN=1")
-        ! Ignore all errors (e.g. we can't find an `hg' executable).
-        call execute_process(vc_hg_program, result, st, destination=value_type(.true.), arguments=make_list(argv), &
+        ! Ignore all errors (e.g. we can't find an `mercurial' executable).
+        call execute_process(version_control_mercurial_program, result, st, destination=value_type(.true.), &
+                             arguments=make_list(argv), &
                              environment=make_list(envv))
         code = -1
 
@@ -546,30 +564,30 @@ contains
 
         select case (out(1:1))
         case ("=")
-            state = VC_UP_TO_DATE
+            state = VERSION_CONTROL_UP_TO_DATE
         case ("A")
-            state = VC_ADDED
+            state = VERSION_CONTROL_ADDED
         case ("M")
-            state = VC_EDITED
+            state = VERSION_CONTROL_EDITED
         case ("I")
-            state = VC_IGNORED
+            state = VERSION_CONTROL_IGNORED
         case ("R")
-            state = VC_REMOVED
+            state = VERSION_CONTROL_REMOVED
         case ("!")
-            state = VC_MISSING
+            state = VERSION_CONTROL_MISSING
         case ("?")
-            state = VC_UNREGISTERED
+            state = VERSION_CONTROL_UNREGISTERED
         case ("C")
             ! Older mercurial versions use this.
-            state = VC_UP_TO_DATE
+            state = VERSION_CONTROL_UP_TO_DATE
         case default
-            state = VC_UP_TO_DATE
+            state = VERSION_CONTROL_UP_TO_DATE
         end select
-    end function vc_hg_state_slow
+    end function version_control_mercurial_state_slow
 
-    !> Hg-specific version of `vc_working_revision'.  Port of
+    !> Hg-specific version of `version_control_working_revision'.  Port of
     !> vc-hg.el:vc-hg-working-revision.
-    subroutine vc_hg_working_revision(file, revision, found)
+    subroutine version_control_mercurial_working_revision(file, revision, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: revision
         logical, intent(out) :: found
@@ -579,7 +597,7 @@ contains
         found = .false.
         if (len(file) < 0) return
 
-        if (vc_use_short_revision) then
+        if (version_control_use_short_revision) then
             template = "{node|short}"
         else
             template = "{node}"
@@ -587,11 +605,11 @@ contains
 
         call command_output(0, strings("log", "-r", ".", "--template", template), revision, found)
         if (.not. found) revision = ""
-    end subroutine vc_hg_working_revision
+    end subroutine version_control_mercurial_working_revision
 
     !> The active bookmark of REVISION, if REVISION is "." and a bookmark is active.
     !> Port of vc-hg.el:vc-hg--active-bookmark-internal.
-    subroutine vc_hg_active_bookmark_internal(revision, bookmark, found)
+    subroutine version_control_mercurial_active_bookmark_internal(revision, bookmark, found)
         character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: bookmark
         logical, intent(out) :: found
@@ -604,7 +622,7 @@ contains
         bookmark = ""
         found = .false.
         if (revision /= ".") return
-        call vc_hg_root(buffer_directory(), root, has_root)
+        call version_control_mercurial_root(buffer_directory(), root, has_root)
         if (.not. has_root) root = buffer_directory()
         call expand_file_name(".hg/bookmarks.current", current_bookmarks_file, st, root)
         if (.not. st%ok()) return
@@ -614,12 +632,12 @@ contains
         found = st%ok()
         if (found) bookmark = buffer_string()
         call temporary_end(old, temporary)
-    end subroutine vc_hg_active_bookmark_internal
+    end subroutine version_control_mercurial_active_bookmark_internal
 
     !> The output of `hg log' with TEMPLATE for REVISION, or for the file PATH
     !> (following its history) when given; FOUND is false on errors.
     !> Port of vc-hg.el:vc-hg--run-log.
-    subroutine vc_hg_execute_log(template, revision, out, found, path)
+    subroutine version_control_mercurial_execute_log(template, revision, out, found, path)
         character(len=*), intent(in) :: template, revision
         character(len=:), allocatable, intent(out) :: out
         logical, intent(out) :: found
@@ -630,15 +648,15 @@ contains
         else
             call command_output(0, strings("log", "-r", revision, "-l1", "--template", template), out, found)
         end if
-    end subroutine vc_hg_execute_log
+    end subroutine version_control_mercurial_execute_log
 
     !> Make a Mercurial revision human-readable.
     !> REVISION is a Mercurial revision.  `default_directory' is assumed to
     !> be in the repository root of interest.  PATH, if present, is a
     !> specific file to query.  FOUND is false if no style of
-    !> `vc_hg_symbolic_revision_styles' produced one.  Port of
+    !> `version_control_mercurial_symbolic_revision_styles' produced one.  Port of
     !> vc-hg.el:vc-hg--symbolic-revision.
-    subroutine vc_hg_symbolic_revision(revision, symbolic_revision, found, path)
+    subroutine version_control_mercurial_symbolic_revision(revision, symbolic_revision, found, path)
         character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: symbolic_revision
         logical, intent(out) :: found
@@ -647,15 +665,16 @@ contains
 
         symbolic_revision = ""
         found = .false.
-        if (.not. allocated(vc_hg_symbolic_revision_styles)) return
+        if (.not. allocated(version_control_mercurial_symbolic_revision_styles)) return
 
-        do k = 1, size(vc_hg_symbolic_revision_styles)
-            associate (style => vc_hg_symbolic_revision_styles(k))
+        do k = 1, size(version_control_mercurial_symbolic_revision_styles)
+            associate (style => version_control_mercurial_symbolic_revision_styles(k))
                 select case (style%kind)
-                case (VC_HG_SYMBOLIC_REVISION_STYLES_ACTIVE_BOOKMARK)
-                    if (.not. present(path)) call vc_hg_active_bookmark_internal(revision, symbolic_revision, found)
-                case (VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE)
-                    call vc_hg_execute_log(trim(style%template), revision, symbolic_revision, found, path)
+                case (VERSION_CONTROL_MERCURIAL_REVISION_STYLES_ACTIVE_BOOKMARK)
+                    if (.not. present(path)) call version_control_mercurial_active_bookmark_internal(revision, symbolic_revision, &
+                                                                                                     found)
+                case (VERSION_CONTROL_MERCURIAL_SYMBOLIC_REVISION_STYLES_TEMPLATE)
+                    call version_control_mercurial_execute_log(trim(style%template), revision, symbolic_revision, found, path)
                 case default
                     continue
                 end select
@@ -663,11 +682,11 @@ contains
 
             if (found) return
         end do
-    end subroutine vc_hg_symbolic_revision
+    end subroutine version_control_mercurial_symbolic_revision
 
-    !> Hg-specific version of `vc_mode_line_string'.  Port of
+    !> Hg-specific version of `version_control_mode_line_string'.  Port of
     !> vc-hg.el:vc-hg-mode-line-string (no faces or help-echo).
-    subroutine vc_hg_mode_line_string(file, s, found)
+    subroutine version_control_mercurial_mode_line_string(file, s, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: s
         logical, intent(out) :: found
@@ -678,22 +697,22 @@ contains
 
         call file_truename(file, truename, st)
         if (.not. st%ok()) truename = file
-        state = vc_state(truename)
-        call vc_mode_line_state(state, echo, face, indicator)
+        state = version_control_state(truename)
+        call version_control_mode_line_state(state, echo, face, indicator)
         has_revision = .false.
 
-        if (state /= VC_STATE_UNKNOWN) then
-            call vc_hg_root(truename, root, has_root)
+        if (state /= VERSION_CONTROL_STATE_UNKNOWN) then
+            call version_control_mercurial_root(truename, root, has_root)
             if (.not. has_root) root = buffer_directory()
             call expand_file_name(root, directory, st)
             if (.not. st%ok()) directory = root
             saved = buffer_directory()
             call set_buffer_directory(directory)
 
-            if (vc_hg_use_file_version_for_mode_line_version) then
-                call vc_hg_symbolic_revision(".", revision, has_revision, truename)
+            if (version_control_mercurial_use_file_version_for_mode_line) then
+                call version_control_mercurial_symbolic_revision(".", revision, has_revision, truename)
             else
-                call vc_hg_symbolic_revision(".", revision, has_revision)
+                call version_control_mercurial_symbolic_revision(".", revision, has_revision)
             end if
 
             call set_buffer_directory(saved)
@@ -701,33 +720,35 @@ contains
 
         if (.not. has_revision) revision = "???"
         s = ""
-        if (vc_display_status%choice /= VC_DISPLAY_STATUS_NO_BACKEND) s = "Hg"
+        if (version_control_display_status%choice /= VERSION_CONTROL_DISPLAY_STATUS_NO_BACKEND) s = "Hg"
         s = s//indicator//revision
         found = .true.
-    end subroutine vc_hg_mode_line_string
+    end subroutine version_control_mercurial_mode_line_string
 
     ! ------------------------------------------------------------------
     ! History functions
     ! ------------------------------------------------------------------
 
     !> Print commit log associated with FILES into specified BUFFER.
-    !> If SHORTLOG is true, use a short format based on `vc_hg_root_log_format'.
+    !> If SHORTLOG is true, use a short format based on `version_control_mercurial_root_log_format'.
     !> If LIMIT is a positive integer, show no more than that many entries.
     !> If LIMIT is a non-empty string, use it as a base revision.
     !>
     !> If START_REVISION is "", print the commit log starting from the working
     !> directory parent (revset ".").  Otherwise, print the log starting
     !> from that revision.  Port of vc-hg.el:vc-hg-print-log.
-    recursive subroutine vc_hg_print_log(files, buffer, shortlog, start_revision, limit, status, limit_unsupported)
-        use version_control_dispatcher_mod, only: vc_setup_buffer
-        use version_control_mod, only: vc_log_view_type, VC_LOG_VIEW_WITH_DIFF, VC_LOG_VIEW_LOG_OUTGOING, &
-                                       VC_LOG_VIEW_LOG_UNINTEGRATED
-        use version_control_hooks_mod, only: vc_log_limit_type, VC_LIMIT_NUMBER, VC_LIMIT_REVISION
+    recursive subroutine version_control_mercurial_print_log(files, buffer, shortlog, start_revision, limit, status, &
+                                                             limit_unsupported)
+        use version_control_dispatcher_mod, only: version_control_setup_buffer
+        use version_control_mod, only: version_control_log_view_type, VERSION_CONTROL_LOG_VIEW_WITH_DIFF, &
+                                       VERSION_CONTROL_LOG_VIEW_LOG_OUTGOING, VERSION_CONTROL_LOG_VIEW_LOG_UNINTEGRATED
+        use version_control_hooks_mod, only: version_control_log_limit_type, VERSION_CONTROL_LIMIT_NUMBER, &
+                                             VERSION_CONTROL_LIMIT_REVISION
         type(string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
         logical, intent(in) :: shortlog
         character(len=*), intent(in) :: start_revision
-        type(vc_log_limit_type), intent(in) :: limit
+        type(version_control_log_limit_type), intent(in) :: limit
         type(status_type), intent(out) :: status
         logical, intent(out) :: limit_unsupported
         type(string_type), allocatable :: flags(:)
@@ -740,14 +761,14 @@ contains
         limit_unsupported = .false.
         ! `vc-do-command' creates the buffer, but we need it before running
         ! the command.
-        call vc_setup_buffer(buffer, status)
+        call version_control_setup_buffer(buffer, status)
         if (.not. status%ok()) return
         ! If the buffer exists from a previous invocation it might be
-        ! read-only (`vc_do_command' binds `inhibit_read_only').
+        ! read-only (`version_control_do_command' binds `inhibit_read_only').
         ! Normalize START-REVISION parameter.
         start = start_revision
         if (len(start) == 0) start = "."
-        view = vc_log_view_type()
+        view = version_control_log_view_type()
         old = current_buffer()
         call set_buffer(buffer, st)
         ! With Mercurial logs there are are, broadly speaking, two
@@ -765,41 +786,42 @@ contains
         ! it is like Mercurial's x::y.  In addition, with -rN::M,
         ! commits from other branches aren't included in the log.
         !
-        ! VC has always used ranges by revision numbers, such that
+        ! VERSION_CONTROL has always used ranges by revision numbers, such that
         ! commits from all branches are included in the log.
         flags = strings("log")
 
-        if (limit%kind /= VC_LIMIT_REVISION) then
+        if (limit%kind /= VERSION_CONTROL_LIMIT_REVISION) then
             call append_string(flags, "-r"//start//":0")
-        else if (view == VC_LOG_VIEW_LOG_OUTGOING .or. view == VC_LOG_VIEW_LOG_UNINTEGRATED) then
+        else if (view == VERSION_CONTROL_LOG_VIEW_LOG_OUTGOING .or. view == VERSION_CONTROL_LOG_VIEW_LOG_UNINTEGRATED) then
             call append_string(flags, "-rreverse(only("//start//", "//limit%revision//"))")
         else
             call append_string(flags, "-r"//start//":"//limit%revision//" "//AMPERSAND//" !"//limit%revision)
         end if
 
-        if (limit%kind == VC_LIMIT_NUMBER) then
+        if (limit%kind == VERSION_CONTROL_LIMIT_NUMBER) then
             write (limit_text, "(i0)") limit%n
             call append_all(flags, strings("-l", trim(limit_text)))
         end if
 
-        if (view == VC_LOG_VIEW_WITH_DIFF) call append_string(flags, "-p")
+        if (view == VERSION_CONTROL_LOG_VIEW_WITH_DIFF) call append_string(flags, "-p")
 
         if (shortlog) then
-            if (vc_hg_log_graph) call append_string(flags, "--graph")
-            call append_all(flags, strings("--template", vc_hg_root_log_format%template))
+            if (version_control_mercurial_log_graph) call append_string(flags, "--graph")
+            call append_all(flags, strings("--template", version_control_mercurial_root_log_format%template))
         else
-            call append_all(flags, strings("--template", vc_hg_log_format))
+            call append_all(flags, strings("--template", version_control_mercurial_log_format))
         end if
 
-        call append_switches(flags, vc_hg_log_switches)
-        call vc_hg_command(VC_OKSTATUS_ASYNC, files, flags, status, buffer=buffer)
+        call append_switches(flags, version_control_mercurial_log_switches)
+        call version_control_mercurial_command(VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, files, flags, status, buffer=buffer)
         call set_buffer(old, st)
-    end subroutine vc_hg_print_log
+    end subroutine version_control_mercurial_print_log
 
     !> Major mode for Hg logs.  Port of vc-hg.el:vc-hg-log-view-mode.
-    recursive subroutine vc_hg_log_view_mode(status)
-        use version_control_mod, only: vc_log_view_type, vc_shortlog, VC_LOG_VIEW_LOG_UNINTEGRATED, VC_LOG_VIEW_SHORT, &
-                                       VC_LOG_VIEW_LOG_INCOMING, VC_LOG_VIEW_LOG_OUTGOING
+    recursive subroutine version_control_mercurial_log_view_mode(status)
+        use version_control_mod, only: version_control_log_view_type, version_control_shortlog, &
+                                       VERSION_CONTROL_LOG_VIEW_LOG_UNINTEGRATED, VERSION_CONTROL_LOG_VIEW_SHORT, &
+                                       VERSION_CONTROL_LOG_VIEW_LOG_INCOMING, VERSION_CONTROL_LOG_VIEW_LOG_OUTGOING
         use log_view_mod, only: set_log_view_file_regular_expression, set_log_view_message_regular_expression, &
                                 set_log_view_per_file_logs, set_log_view_expanded_log_entry_function, &
                                 set_log_view_font_lock_keywords, log_view_font_lock_keywords
@@ -810,15 +832,16 @@ contains
         logical :: saved, shortp
         integer :: view
 
-        if (.not. associated(major_modes%vc_hg_log_view_mode%execute)) call define_log_view_mode()
-        call major_modes%vc_hg_log_view_mode%begin(saved, status)
+        if (.not. associated(major_modes%version_control_mercurial_log_view_mode%execute)) call define_log_view_mode()
+        call major_modes%version_control_mercurial_log_view_mode%begin(saved, status)
         if (.not. status%ok()) return
-        view = vc_log_view_type()
+        view = version_control_log_view_type()
 
-        if (view == VC_LOG_VIEW_LOG_UNINTEGRATED) then
-            shortp = vc_shortlog()
+        if (view == VERSION_CONTROL_LOG_VIEW_LOG_UNINTEGRATED) then
+            shortp = version_control_shortlog()
         else
-            shortp = view == VC_LOG_VIEW_SHORT .or. view == VC_LOG_VIEW_LOG_INCOMING .or. view == VC_LOG_VIEW_LOG_OUTGOING
+            shortp = view == VERSION_CONTROL_LOG_VIEW_SHORT .or. view == VERSION_CONTROL_LOG_VIEW_LOG_INCOMING .or. view &
+                     == VERSION_CONTROL_LOG_VIEW_LOG_OUTGOING
         end if
 
         ! A file regexp that matches nothing (regexp-unmatchable).
@@ -826,7 +849,7 @@ contains
         call set_log_view_per_file_logs(.false.)
 
         if (shortp) then
-            call set_log_view_message_regular_expression(vc_hg_root_log_format%regular_expression)
+            call set_log_view_message_regular_expression(version_control_mercurial_root_log_format%regular_expression)
         else
             call set_log_view_message_regular_expression("^changeset:[ "//TAB//"]*\([0-9]+\):\(.+\)")
         end if
@@ -834,11 +857,12 @@ contains
         call tab_width%set_local(2_int64)
         ! Allow expanding short log entries (upstream also truncates the
         ! lines: `truncate_lines' is not ported).
-        if (shortp) call set_log_view_expanded_log_entry_function(vc_hg_expanded_log_entry)
+        if (shortp) call set_log_view_expanded_log_entry_function(version_control_mercurial_expanded_log_entry)
 
         if (shortp) then
             allocate (keywords(1))
-            keywords(1) = font_lock_keyword(vc_hg_root_log_format%regular_expression, highlights=vc_hg_root_log_format%highlights)
+            keywords(1) = font_lock_keyword(version_control_mercurial_root_log_format%regular_expression, &
+                                            highlights=version_control_mercurial_root_log_format%highlights)
         else
             call log_view_font_lock_keywords(keywords)
             allocate (more(5))
@@ -859,7 +883,7 @@ contains
         end if
 
         call set_log_view_font_lock_keywords(keywords)
-        call major_modes%vc_hg_log_view_mode%end(saved, status)
+        call major_modes%version_control_mercurial_log_view_mode%end(saved, status)
 
     contains
 
@@ -871,11 +895,11 @@ contains
             h(1) = font_lock_highlight(1, face=face1)
             h(2) = font_lock_highlight(2, face=face2)
         end function two
-    end subroutine vc_hg_log_view_mode
+    end subroutine version_control_mercurial_log_view_mode
 
     !> The expanded log entry of REVISION: its long log, indented.  Port of
     !> vc-hg.el:vc-hg-expanded-log-entry.
-    recursive subroutine vc_hg_expanded_log_entry(revision, text, found)
+    recursive subroutine version_control_mercurial_expanded_log_entry(revision, text, found)
         use indent_mod, only: indent_region
         character(len=*), intent(in) :: revision
         character(len=:), allocatable, intent(out) :: text
@@ -887,8 +911,9 @@ contains
         found = .false.
         text = ""
         call temporary_begin(old, temporary)
-        call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("log", "-r", revision, "--template", &
-                                                                    vc_hg_log_format), st, in_current=.true.)
+        call version_control_mercurial_command(VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, none, strings("log", "-r", revision, &
+                                                                                                     "--template", &
+                                                                       version_control_mercurial_log_format), st, in_current=.true.)
         call goto_character(point_minimum())
 
         if (.not. is_end_of_buffer()) then
@@ -900,7 +925,7 @@ contains
         end if
 
         call temporary_end(old, temporary)
-    end subroutine vc_hg_expanded_log_entry
+    end subroutine version_control_mercurial_expanded_log_entry
 
     ! Define Hg's Log View mode.  Not a port.
     subroutine define_log_view_mode()
@@ -910,47 +935,48 @@ contains
         ! (require 'add-log): we need the add-log faces.
         if (.not. associated(major_modes%change_log_mode%execute)) call initialize_add_log()
         if (.not. associated(major_modes%log_view_mode%execute)) call initialize_log_view()
-        call major_modes%vc_hg_log_view_mode%define("vc_hg_log_view_mode", "Hg-Log-View", vc_hg_log_view_mode, &
-                                                    vc_hg_log_view_mode_hook, parent=major_modes%log_view_mode)
-        vc_hg_log_view_mode_map = major_modes%vc_hg_log_view_mode%map
-        commands%vc_hg_log_view_mode%execute => vc_hg_log_view_mode
+        call major_modes%version_control_mercurial_log_view_mode%define("version_control_mercurial_log_view_mode", "Hg-Log-View", &
+                                                                        version_control_mercurial_log_view_mode, &
+                                                     version_control_mercurial_log_view_mode_hook, parent=major_modes%log_view_mode)
+        version_control_mercurial_log_view_mode_map = major_modes%version_control_mercurial_log_view_mode%map
+        commands%version_control_mercurial_log_view_mode%execute => version_control_mercurial_log_view_mode
     end subroutine define_log_view_mode
 
-    ! The defaults of `vc_hg_root_log_format' and `vc_hg_log_format'.
+    ! The defaults of `version_control_mercurial_root_log_format' and `version_control_mercurial_log_format'.
     ! Not a port.
     subroutine initialize_log_formats()
-        if (.not. allocated(vc_hg_root_log_format%template)) then
-            vc_hg_root_log_format%template = "{rev}:{ifeq(branch, 'default','', '{branch}')}" &
-                                             //":{bookmarks}:{tags}:{author|person}" &
-                                             //" {date|shortdate} {desc|firstline}\n"
+        if (.not. allocated(version_control_mercurial_root_log_format%template)) then
+            version_control_mercurial_root_log_format%template = "{rev}:{ifeq(branch, 'default','', '{branch}')}" &
+                                                                 //":{bookmarks}:{tags}:{author|person}" &
+                                                                 //" {date|shortdate} {desc|firstline}\n"
             ! Graph data, then the fields.
-            vc_hg_root_log_format%regular_expression = "^\(?:[+@o x|-]*\)" &
-                                                       //"\([0-9]+\):\([^:]*\)" &
-                                                       //":\([^:]*\):\([^:]*\):\(.*?\)" &
-                                                       //"[ "//TAB//"]+\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)"
-            allocate (vc_hg_root_log_format%highlights(6))
-            vc_hg_root_log_format%highlights(1) = font_lock_highlight(1, face="log_view_message")
-            vc_hg_root_log_format%highlights(2) = font_lock_highlight(2, face="change_log_file")
-            vc_hg_root_log_format%highlights(3) = font_lock_highlight(3, face="change_log_list")
-            vc_hg_root_log_format%highlights(4) = font_lock_highlight(4, face="change_log_conditionals")
-            vc_hg_root_log_format%highlights(5) = font_lock_highlight(5, face="change_log_name")
-            vc_hg_root_log_format%highlights(6) = font_lock_highlight(6, face="change_log_date")
+            version_control_mercurial_root_log_format%regular_expression = "^\(?:[+@o x|-]*\)" &
+                                                                           //"\([0-9]+\):\([^:]*\)" &
+                                                                           //":\([^:]*\):\([^:]*\):\(.*?\)" &
+                                                                           //"[ "//TAB//"]+\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)"
+            allocate (version_control_mercurial_root_log_format%highlights(6))
+            version_control_mercurial_root_log_format%highlights(1) = font_lock_highlight(1, face="log_view_message")
+            version_control_mercurial_root_log_format%highlights(2) = font_lock_highlight(2, face="change_log_file")
+            version_control_mercurial_root_log_format%highlights(3) = font_lock_highlight(3, face="change_log_list")
+            version_control_mercurial_root_log_format%highlights(4) = font_lock_highlight(4, face="change_log_conditionals")
+            version_control_mercurial_root_log_format%highlights(5) = font_lock_highlight(5, face="change_log_name")
+            version_control_mercurial_root_log_format%highlights(6) = font_lock_highlight(6, face="change_log_date")
         end if
 
-        if (.not. allocated(vc_hg_log_format)) then
-            vc_hg_log_format = "changeset:   {rev}:{node|short}"//LF &
-                               //"{tags % 'tag:         {tag}"//LF//"'}" &
-                               //"{if(parents, 'parents:     {parents}"//LF//"')}" &
-                               //"user:        {author}"//LF &
-                               //"Date:        {date|date}"//LF &
-                               //"summary:     {desc|tabindent}"//LF//LF
+        if (.not. allocated(version_control_mercurial_log_format)) then
+            version_control_mercurial_log_format = "changeset:   {rev}:{node|short}"//LF &
+                                                   //"{tags % 'tag:         {tag}"//LF//"'}" &
+                                                   //"{if(parents, 'parents:     {parents}"//LF//"')}" &
+                                                   //"user:        {author}"//LF &
+                                                   //"Date:        {date|date}"//LF &
+                                                   //"summary:     {desc|tabindent}"//LF//LF
         end if
 
-        if (.not. allocated(vc_hg_symbolic_revision_styles)) then
-            allocate (vc_hg_symbolic_revision_styles(2))
-            vc_hg_symbolic_revision_styles(1)%kind = VC_HG_SYMBOLIC_REVISION_STYLES_ACTIVE_BOOKMARK
-            vc_hg_symbolic_revision_styles(2)%kind = VC_HG_SYMBOLIC_REVISION_STYLES_TEMPLATE
-            vc_hg_symbolic_revision_styles(2)%template = &
+        if (.not. allocated(version_control_mercurial_symbolic_revision_styles)) then
+            allocate (version_control_mercurial_symbolic_revision_styles(2))
+            version_control_mercurial_symbolic_revision_styles(1)%kind = VERSION_CONTROL_MERCURIAL_REVISION_STYLES_ACTIVE_BOOKMARK
+            version_control_mercurial_symbolic_revision_styles(2)%kind = VERSION_CONTROL_MERCURIAL_SYMBOLIC_REVISION_STYLES_TEMPLATE
+            version_control_mercurial_symbolic_revision_styles(2)%template = &
                 "{if(bookmarks,sub(' ',',',bookmarks),if(phabdiff,phabdiff,shortest(node,6)))}"
         end if
     end subroutine initialize_log_formats
@@ -959,10 +985,10 @@ contains
     ! Diff and revisions
     ! ------------------------------------------------------------------
 
-    !> The flags of `vc_hg_diff' for FILES between OLDVERS and NEWVERS:
+    !> The flags of `version_control_mercurial_diff' for FILES between OLDVERS and NEWVERS:
     !> "diff", the switches and the revisions.  Not a port (the arguments
     !> part of vc-hg.el:vc-hg-diff).
-    subroutine vc_hg_diff_flags(files, flags, oldvers, newvers)
+    subroutine version_control_mercurial_diff_flags(files, flags, oldvers, newvers)
         type(string_type), intent(in) :: files(:)
         type(string_type), allocatable, intent(out) :: flags(:)
         character(len=*), intent(in), optional :: oldvers, newvers
@@ -971,7 +997,7 @@ contains
         logical :: has_working, has_old
 
         has_working = .false.
-        if (size(files) > 0) call vc_working_revision(files(1)%text, working, has_working, hg_backend_index())
+        if (size(files) > 0) call version_control_working_revision(files(1)%text, working, has_working, mercurial_backend_index())
         has_old = present(oldvers)
         if (has_old) old = oldvers
 
@@ -989,7 +1015,7 @@ contains
         end if
 
         flags = strings("diff")
-        call vc_switches(hg_backend_index(), "diff", sw)
+        call version_control_switches(mercurial_backend_index(), "diff", sw)
         call append_all(flags, sw)
 
         if (has_old) then
@@ -999,29 +1025,29 @@ contains
                 call append_all(flags, strings("-r", old))
             end if
         end if
-    end subroutine vc_hg_diff_flags
+    end subroutine version_control_mercurial_diff_flags
 
     !> Get a difference report using hg between two revisions of FILES.
     !> Port of vc-hg.el:vc-hg-diff.
-    recursive subroutine vc_hg_diff(files, buffer, async, status, rev1, rev2)
+    recursive subroutine version_control_mercurial_diff(files, buffer, asynchronous, status, rev1, rev2)
         type(string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
-        logical, intent(in) :: async
+        logical, intent(in) :: asynchronous
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev1, rev2
         type(string_type), allocatable :: flags(:)
         integer :: okstatus
 
-        call vc_hg_diff_flags(files, flags, rev1, rev2)
+        call version_control_mercurial_diff_flags(files, flags, rev1, rev2)
         okstatus = 1
-        if (async) okstatus = VC_OKSTATUS_ASYNC
-        call vc_hg_command(okstatus, files, flags, status, buffer=buffer)
-    end subroutine vc_hg_diff
+        if (asynchronous) okstatus = VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS
+        call version_control_mercurial_command(okstatus, files, flags, status, buffer=buffer)
+    end subroutine version_control_mercurial_diff
 
     !> The revisions Hg can complete: the branches, bookmarks and tags.
     !> Port of vc-hg.el:vc-hg-revision-table (as
     !> vc-hg-revision-completion-table).
-    subroutine vc_hg_revision_table(files, table)
+    subroutine version_control_mercurial_revision_table(files, table)
         type(string_type), intent(in) :: files(:)
         type(string_type), allocatable, intent(out) :: table(:)
         type(string_type) :: none(0)
@@ -1031,16 +1057,19 @@ contains
         allocate (table(0))
         call temporary_begin(old, temporary)
         if (size(files) > 0) call set_buffer_directory(file_name_directory(files(1)%text))
-        call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("branches", "-q"), st, in_current=.true.)
-        call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("bookmarks", "-q"), st, in_current=.true.)
-        call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("tags", "-q"), st, in_current=.true.)
+        call version_control_mercurial_command(VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, none, strings("branches", "-q"), st, &
+                                               in_current=.true.)
+        call version_control_mercurial_command(VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, none, strings("bookmarks", "-q"), st, &
+                                               in_current=.true.)
+        call version_control_mercurial_command(VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, none, strings("tags", "-q"), st, &
+                                               in_current=.true.)
         call append_words(table, buffer_string())
         call temporary_end(old, temporary)
-    end subroutine vc_hg_revision_table
+    end subroutine version_control_mercurial_revision_table
 
-    !> Hg-specific version of `vc_previous_revision'.  Port of
+    !> Hg-specific version of `version_control_previous_revision'.  Port of
     !> vc-hg.el:vc-hg-previous-revision.
-    subroutine vc_hg_previous_revision(file, revision, previous, found)
+    subroutine version_control_mercurial_previous_revision(file, revision, previous, found)
         character(len=*), intent(in) :: file, revision
         character(len=:), allocatable, intent(out) :: previous
         logical, intent(out) :: found
@@ -1056,7 +1085,7 @@ contains
         if (len(file) < 0) return
 
         ! Prefer to return values with tildes not carets because that's more
-        ! compatible with MS-Windows (see `vc_git_previous_revision').
+        ! compatible with MS-Windows (see `version_control_git_previous_revision').
         !
         ! See <https://repo.mercurial-scm.org/hg/help/revsets> for reference.
         if (string_match("\`\.\(\^*\)\'", revision, st) > 0) then
@@ -1074,8 +1103,9 @@ contains
             ! We can't simply decrement by 1, because that revision might
             ! be e.g. on a different branch (bug#22032).
             call temporary_begin(old, temporary)
-            call vc_hg_command(VC_OKSTATUS_UNLESS_SIGNAL, none, strings("id", "-n", "-r", revision//"~1"), st, &
-                               in_current=.true., exit_status=code)
+            call version_control_mercurial_command(VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, none, strings("id", "-n", "-r", &
+                                                                                                         revision//"~1"), st, &
+                                                   in_current=.true., exit_status=code)
 
             if (st%ok() .and. code == 0 .and. point_maximum() > point_minimum()) then
                 ! Trim the trailing newline.
@@ -1085,12 +1115,12 @@ contains
 
             call temporary_end(old, temporary)
         end if
-    end subroutine vc_hg_previous_revision
+    end subroutine version_control_mercurial_previous_revision
 
-    !> Hg-specific version of `vc_next_revision': the revision number
+    !> Hg-specific version of `version_control_next_revision': the revision number
     !> after REVISION, if it does not exceed the tip.  Port of
     !> vc-hg.el:vc-hg-next-revision.
-    subroutine vc_hg_next_revision(file, revision, next, found)
+    subroutine version_control_mercurial_next_revision(file, revision, next, found)
         character(len=*), intent(in) :: file, revision
         character(len=:), allocatable, intent(out) :: next
         logical, intent(out) :: found
@@ -1110,7 +1140,7 @@ contains
         newrev = newrev + 1
         tip_revision = -1
         call temporary_begin(old, temporary)
-        call vc_hg_command(0, none, strings("tip", "--style=default"), st, in_current=.true.)
+        call version_control_mercurial_command(0, none, strings("tip", "--style=default"), st, in_current=.true.)
 
         if (st%ok()) then
             call goto_character(point_minimum())
@@ -1132,7 +1162,7 @@ contains
             next = trim(revision_text)
             found = .true.
         end if
-    end subroutine vc_hg_next_revision
+    end subroutine version_control_mercurial_next_revision
 
     ! ------------------------------------------------------------------
     ! State-changing functions
@@ -1140,35 +1170,35 @@ contains
 
     !> Create a new Mercurial repository.  Port of
     !> vc-hg.el:vc-hg-create-repo.
-    recursive subroutine vc_hg_create_repository(status)
+    recursive subroutine version_control_mercurial_create_repository(status)
         type(status_type), intent(out) :: status
         type(string_type) :: none(0)
 
-        call vc_hg_command(0, none, strings("init"), status)
-    end subroutine vc_hg_create_repository
+        call version_control_mercurial_command(0, none, strings("init"), status)
+    end subroutine version_control_mercurial_create_repository
 
     !> Register FILES under hg.  COMMENT is ignored.  Port of
     !> vc-hg.el:vc-hg-register.
-    recursive subroutine vc_hg_register(files, status, comment)
+    recursive subroutine version_control_mercurial_register(files, status, comment)
         type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: comment
 
         if (present(comment)) continue
-        call vc_hg_command(0, files, strings("add"), status)
-    end subroutine vc_hg_register
+        call version_control_mercurial_command(0, files, strings("add"), status)
+    end subroutine version_control_mercurial_register
 
     !> Unregister FILE from hg.  Port of vc-hg.el:vc-hg-unregister.
-    recursive subroutine vc_hg_unregister(file, status)
+    recursive subroutine version_control_mercurial_unregister(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
 
-        call vc_hg_command(0, strings(file), strings("forget"), status)
-    end subroutine vc_hg_unregister
+        call version_control_mercurial_command(0, strings(file), strings("forget"), status)
+    end subroutine version_control_mercurial_unregister
 
     !> Delete FILE and delete it in the Mercurial repository.  Port of
     !> vc-hg.el:vc-hg-delete-file.
-    recursive subroutine vc_hg_delete_file(file, status)
+    recursive subroutine version_control_mercurial_delete_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: root, relative, saved
@@ -1177,21 +1207,21 @@ contains
 
         ! Ensure we invoke hg in the repository root because the
         ! subdirectories containing each of FILES may no longer exist.
-        call vc_hg_root(file, root, found)
+        call version_control_mercurial_root(file, root, found)
         if (.not. found) root = buffer_directory()
         relative = file_relative_name(file, root)
         saved = buffer_directory()
         call set_buffer_directory(root)
         ! Errors deleting the file are ignored.
         call delete_file(relative, st)
-        call vc_hg_command(0, strings(relative), strings("remove", "--after", "--force"), status)
+        call version_control_mercurial_command(0, strings(relative), strings("remove", "--after", "--force"), status)
         call set_buffer_directory(saved)
-    end subroutine vc_hg_delete_file
+    end subroutine version_control_mercurial_delete_file
 
     !> Delete each of FILES and delete them in the Mercurial repository.
     !> Should be called with `default_directory' equal to the repository root.
     !> Port of vc-hg.el:vc-hg-delete-files.
-    recursive subroutine vc_hg_delete_files(files, status)
+    recursive subroutine version_control_mercurial_delete_files(files, status)
         type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         type(status_type) :: st
@@ -1206,12 +1236,12 @@ contains
             end if
         end do
 
-        call vc_hg_command(0, files, strings("remove", "--after", "--force"), status)
-    end subroutine vc_hg_delete_files
+        call version_control_mercurial_command(0, files, strings("remove", "--after", "--force"), status)
+    end subroutine version_control_mercurial_delete_files
 
     !> Rename file from OLD to NEW using `hg mv'.  Port of
     !> vc-hg.el:vc-hg-rename-file.
-    recursive subroutine vc_hg_rename_file(old, new, status)
+    recursive subroutine version_control_mercurial_rename_file(old, new, status)
         character(len=*), intent(in) :: old, new
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: old_name, new_name
@@ -1225,43 +1255,43 @@ contains
         if (.not. status%ok()) return
         call expand_file_name(old, old_name, status)
         if (.not. status%ok()) return
-        call vc_hg_command(0, strings(new_name), strings("mv", "--after", old_name), status)
-    end subroutine vc_hg_rename_file
+        call version_control_mercurial_command(0, strings(new_name), strings("mv", "--after", old_name), status)
+    end subroutine version_control_mercurial_rename_file
 
     !> Get revision REVISION of FILE into BUFFER (the working revision when REVISION
     !> is "").  Port of vc-hg.el:vc-hg-find-revision.
-    recursive subroutine vc_hg_find_revision(file, revision, buffer, status)
+    recursive subroutine version_control_mercurial_find_revision(file, revision, buffer, status)
         character(len=*), intent(in) :: file, revision
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
 
         if (len(revision) > 0) then
-            call vc_hg_command(0, strings(file), strings("cat", "-r", revision), status, buffer=buffer)
+            call version_control_mercurial_command(0, strings(file), strings("cat", "-r", revision), status, buffer=buffer)
         else
-            call vc_hg_command(0, strings(file), strings("cat"), status, buffer=buffer)
+            call version_control_mercurial_command(0, strings(file), strings("cat"), status, buffer=buffer)
         end if
-    end subroutine vc_hg_find_revision
+    end subroutine version_control_mercurial_find_revision
 
     !> Return the ignore file of the repository of FILE.  Port of
     !> vc-hg.el:vc-hg-find-ignore-file.
-    subroutine vc_hg_find_ignore_file(file, ignore, found)
+    subroutine version_control_mercurial_find_ignore_file(file, ignore, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: ignore
         logical, intent(out) :: found
         character(len=:), allocatable :: root
         type(status_type) :: st
 
-        call vc_hg_root(file, root, found)
+        call version_control_mercurial_root(file, root, found)
         if (.not. found) root = buffer_directory()
         call expand_file_name(".hgignore", ignore, st, root)
         found = st%ok()
-    end subroutine vc_hg_find_ignore_file
+    end subroutine version_control_mercurial_find_ignore_file
 
     !> Retrieve a revision of FILE.
     !> REVISION is the revision to check out into the buffer of FILE (or the
     !> current buffer).  Port of vc-hg.el:vc-hg-checkout (modeled after the
     !> similar function in vc-bzr.el).
-    recursive subroutine vc_hg_checkout(file, status, revision)
+    recursive subroutine version_control_mercurial_checkout(file, status, revision)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: revision
@@ -1273,47 +1303,47 @@ contains
         if (is_buffer_live(buffer)) call set_buffer(buffer, st)
 
         if (present(revision)) then
-            call vc_hg_command(0, strings(file), strings("cat", "-r", revision), status, in_current=.true.)
+            call version_control_mercurial_command(0, strings(file), strings("cat", "-r", revision), status, in_current=.true.)
         else
-            call vc_hg_command(0, strings(file), strings("cat"), status, in_current=.true.)
+            call version_control_mercurial_command(0, strings(file), strings("cat"), status, in_current=.true.)
         end if
 
         call set_buffer(old, st)
-    end subroutine vc_hg_checkout
+    end subroutine version_control_mercurial_checkout
 
-    !> Revert FILE (`hg revert' with `vc_hg_revert_switches') unless
+    !> Revert FILE (`hg revert' with `version_control_mercurial_revert_switches') unless
     !> CONTENTS_DONE.  Port of vc-hg.el:vc-hg-revert (modeled after the
     !> similar function in vc-bzr.el).
-    recursive subroutine vc_hg_revert(file, status, contents_done)
+    recursive subroutine version_control_mercurial_revert(file, status, contents_done)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: contents_done
 
         status = status_type()
         if (present(contents_done)) return
-        call vc_hg_revert_files(strings(file), status)
-    end subroutine vc_hg_revert
+        call version_control_mercurial_revert_files(strings(file), status)
+    end subroutine version_control_mercurial_revert
 
-    !> Revert FILES (`hg revert' with `vc_hg_revert_switches').  Port of
+    !> Revert FILES (`hg revert' with `version_control_mercurial_revert_switches').  Port of
     !> vc-hg.el:vc-hg-revert-files.
-    recursive subroutine vc_hg_revert_files(files, status)
+    recursive subroutine version_control_mercurial_revert_files(files, status)
         type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: flags(:)
         type(handle_type) :: old, temporary
 
         flags = strings("revert")
-        call append_switches(flags, vc_hg_revert_switches)
+        call append_switches(flags, version_control_mercurial_revert_switches)
         call temporary_begin(old, temporary)
-        call vc_hg_command(0, files, flags, status, in_current=.true.)
+        call version_control_mercurial_command(0, files, flags, status, in_current=.true.)
         call temporary_end(old, temporary)
-    end subroutine vc_hg_revert_files
+    end subroutine version_control_mercurial_revert_files
 
     ! ------------------------------------------------------------------
     ! Checking in
     ! ------------------------------------------------------------------
 
-    ! The message of the last commit, for `vc_hg_log_edit_toggle_amend'.
+    ! The message of the last commit, for `version_control_mercurial_log_edit_toggle_amend'.
     ! Port of the message function vc-hg.el:vc-hg-log-edit-toggle-amend gives.
     recursive subroutine last_message(message, status)
         character(len=:), allocatable, intent(out) :: message
@@ -1322,7 +1352,8 @@ contains
         type(handle_type) :: old, temporary
 
         call temporary_begin(old, temporary)
-        call vc_hg_command(1, none, strings("log", "--limit=1", "--template", "{desc}"), status, in_current=.true.)
+        call version_control_mercurial_command(1, none, strings("log", "--limit=1", "--template", "{desc}"), status, &
+                                               in_current=.true.)
         message = buffer_string()
         call temporary_end(old, temporary)
     end subroutine last_message
@@ -1330,36 +1361,38 @@ contains
     !> Toggle whether this will amend the previous commit.
     !> If toggling on, also insert its message into the buffer.  Port of
     !> vc-hg.el:vc-hg-log-edit-toggle-amend.
-    recursive subroutine vc_hg_log_edit_toggle_amend(status)
+    recursive subroutine version_control_mercurial_log_edit_toggle_amend(status)
         type(status_type), intent(out) :: status
 
         call log_edit_toggle_amend(last_message, status)
-    end subroutine vc_hg_log_edit_toggle_amend
+    end subroutine version_control_mercurial_log_edit_toggle_amend
 
     !> Major mode for editing Hg log messages.
     !> It is based on `log_edit_mode', and has Hg-specific extensions.
     !> Port of vc-hg.el:vc-hg-log-edit-mode.
-    recursive subroutine vc_hg_log_edit_mode(status)
+    recursive subroutine version_control_mercurial_log_edit_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. associated(major_modes%vc_hg_log_edit_mode%execute)) call define_log_edit_mode()
-        call major_modes%vc_hg_log_edit_mode%begin(saved, status)
+        if (.not. associated(major_modes%version_control_mercurial_log_edit_mode%execute)) call define_log_edit_mode()
+        call major_modes%version_control_mercurial_log_edit_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call major_modes%vc_hg_log_edit_mode%end(saved, status)
-    end subroutine vc_hg_log_edit_mode
+        call major_modes%version_control_mercurial_log_edit_mode%end(saved, status)
+    end subroutine version_control_mercurial_log_edit_mode
 
     ! Define Hg's Log Edit mode and its keymap.  Not a port.
     subroutine define_log_edit_mode()
         type(status_type) :: st
 
         if (.not. associated(major_modes%log_edit_mode%execute)) call initialize_log_edit()
-        call major_modes%vc_hg_log_edit_mode%define("vc_hg_log_edit_mode", "Log-Edit/hg", vc_hg_log_edit_mode, &
-                                                    vc_hg_log_edit_mode_hook, parent=major_modes%log_edit_mode)
-        vc_hg_log_edit_mode_map = major_modes%vc_hg_log_edit_mode%map
-        commands%vc_hg_log_edit_mode%execute => vc_hg_log_edit_mode
-        commands%vc_hg_log_edit_toggle_amend%execute => vc_hg_log_edit_toggle_amend
-        call keymap_set(vc_hg_log_edit_mode_map, "C-c C-e", "vc_hg_log_edit_toggle_amend", st)
+        call major_modes%version_control_mercurial_log_edit_mode%define("version_control_mercurial_log_edit_mode", "Log-Edit/hg", &
+                                                                        version_control_mercurial_log_edit_mode, &
+                                                     version_control_mercurial_log_edit_mode_hook, parent=major_modes%log_edit_mode)
+        version_control_mercurial_log_edit_mode_map = major_modes%version_control_mercurial_log_edit_mode%map
+        commands%version_control_mercurial_log_edit_mode%execute => version_control_mercurial_log_edit_mode
+        commands%version_control_mercurial_log_edit_toggle_amend%execute => version_control_mercurial_log_edit_toggle_amend
+        call keymap_set(version_control_mercurial_log_edit_mode_map, "C-c C-e", "version_control_mercurial_log_edit_toggle_amend", &
+                        st)
     end subroutine define_log_edit_mode
 
     ! The argument "--amend" if the Amend header's VALUE is "yes".
@@ -1395,12 +1428,12 @@ contains
         call log_edit_extract_headers(headers, comment, message, arguments, status)
     end subroutine extract_headers
 
-    !> Hg-specific version of `vc_backend_checkin'.
+    !> Hg-specific version of `version_control_backend_checkin'.
     !> REVISION is ignored.  Port of vc-hg.el:vc-hg-checkin with
     !> vc-hg.el:vc-hg--checkin (checking in a patch, the asynchronous
-    !> commit of `vc_async_checkin' and the message file of MS-Windows are
+    !> commit of `version_control_asynchronous_checkin' and the message file of MS-Windows are
     !> deferred or not applicable).
-    recursive subroutine vc_hg_checkin(files, comment, status, revision)
+    recursive subroutine version_control_mercurial_checkin(files, comment, status, revision)
         type(string_type), intent(in) :: files(:)
         character(len=*), intent(in) :: comment
         type(status_type), intent(out) :: status
@@ -1414,7 +1447,7 @@ contains
         if (present(revision)) continue
 
         if (size(files) == 0) then
-            call set_error(status, GENERIC_ERROR_CODE, "Invalid call to `vc_hg_checkin'")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid call to `version_control_mercurial_checkin'")
             return
         end if
 
@@ -1426,8 +1459,8 @@ contains
             call append_string(arguments, extracted(k)%text)
         end do
 
-        call vc_hg_command(0, files, arguments, status)
-    end subroutine vc_hg_checkin
+        call version_control_mercurial_command(0, files, arguments, status)
+    end subroutine version_control_mercurial_checkin
 
     ! ------------------------------------------------------------------
     ! VC-Dir
@@ -1435,36 +1468,36 @@ contains
 
     !> Pretty-printer for the vc-dir-fileinfo structure.  Port of
     !> vc-hg.el:vc-hg-dir-printer.
-    recursive subroutine vc_hg_directory_printer(info)
-        use version_control_directory_mod, only: vc_default_directory_printer, insert_with_face
-        type(vc_directory_fileinfo_type), intent(in) :: info
+    recursive subroutine version_control_mercurial_directory_printer(info)
+        use version_control_directory_mod, only: version_control_default_directory_printer, insert_with_face
+        type(version_control_directory_fileinfo_type), intent(in) :: info
         character(len=:), allocatable :: rename_state
 
-        call vc_default_directory_printer(info)
+        call version_control_default_directory_printer(info)
         if (.not. info%entry%has_extra) return
 
-        if (info%entry%rename_state == VC_RENAME_COPY) then
+        if (info%entry%rename_state == VERSION_CONTROL_RENAME_COPY) then
             rename_state = "copied from"
-        else if (info%entry%state == VC_REMOVED) then
+        else if (info%entry%state == VERSION_CONTROL_REMOVED) then
             rename_state = "renamed to"
         else
             rename_state = "renamed from"
         end if
 
         call insert_with_face("   ("//rename_state//" "//info%entry%original_name//")", "font_lock_comment_face")
-    end subroutine vc_hg_directory_printer
+    end subroutine version_control_mercurial_directory_printer
 
     !> Pass the states of `hg status -C' in the current buffer to UPDATE
     !> for the VC-Dir buffer BUFFER.  The extra information of a copy is
-    !> VC_RENAME_COPY with its original name (`copied'); of a rename,
-    !> VC_RENAME_RENAME with the original name on the added file
+    !> VERSION_CONTROL_RENAME_COPY with its original name (`copied'); of a rename,
+    !> VERSION_CONTROL_RENAME_RENAME with the original name on the added file
     !> (`renamed-from') and the new name on the removed one
     !> (`renamed-to').  Port of vc-hg.el:vc-hg-after-dir-status.
-    recursive subroutine vc_hg_after_directory_status(update, buffer)
-        procedure(vc_directory_update_procedure) :: update
+    recursive subroutine version_control_mercurial_after_directory_status(update, buffer)
+        procedure(version_control_directory_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
-        type(vc_directory_entry_type), allocatable :: result(:), reversed(:)
-        type(vc_directory_entry_type) :: entry
+        type(version_control_directory_entry_type), allocatable :: result(:), reversed(:)
+        type(version_control_directory_entry_type) :: entry
         type(string_type), allocatable :: copy_names(:)
         integer, allocatable :: copy_entries(:)
         character(len=:), allocatable :: line, file
@@ -1479,11 +1512,11 @@ contains
             call buffer_substring(point(), position_end_of_line(), line, st)
             file = ""
             if (len(line) > 2) file = line(3:)
-            entry = vc_directory_entry_type()
+            entry = version_control_directory_entry_type()
             entry%name = file
 
             if (len(line) == 0) then
-                entry%state = VC_STATE_UNKNOWN
+                entry%state = VERSION_CONTROL_STATE_UNKNOWN
                 result = [result, entry]
             else if (line(1:1) == " ") then
                 ! For copied files the output looks like this:
@@ -1500,7 +1533,7 @@ contains
 
                 if (last > 0) then
                     result(last)%has_extra = .true.
-                    result(last)%rename_state = VC_RENAME_COPY
+                    result(last)%rename_state = VERSION_CONTROL_RENAME_COPY
                     result(last)%original_name = file
                     k = copy_index(file)
 
@@ -1514,15 +1547,15 @@ contains
             else
                 entry%state = translate(line(1:1))
                 k = 0
-                if (entry%state == VC_REMOVED) k = copy_index(file)
+                if (entry%state == VERSION_CONTROL_REMOVED) k = copy_index(file)
 
                 if (k > 0) then
                     last = copy_entries(k)
                     ! `renamed-from' on the copy.
-                    result(last)%rename_state = VC_RENAME_RENAME
+                    result(last)%rename_state = VERSION_CONTROL_RENAME_RENAME
                     ! `renamed-to' on the removed file.
                     entry%has_extra = .true.
-                    entry%rename_state = VC_RENAME_RENAME
+                    entry%rename_state = VERSION_CONTROL_RENAME_RENAME
                     entry%original_name = result(last)%name
                 end if
 
@@ -1561,31 +1594,31 @@ contains
 
             select case (c)
             case ("=", "C")
-                state = VC_UP_TO_DATE
+                state = VERSION_CONTROL_UP_TO_DATE
             case ("A")
-                state = VC_ADDED
+                state = VERSION_CONTROL_ADDED
             case ("R")
-                state = VC_REMOVED
+                state = VERSION_CONTROL_REMOVED
             case ("M")
-                state = VC_EDITED
+                state = VERSION_CONTROL_EDITED
             case ("I")
-                state = VC_IGNORED
+                state = VERSION_CONTROL_IGNORED
             case ("!")
-                state = VC_MISSING
+                state = VERSION_CONTROL_MISSING
             case ("?")
-                state = VC_UNREGISTERED
+                state = VERSION_CONTROL_UNREGISTERED
             case default
-                state = VC_STATE_UNKNOWN
+                state = VERSION_CONTROL_STATE_UNKNOWN
             end select
         end function translate
-    end subroutine vc_hg_after_directory_status
+    end subroutine version_control_mercurial_after_directory_status
 
-    ! The action run after the `hg status' of `vc_hg_directory_status_files':
-    ! `vc_hg_after_directory_status' in the process buffer.  Port of the
+    ! The action run after the `hg status' of `version_control_mercurial_directory_status_files':
+    ! `version_control_mercurial_after_directory_status' in the process buffer.  Port of the
     ! delayed part of vc-hg.el:vc-hg-dir-status-files.
     recursive subroutine after_directory_status_action(action, status)
-        use version_control_dispatcher_mod, only: vc_action_type
-        type(vc_action_type), intent(in) :: action
+        use version_control_dispatcher_mod, only: version_control_action_type
+        type(version_control_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
         type(handle_type) :: old
         type(status_type) :: st
@@ -1597,22 +1630,22 @@ contains
         if (.not. is_buffer_live(action%buffer)) return
         old = current_buffer()
         call set_buffer(action%buffer, st)
-        call vc_hg_after_directory_status(directory_states(k)%update_function, directory_states(k)%buffer)
+        call version_control_mercurial_after_directory_status(directory_states(k)%update_function, directory_states(k)%buffer)
         if (is_buffer_live(old)) call set_buffer(old, st)
     end subroutine after_directory_status_action
 
     !> Compute the states of FILES (all when empty) in DIRECTORY asynchronously
     !> and pass them to UPDATE for BUFFER.  Port of
     !> vc-hg.el:vc-hg-dir-status-files.
-    recursive subroutine vc_hg_directory_status_files(directory, files, update, buffer, status)
-        use version_control_dispatcher_mod, only: vc_action_type, vc_exec_after
+    recursive subroutine version_control_mercurial_directory_status_files(directory, files, update, buffer, status)
+        use version_control_dispatcher_mod, only: version_control_action_type, version_control_exec_after
         character(len=*), intent(in) :: directory
         type(string_type), intent(in) :: files(:)
-        procedure(vc_directory_update_procedure) :: update
+        procedure(version_control_directory_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         type(directory_status_type) :: state
-        type(vc_action_type) :: action
+        type(version_control_action_type) :: action
         type(string_type), allocatable :: flags(:)
         character(len=:), allocatable :: saved, options
         integer :: k
@@ -1637,13 +1670,14 @@ contains
 
         ! Invalid version syntax, an error condition upstream, counts as
         ! a lower version.
-        if (version("4.2") <= version(vc_hg_program_version())) then
+        if (version("4.2") <= version(version_control_mercurial_program_version())) then
             call append_all(flags, strings("--config", "commands.status.relative=1"))
         else
             call append_all(flags, strings("re:", "-I", "."))
         end if
 
-        call vc_hg_command(VC_OKSTATUS_ASYNC, files, flags, status, in_current=.true., stderr=.false.)
+        call version_control_mercurial_command(VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, files, flags, status, in_current=.true., &
+                                               stderr=.false.)
         call set_buffer_directory(saved)
 
         if (.not. status%ok()) then
@@ -1656,14 +1690,14 @@ contains
         action%n = k
         action%buffer = current_buffer()
         action%okstatus = 0
-        call vc_exec_after(action, status)
-    end subroutine vc_hg_directory_status_files
+        call version_control_exec_after(action, status)
+    end subroutine version_control_mercurial_directory_status_files
 
     ! Append TEXT with FACE to PARTS.  Not a port.
     subroutine append_part(parts, text, face)
-        type(ewoc_part_type), allocatable, intent(inout) :: parts(:)
+        type(fortmacs_widget_for_object_collections_part_type), allocatable, intent(inout) :: parts(:)
         character(len=*), intent(in) :: text, face
-        type(ewoc_part_type) :: part
+        type(fortmacs_widget_for_object_collections_part_type) :: part
 
         part%text = text
         part%face = face
@@ -1673,10 +1707,10 @@ contains
     !> Generate extra status headers for a repository in DIRECTORY.
     !> This runs the command "hg summary".  Port of
     !> vc-hg.el:vc-hg-dir-extra-headers.
-    recursive subroutine vc_hg_directory_extra_headers(directory, parts)
+    recursive subroutine version_control_mercurial_directory_extra_headers(directory, parts)
         use casefiddle_mod, only: capitalize_string
         character(len=*), intent(in) :: directory
-        type(ewoc_part_type), allocatable, intent(out) :: parts(:)
+        type(fortmacs_widget_for_object_collections_part_type), allocatable, intent(out) :: parts(:)
         type(string_type) :: none(0)
         type(handle_type) :: old, temporary
         type(status_type) :: st
@@ -1687,7 +1721,7 @@ contains
         allocate (parts(0))
         call temporary_begin(old, temporary)
         call set_buffer_directory(directory)
-        call vc_hg_command(0, none, strings("summary"), st, in_current=.true.)
+        call version_control_mercurial_command(0, none, strings("summary"), st, in_current=.true.)
         call goto_character(point_minimum())
 
         do while (.not. is_end_of_buffer())
@@ -1702,67 +1736,67 @@ contains
             if (size(parts) > 0) call append_part(parts, LF, "")
 
             if (len(key) >= 11) then
-                call append_part(parts, key//": ", "vc_directory_header")
+                call append_part(parts, key//": ", "version_control_directory_header")
             else
                 padded = key
-                call append_part(parts, padded//": ", "vc_directory_header")
+                call append_part(parts, padded//": ", "version_control_directory_header")
             end if
 
-            call append_part(parts, value, "vc_directory_header_value")
+            call append_part(parts, value, "version_control_directory_header_value")
             shortage = forward_line(1_int64)
         end do
 
         call temporary_end(old, temporary)
-    end subroutine vc_hg_directory_extra_headers
+    end subroutine version_control_mercurial_directory_extra_headers
 
     ! ------------------------------------------------------------------
     ! Initialization
     ! ------------------------------------------------------------------
 
-    !> Make the Hg backend known to VC.  Not a port.
-    subroutine initialize_vc_hg()
+    !> Make the Hg backend known to VERSION_CONTROL.  Not a port.
+    subroutine initialize_version_control_mercurial()
         integer :: k
 
-        if (.not. allocated(vc_hg_program)) vc_hg_program = "hg"
+        if (.not. allocated(version_control_mercurial_program)) version_control_mercurial_program = "hg"
         call initialize_log_formats()
         call define_log_edit_mode()
         call define_log_view_mode()
-        call register_vc_backend("Hg", k)
+        call register_version_control_backend("Hg", k)
         if (k == 0) return
 
-        associate (b => vc_backends(k))
-            b%registered => vc_hg_registered
-            b%state => vc_hg_state
-            b%working_revision => vc_hg_working_revision
-            b%working_revision_symbol => vc_hg_working_revision_symbol
-            b%mode_line_string => vc_hg_mode_line_string
-            b%root => vc_hg_root
+        associate (b => version_control_backends(k))
+            b%registered => version_control_mercurial_registered
+            b%state => version_control_mercurial_state
+            b%working_revision => version_control_mercurial_working_revision
+            b%working_revision_symbol => version_control_mercurial_working_revision_symbol
+            b%mode_line_string => version_control_mercurial_mode_line_string
+            b%root => version_control_mercurial_root
             ! (defalias 'vc-hg-responsible-p #'vc-hg-root)
-            b%responsible_p => vc_hg_root
-            b%find_ignore_file => vc_hg_find_ignore_file
-            b%checkout_model => vc_hg_checkout_model
-            b%register => vc_hg_register
-            b%unregister => vc_hg_unregister
-            b%revert => vc_hg_revert
-            b%revert_files => vc_hg_revert_files
-            b%diff => vc_hg_diff
-            b%diff_switches => vc_hg_diff_switches
-            b%find_revision => vc_hg_find_revision
-            b%checkout => vc_hg_checkout
-            b%delete_file => vc_hg_delete_file
-            b%delete_files => vc_hg_delete_files
-            b%rename_file => vc_hg_rename_file
-            b%previous_revision => vc_hg_previous_revision
-            b%next_revision => vc_hg_next_revision
-            b%revision_completion_table => vc_hg_revision_table
-            b%create_repository => vc_hg_create_repository
-            b%checkin => vc_hg_checkin
-            b%log_edit_mode => vc_hg_log_edit_mode
-            b%print_log => vc_hg_print_log
-            b%log_view_mode => vc_hg_log_view_mode
-            b%directory_status_files => vc_hg_directory_status_files
-            b%directory_extra_headers => vc_hg_directory_extra_headers
-            b%directory_printer => vc_hg_directory_printer
+            b%responsible_p => version_control_mercurial_root
+            b%find_ignore_file => version_control_mercurial_find_ignore_file
+            b%checkout_model => version_control_mercurial_checkout_model
+            b%register => version_control_mercurial_register
+            b%unregister => version_control_mercurial_unregister
+            b%revert => version_control_mercurial_revert
+            b%revert_files => version_control_mercurial_revert_files
+            b%diff => version_control_mercurial_diff
+            b%diff_switches => version_control_mercurial_diff_switches
+            b%find_revision => version_control_mercurial_find_revision
+            b%checkout => version_control_mercurial_checkout
+            b%delete_file => version_control_mercurial_delete_file
+            b%delete_files => version_control_mercurial_delete_files
+            b%rename_file => version_control_mercurial_rename_file
+            b%previous_revision => version_control_mercurial_previous_revision
+            b%next_revision => version_control_mercurial_next_revision
+            b%revision_completion_table => version_control_mercurial_revision_table
+            b%create_repository => version_control_mercurial_create_repository
+            b%checkin => version_control_mercurial_checkin
+            b%log_edit_mode => version_control_mercurial_log_edit_mode
+            b%print_log => version_control_mercurial_print_log
+            b%log_view_mode => version_control_mercurial_log_view_mode
+            b%directory_status_files => version_control_mercurial_directory_status_files
+            b%directory_extra_headers => version_control_mercurial_directory_extra_headers
+            b%directory_printer => version_control_mercurial_directory_printer
         end associate
-    end subroutine initialize_vc_hg
+    end subroutine initialize_version_control_mercurial
 end module version_control_mercurial_mod

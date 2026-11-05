@@ -24,7 +24,7 @@
 !> is the etags program's job).  `visit_tags_table' selects one,
 !> `tags_table_list' lists several, and the tables are read into buffers
 !> in Tags Table mode.  The etags backend of cross_reference_mod
-!> (`etags_xref_backend', the default) finds definitions and apropos
+!> (`fortmacs_tags_cross_reference_backend', the default) finds definitions and apropos
 !> matches in them; `find_tag', `list_tags', `apropos_tags' and
 !> `complete_tag' are the older commands.
 !>
@@ -73,17 +73,19 @@ module fortmacs_tags_mod
     use display_engine_mod, only: message
     use utility_functions_mod, only: count_characters
     use coding_mod, only: coding_system_end_of_line_type, buffer_file_coding_system, END_OF_LINE_DOS
-    use cross_reference_mod, only: xref_backend_type, xref_location_type, xref_item_type, make_xref, append_xref_item, &
-                                   xref_backend_functions, xref_apropos_regular_expression, push_xref_marker_stack, &
-                                   clear_xref_marker_stack, go_back_in_xref_history
+    use cross_reference_mod, only: cross_reference_backend_type, cross_reference_location_type, cross_reference_item_type, &
+                                   make_cross_reference, append_cross_reference_item, cross_reference_backend_functions, &
+                                   cross_reference_apropos_regular_expression, push_cross_reference_marker_stack, &
+                                   clear_cross_reference_marker_stack, go_back_in_cross_reference_history
     implicit none(type, external)
     private
 
     public :: visit_tags_table, visit_tags_table_buffer, reset_tags_tables, tags_table_mode, tags_table_files, &
               tags_included_tables, tags_completion_table, tags_completion_at_point_function, file_of_tag, &
               find_tag_noselect, find_tag, find_tag_other_window, find_tag_regular_expression, list_tags, apropos_tags, &
-              complete_tag, etags_xref_backend, goto_etags_tag_location, snarf_etags_tag, find_file_of_tag_noselect, &
-              initialize_etags
+              complete_tag, fortmacs_tags_cross_reference_backend, goto_fortmacs_tags_tag_location, snarf_fortmacs_tags_tag, &
+              find_file_of_tag_noselect, &
+              initialize_fortmacs_tags
 
     !> Values of `tags_case_fold_search' besides .true. (case-insensitive)
     !> and .false. (case-sensitive): the setting of `case_fold_search' (the
@@ -106,13 +108,13 @@ module fortmacs_tags_mod
 
     ! The format of a tags table buffer: not recognized, etags, or empty
     ! (the functions of upstream's tags-table-format-functions).
-    integer, parameter :: FORMAT_NONE = 0, FORMAT_ETAGS = 1, FORMAT_EMPTY = 2
+    integer, parameter :: FORMAT_NONE = 0, FORMAT_FORTMACS_TAGS = 1, FORMAT_EMPTY = 2
 
     ! Stop searching if we find more than xref-limit matches, as the xref
     ! infrastructure is not designed to handle very long lists.
     ! Switching to some kind of lazy list might be better, but hopefully
     ! we hit the limit rarely.  Port of etags.el etags--xref-limit.
-    integer, parameter :: ETAGS_XREF_LIMIT = 1000
+    integer, parameter :: FORTMACS_TAGS_CROSS_REFERENCE_LIMIT = 1000
 
     character(len=*), parameter :: FF = achar(12), LF = achar(10), DEL = achar(127), SOH = achar(1), &
                                    TB = achar(9), CR = achar(13)
@@ -167,34 +169,34 @@ module fortmacs_tags_mod
 
     !> Location of an etags tag: its TAG_INFO in FILE.  Port of etags.el
     !> xref-etags-location.
-    type, extends(xref_location_type), public :: xref_etags_location_type
+    type, extends(cross_reference_location_type), public :: cross_reference_fortmacs_tags_location_type
         type(tag_info_type) :: tag_info
         character(len=:), allocatable :: file
     contains
         !> Port of etags.el:xref-location-marker (of an xref-etags-location).
-        procedure :: marker => xref_etags_location_marker
+        procedure :: marker => cross_reference_fortmacs_tags_location_marker
         !> Port of etags.el:xref-location-group (of an xref-etags-location).
-        procedure :: group => xref_etags_location_group
+        procedure :: group => cross_reference_fortmacs_tags_location_group
         !> Port of etags.el:xref-location-line (of an xref-etags-location).
-        procedure :: line_number => xref_etags_location_line
-    end type xref_etags_location_type
+        procedure :: line_number => cross_reference_fortmacs_tags_location_line
+    end type cross_reference_fortmacs_tags_location_type
 
     !> The etags backend of cross_reference_mod.  Port of etags.el's methods of the
-    !> backend `etags'.
-    type, extends(xref_backend_type), public :: etags_backend_type
+    !> backend `fortmacs_tags'.
+    type, extends(cross_reference_backend_type), public :: fortmacs_tags_backend_type
     contains
         !> Port of etags.el:xref-backend-definitions (etags).
-        procedure :: definitions => etags_backend_definitions
+        procedure :: definitions => fortmacs_tags_backend_definitions
         !> Port of etags.el:xref-backend-apropos (etags).
-        procedure :: apropos => etags_backend_apropos
+        procedure :: apropos => fortmacs_tags_backend_apropos
         !> Port of etags.el:xref-backend-identifier-at-point (etags).
-        procedure :: identifier_at_point => etags_backend_identifier_at_point
+        procedure :: identifier_at_point => fortmacs_tags_backend_identifier_at_point
         !> Port of etags.el:xref-backend-identifier-completion-table (etags).
-        procedure :: identifier_completion_table => etags_backend_identifier_completion_table
+        procedure :: identifier_completion_table => fortmacs_tags_backend_identifier_completion_table
         !> Port of etags.el:xref-backend-identifier-completion-ignore-case
         !> (etags).
-        procedure :: is_identifier_completion_case_ignored => is_etags_backend_identifier_completion_case_ignored
-    end type etags_backend_type
+        procedure :: is_identifier_completion_case_ignored => is_fortmacs_tags_backend_identifier_completion_case_ignored
+    end type fortmacs_tags_backend_type
 
     ! An element of `tags_table_computed_list': a table FILE, or a
     ! placeholder (upstream's t) saying the table before it has not been
@@ -221,7 +223,7 @@ module fortmacs_tags_mod
         logical :: has_completion_local = .false.
     end type tags_buffer_type
 
-    ! A key of the definitions `find_etags_xref_definitions' found: FILE
+    ! A key of the definitions `find_fortmacs_tags_cross_reference_definitions' found: FILE
     ! and LINE.
     type :: mark_key_type
         character(len=:), allocatable :: file
@@ -232,7 +234,7 @@ module fortmacs_tags_mod
     !> To switch to a new tags table, do not set this variable; instead,
     !> invoke `visit_tags_table', which is the only reliable way of
     !> setting the value of this variable, whether buffer-local or global.
-    !> Use the `etags' program to make a tags table file.  Port of etags.el
+    !> Use the `fortmacs_tags' program to make a tags table file.  Port of etags.el
     !> tags-file-name.
     type(string_setting_type), target, public :: tags_file_name = string_setting_type(name="tags_file_name")
 
@@ -248,7 +250,7 @@ module fortmacs_tags_mod
     !> An element that is a directory means the file "TAGS" in that
     !> directory.  To switch to a new list of tags tables, setting this
     !> variable is sufficient.  If you set this variable, do not also set
-    !> `tags_file_name'.  Use the `etags' program to make a tags table file.
+    !> `tags_file_name'.  Use the `fortmacs_tags' program to make a tags table file.
     !> Port of etags.el tags-table-list.
     character(len=:), allocatable, public :: tags_table_list(:)
 
@@ -291,14 +293,14 @@ module fortmacs_tags_mod
     !> Tag order used in `definitions' of the etags backend to look for
     !> definitions.
     !>
-    !> If you want `find_xref_definitions' to find the tagged files by their
+    !> If you want `find_cross_reference_definitions' to find the tagged files by their
     !> file name, add `is_tag_partial_file_name_match' to the array.
     !> Port of etags.el etags-xref-find-definitions-tag-order.
-    type(tag_match_test_type), allocatable, public :: etags_find_xref_definitions_tag_order(:)
+    type(tag_match_test_type), allocatable, public :: fortmacs_tags_find_cross_reference_definitions_tag_order(:)
 
     !> True means show the matches in the current file first.  Port of
     !> etags.el etags-xref-prefer-current-file.
-    logical, public :: etags_xref_prefer_current_file = .false.
+    logical, public :: fortmacs_tags_cross_reference_prefer_current_file = .false.
 
     !> Last tag found by \[find_tag].  Port of etags.el last-tag.
     character(len=:), allocatable, public :: last_tag
@@ -539,7 +541,7 @@ contains
         call character_after(c, found, point_minimum())
 
         if (found .and. c == 12) then
-            tags_buffers(k)%format = FORMAT_ETAGS
+            tags_buffers(k)%format = FORMAT_FORTMACS_TAGS
         else if (buffer_size() == 0) then
             ! tags-recognize-empty-tags-table.
             tags_buffers(k)%format = FORMAT_EMPTY
@@ -571,7 +573,7 @@ contains
         logical :: found
 
         select case (current_format())
-        case (FORMAT_ETAGS)
+        case (FORMAT_FORTMACS_TAGS)
             call character_after(c, found, point_minimum())
             valid = found .and. c == 12
         case (FORMAT_EMPTY)
@@ -582,7 +584,7 @@ contains
     end function is_valid_tags_table
 
     !> Tell tags commands to use tags table file FILE.
-    !> FILE should be the name of a file created with the `etags' program.
+    !> FILE should be the name of a file created with the `fortmacs_tags' program.
     !> A directory name is ok too; it means file TAGS in that directory.
     !>
     !> Normally \[visit_tags_table] sets the global value of
@@ -1397,7 +1399,7 @@ contains
             deallocate (tags_location_ring)
         end if
 
-        call clear_xref_marker_stack()
+        call clear_cross_reference_marker_stack()
         call set_default_tags_file_name("")
         if (allocated(tags_table_list)) deallocate (tags_table_list)
         if (allocated(tags_table_computed_list)) deallocate (tags_table_computed_list)
@@ -1423,7 +1425,7 @@ contains
 
         file = ""
         status = status_type()
-        if (current_format() /= FORMAT_ETAGS) return
+        if (current_format() /= FORMAT_FORTMACS_TAGS) return
         original_point = point()
         call regular_expression_search_backward(FF//LF//"\([^"//LF//"]+\),[0-9]*"//LF, found, status)
 
@@ -1448,7 +1450,7 @@ contains
 
     !> The files in the current tags table.
     !> Assumes the tags table is the current buffer.  The file names are
-    !> given as they appeared in the `etags' command that created the
+    !> given as they appeared in the `fortmacs_tags' command that created the
     !> table, usually without directory names.  Port of
     !> etags.el:tags-table-files (etags-tags-table-files for an etags
     !> table).
@@ -1521,7 +1523,7 @@ contains
         logical :: is_include
 
         allocate (files(0))
-        if (current_format() /= FORMAT_ETAGS) return
+        if (current_format() /= FORMAT_FORTMACS_TAGS) return
         original_point = point()
         call goto_character(point_minimum())
 
@@ -1592,7 +1594,7 @@ contains
             call visit_tags_table_buffer(visited, status, cont, cbuf=target_buffer)
             if (.not. status%ok() .or. .not. visited) exit
             ! Find possible completions in this table.
-            call etags_tags_completion_table(table)
+            call fortmacs_tags_tags_completion_table(table)
             all = [all, table]
             cont = VISIT_NEXT
         end do
@@ -1662,14 +1664,14 @@ contains
     ! The tag names of the current etags table.  Port of
     ! etags.el:etags-tags-completion-table (the progress reporter is not
     ! ported).
-    subroutine etags_tags_completion_table(table)
+    subroutine fortmacs_tags_tags_completion_table(table)
         type(string_type), allocatable, intent(out) :: table(:)
         type(string_type) :: entry
         type(status_type) :: st
         integer(int64) :: original_point, found, b0, e0, moved
 
         allocate (table(0))
-        if (current_format() /= FORMAT_ETAGS) return
+        if (current_format() /= FORMAT_FORTMACS_TAGS) return
         original_point = point()
         call goto_character(point_minimum())
 
@@ -1698,7 +1700,7 @@ contains
         end do
 
         call goto_character(original_point)
-    end subroutine etags_tags_completion_table
+    end subroutine fortmacs_tags_tags_completion_table
 
     ! The lazy completion table: complete over the tags completion table of
     ! `lazy_buffer'.  Port of etags.el:tags-lazy-completion-table (its
@@ -1960,7 +1962,7 @@ contains
         end if
 
         ! Record whence we came.
-        call push_xref_marker_stack()
+        call push_cross_reference_marker_stack()
         has_last = allocated(last_tag)
         continuing = n /= FIND_TAG_NEXT_NO .and. has_last
 
@@ -2179,7 +2181,7 @@ contains
 
         found = 0
         ! The empty format searches nothing (upstream's `ignore').
-        if (current_format() /= FORMAT_ETAGS) return
+        if (current_format() /= FORMAT_FORTMACS_TAGS) return
 
         if (regular_expression) then
             call regular_expression_search_forward(pattern, found, st, noerror=SEARCH_NOERROR)
@@ -2345,7 +2347,7 @@ contains
         end if
 
         if (status%ok()) call expand_file_name(relative, file, st)
-        if (status%ok()) call snarf_etags_tag(.false., tag_info)
+        if (status%ok()) call snarf_fortmacs_tags_tag(.false., tag_info)
         case_fold_search = saved_fold
         if (.not. status%ok()) return
         ! Get the local value in the tags table buffer before switching
@@ -2354,7 +2356,7 @@ contains
         if (.not. status%ok()) return
         call widen()
         call push_mark()
-        call goto_etags_tag_location(tag_info, status)
+        call goto_fortmacs_tags_tag_location(tag_info, status)
         if (.not. status%ok()) return
         ! Return the buffer where the tag was found.
         buffer = current_buffer()
@@ -2424,7 +2426,7 @@ contains
     !> (an exact file tag on a file name line), with point left on the next
     !> line.  USE_EXPLICIT gives the explicit tag name as the text, when
     !> there is one.  Port of etags.el:etags-snarf-tag.
-    recursive subroutine snarf_etags_tag(use_explicit, tag_info)
+    recursive subroutine snarf_fortmacs_tags_tag(use_explicit, tag_info)
         logical, intent(in) :: use_explicit
         type(tag_info_type), intent(out) :: tag_info
         type(status_type) :: st
@@ -2480,7 +2482,7 @@ contains
 
         ! Leave point on the next line of the tags file.
         shortage = forward_line(1_int64)
-    end subroutine snarf_etags_tag
+    end subroutine snarf_fortmacs_tags_tag
 
     !> Go to location of tag specified by TAG_INFO.
     !> Its TEXT is the initial part of a line containing the tag, LINE the
@@ -2494,7 +2496,7 @@ contains
     !> position using a search window that expands progressively until it
     !> hits the start of file.  Port of etags.el:etags-goto-tag-location
     !> (`selective_display' is not ported).
-    recursive subroutine goto_etags_tag_location(tag_info, status)
+    recursive subroutine goto_fortmacs_tags_tag_location(tag_info, status)
         type(tag_info_type), intent(in) :: tag_info
         type(status_type), intent(out) :: status
         type(status_type) :: st
@@ -2576,13 +2578,13 @@ contains
         end if
 
         call beginning_of_line()
-    end subroutine goto_etags_tag_location
+    end subroutine goto_fortmacs_tags_tag_location
 
     ! List the tags of FILE in the current etags table into TEXT (and the
     ! ranges of the tag names into the face ranges): FOUND is false when
     ! the table has no such file.  Port of etags.el:etags-list-tags (the
     ! buttons, button.el, are not ported).
-    recursive subroutine list_etags_tags(file, text, ranges, found)
+    recursive subroutine list_fortmacs_tags_tags(file, text, ranges, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(inout) :: text
         integer(int64), allocatable, intent(inout) :: ranges(:)
@@ -2592,7 +2594,7 @@ contains
         integer(int64) :: at, shortage, original_point
 
         found = .false.
-        if (current_format() /= FORMAT_ETAGS) return
+        if (current_format() /= FORMAT_FORTMACS_TAGS) return
         call goto_character(point_minimum())
         call regular_expression_search_forward(FF//LF//"\("//file//"\),", at, st, noerror=SEARCH_NOERROR)
         if (at == 0 .or. .not. st%ok()) return
@@ -2606,7 +2608,7 @@ contains
             ! We used to use explicit tags when available, but the current
             ! goto-func can only handle implicit tags.
             original_point = point()
-            call snarf_etags_tag(.false., tag_info)
+            call snarf_fortmacs_tags_tag(.false., tag_info)
             call goto_character(original_point)
             ranges = [ranges, count_characters(text) + 1]
             text = text//tag_info%text
@@ -2621,13 +2623,13 @@ contains
         end do
 
         found = .true.
-    end subroutine list_etags_tags
+    end subroutine list_fortmacs_tags_tags
 
     ! The tags of the current etags table that STRING matches, into TEXT
     ! (with the ranges of the tag names and of the highlighted file names).
     ! Port of etags.el:etags-tags-apropos (the buttons and the progress
     ! reporter are not ported).
-    recursive subroutine etags_apropos_tags(string, text, ranges, highlights)
+    recursive subroutine fortmacs_apropos_tags_tags(string, text, ranges, highlights)
         character(len=*), intent(in) :: string
         character(len=:), allocatable, intent(inout) :: text
         integer(int64), allocatable, intent(inout) :: ranges(:), highlights(:)
@@ -2653,7 +2655,7 @@ contains
             if (found == 0 .or. .not. st%ok()) exit
             call beginning_of_line()
             original_point = point()
-            call snarf_etags_tag(.false., tag_info)
+            call snarf_fortmacs_tags_tag(.false., tag_info)
             call goto_character(original_point)
 
             if (.not. tag_info%exact) then
@@ -2682,12 +2684,12 @@ contains
 
         call message("")
         if (tags_apropos_verbose) text = text//LF
-    end subroutine etags_apropos_tags
+    end subroutine fortmacs_apropos_tags_tags
 
     ! ------------------------------------------------------------------
     ! Match qualifier functions for tagnames.
     ! These functions assume the etags file format defined in
-    ! etc/ETAGS.EBNF.
+    ! etc/FORTMACS_TAGS.EBNF.
     ! ------------------------------------------------------------------
 
     ! Whether REGULAR_EXPRESSION matches at POSITION (false outside the buffer), point kept.
@@ -2938,7 +2940,7 @@ contains
     !> current buffer's file name as the default.
     !> This command searches only the first table in the list of tags
     !> tables, and does not search included tables.
-    !> FILE should be as it was submitted to the `etags' command, which
+    !> FILE should be as it was submitted to the `fortmacs_tags' command, which
     !> usually means relative to the directory of the tags table file.
     !> Port of etags.el:list-tags (the tags are not buttons: button.el is
     !> not ported).
@@ -2975,7 +2977,7 @@ contains
             call visit_tags_table_buffer(visited, status, cont, cbuf=cbuf)
             if (.not. status%ok() .or. .not. visited) exit
             cont = VISIT_NEXT
-            call list_etags_tags(file, text, ranges, found)
+            call list_fortmacs_tags_tags(file, text, ranges, found)
             if (found) gotany = .true.
         end do
 
@@ -3039,7 +3041,7 @@ contains
             call visit_tags_table_buffer(visited, status, cont, cbuf=cbuf)
             if (.not. status%ok() .or. .not. visited) exit
             cont = VISIT_NEXT
-            call etags_apropos_tags(regular_expression, text, ranges, highlights)
+            call fortmacs_apropos_tags_tags(regular_expression, text, ranges, highlights)
         end do
 
         call set_buffer(cbuf, st)
@@ -3094,126 +3096,126 @@ contains
 
     !> The etags backend when a tags table is in use (`tags_table_list'
     !> or `tags_file_name' is set), as a function of
-    !> `xref_backend_functions'.  Port of etags.el:etags--xref-backend.
-    recursive subroutine etags_xref_backend(backend)
-        class(xref_backend_type), allocatable, intent(out) :: backend
+    !> `cross_reference_backend_functions'.  Port of etags.el:etags--xref-backend.
+    recursive subroutine fortmacs_tags_cross_reference_backend(backend)
+        class(cross_reference_backend_type), allocatable, intent(out) :: backend
 
-        if (has_tags_tables()) allocate (etags_backend_type :: backend)
-    end subroutine etags_xref_backend
+        if (has_tags_tables()) allocate (fortmacs_tags_backend_type :: backend)
+    end subroutine fortmacs_tags_cross_reference_backend
 
     !> The identifier at point: the default tag.  Port of
     !> etags.el:xref-backend-identifier-at-point (etags).
-    recursive subroutine etags_backend_identifier_at_point(this, identifier, found)
-        class(etags_backend_type), intent(inout) :: this
+    recursive subroutine fortmacs_tags_backend_identifier_at_point(this, identifier, found)
+        class(fortmacs_tags_backend_type), intent(inout) :: this
         character(len=:), allocatable, intent(out) :: identifier
         logical, intent(out) :: found
 
         call find_default_tag(identifier, found)
-    end subroutine etags_backend_identifier_at_point
+    end subroutine fortmacs_tags_backend_identifier_at_point
 
     !> The tags completion table.  Port of
     !> etags.el:xref-backend-identifier-completion-table (etags).
-    recursive subroutine etags_backend_identifier_completion_table(this, table, found)
-        class(etags_backend_type), intent(inout) :: this
+    recursive subroutine fortmacs_tags_backend_identifier_completion_table(this, table, found)
+        class(fortmacs_tags_backend_type), intent(inout) :: this
         type(completion_table_type), intent(out) :: table
         logical, intent(out) :: found
 
         table = tags_lazy_completion_table()
         found = .true.
-    end subroutine etags_backend_identifier_completion_table
+    end subroutine fortmacs_tags_backend_identifier_completion_table
 
     !> Whether case is ignored in tags completion.  Port of
     !> etags.el:xref-backend-identifier-completion-ignore-case (etags).
-    logical function is_etags_backend_identifier_completion_case_ignored(this) result(ignore)
-        class(etags_backend_type), intent(inout) :: this
+    logical function is_fortmacs_tags_backend_identifier_completion_case_ignored(this) result(ignore)
+        class(fortmacs_tags_backend_type), intent(inout) :: this
 
         ignore = is_find_tag_completion_ignore_case()
-    end function is_etags_backend_identifier_completion_case_ignored
+    end function is_fortmacs_tags_backend_identifier_completion_case_ignored
 
     !> The definitions of IDENTIFIER in the tags tables, those in the current
-    !> file first if `etags_xref_prefer_current_file'.  Port of
+    !> file first if `fortmacs_tags_cross_reference_prefer_current_file'.  Port of
     !> etags.el:xref-backend-definitions (etags).
-    recursive subroutine etags_backend_definitions(this, identifier, items, status)
-        class(etags_backend_type), intent(inout) :: this
+    recursive subroutine fortmacs_tags_backend_definitions(this, identifier, items, status)
+        class(fortmacs_tags_backend_type), intent(inout) :: this
         character(len=*), intent(in) :: identifier
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
-        type(xref_item_type), allocatable :: definitions(:), same_file(:), others(:)
+        type(cross_reference_item_type), allocatable :: definitions(:), same_file(:), others(:)
         type(status_type) :: st
         character(len=:), allocatable :: file
         integer :: i
 
-        call find_etags_xref_definitions(identifier, .false., definitions, status)
+        call find_fortmacs_tags_cross_reference_definitions(identifier, .false., definitions, status)
         if (.not. status%ok()) return
 
-        if (etags_xref_prefer_current_file .and. allocated(buffers(current)%filename)) then
+        if (fortmacs_tags_cross_reference_prefer_current_file .and. allocated(buffers(current)%filename)) then
             call expand_file_name(buffers(current)%filename, file, st)
             allocate (same_file(0), others(0))
 
             do i = 1, size(definitions)
                 if (definitions(i)%location%group() == file) then
-                    call append_xref_item(same_file, definitions(i))
+                    call append_cross_reference_item(same_file, definitions(i))
                 else
-                    call append_xref_item(others, definitions(i))
+                    call append_cross_reference_item(others, definitions(i))
                 end if
             end do
 
             items = same_file
 
             do i = 1, size(others)
-                call append_xref_item(items, others(i))
+                call append_cross_reference_item(items, others(i))
             end do
         else
             call move_alloc(definitions, items)
         end if
-    end subroutine etags_backend_definitions
+    end subroutine fortmacs_tags_backend_definitions
 
     !> The tags that PATTERN (as in `apropos') matches.  Port of
     !> etags.el:xref-backend-apropos (etags; `tags_apropos_additional_actions'
     !> is not ported).
-    recursive subroutine etags_backend_apropos(this, pattern, items, status)
-        class(etags_backend_type), intent(inout) :: this
+    recursive subroutine fortmacs_tags_backend_apropos(this, pattern, items, status)
+        class(fortmacs_tags_backend_type), intent(inout) :: this
         character(len=*), intent(in) :: pattern
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: regular_expression
 
-        call xref_apropos_regular_expression(pattern, regular_expression, status)
+        call cross_reference_apropos_regular_expression(pattern, regular_expression, status)
 
         if (.not. status%ok()) then
             allocate (items(0))
             return
         end if
 
-        call find_etags_xref_definitions(regular_expression, .true., items, status)
-    end subroutine etags_backend_apropos
+        call find_fortmacs_tags_cross_reference_definitions(regular_expression, .true., items, status)
+    end subroutine fortmacs_tags_backend_apropos
 
     ! The existing file that FILE (an expanded file name) names: a
     ! `file_missing' error condition occurs if there is none.  Port of
     ! etags.el:etags--ensure-file (`tags_compression_info_list' is not
     ! ported).
-    subroutine ensure_etags_file(file, status)
+    subroutine ensure_fortmacs_tags_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
 
         status = status_type()
         if (.not. file_exists(file)) call set_error(status, FILE_MISSING_CODE, "Cannot locate file in TAGS, "//file)
-    end subroutine ensure_etags_file
+    end subroutine ensure_fortmacs_tags_file
 
     ! The definitions of PATTERN (a regexp if REGULAR_EXPRESSION) in all the tags
     ! tables: the emulation of `find_tag_in_order' that gives all matches.
     ! Port of etags.el:etags--xref-find-definitions.
-    recursive subroutine find_etags_xref_definitions(pattern, regular_expression, items, status)
+    recursive subroutine find_fortmacs_tags_cross_reference_definitions(pattern, regular_expression, items, status)
         character(len=*), intent(in) :: pattern
         logical, intent(in) :: regular_expression
-        type(xref_item_type), allocatable, intent(out) :: items(:)
+        type(cross_reference_item_type), allocatable, intent(out) :: items(:)
         type(status_type), intent(out) :: status
         type(tag_match_test_type), allocatable :: order(:)
         type(mark_key_type), allocatable :: marks(:)
         type(mark_key_type) :: key
         type(tag_info_type) :: tag_info
-        type(xref_etags_location_type) :: location
-        type(xref_item_type) :: item
+        type(cross_reference_fortmacs_tags_location_type) :: location
+        type(cross_reference_item_type) :: item
         type(handle_type) :: cbuf
         type(status_type) :: st
         character(len=:), allocatable :: file, relative
@@ -3232,7 +3234,7 @@ contains
         if (regular_expression) then
             order = find_tag_regular_expression_tag_order
         else
-            order = etags_find_xref_definitions_tag_order
+            order = fortmacs_tags_find_cross_reference_definitions_tag_order
         end if
 
         tables: do
@@ -3245,14 +3247,14 @@ contains
 
                 do
                     call search_tag(pattern, regular_expression, found)
-                    if (found == 0 .or. size(marks) >= ETAGS_XREF_LIMIT) exit
+                    if (found == 0 .or. size(marks) >= FORTMACS_TAGS_CROSS_REFERENCE_LIMIT) exit
                     if (.not. order(k)%test(pattern)) cycle
                     call beginning_of_line()
-                    call snarf_etags_tag(.false., tag_info)
+                    call snarf_fortmacs_tags_tag(.false., tag_info)
                     call file_of_tag(.false., relative, status)
                     if (.not. status%ok()) exit tables
                     call expand_file_name(relative, file, st)
-                    call ensure_etags_file(file, status)
+                    call ensure_fortmacs_tags_file(file, status)
                     if (.not. status%ok()) exit tables
                     key%file = file
                     key%line = tag_info%line
@@ -3270,12 +3272,12 @@ contains
                     location%file = file
 
                     if (tag_info%exact) then
-                        item = make_xref("(filename match)", location)
+                        item = make_cross_reference("(filename match)", location)
                     else
-                        item = make_xref(tag_info%text, location)
+                        item = make_cross_reference(tag_info%text, location)
                     end if
 
-                    call append_xref_item(items, item)
+                    call append_cross_reference_item(items, item)
                     marks = [marks, key]
                 end do
             end do
@@ -3284,12 +3286,12 @@ contains
         case_fold_search = saved_fold
         call set_buffer(cbuf, st)
         call goto_character(original_point)
-    end subroutine find_etags_xref_definitions
+    end subroutine find_fortmacs_tags_cross_reference_definitions
 
     !> A marker at the tag, in the buffer visiting its file.  Port of
     !> etags.el:xref-location-marker (of an xref-etags-location).
-    recursive subroutine xref_etags_location_marker(this, marker, status)
-        class(xref_etags_location_type), intent(in) :: this
+    recursive subroutine cross_reference_fortmacs_tags_location_marker(this, marker, status)
+        class(cross_reference_fortmacs_tags_location_type), intent(in) :: this
         type(handle_type), intent(out) :: marker
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
@@ -3305,40 +3307,40 @@ contains
         beginning_of_accessible_portion = point_minimum()
         end_of_accessible_portion = point_maximum()
         call widen()
-        call goto_etags_tag_location(this%tag_info, status)
+        call goto_fortmacs_tags_tag_location(this%tag_info, status)
         if (status%ok()) call point_marker(marker)
         call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
         call goto_character(original_point)
         call set_buffer(old, st)
-    end subroutine xref_etags_location_marker
+    end subroutine cross_reference_fortmacs_tags_location_marker
 
     !> The group of a tag location: its file.  Port of
     !> etags.el:xref-location-group (of an xref-etags-location).
-    function xref_etags_location_group(this) result(group)
-        class(xref_etags_location_type), intent(in) :: this
+    function cross_reference_fortmacs_tags_location_group(this) result(group)
+        class(cross_reference_fortmacs_tags_location_type), intent(in) :: this
         character(len=:), allocatable :: group
 
         group = this%file
-    end function xref_etags_location_group
+    end function cross_reference_fortmacs_tags_location_group
 
     !> The line of a tag location: its tag info's line.  Port of
     !> etags.el:xref-location-line (of an xref-etags-location).
-    integer(int64) function xref_etags_location_line(this) result(line)
-        class(xref_etags_location_type), intent(in) :: this
+    integer(int64) function cross_reference_fortmacs_tags_location_line(this) result(line)
+        class(cross_reference_fortmacs_tags_location_type), intent(in) :: this
 
         line = this%tag_info%line
-    end function xref_etags_location_line
+    end function cross_reference_fortmacs_tags_location_line
 
     ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
 
     !> Define the mode, the variables and the commands of etags.el, and
-    !> add the etags backend to `xref_backend_functions' and the tags
+    !> add the etags backend to `cross_reference_backend_functions' and the tags
     !> completion to `completion_at_point_functions'.  Port of etags.el's
     !> top-level forms and of xref.el's (add-hook 'xref-backend-functions
     !> #'etags--xref-backend t).
-    subroutine initialize_etags()
+    subroutine initialize_fortmacs_tags()
         if (associated(major_modes%tags_table_mode%execute)) return
         if (.not. allocated(tags_tag_face)) tags_tag_face = "default"
         allocate (find_tag_tag_order(8), find_tag_regular_expression_tag_order(1))
@@ -3352,10 +3354,10 @@ contains
         find_tag_tag_order(8)%test => is_tag_any_match
         find_tag_regular_expression_tag_order(1)%test => is_tag_regular_expression_match
 
-        if (.not. allocated(etags_find_xref_definitions_tag_order)) then
-            allocate (etags_find_xref_definitions_tag_order(2))
-            etags_find_xref_definitions_tag_order(1)%test => is_tag_exact_match
-            etags_find_xref_definitions_tag_order(2)%test => is_tag_implicit_name_match
+        if (.not. allocated(fortmacs_tags_find_cross_reference_definitions_tag_order)) then
+            allocate (fortmacs_tags_find_cross_reference_definitions_tag_order(2))
+            fortmacs_tags_find_cross_reference_definitions_tag_order(1)%test => is_tag_exact_match
+            fortmacs_tags_find_cross_reference_definitions_tag_order(2)%test => is_tag_implicit_name_match
         end if
 
         call major_modes%tags_table_mode%define("tags_table_mode", "Tags Table", tags_table_mode, tags_table_mode_hook, &
@@ -3365,7 +3367,7 @@ contains
         ! We make the etags backend the default for now, until something
         ! better comes along.  Use APPEND so that any `add-hook' calls made
         ! before this package is loaded put new items before this one.
-        call xref_backend_functions%append(etags_xref_backend)
+        call cross_reference_backend_functions%append(fortmacs_tags_cross_reference_backend)
         call completion_at_point_functions%append(tags_completion_at_point_function)
         commands%tags_table_mode%execute => tags_table_mode
         commands%visit_tags_table%execute => execute_visit_tags_table
@@ -3374,10 +3376,10 @@ contains
         commands%find_tag%execute => execute_find_tag
         commands%find_tag_other_window%execute => execute_find_tag_other_window
         commands%find_tag_regular_expression%execute => execute_find_tag_regular_expression
-        commands%pop_tag_mark%execute => go_back_in_xref_history
+        commands%pop_tag_mark%execute => go_back_in_cross_reference_history
         commands%list_tags%execute => execute_list_tags
         commands%apropos_tags%execute => execute_apropos_tags
         commands%complete_tag%execute => complete_tag
         call append_locals_clearer(clear_tags_locals)
-    end subroutine initialize_etags
+    end subroutine initialize_fortmacs_tags
 end module fortmacs_tags_mod

@@ -39,7 +39,7 @@ module test_tabulated_list_mod
     use bindings_mod, only: initialize_bindings
     use tabulated_list_mod, only: tabulated_list_mode, tabulated_list_column_type, tabulated_list_entry_type, &
                                   set_tabulated_list_format, set_tabulated_list_entries, set_tabulated_list_padding, &
-                                  tabulated_list_entries, tabulated_list_init_header, tabulated_list_print, &
+                                  tabulated_list_entries, tabulated_list_initialize_header, tabulated_list_print, &
                                   tabulated_list_sort
     implicit none(type, external)
     private
@@ -134,7 +134,7 @@ contains
         call test_format(format)
         call set_tabulated_list_format(format)
         call set_tabulated_list_padding(7)
-        call tabulated_list_init_header()
+        call tabulated_list_initialize_header()
         call tabulated_list_print(st)
     end subroutine with_buffer
 

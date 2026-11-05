@@ -27,7 +27,7 @@
 !> forward-list-default-function, down-list-default-function and
 !> up-list-default-function do.  A `scan_error' becomes a `user_error'
 !> when a command is run interactively (INTERACTIVE).  `forward_expression'
-!> delegates to `forward_expression_function' (which SMIE modes set).
+!> delegates to `forward_expression_function' (which SIMPLE_MINDED_INDENTATION_ENGINE modes set).
 !>
 !> The subprogram commands find subprograms with `beginning_of_subprogram_function'
 !> (a `beginning_of_subprogram_function_type': buffers' own procedures),

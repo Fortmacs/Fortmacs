@@ -70,7 +70,7 @@ this file.
 Fortran-native `init.f90` API, `fortmacs --recompile`.
 
 1. The API: module `fortmacs` (settings, commands, keys) and the
-   `user_config` module's `configure`, run at startup (`-q` skips it);
+   `user_configuration` module's `configure`, run at startup (`-q` skips it);
    `keymap-global-set`, `key-valid-p`. — done
 2. `fortmacs --recompile`: build `~/.config/fortmacs/init.f90` with
    gfortran against the installed library (`execute_process_mod` runs the
@@ -420,7 +420,7 @@ rules no other tool checks (chosen with the user, 2026-10-30):
   (app/main.f90, test/main.f90 and docs/init.f90 excepted);
 - **suffix**: a module or submodule is named with the `_mod` suffix
   (`buffer_mod` in buffer_mod.f90, `test_buffer_mod`), except the API
-  module `fortmacs`; programs and docs/init.f90's `user_config` take
+  module `fortmacs`; programs and docs/init.f90's `user_configuration` take
   none (tools/test-audit.sh checks the rule on tools/audit-test);
 - **doc**: every public entity a module declares has a `!>` comment
   right above its declaration (a group comment covers only the
@@ -565,16 +565,16 @@ existing rule (decided and reported), or by the decision panel
 | Lisp term | Fortran name | Examples |
 |---|---|---|
 | defun (a top-level definition) | subprogram | `beginning_of_subprogram`, `mark_subprogram`, `subprogram_prompt_regular_expression`, `open_parenthesis_in_column_0_is_subprogram_start`, `add_log_current_subprogram`, `f90_beginning_of_subprogram`; `f90_subprogram_start` and `f90_subprogram_end` (f90_mod's adapters to `beginning_of_subprogram_function` and `end_of_subprogram_function`, whose plain renames would be the f90.el commands they adapt) |
-| defun, in a mode's own helper | the language's term | `python_mark_definition`, `python_navigation_beginning_of_definition` (and `_regexp`), `python_navigation_end_of_definition` (and `_function`), `python_navigation_forward_definition`, `python_navigation_backward_definition`, `python_info_current_definition`, `python_info_looking_at_beginning_of_definition`; `makefile_add_log_target`; `sh_current_function_name`; `log_view_beginning_of_entry`, `log_view_end_of_entry`; `css_current_rule_name`.  Generic commands, hooks and helpers keep subprogram: `search_subprogram_forward`/`_backward`, `nav_*_subprogram`, `beginning_subprogram_indent`, `change_log_read_subprograms`, `log_edit_insert_filled_subprograms`, `diff_add_log_current_subprograms` |
+| defun, in a mode's own helper | the language's term | `python_mark_definition`, `python_navigation_beginning_of_definition` (and `_regexp`), `python_navigation_end_of_definition` (and `_function`), `python_navigation_forward_definition`, `python_navigation_backward_definition`, `python_info_current_definition`, `python_info_looking_at_beginning_of_definition`; `makefile_add_log_target`; `shell_current_function_name`; `log_view_beginning_of_entry`, `log_view_end_of_entry`; `css_current_rule_name`.  Generic commands, hooks and helpers keep subprogram: `search_subprogram_forward`/`_backward`, `nav_*_subprogram`, `beginning_subprogram_indent`, `change_log_read_subprograms`, `log_edit_insert_filled_subprograms`, `diff_add_log_current_subprograms` |
 | sexp (a balanced expression) | expression | `forward_expression`, `cut_expression`, `parse_partial_expression`, `scan_expressions`, `parse_expression_ignore_comments`, `halfexpression`, `expression_flag` (and the analogous `execute_`, `test_` and `_1` forms of the renamed names) |
-| list, as a parenthesised group (these names only) | group | `forward_group`, `backward_group`, `up_group`, `down_group`, `backward_up_group`, `cut_backward_up_group`, their `*_group_function` variables, `scan_groups`, `smie_down_group` |
+| list, as a parenthesised group (these names only) | group | `forward_group`, `backward_group`, `up_group`, `down_group`, `backward_up_group`, `cut_backward_up_group`, their `*_group_function` variables, `scan_groups`, `simple_minded_indentation_engine_down_group` |
 | alist (an association list) | a plural name, no suffix (R2-Q8; first `_table`) | `auto_modes`, `bookmarks`, `file_coding_systems`, `registers`, `save_places`; `compilation_error_regular_expressions` (all known formats) and `compilation_error_regular_expression_names` (the enabled ones); where the plural is taken or unclear, the plural names the records: `minor_mode_lighters`, `coding_system_names`, `display_buffer_rules`; `abbrev_minor_mode_tables`, `syntax_modifications` (font-lock-defaults' SYNTAX-ALIST, not `syntax_table`), `display_action_parameters_type` (display-buffer's action alist, fixed keys as components); in buffer_mod, buffer_operations_mod and process_mod, Vbuffer_alist and Vprocess_alist are `buffer_order`/`buffer_order_count` and `process_order`/`process_order_count` (the modules already have a `table`) |
 | module lisp_cmds_mod (lisp.el) | expression_motion_mod | src/expression_motion_mod.f90, `initialize_expression_motion` |
 | the modules of lisp.h, eval.c and lread.c | `value_mod` (submodule `value_names_mod`), `hooks_mod`, `names_mod`, each named for what it holds (print.c stays `print_mod`) | src/value_mod.f90, src/hooks_mod.f90, src/names_mod.f90 |
 | `syms_of_X` (a module's one-time startup setup) | `initialize_X` (`initialize_X_commands` where upstream has an `init_X` of its own; `init_X` before the word renames of 2026-11-05) | `initialize_simple`, `initialize_files`; `initialize_buffer_commands`, `initialize_display_commands`, `initialize_window_commands`, `initialize_macros_commands` |
 | a predicate (`*-p`, `*p`) | `is_*` or `has_*`, a logical function | `is_region_active`, `is_derived_mode`, `is_process_live`, `is_beginning_of_buffer`, `has_overlay_strings`; a verb phrase where it reads so: `file_exists`, `string_matches` (logical, no longer the match position); `set_buffer_modified`, `restore_buffer_modified`; a predicate that only wrapped an intrinsic or a tag test is gone (`frame_window_p` is `associated(f%rif)`) |
 | y-or-n-p, yes-or-no-p (prompts) | `read_y_or_n`, `read_yes_or_no` | `read_y_or_n_map`, `read_y_or_n_use_read_key`, `map_read_y_or_n`, `read_yes_or_no_history` |
-| `*_NIL`, `*_T` named constants | the meaning, after the option's full name (R2-Q15; a stem several options share is the common start of their names, else each option has its own family: changed by #261, owner, 2026-11-04): `_NO`/`_YES` for plain off/on, `_NONE`, `_ASK`, `_ALWAYS` only beside `_YES`, `_UNLIMITED`, else the meaning itself (R2-Q17) | `COMPILATION_SCROLL_OUTPUT_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_YES`, `DIRED_LOCALP_ABSOLUTE`/`_RELATIVE`, `KMACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names.d/0-base, "A1"); since R6-38 a setting's on and off states are `.true.` and `.false.` of a `choice_setting_type` (`compilation_scroll_output = .true.`): `_NO`/`_YES` remain only in internal enumerations ("Choice settings" below) |
+| `*_NIL`, `*_T` named constants | the meaning, after the option's full name (R2-Q15; a stem several options share is the common start of their names, else each option has its own family: changed by #261, owner, 2026-11-04): `_NO`/`_YES` for plain off/on, `_NONE`, `_ASK`, `_ALWAYS` only beside `_YES`, `_UNLIMITED`, else the meaning itself (R2-Q17) | `COMPILATION_SCROLL_OUTPUT_NO`/`_YES`/`_FIRST_ERROR`, `LOG_EDIT_CONFIRM_YES`, `DIRECTORY_EDITOR_LOCALP_ABSOLUTE`/`_RELATIVE`, `KEYBOARD_MACRO_REPEAT_YES`/`_NO` (upstream's NO-REPEAT read positively; the argument is REPEAT), `CASE_FOLD_NO`/`_YES`/`_FORCED`, one family per setting (`GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*`); every family has three or more states upstream, so none became a logical (the full table: tools/fortran-names.d/0-base, "A1"); since R6-38 a setting's on and off states are `.true.` and `.false.` of a `choice_setting_type` (`compilation_scroll_output = .true.`): `_NO`/`_YES` remain only in internal enumerations ("Choice settings" below) |
 | nil, NILP (the null value) | `value_type()`; `.not. allocated(v%a)` | the intrinsic itself, no helper; a function result is tested as `vtag(f(x)) == V_NULL`; the value tags are `V_NULL`, `V_INTEGER`, `V_NAME`, `V_STRING`, `V_ARRAY` (were `V_NIL`, `V_INT`, `V_SYMBOL`, `V_STRING`, `V_LIST`) |
 | FIXNUMP, STRINGP, CONSP, SYMBOLP, LISTP, BUFFERP, MARKERP, WINDOWP and value_mod's keymap and syntax-table tests | the tag test itself: `vtag(v) == V_INTEGER`, `vtag(v) /= V_STRING`, `(vtag(v) == V_NAME .or. vtag(v) == V_NULL)` | no wrapper; `vtag` gives `V_NULL` for the null value, and is elemental like the wrappers were; window.c's `windowp` (a handle test) is `is_window` |
 | the argument list C-h f shows | the call line, then the declaration block | `call insert(string, status)` followed by `character(len=*), intent(in) :: string` and `type(status_type), intent(out) :: status`; a function's result is declared too (`integer(int64) :: point`); tools/gen-docstrings.sh takes the lines from the dummy arguments' declarations (the help entry's `declarations`) |
@@ -585,7 +585,7 @@ existing rule (decided and reported), or by the decision panel
 | the face an ansi-color face function receives | `type(ansi_color_face_type)` (A5): `faces(:)` of `ansi_color_face_reference_type` (a pointer to a named face; null for an entry of `ansi_color_basic_faces` that is ""), `foreground` and `background` ("" for a color face without the color); empty (`%is_empty()`) means none | no `value_type` in the face function's interface; `ansi_color_face_value` builds the text property value upstream's ansi-color--face-vec-face gives |
 | car, cdr, nth, nthcdr, memq, member, length (C2c) | removed: plain arrays with the intrinsics | membership in an array is `any(...)` (`has_handle(list, h)` in handle_mod for an allocatable handle array; `has_name` with `any(names == name)`), a loop named for what it tests where the elements have deferred-length components (`has_word`, `has_string`, `has_file`, `has_coding_system`, `is_name_taken`); a value array's first element is `list_element(v, 1_int64)`; the fns-tests-length port and the car/cdr tests go with the helpers |
 | thin wrappers of an intrinsic | the intrinsic | `ichar(str(i:i), kind=int32)` for byte_at, `btest(flags, SYNTAX_FLAG_COMMENT_NESTED)` (named bits of syntax.c's SYNTAX_FLAGS_*), `btest(mask, cat)`, `iand(buf(p + 1), 127)`, `all(set /= c)`, `size(a)` (a local named `size` became `total_size`); test_tabulated_list_mod's `sort_car` stays: sort needs a procedure |
-| symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbrev_name`, `abbrev_table_names` |
+| symbol (an object: a name of a function, variable, ...) | name | `describe_name` (C-h o), `complete_name`, `apropos_next_name`, `apropos_previous_name`, `info_lookup_name`, `abbreviation_name`, `abbreviation_table_names` |
 | symbol (the syntax class: word and symbol constituents) | identifier | `forward_identifier`, `beginning_of_identifier`, `bounds_of_identifier_at_point`, `case_identifiers_as_words`, `word_or_identifier`, `occur_identifier_at_mouse`, `REGULAR_EXPRESSION_OPTIMIZATION_IDENTIFIERS` |
 | vector (an array) | a plural name, "array" in help | `ansi_color_basic_faces`, `ansi_color_normal_colors`, `ansi_color_bright_colors` |
 | the repeat-check-key property | a `choice_type` (R6-38; Q4 of the choice PR): `.true.`, `.false.` or `REPEAT_CHECK_KEY_DEFAULT` | `commands%x%repeat_check_key = .false.` (were `PROPERTY_UNSET`, `_TRUE`, `_NO`, then `REPEAT_CHECK_KEY_DEFAULT`, `_YES`, `_NO`) |
@@ -594,7 +594,7 @@ existing rule (decided and reported), or by the decision panel
 | register value | register contents | `register_contents_type` |
 | this-command, last-command, real-this-command, real-last-command, last-repeatable-command, current-minibuffer-command (A7) | `type(command_type), pointer`, compared with `associated()` | `associated(last_command, commands%cut_region)`, `this_command => commands%paste`; a key's binding is resolved once with `command_of`; `last_macro_command` where upstream holds a keyboard macro (A7a: a `command_type` whose `macro` handle names the macro's events in keyboard_mod's `command_macros` and whose procedure executes it once, so C-x z repeats it; help shows the events as an array constructor); null for a name that is no command and that nothing compares (undo-start, kill-region-dont-append, mode-exited, yank's t); the two that are compared are typed objects of their modules, `mark_subprogram_back` and `comment_line_backward` (`is_command` .false.); help shows the command's name or null() |
 | prefix-arg, current-prefix-arg, last-prefix-arg, a raw prefix argument "P" (A7) | `type(prefix_argument_type)`: `%kind` (`PREFIX_NONE`, `PREFIX_NUMBER`, `PREFIX_RAW` for C-u's, `PREFIX_MINUS`) and `%value` | `current_prefix_argument%kind /= PREFIX_NONE`, `prefix_argument = prefix_argument_type(PREFIX_RAW, 4_int64)`, `call recenter(prefix_argument_type(PREFIX_NUMBER, -1_int64), .false., status)`; `prefix_numeric_value` takes it; help shows `prefix_argument_type(kind=PREFIX_RAW, value=4)` |
-| the interactive spec of a command | `is_command` | `commands%dired_mode%is_command = .false.`; tools/gen-docstrings.sh's help-name field (`hname`) and command column (the help entry's `command`) |
+| the interactive spec of a command | `is_command` | `commands%directory_editor_mode%is_command = .false.`; tools/gen-docstrings.sh's help-name field (`hname`) and command column (the help entry's `command`) |
 
 Citations keep upstream names, so they still point at the exact upstream
 definition: "Port of lisp.el:beginning-of-defun", "Port of
@@ -647,13 +647,13 @@ program in another language, so a name that means this program says
 fortmacs, not emacs: the module of emacs.c is `fortmacs_mod`
 (`fortmacs_main`), the system-call wrappers ported from sysdep.c are
 `fortmacs_read`, `fortmacs_write`, `fortmacs_spawn`, `fortmacs_kill`, ...,
-`fortmacs_tty_type`, `fortmacs_wd`, xfaces' `fortmacs_color_type`, and the
+`fortmacs_terminal_type`, `fortmacs_wd`, xfaces' `fortmacs_color_type`, and the
 commands, hooks and settings are `exit_fortmacs` (upstream's kill-emacs),
 `suspend_fortmacs`, `save_buffers_exit_fortmacs`, `exit_fortmacs_hook`,
 `exit_fortmacs_query_functions`, `fortmacs_pid`, `restart_fortmacs`,
 `user_fortmacs_directory`; docstrings and messages say "Exit Fortmacs",
 "Stop Fortmacs and return to superior process".  Names of external things
-keep Emacs: the emacs-mule encoding (`emacs_mule_id`, `CATEGORY_EMACS_MULE`,
+keep Emacs: the emacs-mule encoding (`emacs_multilingual_environment_id`, `CATEGORY_EMACS_MULTILINGUAL_ENVIRONMENT`,
 "emacs-mule"), the "emacs" charset and utf-8-emacs, Emacs Lisp
 (`emacs_lisp_mode`), completion's `emacs21`/`emacs22` styles, INSIDE_EMACS and
 ~/.emacs_SHELLNAME (what other programs and users see), prose about
@@ -842,7 +842,7 @@ Settled by the owner later the same day and applied in PR 2b:
   `variation_selector_number`, `preferred_sequence_kind` and
   `numeric_prefix_argument` (the `arg_p` helpers).  Subroutines, the hook and
   six tests drop the suffix (`vc_call_responsible`,
-  `sh_smie_rc_after_special_argument`,
+  `shell_indentation_engine_rc_after_special_argument`,
   `executable_make_buffer_file_executable_if_script`, `test_empty`, ...).
 - Q4: the `_vector` names whose plurals clash name what the array holds:
   `this_command_key_events`, `execute_keyboard_macro_events`,
@@ -851,7 +851,7 @@ Settled by the owner later the same day and applied in PR 2b:
   (`makefile_pickup_everything_picks_up_filenames`,
   `makefile_use_curly_braces_for_macros`,
   `select_safe_coding_system_accept_default`,
-  `tty_suppress_bold_inverse_default_colors`); disabled-command-function's
+  `terminal_suppress_bold_inverse_default_colors`); disabled-command-function's
   flag, whose plain name is the subroutine, is
   `disabled_command_function_variable` (CLAUDE.md's `_variable` rule);
   `ibuffer_default_sorting_reversed_p` is not ported yet (its table entry
@@ -895,7 +895,7 @@ Settled by the owner later the same day and applied in PR 2b:
   tested by test_buffer_mod.f90 (suite `buffer_mod`, `collect_buffer_mod`);
   modules that port nothing take it too (`configuration_mod`, and the test
   helpers' `test_support_mod`, which had no suffix); the API module
-  `fortmacs` and the user's `user_config` are unchanged.  tools/audit.awk
+  `fortmacs` and the user's `user_configuration` are unchanged.  tools/audit.awk
   checks it (rule `suffix`).
 - C1: lisp.h's module is `value_mod` (its submodule `value_names_mod`),
   eval.c's `hooks_mod`, lread.c's `names_mod`; `print_mod` keeps its
@@ -914,7 +914,7 @@ files, or on the whole tree), split any line it reports as pushed past
 132 columns (exit status 3), and where it reports a clash (exit status
 4: a new name the file already has, such as an imported `forward_sexp`
 renamed onto the module's own `forward_expression`; the file is left
-unchanged) rename the file's own identifier (`js_forward_expression`) and
+unchanged) rename the file's own identifier (`javascript_forward_expression`) and
 run it again; then regenerate (tools/gen-*.sh), run
 `tools/check.sh --fix` and then `tools/check.sh`, and read the renamed
 docstrings: grammar the article fix does not cover ("balanced expression
@@ -1164,20 +1164,20 @@ dispatches.
 | Before | After |
 |---|---|
 | `call_interactively`, `call_last_kbd_macro` | `execute_interactively`, `execute_last_keyboard_macro` |
-| `kmacro_call_macro`, `kmacro_call_ring_2nd` (and `_repeat`), `kmacro_end_or_call_macro`, `kmacro_end_and_call_macro`, `kmacro_call_repeat_key`, `KMACRO_CALL_REPEAT_*` | `kmacro_execute_macro`, `kmacro_execute_ring_2nd`, `kmacro_end_or_execute_macro`, `kmacro_end_and_execute_macro`, `kmacro_execute_repeat_key`, `KMACRO_EXECUTE_REPEAT_*` (until the verb-first rename, R6-17) |
+| `kmacro_call_macro`, `kmacro_call_ring_2nd` (and `_repeat`), `kmacro_end_or_call_macro`, `kmacro_end_and_call_macro`, `kmacro_call_repeat_key`, `KMACRO_CALL_REPEAT_*` | `keyboard_macro_execute_macro`, `keyboard_macro_execute_ring_2nd`, `keyboard_macro_end_or_execute_macro`, `keyboard_macro_end_and_execute_macro`, `keyboard_macro_execute_repeat_key`, `KMACRO_EXECUTE_REPEAT_*` (until the verb-first rename, R6-17) |
 | `run_at_time`, `run_with_timer`, `run_with_idle_timer`, `run_timers` | `execute_at_time`, `execute_with_timer`, `execute_with_idle_timer`, `execute_timers` |
-| `call_process`, `call_process_region`, `call_process_shell_command`, `call_shell_region`, `comint_run`, `vc_git_call`, `vc_git_run_command_string` | `execute_process`, `execute_process_region`, `execute_process_shell_command`, `execute_shell_region`, `comint_execute`, `vc_git_execute`, `vc_git_execute_command_string` |
-| `run_mode_hooks`, `safe_run_hooks`, `run_buffer_list_update_hook`, `run_exit_minibuf_hook`, `run_undoable_change`, `call_mod_hooks`, `call_overlay_mod_hooks`, `jit_lock_run_functions` | `execute_mode_hooks`, `safe_execute_hooks`, `execute_buffer_list_update_hook`, `execute_exit_minibuf_hook`, `execute_undoable_change`, `execute_mod_hooks`, `execute_overlay_mod_hooks`, `jit_lock_execute_functions` |
-| `%run`, `%run_safe` of `command_type`, `major_mode_type`, the hook types, `yank_handler_function_type`, `vc_action_type` and `vc_log_operation_type` | `%execute`, `%execute_safe`: `call commands%paste%execute(status)`, `call text_mode_hook%execute(status)` |
+| `call_process`, `call_process_region`, `call_process_shell_command`, `call_shell_region`, `comint_run`, `vc_git_call`, `vc_git_run_command_string` | `execute_process`, `execute_process_region`, `execute_process_shell_command`, `execute_shell_region`, `command_interpreter_execute`, `version_control_git_execute`, `version_control_git_execute_command_string` |
+| `run_mode_hooks`, `safe_run_hooks`, `run_buffer_list_update_hook`, `run_exit_minibuf_hook`, `run_undoable_change`, `call_mod_hooks`, `call_overlay_mod_hooks`, `jit_lock_run_functions` | `execute_mode_hooks`, `safe_execute_hooks`, `execute_buffer_list_update_hook`, `execute_exit_minibuf_hook`, `execute_undoable_change`, `execute_mod_hooks`, `execute_overlay_mod_hooks`, `just_in_time_lock_execute_functions` |
+| `%run`, `%run_safe` of `command_type`, `major_mode_type`, the hook types, `yank_handler_function_type`, `version_control_action_type` and `version_control_log_operation_type` | `%execute`, `%execute_safe`: `call commands%paste%execute(status)`, `call text_mode_hook%execute(status)` |
 | `hook_run`, `change_hook_run`, ... (the bindings' procedures), `run_kill_buffer_hook` (a procedure pointer) | `hook_execute`, `change_hook_execute`, ... (until the verb-first rename, R6-17), `execute_kill_buffer_hook` |
-| emacs_mod's `run` (the program), `recentf_auto_cleanup_run`, `completion_at_point_run` | `execute_editor`, `execute_recentf_auto_cleanup`, `execute_completion_at_point` |
+| emacs_mod's `run` (the program), `recentf_auto_cleanup_run`, `completion_at_point_run` | `execute_editor`, `execute_recent_files_auto_cleanup`, `execute_completion_at_point` |
 | wrappers that do more than dispatch (a default, a status, a lookup): `call_indent_line_function`, `call_end_of_subprogram_function`, `call_get_old_input`, `call_callback`, `call_entry`, `call_rules`, `call_property_function`, `call_overlay_change_function`, `run_body_function`, `run_detector`, `run_action`, `run_point_hook`, `call_log_edit` | `execute_indent_line_function`, `execute_end_of_subprogram_function`, `execute_get_old_input`, `execute_callback`, `execute_entry`, `execute_rules`, `execute_property_function`, `execute_overlay_change_function`, `execute_body_function`, `execute_detector`, `execute_action`, `execute_point_hook`, `execute_log_edit`; the unused `call_diff_function` is gone |
-| `vc_call_root`, `vc_call_responsible`, `is_vc_call_make_version_backups` | `vc_execute_root`, `vc_execute_responsible`, `is_vc_make_version_backups` |
-| `execute_charset` (it tests membership) | `match_charset` |
+| `vc_call_root`, `vc_call_responsible`, `is_vc_call_make_version_backups` | `version_control_execute_root`, `version_control_execute_responsible`, `is_version_control_make_version_backups` |
+| `execute_charset` (it tests membership) | `match_character_set` |
 
 **Other synonyms (V2).**  Internal helpers; upstream names keep their
-words (a name whose citation uses the word stays: `buf_fetch_char`,
-`bidi_fetch_character`, `new_process`, `new_marker_at`, `push_mark`,
+words (a name whose citation uses the word stays: `buffer_fetch_character`,
+`bidirectional_fetch_character`, `new_process`, `new_marker_at`, `push_mark`,
 `append_to_register`, `overlay_put`, `put_text_property`).
 
 | Meaning | Word | Examples |
@@ -1186,9 +1186,9 @@ words (a name whose citation uses the word stays: `buf_fetch_char`,
 | construct | make_ (new_) | `make_info`, `make_node`, `make_table`, `make_token`, `make_keymap_slot` (keymap_mod's `make_keymap` is upstream's) |
 | destroy | destroy_ (release, free_; R2-Q6) | `destroy_dead_window`, `table_destroy` (until the verb-first rename, R6-17), `destroy_marker_if_live`, `destroy_marker_position` |
 | forget a buffer-local value | clear_local, clear_X_locals (drop_local, free_local, reset_local, kill_local; R2-Q3) | isearch's `%clear_local`, `search_function_clear_local`, data_buffer_mod's `clear_local` |
-| a setting's local value | set_local_X, clear_local_X (X_set_local, X_clear_local; R6-17) | `abbrev_table_set_local`, `blink_matching_check_function_clear_local`, `electric_indent_characters_set_local` (until the verb-first rename, R6-17) |
+| a setting's local value | set_local_X, clear_local_X (X_set_local, X_clear_local; R6-17) | `abbreviation_table_set_local`, `blink_matching_check_function_clear_local`, `electric_indent_characters_set_local` (until the verb-first rename, R6-17) |
 | a setting's current value | current_X, the binding `%current` (X_get, `%get`) | `fill_paragraph_function%current()`, `current_adaptive_fill`, `current_message_function` |
-| store | set (put) | `set_current`, `prec2_set`; put-text-property's helpers (`put_property`, `put_syntax`) keep Emacs's word, and output keeps put (`tty_put_bytes`, display_engine_mod's glyph `put`) |
+| store | set (put) | `set_current`, `prec2_set`; put-text-property's helpers (`put_property`, `put_syntax`) keep Emacs's word, and output keeps put (`terminal_put_bytes`, display_engine_mod's glyph `put`) |
 | grow an array by one | append_X, prepend_X at the front (push, add_, add_X_front; R2-Q4) | `append_string`, `append_record`, `prepend_record`, `append_undo_entry`, `buffer_order_append` (until the verb-first rename, R6-17); a stack's push (terminfo_mod, Info's history) stays; version_control_git_mod's helper that appends many is `append_all`; moving to the front is `move_to_front` |
 | draw the whole frame again; update what changed | redraw; redisplay (garbaged, SET_FRAME_GARBAGED, frame_garbaged; R6-9) | the frame flag `needs_redraw` (upstream `f->garbaged`), `redraw_frame`, `redraw_display`; `redisplay`, `redisplay_internal` |
 | a pair of steps | X_begin, X_end (finish, save, restore; R2-Q9) | `major_mode_end` and the binding `%end`, `fn_begin`, `fn_end` |
@@ -1223,20 +1223,20 @@ unchanged (C-w, M-w, C-y, M-y, C-x k, C-x C-c); help and messages follow
 | Before | After |
 |---|---|
 | `kill_region`, `kill_line`, `kill_word`, `backward_kill_word`, `kill_whole_line`, `kill_sentence`, `backward_kill_sentence`, `kill_paragraph`, `backward_kill_paragraph`, `kill_sexp`/`kill_expression`, `backward_kill_expression`, `kill_rectangle`, `kill_comment`, `comment_kill`, `kill_matching_lines`, `kill_or_copy_matching_lines`, `kill_backward_up_list` | `cut_region`, `cut_line`, `cut_word`, `backward_cut_word`, `cut_whole_line`, `cut_sentence`, `backward_cut_sentence`, `cut_paragraph`, `backward_cut_paragraph`, `cut_expression`, `backward_cut_expression`, `cut_rectangle`, `cut_comment`, `comment_cut`, `cut_matching_lines`, `cut_or_copy_matching_lines`, `cut_backward_up_group` |
-| `kill_ring_save`, `copy_region_as_kill`, `copy_rectangle_as_kill`, `dired_copy_filename_as_kill`, `ibuffer_copy_filename_as_kill`, `ibuffer_copy_buffername_as_kill`, `log_view_copy_revision_as_kill`, `diff_kill_ring_save` | `copy_region`, `copy_region_quietly` (the same without showing the copied text), `copy_rectangle`, `dired_copy_filename`, `ibuffer_copy_filename`, `ibuffer_copy_buffername`, `log_view_copy_revision`, `diff_copy_region` |
-| `yank`, `yank_pop`, `clipboard_yank`, `yank_rectangle`, `insert_for_yank`, `yank_handler`, `yank_excluded_properties`, `yank_transform_functions`, `yank_undo_function`, `rotate_yank_pointer`, `isearch_yank_kill`, `isearch_yank_char` (and the other `isearch_yank_*`), `bookmark_yank_word`, `ibuffer_yank` | `paste`, `paste_previous`, `paste_clipboard`, `paste_rectangle`, `insert_for_paste`, `paste_handler`, `paste_excluded_properties`, `paste_transform_functions`, `paste_undo_function`, `rotate_paste_pointer`, `isearch_paste`, `isearch_paste_character`, `bookmark_paste_word`, `ibuffer_paste` |
+| `kill_ring_save`, `copy_region_as_kill`, `copy_rectangle_as_kill`, `dired_copy_filename_as_kill`, `ibuffer_copy_filename_as_kill`, `ibuffer_copy_buffername_as_kill`, `log_view_copy_revision_as_kill`, `diff_kill_ring_save` | `copy_region`, `copy_region_quietly` (the same without showing the copied text), `copy_rectangle`, `directory_editor_copy_filename`, `ibuffer_copy_filename`, `ibuffer_copy_buffername`, `log_view_copy_revision`, `diff_copy_region` |
+| `yank`, `yank_pop`, `clipboard_yank`, `yank_rectangle`, `insert_for_yank`, `yank_handler`, `yank_excluded_properties`, `yank_transform_functions`, `yank_undo_function`, `rotate_yank_pointer`, `isearch_yank_kill`, `isearch_yank_char` (and the other `isearch_yank_*`), `bookmark_yank_word`, `ibuffer_yank` | `paste`, `paste_previous`, `paste_clipboard`, `paste_rectangle`, `insert_for_paste`, `paste_handler`, `paste_excluded_properties`, `paste_transform_functions`, `paste_undo_function`, `rotate_paste_pointer`, `incremental_search_paste`, `incremental_search_paste_character`, `bookmark_paste_word`, `ibuffer_paste` |
 | `kill_ring`, `kill_ring_max`, `kill_ring_yank_pointer`, `kill_new`, `kill_append`, `current_kill`, `kill_transform_function`, `kill_do_not_save_duplicates`, `kill_read_only_ok`, `killed_rectangle`, `select_enable_clipboard`, delete-char's KILLFLAG | `clipboard_history`, `clipboard_history_maximum`, `clipboard_history_paste_pointer`, `copy_to_clipboard_history`, `append_to_clipboard_entry`, `current_clipboard_entry`, `clipboard_history_transform_function`, `clipboard_history_no_duplicates`, `cut_read_only_ok`, `last_cut_rectangle`, `share_clipboard`, CUT |
-| text removed without the clipboard history (delete-region upstream): `bookmark_kill_line`, `diff_kill_junk`; lines removed from a listing ("Remove all marked lines"): `dired_kill_line`, `dired_do_kill_lines`, `dired_kill_subdir`, `ibuffer_do_kill_lines`, `vc_dir_kill_line` | `bookmark_delete_line`, `diff_delete_junk`; `dired_remove_line`, `dired_do_remove_lines`, `dired_remove_subdirectory`, `ibuffer_do_remove_lines`, `vc_directory_remove_line` |
+| text removed without the clipboard history (delete-region upstream): `bookmark_kill_line`, `diff_kill_junk`; lines removed from a listing ("Remove all marked lines"): `dired_kill_line`, `dired_do_kill_lines`, `dired_kill_subdir`, `ibuffer_do_kill_lines`, `vc_dir_kill_line` | `bookmark_delete_line`, `diff_delete_junk`; `directory_editor_remove_line`, `directory_editor_do_remove_lines`, `directory_editor_remove_subdirectory`, `ibuffer_do_remove_lines`, `version_control_directory_remove_line` |
 | `diff_hunk_kill`, `diff_file_kill`, `diff_revert_and_kill_hunk`, `ibuffer_kill_line`, `ibuffer_kill_filter_group`, `ibuffer_filter_group_kill_ring` | `diff_hunk_cut`, `diff_file_cut`, `diff_revert_and_cut_hunk`, `ibuffer_cut_line`, `ibuffer_cut_filter_group`, `ibuffer_cut_filter_groups` |
 | `kill_buffer`, `kill_buffer_hook`, `kill_buffer_query_functions`, `kill_this_buffer`, `kill_buffer_if_not_modified`, `log_edit_kill_buffer`, `quit_window_kill_buffer`, `view_kill_and_leave`, `shell_kill_buffer_on_exit`, `dired_kill_when_opening_new_dired_buffer`, `ibuffer_do_kill_on_deletion_marks`, `window_restore_killed_buffer_windows`, switch-to-prev-buffer's BURY-OR-KILL | `close_buffer`, `close_buffer_hook`, `close_buffer_query_functions`, `close_this_buffer`, `close_buffer_if_not_modified`, `log_edit_close_buffer`, `quit_window_close_buffer`, `view_close_and_leave`, `shell_close_buffer_on_exit`, `dired_close_when_opening_new_dired_buffer`, `ibuffer_do_close_on_deletion_marks`, `window_restore_closed_buffer_windows`, BURY-OR-CLOSE (process.c's `kill_buffer_processes` keeps its name) |
-| `kill_process`, `kill_compilation`, `kill_grep`, `compilation_always_kill`, `comint_kill_subjob`, `vc_dir_kill_dir_status_process`; `stop_process`, `comint_stop_subjob` (they suspend a process: SIGTSTP) | `stop_process`, `stop_compilation`, `stop_grep`, `compilation_always_stop`, `comint_stop_subjob`, `vc_directory_stop_directory_status_process`; `suspend_process`, `comint_suspend_subjob` |
+| `kill_process`, `kill_compilation`, `kill_grep`, `compilation_always_kill`, `comint_kill_subjob`, `vc_dir_kill_dir_status_process`; `stop_process`, `comint_stop_subjob` (they suspend a process: SIGTSTP) | `stop_process`, `stop_compilation`, `stop_grep`, `compilation_always_stop`, `comint_stop_subjob`, `version_control_directory_stop_directory_status_process`; `suspend_process`, `command_interpreter_suspend_subjob` |
 | `kill_emacs`, `kill_emacs_hook`, `kill_emacs_query_functions`, `save_buffers_kill_emacs`, `save_buffers_kill_terminal` | `exit_fortmacs`, `exit_fortmacs_hook`, `exit_fortmacs_query_functions`, `save_buffers_exit_fortmacs`, `save_buffers_exit_terminal` (R6-21: fortmacs, not emacs) |
-| `kill_local_variable`, `kill_all_local_variables`, `kill_local`, `kill_X_locals`, `kill_delayed_mode_hooks`, `kill_all_abbrevs`, data_mod's `killers` | `clear_local_variable`, `clear_all_local_variables`, `clear_local`, `clear_X_locals`, `clear_delayed_mode_hooks`, `clear_all_abbrevs`, `locals_clearers` |
+| `kill_local_variable`, `kill_all_local_variables`, `kill_local`, `kill_X_locals`, `kill_delayed_mode_hooks`, `kill_all_abbrevs`, data_mod's `killers` | `clear_local_variable`, `clear_all_local_variables`, `clear_local`, `clear_X_locals`, `clear_delayed_mode_hooks`, `clear_all_abbreviations`, `locals_clearers` |
 
 R6-43 (2026-11-04): "stop" ends a process and "suspend" pauses it
 (SIGTSTP), as the table above says; tools/fortran-names.d now records
 the whole chain, so upstream's comint-stop-subjob and stop-process map
-to `comint_suspend_subjob` and `suspend_process` in freshly ported code
+to `command_interpreter_suspend_subjob` and `suspend_process` in freshly ported code
 and in tools/unported-commands.sh's probe, while the ported
 `comint_stop_subjob` (comint-kill-subjob) and `stop_process`
 (kill-process) are kept by name in the files that hold them.
@@ -1259,9 +1259,9 @@ deleted.
 
 | Before | After |
 |---|---|
-| `free_marker`, `free_keymap`, `free_overlay`, `free_process`, `free_timer`, `free_window`, `free_char_table`, `ewoc_free`, `table_free` | `destroy_marker`, `destroy_keymap`, `destroy_overlay`, `destroy_process`, `destroy_timer`, `destroy_window`, `destroy_character_table`, `destroy_ewoc`, `table_destroy` (until the verb-first rename, R6-17) (a free slot, a free buffer name and Dired's free space stay adjectives) |
+| `free_marker`, `free_keymap`, `free_overlay`, `free_process`, `free_timer`, `free_window`, `free_char_table`, `ewoc_free`, `table_free` | `destroy_marker`, `destroy_keymap`, `destroy_overlay`, `destroy_process`, `destroy_timer`, `destroy_window`, `destroy_character_table`, `destroy_fortmacs_widget_for_object_collections`, `table_destroy` (until the verb-first rename, R6-17) (a free slot, a free buffer name and Dired's free space stay adjectives) |
 | `make_directory`, `make_temp_file`, `make_symbolic_link`, `make_empty_file`, `make_backup_files` | `create_directory`, `create_temporary_file`, `create_symbolic_link`, `create_empty_file`, `create_backup_files` |
-| `create_file_buffer`, `get_buffer_create`, `ewoc_create` | `make_file_buffer`, `get_or_make_buffer`, `make_ewoc` |
+| `create_file_buffer`, `get_buffer_create`, `ewoc_create` | `make_file_buffer`, `get_or_make_buffer`, `make_fortmacs_widget_for_object_collections` |
 
 **Lists of records (R2-Q8, R2-Q14).**  An alist, or an array named
 `_list`, has a plural name without a suffix (replacing alist → `_table`);
@@ -1270,9 +1270,9 @@ function returning one (`buffer_list`) stays.
 
 | Before | After |
 |---|---|
-| `auto_mode_alist`, `auto_coding_alist`, `backup_directory_alist`, `bookmark_alist`, `register_alist`, `save_place_alist`, `compilation_error_regexp_alist_alist`, `grep_regexp_alist`, `insert_pair_alist`, `tty_color_alist` | `auto_modes`, `auto_codings`, `backup_directories`, `bookmarks`, `registers`, `save_places`, `compilation_error_regular_expressions`, `grep_regular_expressions`, `insert_pairs`, `tty_colors` |
-| where the plain plural is taken or unclear: `minor_mode_alist`, `coding_system_alist`, `conf_space_keywords_alist`, `font_lock_keywords_alist`, `display_buffer_alist`, `dired_compress_file_alist`, `dired_switches_alist`, display_buffer's action alist | `minor_mode_lighters`, `coding_system_names`, `configuration_space_keywords_by_file`, `font_lock_added_keywords`, `display_buffer_rules`, `dired_compress_file_commands`, `dired_switches_by_directory`, `display_action_parameters_type` |
-| `tab_stop_list`, `makefile_runtime_macros_list`, `recentf_list`, `timer_list`, `timer_idle_list`, `buffer_undo_list`, `help_event_list`, `info_directory_list`, `abbrev_table_name_list`, `auto_revert_buffer_list` | `tab_stops`, `makefile_runtime_macros`, `recentf_files`, `active_timers`, `active_idle_timers`, `buffer_undo_entries`, `help_events`, `info_directories`, `abbrev_tables`, `auto_revert_mode_buffers` |
+| `auto_mode_alist`, `auto_coding_alist`, `backup_directory_alist`, `bookmark_alist`, `register_alist`, `save_place_alist`, `compilation_error_regexp_alist_alist`, `grep_regexp_alist`, `insert_pair_alist`, `tty_color_alist` | `auto_modes`, `auto_codings`, `backup_directories`, `bookmarks`, `registers`, `save_places`, `compilation_error_regular_expressions`, `grep_regular_expressions`, `insert_pairs`, `terminal_colors` |
+| where the plain plural is taken or unclear: `minor_mode_alist`, `coding_system_alist`, `conf_space_keywords_alist`, `font_lock_keywords_alist`, `display_buffer_alist`, `dired_compress_file_alist`, `dired_switches_alist`, display_buffer's action alist | `minor_mode_lighters`, `coding_system_names`, `configuration_space_keywords_by_file`, `font_lock_added_keywords`, `display_buffer_rules`, `directory_editor_compress_file_commands`, `dired_switches_by_directory`, `display_action_parameters_type` |
+| `tab_stop_list`, `makefile_runtime_macros_list`, `recentf_list`, `timer_list`, `timer_idle_list`, `buffer_undo_list`, `help_event_list`, `info_directory_list`, `abbrev_table_name_list`, `auto_revert_buffer_list` | `tab_stops`, `makefile_runtime_macros`, `recent_files_files`, `active_timers`, `active_idle_timers`, `buffer_undo_entries`, `help_events`, `info_directories`, `abbreviation_tables`, `auto_revert_mode_buffers` |
 
 **Pairs (R2-Q9).**  Steps around a block are `X_begin`/`X_end`: the
 major modes' `%finish` binding is `%end`.
@@ -1288,15 +1288,15 @@ a logical mask (`pack`, `count`, `any` with an elemental `is_*`).
 | Before | After |
 |---|---|
 | `command_proc`, `yank_handler_proc`, `process_filter_proc`, `after_change_function` (an interface), `ynp_actor`, `transpose_mover` | `command_procedure`, `paste_handler_procedure`, `process_filter_procedure`, `after_change_procedure`, `ynp_actor_procedure`, `transpose_mover_procedure` |
-| `comint_check_proc`, `proc`, `procs`, `oldproc` | `comint_check_process`, `process`, `processes`, `old_process` |
-| procedures and pointers named `_proc`: javascript_mod's and sgml_mode_mod's `indent_line_proc`, saveplace's `save_place_dired_hook_proc`, font_core_mod's `font_lock_mode_internal_proc`, `is_font_lock_specified_proc` | `indent_line_adapter`, `save_place_dired_hook_adapter`, `font_lock_mode_internal_hook`, `font_lock_specified_test` |
-| `minibuffer_completion_predicate`, `fill_nobreak_predicate`, `isearch_filter_predicate`, `electric_pair_inhibit_predicate`, `backup_enable_predicate`, `show_paren_predicate`, `ibuffer_never_show_predicates`, `completion_table_with_predicate`, a PREDICATE argument | `minibuffer_completion_test_function`, `fill_nobreak_functions`, `isearch_filter_test_function`, `electric_pair_inhibit_test_function`, `backup_enable_test_function`, `show_parenthesis_test_function`, `ibuffer_never_show_tests`, `completion_table_with_test`, TEST |
-| the 27 types without `_type`: `logical_setting`, `integer_setting`, `string_setting`, `history_setting`, `function_setting`, `isearch_state`, `access_state`, `tty_display_info`, ... | `logical_setting_type`, `integer_setting_type`, `string_setting_type`, `history_setting_type`, `function_setting_type`, `isearch_state_type`, `access_state_type`, `tty_display_info_type`, ... |
+| `comint_check_proc`, `proc`, `procs`, `oldproc` | `command_interpreter_check_process`, `process`, `processes`, `old_process` |
+| procedures and pointers named `_proc`: javascript_mod's and sgml_mode_mod's `indent_line_proc`, saveplace's `save_place_dired_hook_proc`, font_core_mod's `font_lock_mode_internal_proc`, `is_font_lock_specified_proc` | `indent_line_adapter`, `save_place_directory_editor_hook_adapter`, `font_lock_mode_internal_hook`, `font_lock_specified_test` |
+| `minibuffer_completion_predicate`, `fill_nobreak_predicate`, `isearch_filter_predicate`, `electric_pair_inhibit_predicate`, `backup_enable_predicate`, `show_paren_predicate`, `ibuffer_never_show_predicates`, `completion_table_with_predicate`, a PREDICATE argument | `minibuffer_completion_test_function`, `fill_nobreak_functions`, `incremental_search_filter_test_function`, `electric_pair_inhibit_test_function`, `backup_enable_test_function`, `show_parenthesis_test_function`, `ibuffer_never_show_tests`, `completion_table_with_test`, TEST |
+| the 27 types without `_type`: `logical_setting`, `integer_setting`, `string_setting`, `history_setting`, `function_setting`, `isearch_state`, `access_state`, `tty_display_info`, ... | `logical_setting_type`, `integer_setting_type`, `string_setting_type`, `history_setting_type`, `function_setting_type`, `incremental_search_state_type`, `access_state_type`, `terminal_display_info_type`, ... |
 
 **Named constants (R2-Q15, R2-Q16, R2-Q17).**  A constant starts with
 its option's full name; a value set several options share is defined
 once under a shared stem only when the stem is the common start of the
-sharing options' names (`DABBREV_*`, `SH_PLUS`
+sharing options' names (`DABBREV_*`, `SHELL_PLUS`
 for the sh_indent_* choice settings, `DIRED_RECURSIVE_*`,
 `ANSI_COLOR_*`); otherwise each option gets its own family with its full
 name as prefix (`SGML_QUICK_KEYS_INDENT` and `HTML_QUICK_KEYS_INDENT`,
@@ -1308,7 +1308,7 @@ vocabulary is `_NO` (off), `_YES` (on), `_NONE` (no item or value
 chosen), `_ASK` (prompt each time) and `_ALWAYS` (only where a family
 also has `_YES`); "no limit" is
 `_UNLIMITED`; distinct behaviors keep their own names (`_FIRST_ERROR`,
-`_VISIT_SAVE`, `SH_PLUS`).  Options are named positively (R2-Q18b).
+`_VISIT_SAVE`, `SHELL_PLUS`).  Options are named positively (R2-Q18b).
 Since R6-38 a setting's off and on states are `.false.` and `.true.`, not
 `_NO` and `_YES` ("Choice settings"); the table shows the names of that time.
 This applies to settings only: internal enumerations such as arguments,
@@ -1317,9 +1317,9 @@ record fields and face attribute states keep `_NO`/`_YES` (`FACE_NO`/`FACE_YES`,
 
 | Before | After |
 |---|---|
-| `UPPER_CASE_NO`, `UPPER_CASE_NOT_YANKS`, `JUSTIFY_NONE`, `COMPILATION_SCROLL_NO`, `SHOW_PAREN_MIXED`, `SPLIT_LONGEST`, `UNTABIFY_METHOD_HUNGRY`, `DIFF_LABELS_CHECK`, `IBUFFER_HEADER_LINE_TITLE`, `COMINT_MOVE_OTHERS` | `SEARCH_UPPER_CASE_NO`, `SEARCH_UPPER_CASE_NOT_PASTED`, `DEFAULT_JUSTIFICATION_NONE`, `COMPILATION_SCROLL_OUTPUT_NO`, `SHOW_PARENTHESIS_STYLE_MIXED`, `SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST`, `BACKWARD_DELETE_CHARACTER_UNTABIFY_METHOD_HUNGRY`, `DIFF_USE_LABELS_CHECK`, `IBUFFER_USE_HEADER_LINE_TITLE`, `COMINT_MOVE_POINT_FOR_OUTPUT_OTHERS` |
+| `UPPER_CASE_NO`, `UPPER_CASE_NOT_YANKS`, `JUSTIFY_NONE`, `COMPILATION_SCROLL_NO`, `SHOW_PAREN_MIXED`, `SPLIT_LONGEST`, `UNTABIFY_METHOD_HUNGRY`, `DIFF_LABELS_CHECK`, `IBUFFER_HEADER_LINE_TITLE`, `COMINT_MOVE_OTHERS` | `SEARCH_UPPER_CASE_NO`, `SEARCH_UPPER_CASE_NOT_PASTED`, `DEFAULT_JUSTIFICATION_NONE`, `COMPILATION_SCROLL_OUTPUT_NO`, `SHOW_PARENTHESIS_STYLE_MIXED`, `SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST`, `BACKWARD_DELETE_CHARACTER_UNTABIFY_METHOD_HUNGRY`, `DIFF_USE_LABELS_CHECK`, `IBUFFER_USE_HEADER_LINE_TITLE`, `COMMAND_INTERPRETER_MOVE_POINT_FOR_OUTPUT_OTHERS` |
 | `DABBREV_OFF`, `DABBREV_ON`, `FACE_OFF`, `FACE_ON`, `FINAL_NEWLINE_NEVER`, `SAVE_ABBREVS_NEVER`, `KMACRO_EXECUTE_REPEAT_DISABLED`, `MESSAGE_LOG_DISABLED`, `IBUFFER_SHOW_LAST_ALWAYS` (no `_YES` beside it), `LOG_EDIT_CONFIRM_ALWAYS`, `VC_DIR_MASS_MARK_ALWAYS` | `DABBREV_NO`, `DABBREV_YES`, `FACE_NO`, `FACE_YES`, `FINAL_NEWLINE_NO`, `SAVE_ABBREVS_NO`, `KMACRO_EXECUTE_REPEAT_KEY_NO`, `MESSAGE_LOG_MAX_NO`, `IBUFFER_ALWAYS_SHOW_LAST_BUFFER_YES`, `LOG_EDIT_CONFIRM_YES`, `VC_DIR_ALLOW_MASS_MARK_CHANGES_YES` |
-| `RECENTF_NO_LIMIT`, `SAVE_PLACE_NO_LIMIT`, `MESSAGE_LOG_UNLIMITED` | `RECENTF_MAXIMUM_SAVED_ITEMS_UNLIMITED`, `SAVE_PLACE_LIMIT_UNLIMITED`, `MESSAGE_LOG_MAX_UNLIMITED` (`FILL_COLUMN_NONE` stays: no column set) |
+| `RECENTF_NO_LIMIT`, `SAVE_PLACE_NO_LIMIT`, `MESSAGE_LOG_UNLIMITED` | `RECENT_FILES_MAXIMUM_SAVED_ITEMS_UNLIMITED`, `SAVE_PLACE_LIMIT_UNLIMITED`, `MESSAGE_LOG_MAX_UNLIMITED` (`FILL_COLUMN_NONE` stays: no column set) |
 | `shell_command_dont_erase_buffer`: `DONT_ERASE_NO`, `DONT_ERASE_ERASE`, `DONT_ERASE_BEG_LAST_OUT`, `DONT_ERASE_END_LAST_OUT`, `DONT_ERASE_SAVE_POINT` | `shell_command_keep_output`: `SHELL_COMMAND_KEEP_OUTPUT_NO` (the default), `_ERASE_CURRENT` (R3-4; first `_ERASE`), `_BEGINNING_OF_LAST_OUTPUT`, `_END_OF_LAST_OUTPUT`, `_SAVE_POINT` |
 | `no_redraw_on_reenter` (step 42e) | `redraw_after_suspend` (.true. by default: the value inverted) |
 | shared stems that were not the common start of their options' names (#261): `QUICK_KEYS_INDENT`, `_CLOSE`, `_DEFAULT`; `FINAL_NEWLINE_VISIT`, `_VISIT_SAVE`, `_ASK`; `COMINT_AUTOEXPAND_INPUT`, `_HISTORY` | `SGML_QUICK_KEYS_INDENT`, `_CLOSE` and `HTML_QUICK_KEYS_INDENT`, `_CLOSE`, `_DEFAULT`; `REQUIRE_FINAL_NEWLINE_*` and `MODE_REQUIRE_FINAL_NEWLINE_*`; `COMINT_INPUT_AUTOEXPAND_*` and `SHELL_INPUT_AUTOEXPAND_*` |
@@ -1379,8 +1379,38 @@ tools/fortran-names.d/2026-11-05-spell-out-words):
   completion categories; the cat program is only named in strings);
   flyspell and ispell are one family, spellcheck (`spellcheck_mode`,
   `spellcheck_programming_mode`, `spellcheck_buffer`, `spellcheck_word`;
-  a flyspell name that would take an ispell one is named after its
-  module, spellcheck_mode: `spellcheck_mode_word`); "diff" stays;
+  panel, 2026-11-05: Ispell keeps the plain names, and a Flyspell command
+  that would take one ends in `_highlight`, `spellcheck_word_highlight`,
+  `spellcheck_buffer_highlight`, `spellcheck_region_highlight`;
+  flyspell-overlay is `spellcheck_highlight_overlay`; Flyspell's other
+  names take no infix, `auto_correct_spellcheck_word`); init initialize
+  (init_file and its kin initialization_file, js-indent-first-init an
+  initializer); "diff" stays;
+- package words (owner, 2026-11-05, for every name): vc version_control
+  (hg mercurial, svn subversion, cvs concurrent_versions_system), dired
+  directory_editor, ediff fortmacs_diff, comint command_interpreter, sh
+  shell (sh-mode and the names that would meet shell.el's are
+  `shell_script_mode`, ...), xref cross_reference, smie
+  simple_minded_indentation_engine, isearch incremental_search, abbrev
+  abbreviation, dabbrev dynamic_abbreviation, tty terminal, kmacro
+  keyboard_macro, edmacro keyboard_macro_editor, imenu index_menu, bidi
+  bidirectional, smerge simple_merge, js javascript, pcomplete
+  programmable_completion, recentf recent_files, bmenu bookmark_menu,
+  mule multilingual_environment, ewoc
+  fortmacs_widget_for_object_collections, savehist save_history, async
+  asynchronous, cm cursor_motion, etags fortmacs_tags (the etags program
+  and the TAGS format keep theirs), jit just_in_time, charset
+  character_set, prog programming, crm completing_read_multiple, rmc
+  read_multiple_choice, recc regular_expression_character_class, bnf
+  backus_naur_form, bom byte_order_mark, gui graphical_user_interface, rif
+  redisplay_interface, subr basic_subprograms (transpose-subr's subr a
+  subroutine), nts nonterminals, pcm partial_completion_mode, gmake
+  gnu_make, eoh/eop end_of_headers/end_of_paragraph, bmk/bmrk bookmark, io
+  input_output, cpp c_preprocessor, el element, defs definitions;
+  ibuffer stays (a package name), and so do the module suffix `_mod`,
+  POSIX utilities (ls, cd), the Tib program (tib) and cc (a cost, CC Mode,
+  the Cc header); a name that would pass Fortran's 63 characters leaves
+  out a repeated or least telling word (`dynamic_abbreviation_skip_leading_regular_expression`);
 - prefixes and suffixes: a command's procedure is `execute_X` (cmd_X),
   a module's one-time setup `initialize_X` (init_X), an error code
   `X_CODE` (FM_X: `QUIT_CODE`, `ARITHMETIC_ERROR_CODE`); a variable that
@@ -1396,18 +1426,29 @@ of the table rename text only where a name is written in it (a word with
 an underscore, or, in a comment, an upper-case or quoted argument name:
 `BUF`, `` `pos' ``), so program text in tests, environment variables and
 file names stay (keep entries for the rest).  Citations keep upstream's
-names.  No aliases: an old name is gone, not kept for completion.  Where
+names.  No aliases: an old name is gone, not kept for completion, M-x
+or help; where an upstream alias would take its command's spelled-out
+name (javascript-mode, js-mode's alias), the two are one command.  A
+file written for Emacs still gives its mode by upstream's name: modes_mod
+(tools/gen-modes.sh) holds a table of the upstream names of the modes
+whose Fortran name differs, read from the citations of the modes'
+procedures, and files_mode_mod consults it only when NAME_mode is not a
+mode (`-*- mode: sh -*-` is `shell_script_mode`, `mode: conf-unix`
+`configuration_unix_mode`; panel, 2026-11-05).  Where
 two spelled-out names meet, CLAUDE.md's suffix rule applies (`_variable`:
 which-func-mode is `which_function_mode_variable` beside the minor mode
 `which_function_mode`); otherwise the one that is not the plain Emacs name
-gets a name for its role (`isearch_delete_end_character` beside
-`isearch_delete_character`, `comint_range_arguments` beside
-`comint_arguments`, `winner_current_configuration` beside
+gets a name for its role (`incremental_search_delete_end_character` beside
+`incremental_search_delete_character`, `command_interpreter_range_arguments` beside
+`command_interpreter_arguments`, `winner_current_configuration` beside
 `winner_configuration`, the face `which_function_face` beside the
-function `which_function`).  No double underscore: where the plain name
+function `which_function`, `shell_indentation_variables` beside
+`shell_variables`; panel, 2026-11-05: the hook variable
+ispell-kill-ispell-hook is `spellcheck_kill_spellcheck_hook_variable`
+beside the function flyspell-kill-ispell-hook).  No double underscore: where the plain name
 is taken a suffix names the role (`smie__parent`, `smie__after`,
 `shell__unquote_argument`, `rectangle__insert_for_yank` are
-`smie_parent_variable`, `smie_after_variable`,
+`simple_minded_indentation_engine_parent_variable`, `simple_minded_indentation_engine_after_variable`,
 `shell_unquote_argument_internal`, `rectangle_insert_for_paste_internal`;
 `syntax_propertize__done` is `syntax_propertize_done`).
 
@@ -1428,7 +1469,7 @@ The owner settled the questions steps 41 and 40d raised; the audit of
 
 | Question | Decision |
 |---|---|
-| stop-process (SIGSTOP) beside kill-process (R3-1) | `suspend_process` suspends (`continue_process` resumes), `stop_process` ends; `comint_suspend_subjob` (C-c C-z), `comint_stop_subjob` (C-c C-k) |
+| stop-process (SIGSTOP) beside kill-process (R3-1) | `suspend_process` suspends (`continue_process` resumes), `stop_process` ends; `command_interpreter_suspend_subjob` (C-c C-z), `comint_stop_subjob` (C-c C-k) |
 | add-hook's two places (R3-2) | `%prepend(fn, depth, local)` is add-hook's default (the front, depth 0), `%append(fn, depth, local)` add-hook with APPEND (depth 90, upstream's `t`); `%remove` is remove-hook; every ported `(add-hook ...)` uses the one upstream's arguments mean |
 | face attribute states (R3-3) | `FACE_NO`, `FACE_YES`, `FACE_UNSPECIFIED`, `FACE_COLOR` stay |
 | shell-command-dont-erase-buffer's fifth value `erase` (R3-4) | `SHELL_COMMAND_KEEP_OUTPUT_ERASE_CURRENT` (erase even the current buffer); `.false.` is the default (R6-38) |
@@ -1443,10 +1484,10 @@ The owner settled the questions steps 41 and 40d raised; the audit of
 | Quail's "library" (R3-13) | module: `quail_package_module_type`, `define_quail_packages_procedure`, `quail_package_modules` |
 | skeleton.el's elements and expressions (R4-1, R4-2) | named for what they do: `SKELETON_NEWLINE`, `SKELETON_POINT`, `SKELETON_POINT_OVERRIDE`, `SKELETON_INDENT`, `SKELETON_POSITION`, `SKELETON_IF_MOVED`, `SKELETON_IF_NOT_MOVED`, `SKELETON_STRING`, `SKELETON_RESUME`, `SKELETON_V1`, `SKELETON_V2`, `SKELETON_END`; a quoted expression is `skeleton_action(p)` (run for its effect), another `skeleton_value(p)` (sets `skeleton_state%value`); a quit's data are `SKELETON_QUIT_ITERATION` and `SKELETON_QUIT_RECURSIVE`, and a quit prints "Quit" |
 | the pre-filled prompt text (R4-3) | `initial_input` everywhere: `skeleton_state%initial_input` and `%initial_position`, and the readers' argument (`read_from_minibuffer`, `completing_read`, `read_file_name`, crm) |
-| skeleton-pair-alist and the others (R4-4) | `skeleton_pairs`, `skeleton_default_pairs`, `sh_skeleton_default_pairs`: "pair" is bracket pairing (Electric Pair); the entries are `skeleton_pair_type(opening=, closing=)` |
+| skeleton-pair-alist and the others (R4-4) | `skeleton_pairs`, `skeleton_default_pairs`, `shell_skeleton_default_pairs`: "pair" is bracket pairing (Electric Pair); the entries are `skeleton_pair_type(opening=, closing=)` |
 | skeleton-further-elements (R4-5) | a buffer-local procedure `skeleton_further_elements(bind)`; the rule: entries of one shape are an array of records, settings of differing types are assigned in a procedure ("Lists in the config API") |
-| per-shell skeletons (R4-6) | `skeleton_variants_type`, chosen by `skeleton_filter_function` (sh-mode's `sh_skeleton_feature`) |
-| smie-config's rules (R4-7) | `smie_configuration_rule_type(mode=, method=, token=, normal=, new=, normal_kind=, new_kind=)`; messages and prompts in Fortran form (`SMIE_AFTER "then" -> 4`) |
+| per-shell skeletons (R4-6) | `skeleton_variants_type`, chosen by `skeleton_filter_function` (sh-mode's `shell_skeleton_feature`) |
+| smie-config's rules (R4-7) | `simple_minded_indentation_engine_configuration_rule_type(mode=, method=, token=, normal=, new=, normal_kind=, new_kind=)`; messages and prompts in Fortran form (`SIMPLE_MINDED_INDENTATION_ENGINE_AFTER "then" -> 4`) |
 | sgml-tag-alist's end-tag field (R4-8) | `SGML_END_TAG_NONE` (absent), `_DEFAULT` (an explicit nil), `_NO` (t), `_NEWLINES`, `_SKELETON` |
 | sgml-quick-keys and html-quick-keys (R4-9; changed by #261) | `.false.`, `.true.` (R6-38) and a family each (owner, #261, 2026-11-04): `SGML_QUICK_KEYS_INDENT`, `_CLOSE`; `HTML_QUICK_KEYS_INDENT`, `_CLOSE` (taken from sgml-quick-keys), with `HTML_QUICK_KEYS_DEFAULT` for "follow sgml-quick-keys"; R4-9 had one shared `QUICK_KEYS_*` set |
 | the command and the variable sgml-tag-help (R4-10) | `sgml_tag_help` and `sgml_tag_help_variable` (the `_variable` rule) |
@@ -1495,7 +1536,7 @@ upstream measured; the numbers are the baselines to shrink.
   read_key_sequence, `where-is-preferred-modifier` ignored, `execute_error`
   without `cancel_echoing`, `this-original-command` missing,
   `delete_active_region` a logical though upstream has three states,
-  `character_set_mod`'s accessor layer against R3-6, `define_charset_internal` a
+  `character_set_mod`'s accessor layer against R3-6, `define_character_set_internal` a
   function with a side effect (R3-8).  Each goes into its module's status file as
   Deferred when it is not fixed in the PR that touches the module next.
 <!-- fortran-names: keep -->
@@ -1624,20 +1665,20 @@ The decisions that shaped this guide, with the owner's reasoning:
 | Question | Decision | Why |
 |---|---|---|
 | defun | subprogram | the standard's term for the source text of a function or subroutine; "procedure" is the callable entity |
-| a mode's own defun helpers | that language's term: `python_navigation_beginning_of_definition`, `makefile_add_log_target`, `sh_current_function_name`, `log_view_beginning_of_entry`, `css_current_rule_name`; generic commands, hooks and helpers that serve every mode keep subprogram (`search_subprogram_forward`, `add_log_current_subprogram`) | Python's reference calls def and class definitions; a Makefile has targets, a log entries, CSS rules |
+| a mode's own defun helpers | that language's term: `python_navigation_beginning_of_definition`, `makefile_add_log_target`, `shell_current_function_name`, `log_view_beginning_of_entry`, `css_current_rule_name`; generic commands, hooks and helpers that serve every mode keep subprogram (`search_subprogram_forward`, `add_log_current_subprogram`) | Python's reference calls def and class definitions; a Makefile has targets, a log entries, CSS rules |
 | sexp | expression | Fortran's primaries are names, constants and parenthesized groups, what C-M-f moves over |
 | list (a parenthesized group) | group | "list" means argument and I/O lists in Fortran |
 | alist | first `_table`; since R2-Q8 a plural name (`auto_modes`; `compilation_error_regular_expression_names` where it is only names) | an array of records is named for what it holds, as any array; only a real table gets `_table` |
 | `*_NIL`/`*_T` constants | meaningful names; two states become a logical | Fortran's own multi-state constants (IOSTAT_END, IEEE_POSITIVE_INF) are named for their meaning |
 | isearch-case-fold-search (nil, t, `yes`) | `CASE_FOLD_NO`, `CASE_FOLD_YES`, `CASE_FOLD_FORCED` | `yes` is M-c's forced folding; t is the plain "yes" |
-| kmacro-call-macro's NO-REPEAT | `KMACRO_REPEAT_YES`, `KMACRO_REPEAT_NO`; the argument is REPEAT | names read positively, never as a double negative (`KMACRO_NO_REPEAT_NO`) |
+| kmacro-call-macro's NO-REPEAT | `KEYBOARD_MACRO_REPEAT_YES`, `KEYBOARD_MACRO_REPEAT_NO`; the argument is REPEAT | names read positively, never as a double negative (`KMACRO_NO_REPEAT_NO`) |
 | constants shared by several settings (GREP_NIL, GREP_T) | one family per setting: `GREP_USE_NULL_DEVICE_*`, `GREP_USE_NULL_FILENAME_SEPARATOR_*`, `GREP_HIGHLIGHT_MATCHES_*` | each setting has its own states (only grep-highlight-matches has `always` and `auto`), so a generic pair would admit values the setting does not have |
 | face attribute states | `FACE_ON`, `FACE_OFF` kept; since R2-Q17 `FACE_YES`, `FACE_NO` | one constant vocabulary everywhere (`_NO`, `_YES`, `_NONE`, `_ASK`, `_ALWAYS`) |
 | kill (R2-Q2) | by meaning: text is cut, copied and pasted into the clipboard history; a buffer closed, a process stopped, Fortmacs exited, a local value cleared | one word per behavior: Emacs's "kill" means five different things |
 | growing an array (R2-Q4) | `append_X` at the end, `prepend_X` at the front; the config API's `%append` | the word says where the entry goes |
 | ending a life; files (R2-Q6, R2-Q13) | `make_`/`destroy_` for objects in memory, `create_`/`delete_` for files and directories on disk | Fortran's own pairs: ALLOCATE/DEALLOCATE in memory, OPEN with STATUS="new" and CLOSE with STATUS="delete" on disk |
 | keyword suffixes (R2-Q19) | only `_type`, `_procedure` and the module suffix | Fortran has one case-blind namespace, so only a type or an interface would clash with a variable of the same name |
-| "proc", "beg", `__` (R2-Q10, R2-Q18a, R2-Q20) | spelled out (`process`, `beginning`), the role as a suffix where a plain name is taken (`smie_parent_variable`) | names read as words |
+| "proc", "beg", `__` (R2-Q10, R2-Q18a, R2-Q20) | spelled out (`process`, `beginning`), the role as a suffix where a plain name is taken (`simple_minded_indentation_engine_parent_variable`) | names read as words |
 | wrong-type messages | "Wrong type argument: expected X, got VALUE", with a qualifier where the bare type loses what was checked: `integer (a character code)`, `integer (>= 0)`, `live type(window_type)`, `name`, `array` | it says what a declaration would say; predicate names (`characterp`) never appear |
 | values with no Fortran type | a null `value_type` is "unallocated"; a 0 or -1 sentinel is "none"; an absent prefix argument is "no prefix" | "unallocated" matches the test `.not. allocated(v%a)` |
 | pair (a cons) | never said: our types name their components, and upstream data is "two values, X and Y" | there is no pair type in Fortran; no "upstream's cons" aside |
@@ -1844,41 +1885,41 @@ scroll = .not. compilation_scroll_output%is_off()
   before and after, never invented.
 
   ```fortran
-  dired_recursive_deletes = .true.               ! delete recursively without asking (upstream always)
-  dired_recursive_deletes = DIRED_RECURSIVE_ASK  ! ask for each directory (upstream t)
-  dired_recursive_deletes = DIRED_RECURSIVE_TOP  ! ask for each top directory (upstream top)
-  dired_recursive_deletes = .false.              ! delete no non-empty directory (upstream nil)
+  directory_editor_recursive_deletes = .true.               ! delete recursively without asking (upstream always)
+  directory_editor_recursive_deletes = DIRECTORY_EDITOR_RECURSIVE_ASK  ! ask for each directory (upstream t)
+  directory_editor_recursive_deletes = DIRECTORY_EDITOR_RECURSIVE_TOP  ! ask for each top directory (upstream top)
+  directory_editor_recursive_deletes = .false.              ! delete no non-empty directory (upstream nil)
   ```
 
-  The owner's follow-ups of 2026-11-04: `dabbrev_case_distinction =
+  The owner's follow-ups of 2026-11-04: `dynamic_abbreviation_case_distinction =
   .true.` makes case differences count (upstream nil), `.false.` treats
   such expansions as the same (upstream t); compile.el's
   compilation-context-lines is `compilation_context` (`%lines = N`,
   COMPILATION_CONTEXT_TOP for upstream nil, COMPILATION_CONTEXT_NO_SCROLL
-  for upstream t); `dired_switches_in_mode_line` takes
-  DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, _AS_IS, `%characters = N` and
+  for upstream t); `directory_editor_switches_in_mode_line` takes
+  DIRECTORY_EDITOR_SWITCHES_IN_MODE_LINE_SORT_ORDER, _AS_IS, `%characters = N` and
   `%procedure => f`; the sh_indent_* options take `%columns = N` and
-  SH_PLUS … SH_SLASH; disabled-command-function is one choice setting,
+  SHELL_PLUS … SHELL_SLASH; disabled-command-function is one choice setting,
   keyboard_mod's `disabled_command_function_variable` (`= .false.` lets
   every command run, `%procedure => handler`; initialize_novice sets novice_mod's
   `disabled_command_function`).
 
   A setting with no on or off state upstream (`show_parenthesis_style`,
   `default_justification`, `compilation_context`,
-  `dired_switches_in_mode_line`, the sh_indent_* options) is a choice
+  `directory_editor_switches_in_mode_line`, the sh_indent_* options) is a choice
   setting too, whose `=` takes its constants only; a state upstream's doc gives to "any other non-nil
-  value" is `.true.` (`dired_movement_style = .true.` is
-  `DIRED_MOVEMENT_STYLE_BOUNDED`).
+  value" is `.true.` (`directory_editor_movement_style = .true.` is
+  `DIRECTORY_EDITOR_MOVEMENT_STYLE_BOUNDED`).
 - A setting whose upstream value can also be a function is that same
   object (R6-37): an extension of `choice_setting_type` adds
   `procedure(X_procedure), pointer, nopass :: procedure` and overrides
   `clear_kinds`, which every `=` calls, so `X = .true.` or
   `X = CONSTANT` clears a procedure set before, and `X%procedure =>
-  mine` sets one (`grep_save_buffers`, `dired_do_what_i_mean_target`,
+  mine` sets one (`grep_save_buffers`, `directory_editor_do_what_i_mean_target`,
   `electric_pair_skip_self`; `buffer_menu_name_width` is the same on an
   `integer_setting_type`: `= 19` or `%procedure => mine`).  Named
   upstream functions become named constants
-  (`ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE`, `DIRED_DO_WHAT_I_MEAN_TARGET_NEXT`).
+  (`ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE`, `DIRECTORY_EDITOR_DO_WHAT_I_MEAN_TARGET_NEXT`).
   An option that is only ever a function stays a plain procedure
   pointer.  The old sibling (`grep_save_buffers_function`,
   `buffer_menu_name_width_function`) became the component: components,
@@ -1886,9 +1927,9 @@ scroll = .not. compilation_scroll_output%is_off()
 - A value that can also be a number goes in a named component of the
   object, named for what the number is, and setting that component
   selects that kind (R6-39: `message_log_maximum%lines = 500`,
-  `bookmark_save_flag%modifications = 5`, `recentf_auto_cleanup%seconds
+  `bookmark_save_flag%modifications = 5`, `recent_files_auto_cleanup%seconds
   = 300`, `font_lock_maximum_decoration%level = 1`,
-  `kmacro_execute_repeat_key%char = iachar("e")`).  The design, in
+  `keyboard_macro_execute_repeat_key%char = iachar("e")`).  The design, in
   standard Fortran with plain component assignment: the component is
   negative while no number is set (so a declaration can give a default,
   `lines=1000`), every `=` resets it along with the procedure
@@ -1910,15 +1951,15 @@ scroll = .not. compilation_scroll_output%is_off()
   in the declaration when `.true.` or `.false.` is not a state
   (`show_parenthesis_style`, `default_justification`,
   `split_window_preferred_direction`, `compilation_context`,
-  `dired_switches_in_mode_line` and the sh_indent_* options take
-  neither; `dired_free_space`, `dired_mark_region`,
+  `directory_editor_switches_in_mode_line` and the sh_indent_* options take
+  neither; `directory_editor_free_space`, `directory_editor_mark_region`,
   `backward_delete_character_untabify_method` and
   `disabled_command_function_variable` take no `.true.`).  Any other `=`
   leaves the state as it was and records an error in data_mod's
   `setting_errors`: loading the init file reports each one like an
   error of `configure` ("An error occurred while loading the init file:
-  sh_indent_for_fi: 0 is not a value of this option; a number of columns
-  is `sh_indent_for_fi%columns = 0'", `initialization_file_had_error`), and
+  shell_indent_for_fi: 0 is not a value of this option; a number of columns
+  is `shell_indent_for_fi%columns = 0'", `initialization_file_had_error`), and
   `set_variable` and a buffer-local value set through its variable return
   it as a `wrong-type-argument` error.  The right assignment comes from the
   extension's `kind_hint` binding (the number or procedure it takes).
@@ -1989,7 +2030,7 @@ scroll = .not. compilation_scroll_output%is_off()
   element; a list of fixed-length strings is one array constructor
   (`properties = [character(len=32) :: "a", "b"]`).  A wrapper whose one
   component names something more than text stays (recent_files_mod's
-  `recentf_file_type` and coding_mod's `coding_system_list_entry_type`,
+  `recent_files_file_type` and coding_mod's `coding_system_list_entry_type`,
   both `%name` and in the config API), and so do types with more
   components.
 - Newer valgrind (Fedora's) reports `realloc() with size 0`, which
@@ -2099,21 +2140,21 @@ scroll = .not. compilation_scroll_output%is_off()
   `fill_paragraph_function`).
 
 - Shell-dependent settings (sh-script.el's tables read by `sh-feature`)
-  are typed feature tables, one per kind of value (`sh_strings_feature_type`,
-  `sh_keywords_feature_type`, `sh_string_feature_type`): `add` gives a
+  are typed feature tables, one per kind of value (`shell_strings_feature_type`,
+  `shell_keywords_feature_type`, `shell_string_feature_type`): `add` gives a
   shell its entry (with the shell whose value follows, for sh-append),
-  `get` looks the current shell up through `sh_ancestors`, finally
+  `get` looks the current shell up through `shell_ancestors`, finally
   sh.  An indentation variable holding a number or one of the symbols
-  + - ++ -- * / is a choice setting (`sh_indent_choice_setting_type`):
-  a number of columns in `%columns` (`sh_indent_for_fi%columns = 0`;
+  + - ++ -- * / is a choice setting (`shell_indent_choice_setting_type`):
+  a number of columns in `%columns` (`shell_indent_for_fi%columns = 0`;
   negative numbers indent left, so "no number" is the most negative
-  integer) or the shared named constants SH_PLUS … SH_SLASH by plain
-  assignment (`sh_indent_after_if = SH_PLUS`); `set_variable` reads the
+  integer) or the shared named constants SHELL_PLUS … SHELL_SLASH by plain
+  assignment (`shell_indent_after_if = SHELL_PLUS`); `set_variable` reads the
   constant names.  Its buffer-local values keep upstream's values (an
   integer, or the name + - ++ -- * /) through the `get_kind_value` and
   `set_kind_value` bindings of `choice_setting_type`, which data_buffer_mod
-  calls for a forwarded choice setting.  A style (`sh_style_type`) holds
-  `sh_indent_type(columns=N)` or `sh_indent_type(choice=SH_PLUS)` per
+  calls for a forwarded choice setting.  A style (`shell_style_type`) holds
+  `shell_indent_type(columns=N)` or `shell_indent_type(choice=SHELL_PLUS)` per
   variable.
 
 - Keymaps are registry objects too. Prefix maps made by `define_key` and
@@ -2131,7 +2172,7 @@ scroll = .not. compilation_scroll_output%is_off()
   array (`move_alloc` included) whose type has an associated procedure
   pointer component with a function interface returning
   `character(len=:), allocatable`: it frees the procedure as if it were
-  an allocatable result.  Subroutine pointers are safe.  `vc_backends`,
+  an allocatable result.  Subroutine pointers are safe.  `version_control_backends`,
   which has such components, is a fixed-size array with a count.
 
 - `close_buffer` is recursive: a function of `close_buffer_hook` may kill
@@ -2142,7 +2183,7 @@ scroll = .not. compilation_scroll_output%is_off()
 - gfortran (13) rejects a function returning a pointer to a function
   that itself returns a procedure pointer (`fn => f()`: "is not a
   subroutine").  Such a variable holds a subroutine that sets its
-  argument instead, as `isearch_search_function_function` does.
+  argument instead, as `incremental_search_search_function_function` does.
 - gfortran does not emit a private module procedure that only a submodule
   calls, so such helpers are made public with a comment saying so (they are
   not part of the config API); ibuffer_mod does this for ibuffer_extensions_mod.
@@ -2384,9 +2425,9 @@ scroll = .not. compilation_scroll_output%is_off()
   still goes through terminal_output_mod as upstream's terminal hooks) and a font
   driver (`font_driver_type`, font_mod; faces get a font id when
   realized on a window-system frame).  display_engine_mod lays out a window-system
-  frame in pixels (`display_row_gui`, the pixel half of `layout_window`,
+  frame in pixels (`display_row_graphical_user_interface`, the pixel half of `layout_window`,
   the graphic mode line, `get_physical_cursor_geometry`,
-  `gui_draw_vertical_border`) and draws each window's rows through the
+  `graphical_user_interface_draw_vertical_border`) and draws each window's rows through the
   interface (display_update_mod `update_window_line`); the terminal path keeps
   its frame matrices.  The device is exercised by a test-only fake GUI
   (test/fake_graphical_user_interface_mod.f90: an in-memory pixel grid, a monospaced or
@@ -2404,20 +2445,20 @@ scroll = .not. compilation_scroll_output%is_off()
   libraries beyond libc system calls".  The window-system protocols
   (X11, later Wayland) stay pure Fortran over a Unix socket.  Nothing of
   this is built yet; the fake device's driver stands in for it.
-- **Abbrevs (2026-10-24).** Abbrev tables are `abbrev_table_type` objects
-  named after their Emacs variables (`global_abbrev_table`,
-  `text_mode_abbrev_table`, ...; a major mode's `define` takes its
+- **Abbrevs (2026-10-24).** Abbrev tables are `abbreviation_table_type` objects
+  named after their Emacs variables (`global_abbreviation_table`,
+  `text_mode_abbreviation_table`, ...; a major mode's `define` takes its
   table), with the special properties as components and
-  `call TABLE%define("teh", "the")` for define-abbrev.  `abbrev_mode` is a
+  `call TABLE%define("teh", "the")` for define-abbrev.  `abbreviation_mode` is a
   pointer to the minor mode's own state, so a configuration writes
-  `abbrev_mode = .true.` (setq-default).  Saving abbrevs is a
-  setting-saving command: `write_abbrev_file` (and `save_abbrevs` through
+  `abbreviation_mode = .true.` (setq-default).  Saving abbrevs is a
+  setting-saving command: `write_abbreviation_file` (and `save_abbreviations` through
   `save_some_buffers_functions`) writes the user abbrevs as `define` calls
-  between the lines `! Abbrevs, written by write_abbrev_file:` and
+  between the lines `! Abbrevs, written by write_abbreviation_file:` and
   `! End of abbrevs.` at the end of `configure` in the init file
-  (`abbrev_file_name`, by default the init file), replacing the block
+  (`abbreviation_file_name`, by default the init file), replacing the block
   written before; the next `--recompile` defines them.  Reading abbrev
-  files is not applicable, and `abbrevs_changed` is reset after the init
+  files is not applicable, and `abbreviations_changed` is reset after the init
   file runs, as startup.el does after reading the abbrev file.  Abbrevs
   with a hook or an enable function are not written (a Fortran procedure
   has no name to write; the init file defines them in code).
@@ -2438,7 +2479,7 @@ scroll = .not. compilation_scroll_output%is_off()
   `FACE_STYLE_DASHES`. On a terminal, a wave is drawn as a curly underline
   where the terminal supports one and the other styles as a plain
   underline, as upstream does. A face whose variable has another name
-  (`comint_highlight_input_face`, as a setting took the name) appears in
+  (`command_interpreter_highlight_input_face`, as a setting took the name) appears in
   `faces%` under the face's name. Implemented in roadmap step 25
   (tools/gen-faces.sh, src/face_table_mod.f90).
 
@@ -2502,7 +2543,7 @@ scroll = .not. compilation_scroll_output%is_off()
   when files are read and written, where point goes.
   ```
   &savehist
-   savehist_minibuffer_history_variables(1:2) = "file_name_history", "extended_command_history",
+   save_history_minibuffer_history_variables(1:2) = "file_name_history", "extended_command_history",
    file_name_history(1:2) = "~/src/my-notes.txt", "~/notes.txt",
   /
   &saveplace
@@ -2605,7 +2646,7 @@ scroll = .not. compilation_scroll_output%is_off()
   integer (MINIBUF_ACTIVE, MINIBUF_YES, MINIBUF_NO).  These live
   in the submodule window_info_mod because they need frame_mod.  bidirectional_mod
   ports bidi.c whole over the buffer or a string, its state split as
-  upstream's (`bidi_copy_it` copies the members before the stack and
+  upstream's (`bidirectional_copy_it` copies the members before the stack and
   the stack up to its top), with the cache of states as module data and
   the bidi tables generated from the UCD by tools/gen-unibidi.sh; it is
   checked by bidi-find-overridden-directionality's upstream tests, while
@@ -2652,7 +2693,7 @@ scroll = .not. compilation_scroll_output%is_off()
     also does, binding variables, as a procedure called before and after.
   - Shell-dependent skeletons are `skeleton_variants_type` tables of
     named variants that `skeleton_filter_function` chooses from (sh-mode's
-    `sh_skeleton_feature`); `sh_modify` replaces top-level elements by
+    `shell_skeleton_feature`); `shell_modify` replaces top-level elements by
     upstream's indices, so sh-script.el's `sh-modify` forms are kept as
     they are.
 

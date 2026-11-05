@@ -28,19 +28,21 @@ module test_character_set_mod
     use handle_mod, only: handle_type
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: goto_character
-    use character_set_mod, only: CHARSET_NAME_LENGTH, is_charset, define_charset, decode_character, encode_character, &
-                                 make_character, split_character, character_charset, charset_list, charset_priority_list, &
-                                 charset_priority_highest, sort_charsets, iso_charset, get_unused_iso_final_character, &
-                                 map_charset_characters, find_charset_string, find_charset_region, charset_dimension, &
-                                 charset_characters, charset_iso_final_character, charset_description, charset_short_name, &
-                                 charset_long_name, charset_id_internal, charset_after, charset_attributes, &
-                                 charset_attributes_type, CHARSET_METHOD_SUPERSET
+    use character_set_mod, only: CHARACTER_SET_NAME_LENGTH, is_character_set, define_character_set, decode_character, &
+                                 encode_character, make_character, split_character, character_character_set, character_set_list, &
+                                 character_set_priority_list, character_set_priority_highest, sort_character_sets, &
+                                 iso_character_set, get_unused_iso_final_character, map_character_set_characters, &
+                                 find_character_set_string, find_character_set_region, character_set_dimension, &
+                                 character_set_characters, character_set_iso_final_character, character_set_description, &
+                                 character_set_short_name, character_set_long_name, character_set_id_internal, &
+                                 character_set_after, character_set_attributes, character_set_attributes_type, &
+                                 CHARACTER_SET_METHOD_SUPERSET
     implicit none(type, external)
     private
 
     public :: collect_character_set_mod
 
-    ! The ranges map_charset_characters reports.
+    ! The ranges map_character_set_characters reports.
     integer(int32) :: ranges(2, 64)
     integer :: range_count = 0
 
@@ -51,8 +53,8 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [new_unittest("charset-decode-char", test_decode_character_error), &
-                     new_unittest("charset-tests-define-charset", test_define_charset), &
-                     new_unittest("charset-list", test_charset_list), &
+                     new_unittest("charset-tests-define-charset", test_define_character_set), &
+                     new_unittest("charset-list", test_character_set_list), &
                      new_unittest("priority-list", test_priority_list), &
                      new_unittest("decode-encode-maps", test_maps), &
                      new_unittest("subset-superset", test_subset_superset), &
@@ -60,10 +62,10 @@ contains
                      new_unittest("offset-charsets", test_offset), &
                      new_unittest("split-char-char-charset", test_split_character), &
                      new_unittest("make-char", test_make_character), &
-                     new_unittest("map-charset-chars", test_map_charset_characters), &
-                     new_unittest("find-charset", test_find_charset), &
+                     new_unittest("map-charset-chars", test_map_character_set_characters), &
+                     new_unittest("find-charset", test_find_character_set), &
                      new_unittest("charset-attributes", test_attributes), &
-                     new_unittest("iso-charset", test_iso_charset), &
+                     new_unittest("iso-charset", test_iso_character_set), &
                      new_unittest("cjk-charsets", test_cjk)]
     end subroutine collect_character_set_mod
 
@@ -87,24 +89,24 @@ contains
         call check(error, c == -1)
     end subroutine test_decode_character_error
 
-    subroutine test_define_charset(error)
+    subroutine test_define_character_set(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
 
-        call define_charset("charset-tests-cs-1", "Only used for testing", status, short_name="CTCS1", &
-                            long_name="Charset-Tests-Charset-1", code_space=[33, 126, 33, 126], &
-                            code_offset=int(z'28083A'), unify_map="CNS-F")
+        call define_character_set("charset-tests-cs-1", "Only used for testing", status, short_name="CTCS1", &
+                                  long_name="Charset-Tests-Charset-1", code_space=[33, 126, 33, 126], &
+                                  code_offset=int(z'28083A'), unify_map="CNS-F")
         call check(error, status%code == OK_CODE)
         if (allocated(error)) return
-        call check(error, is_charset("charset-tests-cs-1"))
-    end subroutine test_define_charset
+        call check(error, is_character_set("charset-tests-cs-1"))
+    end subroutine test_define_character_set
 
-    subroutine test_charset_list(error)
+    subroutine test_character_set_list(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: names(:)
         integer :: n
 
-        names = charset_list()
+        names = character_set_list()
         n = size(names)
         ! 203 in GNU Emacs, here with the charset of the test above when it
         ! ran first.
@@ -115,16 +117,16 @@ contains
                    .and. names(5) == "emacs" .and. names(4) == "eight-bit" .and. names(3) == "ucs" &
                    .and. names(2) == "latin-iso8859-1" .and. names(1) == "control-1")
         if (allocated(error)) return
-        call check(error, is_charset("ucs") .and. is_charset("cp1252") .and. .not. is_charset("cp1252x"))
-    end subroutine test_charset_list
+        call check(error, is_character_set("ucs") .and. is_character_set("cp1252") .and. .not. is_character_set("cp1252x"))
+    end subroutine test_character_set_list
 
     subroutine test_priority_list(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: names(:)
         type(status_type) :: status
         integer :: n
 
-        names = charset_priority_list()
+        names = character_set_priority_list()
         n = size(names)
         call check(error, n == 179 .or. n == 180)
         if (allocated(error)) return
@@ -135,9 +137,9 @@ contains
         call check(error, names(n - 5) == "ethiopic" .and. names(n - 4) == "gb18030-2-byte" &
                    .and. names(n) == "gb18030-4-byte-ext-2")
         if (allocated(error)) return
-        call check(error, charset_priority_highest() == "ascii")
+        call check(error, character_set_priority_highest() == "ascii")
         if (allocated(error)) return
-        names = sort_charsets([character(len=CHARSET_NAME_LENGTH) :: "unicode", "iso-8859-2", "ascii"], status)
+        names = sort_character_sets([character(len=CHARACTER_SET_NAME_LENGTH) :: "unicode", "iso-8859-2", "ascii"], status)
         call check(error, names(1) == "ascii" .and. names(2) == "unicode" .and. names(3) == "iso-8859-2")
     end subroutine test_priority_list
 
@@ -209,35 +211,36 @@ contains
     subroutine test_split_character(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
-        character(len=:), allocatable :: charset
+        character(len=:), allocatable :: character_set
         integer, allocatable :: codes(:)
 
         ! An interactive GNU Emacs; in batch, iso-8859-1 233.
-        call split_character(int(z'E9'), charset, codes, status)
-        call check(error, charset == "unicode" .and. size(codes) == 3)
+        call split_character(int(z'E9'), character_set, codes, status)
+        call check(error, character_set == "unicode" .and. size(codes) == 3)
         if (allocated(error)) return
         call check(error, all(codes == [0, 0, 233]))
         if (allocated(error)) return
-        call split_character(int(z'20AC'), charset, codes, status)
-        call check(error, charset == "unicode" .and. size(codes) == 3)
+        call split_character(int(z'20AC'), character_set, codes, status)
+        call check(error, character_set == "unicode" .and. size(codes) == 3)
         if (allocated(error)) return
         call check(error, all(codes == [0, 32, 172]))
         if (allocated(error)) return
-        call split_character(int(z'3FFF80'), charset, codes, status)
-        call check(error, charset == "eight-bit" .and. size(codes) == 1)
+        call split_character(int(z'3FFF80'), character_set, codes, status)
+        call check(error, character_set == "eight-bit" .and. size(codes) == 1)
         if (allocated(error)) return
         call check(error, codes(1) == 128)
         if (allocated(error)) return
-        call check(error, character_charset(int(z'20AC'), status) == "unicode")
+        call check(error, character_character_set(int(z'20AC'), status) == "unicode")
         if (allocated(error)) return
-        call check(error, character_charset(65, status) == "ascii")
+        call check(error, character_character_set(65, status) == "ascii")
         if (allocated(error)) return
-        call check(error, character_charset(int(z'3FFF80'), status) == "eight-bit")
+        call check(error, character_character_set(int(z'3FFF80'), status) == "eight-bit")
         if (allocated(error)) return
-        call check(error, character_charset(int(z'104'), status, [character(len=CHARSET_NAME_LENGTH) :: "iso-8859-1", &
-                                                                  "iso-8859-2"]) == "iso-8859-2")
+        call check(error, character_character_set(int(z'104'), status, [character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-1", &
+                                                                        "iso-8859-2"]) == "iso-8859-2")
         if (allocated(error)) return
-        call check(error, character_charset(int(z'20AC'), status, [character(len=CHARSET_NAME_LENGTH) :: "iso-8859-2"]) == "")
+        call check(error, character_character_set(int(z'20AC'), status, &
+                                                  [character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-2"]) == "")
     end subroutine test_split_character
 
     subroutine test_make_character(error)
@@ -255,46 +258,46 @@ contains
         call check(error, status%code == GENERIC_ERROR_CODE)
     end subroutine test_make_character
 
-    subroutine test_map_charset_characters(error)
+    subroutine test_map_character_set_characters(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
 
         range_count = 0
-        call map_charset_characters(record_range, "koi8-r", status)
+        call map_character_set_characters(record_range, "koi8-r", status)
         call check(error, range_count == 32)
         if (allocated(error)) return
         call check(error, all(ranges(:, 1) == [0, 127]) .and. all(ranges(:, 9) == [1040, 1103]) &
                    .and. all(ranges(:, 32) == [9632, 9632]))
         if (allocated(error)) return
         range_count = 0
-        call map_charset_characters(record_range, "iso-8859-2", status, int(z'A0', int64), int(z'AF', int64))
+        call map_character_set_characters(record_range, "iso-8859-2", status, int(z'A0', int64), int(z'AF', int64))
         call check(error, range_count == 15)
         if (allocated(error)) return
         call check(error, all(ranges(:, 3) == [167, 168]) .and. all(ranges(:, 15) == [728, 728]))
         if (allocated(error)) return
         range_count = 0
-        call map_charset_characters(record_range, "ipa", status)
+        call map_character_set_characters(record_range, "ipa", status)
         call check(error, range_count == 29)
         if (allocated(error)) return
         call check(error, all(ranges(:, 1) == [97, 98]) .and. all(ranges(:, 28) == [952, 952]) &
                    .and. all(ranges(:, 29) == [2097280, 2097375]))
-    end subroutine test_map_charset_characters
+    end subroutine test_map_character_set_characters
 
-    subroutine test_find_charset(error)
+    subroutine test_find_character_set(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=CHARSET_NAME_LENGTH), allocatable :: names(:)
+        character(len=CHARACTER_SET_NAME_LENGTH), allocatable :: names(:)
         type(handle_type) :: buffer
         type(status_type) :: status
 
-        names = find_charset_string("")
+        names = find_character_set_string("")
         call check(error, size(names) == 0)
         if (allocated(error)) return
-        names = find_charset_string("a"//achar(195)//achar(169)//achar(226)//achar(130)//achar(172))
+        names = find_character_set_string("a"//achar(195)//achar(169)//achar(226)//achar(130)//achar(172))
         call check(error, size(names) == 2)
         if (allocated(error)) return
         call check(error, names(1) == "ascii" .and. names(2) == "unicode")
         if (allocated(error)) return
-        names = find_charset_string("a"//achar(128), multibyte=.false.)
+        names = find_character_set_string("a"//achar(128), multibyte=.false.)
         call check(error, size(names) == 2)
         if (allocated(error)) return
         call check(error, names(1) == "ascii" .and. names(2) == "eight-bit")
@@ -303,55 +306,55 @@ contains
         call set_buffer(buffer, status)
         call erase_buffer(status)
         call insert("x"//achar(197)//achar(129)//"y", status)
-        names = find_charset_region(1_int64, 4_int64, status)
+        names = find_character_set_region(1_int64, 4_int64, status)
         call check(error, size(names) == 2)
         if (allocated(error)) return
         call check(error, names(1) == "ascii" .and. names(2) == "unicode")
         if (allocated(error)) return
-        call check(error, charset_after(2_int64) == "unicode" .and. charset_after(9_int64) == "")
+        call check(error, character_set_after(2_int64) == "unicode" .and. character_set_after(9_int64) == "")
         if (allocated(error)) return
         ! POSITION defaults to point.
         call goto_character(3_int64)
-        call check(error, charset_after() == "ascii" .and. charset_after(1_int64) == "ascii")
+        call check(error, character_set_after() == "ascii" .and. character_set_after(1_int64) == "ascii")
         if (allocated(error)) return
         call goto_character(4_int64)
-        call check(error, charset_after() == "")
+        call check(error, character_set_after() == "")
         call close_buffer(buffer, status)
-    end subroutine test_find_charset
+    end subroutine test_find_character_set
 
     subroutine test_attributes(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
-        type(charset_attributes_type) :: attributes
+        type(character_set_attributes_type) :: attributes
         logical :: found
 
-        call check(error, charset_dimension("japanese-jisx0208", status) == 2)
+        call check(error, character_set_dimension("japanese-jisx0208", status) == 2)
         if (allocated(error)) return
-        call check(error, charset_characters("latin-iso8859-1", status) == 96)
+        call check(error, character_set_characters("latin-iso8859-1", status) == 96)
         if (allocated(error)) return
-        call check(error, charset_iso_final_character("latin-iso8859-2", status) == 66)
+        call check(error, character_set_iso_final_character("latin-iso8859-2", status) == 66)
         if (allocated(error)) return
-        call check(error, charset_description("ascii") == "ASCII (ISO646 IRV)")
+        call check(error, character_set_description("ascii") == "ASCII (ISO646 IRV)")
         if (allocated(error)) return
-        call check(error, charset_short_name("iso-8859-2") == "Latin-2" .and. charset_long_name("eight-bit") == "")
+        call check(error, character_set_short_name("iso-8859-2") == "Latin-2" .and. character_set_long_name("eight-bit") == "")
         if (allocated(error)) return
-        call check(error, charset_id_internal("ascii", status) == 0 &
-                   .and. charset_id_internal("eight-bit", status) == 4)
+        call check(error, character_set_id_internal("ascii", status) == 0 &
+                   .and. character_set_id_internal("eight-bit", status) == 4)
         if (allocated(error)) return
-        call charset_attributes("cp932", attributes, found)
-        call check(error, found .and. attributes%method == CHARSET_METHOD_SUPERSET .and. attributes%dimension == 2)
+        call character_set_attributes("cp932", attributes, found)
+        call check(error, found .and. attributes%method == CHARACTER_SET_METHOD_SUPERSET .and. attributes%dimension == 2)
         if (allocated(error)) return
         call check(error, attributes%docstring == "CP932 (Microsoft shift-jis)")
     end subroutine test_attributes
 
-    subroutine test_iso_charset(error)
+    subroutine test_iso_character_set(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: status
 
-        call check(error, iso_charset(1, 96, iachar("A"), status) == "latin-iso8859-1")
+        call check(error, iso_character_set(1, 96, iachar("A"), status) == "latin-iso8859-1")
         if (allocated(error)) return
         call check(error, get_unused_iso_final_character(1, 94, status) == 54)
-    end subroutine test_iso_charset
+    end subroutine test_iso_character_set
 
     ! The Chinese, Japanese and Korean charsets.
     subroutine test_cjk(error)

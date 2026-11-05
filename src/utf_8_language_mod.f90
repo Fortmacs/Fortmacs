@@ -32,7 +32,7 @@ contains
         call define_language_environment("UTF-8", &
                                          documentation="This language environment is a generic one for the Unicode c" &
                                          //"haracter set"//achar(10)//"encoded in UTF-8.", &
-                                         charsets=[character(len=40) :: "unicode-bmp", "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode-bmp", "unicode"], &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &
                                          input_method="rfc1345")

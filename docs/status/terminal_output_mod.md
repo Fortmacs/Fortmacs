@@ -6,8 +6,8 @@
 
 ## Ported
 
-`initialize_tty` (capabilities, `is_tty_capable`, colors incl. 24-bit, size, raw mode),
-`delete_tty`,
+`initialize_terminal` (capabilities, `is_terminal_capable`, colors incl. 24-bit, size, raw mode),
+`delete_terminal`,
 `term_get_fkeys` (terminfo keys into input-decode-map),
 `calculate_costs` (motion part),
 bell,
@@ -34,7 +34,7 @@ cited: `term_get_fkeys_1`,
 `append_glyph` and `tty_append_glyph` (display_engine_mod's glyph production),
 `maybe_fatal`,
 `fatal`,
-`vfatal` (initialize_tty's error goes back to main, which prints it and exits)
+`vfatal` (initialize_terminal's error goes back to main, which prints it and exits)
 
 ## Deferred
 

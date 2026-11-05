@@ -79,8 +79,8 @@ contains
         call delete_other_frames(st)
         ! close_buffer replaces the buffer in windows through its hook.
         call initialize_window_display()
-        selected_frame%tty%wcm%cm_rows = 24
-        selected_frame%tty%wcm%cm_columns = 80
+        selected_frame%terminal%wcm%cursor_motion_rows = 24
+        selected_frame%terminal%wcm%cursor_motion_columns = 80
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         call resize_window_tree(selected_frame%minibuffer_window, 23, 0, 1, 80, 80)
         call get_or_make_buffer("frame-test", h, st)
@@ -140,7 +140,7 @@ contains
         call select_frame(second, st)
         call check(error, st%ok() .and. same_handle(selected_frame%handle, second), "selected")
         if (allocated(error)) return
-        call check(error, selected_frame%needs_redraw .and. selected_frame%tty%wcm%cm_rows == 24, "shown")
+        call check(error, selected_frame%needs_redraw .and. selected_frame%terminal%wcm%cursor_motion_rows == 24, "shown")
         if (allocated(error)) return
         ! Each frame has its own buffer list.
         call get_or_make_buffer("frame-test-other", other, st)

@@ -800,7 +800,7 @@ contains
         call calendar_show_fewer_months(prefix_count(), status)
     end subroutine execute_calendar_show_fewer_months
 
-    module subroutine initialize_cal_move()
+    module subroutine initialize_calendar_movement()
         commands%calendar_goto_today%execute => calendar_goto_today
         commands%calendar_forward_month%execute => execute_calendar_forward_month
         commands%calendar_forward_year%execute => execute_calendar_forward_year
@@ -825,5 +825,5 @@ contains
         commands%calendar_goto_day_of_year%execute => execute_calendar_goto_day_of_year
         commands%calendar_show_more_months%execute => execute_calendar_show_more_months
         commands%calendar_show_fewer_months%execute => execute_calendar_show_fewer_months
-    end subroutine initialize_cal_move
+    end subroutine initialize_calendar_movement
 end submodule calendar_movement_mod

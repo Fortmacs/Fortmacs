@@ -237,7 +237,7 @@ contains
         iarg = 0
 
         if (argument%kind == PREFIX_NONE) then
-            ! recenter-redisplay is `tty': erase and redraw the frame.
+            ! recenter-redisplay is `terminal': erase and redraw the frame.
             if (redisplay) selected_frame%needs_redraw = .true.
             center_p = .true.
         else if (argument%kind == PREFIX_RAW) then

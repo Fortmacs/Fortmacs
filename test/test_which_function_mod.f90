@@ -38,11 +38,11 @@ module test_which_function_mod
     use test_support_mod, only: show_alone
     use frame_mod, only: selected_window
     use display_engine_mod, only: mode_line_miscellaneous_info_faces, face_span_type
-    use index_menu_mod, only: has_imenu_index
+    use index_menu_mod, only: has_index_menu_index
     use which_function_mod, only: which_function, which_function_mode_variable, which_function_functions, &
                                   which_function_cleanup_function, which_function_modes, which_function_non_auto_modes, &
                                   update_which_function_window
-    use shell_script_mod, only: sh_mode
+    use shell_script_mod, only: shell_script_mode
     use configuration_mode_mod, only: configuration_unix_mode
     use python_mod, only: python_mode
     implicit none(type, external)
@@ -61,7 +61,7 @@ contains
         testsuite = [ &
                     new_unittest("which-func-tests-toggle", test_toggle), &
                     new_unittest("which-function-add-log", test_add_log), &
-                    new_unittest("which-function-imenu", test_imenu), &
+                    new_unittest("which-function-imenu", test_index_menu), &
                     new_unittest("which-function-functions-and-cleanup", test_functions), &
                     new_unittest("which-func-modes", test_modes), &
                     new_unittest("which-func-mode-line", test_mode_line) &
@@ -100,7 +100,7 @@ contains
 
         call initialize_bindings()
         call make_buffer("which-func-tests.sh", "f()"//LF//"{"//LF//"}"//LF, code)
-        call sh_mode(st)
+        call shell_script_mode(st)
         call make_buffer("fundamental", "", other)
 
         body: block
@@ -121,7 +121,7 @@ contains
             call close_buffer(other, st)
             call minor_modes%which_function_mode%enable(st)
             call make_buffer("which-func-tests.sh", "f()"//LF//"{"//LF//"}"//LF, code)
-            call sh_mode(st)
+            call shell_script_mode(st)
             call make_buffer("fundamental", "", other)
             call check(error, is_on(code), "on in a new code buffer")
             if (allocated(error)) exit body
@@ -143,7 +143,7 @@ contains
 
         call initialize_bindings()
         call make_buffer(" *which-func*", "f()"//LF//"{"//LF//"}"//LF//"g()"//LF//"{"//LF//"  x=1"//LF//"}"//LF, h)
-        call sh_mode(st)
+        call shell_script_mode(st)
         call search_forward("x=", found, st)
         call which_function(name, st)
         call check(error, allocated(name), "a name")
@@ -153,7 +153,7 @@ contains
 
     !> Without an add-log function, `which_function' takes the closest
     !> entry of the Imenu index at or before point.
-    subroutine test_imenu(error)
+    subroutine test_index_menu(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -181,7 +181,7 @@ contains
         end block body
 
         call close_buffer(h, st)
-    end subroutine test_imenu
+    end subroutine test_index_menu
 
     !> `which_function_functions' come first; `which_function_cleanup_function'
     !> filters the name; a joiner gets the entry and its submenus.
@@ -248,10 +248,10 @@ contains
         which_function_modes%all = .false.
         which_function_modes%modes = [character(len=64) :: "python_mode"]
         call make_buffer(" *which-func*", "f()"//LF, h)
-        call sh_mode(st)
+        call shell_script_mode(st)
 
         body: block
-            call check(error,.not. which_function_mode_variable%value, "not in sh_mode")
+            call check(error,.not. which_function_mode_variable%value, "not in shell_script_mode")
             if (allocated(error)) exit body
             call python_mode(st)
             call check(error, which_function_mode_variable%value, "in python_mode")
@@ -259,9 +259,9 @@ contains
             which_function_modes%all = .true.
             deallocate (which_function_non_auto_modes)
             allocate (which_function_non_auto_modes(1))
-            which_function_non_auto_modes(1) = "sh_mode"
-            call sh_mode(st)
-            call check(error, which_function_mode_variable%value .and. .not. has_imenu_index(), "no index in a non-auto mode")
+            which_function_non_auto_modes(1) = "shell_script_mode"
+            call shell_script_mode(st)
+            call check(error, which_function_mode_variable%value .and. .not. has_index_menu_index(), "no index in a non-auto mode")
         end block body
 
         deallocate (which_function_non_auto_modes)
@@ -286,7 +286,7 @@ contains
 
         call initialize_bindings()
         call make_buffer(" *which-func*", "f()"//LF//"{"//LF//"  x=1"//LF//"}"//LF, h)
-        call sh_mode(st)
+        call shell_script_mode(st)
         call show_alone()
         call minor_modes%which_function_mode%enable(st)
 

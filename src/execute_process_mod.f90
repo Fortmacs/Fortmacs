@@ -50,7 +50,7 @@
 !> searched), `process_environment' and `initial_environment' as variables
 !> for C-h v and the configuration (they are reached through `getenv',
 !> `setenv' and `getenv_internal'), the frame's `display' parameter for
-!> DISPLAY (no GUI frames yet), remote directories, executable suffixes.
+!> DISPLAY (no GRAPHICAL_USER_INTERFACE frames yet), remote directories, executable suffixes.
 module execute_process_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
@@ -209,12 +209,12 @@ contains
     !> Set `shell_file_name' from SHELL (/bin/sh if unset).  Port of
     !> callproc.c:init_callproc (the part ported).
     subroutine initialize_callproc()
-        character(len=:), allocatable :: sh
+        character(len=:), allocatable :: shell
         integer :: stat
 
-        call getenv_internal("SHELL", sh, stat)
-        if (stat /= GETENV_SET) sh = "/bin/sh"
-        shell_file_name = sh
+        call getenv_internal("SHELL", shell, stat)
+        if (stat /= GETENV_SET) shell = "/bin/sh"
+        shell_file_name = shell
     end subroutine initialize_callproc
 
     !> Fill `process_environment' from the editor's environment (the last

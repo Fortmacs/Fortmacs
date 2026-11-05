@@ -40,7 +40,7 @@ module test_add_log_mod
     use files_mod, only: delete_directory, abbreviate_file_name
     use keyboard_mod, only: discard_input
     use bindings_mod, only: initialize_bindings
-    use shell_script_mod, only: sh_mode
+    use shell_script_mod, only: shell_script_mode
     use diff_mode_mod, only: diff_mode, diff_add_log_current_subprograms
     use log_edit_mod, only: log_edit, generate_log_edit_changelog_from_diff
     use window_mod, only: pop_to_buffer, get_buffer_window, is_window_live
@@ -68,10 +68,10 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("add-log-current-defun-test-sh-func1", test_sh_func1), &
-                    new_unittest("add-log-current-defun-test-sh-func2", test_sh_func2), &
-                    new_unittest("add-log-current-defun-test-sh-func3", test_sh_func3), &
-                    new_unittest("add-log-current-defun-test-sh-var", test_sh_variable), &
+                    new_unittest("add-log-current-defun-test-sh-func1", test_shell_func1), &
+                    new_unittest("add-log-current-defun-test-sh-func2", test_shell_func2), &
+                    new_unittest("add-log-current-defun-test-sh-func3", test_shell_func3), &
+                    new_unittest("add-log-current-defun-test-sh-var", test_shell_variable), &
                     new_unittest("add-change-log-entry", test_add_change_log_entry), &
                     new_unittest("change-log-insert-entries", test_insert_entries), &
                     new_unittest("change-log-search-file-name", test_search_file_name), &
@@ -146,7 +146,7 @@ contains
         call initialize_fileio()
         call temporary_buffer(" *add-log-test*", content, h)
         call goto_character(point_minimum())
-        call sh_mode(st)
+        call shell_script_mode(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call search_forward(marker, found, st)
@@ -167,32 +167,32 @@ contains
     ! ------------------------------------------------------------------
 
     !> Test sh-current-defun-name can find function.
-    subroutine test_sh_func1(error)
+    subroutine test_shell_func1(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_current_subprogram(error, LF//"function foo"//LF//"{"//LF//TAB//"><"//LF//"}", "><", "foo")
-    end subroutine test_sh_func1
+    end subroutine test_shell_func1
 
     !> Test sh-current-defun-name can find function.
-    subroutine test_sh_func2(error)
+    subroutine test_shell_func2(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_current_subprogram(error, LF//"foo()"//LF//"{"//LF//TAB//"><"//LF//"}", "><", "foo")
-    end subroutine test_sh_func2
+    end subroutine test_shell_func2
 
     !> Test sh-current-defun-name can find function.
-    subroutine test_sh_func3(error)
+    subroutine test_shell_func3(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_current_subprogram(error, LF//"function foo()"//LF//"{"//LF//TAB//"><"//LF//"}", "><", "foo")
-    end subroutine test_sh_func3
+    end subroutine test_shell_func3
 
     !> Test sh-current-defun-name can find variable definition.
-    subroutine test_sh_variable(error)
+    subroutine test_shell_variable(error)
         type(error_type), allocatable, intent(out) :: error
 
         call check_current_subprogram(error, LF//"PATH=a:/ab:/usr/abc"//LF//"DIR=/pr><oc", "><", "DIR")
-    end subroutine test_sh_variable
+    end subroutine test_shell_variable
 
     ! ------------------------------------------------------------------
     ! Our own
@@ -215,7 +215,7 @@ contains
         add_log_time_format => fixed_date
         call temporary_buffer("foo.sh", "#!/bin/sh"//LF//"foo()"//LF//"{"//LF//TAB//"echo foo"//LF//"}"//LF//LF// &
                               "bar()"//LF//"{"//LF//TAB//"echo bar"//LF//"}"//LF, source)
-        call sh_mode(st)
+        call shell_script_mode(st)
         buffers(current)%filename = tdir()//"foo.sh"
         call show_alone()
         call goto_character(point_minimum())

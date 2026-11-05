@@ -54,7 +54,7 @@
 !> `occur_word_at_mouse', `occur_identifier_at_mouse', the context menu), the
 !> menu, C-c C-f (`next_error_follow_minor_mode'), l
 !> (`recenter_current_error'), c (`clone_buffer'), the coding system of
-!> the buffers searched, `isearch_occur' and the isearch descriptions of
+!> the buffers searched, `incremental_search_occur' and the isearch descriptions of
 !> regexps, `read_regular_expression_case_fold_search'.
 module replace_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -84,7 +84,7 @@ module replace_mod
                                      ANSWER_EDIT, ANSWER_DELETE_AND_EDIT, ANSWER_BACKUP, ANSWER_UNDO, ANSWER_UNDO_ALL, &
                                      ANSWER_DIFF, ANSWER_SCROLL_UP, ANSWER_SCROLL_DOWN
     use incremental_search_mod, only: search_upper_case, search_whitespace_regular_expression, &
-                                      is_isearch_no_upper_case, word_search_regular_expression
+                                      is_incremental_search_no_upper_case, word_search_regular_expression
     use minibuffer_reading_mod, only: read_from_minibuffer, read_string, history_append_new_input
     use keyboard_mod, only: this_command, unread_command_events, sit_for, recursive_edit
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
@@ -1185,7 +1185,7 @@ contains
         logical :: fold, saved_fold, nocasify, literal, noedit, keep_going, last_was_undo, &
                    last_was_act_and_show, update_stack, nonempty_match, has_limit, back, found, done, &
                    replaced, querying, use_items, use_fn, is_counted, unread, matched, ro_found
-        integer :: again, def, nstack, item, stack_idx, stack_length, replacement_count
+        integer :: again, def, nstack, item, stack_index, stack_length, replacement_count
         character(len=48) :: count_text
 
         status = status_type()
@@ -1196,7 +1196,7 @@ contains
         fold = case_fold_search%value
 
         if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
-            fold = is_isearch_no_upper_case(from_string, regular_expression_flag)
+            fold = is_incremental_search_no_upper_case(from_string, regular_expression_flag)
         end if
 
         nocasify = .not. (case_replace .and. fold)
@@ -1448,14 +1448,14 @@ contains
                         call ding()
                         call sit_for(1000)
                     else
-                        stack_idx = 0
+                        stack_index = 0
                         stack_length = nstack
                         replacement_count = 0
 
-                        do while (stack_idx < stack_length .and. nstack > 0 .and. &
+                        do while (stack_index < stack_length .and. nstack > 0 .and. &
                                   (.not. replaced .or. last_was_act_and_show))
-                            element = stack(nstack - stack_idx)
-                            stack_idx = stack_idx + 1
+                            element = stack(nstack - stack_index)
+                            stack_index = stack_index + 1
                             replaced = element%replaced
 
                             ! Bind swapped values (search-string <--> replacement)
@@ -1471,14 +1471,14 @@ contains
                             next_replacement_replaced = last_replacement
                             last_was_act_and_show = .false.
 
-                            if (stack_idx == stack_length .and. .not. replaced .and. replacement_count == 0) then
+                            if (stack_index == stack_length .and. .not. replaced .and. replacement_count == 0) then
                                 call message("Nothing to undo")
                                 call ding()
                                 call sit_for(1000)
                             end if
 
                             if (replaced) then
-                                nstack = nstack - stack_idx
+                                nstack = nstack - stack_index
                                 call goto_character(element%point)
                                 call set_match_data(element%data)
                                 ! We must quote the string (Bug#37073)
@@ -1499,8 +1499,8 @@ contains
                                 ! Set replaced nil to keep in loop
                                 if (def == ANSWER_UNDO_ALL) then
                                     replaced = .false.
-                                    stack_length = stack_length - stack_idx
-                                    stack_idx = 0
+                                    stack_length = stack_length - stack_index
+                                    stack_index = 0
                                     replacement_count = replacement_count + 1
                                 end if
                             end if
@@ -2077,7 +2077,7 @@ contains
         saved_fold = case_fold_search%value
 
         if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
-            case_fold_search%value = is_isearch_no_upper_case(regular_expression, .true.)
+            case_fold_search%value = is_incremental_search_no_upper_case(regular_expression, .true.)
         end if
 
         call make_marker(original_point)
@@ -2271,7 +2271,7 @@ contains
         fold = case_fold_search%value
 
         if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
-            fold = is_isearch_no_upper_case(regular_expression, .true.)
+            fold = is_incremental_search_no_upper_case(regular_expression, .true.)
         end if
     end function lines_case_fold
 
@@ -3763,15 +3763,15 @@ contains
     end function active_sources
 
     !> Run occur for REGULAR_EXPRESSION on SOURCES with NLINES (HAS_NLINES; else the
-    !> default) context lines, or COLLECT, in the buffer BUF_NAME
+    !> default) context lines, or COLLECT, in the buffer BUFFER_NAME
     !> (*Occur*).  Port of replace.el:occur-1.
-    recursive subroutine occur_1(regular_expression, has_nlines, nlines, sources, status, buf_name, collect)
+    recursive subroutine occur_1(regular_expression, has_nlines, nlines, sources, status, buffer_name, collect)
         character(len=*), intent(in) :: regular_expression
         logical, intent(in) :: has_nlines
         integer(int64), intent(in) :: nlines
         type(occur_source_type), intent(in) :: sources(:)
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: buf_name, collect
+        character(len=*), intent(in), optional :: buffer_name, collect
         type(occur_source_type), allocatable :: active(:)
         type(handle_type) :: occur_buffer, old, window
         type(value_type) :: inhibit
@@ -3790,7 +3790,7 @@ contains
         end if
 
         name = "*Occur*"
-        if (present(buf_name)) name = buf_name
+        if (present(buffer_name)) name = buffer_name
         active = active_sources(sources)
         old = current_buffer()
         directory = ""
@@ -3883,7 +3883,7 @@ contains
             fold = case_fold_search%value
 
             if (case_fold_search%value .and. .not. search_upper_case%is_off()) then
-                fold = is_isearch_no_upper_case(regular_expression, .true.)
+                fold = is_incremental_search_no_upper_case(regular_expression, .true.)
             end if
 
             call set_buffer(occur_buffer, st)
@@ -4506,12 +4506,12 @@ contains
         !> Insert the line of the original buffer that was current
         !> (orig-line-str), highlighted, with its prefix.
         subroutine insert_original_line()
-            integer(int64) :: lb, le, here, sh
+            integer(int64) :: lb, le, here, shell
 
             call set_buffer(source, st)
             here = point()
             call goto_character(point_minimum())
-            sh = forward_line(original_line - 1)
+            shell = forward_line(original_line - 1)
             lb = line_beginning_position()
             le = line_end_position()
             call goto_character(here)

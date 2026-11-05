@@ -21,7 +21,7 @@
 
 !> Several frames on one terminal.  The terminal shows one frame at a
 !> time, the selected one (its top frame); selecting another frame hands
-!> it the terminal's state (frame_type's `tty') and redraws the screen.
+!> it the terminal's state (frame_type's `terminal') and redraws the screen.
 !> Each frame has its own windows, its own minibuffer window and its
 !> own buffer lists.  A submodule of frame_mod, so that frame_mod stays
 !> below the display modules it needs (display_update_mod, display_engine_mod,
@@ -76,7 +76,7 @@ contains
         ! its top frame holds.
         top => get_frame(top_frame)
         if (.not. associated(top)) top => selected_frame
-        f%tty = top%tty
+        f%terminal = top%terminal
         f%column_width = selected_frame%column_width
         f%line_height = selected_frame%line_height
         f%smallest_character_width = selected_frame%smallest_character_width
@@ -159,7 +159,7 @@ contains
         ! frames of a terminal have its size), and it is redrawn.
         top => get_frame(top_frame)
         if (.not. associated(top)) top => sf
-        if (.not. associated(top, f)) f%tty = top%tty
+        if (.not. associated(top, f)) f%terminal = top%terminal
         top_frame = f%handle
         call adjust_frame_size(f, frame_columns(f)*f%column_width, frame_lines(f)*f%line_height)
         call adjust_frame_glyphs(f)
@@ -353,7 +353,7 @@ contains
 
             ! The terminal shows the selected frame instead.
             if (same_handle(f%handle, top_frame)) then
-                selected_frame%tty = f%tty
+                selected_frame%terminal = f%terminal
                 selected_frame%needs_redraw = .true.
                 top_frame = selected_frame%handle
             end if
@@ -406,8 +406,8 @@ contains
         integer, intent(in) :: n
 
         ! (A window-system frame's tab bar, frame.c:gui_set_tab_bar_lines, waits
-        ! for the GUI.)
-        if (associated(f%rif)) return
+        ! for the GRAPHICAL_USER_INTERFACE.)
+        if (associated(f%redisplay_interface)) return
         if (n == f%tab_bar_lines) return
         f%tab_bar_lines = n
         ! change_frame_size with the frame's size: the windows move below

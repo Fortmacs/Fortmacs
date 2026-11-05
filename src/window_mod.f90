@@ -159,7 +159,7 @@ module window_mod
     !> The value of `window_sides_reversed' besides .true. (always reverse)
     !> and .false. (never): reverse when the frame shows right-to-left
     !> text.
-    integer, parameter, public :: WINDOW_SIDES_REVERSED_BIDI = 2
+    integer, parameter, public :: WINDOW_SIDES_REVERSED_BIDIRECTIONAL = 2
 
     !> No bound on the number of side windows on a side
     !> (`window_sides_slots').
@@ -321,9 +321,9 @@ module window_mod
     !> side windows on the top and bottom of a frame are always drawn
     !> from right to left with increasing slot values.
     !>
-    !> When this is WINDOW_SIDES_REVERSED_BIDI, the drawing order is like
+    !> When this is WINDOW_SIDES_REVERSED_BIDIRECTIONAL, the drawing order is like
     !> that for .true. if the value of
-    !> `bidi_paragraph_direction' is `right-to-left' in the buffer most
+    !> `bidirectional_paragraph_direction' is `right-to-left' in the buffer most
     !> recently shown in the window selected within the main window area
     !> of this frame.
     !>
@@ -669,7 +669,7 @@ module window_mod
         !>
         !> Just C-u as prefix means put point in the center of the window
         !> and redisplay normally--don't erase and redraw the frame.
-        !> Port of window.c:Frecenter (`recenter_redisplay' is `tty').
+        !> Port of window.c:Frecenter (`recenter_redisplay' is `terminal').
         module subroutine recenter(argument, redisplay, status)
             implicit none(type, external)
             type(prefix_argument_type), intent(in) :: argument
@@ -903,7 +903,7 @@ module window_mod
         !> Split the selected window into two windows, one above the other,
         !> both of the same height (or close to it); NEW is the new window,
         !> below.  Port of window.el:split-window-below (no SIZE; the
-        !> function, as `ediff_split_window_function' calls it).
+        !> function, as `fortmacs_diff_split_window_function' calls it).
         module subroutine split_window_below(new, status)
             implicit none(type, external)
             type(handle_type), intent(out) :: new
@@ -913,7 +913,7 @@ module window_mod
         !> Split the selected window into two side-by-side windows of the
         !> same width (or close to it); NEW is the new window, to the right.
         !> Port of window.el:split-window-right (no SIZE; the function, as
-        !> `ediff_split_window_function' calls it).
+        !> `fortmacs_diff_split_window_function' calls it).
         module subroutine split_window_right(new, status)
             implicit none(type, external)
             type(handle_type), intent(out) :: new
@@ -1717,7 +1717,7 @@ module window_mod
         !> WINDOW must be a live window and defaults to the selected one.  The
         !> return value does not include the mode line or header line or any
         !> horizontal divider.  Port of window.c:Fwindow_body_height (in
-        !> canonical lines; PIXELWISE waits for the GUI).
+        !> canonical lines; PIXELWISE waits for the GRAPHICAL_USER_INTERFACE).
         module function window_body_height(window, status) result(n)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
@@ -1730,7 +1730,7 @@ module window_mod
         !> return value does not include any vertical dividers, fringes or
         !> marginal areas, or scroll bars.  Port of
         !> window.c:Fwindow_body_width (in canonical columns; PIXELWISE waits
-        !> for the GUI).
+        !> for the GRAPHICAL_USER_INTERFACE).
         module function window_body_width(window, status) result(n)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window

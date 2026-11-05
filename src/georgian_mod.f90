@@ -1,4 +1,4 @@
-! georgian_mod.f90 -- the georgian coding systems of type `charset'.
+! georgian_mod.f90 -- the georgian coding systems of type `character_set'.
 ! Ported from GNU Emacs 31.1 lisp/language/georgian.el.
 !
 ! Copyright (C) 2001-2026 Free Software Foundation, Inc.
@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that georgian.el defines, with their
+!> The coding systems of type `character_set' that georgian.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -29,14 +29,14 @@ submodule(coding_mod) georgian_mod
 
 contains
 
-    !> Port of the `charset' coding systems of georgian.el.
+    !> Port of the `character_set' coding systems of georgian.el.
     module subroutine initialize_georgian()
-        call define_charset_coding_system("georgian-ps", iachar("G"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "georgian-ps"], &
-                                          doc="Georgian PS encoding")
-        call define_charset_coding_system("georgian-academy", iachar("G"), &
-                                          charset_names=[character(len=CHARSET_NAME_LENGTH) :: "georgian-academy"], &
-                                          doc="Georgian Academy encoding")
+        call define_character_set_coding_system("georgian-ps", iachar("G"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "georgian-ps"], &
+                                                doc="Georgian PS encoding")
+        call define_character_set_coding_system("georgian-academy", iachar("G"), &
+                                             character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "georgian-academy"], &
+                                                doc="Georgian Academy encoding")
     end subroutine initialize_georgian
 
     !> Port of the language environments of georgian.el.

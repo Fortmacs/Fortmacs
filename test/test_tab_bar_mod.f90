@@ -78,8 +78,8 @@ contains
         call ensure_frame_windows()
         call delete_other_frames(st)
         call initialize_window_display()
-        selected_frame%tty%wcm%cm_rows = 24
-        selected_frame%tty%wcm%cm_columns = 80
+        selected_frame%terminal%wcm%cursor_motion_rows = 24
+        selected_frame%terminal%wcm%cursor_motion_columns = 80
         call delete_other_windows(selected_frame%selected_window, st)
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         call resize_window_tree(selected_frame%minibuffer_window, 23, 0, 1, 80, 80)

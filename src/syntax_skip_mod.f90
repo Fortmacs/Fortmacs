@@ -120,7 +120,7 @@ contains
         if (forwardp) then
             do while (position < limit_position)
                 position_byte = character_to_byte(position)
-                c = buf_fetch_char(b, position_byte)
+                c = buffer_fetch_character(b, position_byte)
                 if (in_set(c) .eqv. negate) exit
                 position = position + 1
             end do
@@ -129,12 +129,12 @@ contains
                 position_byte = character_to_byte(position)
 
                 if (b%multibyte) then
-                    position_byte = position_byte - buf_prev_char_len(b, position_byte)
+                    position_byte = position_byte - buffer_previous_character_length(b, position_byte)
                 else
                     position_byte = position_byte - 1
                 end if
 
-                c = buf_fetch_char(b, position_byte)
+                c = buffer_fetch_character(b, position_byte)
                 if (in_set(c) .eqv. negate) exit
                 position = position - 1
             end do
