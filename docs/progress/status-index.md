@@ -116,6 +116,7 @@
 | [make_mode_mod](../status/make_mode_mod.md) | progmodes/make-mode.el | partial |
 | [marker_mod](../status/marker_mod.md) | marker.c (+ alloc.c `Fmake_marker`) | done |
 | [md5_mod](../status/md5_mod.md) | Gnulib lib/md5.c | done |
+| [message_mod](../status/message_mod.md) | gnus/message.el (+ rfc2047.el `rfc2047-fold-field`, gnus-util.el `gnus-output-to-mail`, mailheader.el `mail-header-format`, and what mml.el's `mml-generate-mime` makes of a plain ASCII body) | partial |
 | [minibuffer_mod](../status/minibuffer_mod.md) | minibuffer.el | partial |
 | [minibuffer_reading_mod](../status/minibuffer_reading_mod.md) | minibuf.c | partial |
 | [minibuffer_reading_tables_mod](../status/minibuffer_reading_tables_mod.md) | minibuf.c, minibuffer.el (split from minibuffer_reading_mod so that hooks_mod's hooks can hold completion-at-point functions) | done |
@@ -166,7 +167,7 @@
 | [simple_set_variable_mod](../status/simple_set_variable_mod.md) | simple.el `set-variable` (+ minibuf.c `read-variable`, the reading of the value) | partial |
 | [simple_shell_mod](../status/simple_shell_mod.md) | simple.el (shell commands; + subr.el `call-process-shell-command`, `call-shell-region`; window.el `count-screen-lines`; buffer.c `set-buffer-major-mode`) | partial |
 | [skeleton_mod](../status/skeleton_mod.md) | skeleton.el | done |
-| [smtpmail_mod](../status/smtpmail_mod.md) | mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-make-message-id`, `message-unique-id`, `message-number-base36`, `message-make-fqdn`, `message-user-mail-address`, `message-narrow-to-headers`; process.c's blocking connect, `send_process` and the default sentinel's messages for this connection) | partial |
+| [smtpmail_mod](../status/smtpmail_mod.md) | mail/smtpmail.el (+ network-stream.el `open-network-stream` and `network-stream-open-starttls` without TLS, `network-stream-get-response`; rfc2104.el `rfc2104-hash` with MD5; message.el `message-narrow-to-headers` (the Message-ID comes from message_mod's `make_message_id`); process.c's blocking connect, `send_process` and the default sentinel's messages for this connection) | partial |
 | [spellcheck_mod](../status/spellcheck_mod.md) | textmodes/ispell.el | partial |
 | [spellcheck_mode_mod](../status/spellcheck_mode_mod.md) | textmodes/flyspell.el | partial |
 | [string_type_mod](../status/string_type_mod.md) | — (fortran-lang stdlib's `string_type`) | done |
