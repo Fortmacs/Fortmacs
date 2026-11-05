@@ -134,9 +134,9 @@ module tab_bar_mod
     !> Possible modifier keys are `control', `meta', `shift', `hyper', `super' and
     !> `alt' (`tab_bar_select_tab_modifiers = key_modifiers_type(meta=.true.)').
     !> Pressing one of the modifiers in the list and a digit selects the
-    !> tab whose number equals the digit (see `select_tab').
-    !> The digit 9 selects the last (rightmost) tab (see `switch_to_last_tab').
-    !> The digit 0 selects the most recently visited tab (see `switch_to_recent_tab').
+    !> tab whose number equals the digit (see `select_tab_bar_tab').
+    !> The digit 9 selects the last (rightmost) tab (see `last_tab').
+    !> The digit 0 selects the most recently visited tab (see `recent_tab').
     !> For easier selection of tabs by their numbers, consider customizing
     !> `tab_bar_tab_hints', which will show tab numbers alongside the tab name.
     !> Port of tab-bar.el tab-bar-select-tab-modifiers (read when
@@ -170,7 +170,7 @@ module tab_bar_mod
     !> If 0, always keep the tab bar shown.
     !> If .false., always keep the tab bar hidden.  In this case it's still
     !> possible to use persistent named window configurations by relying on
-    !> keyboard commands `make_tab', `close_tab', `switch_to_next_tab', etc.
+    !> keyboard commands `make_tab', `close_tab', `next_tab', etc.
     !>
     !> Setting this variable directly does not take effect; please customize
     !> it (see the info node `Easy Customization'), then it will automatically
@@ -512,13 +512,14 @@ module tab_bar_mod
     !> Used in `repeat_mode'.  Port of tab-bar.el tab-bar-history-repeat-map.
     type(handle_type), public :: tab_bar_history_repeat_map
 
-    !> Keymap to repeat tab switch commands `switch_to_next_tab' and
-    !> `switch_to_previous_tab'.  Used in `repeat_mode'.  Port of
+    !> Keymap to repeat tab switch commands `next_tab' and
+    !> `previous_tab'.  Used in `repeat_mode'.  Port of
     !> tab-bar.el tab-bar-switch-repeat-map.
     type(handle_type), public :: tab_bar_switch_repeat_map
 
-    !> Keymap to repeat tab move commands `move_tab' and `move_tab_backward'.
-    !> Used in `repeat_mode'.  Port of tab-bar.el tab-bar-move-repeat-map.
+    !> Keymap to repeat tab move commands `move_tab' and
+    !> `move_tab_bar_tab_backward'.  Used in `repeat_mode'.  Port of
+    !> tab-bar.el tab-bar-move-repeat-map.
     type(handle_type), public :: tab_bar_move_repeat_map
 
     ! ------------------------------------------------------------------
@@ -1287,27 +1288,27 @@ contains
 
         if ((tab_bar_define_keys%value .or. tab_bar_define_keys%choice == TAB_BAR_DEFINE_KEYS_NUMERIC) .and. &
             len(prefix) > 0) then
-            call keymap_set(tab_bar_mode_map, prefix//"0", "switch_to_recent_tab", status)
+            call keymap_set(tab_bar_mode_map, prefix//"0", "recent_tab", status)
 
             do i = 1, 8
                 write (digit, "(i1)") i
-                call keymap_set(tab_bar_mode_map, prefix//digit, "select_tab", status)
+                call keymap_set(tab_bar_mode_map, prefix//digit, "select_tab_bar_tab", status)
             end do
 
-            call keymap_set(tab_bar_mode_map, prefix//"9", "switch_to_last_tab", status)
+            call keymap_set(tab_bar_mode_map, prefix//"9", "last_tab", status)
         end if
 
         if (tab_bar_define_keys%value .or. tab_bar_define_keys%choice == TAB_BAR_DEFINE_KEYS_TAB) then
             if (.not. has_global_key_binding("C-<tab>")) then
-                call keymap_set(tab_bar_mode_map, "C-<tab>", "switch_to_next_tab", status)
+                call keymap_set(tab_bar_mode_map, "C-<tab>", "next_tab", status)
             end if
 
             if (.not. has_global_key_binding("C-S-<tab>")) then
-                call keymap_set(tab_bar_mode_map, "C-S-<tab>", "switch_to_previous_tab", status)
+                call keymap_set(tab_bar_mode_map, "C-S-<tab>", "previous_tab", status)
             end if
 
             if (.not. has_global_key_binding("C-S-<iso-lefttab>")) then
-                call keymap_set(tab_bar_mode_map, "C-S-<iso-lefttab>", "switch_to_previous_tab", status)
+                call keymap_set(tab_bar_mode_map, "C-S-<iso-lefttab>", "previous_tab", status)
             end if
         end if
     end subroutine define_tab_bar_keys
@@ -2451,13 +2452,13 @@ contains
         call update_tab_bar_lines(.false.)
 
         if (.not. minor_modes%tab_bar_mode%enabled()) then
-            call tab_message("Deleted tab and switched to "//close_tab_select_text())
+            call tab_message("Deleted tab and switched to "//selected_after_close_text())
         end if
     end subroutine close_tab
 
     !> The value of `tab_bar_close_tab_select' as a message shows it: its
     !> named constant.  Not a port.
-    function close_tab_select_text() result(text)
+    function selected_after_close_text() result(text)
         character(len=:), allocatable :: text
 
         select case (tab_bar_close_tab_select%choice)
@@ -2468,7 +2469,7 @@ contains
         case default
             text = "TAB_BAR_CLOSE_TAB_SELECT_RECENT"
         end select
-    end function close_tab_select_text
+    end function selected_after_close_text
 
     !> Close the tab given its NAME.
     !> Interactively, prompt for NAME.  Port of
@@ -2775,7 +2776,7 @@ contains
     !> While using this command, you might also want to replace
     !> `format_tab_bar_tabs' with `format_tab_bar_tabs_groups' in
     !> `tab_bar_format' to group tabs on the tab bar.
-    !> Moves the tab closer to its group at the end (`move_tab_to_group').
+    !> Moves the tab closer to its group at the end (`move_tab_bar_tab_to_group').
     !> Port of tab-bar.el:tab-bar-change-tab-group (the hook
     !> `tab_bar_tab_post_change_group_functions' is Deferred: its default,
     !> tab-bar-move-tab-to-group, is called).
@@ -3730,49 +3731,70 @@ contains
         call keymap_set(tab_bar_history_mode_map, "C-c <right>", "go_forward_in_tab_bar_history", st)
         commands%tab_bar_mode%execute => tab_bar_mode
         commands%tab_bar_history_mode%execute => tab_bar_history_mode
-        commands%select_tab%execute => cmd_select_tab
-        commands%switch_to_next_tab%execute => cmd_switch_to_next_tab
-        commands%switch_to_previous_tab%execute => cmd_switch_to_previous_tab
-        commands%switch_to_last_tab%execute => cmd_switch_to_last_tab
-        commands%switch_to_recent_tab%execute => cmd_switch_to_recent_tab
-        commands%switch_to_tab%execute => cmd_switch_to_tab
-        commands%move_tab_to%execute => cmd_move_tab_to
-        commands%move_tab%execute => cmd_move_tab
-        commands%move_tab_backward%execute => cmd_move_tab_backward
-        commands%make_tab_to%execute => cmd_make_tab_to
-        commands%make_tab%execute => cmd_make_tab
-        commands%duplicate_tab%execute => cmd_duplicate_tab
-        commands%close_tab%execute => cmd_close_tab
-        commands%close_tab_by_name%execute => cmd_close_tab_by_name
-        commands%close_other_tabs%execute => cmd_close_other_tabs
-        commands%undo_close_tab%execute => cmd_undo_close_tab
-        commands%rename_tab%execute => cmd_rename_tab
-        commands%rename_tab_by_name%execute => cmd_rename_tab_by_name
-        commands%move_tab_to_group%execute => cmd_move_tab_to_group
-        commands%change_tab_group%execute => cmd_change_tab_group
-        commands%close_group_tabs%execute => cmd_close_group_tabs
+        commands%select_tab_bar_tab%execute => cmd_select_tab
+        commands%switch_to_tab_bar_next_tab%execute => cmd_switch_to_next_tab
+        commands%switch_to_tab_bar_previous_tab%execute => cmd_switch_to_previous_tab
+        commands%switch_to_tab_bar_last_tab%execute => cmd_switch_to_last_tab
+        commands%switch_to_tab_bar_recent_tab%execute => cmd_switch_to_recent_tab
+        commands%switch_to_tab_bar_tab%execute => cmd_switch_to_tab
+        commands%move_tab_bar_tab_to%execute => cmd_move_tab_to
+        commands%move_tab_bar_tab%execute => cmd_move_tab
+        commands%move_tab_bar_tab_backward%execute => cmd_move_tab_backward
+        commands%make_tab_bar_tab_to%execute => cmd_make_tab_to
+        commands%make_tab_bar_tab%execute => cmd_make_tab
+        commands%duplicate_tab_bar_tab%execute => cmd_duplicate_tab
+        commands%close_tab_bar_tab%execute => cmd_close_tab
+        commands%close_tab_bar_tab_by_name%execute => cmd_close_tab_by_name
+        commands%close_tab_bar_other_tabs%execute => cmd_close_other_tabs
+        commands%undo_close_tab_bar_tab%execute => cmd_undo_close_tab
+        commands%rename_tab_bar_tab%execute => cmd_rename_tab
+        commands%rename_tab_bar_tab_by_name%execute => cmd_rename_tab_by_name
+        commands%move_tab_bar_tab_to_group%execute => cmd_move_tab_to_group
+        commands%change_tab_bar_tab_group%execute => cmd_change_tab_group
+        commands%close_tab_bar_group_tabs%execute => cmd_close_group_tabs
         commands%switch_to_buffer_other_tab%execute => cmd_switch_to_buffer_other_tab
         commands%find_file_other_tab%execute => cmd_find_file_other_tab
         commands%find_file_read_only_other_tab%execute => cmd_find_file_read_only_other_tab
         commands%toggle_frame_tab_bar%execute => cmd_toggle_frame_tab_bar
         commands%toggle_tab_bar_mode_from_frame%execute => cmd_toggle_tab_bar_mode_from_frame
-        commands%move_window_to_tab%execute => cmd_move_window_to_tab
+        commands%move_tab_bar_window_to_tab%execute => cmd_move_window_to_tab
         commands%go_back_in_tab_bar_history%execute => cmd_go_back_in_tab_bar_history
         commands%go_forward_in_tab_bar_history%execute => cmd_go_forward_in_tab_bar_history
+        ! The aliases (tab-bar.el's defalias of tab-new and the others, and
+        ! of tab-bar-select-tab-by-name).
+        commands%select_tab_bar_tab_by_name%execute => cmd_switch_to_tab
+        commands%make_tab%execute => cmd_make_tab
+        commands%make_tab_to%execute => cmd_make_tab_to
+        commands%duplicate_tab%execute => cmd_duplicate_tab
+        commands%detach_tab_window%execute => cmd_move_window_to_tab
+        commands%close_tab%execute => cmd_close_tab
+        commands%close_other_tabs%execute => cmd_close_other_tabs
+        commands%close_tab_group%execute => cmd_close_group_tabs
+        commands%undo_tab%execute => cmd_undo_close_tab
+        commands%select_tab%execute => cmd_select_tab
+        commands%switch_tab%execute => cmd_switch_to_tab
+        commands%next_tab%execute => cmd_switch_to_next_tab
+        commands%previous_tab%execute => cmd_switch_to_previous_tab
+        commands%last_tab%execute => cmd_switch_to_last_tab
+        commands%recent_tab%execute => cmd_switch_to_recent_tab
+        commands%move_tab%execute => cmd_move_tab
+        commands%move_tab_to%execute => cmd_move_tab_to
+        commands%rename_tab%execute => cmd_rename_tab
+        commands%change_tab_group%execute => cmd_change_tab_group
         ! The short aliases' keys (tab-bar.el's keymap-set of tab-prefix-map).
         call keymap_set(tab_prefix_map, "n", "duplicate_tab", st)
         call keymap_set(tab_prefix_map, "N", "make_tab_to", st)
         call keymap_set(tab_prefix_map, "2", "make_tab", st)
         call keymap_set(tab_prefix_map, "1", "close_other_tabs", st)
         call keymap_set(tab_prefix_map, "0", "close_tab", st)
-        call keymap_set(tab_prefix_map, "u", "undo_close_tab", st)
-        call keymap_set(tab_prefix_map, "o", "switch_to_next_tab", st)
-        call keymap_set(tab_prefix_map, "O", "switch_to_previous_tab", st)
+        call keymap_set(tab_prefix_map, "u", "undo_tab", st)
+        call keymap_set(tab_prefix_map, "o", "next_tab", st)
+        call keymap_set(tab_prefix_map, "O", "previous_tab", st)
         call keymap_set(tab_prefix_map, "m", "move_tab", st)
         call keymap_set(tab_prefix_map, "M", "move_tab_to", st)
         call keymap_set(tab_prefix_map, "G", "change_tab_group", st)
         call keymap_set(tab_prefix_map, "r", "rename_tab", st)
-        call keymap_set(tab_prefix_map, "RET", "switch_to_tab", st)
+        call keymap_set(tab_prefix_map, "RET", "switch_tab", st)
         call keymap_set(tab_prefix_map, "b", "switch_to_buffer_other_tab", st)
         call keymap_set(tab_prefix_map, "f", "find_file_other_tab", st)
         call keymap_set(tab_prefix_map, "C-f", "find_file_other_tab", st)
@@ -3780,13 +3802,13 @@ contains
         ! The repeat maps.
         if (is_keymap_live(tab_bar_switch_repeat_map)) call destroy_keymap(tab_bar_switch_repeat_map, st)
         call make_sparse_keymap(tab_bar_switch_repeat_map)
-        call keymap_set(tab_bar_switch_repeat_map, "o", "switch_to_next_tab", st)
-        call keymap_set(tab_bar_switch_repeat_map, "O", "switch_to_previous_tab", st)
+        call keymap_set(tab_bar_switch_repeat_map, "o", "next_tab", st)
+        call keymap_set(tab_bar_switch_repeat_map, "O", "previous_tab", st)
         call set_repeat_map(tab_bar_switch_repeat_map)
         if (is_keymap_live(tab_bar_move_repeat_map)) call destroy_keymap(tab_bar_move_repeat_map, st)
         call make_sparse_keymap(tab_bar_move_repeat_map)
         call keymap_set(tab_bar_move_repeat_map, "m", "move_tab", st)
-        call keymap_set(tab_bar_move_repeat_map, "M", "move_tab_backward", st)
+        call keymap_set(tab_bar_move_repeat_map, "M", "move_tab_bar_tab_backward", st)
         call set_repeat_map(tab_bar_move_repeat_map)
         if (is_keymap_live(tab_bar_history_repeat_map)) call destroy_keymap(tab_bar_history_repeat_map, st)
         call make_sparse_keymap(tab_bar_history_repeat_map)

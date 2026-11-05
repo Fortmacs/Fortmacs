@@ -24,7 +24,7 @@ the tabs as the frame parameter `tabs` (frame_mod's `tab_type`: name, explicit n
 `tab-bar--tab-index-by-name`,
 `tab-bar--tab-index-recent`,
 `tab-bar--tabs-recent`,
-`tab-bar-select-tab` (`select_tab`),
+`tab-bar-select-tab`,
 `tab-bar-switch-to-next-tab`,
 `tab-bar-switch-to-prev-tab`,
 `tab-bar-switch-to-last-tab`,
@@ -33,8 +33,8 @@ the tabs as the frame parameter `tabs` (frame_mod's `tab_type`: name, explicit n
 `tab-bar-move-tab-to`,
 `tab-bar-move-tab`,
 `tab-bar-move-tab-backward`,
-`tab-bar-new-tab-to` (`make_tab_to`),
-`tab-bar-new-tab` (`make_tab`),
+`tab-bar-new-tab-to`,
+`tab-bar-new-tab`,
 `tab-bar-duplicate-tab`,
 `tab-bar-move-window-to-tab`,
 `tab-bar-close-tab`,
@@ -47,6 +47,7 @@ the tabs as the frame parameter `tabs` (frame_mod's `tab_type`: name, explicit n
 `tab-bar-move-tab-to-group`,
 `tab-bar-change-tab-group` (with its hook's default, tab-bar-move-tab-to-group),
 `tab-bar-close-group-tabs`,
+the aliases `tab-new`, `tab-new-to`, `tab-duplicate`, `tab-window-detach`, `tab-close`, `tab-close-other`, `tab-close-group`, `tab-undo`, `tab-select`, `tab-switch`, `tab-next`, `tab-previous`, `tab-last`, `tab-recent`, `tab-move`, `tab-move-to`, `tab-rename`, `tab-group` and `tab-bar-select-tab-by-name`, each a command of its own (the long names verb, package, rest: `close_tab_bar_tab`; the aliases verb first: `close_tab`, `next_tab`),
 `tab-bar-history-mode` (`tab-bar-history-mode-map`, `tab-bar-history-repeat-map`, `tab-bar--history-pre-change`, `tab-bar--history-change`, `tab-bar-history-back`, `tab-bar-history-forward`, `tab-bar-history-limit`),
 `switch-to-buffer-other-tab` (`display-buffer-in-tab` and `display-buffer-in-new-tab` without alist entries; windows made for a tab record the `tab` quit-restore type, and quitting the last such window closes the tab),
 `find-file-other-tab`,
@@ -99,11 +100,11 @@ the mouse on the tab bar (`tab-bar-map`, `tab-bar-mouse-down-1`, `tab-bar-mouse-
 the GUI tab bar and the icons' images (`tab-bar-button-margin`, `tab-bar-button-relief`),
 the menu bar's button (`tab-bar-format-menu-bar`, `tab-bar-menu-bar`, `tab-bar-menu-bar-button`),
 `tab-bar-format-align-right` and `tab-bar-format-global` (`global-mode-string` is not ported),
-the window state of a tab (`ws`) and what needs it: `tab-bar-move-tab-to-frame`, `tab-bar-detach-tab` (C-x t ^ f), `tab-bar-split-tab`, `tab-bar-merge-tabs`, `tab-bar-get-buffer-tab`, `frameset-filter-tabs`, `frameset-session-filter-tabs`,
+the window state of a tab (`ws`) and what needs it: `tab-bar-move-tab-to-frame`, `tab-bar-detach-tab` (C-x t ^ f) with its alias `tab-detach`, `tab-bar-split-tab`, `tab-bar-merge-tabs`, `tab-bar-get-buffer-tab`, `frameset-filter-tabs`, `frameset-session-filter-tabs`,
 `display-buffer-in-tab` and `display-buffer-in-new-tab` as `display-buffer` actions with their alist entries (`reusable-frames`, `ignore-current-tab`, `tab-name`, `tab-group`),
 `other-tab-prefix` (C-x t t) and `project-other-tab-command` (C-x t p) (display-buffer-override-next-command is not ported),
 C-x w ^ t (`window-prefix-map` is not ported),
-`tab-switcher` (`tab-list`) and `tab-switcher-mode`,
+`tab-switcher` (with its alias `tab-list`) and `tab-switcher-mode`,
 the hooks `tab-bar-tab-post-open-functions`, `tab-bar-tab-pre-close-functions`, `tab-bar-tab-prevent-close-functions`, `tab-bar-tab-post-select-functions`, `tab-bar-post-undo-close-tab-functions`, `tab-bar-tab-post-change-group-functions`,
 the function variables `tab-bar-tabs-function`, `tab-bar-tab-name-format-function`, `tab-bar-tab-name-format-functions`, `tab-bar-tab-face-function`, `tab-bar-tab-group-function`, `tab-bar-tab-group-format-function`, `tab-bar-tab-group-face-function`, `tab-bar-format-tab-help-text-function`, `tab-bar-auto-width-functions`,
 `tab-bar-auto-width-max`, `tab-bar-auto-width-min`, `tab-bar-auto-width-faces` (their default values are used),
@@ -112,8 +113,7 @@ the function variables `tab-bar-tabs-function`, `tab-bar-tab-name-format-functio
 `tab-bar-select-restore-context` (window.el's window-point-context-set/use),
 switching tabs from an active minibuffer (`tab-bar-minibuffer-restore-tab`),
 the :set functions of the options (Customize),
-`find-file-other-tab` and `find-file-read-only-other-tab` WILDCARDS,
-the short aliases as commands of their own (`tab-new`, `tab-close` and the others are the commands' names here)
+`find-file-other-tab` and `find-file-read-only-other-tab` WILDCARDS
 
 ## Tests
 

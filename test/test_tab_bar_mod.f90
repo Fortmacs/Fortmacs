@@ -31,7 +31,9 @@ module test_tab_bar_mod
     use handle_mod, only: handle_type
     use modes_mod, only: minor_modes
     use bindings_mod, only: init_bindings
-    use keyboard_mod, only: last_message, pre_command_hook
+    use keyboard_mod, only: last_message, pre_command_hook, unread_command_events, command_loop, last_command
+    use keymap_mod, only: key_parse
+    use value_mod, only: value_type
     use callint_mod, only: this_command
     use commands_mod, only: commands
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer
@@ -61,7 +63,8 @@ contains
                     new_unittest("tab-bar-line", test_tab_bar_line), &
                     new_unittest("tab-bar-duplicate-tab", test_duplicate), &
                     new_unittest("tab-bar-move-and-group", test_move_and_group), &
-                    new_unittest("tab-bar-history", test_history) &
+                    new_unittest("tab-bar-history", test_history), &
+                    new_unittest("tab-bar-alias-keys", test_alias_keys) &
                     ]
     end subroutine collect_tab_bar_mod
 
@@ -420,4 +423,40 @@ contains
 
         call leave(h)
     end subroutine test_history
+
+    !> Execute KEYS (an is_key_valid string) through the command loop.
+    subroutine execute_keys(keys)
+        character(len=*), intent(in) :: keys
+        type(value_type), allocatable :: events(:)
+        type(status_type) :: st
+
+        call key_parse(keys, events, st)
+        call unread_command_events(events)
+        call command_loop(st)
+    end subroutine execute_keys
+
+    !> C-x t runs the aliases, commands of their own: tab-new, tab-next,
+    !> tab-close.
+    subroutine test_alias_keys(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+
+        call enter(h)
+
+        checks: block
+            call execute_keys("C-x t 2")
+            call check(error, associated(last_command, commands%make_tab) .and. &
+                       size(selected_frame%parameters%tabs) == 2, "C-x t 2 runs make_tab")
+            if (allocated(error)) exit checks
+            call execute_keys("C-x t o")
+            call check(error, associated(last_command, commands%next_tab) .and. &
+                       selected_frame%parameters%tabs(1)%current, "C-x t o runs next_tab")
+            if (allocated(error)) exit checks
+            call execute_keys("C-x t 0")
+            call check(error, associated(last_command, commands%close_tab) .and. &
+                       size(selected_frame%parameters%tabs) == 1, "C-x t 0 runs close_tab")
+        end block checks
+
+        call leave(h)
+    end subroutine test_alias_keys
 end module test_tab_bar_mod
