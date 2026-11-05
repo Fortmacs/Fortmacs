@@ -2073,8 +2073,10 @@ scroll = .not. compilation_scroll_output%is_off()
 Features that upstream Emacs 31.1 does not have, each an owner decision
 (CLAUDE.md: behavior mirrors Emacs except for these).
 
-- **Completion after `%` in f90_mode** (owner, 2026-11-05): always on,
-  through completion-at-point (M-TAB, C-M-i, completion-preview,
+- **Completion after `%` in f90 buffers** (owner, 2026-11-05): the minor
+  mode `fortran_completion_mode`, off by default (M-x, or turned on in
+  init.f90 through `f90_mode_hook`); while on,
+  it offers through completion-at-point (M-TAB, C-M-i, completion-preview,
   icomplete). After `object%` it offers the components and type-bound
   procedures of the object's derived type, known from a table the build
   generates for the config API's types and from the derived types parsed in
