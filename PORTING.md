@@ -2068,6 +2068,19 @@ scroll = .not. compilation_scroll_output%is_off()
   calls, so such helpers are made public with a comment saying so (they are
   not part of the config API); ibuffer_mod does this for ibuf_ext_mod.
 
+## Added features
+
+Features that upstream Emacs 31.1 does not have, each an owner decision
+(CLAUDE.md: behavior mirrors Emacs except for these).
+
+- **Completion after `%` in f90_mode** (owner, 2026-11-05): always on,
+  through completion-at-point (M-TAB, C-M-i, completion-preview,
+  icomplete). After `object%` it offers the components and type-bound
+  procedures of the object's derived type, known from a table the build
+  generates for the config API's types and from the derived types parsed in
+  the buffer and the project's .f90 files (cached, re-read when a file
+  changes, parsed on the worker thread). Planned; not built yet.
+
 ## Design decisions
 
 - **Generated at build time (2026-11-04, decided by the owner).**  The
