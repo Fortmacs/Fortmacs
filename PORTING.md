@@ -2100,6 +2100,21 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
   in docs/status/fortran_completion_mod.md with the rest of what is not
   done.  f90_mode without the mode is unchanged.
 
+## Added features
+
+Features that upstream Emacs 31.1 does not have, each an owner decision
+(CLAUDE.md: behavior mirrors Emacs except for these).
+
+- **Completion after `%` in f90 buffers** (owner, 2026-11-05): the minor
+  mode `fortran_completion_mode`, off by default (M-x, or turned on in
+  init.f90 through `f90_mode_hook`). While it is on, completion-at-point
+  (M-TAB, C-M-i, completion-preview, icomplete) offers, after `object%`,
+  the components and type-bound
+  procedures of the object's derived type, known from a table the build
+  generates for the config API's types and from the derived types parsed in
+  the buffer and the project's .f90 files (cached, re-read when a file
+  changes, parsed on the worker thread). Planned; not built yet.
+
 ## Design decisions
 
 - **Generated at build time (2026-11-04, decided by the owner).**  The
