@@ -45,6 +45,11 @@ buff-menu.el	Buffer-menu-isearch-buffers	buffer_menu_isearch_buffers
 buff-menu.el	Buffer-menu-isearch-buffers-regexp	buffer_menu_isearch_buffers_regexp
 buff-menu.el	Buffer-menu-mouse-select	buffer_menu_mouse_select
 buff-menu.el	Buffer-menu-visit-tags-table	buffer_menu_visit_tags_table
+cal-islam.el	calendar-islamic-goto-date	calendar_islamic_goto_date
+cal-islam.el	calendar-islamic-print-date	calendar_islamic_print_date
+cal-islam.el	diary-islamic-insert-entry	diary_islamic_insert_entry
+cal-islam.el	diary-islamic-insert-monthly-entry	diary_islamic_insert_monthly_entry
+cal-islam.el	diary-islamic-insert-yearly-entry	diary_islamic_insert_yearly_entry
 cal-move.el	calendar-scroll-toolkit-scroll	calendar_scroll_toolkit_scroll
 calendar.el	calendar-print-other-dates	calendar_print_other_dates
 cc-engine.el	c-toggle-parse-state-debug	c_toggle_parse_state_debug

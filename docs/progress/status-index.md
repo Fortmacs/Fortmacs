@@ -84,6 +84,7 @@
 | [help_fns_mod](../status/help_fns_mod.md) | help-fns.el (+ help-mode.el describe-symbol-backends) | partial |
 | [help_mod](../status/help_mod.md) | help.el (+ help-macro.el `make-help-screen`, keymap.c `describe-buffer-bindings`/`describe_vector`, newcomment.el `comment-indent` for the lossage, simple.el `make-separator-line`) | partial |
 | [help_mode_mod](../status/help_mode_mod.md) | help-mode.el | partial |
+| [holidays_mod](../status/holidays_mod.md) | calendar/holidays.el, calendar/cal-julian.el (in part), calendar/cal-islam.el (in part) | partial |
 | [hooks_mod](../status/hooks_mod.md) | eval.c (hooks), subr.el (`add-hook`, `remove-hook`) | partial |
 | [ibuf_macs_mod](../status/ibuf_macs_mod.md) | ibuf-macs.el | partial |
 | [ibuffer_mod](../status/ibuffer_mod.md) | ibuffer.el, ibuf-ext.el | partial |
