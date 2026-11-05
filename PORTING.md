@@ -276,7 +276,10 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
    43. Spelling: `ispell` and `flyspell` over an external speller process.
        43a ispell.el (M-$, `ispell-region`, `ispell-buffer`, the choices
        buffer, personal and per-file dictionaries, Aspell discovery) —
-       done; 43b flyspell.el (`flyspell-mode`, `flyspell-prog-mode`).
+       done; 43b flyspell.el (`flyspell-mode`, `flyspell-prog-mode`, the
+       highlighting, `flyspell-region` with large regions through the
+       speller's list run, M-TAB auto-correction) — in progress (the
+       correction menu of C-c $ waits for TTY menus).
    44. Terminal frames: several frames on one terminal (C-x 5), and
        `tab-bar-mode`/`tab-line-mode`.
    45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,

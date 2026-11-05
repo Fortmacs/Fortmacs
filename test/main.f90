@@ -136,6 +136,7 @@ program tester
     use test_abbrev_mod, only: collect_abbrev_mod
     use test_dabbrev_mod, only: collect_dabbrev_mod
     use test_ispell_mod, only: collect_ispell_mod
+    use test_flyspell_mod, only: collect_flyspell_mod
     use test_coding_mod, only: collect_coding_mod
     use test_minibuffer_mod, only: collect_minibuffer_mod
     use test_timer_mod, only: collect_timer_mod
@@ -305,6 +306,7 @@ program tester
                  new_testsuite("abbrev_mod", collect_abbrev_mod), &
                  new_testsuite("dabbrev_mod", collect_dabbrev_mod), &
                  new_testsuite("ispell_mod", collect_ispell_mod), &
+                 new_testsuite("flyspell_mod", collect_flyspell_mod), &
                  new_testsuite("coding_mod", collect_coding_mod), &
                  new_testsuite("minibuffer_mod", collect_minibuffer_mod), &
                  new_testsuite("timer_mod", collect_timer_mod), &

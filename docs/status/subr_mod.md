@@ -51,7 +51,10 @@ pulsing progress reporters (MIN-VALUE and MAX-VALUE omitted),
 `version-list-=`,
 `version<`,
 `version<=`,
-`version=` (the operators `<`, `<=`, `==`, with `>`, `>=`, `/=`, between two `version_type` values: `version(a) <= version(b)`; owner 2026-11-04; a comparison with an invalid version is false, except `/=`; the procedures behind them are private, in C-h f as `version_less`, `version_less_or_equal`, `version_equal` and the others with the operator call line)
+`version=` (the operators `<`, `<=`, `==`, with `>`, `>=`, `/=`, between two `version_type` values: `version(a) <= version(b)`; owner 2026-11-04; a comparison with an invalid version is false, except `/=`; the procedures behind them are private, in C-h f as `version_less`, `version_less_or_equal`, `version_equal` and the others with the operator call line),
+`copy-overlay`,
+`remove-overlays` (BEG and END given),
+`split-string` (SEPARATORS given; no TRIM)
 
 ## Deferred
 

@@ -1,0 +1,63 @@
+# 2026-11-05-step43b-flyspell -- the Fortran names of flyspell.el (step 43b).
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+
+# Verb first (R6-17, R6-40), decided by rule and reported: the verb
+# comes from what each one does.  flyspell-word, flyspell-region,
+# flyspell-buffer, flyspell-small-region and flyspell-large-region keep
+# their names: upstream uses "flyspell" as their verb ("Flyspell text
+# between BEG and END").  flyspell-sort, flyspell-check-changes and
+# flyspell-deplacement-commands have no entry: their names are a run of
+# flyspell-sort-corrections and the options flyspell-check-changes and
+# flyspell-deplacement-commands, which keep theirs (the functions are
+# sort_flyspell_corrections, check_flyspell_changes and
+# set_flyspell_deplacement_commands, renamed by hand).
+name	flyspell_goto_next_error	goto_next_flyspell_error
+name	flyspell_auto_correct_word	auto_correct_flyspell_word
+name	flyspell_auto_correct_previous_word	auto_correct_previous_flyspell_word
+name	flyspell_check_previous_highlighted_word	check_previous_highlighted_flyspell_word
+name	flyspell_correct_word_before_point	correct_flyspell_word_before_point
+name	flyspell_delay_command	set_flyspell_delayed_command
+name	flyspell_delay_commands	set_flyspell_delayed_commands
+name	flyspell_deplacement_command	set_flyspell_deplacement_command
+# The new name holds the old one: kept, so that the entry above does not
+# apply to it again.
+keep	set_flyspell_deplacement_command
+keep	cmd_set_flyspell_deplacement_command
+name	flyspell_after_change_function	record_flyspell_change
+name	flyspell_notify_misspell	notify_flyspell_misspelling
+name	flyspell_word_search_backward	search_flyspell_word_backward
+name	flyspell_word_search_forward	search_flyspell_word_forward
+name	flyspell_get_word	get_flyspell_word
+name	flyspell_external_point_words	mark_flyspell_external_words
+name	flyspell_process_localwords	remove_flyspell_localwords
+name	flyspell_check_region_doublons	check_flyspell_region_doublons
+name	flyspell_delete_region_overlays	delete_flyspell_region_overlays
+name	flyspell_delete_all_overlays	delete_all_flyspell_overlays
+name	flyspell_unhighlight_at	unhighlight_flyspell_at
+name	flyspell_highlight_incorrect_region	highlight_flyspell_incorrect_region
+name	flyspell_highlight_duplicate_region	highlight_flyspell_duplicate_region
+name	flyspell_display_next_corrections	display_next_flyspell_corrections
+name	flyspell_adjust_cursor_point	adjust_flyspell_cursor_point
+name	flyspell_accept_buffer_local_defs	accept_flyspell_buffer_local_defs
+name	flyspell__mode_on	enable_flyspell_mode
+name	flyspell__mode_off	disable_flyspell_mode
+# B1: predicates are is_* or has_* (decided by rule).
+name	flyspell_check_pre_word_p	is_flyspell_check_pre_word
+name	flyspell_check_changed_word_p	is_flyspell_check_changed_word
+name	flyspell_check_word_p	is_flyspell_check_word
+name	flyspell_tex_command_p	is_flyspell_tex_command
+name	flyspell_math_tex_command_p	is_flyspell_math_tex_command
+name	flyspell_overlay_p	is_flyspell_overlay
+name	flyspell_properties_at_p	has_flyspell_properties_at
+# R2-Q10: "predicate" goes; a setting holding a test is X_test_function.
+name	flyspell_generic_check_word_predicate	flyspell_generic_check_word_test_function
+name	flyspell_mode_predicate	flyspell_mode_test_function
+# Open questions (PR description, recommended option applied): the tests
+# that tell whether a word is checked, and the default sort function.
+name	flyspell_generic_progmode_verify	is_flyspell_prog_text
+name	mail_mode_flyspell_verify	is_flyspell_mail_text
+name	sgml_mode_flyspell_verify	is_flyspell_sgml_text
+name	flyspell_sort_corrections_alphabetically	is_flyspell_correction_less
