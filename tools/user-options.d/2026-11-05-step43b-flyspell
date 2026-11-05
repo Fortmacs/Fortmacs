@@ -1,0 +1,35 @@
+# 2026-11-05-step43b-flyspell -- the user options of flyspell.el (step 43b).
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+flyspell_after_incorrect_word_string
+flyspell_auto_correct_binding
+flyspell_before_incorrect_word_string
+flyspell_case_fold_duplications
+flyspell_check_changes
+flyspell_check_tex_math_command
+flyspell_default_deplacement_commands
+flyspell_default_delayed_commands
+flyspell_default_dictionary
+flyspell_delay
+flyspell_delay_use_timer
+flyspell_delayed_commands
+flyspell_deplacement_commands
+flyspell_dictionaries_that_consider_dash_as_word_delimiter
+flyspell_duplicate_distance
+flyspell_highlight_flag
+flyspell_highlight_properties
+flyspell_insert_function
+flyspell_issue_message_flag
+flyspell_issue_welcome_flag
+flyspell_large_region
+flyspell_mark_duplications_exceptions
+flyspell_mark_duplications_flag
+flyspell_mode_line_string
+flyspell_persistent_highlight
+flyspell_prog_text_faces
+flyspell_sort_corrections
+flyspell_sort_corrections_function
+flyspell_tex_command_regexp
+flyspell_use_meta_tab

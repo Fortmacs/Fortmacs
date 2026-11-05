@@ -43,8 +43,7 @@ framepop,
 highlighting without colors and lazy highlighting,
 the *Choices* mode line (no `mode-line-format`),
 electric help,
-horizontal scrolling (`truncate-lines`);
-flyspell.el (step 43b)
+horizontal scrolling (`truncate-lines`)
 
 ## Tests
 

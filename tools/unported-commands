@@ -246,6 +246,8 @@ fill.el	set-justification-full	set_justification_full
 fill.el	set-justification-left	set_justification_left
 fill.el	set-justification-none	set_justification_none
 fill.el	set-justification-right	set_justification_right
+flyspell.el	flyspell-correct-word	flyspell_correct_word
+flyspell.el	flyspell-correct-word-before-point	correct_flyspell_word_before_point
 follow.el	follow-mwheel-scroll	follow_mwheel_scroll
 follow.el	follow-scroll-bar-drag	follow_scroll_bar_drag
 follow.el	follow-scroll-bar-scroll-down	follow_scroll_bar_scroll_down

@@ -130,7 +130,25 @@ done) | sort -u > "$tmp/lall"
 # Lisp definitions our sources cite ("simple.el:newline",
 # "term/xterm.el:terminal-init-xterm").
 grep -ohE '\b[a-z0-9/_-]+\.el:[A-Za-z0-9*+/<>=!?-]*[A-Za-z0-9*+<>=!?]' \
-    "$root"/src/*.f90 "$root"/src/sys/*.f90 | sort -u > "$tmp/lcited"
+    "$root"/src/*.f90 "$root"/src/sys/*.f90 | sort -u > "$tmp/lcited0"
+# A citation by the bare file name ("project.el:project-current", as
+# "Port of FILE:NAME" headers write it) counts for the file under lisp/
+# with that base name (progmodes/project.el).  Files under cedet/ and
+# obsolete/ that share a base name with another file are not meant
+# (cedet/semantic/symref/grep.el beside progmodes/grep.el); a base name
+# still ambiguous after that counts for none.
+awk -F: 'NR == FNR {
+        p = $1; b = p; sub(/.*\//, "", b)
+        side = (p ~ /^(cedet|obsolete)\//)
+        if (!(b in path) || (pside[b] && !side)) { path[b] = p; pside[b] = side; dup[b] = 0 }
+        else if (path[b] != p && side == pside[b]) dup[b] = 1
+        next
+    }
+    {
+        f = $1; n = substr($0, length(f) + 2)
+        if (index(f, "/") == 0 && (f in path) && !dup[f]) print path[f] ":" n
+        else print
+    }' "$tmp/lall" "$tmp/lcited0" | sort -u > "$tmp/lcited"
 comm -12 "$tmp/lall" "$tmp/lcited" > "$tmp/ldone"
 
 l_total=$(wc -l < "$tmp/lall")

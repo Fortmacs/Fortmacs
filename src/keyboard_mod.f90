@@ -98,7 +98,7 @@ module keyboard_mod
               unread_post_input_method_events, unread_input_method_events
     public :: read_key_sequence, command_loop_step, command_loop, &
               request_exit, is_exit_requested, set_transient_map, recursive_edit_1, &
-              throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for
+              throw_exit, throw_exit_string, exit_recursive_edit, abort_recursive_edit, sit_for, sit_for_input
     public :: exit_transient_map
     public :: add_read_fd, delete_read_fd, insert_special_event, execute_special_events, has_pending_special_events, &
               read_fd_procedure, special_event_procedure
