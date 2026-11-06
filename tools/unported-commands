@@ -684,6 +684,7 @@ rmail.el	rmail-resend	rmail_resend
 rmail.el	rmail-retry-failure	rmail_retry_failure
 rmail.el	rmail-set-remote-password	rmail_set_remote_password
 rmail.el	rmail-speedbar-move-message-to-folder-on-line	rmail_speedbar_move_message_to_folder_on_line
+rmailmm.el	rmail-mime	rmail_mime
 rmailsum.el	rmail-summary-by-regexp	rmail_summary_by_regular_expression
 rmailsum.el	rmail-summary-by-thread	rmail_summary_by_thread
 rmailsum.el	rmail-summary-by-topic	rmail_summary_by_topic
