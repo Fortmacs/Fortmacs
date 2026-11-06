@@ -1,0 +1,1 @@
+2026-11-06 — README: "make, not new" in the Differences list now says it is for objects in memory, since files and directories are created (`make_directory` is `create_directory`); it had read as a contradiction (`readme-make-in-memory`, owner).  First pushed to the branch of #308 after that PR had merged, against the rule on merged branches; redone here.

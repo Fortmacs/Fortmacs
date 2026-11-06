@@ -68,31 +68,33 @@ running. Each generation is kept with the `init.f90` it was built from in
 
 ## Why Fortran?
 
-1. **Real parallel threads.** Emacs Lisp threads run one at a time under a
-   global lock. Fortmacs keeps one thread for buffers and the screen, as
-   Emacs does, and will run heavy work (searching large files, file I/O,
-   syntax parsing, language servers) on other cores, each worker with its
-   own copy of the data. Not implemented yet; see "Threads" in
-   [PORTING.md](PORTING.md).
-2. **Fast native code.** Compiled ahead of time by optimizing compilers,
-   with no garbage-collection pauses (objects are freed explicitly); your
-   init file is compiled in, not evaluated at startup.
-3. **Errors caught at compile time.** Static types, `implicit none` and
-   argument intents turn many mistakes into compile errors, in your
-   configuration too.
-4. **A stable standard.** Fortran is an ISO standard with many independent
-   compilers; code from decades ago still compiles (compilers accept
-   features later removed from the standard, by default with a warning).
-5. **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
-   ending where parentheses balance.
-   [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).
-   That's a preference, not a verdict on Elisp.
-
-6. **Help that speaks Fortran.** Emacs is at its best as an environment for
-   the language it's written in: it documents every function and variable,
-   shows their current values and jumps to their source. Fortmacs aims to
-   bring that to Fortran: help shows Fortran names, values and source files,
-   so exploring and configuring the editor feels like working in Fortran.
+- **Real parallel threads.** Emacs Lisp threads run one at a time under a
+  global lock. Fortmacs keeps one thread for buffers and the screen, as
+  Emacs does, and will run heavy work (searching large files, file I/O,
+  syntax parsing, language servers) on other cores, each worker with its
+  own copy of the data. Not implemented yet; see "Threads" in
+  [PORTING.md](PORTING.md).
+- **Fast native code.** Compiled ahead of time by optimizing compilers,
+  with no garbage-collection pauses (objects are freed explicitly); your
+  init file is compiled in, not evaluated at startup.
+- **Errors caught at compile time.** Static types, `implicit none` and
+  argument intents turn many mistakes into compile errors, in your
+  configuration too.
+- **A stable standard.** Fortran is an ISO standard with many independent
+  compilers; code from decades ago still compiles (compilers accept
+  features later removed from the standard, by default with a warning).
+- **A language of its own.** Fortran is a fully-fledged, general-purpose
+  language, used for programs, libraries and tools that run with no
+  editor at all. Elisp exists only inside GNU Emacs.
+- **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
+  ending where parentheses balance.
+  [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).
+  That's a preference, not a verdict on Elisp.
+- **Help that speaks Fortran.** Emacs is at its best as an environment for
+  the language it's written in: it documents every function and variable,
+  shows their current values and jumps to their source. Fortmacs aims to
+  bring that to Fortran: help shows Fortran names, values and source files,
+  so exploring and configuring the editor feels like working in Fortran.
 
 ## Differences from Emacs
 
@@ -120,7 +122,8 @@ names, help and internals are Fortran-first.
   `make_directory` is `create_directory`); arrays grow with append and <!-- fortran-names: keep -->
   prepend (`add_auto_mode` is `prepend_auto_mode`). Predicates are <!-- fortran-names: keep -->
   `is_*` (`process_live_p` is `is_process_live`), and other helpers <!-- fortran-names: keep -->
-  use one word each: get, not fetch; make, not new. Where Emacs gives <!-- fortran-names: keep -->
+  use one word each: get, not fetch; make, not new, for an object in <!-- fortran-names: keep -->
+  memory (files are created, not made). Where Emacs gives
   two words two behaviors, both stay: cut saves to the clipboard
   history, delete does not; read prompts, get looks up. PORTING.md,
   "One word per meaning", has the full list.
