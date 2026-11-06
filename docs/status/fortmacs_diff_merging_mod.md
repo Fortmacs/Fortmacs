@@ -6,6 +6,7 @@
 
 ## Ported
 
+the procedures that act on one session, as type-bound procedures of `fortmacs_diff_session_type` (panel 14) in fortmacs_diff_settings_merging_mod, a submodule of fortmacs_diff_settings_mod,
 `ediff-quit-merge-hook` (its default function `maybe_save_and_delete_fortmacs_diff_merge` is added by fortmacs_diff_utilities_mod),
 `ediff-default-variant` (a choice setting: FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_A, _DEFAULT_B, _COMBINED),
 `ediff-combination-pattern` (an array of `fortmacs_diff_combination_part_type` records: a delimiter and a buffer type, 0 after the last delimiter),
@@ -13,7 +14,7 @@
 `ediff-skip-merge-regions-that-differ-from-default`,
 `ediff-merge-region-is-non-clash`,
 `ediff-merge-region-is-non-clash-to-skip` and
-`ediff-skip-merge-region-if-changed-from-default-p` (both in one type-bound check of the session, `call fortmacs_diff_sessions(session_index)%check_region_skip(difference, skip, status)`, in fortmacs_diff_settings_skip_mod; panel 13),
+`ediff-skip-merge-region-if-changed-from-default-p` (both in one type-bound check of the session, `call fortmacs_diff_sessions(session_index)%check_region_skip(difference, skip, status)`, in fortmacs_diff_settings_merging_mod; panel 13),
 `ediff-get-combined-region`,
 `ediff-set-state-of-all-diffs-in-all-buffers`,
 `ediff-set-state-of-diff-in-all-buffers`,
