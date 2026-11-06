@@ -530,7 +530,7 @@ contains
         type(status_type), intent(out) :: status
         type(restriction_type) :: restriction, inner
         type(excursion_type) :: excursion
-        integer(int64) :: break, qword_break, line_start, moved, found
+        integer(int64) :: break, qword_break, line_beginning, moved, found
         integer(int32) :: c
         logical :: first, matched
 
@@ -544,18 +544,18 @@ contains
             qword_break = 0
             call save_restriction_begin(inner)
             call widen()
-            line_start = line_beginning_position()
+            line_beginning = line_beginning_position()
             call save_restriction_end(inner)
             ! This function is either called with the Header: name in the
             ! region or not.  If it's not in the region, then we may already
             ! have a space.
-            first = line_start == point()
+            first = line_beginning == point()
 
             if (.not. first) then
                 call save_restriction_begin(inner)
                 call widen()
                 call save_excursion_begin(excursion)
-                call regular_expression_search_backward("[ "//TAB//"]", found, status, bound=line_start, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward("[ "//TAB//"]", found, status, bound=line_beginning, noerror=SEARCH_NOERROR)
                 first = found == 0
                 call save_excursion_end(excursion)
                 call save_restriction_end(inner)
@@ -564,10 +564,10 @@ contains
 
             do while (.not. is_end_of_buffer())
                 if (break > 0 .or. qword_break > 0) then
-                    if (point() - line_start > 76) then
+                    if (point() - line_beginning > 76) then
                         ! We have a line longer than 76 characters, so break
                         ! the line.
-                        call break_line(break, qword_break, line_start, status)
+                        call break_line(break, qword_break, line_beginning, status)
                         if (.not. status%ok()) exit body
                         break = 0
                         qword_break = 0
@@ -581,7 +581,7 @@ contains
                 if (c == 10) then
                     ! New line, so there's nothing to break.
                     call forward_character(status)
-                    line_start = point()
+                    line_beginning = point()
                     break = 0
                     qword_break = 0
                     moved = skip_characters_forward(" "//TAB, status)
@@ -627,7 +627,7 @@ contains
             if (break > 0 .or. qword_break > 0) then
                 ! Finally, after the loop, we have a line longer than 76
                 ! characters, so break the line.
-                if (point() - line_start > 76) call break_line(break, qword_break, line_start, status)
+                if (point() - line_beginning > 76) call break_line(break, qword_break, line_beginning, status)
             end if
         end block body
 
@@ -636,9 +636,9 @@ contains
 
     ! Break the line at BREAK (or QWORD_BREAK when BREAK is 0); BEGINNING_OF_LINE becomes
     ! the beginning of the new line.  Port of rfc2047.el:rfc2047--break-line.
-    subroutine break_line(break, qword_break, line_start, status)
+    subroutine break_line(break, qword_break, line_beginning, status)
         integer(int64), intent(in) :: break, qword_break
-        integer(int64), intent(out) :: line_start
+        integer(int64), intent(out) :: line_beginning
         type(status_type), intent(out) :: status
         integer(int64) :: moved
 
@@ -657,7 +657,7 @@ contains
         end if
 
         ! Return beginning-of-line.
-        line_start = point() - 1
+        line_beginning = point() - 1
         ! Don't break before the first non-LWSP characters.
         moved = skip_characters_forward(" "//TAB, status)
         if (.not. is_end_of_buffer()) call forward_character(status)
@@ -684,7 +684,7 @@ contains
         integer(int64), intent(in) :: b, e
         type(status_type), intent(out) :: status
         type(restriction_type) :: restriction, inner
-        integer(int64) :: line_start, end_of_line, shortage, moved
+        integer(int64) :: line_beginning, end_of_line, shortage, moved
         logical :: matched
 
         call save_restriction_begin(restriction)
@@ -695,7 +695,7 @@ contains
             call goto_character(point_minimum())
             call save_restriction_begin(inner)
             call widen()
-            line_start = line_beginning_position()
+            line_beginning = line_beginning_position()
             call save_restriction_end(inner)
             end_of_line = line_end_position()
             shortage = forward_line(1_int64)
@@ -704,13 +704,13 @@ contains
                 matched = looking_at("[ "//TAB//"]", status)
                 if (.not. status%ok()) exit body
 
-                if (matched .and. line_end_position() - line_start < 76) then
+                if (matched .and. line_end_position() - line_beginning < 76) then
                     call goto_character(end_of_line)
                     moved = skip_characters_forward(CR//LF, status)
                     call delete_region(end_of_line, point(), status)
                     if (.not. status%ok()) exit body
                 else
-                    line_start = line_beginning_position()
+                    line_beginning = line_beginning_position()
                 end if
 
                 end_of_line = line_end_position()
