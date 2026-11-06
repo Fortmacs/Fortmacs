@@ -1887,6 +1887,15 @@ statement or the comment line above it.  Checked:
   read as `kp-separato`, fortmacs_mod's `--no-blinking-cursor` as
   `--no-blinking-cu`): size the length from the longest string, as the
   generators do.
+- `variable-length-constructor`: a string literal first in an array
+  constructor whose length is known only at run time, with other items
+  after it (`call set_table([character(len=len(file) + 32) ::
+  "/does/not/exist", file], ...)`): passed as an actual argument,
+  gfortran 13's `-fcheck=all` compares the items' lengths and stops
+  ("Different CHARACTER lengths (25/276) in array constructor"), so
+  test_saveplace_mod passed only while the temporary file's name had the
+  literal's 25 characters (a TMPDIR of /tmp).  Allocate the array with
+  that length and assign the elements.
 
 Checked by hand on every PR's diff (no script can tell):
 
