@@ -37,5 +37,5 @@ test-drive.tag = "v0.6.1"
 [extra.fortitude.check]
 line-length = 132
 # C bindings take C buffers as assumed-size arrays.
-# The doc examples of sh_indent_after_continuation end lines with a backslash.
+# The doc examples of shell_indent_after_continuation end lines with a backslash.
 per-file-ignores = { "src/sys/system_linux_mod.f90" = ["C071", "C072"], "src/sys/system_socket_mod.f90" = ["C071", "C072"], "src/shell_script_mod.f90" = ["C051"] }

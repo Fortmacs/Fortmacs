@@ -629,8 +629,10 @@ in names written in text, never in plain prose, prompts or messages; a
 that name: `part len length` renames `old_len`, not `len(x)`); a `prefix`
 renames the first part of a name of two or more parts (`cmd_x` is
 `execute_x`).
-tools/fortran-names.sh applies it, by default to src, test, app, tools,
-docs/init.f90, fpm.toml, PORTING.md and README.md, or to the paths given:
+tools/fortran-names.sh applies it, by default to the code (src, test,
+app and tools without their Markdown files, docs/init.f90, fpm.toml;
+prose such as PORTING.md, README.md and docs/status is renamed by hand,
+since the renames would mangle it: GUI, PT), or to the paths given:
 it renames files (with `git mv`) and contents, protects citations
 (`FILE.el:NAME`, `FILE.c:NAME`, `FILE.h:NAME`), hyphenated and C names
 (`forward-sexp`, `Fscan_lists`), the word after "upstream" or
@@ -640,7 +642,11 @@ renamed word; an entry's new name that holds another entry's old word is renamed
 tools/fortran-names.awk, which fails with FILE:LINE on an old name in
 Fortran code or in a `!>` docstring, or on a file of an old name, and
 tools/test-fortran-names.sh, which runs the script on the fixture in
-tools/fortran-names-test.  tools/gen-docstrings.sh gives the names it
+tools/fortran-names-test.  To check without changing anything, run
+`tools/fortran-names.sh --check` (it lists what it would rename or
+change and exits 1 if anything would), or tools/check.sh; never run the
+script bare to check, since a bare run rewrites the tree.
+tools/gen-docstrings.sh gives the names it
 derives from citations their Fortran names too.
 The table also holds the names R6-21 gives this program (below): the
 `file` entry `emacs_mod` → `fortmacs_mod`, one `name` entry for each

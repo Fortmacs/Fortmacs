@@ -3,7 +3,8 @@
 # fixture in tools/fortran-names-test/input (old names, citations, a
 # docstring, Lisp source, a file of an old name) into the files of
 # tools/fortran-names-test/expected, that a second run changes nothing,
-# and that tools/fortran-names.awk flags the input but not the result.
+# that --check lists the input and leaves it alone, and that
+# tools/fortran-names.awk flags the input but not the result.
 #
 # Copyright (C) 2026 The Fortmacs authors
 #
@@ -60,6 +61,20 @@ if check "$work"/lisp_cmds_mod.f90 >/dev/null; then
     echo "test-fortran-names.sh: the check finds nothing in the old names" >&2
     exit 1
 fi
+# --check lists the files it would rename and change, exits 1, and
+# changes nothing.
+status=0
+report=$( (cd "$work" && "$root/tools/fortran-names.sh" --check ./*) 2>/dev/null) || status=$?
+if [ "$status" -ne 1 ] || ! printf '%s\n' "$report" | grep -q 'would rename ./lisp_cmds_mod.f90 -> ./expression_motion_mod.f90' ||
+    ! printf '%s\n' "$report" | grep -q 'would change ./notes.md'; then
+    echo "test-fortran-names.sh: tools/fortran-names.sh --check did not list the old names (status $status)" >&2
+    printf '%s\n' "$report" >&2
+    exit 1
+fi
+if ! same "$work" "$fixture/input"; then
+    echo "test-fortran-names.sh: tools/fortran-names.sh --check changed the files" >&2
+    exit 1
+fi
 # The first run reports the line it pushes past 132 columns and the file
 # it leaves alone for a clash (clash_mod.f90), with status 4.
 status=0
@@ -77,6 +92,10 @@ fi
 (cd "$work" && "$root/tools/fortran-names.sh" ./*) >/dev/null 2>&1 || [ $? -eq 4 ]
 if ! same "$work" "$fixture/expected"; then
     echo "test-fortran-names.sh: a second run of tools/fortran-names.sh changed the result" >&2
+    exit 1
+fi
+if ! (cd "$work" && "$root/tools/fortran-names.sh" --check $(ls | grep -v '^clash_mod\.f90$')) >/dev/null 2>&1; then
+    echo "test-fortran-names.sh: tools/fortran-names.sh --check finds old names in the renamed fixture" >&2
     exit 1
 fi
 if ! check $(ls "$work"/*.f90 | grep -v '/clash_mod\.f90$'); then
