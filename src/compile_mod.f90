@@ -384,7 +384,7 @@ module compile_mod
     !> Directory to restore to when doing `recompile'.  Port of compile.el
     !> compilation-directory (this is its default value; a compilation
     !> buffer has a value of its own, the directory it was started in).
-    type(string_setting_type), public :: compilation_directory = string_setting_type(name="compilation_directory")
+    type(string_setting_type), target, public :: compilation_directory = string_setting_type(name="compilation_directory")
 
     !> Table of values for `compilation_error_regular_expression_names'.  Port of
     !> compile.el compilation-error-regexp-alist-alist (the rules are named
@@ -712,8 +712,6 @@ module compile_mod
         logical :: command_interpreter = .false.
         ! compilation--start-time.
         integer(int64) :: start_count = 0
-        ! compilation-directory, if the buffer has a value of its own.
-        character(len=:), allocatable :: directory
         ! mode-line-process: 0 none, 1 running, 2 exited (EXIT_TEXT in
         ! EXIT_FACE).
         integer :: mode_line = 0
@@ -4223,7 +4221,7 @@ contains
     recursive subroutine recompile(status, edit_command)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: edit_command
-        character(len=:), allocatable :: command, saved_directory, directory, saved_command
+        character(len=:), allocatable :: command, saved_directory, saved_command
         logical :: edit, had_directory, command_interpreter
         type(handle_type) :: old
         type(major_mode_type), pointer :: mode
@@ -4237,8 +4235,11 @@ contains
         ! (let ((default-directory (or compilation-directory default-directory)))
         had_directory = allocated(buffers(current)%directory)
         if (had_directory) saved_directory = buffers(current)%directory
-        directory = compilation_directory_value()
-        if (len(directory) > 0) buffers(current)%directory = directory
+
+        if (allocated(compilation_directory%value)) then
+            if (len(compilation_directory%value) > 0) buffers(current)%directory = compilation_directory%value
+        end if
+
         command = compile_command_value()
         k = entry_of(current_buffer())
 
@@ -4299,24 +4300,6 @@ contains
             end if
         end subroutine restore_directory
     end subroutine recompile
-
-    !> The current buffer's `compilation_directory' ("" for none).  Not a port.
-    function compilation_directory_value() result(directory)
-        character(len=:), allocatable :: directory
-        integer :: k
-
-        directory = ""
-        k = entry_of(current_buffer())
-
-        if (k /= 0) then
-            if (allocated(compilation_buffers(k)%directory)) then
-                directory = compilation_buffers(k)%directory
-                return
-            end if
-        end if
-
-        if (allocated(compilation_directory%value)) directory = compilation_directory%value
-    end function compilation_directory_value
 
     !> The command: recompile, editing the command with a prefix argument.
     !>
@@ -4486,8 +4469,7 @@ contains
         end if
 
         ! Remember the original dir, so we can use it when we recompile.
-        call make_current_entry(k)
-        compilation_buffers(k)%directory = thisdir
+        call compilation_directory%set_local(thisdir)
 
         if (buffer_size() == 0) then
             ! Output a mode setter, for saving and later reloading this
@@ -5119,6 +5101,7 @@ contains
         call append_mode_line_modes_entry("compilation_in_progress", "[Compiling] ", is_compilation_in_progress)
         call forward_setting(compilation_error_screen_columns)
         call forward_setting(compilation_first_column)
+        call forward_setting(compilation_directory)
         if (.not. allocated(compile_command%value)) compile_command = default_compile_command()
         if (.not. allocated(compilation_error_regular_expressions)) call initialize_compilation_error_regular_expressions()
 

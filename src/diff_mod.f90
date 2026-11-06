@@ -57,7 +57,7 @@ module diff_mod
                            set_process_filter, set_process_sentinel
     use simple_mod, only: shell_command_switch
     use window_mod, only: display_buffer, other_buffer
-    use diff_mode_mod, only: diff_mode, set_diff_default_directory
+    use diff_mode_mod, only: diff_mode, diff_default_directory
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
@@ -387,7 +387,7 @@ contains
         call remember_revert_arguments(old, new, sw, synchronize)
         call revert_buffer_function%set_local(diff_revert)
         buffers(current)%directory = thisdir
-        call set_diff_default_directory(thisdir)
+        call diff_default_directory%set_local(thisdir)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
         call insert(command//achar(10), st)
         call set(value_type(name="inhibit_read_only"), saved, st)

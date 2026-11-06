@@ -1538,7 +1538,7 @@ contains
         line = line_number_at_position(absolute=.true.)
         revision = version_control_buffer_revision()
         file = annotated_file()
-        parent = version_control_parent_buffer()
+        parent = version_control_parent_buffer%get_current()
 
         if (is_buffer_live(parent)) then
             target = parent

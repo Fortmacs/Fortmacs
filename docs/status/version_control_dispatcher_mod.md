@@ -11,7 +11,7 @@
 `vc-setup-buffer`,
 `vc-exec-after` and `vc-process-sentinel` (queued actions per process),
 `vc-delistify`,
-`vc-parent-buffer` and its mode-line name,
+`vc-parent-buffer` (a setting object holding a buffer, `%set_local`, `%get_current`) and `vc-parent-buffer-name` (a forwarded string setting), both permanent-local, the name shown in the mode line,
 `vc-resynch-window`,
 `vc-resynch-buffer`,
 `vc-resynch-buffers-in-directory`,
@@ -22,7 +22,7 @@
 the log entry: `vc-start-logentry` (its message concatenated, no %s format, 2026-11-06),
 `vc-log-edit`,
 `vc-finish-logentry`,
-`vc-log-fileset`,
+`vc-log-fileset` (a setting object holding the files, `%set_local`, `%get_current`, `%is_local`, cleared by kill-all-local-variables),
 `vc-log-operation`,
 `vc-logentry-check-hook`,
 `vc-delete-logbuf-window`;
@@ -44,4 +44,4 @@ View mode after `vc-resynch-window`
 
 ## Tests
 
-test_version_control_mod (ports vc-test-misc.el vc-test-do-command-1, -2, -3, -5, -6, -7 and vc-test-exec-after-1, -2, -3)
+test_version_control_mod (ports vc-test-misc.el vc-test-do-command-1, -2, -3, -5, -6, -7 and vc-test-exec-after-1, -2, -3), test_buffer_local_setting_mod (own: the per-buffer variables, kill-all-local-variables keeping the permanent-local ones)

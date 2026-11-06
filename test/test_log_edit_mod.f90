@@ -29,10 +29,11 @@ module test_log_edit_mod
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string, goto_character, point_minimum
     use bindings_mod, only: initialize_bindings
+    use modes_mod, only: major_modes
     use version_control_hooks_mod, only: register_version_control_backend
     use log_edit_mod, only: log_edit_fill_entry, log_edit_done, log_edit_done_hook, &
-                            log_edit_done_strip_concurrent_versions_system_lines, set_log_edit_callback, &
-                            set_log_edit_version_control_backend
+                            log_edit_done_strip_concurrent_versions_system_lines, log_edit_callback, &
+                            log_edit_version_control_backend, initialize_log_edit
     implicit none(type, external)
     private
 
@@ -483,8 +484,9 @@ contains
         if (len(version_control_backend) > 0) call register_version_control_backend(version_control_backend, b)
         call log_edit_done_hook%clear()
         call log_edit_done_hook%prepend(log_edit_done_strip_concurrent_versions_system_lines)
-        call set_log_edit_version_control_backend(b)
-        call set_log_edit_callback(no_callback)
+        if (.not. associated(major_modes%log_edit_mode%execute)) call initialize_log_edit()
+        call log_edit_version_control_backend%set_local(b)
+        call log_edit_callback%set_local(no_callback)
         call insert(initial_text, st)
         call log_edit_done(st)
         call log_edit_done_hook%clear()

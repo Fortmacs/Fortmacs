@@ -38,11 +38,11 @@ contains
     b = 0
 
     if (mode_p("version_control_directory_mode")) then
-        b = version_control_directory_backend()
+        b = int(version_control_directory_backend%value)
     else if (mode_p("log_view_mode")) then
         b = log_view_version_control_backend()
     else if (mode_p("log_edit_mode")) then
-        b = log_edit_version_control_backend()
+        b = int(log_edit_version_control_backend%value)
     end if
 
     handled = mode_p("version_control_directory_mode") .or. mode_p("log_view_mode") .or. mode_p("log_edit_mode")

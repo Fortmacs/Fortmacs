@@ -51,7 +51,8 @@ module log_edit_mod
     use commands_mod, only: commands
     use value_mod, only: command_procedure, value_type
     use value_mod, only: value_type
-    use data_mod, only: append_locals_clearer
+    use data_mod, only: append_locals_clearer, forward_setting, integer_setting_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use hooks_mod, only: hook_type
     use ring_mod, only: ring_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
@@ -113,9 +114,8 @@ module log_edit_mod
               log_edit_remember_comment, log_edit_show_files, log_edit_show_diff, log_edit_insert_changelog, &
               log_edit_insert_message_template, log_edit_previous_comment, log_edit_next_comment, &
               log_edit_comment_search_backward, log_edit_comment_search_forward, log_edit_set_common_indentation, &
-              log_edit_font_lock_keywords, log_edit_version_control_backend, log_edit_diff_fileset, &
-              log_edit_done_strip_concurrent_versions_system_lines, log_edit_fill_entry, set_log_edit_callback, &
-              set_log_edit_version_control_backend, &
+              log_edit_font_lock_keywords, log_edit_diff_fileset, &
+              log_edit_done_strip_concurrent_versions_system_lines, log_edit_fill_entry, &
               generate_log_edit_changelog_from_diff, &
               initialize_log_edit
 
@@ -301,16 +301,12 @@ module log_edit_mod
     !> Keymap of `log_edit_mode'.  Port of log-edit.el log-edit-mode-map.
     type(handle_type), public :: log_edit_mode_map
 
-    ! A Log Edit buffer's own values of log-edit-callback,
-    ! log-edit-listfun, log-edit-diff-function, log-edit-vc-backend,
+    ! A Log Edit buffer's own values of log-edit-listfun,
     ! log-edit-initial-files and log-edit-comment-ring-index, by
     ! serial number.
     type :: local_type
         integer(int64) :: serial = 0
-        procedure(command_procedure), pointer, nopass :: callback => null()
         procedure(log_edit_listfun_procedure), pointer, nopass :: listfun => null()
-        procedure(command_procedure), pointer, nopass :: diff_function => null()
-        integer :: version_control_backend = 0
         logical :: has_initial_files = .false.
         type(string_type), allocatable :: initial_files(:)
         logical :: has_ring_index = .false.
@@ -319,6 +315,66 @@ module log_edit_mod
     end type local_type
 
     type(local_type), allocatable :: locals(:)
+
+    !> One buffer's own value of `log_edit_callback'.
+    type :: log_edit_callback_entry_type
+        procedure(command_procedure), pointer, nopass :: procedure => null()
+    end type log_edit_callback_entry_type
+
+    !> The type of `log_edit_callback': the global value `procedure' (set
+    !> with `=>'; null for none) and the buffers' own values
+    !> (`set_local').
+    type, extends(buffer_local_setting_type), public :: log_edit_callback_setting_type
+        procedure(command_procedure), pointer, nopass :: procedure => null()
+        type(log_edit_callback_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_log_edit_callback_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_log_edit_callback_current
+        procedure :: append_local_entry => append_log_edit_callback_entry
+        procedure :: clear_local_entry => clear_log_edit_callback_entry
+    end type log_edit_callback_setting_type
+
+    !> The command `log_edit_done' calls to perform the operation.  Port of
+    !> log-edit.el log-edit-callback (`%procedure' is the global value,
+    !> null for none; `%set_local' gives a buffer its own).
+    type(log_edit_callback_setting_type), public :: log_edit_callback
+
+    !> One buffer's own value of `log_edit_diff_function'.
+    type :: log_edit_diff_entry_type
+        procedure(command_procedure), pointer, nopass :: procedure => null()
+    end type log_edit_diff_entry_type
+
+    !> The type of `log_edit_diff_function': the global value `procedure'
+    !> (set with `=>'; null for none) and the buffers' own values
+    !> (`set_local').
+    type, extends(buffer_local_setting_type), public :: log_edit_diff_setting_type
+        procedure(command_procedure), pointer, nopass :: procedure => null()
+        type(log_edit_diff_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_log_edit_diff_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_log_edit_diff_current
+        procedure :: append_local_entry => append_log_edit_diff_entry
+        procedure :: clear_local_entry => clear_log_edit_diff_entry
+    end type log_edit_diff_setting_type
+
+    !> Function to display an appropriate `diff_mode' buffer for the change.
+    !> Called by `log_edit_show_diff' and `log_edit_maybe_show_diff'.
+    !> The function should display the buffer in a window and leave that window
+    !> selected when it returns, probably by calling `pop_to_buffer'.  Port of log-edit.el
+    !> log-edit-diff-function (`%procedure' is the global value, null for
+    !> none, upstream's function reporting that the diff functionality has
+    !> not been set up; `%set_local' gives a buffer its own).
+    type(log_edit_diff_setting_type), public :: log_edit_diff_function
+
+    !> The VERSION_CONTROL backend of the files of the current log (0 for
+    !> none).  Port of log-edit.el log-edit-vc-backend (a Log Edit buffer
+    !> gets its own with `%set_local').
+    type(integer_setting_type), target, public :: log_edit_version_control_backend = &
+                                                  integer_setting_type(name="log_edit_version_control_backend")
 
     ! log-edit-author: the author found by `is_log_edit_changelog_ours'
     ! (saved and restored by `log_edit_insert_changelog_entries').
@@ -404,45 +460,102 @@ contains
         locals(k) = local_type(serial=buffers(current)%serial)
     end subroutine make_local_entry
 
-    ! kill-all-local-variables: forget the current buffer's values.
-    ! Not a port.
+    ! kill-all-local-variables: forget the current buffer's values and its
+    ! own `log_edit_callback' and `log_edit_diff_function' (the forwarded
+    ! `log_edit_version_control_backend' is cleared with the buffer's other
+    ! local variables).  Not a port.
     subroutine clear_log_edit_locals()
         integer :: k
 
         k = local_index()
         if (k > 0) locals(k) = local_type()
+        call log_edit_callback%clear_local()
+        call log_edit_diff_function%clear_local()
     end subroutine clear_log_edit_locals
 
-    !> The current buffer's `log_edit_version_control_backend' (a VERSION_CONTROL backend index, 0
-    !> for none): the VERSION_CONTROL fileset backend corresponding to the current log.
-    !> Not a port.
-    integer function log_edit_version_control_backend() result(b)
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of `log_edit_callback'.  Not a port.
+    subroutine set_log_edit_callback_local(self, local_procedure)
+        class(log_edit_callback_setting_type), intent(inout) :: self
+        procedure(command_procedure), optional :: local_procedure
         integer :: k
 
-        b = 0
-        k = local_index()
-        if (k > 0) b = locals(k)%version_control_backend
-    end function log_edit_version_control_backend
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_log_edit_callback_local
 
-    !> Set the current buffer's `log_edit_callback' (set_local): the
-    !> command `log_edit_done' calls to perform the operation.  Not a port.
-    subroutine set_log_edit_callback(callback)
-        procedure(command_procedure) :: callback
+    !> The current buffer's value of `log_edit_callback': its own, else
+    !> the global one.  Not a port.
+    function get_log_edit_callback_current(self) result(current_procedure)
+        class(log_edit_callback_setting_type), intent(in) :: self
+        procedure(command_procedure), pointer :: current_procedure
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%callback => callback
-    end subroutine set_log_edit_callback
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_log_edit_callback_current
 
-    !> Set the current buffer's `log_edit_version_control_backend' (set_local): B is
-    !> a VERSION_CONTROL backend index, 0 for none.  Not a port.
-    subroutine set_log_edit_version_control_backend(b)
-        integer, intent(in) :: b
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_log_edit_callback_entry(self)
+        class(log_edit_callback_setting_type), intent(inout) :: self
+        type(log_edit_callback_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_log_edit_callback_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_log_edit_callback_entry(self, k)
+        class(log_edit_callback_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_log_edit_callback_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of `log_edit_diff_function'.  Not a port.
+    subroutine set_log_edit_diff_local(self, local_procedure)
+        class(log_edit_diff_setting_type), intent(inout) :: self
+        procedure(command_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%version_control_backend = b
-    end subroutine set_log_edit_version_control_backend
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_log_edit_diff_local
+
+    !> The current buffer's value of `log_edit_diff_function': its own,
+    !> else the global one.  Not a port.
+    function get_log_edit_diff_current(self) result(current_procedure)
+        class(log_edit_diff_setting_type), intent(in) :: self
+        procedure(command_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_log_edit_diff_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_log_edit_diff_entry(self)
+        class(log_edit_diff_setting_type), intent(inout) :: self
+        type(log_edit_diff_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_log_edit_diff_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_log_edit_diff_entry(self, k)
+        class(log_edit_diff_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_log_edit_diff_entry
 
     ! The current value of log-edit-comment-ring-index (SET false for nil).
     ! Not a port.
@@ -978,11 +1091,11 @@ contains
         end if
 
         if (.not. status%ok()) return
+        call log_edit_callback%set_local(callback)
         call make_local_entry(k)
-        locals(k)%callback => callback
         if (present(listfun)) locals(k)%listfun => listfun
-        if (present(diff_function)) locals(k)%diff_function => diff_function
-        if (present(version_control_backend)) locals(k)%version_control_backend = version_control_backend
+        if (present(diff_function)) call log_edit_diff_function%set_local(diff_function)
+        if (present(version_control_backend)) call log_edit_version_control_backend%set_local(version_control_backend)
 
         if (present(set_parameters)) then
             call set_parameters(status)
@@ -1125,6 +1238,7 @@ contains
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: files(:)
         type(handle_type) :: window
+        procedure(command_procedure), pointer :: callback
         integer(int64) :: beginning, moved
         integer :: c, k
         logical :: found, add, yes, same
@@ -1221,19 +1335,14 @@ contains
         call log_edit_done_hook%execute(status)
         if (.not. status%ok()) return
         call log_edit_hide_buffer()
-        k = local_index()
+        callback => log_edit_callback%get_current()
 
-        if (k == 0) then
+        if (.not. associated(callback)) then
             call set_error(status, GENERIC_ERROR_CODE, "No log operation is pending")
             return
         end if
 
-        if (.not. associated(locals(k)%callback)) then
-            call set_error(status, GENERIC_ERROR_CODE, "No log operation is pending")
-            return
-        end if
-
-        call locals(k)%callback(status)
+        call callback(status)
 
     contains
 
@@ -1312,16 +1421,14 @@ contains
     !> log-edit.el:log-edit-show-diff.
     recursive subroutine log_edit_show_diff(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        procedure(command_procedure), pointer :: diff
 
         status = status_type()
-        k = local_index()
+        diff => log_edit_diff_function%get_current()
 
-        if (k > 0) then
-            if (associated(locals(k)%diff_function)) then
-                call locals(k)%diff_function(status)
-                return
-            end if
+        if (associated(diff)) then
+            call diff(status)
+            return
         end if
 
         call set_error(status, GENERIC_ERROR_CODE, "Diff functionality has not been set up")
@@ -2830,7 +2937,7 @@ contains
 
         status = status_type()
         concurrent_versions_system = interactive
-        b = log_edit_version_control_backend()
+        b = int(log_edit_version_control_backend%value)
         if (.not. concurrent_versions_system .and. b > 0) concurrent_versions_system = version_control_backends(b)%name == "CVS"
         if (.not. concurrent_versions_system) return
         saved_fold = case_fold_search%value
@@ -2897,6 +3004,7 @@ contains
         end if
 
         call append_locals_clearer(clear_log_edit_locals)
+        call forward_setting(log_edit_version_control_backend)
     end subroutine initialize_log_edit
 
     ! log-edit-insert-changelog on `log_edit_hook'.  Not a port.

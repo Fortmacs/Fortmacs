@@ -22,8 +22,9 @@
 !> `is_local' and `clear_local' in two buffers, on a procedure setting
 !> (`blink_matching_check_function') and on an array setting
 !> (`electric_indent_characters'), and the reuse of a closed buffer's
-!> entry; also `local_abbreviation_table', `command_interpreter_completion_fignore'
-!> and `syntax_parser_state_table'.  Not a port.
+!> entry; also `local_abbreviation_table', `command_interpreter_completion_fignore',
+!> `syntax_parser_state_table' and the per-buffer variables of vc-dir.el,
+!> vc-dispatcher.el, log-edit.el and diff-mode.el.  Not a port.
 module test_buffer_local_setting_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -37,6 +38,15 @@ module test_buffer_local_setting_mod
     use command_interpreter_mod, only: command_interpreter_completion_fignore
     use syntax_mod, only: syntax_table
     use syntax_propertize_mod, only: syntax_parser_state_table
+    use data_mod, only: clear_all_local_variables
+    use value_mod, only: command_procedure
+    use string_type_mod, only: string_type, append_string
+    use modes_mod, only: major_modes
+    use version_control_directory_mod, only: version_control_directory_backend, initialize_version_control_directory
+    use version_control_dispatcher_mod, only: version_control_parent_buffer, version_control_parent_buffer_name, &
+                                              version_control_log_fileset, initialize_version_control_dispatcher
+    use log_edit_mod, only: log_edit_callback, log_edit_diff_function, log_edit_version_control_backend, initialize_log_edit
+    use diff_mode_mod, only: diff_default_directory, diff_version_control_backend, initialize_diff_mode
     implicit none(type, external)
     private
 
@@ -56,7 +66,10 @@ contains
                     new_unittest("array-setting-per-buffer", test_array_setting), &
                     new_unittest("abbreviation-table-per-buffer", test_abbreviation_table), &
                     new_unittest("completion-fignore-per-buffer", test_completion_fignore), &
-                    new_unittest("parser-state-table-per-buffer", test_parser_state_table) &
+                    new_unittest("parser-state-table-per-buffer", test_parser_state_table), &
+                    new_unittest("version-control-settings-per-buffer", test_version_control_settings), &
+                    new_unittest("log-edit-settings-per-buffer", test_log_edit_settings), &
+                    new_unittest("diff-settings-per-buffer", test_diff_settings) &
                     ]
     end subroutine collect_buffer_local_setting_mod
 
@@ -331,4 +344,149 @@ contains
 
         call close_buffers(b1, b2, saved)
     end subroutine test_parser_state_table
+
+    !> The per-buffer variables of vc-dir.el and vc-dispatcher.el: a
+    !> buffer's own values are seen only there; `clear_all_local_variables'
+    !> clears `version_control_directory_backend' and
+    !> `version_control_log_fileset' but keeps the permanent-local
+    !> `version_control_parent_buffer' and `version_control_parent_buffer_name'.
+    subroutine test_version_control_settings(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: b1, b2, saved, parent
+        type(status_type) :: st
+        type(string_type), allocatable :: files(:), got(:)
+
+        if (.not. associated(major_modes%version_control_directory_mode%execute)) then
+            call initialize_version_control_directory()
+        end if
+
+        call initialize_version_control_dispatcher()
+        call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
+        call set_buffer(b1, st)
+        call version_control_directory_backend%set_local(2)
+        call version_control_parent_buffer%set_local(b2)
+        call version_control_parent_buffer_name%set_local(" from b2")
+        call append_string(files, "a.f90", "b.f90")
+        call version_control_log_fileset%set_local(files)
+        call check(error, int(version_control_directory_backend%value), 2, "b1 backend")
+        parent = version_control_parent_buffer%get_current()
+        if (.not. allocated(error)) call check(error, parent%index == b2%index, "b1 parent")
+        if (.not. allocated(error)) call check(error, version_control_parent_buffer_name%value == " from b2", "b1 name")
+
+        if (.not. allocated(error)) then
+            call version_control_log_fileset%get_current(got)
+            call check(error, size(got), 2, "b1 fileset")
+            if (.not. allocated(error)) call check(error, got(2)%text == "b.f90", "b1 fileset file")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_buffer(b2, st)
+            call check(error, int(version_control_directory_backend%value), 0, "b2 backend")
+            parent = version_control_parent_buffer%get_current()
+            if (.not. allocated(error)) call check(error, int(parent%index), 0, "b2 parent")
+            if (.not. allocated(error)) call check(error,.not. allocated(version_control_parent_buffer_name%value), "b2 name")
+            if (.not. allocated(error)) call check(error,.not. version_control_log_fileset%is_local(), "b2 fileset local")
+
+            if (.not. allocated(error)) then
+                call version_control_log_fileset%get_current(got)
+                call check(error, size(got), 0, "b2 fileset")
+            end if
+        end if
+
+        if (.not. allocated(error)) then
+            call set_buffer(b1, st)
+            call clear_all_local_variables()
+            call check(error, int(version_control_directory_backend%value), 0, "cleared backend")
+            if (.not. allocated(error)) call check(error,.not. version_control_log_fileset%is_local(), "cleared fileset")
+            parent = version_control_parent_buffer%get_current()
+            if (.not. allocated(error)) call check(error, parent%index == b2%index, "kept parent")
+
+            if (.not. allocated(error)) then
+                call check(error, allocated(version_control_parent_buffer_name%value), "kept name")
+                if (.not. allocated(error)) call check(error, version_control_parent_buffer_name%value == " from b2", "kept name")
+            end if
+        end if
+
+        call close_buffers(b1, b2, saved)
+    end subroutine test_version_control_settings
+
+    ! A `log_edit_callback' and `log_edit_diff_function' that does nothing.
+    recursive subroutine no_operation(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+    end subroutine no_operation
+
+    !> The per-buffer variables of log-edit.el: a Log Edit buffer's own
+    !> values are seen only there, and `clear_all_local_variables' clears
+    !> them.
+    subroutine test_log_edit_settings(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: b1, b2, saved
+        type(status_type) :: st
+        procedure(command_procedure), pointer :: callback_now, diff_now
+
+        if (.not. associated(major_modes%log_edit_mode%execute)) call initialize_log_edit()
+        call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
+        call set_buffer(b1, st)
+        call log_edit_callback%set_local(no_operation)
+        call log_edit_diff_function%set_local(no_operation)
+        call log_edit_version_control_backend%set_local(4)
+        callback_now => log_edit_callback%get_current()
+        diff_now => log_edit_diff_function%get_current()
+        call check(error, associated(callback_now, no_operation), "b1 callback")
+        if (.not. allocated(error)) call check(error, associated(diff_now, no_operation), "b1 diff")
+        if (.not. allocated(error)) call check(error, int(log_edit_version_control_backend%value), 4, "b1 backend")
+
+        if (.not. allocated(error)) then
+            call set_buffer(b2, st)
+            callback_now => log_edit_callback%get_current()
+            diff_now => log_edit_diff_function%get_current()
+            call check(error,.not. associated(callback_now), "b2 callback")
+            if (.not. allocated(error)) call check(error,.not. associated(diff_now), "b2 diff")
+            if (.not. allocated(error)) call check(error, int(log_edit_version_control_backend%value), 0, "b2 backend")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_buffer(b1, st)
+            call clear_all_local_variables()
+            call check(error,.not. log_edit_callback%is_local(), "cleared callback")
+            if (.not. allocated(error)) call check(error,.not. log_edit_diff_function%is_local(), "cleared diff")
+            if (.not. allocated(error)) call check(error, int(log_edit_version_control_backend%value), 0, "cleared backend")
+        end if
+
+        call close_buffers(b1, b2, saved)
+    end subroutine test_log_edit_settings
+
+    !> The per-buffer variables of diff-mode.el: a Diff buffer's own
+    !> `diff_default_directory' and `diff_version_control_backend' are
+    !> seen only there, and `clear_all_local_variables' clears them.
+    subroutine test_diff_settings(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: b1, b2, saved
+        type(status_type) :: st
+
+        if (.not. associated(major_modes%diff_mode%execute)) call initialize_diff_mode()
+        call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
+        call set_buffer(b1, st)
+        call diff_default_directory%set_local("/tmp/")
+        call diff_version_control_backend%set_local("Git")
+        call check(error, diff_default_directory%value == "/tmp/", "b1 directory")
+        if (.not. allocated(error)) call check(error, diff_version_control_backend%value == "Git", "b1 backend")
+
+        if (.not. allocated(error)) then
+            call set_buffer(b2, st)
+            call check(error,.not. allocated(diff_default_directory%value), "b2 directory")
+            if (.not. allocated(error)) call check(error,.not. allocated(diff_version_control_backend%value), "b2 backend")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_buffer(b1, st)
+            call clear_all_local_variables()
+            call check(error,.not. allocated(diff_default_directory%value), "cleared directory")
+            if (.not. allocated(error)) call check(error,.not. allocated(diff_version_control_backend%value), "cleared backend")
+        end if
+
+        call close_buffers(b1, b2, saved)
+    end subroutine test_diff_settings
 end module test_buffer_local_setting_mod

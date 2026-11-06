@@ -41,7 +41,8 @@ module test_compile_mod
     use value_mod, only: value_type, xsymbol, symbols, vtag, V_NULL, V_NAME
     use bindings_mod, only: initialize_bindings
     use process_mod, only: accept_process_output, get_buffer_process, number_processors
-    use compile_mod, only: compile, recompile, stop_compilation, compile_command, command_interpreter_carriage_motion, &
+    use compile_mod, only: compile, recompile, stop_compilation, compile_command, compilation_directory, &
+                           command_interpreter_carriage_motion, &
                            compilation_always_stop, compilation_parse_errors, compilation_forget_errors, compilation_message_info, &
                            compilation_message_info_type, compilation_message_counts, compilation_error_count_found, &
                            compilation_warning_count_found, compilation_info_count_found, &
@@ -69,6 +70,7 @@ contains
                     new_unittest("compile-exited-abnormally", test_abnormal), &
                     new_unittest("compile-cd", test_cd), &
                     new_unittest("recompile", test_recompile), &
+                    new_unittest("recompile-directory", test_recompile_directory), &
                     new_unittest("kill-compilation", test_kill), &
                     new_unittest("comint-carriage-motion", test_carriage_motion), &
                     new_unittest("compilation-mode", test_mode), &
@@ -268,6 +270,32 @@ contains
         if (.not. allocated(error)) call check(error, line(compilation_text(), 5), "again")
         call close_buffer(h, st)
     end subroutine test_recompile
+
+    !> recompile runs in the compilation buffer's own `compilation_directory',
+    !> the value its `%set_local' gives it (as vc-git's pushpull does).
+    subroutine test_recompile_directory(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h, buffer
+        type(status_type) :: st
+
+        call source_buffer(h, file_name_as_directory(temporary_file_directory()))
+        call compile("pwd", st)
+        call wait_compilation()
+        buffer = get_buffer("*compilation*")
+        call set_buffer(buffer, st)
+        call compilation_directory%set_local("/")
+        call recompile(st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call wait_compilation()
+        call check(error, line(compilation_text(), 5), "/")
+        ! The new compilation remembers the directory it ran in (recompile
+        ! gives the buffer its old default directory back afterwards).
+        buffer = get_buffer("*compilation*")
+        call set_buffer(buffer, st)
+        if (.not. allocated(error)) call check(error, compilation_directory%value, "/")
+        call close_buffer(h, st)
+    end subroutine test_recompile_directory
 
     !> kill-compilation interrupts it.
     subroutine test_kill(error)

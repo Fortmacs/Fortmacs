@@ -6,7 +6,7 @@
 
 ## Ported
 
-`diff-mode` (`diff-mode-shared-map`, `diff-mode-map`, `diff-mode-read-only-map` and `diff-mode-read-only` for read-only buffers, `diff-default-read-only`, `diff-mode-hook`, `diff-setup-buffer-type`, `diff-buffer-type`, `next-error-function`),
+`diff-mode` (`diff-mode-shared-map`, `diff-mode-map`, `diff-mode-read-only-map` and `diff-mode-read-only` for read-only buffers, `diff-default-read-only`, `diff-mode-hook`, `diff-setup-buffer-type`, `diff-buffer-type`, `next-error-function`), `diff-default-directory` and `diff-vc-backend` as forwarded string settings (`%set_local`, `%value`), `diff-vc-revisions`,
 the faces and `diff-font-lock-keywords` (git preamble and email signature),
 hunk and file motion (n, p, N, P, TAB, <backtab>, {, } as easy-mmode navigation keeping `diff-restrict-view` narrowing; M-n etc. through the ESC prefix to the shared map),
 `diff-beginning-of-hunk`,
@@ -60,4 +60,5 @@ VC revisions,
 ## Tests
 
 test_diff_mode_mod (ports diff-mode-test-ignore-trailing-dashes, -hunk-text-no-newline, the text-property halves of -font-lock and -font-lock-syntax-one-line, test-hunk-file-names, -fixups-added-lines, -fixups-empty-hunks, -git-patch, -git-patch/before-first-hunk (first check), -git-patch/signature, -topmost-addition-undo, -bottommost-addition-undo, -setup-buffer-type),
-test_add_log_mod (own: `diff-add-log-current-defuns` and `diff-current-defun`)
+test_add_log_mod (own: `diff-add-log-current-defuns` and `diff-current-defun`),
+test_buffer_local_setting_mod (own: `diff-default-directory` and `diff-vc-backend` per buffer, kill-all-local-variables)
