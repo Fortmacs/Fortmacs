@@ -18,7 +18,8 @@
 `syntax-ppss-depth`,
 `syntax-ppss-toplevel-pos`,
 `syntax-ppss-context`,
-`syntax-propertize--in-process-p`
+`syntax-propertize--in-process-p`,
+`syntax-propertize-function` as a buffer-local procedure setting (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

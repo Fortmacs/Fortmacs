@@ -49,8 +49,8 @@ a highlight's face function is a subroutine (gfortran frees a procedure pointer 
 keyword levels given as functions (font-lock-eval-keywords) and a buffer's `font-lock-syntactic-face-function` from OTHER-VARS,
 highlights of the form (face FACE PROP VAL ...) with nil properties,
 a `display` string or properties that depend on the match,
-a buffer's own `font-lock-fontify-region-function` (`font_lock_fontify_region_function_set_local`),
-`cpp-font-lock-keywords` (with `cpp-font-lock-keywords-source-directives` and `-depth`)
+`cpp-font-lock-keywords` (with `cpp-font-lock-keywords-source-directives` and `-depth`),
+`font-lock-fontify-region-function` as a buffer-local procedure setting (`%procedure`, default `font_lock_default_fontify_region`; `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

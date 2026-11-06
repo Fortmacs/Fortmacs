@@ -17,8 +17,8 @@ the two overlays,
 `--enabled-p`,
 the default `show-paren-predicate` (not in special-mode buffers) as a procedure,
 all the options (style, delay, priority, ring bell, inside paren, periphery, highlight openparen, `not-in-comments-or-strings`, context when offscreen in the echo area),
-`show-paren-data-function` buffer-local (`show_parenthesis_data_function_set_local`),
-`syntax-propertize` before narrowing
+`syntax-propertize` before narrowing,
+`show-paren-data-function` as a buffer-local procedure setting (`%procedure`, `%set_local`, `%get_current`, `%is_local`, `%clear_local`)
 
 ## Deferred
 

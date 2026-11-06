@@ -2074,7 +2074,7 @@ contains
             force_raw_text = .false.
             value = ""
 
-            if (buffer_file_coding_system%local_p() .and. allocated(buffer_file_coding_system%value)) then
+            if (buffer_file_coding_system%is_local() .and. allocated(buffer_file_coding_system%value)) then
                 value = buffer_file_coding_system%value
             else if (.not. buffers(current)%multibyte) then
                 force_raw_text = .true.

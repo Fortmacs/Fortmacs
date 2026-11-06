@@ -749,7 +749,7 @@ contains
         eligible = allocated(buffers(current)%filename)
 
         if (.not. eligible .and. global_auto_revert_non_file_buffers) then
-            fn => buffer_stale_function%current()
+            fn => buffer_stale_function%get_current()
             eligible = buffers(current)%name(1:min(1, len(buffers(current)%name))) /= " " .and. associated(fn)
             if (eligible) eligible = .not. associated(fn, buffer_stale_default_function)
         end if
@@ -1216,7 +1216,7 @@ contains
                         if (locals(k)%tail_position /= fsize) revert = BUFFER_STALE_YES
                     end if
                 else if (minor_modes%auto_revert_mode%enabled() .or. locals(k)%global_mode) then
-                    fn => buffer_stale_function%current()
+                    fn => buffer_stale_function%get_current()
                     if (.not. associated(fn)) fn => buffer_stale_default_function
                     revert = fn(.true.)
                     call make_local_entry(k)

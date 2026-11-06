@@ -278,7 +278,7 @@ contains
         call set_buffer(a, st)
         call test_hook%prepend(f1)
         call test_hook%prepend(f2, local=.true.)
-        call check(error, test_hook%local_p(), "local hook")
+        call check(error, test_hook%is_local(), "local hook")
         if (allocated(error)) return
         call check(error, hook_names(test_hook), "f2 f1", "local, then global")
         if (allocated(error)) return
@@ -299,7 +299,7 @@ contains
         call test_hook2%append(f1)
         call test_hook2%append(f2, local=.true.)
         call test_hook2%remove(f2, local=.true.)
-        call check(error,.not. test_hook2%local_p(), "local value killed")
+        call check(error,.not. test_hook2%is_local(), "local value killed")
         if (allocated(error)) return
         call check(error, hook_names(test_hook2), "f1")
         if (allocated(error)) return
@@ -332,9 +332,9 @@ contains
         if (allocated(error)) return
         call check(error, is_derived_mode(major_modes%text_mode), "is_derived_mode")
         if (allocated(error)) return
-        call check(error, text_mode_variant%value .and. text_mode_variant%local_p(), "text_mode_variant")
+        call check(error, text_mode_variant%value .and. text_mode_variant%is_local(), "text_mode_variant")
         if (allocated(error)) return
-        call check(error, require_final_newline%value .and. require_final_newline%local_p(), &
+        call check(error, require_final_newline%value .and. require_final_newline%is_local(), &
                    "require_final_newline")
         if (allocated(error)) return
         call fundamental_mode(st)
@@ -342,7 +342,7 @@ contains
         if (allocated(error)) return
         call check(error, same(current_local_map(), null_handle()), "no local map")
         if (allocated(error)) return
-        call check(error,.not. text_mode_variant%value .and. .not. require_final_newline%local_p(), "locals killed")
+        call check(error,.not. text_mode_variant%value .and. .not. require_final_newline%is_local(), "locals killed")
         if (allocated(error)) return
         call check(error, mode_require_final_newline%value, "mode_require_final_newline")
         call close_buffer(a, st)
@@ -454,10 +454,10 @@ contains
         call get_or_make_buffer("test-derived-fundamental", a, st)
         call set_buffer(a, st)
         call fill_column%set_local(60)
-        call check(error, fill_column%local_p() .and. fill_column%value == 60, "local value")
+        call check(error, fill_column%is_local() .and. fill_column%value == 60, "local value")
         if (allocated(error)) return
         call fundamental_mode(st)
-        call check(error,.not. fill_column%local_p() .and. fill_column%value == 70, "local killed")
+        call check(error,.not. fill_column%is_local() .and. fill_column%value == 70, "local killed")
         if (allocated(error)) return
         call check(error, buffers(current)%major_mode, "fundamental_mode")
         call close_buffer(a, st)

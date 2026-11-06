@@ -10,6 +10,7 @@
 | [bidirectional_mod](../status/bidirectional_mod.md) | bidi.c (+ dispextern.h struct bidi_it, xdisp.c `bidi-inhibit-bpa`) | done |
 | [bindings_mod](../status/bindings_mod.md) | bindings.el, subr.el (`global-map`, `esc-map`, `ctl-x-map`), international/mule-conf.el (self-insert range) | partial |
 | [bookmark_mod](../status/bookmark_mod.md) | bookmark.el | partial |
+| [buffer_local_setting_mod](../status/buffer_local_setting_mod.md) | — (the buffer-local values of data.c's SYMBOL_LOCALIZED, for settings that are not forwarded) | done |
 | [buffer_menu_mod](../status/buffer_menu_mod.md) | buff-menu.el | partial |
 | [buffer_mod](../status/buffer_mod.md) | buffer.c, buffer.h (+ intervals.c `temporary_set_point_both`, lisp.h `modiff_increment`) | done |
 | [buffer_operations_mod](../status/buffer_operations_mod.md) | buffer.c | done |

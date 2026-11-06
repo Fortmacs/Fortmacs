@@ -60,6 +60,7 @@ module syntax_propertize_mod
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use display_engine_mod, only: message
     use regular_expression_optimization_mod, only: regular_expression_optimization_depth
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -170,25 +171,27 @@ module syntax_propertize_mod
         procedure :: apply => rules_apply
     end type syntax_propertize_rules_type
 
-    ! One buffer's `syntax_propertize_function'.
-    type :: function_entry_type
-        integer(int64) :: serial = 0
-        procedure(syntax_propertize_procedure), pointer, nopass :: fn => null()
-    end type function_entry_type
+    !> One buffer's own value of
+    !> `syntax_propertize_function'.
+    type :: syntax_propertize_entry_type
+        procedure(syntax_propertize_procedure), pointer, nopass :: procedure => null()
+    end type syntax_propertize_entry_type
 
-    !> The type of `syntax_propertize_function': a default `value'
-    !> (assign with `=>'; null when unset) and buffers' own (`set_local').
-    type, public :: syntax_propertize_function_type
-        procedure(syntax_propertize_procedure), pointer, nopass :: value => null()
-        type(function_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `syntax_propertize_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: syntax_propertize_setting_type
+        procedure(syntax_propertize_procedure), pointer, nopass :: procedure => null()
+        type(syntax_propertize_entry_type), allocatable :: locals(:)
     contains
-        !> Make FN the current buffer's function (set_local).
-        procedure :: set_local => function_set_local
-        !> The current buffer's function (null when unset).
-        procedure :: current => current_function
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => function_clear_local
-    end type syntax_propertize_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_syntax_propertize_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_syntax_propertize_current
+        procedure :: append_local_entry => append_syntax_propertize_entry
+        procedure :: clear_local_entry => clear_syntax_propertize_entry
+    end type syntax_propertize_setting_type
 
     ! A cache: LAST, a pair (LAST-POS . LAST-PPSS) caching the last
     ! invocation (`last_position' 0 is nil), and CACHE, (POSITION . PARSER_STATE) pairs in
@@ -221,7 +224,7 @@ module syntax_propertize_mod
         !> Make H the current buffer's table (set_local).
         procedure, nopass :: set_local => parser_state_table_set_local
         !> Whether the current buffer has a table, and which (FOUND).
-        procedure, nopass :: current => current_parser_state_table
+        procedure, nopass :: get_current => current_parser_state_table
         !> Make the current buffer's value unset again.
         procedure, nopass :: clear_local => parser_state_table_clear_local
     end type syntax_parser_state_table_type
@@ -246,7 +249,7 @@ module syntax_propertize_mod
     !> Using both this function and other means to apply these
     !> properties won't work properly.  Port of syntax.el
     !> syntax-propertize-function.
-    type(syntax_propertize_function_type), public :: syntax_propertize_function
+    type(syntax_propertize_setting_type), public :: syntax_propertize_function
 
     !> How far `syntax_propertize' goes at least.  Port of syntax.el
     !> syntax-propertize-chunk-size.
@@ -328,60 +331,49 @@ contains
         data(k) = parser_state_data_type(serial=buffers(current)%serial)
     end subroutine make_data_entry
 
-    ! Not a port.
-    subroutine function_set_local(self, fn)
-        class(syntax_propertize_function_type), intent(inout) :: self
-        procedure(syntax_propertize_procedure) :: fn
-        type(function_entry_type) :: entry
-        integer :: i
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `syntax_propertize_function'.  Not a port.
+    subroutine set_syntax_propertize_local(self, local_procedure)
+        class(syntax_propertize_setting_type), intent(inout) :: self
+        procedure(syntax_propertize_procedure), optional :: local_procedure
+        integer :: k
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_syntax_propertize_local
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    !> The current buffer's value of
+    !> `syntax_propertize_function':
+    !> its own, else the global one.  Not a port.
+    function get_syntax_propertize_current(self) result(current_procedure)
+        class(syntax_propertize_setting_type), intent(in) :: self
+        procedure(syntax_propertize_procedure), pointer :: current_procedure
+        integer :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_syntax_propertize_current
 
-        self%entries(i)%fn => fn
-    end subroutine function_set_local
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_syntax_propertize_entry(self)
+        class(syntax_propertize_setting_type), intent(inout) :: self
+        type(syntax_propertize_entry_type) :: entry
 
-    ! Not a port.
-    function current_function(self) result(fn)
-        class(syntax_propertize_function_type), intent(in) :: self
-        procedure(syntax_propertize_procedure), pointer :: fn
-        integer :: i
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_syntax_propertize_entry
 
-        fn => self%value
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_syntax_propertize_entry(self, k)
+        class(syntax_propertize_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-        if (i > 0) then
-            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-        end if
-    end function current_function
-
-    ! Not a port.
-    subroutine function_clear_local(self)
-        class(syntax_propertize_function_type), intent(inout) :: self
-        integer :: i
-
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            self%entries(i)%serial = 0
-            self%entries(i)%fn => null()
-        end if
-    end subroutine function_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_syntax_propertize_entry
 
     ! Not a port.
     subroutine parser_state_table_set_local(h)
@@ -866,7 +858,7 @@ contains
 
         status = status_type()
         if (.not. (syntax_propertize_done%value < position)) return
-        fn => syntax_propertize_function%current()
+        fn => syntax_propertize_function%get_current()
 
         if (.not. associated(fn)) then
             call syntax_propertize_done%set_local(max(point_maximum(), position))

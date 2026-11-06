@@ -35,12 +35,13 @@ module spellcheck_mode_mod
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, format_message
     use handle_mod, only: handle_type, null_handle, same_handle
     use value_mod, only: value_type, command_type, list_elements, make_list, vtag, V_NAME, symbols, xsymbol
-    use data_mod, only: choice_setting_type
+    use data_mod, only: choice_setting_type, append_locals_clearer
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: minor_modes, major_modes
     use derived_mod, only: major_mode_named, mode_test_procedure
     use easy_minor_mode_mod, only: mode_called_interactively
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, erase_buffer, &
                           is_buffer_live, deactivate_mark_variable, buffer_handle
     use insert_delete_mod, only: insert, after_change_functions
@@ -104,7 +105,7 @@ module spellcheck_mode_mod
               get_spellcheck_word, is_spellcheck_overlay, delete_all_spellcheck_overlays, &
               delete_spellcheck_region_overlays, &
               is_spellcheck_correction_less, is_spellcheck_programming_text, is_spellcheck_mail_text, is_spellcheck_sgml_text, &
-              set_local_spellcheck_generic_check_word_test_function, spellcheck_sort_procedure, spellcheck_insert_procedure, &
+              spellcheck_sort_procedure, spellcheck_insert_procedure, &
               initialize_spellcheck_mode
 
     abstract interface
@@ -412,11 +413,40 @@ module spellcheck_mode_mod
         character(len=:), allocatable :: dash_dictionary, dash_local_dictionary
         ! flyspell-pre-point.
         integer(int64) :: pre_point = NO_POSITION
-        ! upstream's flyspell-generic-check-word-predicate.
-        procedure(mode_test_procedure), pointer, nopass :: test_function => null()
     end type buffer_state_type
 
     type(buffer_state_type), allocatable :: states(:)
+
+    !> One buffer's own value of
+    !> `spellcheck_generic_check_word_test_function'.
+    type :: spellcheck_generic_check_word_test_entry_type
+        procedure(mode_test_procedure), pointer, nopass :: procedure => null()
+    end type spellcheck_generic_check_word_test_entry_type
+
+    !> The type of
+    !> `spellcheck_generic_check_word_test_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: spellcheck_generic_check_word_test_setting_type
+        procedure(mode_test_procedure), pointer, nopass :: procedure => null()
+        type(spellcheck_generic_check_word_test_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_spellcheck_generic_check_word_test_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_spellcheck_generic_check_word_test_current
+        procedure :: append_local_entry => append_spellcheck_generic_check_word_test_entry
+        procedure :: clear_local_entry => clear_spellcheck_generic_check_word_test_entry
+    end type spellcheck_generic_check_word_test_setting_type
+
+    !> Function providing per-mode customization over which words are
+    !> flyspelled.  It returns .true. to continue checking, .false.
+    !> otherwise.  Flyspell mode sets this variable to whatever is the
+    !> `spellcheck_mode_test_function' of the major mode.  Port of
+    !> flyspell.el flyspell-generic-check-word-predicate (`%procedure' is
+    !> the global value, null for none; `%set_local' gives a buffer its
+    !> own).
+    type(spellcheck_generic_check_word_test_setting_type), public :: spellcheck_generic_check_word_test_function
 
     ! flyspell-overlay.
     type(handle_type) :: spellcheck_highlight_overlay
@@ -471,34 +501,65 @@ contains
         k = size(states)
     end function state
 
-    !> Make FN the current buffer's
-    !> `spellcheck_generic_check_word_test_function': the function providing
-    !> per-mode customization over which words are flyspelled.  It returns
-    !> .true. to continue checking, .false. otherwise.  Flyspell mode sets
-    !> this variable to whatever is the `spellcheck_mode_test_function' of
-    !> the major mode.  Port of flyspell.el
-    !> flyspell-generic-check-word-predicate (setting its local value).
-    subroutine set_local_spellcheck_generic_check_word_test_function(fn)
-        procedure(mode_test_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `spellcheck_generic_check_word_test_function'.  Not a port.
+    subroutine set_spellcheck_generic_check_word_test_local(self, local_procedure)
+        class(spellcheck_generic_check_word_test_setting_type), intent(inout) :: self
+        procedure(mode_test_procedure), optional :: local_procedure
         integer :: k
 
-        k = state()
-        if (k > 0) states(k)%test_function => fn
-    end subroutine set_local_spellcheck_generic_check_word_test_function
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_spellcheck_generic_check_word_test_local
+
+    !> The current buffer's value of
+    !> `spellcheck_generic_check_word_test_function':
+    !> its own, else the global one.  Not a port.
+    function get_spellcheck_generic_check_word_test_current(self) result(current_procedure)
+        class(spellcheck_generic_check_word_test_setting_type), intent(in) :: self
+        procedure(mode_test_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_spellcheck_generic_check_word_test_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_spellcheck_generic_check_word_test_entry(self)
+        class(spellcheck_generic_check_word_test_setting_type), intent(inout) :: self
+        type(spellcheck_generic_check_word_test_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_spellcheck_generic_check_word_test_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_spellcheck_generic_check_word_test_entry(self, k)
+        class(spellcheck_generic_check_word_test_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_spellcheck_generic_check_word_test_entry
+
+    ! kill-all-local-variables: forget the current buffer's own
+    ! `spellcheck_generic_check_word_test_function'.  Not a port.
+    subroutine clear_spellcheck_mode_locals()
+        call spellcheck_generic_check_word_test_function%clear_local()
+    end subroutine clear_spellcheck_mode_locals
 
     ! Whether the current buffer's
     ! `spellcheck_generic_check_word_test_function' is set and rejects the
     ! word at point.  Not a port.
     logical function is_word_rejected() result(rejected)
-        integer :: k
+        procedure(mode_test_procedure), pointer :: test
 
         rejected = .false.
-        k = state()
-        if (k == 0) return
-
-        if (associated(states(k)%test_function)) then
-            rejected = .not. states(k)%test_function()
-        end if
+        test => spellcheck_generic_check_word_test_function%get_current()
+        if (associated(test)) rejected = .not. test()
     end function is_word_rejected
 
     ! The dictionary in use: `spellcheck_local_dictionary', else
@@ -681,7 +742,7 @@ contains
     recursive subroutine spellcheck_programming_mode(status)
         type(status_type), intent(out) :: status
 
-        call set_local_spellcheck_generic_check_word_test_function(is_spellcheck_programming_text)
+        call spellcheck_generic_check_word_test_function%set_local(is_spellcheck_programming_text)
         call minor_modes%spellcheck_mode%enable(status)
         if (.not. status%ok()) return
         call spellcheck_programming_mode_hook%execute(status)
@@ -883,7 +944,7 @@ contains
             major => major_mode_named(buffers(current)%major_mode)
             if (.not. associated(major)) return
             if (.not. associated(major%spellcheck_mode_test_function)) return
-            call set_local_spellcheck_generic_check_word_test_function(major%spellcheck_mode_test_function)
+            call spellcheck_generic_check_word_test_function%set_local(major%spellcheck_mode_test_function)
         end subroutine take_mode_test_function
     end subroutine enable_spellcheck_mode
 
@@ -2992,6 +3053,7 @@ contains
         type(named_face_type), pointer :: f
 
         commands%spellcheck_mode%execute => spellcheck_mode
+        call append_locals_clearer(clear_spellcheck_mode_locals)
         commands%spellcheck_programming_mode%execute => spellcheck_programming_mode
         commands%spellcheck_word_highlight%execute => execute_spellcheck_word_highlight
         commands%spellcheck_region_highlight%execute => execute_spellcheck_region_highlight

@@ -695,7 +695,7 @@ contains
         if (allocated(error)) return
         call check(error, contents()//trace, "abc X4,4", "nothing inserted")
         if (allocated(error)) return
-        call check(error, before_change_functions%local_p() .and. before_change_functions%empty(), &
+        call check(error, before_change_functions%is_local() .and. before_change_functions%empty(), &
                    "emptied locally")
         if (allocated(error)) return
         trace = ""
@@ -730,7 +730,7 @@ contains
         if (allocated(error)) return
         call check(error, contents()//trace, "abc Y1,4,0")
         if (allocated(error)) return
-        call check(error, after_change_functions%empty() .and. .not. after_change_functions%local_p(), &
+        call check(error, after_change_functions%empty() .and. .not. after_change_functions%is_local(), &
                    "default value emptied")
         if (allocated(error)) return
         call check(error,.not. inhibit_modification_hooks%value, "binding undone")

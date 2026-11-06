@@ -39,7 +39,7 @@ module fill_mod
     use value_mod, only: value_type, xfixnum, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_mod, only: value_eq, symbol_name, logical_setting_type, append_locals_clearer, choice_setting_type
     use buffer_mod, only: buffers, current, fill_column, FILL_COLUMN_NONE, transient_mark_mode, barf_if_buffer_read_only, &
-                          is_buffer_modified, restore_buffer_modified, current_buffer, buffer_serial_live
+                          is_buffer_modified, restore_buffer_modified, current_buffer
     use character_mod, only: string_character_and_length
     use category_mod, only: character_has_category
     use character_script_mod, only: character_script, script_names
@@ -66,6 +66,7 @@ module fill_mod
     use simple_mod, only: fill_prefix, is_use_region, mark
     use minibuffer_reading_mod, only: is_minibuffer, minibuffer_prompt_end
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -179,25 +180,27 @@ module fill_mod
         end subroutine fill_paragraph_procedure
     end interface
 
-    !> One buffer's `fill_paragraph_function'.
+    !> One buffer's own value of
+    !> `fill_paragraph_function'.
     type :: fill_paragraph_entry_type
-        integer(int64) :: serial = 0
-        procedure(fill_paragraph_procedure), pointer, nopass :: fn => null()
+        procedure(fill_paragraph_procedure), pointer, nopass :: procedure => null()
     end type fill_paragraph_entry_type
 
-    !> The type of `fill_paragraph_function': a default `value' (assign
-    !> with `=>'; null when unset) and buffers' own (`set_local').
-    type, public :: fill_paragraph_function_type
-        procedure(fill_paragraph_procedure), pointer, nopass :: value => null()
-        type(fill_paragraph_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `fill_paragraph_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: fill_paragraph_setting_type
+        procedure(fill_paragraph_procedure), pointer, nopass :: procedure => null()
+        type(fill_paragraph_entry_type), allocatable :: locals(:)
     contains
-        !> Make FN the current buffer's function (set_local).
-        procedure :: set_local => fill_paragraph_set_local
-        !> The current buffer's function (null when unset).
-        procedure :: current => current_fill_paragraph
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => fill_paragraph_clear_local
-    end type fill_paragraph_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_fill_paragraph_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_fill_paragraph_current
+        procedure :: append_local_entry => append_fill_paragraph_entry
+        procedure :: clear_local_entry => clear_fill_paragraph_entry
+    end type fill_paragraph_setting_type
 
     !> Mode-specific function to fill a paragraph, or null if there is none.
     !> If the function returns false (DONE), then `fill_paragraph' does its
@@ -206,7 +209,7 @@ module fill_mod
     !> nor `auto_fill_mode', so it is often better to use some other hook,
     !> such as `fill_forward_paragraph_function'.  Port of fill.el
     !> fill-paragraph-function (its value t is internal).
-    type(fill_paragraph_function_type), public :: fill_paragraph_function
+    type(fill_paragraph_setting_type), public :: fill_paragraph_function
 
     abstract interface
         !> An `adaptive_fill_function': the fill prefix at point, with
@@ -218,30 +221,32 @@ module fill_mod
         end subroutine adaptive_fill_procedure
     end interface
 
-    !> One buffer's `adaptive_fill_function'.
+    !> One buffer's own value of
+    !> `adaptive_fill_function'.
     type :: adaptive_fill_entry_type
-        integer(int64) :: serial = 0
-        procedure(adaptive_fill_procedure), pointer, nopass :: fn => null()
+        procedure(adaptive_fill_procedure), pointer, nopass :: procedure => null()
     end type adaptive_fill_entry_type
 
-    !> The type of `adaptive_fill_function': a default `value' (assign
-    !> with `=>'; null is `ignore') and buffers' own (`set_local').
-    type, public :: adaptive_fill_function_type
-        procedure(adaptive_fill_procedure), pointer, nopass :: value => null()
-        type(adaptive_fill_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `adaptive_fill_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: adaptive_fill_setting_type
+        procedure(adaptive_fill_procedure), pointer, nopass :: procedure => null()
+        type(adaptive_fill_entry_type), allocatable :: locals(:)
     contains
-        !> Make FN the current buffer's function (set_local).
-        procedure :: set_local => adaptive_fill_set_local
-        !> The current buffer's function (null for `ignore').
-        procedure :: current => current_adaptive_fill
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => adaptive_fill_clear_local
-    end type adaptive_fill_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_adaptive_fill_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_adaptive_fill_current
+        procedure :: append_local_entry => append_adaptive_fill_entry
+        procedure :: clear_local_entry => clear_adaptive_fill_entry
+    end type adaptive_fill_setting_type
 
     !> Function to call to choose a fill prefix for a paragraph.
     !> A null value (`ignore') means the function has not determined the
     !> fill prefix.  Port of fill.el adaptive-fill-function.
-    type(adaptive_fill_function_type), public :: adaptive_fill_function
+    type(adaptive_fill_setting_type), public :: adaptive_fill_function
 
     !> True means paragraph filling will try to pay attention to comments.
     !> Port of fill.el fill-paragraph-handle-comment.
@@ -514,7 +519,7 @@ contains
 
         string = ""
         found = .false.
-        fn => adaptive_fill_function%current()
+        fn => adaptive_fill_function%get_current()
         if (associated(fn)) call fn(string, found)
 
         if (.not. found) then
@@ -1408,7 +1413,7 @@ contains
 
         ! 2. Try fill-paragraph-function.
         if (.not. in_fill_paragraph_function) then
-            fn => fill_paragraph_function%current()
+            fn => fill_paragraph_function%get_current()
             in_minibuffer = .false.
             if (.not. associated(fn) .and. is_minibuffer()) in_minibuffer = point_minimum() == 1
 
@@ -2019,116 +2024,93 @@ contains
         if (status%ok()) call justify_current_line(status)
     end subroutine execute_justify_current_line
 
-    !> Give the variables their defaults and register the commands.
-    !> Not a port.
-    subroutine fill_paragraph_set_local(self, fn)
-        class(fill_paragraph_function_type), intent(inout) :: self
-        procedure(fill_paragraph_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `fill_paragraph_function'.  Not a port.
+    subroutine set_fill_paragraph_local(self, local_procedure)
+        class(fill_paragraph_setting_type), intent(inout) :: self
+        procedure(fill_paragraph_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_fill_paragraph_local
+
+    !> The current buffer's value of
+    !> `fill_paragraph_function':
+    !> its own, else the global one.  Not a port.
+    function get_fill_paragraph_current(self) result(current_procedure)
+        class(fill_paragraph_setting_type), intent(in) :: self
+        procedure(fill_paragraph_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_fill_paragraph_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_fill_paragraph_entry(self)
+        class(fill_paragraph_setting_type), intent(inout) :: self
         type(fill_paragraph_entry_type) :: entry
-        integer :: i
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_fill_paragraph_entry
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_fill_paragraph_entry(self, k)
+        class(fill_paragraph_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
+        self%locals(k)%procedure => null()
+    end subroutine clear_fill_paragraph_entry
 
-        self%entries(i)%fn => fn
-    end subroutine fill_paragraph_set_local
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `adaptive_fill_function'.  Not a port.
+    subroutine set_adaptive_fill_local(self, local_procedure)
+        class(adaptive_fill_setting_type), intent(inout) :: self
+        procedure(adaptive_fill_procedure), optional :: local_procedure
+        integer :: k
 
-    ! Not a port.
-    function current_fill_paragraph(self) result(fn)
-        class(fill_paragraph_function_type), intent(in) :: self
-        procedure(fill_paragraph_procedure), pointer :: fn
-        integer :: i
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_adaptive_fill_local
 
-        fn => self%value
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+    !> The current buffer's value of
+    !> `adaptive_fill_function':
+    !> its own, else the global one.  Not a port.
+    function get_adaptive_fill_current(self) result(current_procedure)
+        class(adaptive_fill_setting_type), intent(in) :: self
+        procedure(adaptive_fill_procedure), pointer :: current_procedure
+        integer :: k
 
-        if (i > 0) then
-            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-        end if
-    end function current_fill_paragraph
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_adaptive_fill_current
 
-    ! Not a port.
-    subroutine fill_paragraph_clear_local(self)
-        class(fill_paragraph_function_type), intent(inout) :: self
-        integer :: i
-
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            self%entries(i)%serial = 0
-            self%entries(i)%fn => null()
-        end if
-    end subroutine fill_paragraph_clear_local
-
-    ! Not a port.
-    subroutine adaptive_fill_set_local(self, fn)
-        class(adaptive_fill_function_type), intent(inout) :: self
-        procedure(adaptive_fill_procedure) :: fn
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_adaptive_fill_entry(self)
+        class(adaptive_fill_setting_type), intent(inout) :: self
         type(adaptive_fill_entry_type) :: entry
-        integer :: i
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_adaptive_fill_entry
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_adaptive_fill_entry(self, k)
+        class(adaptive_fill_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
-
-        self%entries(i)%fn => fn
-    end subroutine adaptive_fill_set_local
-
-    ! Not a port.
-    function current_adaptive_fill(self) result(fn)
-        class(adaptive_fill_function_type), intent(in) :: self
-        procedure(adaptive_fill_procedure), pointer :: fn
-        integer :: i
-
-        fn => self%value
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-        end if
-    end function current_adaptive_fill
-
-    ! Not a port.
-    subroutine adaptive_fill_clear_local(self)
-        class(adaptive_fill_function_type), intent(inout) :: self
-        integer :: i
-
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            self%entries(i)%serial = 0
-            self%entries(i)%fn => null()
-        end if
-    end subroutine adaptive_fill_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_adaptive_fill_entry
 
     !> kill-all-local-variables: forget the current buffer's
     !> `fill_paragraph_function'.  Not a port.

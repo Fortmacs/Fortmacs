@@ -978,7 +978,7 @@ contains
         ! revert-buffer-restore-functions: revert-buffer-restore-read-only.
         restore_read_only = buffers(current)%read_only_mode_state_set
         read_only_state = buffers(current)%read_only_mode_state
-        fn => revert_buffer_function%current()
+        fn => revert_buffer_function%get_current()
 
         if (associated(fn)) then
             call fn(ia, nc, status)

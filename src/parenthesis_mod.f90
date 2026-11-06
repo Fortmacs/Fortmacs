@@ -40,7 +40,8 @@ module parenthesis_mod
                         symbol_value, set, append_locals_clearer
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
-    use buffer_mod, only: buffers, current, buffer_serial_live
+    use buffer_mod, only: buffers, current
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, narrow_to_region, widen, &
                                      character_after, character_before, line_end_position
     use syntax_mod, only: syntax_entry, syntax_descriptor_type, parse_state_type, syntax_parser_state, scan_expressions, &
@@ -59,9 +60,6 @@ module parenthesis_mod
     implicit none(type, external)
     private
 
-    public :: show_parenthesis_data_function_set_local, current_show_parenthesis_data_function, &
-              is_show_parenthesis_data_function_local, &
-              show_parenthesis_data_function_clear_local
     public :: initialize_parenthesis, show_parenthesis_mode, show_parenthesis_local_mode, show_parenthesis_function, &
               show_parenthesis_default, &
               is_show_parenthesis_unescaped, show_parenthesis_categorize_parenthesis, show_parenthesis_locate_near_parenthesis, &
@@ -162,23 +160,33 @@ module parenthesis_mod
             implicit none(type, external)
         end function show_parenthesis_test_procedure
     end interface
+    !> One buffer's own `show_parenthesis_data_function'.
+    type :: show_parenthesis_data_entry_type
+        procedure(show_parenthesis_data_procedure), pointer, nopass :: procedure => null()
+    end type show_parenthesis_data_entry_type
+
+    !> The type of `show_parenthesis_data_function': the global value `procedure' (set with
+    !> `=>'; null for none) and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: show_parenthesis_data_setting_type
+        procedure(show_parenthesis_data_procedure), pointer, nopass :: procedure => null()
+        type(show_parenthesis_data_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_show_parenthesis_data_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_show_parenthesis_data_current
+        procedure :: append_local_entry => append_show_parenthesis_data_entry
+        procedure :: clear_local_entry => clear_show_parenthesis_data_entry
+    end type show_parenthesis_data_setting_type
 
     !> Function to find the opener/closer "near" point and its match.
     !> The function is called with no argument and should give either
     !> FOUND false if there's no opener/closer near point, or the
     !> positions HERE_BEGINNING HERE_END THERE_BEGINNING THERE_END and MISMATCH,
     !> where HERE_BEGINNING..HERE_END is expected to be near point.  Port of
-    !> paren.el show-paren-data-function.
-    procedure(show_parenthesis_data_procedure), pointer, public :: show_parenthesis_data_function => null()
-
-    ! A buffer's own `show_parenthesis_data_function' (FN null is nil).
-    type :: data_entry_type
-        integer(int64) :: serial = 0
-        procedure(show_parenthesis_data_procedure), pointer, nopass :: fn => null()
-    end type data_entry_type
-
-    ! Buffers' own values of `show_parenthesis_data_function'.
-    type(data_entry_type), allocatable :: data_locals(:)
+    !> paren.el show-paren-data-function (`%procedure' is the global
+    !> value; `%set_local' gives a buffer its own).
+    type(show_parenthesis_data_setting_type), public :: show_parenthesis_data_function
 
     !> Whether to use `show_parenthesis_mode' in a buffer.
     !> The default is to enable the mode in all buffers that don't
@@ -203,72 +211,53 @@ module parenthesis_mod
 
 contains
 
-    ! The index in `data_locals' of the current buffer's entry, 0 if none.
-    ! Not a port.
-    integer function data_local_index() result(i)
-        i = 0
-        if (current == 0 .or. .not. allocated(data_locals)) return
-        i = findloc(data_locals%serial, buffers(current)%serial, dim=1)
-    end function data_local_index
+    !> Give the current buffer its own `show_parenthesis_data_function', LOCAL_PROCEDURE (null
+    !> when absent).  Not a port.
+    subroutine set_show_parenthesis_data_local(self, local_procedure)
+        class(show_parenthesis_data_setting_type), intent(inout) :: self
+        procedure(show_parenthesis_data_procedure), optional :: local_procedure
+        integer :: k
 
-    !> Give the current buffer its own `show_parenthesis_data_function'
-    !> FN (set_local); absent clears it.  Not a port.
-    subroutine show_parenthesis_data_function_set_local(fn)
-        procedure(show_parenthesis_data_procedure), optional :: fn
-        type(data_entry_type) :: entry
-        integer :: i
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_show_parenthesis_data_local
 
-        if (current == 0) return
-        if (.not. allocated(data_locals)) allocate (data_locals(0))
-        i = data_local_index()
-
-        if (i == 0) then
-            do i = 1, size(data_locals)
-                if (.not. buffer_serial_live(data_locals(i)%serial)) exit
-            end do
-
-            if (i > size(data_locals)) data_locals = [data_locals, entry]
-            data_locals(i)%serial = buffers(current)%serial
-        end if
-
-        if (present(fn)) then
-            data_locals(i)%fn => fn
-        else
-            data_locals(i)%fn => null()
-        end if
-    end subroutine show_parenthesis_data_function_set_local
-
-    !> The value of `show_parenthesis_data_function' in the current buffer
-    !> (null when unset).  Not a port.
-    function current_show_parenthesis_data_function() result(fn)
-        procedure(show_parenthesis_data_procedure), pointer :: fn
-        integer :: i
-
-        i = data_local_index()
-
-        if (i > 0) then
-            fn => data_locals(i)%fn
-        else
-            fn => show_parenthesis_data_function
-        end if
-    end function current_show_parenthesis_data_function
-
-    !> Whether the current buffer has its own `show_parenthesis_data_function'.
+    !> The current buffer's `show_parenthesis_data_function': its own value, else the global one.
     !> Not a port.
-    logical function is_show_parenthesis_data_function_local()
-        is_show_parenthesis_data_function_local = data_local_index() > 0
-    end function is_show_parenthesis_data_function_local
+    function get_show_parenthesis_data_current(self) result(current_procedure)
+        class(show_parenthesis_data_setting_type), intent(in) :: self
+        procedure(show_parenthesis_data_procedure), pointer :: current_procedure
+        integer :: k
 
-    !> Make the current buffer use the default `show_parenthesis_data_function'
-    !> (also what `clear_all_local_variables' does to it).  Not a port.
-    subroutine show_parenthesis_data_function_clear_local()
-        integer :: i
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_show_parenthesis_data_current
 
-        i = data_local_index()
-        if (i == 0) return
-        data_locals(i)%serial = 0
-        data_locals(i)%fn => null()
-    end subroutine show_parenthesis_data_function_clear_local
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_show_parenthesis_data_entry(self)
+        class(show_parenthesis_data_setting_type), intent(inout) :: self
+        type(show_parenthesis_data_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_show_parenthesis_data_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_show_parenthesis_data_entry(self, k)
+        class(show_parenthesis_data_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_show_parenthesis_data_entry
+
+    ! kill-all-local-variables: forget the current buffer's own
+    ! `show_parenthesis_data_function'.  Not a port.
+    subroutine clear_parenthesis_locals()
+        call show_parenthesis_data_function%clear_local()
+    end subroutine clear_parenthesis_locals
 
     !> Define Show Paren mode and Show Paren Local mode (as loading
     !> paren.el does).  Not a port.
@@ -279,8 +268,12 @@ contains
         call minor_modes%show_parenthesis_local_mode%define("show_parenthesis_local_mode", body=show_parenthesis_local_mode_body, &
                                                           hook=show_parenthesis_local_mode_hook, getter=is_show_parenthesis_enabled)
         commands%show_parenthesis_local_mode%execute => show_parenthesis_local_mode
-        if (.not. associated(show_parenthesis_data_function)) show_parenthesis_data_function => show_parenthesis_default
-        call append_locals_clearer(show_parenthesis_data_function_clear_local)
+
+        if (.not. associated(show_parenthesis_data_function%procedure)) then
+            show_parenthesis_data_function%procedure => show_parenthesis_default
+        end if
+
+        call append_locals_clearer(clear_parenthesis_locals)
         if (.not. associated(show_parenthesis_test_function)) show_parenthesis_test_function => show_parenthesis_default_test
     end subroutine initialize_parenthesis
 
@@ -692,7 +685,7 @@ contains
         found = .false.
 
         if (is_show_parenthesis_enabled()) then
-            data_fn => current_show_parenthesis_data_function()
+            data_fn => show_parenthesis_data_function%get_current()
             if (associated(data_fn)) call data_fn(found, data)
         end if
 

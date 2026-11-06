@@ -77,6 +77,7 @@ module programmable_completion_mod
     use command_interpreter_mod, only: command_interpreter_completion_file_name_table, command_interpreter_unquote_argument, &
                                        command_interpreter_requote_argument, command_interpreter_beginning_of_line
     use string_type_mod, only: string_type, prepend_string, append_string
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -242,29 +243,49 @@ module programmable_completion_mod
     type(hook_type), target, public :: programmable_completion_try_first_hook = hook_type( &
                                        name="programmable_completion_try_first_hook")
 
-    !> A function variable of pcomplete: a default `value', and the
-    !> buffers' own values set with `set_local'.
-    type, public :: programmable_completion_function_variable_type
-        character(len=48) :: name = ""
-        procedure(programmable_completion_function_procedure), pointer, nopass :: value => null()
-    contains
-        !> Make FN the current buffer's value (set_local).
-        procedure :: set_local => function_set_local
-        !> The current buffer's value.
-        procedure :: current => current_function
-    end type programmable_completion_function_variable_type
+    !> One buffer's own value of
+    !> `programmable_completion_command_completion_function' or `programmable_completion_default_completion_function'.
+    type :: programmable_completion_function_entry_type
+        procedure(programmable_completion_function_procedure), pointer, nopass :: procedure => null()
+    end type programmable_completion_function_entry_type
 
-    !> The `programmable_completion_parse_arguments_function' variable: a default
-    !> `value', and the buffers' own values set with `set_local'.
-    type, public :: programmable_completion_parse_variable_type
-        character(len=48) :: name = ""
-        procedure(programmable_completion_parse_procedure), pointer, nopass :: value => null()
+    !> The type of
+    !> `programmable_completion_command_completion_function' or `programmable_completion_default_completion_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: programmable_completion_function_setting_type
+        procedure(programmable_completion_function_procedure), pointer, nopass :: procedure => null()
+        type(programmable_completion_function_entry_type), allocatable :: locals(:)
     contains
-        !> Make FN the current buffer's value (set_local).
-        procedure, nopass :: set_local => parse_set_local
-        !> The current buffer's value.
-        procedure :: current => current_parse
-    end type programmable_completion_parse_variable_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_programmable_completion_function_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_programmable_completion_function_current
+        procedure :: append_local_entry => append_programmable_completion_function_entry
+        procedure :: clear_local_entry => clear_programmable_completion_function_entry
+    end type programmable_completion_function_setting_type
+
+    !> One buffer's own value of
+    !> `programmable_completion_parse_arguments_function'.
+    type :: programmable_completion_parse_entry_type
+        procedure(programmable_completion_parse_procedure), pointer, nopass :: procedure => null()
+    end type programmable_completion_parse_entry_type
+
+    !> The type of
+    !> `programmable_completion_parse_arguments_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: programmable_completion_parse_setting_type
+        procedure(programmable_completion_parse_procedure), pointer, nopass :: procedure => null()
+        type(programmable_completion_parse_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_programmable_completion_parse_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_programmable_completion_parse_current
+        procedure :: append_local_entry => append_programmable_completion_parse_entry
+        procedure :: clear_local_entry => clear_programmable_completion_parse_entry
+    end type programmable_completion_parse_setting_type
 
     !> A function to call to parse the current line's arguments.
     !> It should be called with no parameters, and with point at the
@@ -276,22 +297,16 @@ module programmable_completion_mod
     !> This establishes a relationship between the fully resolved value
     !> of the argument, and the textual representation of the argument.
     !> Port of pcomplete.el pcomplete-parse-arguments-function.
-    type(programmable_completion_parse_variable_type), public :: programmable_completion_parse_arguments_function = &
-                                                                 programmable_completion_parse_variable_type( &
-                                                                 name="programmable_completion_parse_arguments_function")
+    type(programmable_completion_parse_setting_type), public :: programmable_completion_parse_arguments_function
 
     !> Function called for completing the initial command argument.
     !> Port of pcomplete.el pcomplete-command-completion-function.
-    type(programmable_completion_function_variable_type), public :: programmable_completion_command_completion_function = &
-                                                                    programmable_completion_function_variable_type( &
-                                                                    name="programmable_completion_command_completion_function")
+    type(programmable_completion_function_setting_type), public :: programmable_completion_command_completion_function
 
     !> Function called when no completion rule can be found.
     !> This function is used to generate completions for every argument.
     !> Port of pcomplete.el pcomplete-default-completion-function.
-    type(programmable_completion_function_variable_type), public :: programmable_completion_default_completion_function = &
-                                                                    programmable_completion_function_variable_type( &
-                                                                    name="programmable_completion_default_completion_function")
+    type(programmable_completion_function_setting_type), public :: programmable_completion_default_completion_function
 
     !> Function called for determining the current command name.  Port of
     !> pcomplete.el pcomplete-command-name-function.
@@ -350,16 +365,6 @@ module programmable_completion_mod
     !> The completion functions of commands (pcomplete/NAME).
     type(programmable_completion_command_functions_type), public :: programmable_completion_command_functions
 
-    ! The buffers' own function values.
-    type :: local_functions_type
-        integer(int64) :: serial = 0
-        logical :: has_command = .false., has_default = .false., has_parse = .false.
-        procedure(programmable_completion_function_procedure), pointer, nopass :: command => null()
-        procedure(programmable_completion_function_procedure), pointer, nopass :: default => null()
-        procedure(programmable_completion_parse_procedure), pointer, nopass :: parse => null()
-    end type local_functions_type
-    type(local_functions_type), allocatable :: local_functions(:)
-
     ! pcomplete-args, pcomplete-begins, pcomplete-last, pcomplete-index,
     ! pcomplete-stub, pcomplete-seen and pcomplete-norm-func.
     type(string_type), allocatable :: arguments(:)
@@ -409,100 +414,101 @@ contains
     ! Function variables
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry in `local_functions' (0 if none).  Not a port.
-    integer function local_slot() result(k)
-        k = 0
-        if (current == 0) return
-        if (.not. allocated(local_functions)) return
-        k = findloc(local_functions%serial, buffers(current)%serial, dim=1)
-    end function local_slot
-
-    !> Find or make the current buffer's entry in `local_functions' (reusing a free one), its
-    !> index K (0 without a current buffer).  Not a port.
-    subroutine make_local_slot(k)
-        integer, intent(out) :: k
-        type(local_functions_type) :: entry
-
-        k = local_slot()
-        if (k > 0 .or. current == 0) return
-        if (.not. allocated(local_functions)) allocate (local_functions(0))
-        k = findloc(local_functions%serial, 0_int64, dim=1)
-
-        if (k == 0) then
-            local_functions = [local_functions, entry]
-            k = size(local_functions)
-        end if
-
-        local_functions(k)%serial = buffers(current)%serial
-    end subroutine make_local_slot
-
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
     subroutine clear_programmable_completion_locals()
-        integer :: k
-
-        k = local_slot()
-        if (k > 0) local_functions(k) = local_functions_type()
+        call programmable_completion_command_completion_function%clear_local()
+        call programmable_completion_default_completion_function%clear_local()
+        call programmable_completion_parse_arguments_function%clear_local()
     end subroutine clear_programmable_completion_locals
 
-    ! Set SELF in the current buffer (setq-local).  Not a port.
-    subroutine function_set_local(self, fn)
-        class(programmable_completion_function_variable_type), intent(in) :: self
-        procedure(programmable_completion_function_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `programmable_completion_command_completion_function' or `programmable_completion_default_completion_function'.  Not a port.
+    subroutine set_programmable_completion_function_local(self, local_procedure)
+        class(programmable_completion_function_setting_type), intent(inout) :: self
+        procedure(programmable_completion_function_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_slot(k)
+        call self%make_local_entry(k)
         if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_programmable_completion_function_local
 
-        if (self%name == "programmable_completion_command_completion_function") then
-            local_functions(k)%command => fn
-            local_functions(k)%has_command = .true.
-        else
-            local_functions(k)%default => fn
-            local_functions(k)%has_default = .true.
-        end if
-    end subroutine function_set_local
-
-    ! The current buffer's value of SELF.  Not a port.
-    subroutine current_function(self, fn)
-        class(programmable_completion_function_variable_type), intent(in) :: self
-        procedure(programmable_completion_function_procedure), pointer, intent(out) :: fn
+    !> Set CURRENT_PROCEDURE to the current buffer's value of
+    !> `programmable_completion_command_completion_function' or `programmable_completion_default_completion_function':
+    !> its own, else the global one.  Not a port.
+    subroutine get_programmable_completion_function_current(self, current_procedure)
+        class(programmable_completion_function_setting_type), intent(in) :: self
+        procedure(programmable_completion_function_procedure), pointer, intent(out) :: current_procedure
         integer :: k
 
-        fn => self%value
-        k = local_slot()
-        if (k == 0) return
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end subroutine get_programmable_completion_function_current
 
-        if (self%name == "programmable_completion_command_completion_function") then
-            if (local_functions(k)%has_command) fn => local_functions(k)%command
-        else
-            if (local_functions(k)%has_default) fn => local_functions(k)%default
-        end if
-    end subroutine current_function
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_programmable_completion_function_entry(self)
+        class(programmable_completion_function_setting_type), intent(inout) :: self
+        type(programmable_completion_function_entry_type) :: entry
 
-    ! Set `programmable_completion_parse_arguments_function' to FN in the current
-    ! buffer (setq-local).  Not a port.
-    subroutine parse_set_local(fn)
-        procedure(programmable_completion_parse_procedure) :: fn
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_programmable_completion_function_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_programmable_completion_function_entry(self, k)
+        class(programmable_completion_function_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_programmable_completion_function_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `programmable_completion_parse_arguments_function'.  Not a port.
+    subroutine set_programmable_completion_parse_local(self, local_procedure)
+        class(programmable_completion_parse_setting_type), intent(inout) :: self
+        procedure(programmable_completion_parse_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_slot(k)
+        call self%make_local_entry(k)
         if (k == 0) return
-        local_functions(k)%parse => fn
-        local_functions(k)%has_parse = .true.
-    end subroutine parse_set_local
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_programmable_completion_parse_local
 
-    ! The current buffer's value of SELF.  Not a port.
-    subroutine current_parse(self, fn)
-        class(programmable_completion_parse_variable_type), intent(in) :: self
-        procedure(programmable_completion_parse_procedure), pointer, intent(out) :: fn
+    !> Set CURRENT_PROCEDURE to the current buffer's value of
+    !> `programmable_completion_parse_arguments_function':
+    !> its own, else the global one.  Not a port.
+    subroutine get_programmable_completion_parse_current(self, current_procedure)
+        class(programmable_completion_parse_setting_type), intent(in) :: self
+        procedure(programmable_completion_parse_procedure), pointer, intent(out) :: current_procedure
         integer :: k
 
-        fn => self%value
-        k = local_slot()
-        if (k == 0) return
-        if (local_functions(k)%has_parse) fn => local_functions(k)%parse
-    end subroutine current_parse
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end subroutine get_programmable_completion_parse_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_programmable_completion_parse_entry(self)
+        class(programmable_completion_parse_setting_type), intent(inout) :: self
+        type(programmable_completion_parse_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_programmable_completion_parse_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_programmable_completion_parse_entry(self, k)
+        class(programmable_completion_parse_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_programmable_completion_parse_entry
 
     ! Add the completion function FN for COMMAND (in major mode MODE).
     ! Not a port.
@@ -846,7 +852,7 @@ contains
         integer(int64) :: begin
 
         ok = .false.
-        call programmable_completion_parse_arguments_function%current(fn)
+        call programmable_completion_parse_arguments_function%get_current(fn)
         if (.not. associated(fn)) return
         call fn(parsed, parsed_begins)
         if (.not. allocated(parsed)) return
@@ -1196,7 +1202,7 @@ contains
 
         if (programmable_completion_parse_arguments(programmable_completion_expand_before_complete%value)) then
             if (programmable_completion_index == programmable_completion_last) then
-                call programmable_completion_command_completion_function%current(fn)
+                call programmable_completion_command_completion_function%get_current(fn)
                 if (associated(fn)) call fn(status)
             else
                 name_fn => programmable_completion_command_name_function
@@ -1208,7 +1214,7 @@ contains
                 end if
 
                 call programmable_completion_find_completion_function(name, fn)
-                if (.not. associated(fn)) call programmable_completion_default_completion_function%current(fn)
+                if (.not. associated(fn)) call programmable_completion_default_completion_function%get_current(fn)
                 call programmable_completion_next_argument()
                 if (thrown == THROWN_NONE .and. associated(fn)) call fn(status)
             end if
@@ -1554,14 +1560,14 @@ contains
 
     !> Define pcomplete's settings and default functions.  Not a port.
     subroutine initialize_programmable_completion()
-        if (associated(programmable_completion_command_completion_function%value)) return
+        if (associated(programmable_completion_command_completion_function%procedure)) return
         if (.not. allocated(programmable_completion_termination_string%value)) programmable_completion_termination_string = " "
         if (.not. allocated(programmable_completion_hosts_file%value)) programmable_completion_hosts_file = "/etc/hosts"
         call forward_setting(programmable_completion_termination_string)
         call forward_setting(programmable_completion_remote_file_ignore)
-        programmable_completion_command_completion_function%value => default_command_completion
-        programmable_completion_default_completion_function%value => default_default_completion
-        programmable_completion_parse_arguments_function%value => programmable_completion_parse_buffer_arguments
+        programmable_completion_command_completion_function%procedure => default_command_completion
+        programmable_completion_default_completion_function%procedure => default_default_completion
+        programmable_completion_parse_arguments_function%procedure => programmable_completion_parse_buffer_arguments
         programmable_completion_exit_function => programmable_completion_default_exit_function
         call append_locals_clearer(clear_programmable_completion_locals)
     end subroutine initialize_programmable_completion

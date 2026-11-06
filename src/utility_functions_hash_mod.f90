@@ -308,7 +308,7 @@ contains
             else
                 force_raw_text = .false.
 
-                if (buffer_file_coding_system%local_p() .and. allocated(buffer_file_coding_system%value)) then
+                if (buffer_file_coding_system%is_local() .and. allocated(buffer_file_coding_system%value)) then
                     coding = buffer_file_coding_system%value
                 end if
 
