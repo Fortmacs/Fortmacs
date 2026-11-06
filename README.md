@@ -122,7 +122,8 @@ names, help and internals are Fortran-first.
   `make_directory` is `create_directory`); arrays grow with append and <!-- fortran-names: keep -->
   prepend (`add_auto_mode` is `prepend_auto_mode`). Predicates are <!-- fortran-names: keep -->
   `is_*` (`process_live_p` is `is_process_live`), and other helpers <!-- fortran-names: keep -->
-  use one word each: get, not fetch; make, not new. Where Emacs gives <!-- fortran-names: keep -->
+  use one word each: get, not fetch; make, not new, for an object in <!-- fortran-names: keep -->
+  memory (files are created, not made). Where Emacs gives
   two words two behaviors, both stay: cut saves to the clipboard
   history, delete does not; read prompts, get looks up. PORTING.md,
   "One word per meaning", has the full list.
