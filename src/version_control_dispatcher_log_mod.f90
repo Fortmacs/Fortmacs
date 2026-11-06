@@ -30,6 +30,7 @@ submodule(version_control_dispatcher_mod) version_control_dispatcher_log_mod
     use buffer_mod, only: restore_buffer_modified
     use editing_functions_mod, only: buffer_string
     use string_type_mod, only: string_type
+    use help_mod, only: substitute_command_keys
     implicit none(type, external)
 
     ! The FILESET and BACKEND that `version_control_log_edit' gives the Log Edit buffer
@@ -94,21 +95,9 @@ contains
     if (immediate) then
         call version_control_finish_logentry(status, cmt)
     else
-        call message(substitute_keys("%s  Type \<log_edit_mode_map>\[log_edit_done] when done", log_message))
+        call message(log_message//substitute_command_keys("  Type \<log_edit_mode_map>\[log_edit_done] when done"))
     end if
     end procedure version_control_start_logentry
-
-    ! (substitute-command-keys FORMAT) with %s replaced by MESSAGE.  Not a port.
-    function substitute_keys(format, message) result(text)
-        use help_mod, only: substitute_command_keys
-        character(len=*), intent(in) :: format, message
-        character(len=:), allocatable :: text
-        integer :: i
-
-        text = substitute_command_keys(format)
-        i = index(text, "%s")
-        if (i > 0) text = text(1:i - 1)//message//text(i + 2:)
-    end function substitute_keys
 
     module procedure version_control_log_edit
     type(string_type), allocatable :: current_fileset(:)

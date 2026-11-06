@@ -40,7 +40,7 @@ module view_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE, format_message
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE, substitute_quotes
     use handle_mod, only: handle_type
     use value_mod, only: list
     use data_mod, only: append_locals_clearer

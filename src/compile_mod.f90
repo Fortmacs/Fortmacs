@@ -90,7 +90,7 @@ module compile_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, xfixnum, vtag, V_INTEGER, V_STRING
     use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
@@ -3897,14 +3897,14 @@ contains
             origname = name
 
             if (.not. file_exists(name)) then
-                call message(format_message("Cannot find file `")//name//format_message("'"))
+                call message(substitute_quotes("Cannot find file `")//name//substitute_quotes("'"))
                 call ding(status=st)
                 call sit_for(2000_int32)
             else if (is_file_directory(name)) then
                 name = compilation_expand_fn(name, filename)
 
                 if (.not. file_exists(name)) then
-                    call message(format_message("No `")//filename//format_message("' in directory ")//origname)
+                    call message(substitute_quotes("No `")//filename//substitute_quotes("' in directory ")//origname)
                     call ding(status=st)
                     call sit_for(2000_int32)
                 else
@@ -4436,8 +4436,8 @@ contains
                     call delete_process(comp_process, st)
                 end if
             else
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot have two processes in `")// &
-                               buffers(current)%name//format_message("' at once"))
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Cannot have two processes in `")// &
+                               buffers(current)%name//substitute_quotes("' at once"))
                 call set_buffer(old, st)
                 return
             end if

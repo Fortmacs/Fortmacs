@@ -32,7 +32,7 @@
 !> What is not ported is listed in docs/status/spellcheck_mode_mod.md.
 module spellcheck_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, format_message
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, substitute_quotes
     use handle_mod, only: handle_type, null_handle, same_handle
     use value_mod, only: value_type, command_type, list_elements, make_list, vtag, V_NAME, symbols, xsymbol
     use data_mod, only: choice_setting_type, append_locals_clearer
@@ -925,10 +925,10 @@ contains
 
             if (allocated(keys%a)) then
                 call list_elements(keys, events)
-                call message(format_message("Welcome to Flyspell. Use `"//key_description(events)// &
-                                            "' or `Mouse-2' to correct words."))
+                call message(substitute_quotes("Welcome to Flyspell. Use `"//key_description(events)// &
+                                               "' or `Mouse-2' to correct words."))
             else
-                call message(format_message("Welcome to Flyspell. Use `Mouse-2' to correct words."))
+                call message(substitute_quotes("Welcome to Flyspell. Use `Mouse-2' to correct words."))
             end if
         end if
 
@@ -1406,7 +1406,7 @@ contains
         type(spellcheck_output_type), intent(in) :: positions
 
         if (spellcheck_issue_message_flag) then
-            call message(format_message("misspelling `")//word//format_message("'  ")//replacements_text(positions, word))
+            call message(substitute_quotes("misspelling `")//word//substitute_quotes("'  ")//replacements_text(positions, word))
         end if
     end subroutine notify_spellcheck_misspelling
 
@@ -1726,7 +1726,7 @@ contains
                 if (spellcheck_highlight_flag) then
                     call highlight_spellcheck_duplicate_region(start, end, status)
                 else
-                    call message(format_message("duplicate `")//word//format_message("'"))
+                    call message(substitute_quotes("duplicate `")//word//substitute_quotes("'"))
                 end if
 
                 ok = .false.

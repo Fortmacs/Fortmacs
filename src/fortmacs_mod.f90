@@ -29,7 +29,7 @@
 !> program around it.
 module fortmacs_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, output_unit, error_unit
-    use error_mod, only: format_message, status_type, set_error, format_error, GENERIC_ERROR_CODE
+    use error_mod, only: substitute_quotes, status_type, set_error, format_error, GENERIC_ERROR_CODE
     use version_mod, only: version_string
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, current_buffer
@@ -293,8 +293,8 @@ contains
                     select case (argi)
                     case ("-file", "-find-file", "-visit")
                         if (k == size(arguments)) then
-                            call set_error(status, GENERIC_ERROR_CODE, format_message("File name omitted from `")//argi// &
-                                           format_message("' option"))
+                            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("File name omitted from `")//argi// &
+                                           substitute_quotes("' option"))
                             return
                         end if
 
@@ -302,7 +302,7 @@ contains
                         argi = arguments(k)%text
                     case default
                         call set_error(status, GENERIC_ERROR_CODE, &
-                                       format_message("Unknown option `")//arguments(k)%text//format_message("'"))
+                                       substitute_quotes("Unknown option `")//arguments(k)%text//substitute_quotes("'"))
                         return
                     end select
                 end if
@@ -596,8 +596,8 @@ contains
                         argi = argi(2:)
                     else if (len(completion) > 0) then
                         if (.not. any(longopts == completion)) then
-                            call set_error(status, GENERIC_ERROR_CODE, format_message("Option `")//argi// &
-                                           format_message("' is ambiguous"))
+                            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Option `")//argi// &
+                                           substitute_quotes("' is ambiguous"))
                             return
                         end if
 
@@ -623,8 +623,8 @@ contains
 
             ! Was argval set but not used?
             if (has_argval) then
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Option `")//argi// &
-                               format_message("' doesn't allow an argument"))
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Option `")//argi// &
+                               substitute_quotes("' doesn't allow an argument"))
                 return
             end if
         end do

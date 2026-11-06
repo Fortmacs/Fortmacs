@@ -33,7 +33,7 @@
 !> fortmacs_diff_settings_merging_mod.
 module fortmacs_diff_merging_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, USER_ERROR_CODE
     use value_mod, only: value_type, make_list
     use data_mod, only: choice_setting_type
     use hooks_mod, only: hook_type
@@ -195,9 +195,9 @@ contains
             items(j) = value_type(text=fortmacs_diff_default_variant_name(variant))
         end do
 
-        call completing_read(format_message("Current merge default is `")// &
+        call completing_read(substitute_quotes("Current merge default is `")// &
                              fortmacs_diff_default_variant_name(fortmacs_diff_sessions(session_index)%default_variant%choice)// &
-                             format_message("'.  New default: "), completion_list_table(make_list(items(1:j))), answer, &
+                             substitute_quotes("'.  New default: "), completion_list_table(make_list(items(1:j))), answer, &
                              status, require_match=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
 

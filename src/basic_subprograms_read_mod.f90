@@ -44,7 +44,7 @@ submodule(basic_subprograms_mod) basic_subprograms_read_mod
     use buffer_mod, only: get_buffer, is_buffer_live, close_buffer
     use help_mod, only: with_output_to_temporary_buffer, substitute_command_keys
     use read_multiple_choice_mod, only: read_character_choice_use_read_key
-    use error_mod, only: format_message, GENERIC_ERROR_CODE
+    use error_mod, only: substitute_quotes, GENERIC_ERROR_CODE
     use string_type_mod, only: string_type
     implicit none(type, external)
 
@@ -850,7 +850,8 @@ contains
         if (present(inhibit_keyboard_quit)) inhibit = inhibit_keyboard_quit
 
         if (size(chars) == 0) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Called `read_character_choice' without valid char choices"))
+            call set_error(status, GENERIC_ERROR_CODE, &
+                           substitute_quotes("Called `read_character_choice' without valid char choices"))
             return
         end if
 

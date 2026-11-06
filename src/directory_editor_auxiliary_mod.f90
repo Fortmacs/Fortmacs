@@ -731,22 +731,9 @@ contains
         call read_y_or_n(pop_prompt, pop_answer, status)
     end subroutine pop_read_y_or_n
 
-    !> PROMPT with its "%s" replaced by WHAT.  Not a port.
-    function format_s(prompt, what) result(s)
-        character(len=*), intent(in) :: prompt, what
-        character(len=:), allocatable :: s
-        integer :: k
-
-        k = index(prompt, "%s")
-
-        if (k == 0) then
-            s = prompt
-        else
-            s = prompt(1:k - 1)//what//prompt(k + 2:)
-        end if
-    end function format_s
-
-    !> Read args for a Dired marked-files command, prompting with PROMPT.
+    !> Read args for a Dired marked-files command, prompting with
+    !> PROMPT_BEGINNING, the marked files (`directory_editor_marker_prompt')
+    !> and PROMPT_END (the text around the files in upstream's PROMPT).
     !> RESULT is the user input (a string).
     !>
     !> OP_SYMBOL is an operation name (see `directory_editor_no_confirm').
@@ -760,10 +747,11 @@ contains
     !>
     !> COLLECTION, if present, is a list of possible completions.
     !> Port of dired-aux.el:dired-mark-read-string (no INITIAL).
-    recursive subroutine directory_editor_mark_read_string(prompt, op_symbol, argument_kind, argument_n, files, result, &
+    recursive subroutine directory_editor_mark_read_string(prompt_beginning, prompt_end, op_symbol, argument_kind, argument_n, &
+                                                           files, result, &
                                                            used_default, &
                                                            status, default_value, collection)
-        character(len=*), intent(in) :: prompt, op_symbol
+        character(len=*), intent(in) :: prompt_beginning, prompt_end, op_symbol
         integer, intent(in) :: argument_kind
         integer(int64), intent(in) :: argument_n
         type(string_type), intent(in) :: files(:)
@@ -773,7 +761,7 @@ contains
         character(len=*), intent(in), optional :: default_value
         type(value_type), intent(in), optional :: collection
 
-        pop_prompt = format_s(prompt, directory_editor_marker_prompt(argument_kind, argument_n, files))
+        pop_prompt = prompt_beginning//directory_editor_marker_prompt(argument_kind, argument_n, files)//prompt_end
         pop_has_default = present(default_value)
         if (pop_has_default) pop_default = default_value
 
@@ -802,11 +790,14 @@ contains
     !> list of marked files.  ARGUMENT is the prefix arg and indicates whether
     !> the files came from marks (DIRECTORY_EDITOR_ARGUMENT_NONE) or a repeat factor.
     !> DEFAULT is the default value to return if the user just hits RET.
+    !> The prompt is PROMPT_BEGINNING, the marked files and PROMPT_END
+    !> (the text around the files in upstream's PROMPT).
     !> Port of dired-aux.el:dired-mark-read-file-name.
-    recursive subroutine directory_editor_mark_read_file_name(prompt, directory, op_symbol, argument_kind, argument_n, files, &
+    recursive subroutine directory_editor_mark_read_file_name(prompt_beginning, prompt_end, directory, op_symbol, argument_kind, &
+                                                              argument_n, files, &
                                                               result, status, &
                                                               default)
-        character(len=*), intent(in) :: prompt, directory, op_symbol
+        character(len=*), intent(in) :: prompt_beginning, prompt_end, directory, op_symbol
         integer, intent(in) :: argument_kind
         integer(int64), intent(in) :: argument_n
         type(string_type), intent(in) :: files(:)
@@ -814,7 +805,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: default
 
-        pop_prompt = format_s(prompt, directory_editor_marker_prompt(argument_kind, argument_n, files))
+        pop_prompt = prompt_beginning//directory_editor_marker_prompt(argument_kind, argument_n, files)//prompt_end
         pop_directory = directory
         pop_has_default = present(default)
         if (pop_has_default) pop_default = default
@@ -1079,11 +1070,12 @@ contains
             end select
         end if
 
-        ! (format-prompt "Change %s of %%s to" (when touch "now") ATTRIBUTE-NAME)
+        ! (format-prompt "Change %s of %%s to" (when touch "now") ATTRIBUTE-NAME):
+        ! the text after the marked files.
         if (op_symbol == "touch") then
-            prompt = "Change "//attribute_name//" of %s to (default now): "
+            prompt = " to (default now): "
         else
-            prompt = "Change "//attribute_name//" of %s to: "
+            prompt = " to: "
         end if
 
         if (op_symbol == "chown") then
@@ -1095,11 +1087,13 @@ contains
         end if
 
         if (has_default) then
-            call directory_editor_mark_read_string(prompt, op_symbol, argument_kind, argument_n, files, new_attribute, &
+            call directory_editor_mark_read_string("Change "//attribute_name//" of ", prompt, op_symbol, argument_kind, &
+                                                   argument_n, files, new_attribute, &
                                                    used_default, &
                                                    status, default_value=default, collection=collection)
         else
-            call directory_editor_mark_read_string(prompt, op_symbol, argument_kind, argument_n, files, new_attribute, &
+            call directory_editor_mark_read_string("Change "//attribute_name//" of ", prompt, op_symbol, argument_kind, &
+                                                   argument_n, files, new_attribute, &
                                                    used_default, &
                                                    status, collection=collection)
         end if
@@ -1159,11 +1153,11 @@ contains
     end if
 
     if (has_default) then
-        call directory_editor_mark_read_string("Change mode of %s to: ", "chmod", argument_kind, argument_n, files, modes, &
+        call directory_editor_mark_read_string("Change mode of ", " to: ", "chmod", argument_kind, argument_n, files, modes, &
                                                used_default, &
                                                status, default_value=default)
     else
-        call directory_editor_mark_read_string("Change mode of %s to: ", "chmod", argument_kind, argument_n, files, modes, &
+        call directory_editor_mark_read_string("Change mode of ", " to: ", "chmod", argument_kind, argument_n, files, modes, &
                                                used_default, &
                                                status)
     end if
@@ -1375,45 +1369,19 @@ contains
 
     call aux_inhibit_read_only_end(saved_ro)
     call goto_character(min(original_point, point_maximum()))
-
-    if (present(fmt)) then
-        if (len(fmt) > 0) call message(format_d(fmt, n))
-    else
-        if (n == 1) then
-            write (text, '("Killed ", i0, " line.")') n
-        else
-            write (text, '("Killed ", i0, " lines.")') n
-        end if
-
-        call message(trim(text))
-    end if
-
     if (present(count)) count = n
 
-contains
+    if (present(quiet)) then
+        if (quiet) return
+    end if
 
-    !> FMT with its "%d" replaced by N and its "%s" by the plural s.
-    function format_d(fmt, n) result(s)
-        character(len=*), intent(in) :: fmt
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=20) :: digits
-        integer :: k
+    if (n == 1) then
+        write (text, '("Killed ", i0, " line.")') n
+    else
+        write (text, '("Killed ", i0, " lines.")') n
+    end if
 
-        s = fmt
-        k = index(s, "%d")
-        write (digits, "(i0)") n
-        if (k > 0) s = s(1:k - 1)//trim(digits)//s(k + 2:)
-        k = index(s, "%s")
-
-        if (k > 0) then
-            if (n == 1) then
-                s = s(1:k - 1)//s(k + 2:)
-            else
-                s = s(1:k - 1)//"s"//s(k + 2:)
-            end if
-        end if
-    end function format_d
+    call message(trim(text))
     end procedure directory_editor_do_remove_lines
 
     !> Remove all marked lines, or the next ARGUMENT lines.
@@ -1600,10 +1568,10 @@ contains
         k = rule_for(directory_editor_compress_files_commands, suffix)
 
         if (k == 0) then
-            call set_error(status, USER_ERROR_CODE, format_message("No compression rule found for "// &
-                                                                   "`directory_editor_compress_directory_default_suffix' ") &
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("No compression rule found for "// &
+                                                                      "`directory_editor_compress_directory_default_suffix' ") &
                            //suffix// &
-                           format_message(", see `directory_editor_compress_files_commands' for the supported suffixes list"))
+                           substitute_quotes(", see `directory_editor_compress_files_commands' for the supported suffixes list"))
             return
         end if
 
@@ -1633,7 +1601,7 @@ contains
     if (k == 0) then
         call set_error(status, USER_ERROR_CODE, &
                        "No compression rule found for suffix "//directory_editor_compress_file_default_suffix// &
-                       format_message(", see `directory_editor_compress_file_commands' for the supported suffixes list"))
+                       substitute_quotes(", see `directory_editor_compress_file_commands' for the supported suffixes list"))
         return
     end if
 
@@ -1930,7 +1898,7 @@ contains
             end if
 
             if (j > len(fmt)) then
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid format string"))
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Invalid format string"))
                 return
             end if
 
@@ -1940,8 +1908,8 @@ contains
             case ("i")
                 value = i
             case default
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid format character: `%")//fmt(j:j)// &
-                               format_message("'"))
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Invalid format character: `%")//fmt(j:j)// &
+                               substitute_quotes("'"))
                 return
             end select
 
@@ -1997,7 +1965,7 @@ contains
 
     if (rule == 0) then
         call set_error(status, GENERIC_ERROR_CODE, "No compression rule found for "//out_file// &
-                       format_message(", see `directory_editor_compress_files_commands'"))
+                       substitute_quotes(", see `directory_editor_compress_files_commands'"))
         return
     end if
 
@@ -2241,8 +2209,8 @@ contains
 
     if (is_directory) then
         if (is_file_in_directory(to, from)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot copy `")//from// &
-                           format_message("' into its subdirectory `")//to//format_message("'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Cannot copy `")//from// &
+                           substitute_quotes("' into its subdirectory `")//to//substitute_quotes("'"))
             return
         end if
     end if
@@ -2278,7 +2246,7 @@ contains
 
     if (status%code == FILE_DATE_ERROR_CODE) then
         call prepend_create_files_failure(directory_editor_make_relative(from))
-        call directory_editor_log(format_message("Can't set date on ")//from//":"//LF//format_error(status)//LF)
+        call directory_editor_log(substitute_quotes("Can't set date on ")//from//":"//LF//format_error(status)//LF)
         status = status_type()
     end if
     end procedure directory_editor_copy_file_recursive
@@ -2470,8 +2438,8 @@ contains
             if (st%ok() .and. found /= 0) then
                 call replace_match(newtext, st, fixedcase=.true., literal=.true.)
             else
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Expected to find `")//directory// &
-                               format_message("' in headerline of ")//element_directory)
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Expected to find `")//directory// &
+                               substitute_quotes("' in headerline of ")//element_directory)
             end if
         end if
 
@@ -2626,7 +2594,7 @@ contains
                                                "\`ESC' or \`q' to not overwrite any of the remaining "// &
                                                "files,"//LF//"\`!' to overwrite all remaining files "// &
                                                "with no more questions.")
-                call directory_editor_query(overwrite_query, format_message("Overwrite `")//to//format_message("'?"), &
+                call directory_editor_query(overwrite_query, substitute_quotes("Overwrite `")//to//substitute_quotes("'?"), &
                                             overwrite_confirmed, status, help_procedure=help)
                 if (.not. status%ok()) return
             end if
@@ -2655,8 +2623,8 @@ contains
             if (found .and. creator_kind == DIRECTORY_EDITOR_CREATOR_COPY) then
                 if (iand(dattrs%mode, S_IFMT) == S_IFDIR) then
                     if (is_file_in_directory(destname, from)) then
-                        call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot copy `")//from// &
-                                       format_message("' into its subdirectory `")//to//format_message("'"))
+                        call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Cannot copy `")//from// &
+                                       substitute_quotes("' into its subdirectory `")//to//substitute_quotes("'"))
                         return
                     end if
                 end if
@@ -2683,8 +2651,9 @@ contains
             else if (condition_matches(st%code, FILE_ERROR_CODE)) then
                 ! FILE-CREATOR aborted
                 call prepend_string(failures, directory_editor_make_relative(from))
-                call directory_editor_log(operation//format_message(": `")//from//format_message("' to `")//to// &
-                                          format_message("' failed:")//LF//"("//error_name(st%code)//" "//format_error(st)//")"//LF)
+                call directory_editor_log(operation//substitute_quotes(": `")//from//substitute_quotes("' to `")//to// &
+                                          substitute_quotes("' failed:")//LF//"("//error_name(st%code)//" "// &
+                                          format_error(st)//")"//LF)
             else
                 status = st
                 return
@@ -2879,12 +2848,12 @@ contains
         if (op_symbol == "symlink" .or. op_symbol == "hardlink") then
             ! Linking operations create links from the prompted file name;
             ! the other operations copy (etc) to the prompted file name.
-            prompt = op//" %s from: "
+            prompt = " from: "
         else
-            prompt = op//" %s to: "
+            prompt = " to: "
         end if
 
-        call directory_editor_mark_read_file_name(prompt, target_directory, op_symbol, argument_kind, argument_n, &
+        call directory_editor_mark_read_file_name(op//" ", prompt, target_directory, op_symbol, argument_kind, argument_n, &
                                                   relative_file_names, input, &
                                                   status, default)
         if (.not. status%ok()) return
@@ -3205,8 +3174,8 @@ contains
 
             if (found) then
                 to = new
-                prompt = regular_expression_operation//format_message(" `")//from//format_message("' to `")//to// &
-                         format_message("'?")
+                prompt = regular_expression_operation//substitute_quotes(" `")//from//substitute_quotes("' to `")//to// &
+                         substitute_quotes("'?")
                 call directory_editor_query(regular_expression_query, prompt, answer, status, &
                                             help_procedure=regular_expression_help)
                 if (.not. status%ok()) return
@@ -3225,8 +3194,8 @@ contains
             if (found) then
                 ! nil means there was no match
                 to = aux_expand_in(new, file_name_directory(from))
-                prompt = regular_expression_operation//format_message(" `")//directory_editor_make_relative(from)// &
-                         format_message("' to `")//directory_editor_make_relative(to)//format_message("'?")
+                prompt = regular_expression_operation//substitute_quotes(" `")//directory_editor_make_relative(from)// &
+                         substitute_quotes("' to `")//directory_editor_make_relative(to)//substitute_quotes("'?")
                 call directory_editor_query(regular_expression_query, prompt, answer, status, &
                                             help_procedure=regular_expression_help)
                 if (.not. status%ok()) return
@@ -3463,8 +3432,9 @@ contains
             to = file_name_directory(from)//downcase_string(file_name_nondirectory(from))
         end if
 
-        prompt = non_directory_operation//format_message(" `")//directory_editor_make_relative(from)//format_message("' to `")// &
-                 directory_editor_make_relative(to)//format_message("'")
+        prompt = non_directory_operation//substitute_quotes(" `")//directory_editor_make_relative(from)// &
+                 substitute_quotes("' to `")// &
+                 directory_editor_make_relative(to)//substitute_quotes("'")
         call directory_editor_query(non_directory_query, prompt, answer, status, help_procedure=non_directory_help)
         skip = .not. (status%ok() .and. answer)
     end subroutine non_directory_constructor

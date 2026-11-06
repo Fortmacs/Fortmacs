@@ -56,7 +56,7 @@
 module directory_editor_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
-    use error_mod, only: status_type, set_error, format_error, format_message, condition_matches, error_name, &
+    use error_mod, only: status_type, set_error, format_error, substitute_quotes, condition_matches, error_name, &
                          GENERIC_ERROR_CODE, USER_ERROR_CODE, QUIT_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, list_elements, xfixnum, xstring, command_procedure, vtag, V_INTEGER, &
@@ -1094,15 +1094,17 @@ module directory_editor_mode_mod
         !> INITIALIZE_COUNT is added to the number of lines removed by this
         !> invocation, for the reporting message; COUNT is that number.
         !>
-        !> A FMT of "" will suppress the messaging.  Port of
+        !> QUIET true suppresses the message (upstream's FMT of ""; a caller
+        !> with a message of its own, upstream's other FMT, writes it from
+        !> COUNT).  Port of
         !> dired-aux.el:dired-do-kill-lines.  (In directory_editor_auxiliary_mod.)
-        recursive module subroutine directory_editor_do_remove_lines(argument_kind, argument_n, status, fmt, initialize_count, &
+        recursive module subroutine directory_editor_do_remove_lines(argument_kind, argument_n, status, quiet, initialize_count, &
                                                                      count)
             implicit none(type, external)
             integer, intent(in) :: argument_kind
             integer(int64), intent(in) :: argument_n
             type(status_type), intent(out) :: status
-            character(len=*), intent(in), optional :: fmt
+            logical, intent(in), optional :: quiet
             integer(int64), intent(in), optional :: initialize_count
             integer(int64), intent(out), optional :: count
         end subroutine directory_editor_do_remove_lines
@@ -1953,8 +1955,8 @@ contains
                 directory_editor_use_ls_directory_editor = .true.
             else
                 directory_editor_use_ls_directory_editor = .false.
-                call message(format_message("ls does not support --dired -N; see `directory_editor_use_ls_directory_editor' "// &
-                                            "for more details."))
+                call message(substitute_quotes("ls does not support --dired -N; see `directory_editor_use_ls_directory_editor' "// &
+                                               "for more details."))
             end if
 
             use_ls_directory_editor = directory_editor_use_ls_directory_editor%value
@@ -3118,7 +3120,7 @@ contains
         if (lp == DIRECTORY_EDITOR_LOCALP_VERBATIM) then
             return
         else if (.not. noerr .and. (file == "." .or. file == "..")) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot operate on `.' or `..'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Cannot operate on `.' or `..'"))
             found = .false.
         else if (lp == DIRECTORY_EDITOR_LOCALP_NO_DIRECTORY .and. already_absolute) then
             file = file_name_nondirectory(file)
@@ -4116,8 +4118,8 @@ contains
         found = 0
 
         if (.not. is_file_name_absolute(file_in)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("File name `")//file_in// &
-                           format_message("' is not absolute"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("File name `")//file_in// &
+                           substitute_quotes("' is not absolute"))
             return
         end if
 
@@ -5836,11 +5838,11 @@ contains
 
         if (new == achar(13) .or. old == achar(13)) then
             if (new == achar(13)) then
-                call set_error(status, USER_ERROR_CODE, format_message("Invalid mark character: `")//new// &
-                               format_message("'"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("Invalid mark character: `")//new// &
+                               substitute_quotes("'"))
             else
-                call set_error(status, USER_ERROR_CODE, format_message("Invalid mark character: `")//old// &
-                               format_message("'"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("Invalid mark character: `")//old// &
+                               substitute_quotes("'"))
             end if
 
             return
@@ -5928,7 +5930,8 @@ contains
                 call directory_editor_get_filename(file, file_found, st, DIRECTORY_EDITOR_LOCALP_RELATIVE, .true.)
                 call goto_character(found_position)
                 if (.not. (st%ok() .and. file_found)) cycle
-                call directory_editor_query(query, format_message("Unmark file `")//file//format_message("'? "), answer, status, &
+                call directory_editor_query(query, substitute_quotes("Unmark file `")//file// &
+                                            substitute_quotes("'? "), answer, status, &
                                             help_procedure=help)
                 call goto_character(found_position)
                 if (.not. status%ok()) exit
@@ -6613,7 +6616,7 @@ contains
         call inhibit_read_only_begin(saved_ro)
         call backward_page()
         if (.not. is_beginning_of_line()) call insert(LF, st)
-        call insert(current_time_string()//format_message(TAB//"Buffer `")//output_buffer_name//format_message("'")//LF, st)
+        call insert(current_time_string()//substitute_quotes(TAB//"Buffer `")//output_buffer_name//substitute_quotes("'")//LF, st)
         call goto_character(point_maximum())
         call insert(achar(12)//LF, st)
         call inhibit_read_only_end(saved_ro)

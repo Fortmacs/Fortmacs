@@ -42,7 +42,7 @@ module apropos_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE, GENERIC_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, USER_ERROR_CODE, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, symbols, nsymbols, list_elements, xstring, vtag, V_STRING
     use buffer_mod, only: buffers, current, current_buffer, get_buffer, set_buffer, is_buffer_live, get_or_make_buffer, &

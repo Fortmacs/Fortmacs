@@ -34,7 +34,7 @@ module test_fortmacs_mod
     use data_mod, only: symbol_value, value_eq
     use names_mod, only: user_initialization_file
     use fortmacs_mod, only: fortmacs_main, command_line, initialization_file_had_error, load_initialization_file, sort_arguments
-    use error_mod, only: format_error, format_message
+    use error_mod, only: format_error, substitute_quotes
     use frame_mod, only: selected_frame
     use test_support_mod, only: show_alone
     use window_mod, only: windows, window_leaves
@@ -196,10 +196,10 @@ contains
         call check(error, st%ok() .and. .not. initialize .and. joined(rest) == "file", "--no-i")
         if (allocated(error)) return
         call command_line(argv([character(len=5) :: "--no-", "file"]), rest, initialize, st)
-        call check(error, format_error(st) == format_message("Option `--no-' is ambiguous"), format_error(st))
+        call check(error, format_error(st) == substitute_quotes("Option `--no-' is ambiguous"), format_error(st))
         if (allocated(error)) return
         call command_line(argv([character(len=16) :: "--no-init-file=x"]), rest, initialize, st)
-        call check(error, format_error(st) == format_message("Option `-no-init-file' doesn't allow an argument"), &
+        call check(error, format_error(st) == substitute_quotes("Option `-no-init-file' doesn't allow an argument"), &
                    format_error(st))
         if (allocated(error)) return
         ! The options end at the first other argument.

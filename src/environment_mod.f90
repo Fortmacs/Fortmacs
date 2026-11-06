@@ -41,7 +41,7 @@
 !> environment); `with-environment-variables' (save, `setenv', run,
 !> restore).
 module environment_mod
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE
     use execute_process_mod, only: getenv_internal, setenv_internal, GETENV_SET
     use system_dependent_mod, only: system_setenv, system_unsetenv
     implicit none(type, external)
@@ -87,7 +87,7 @@ contains
 
         if (index(variable, "=") > 0) then
             call set_error(st, GENERIC_ERROR_CODE, &
-                           format_message("Environment variable name `")//variable//format_message("' contains `='"))
+                           substitute_quotes("Environment variable name `")//variable//substitute_quotes("' contains `='"))
             if (present(status)) status = st
             return
         end if

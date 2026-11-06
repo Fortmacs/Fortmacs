@@ -344,4 +344,23 @@ contains
 
         list = pack(list, list /= h)
     end subroutine list_delq
+
+    ! fortran-names: off
+    !> Emacs's %-directive formats (the percent-format rule); a string
+    !> literal naming them and a local `format_text_value' are not.
+    subroutine percent_formats(n, text)
+        integer, intent(in) :: n
+        character(len=:), allocatable, intent(out) :: text
+        type(format_arguments_type) :: arguments
+        type(status_type) :: status
+        character(len=20) :: digits
+
+        call arguments%append(n)
+        call format_text("%d files", arguments, text, status)
+        text = format_message("`x'") // "format_text(1)"
+        call styled_format("%s", arguments, .false., text, status)
+        write (digits, "(i0)") n
+        text = trim(digits)//" files"//format_text_value(n)
+    end subroutine percent_formats
+    ! fortran-names: on
 end module sample

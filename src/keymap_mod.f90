@@ -50,7 +50,7 @@
 !> definition is a keymap.
 module keymap_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, &
+    use error_mod, only: substitute_quotes, status_type, set_error, GENERIC_ERROR_CODE, &
                          WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use value_mod, only: value_type, V_INTEGER, V_NAME, V_STRING, V_ARRAY, V_KEYMAP, SYMBOL_T, symbols, make_symbol_reference, &
@@ -1036,7 +1036,7 @@ contains
 
         if (is_marker(c)) then
             call set_error(status, GENERIC_ERROR_CODE, &
-                           format_message("`keymap' is reserved for embedded parent maps"))
+                           substitute_quotes("`keymap' is reserved for embedded parent maps"))
             return
         end if
 
@@ -2552,7 +2552,7 @@ contains
 
         if (.not. is_key_valid(key)) then
             call set_error(status, GENERIC_ERROR_CODE, &
-                           """"//key//""""//format_message(" is not a valid key definition; see `is_key_valid'"))
+                           """"//key//""""//substitute_quotes(" is not a valid key definition; see `is_key_valid'"))
         end if
     end subroutine keymap_check
 

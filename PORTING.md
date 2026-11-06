@@ -783,7 +783,7 @@ Elisp.  tools/check.sh runs
 tools/fortran-prose.awk, which fails with FILE:LINE on one of them in a
 `!>` docstring or in a message or error string (the string literals of
 a line that calls `set_error`, `message`, `user_error`,
-`format_message` or `minibuffer_message`), and
+`substitute_quotes` or `minibuffer_message`), and
 tools/test-fortran-prose.sh on its fixture (tools/fortran-prose-test).
 Citations, identifiers (a quoted `name`, a name with an underscore, an
 argument in capitals), the tests, the Lisp language modes and the
@@ -1002,12 +1002,15 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
 - **write-wrapper**: a function or subroutine whose executable part is a
   `write` into a local buffer followed by `trim` of it (`write (buffer,
   "(i0)") n` then `text = trim(buffer)`), or one `write` into its result
-  (R6-44, see "Numbers to text" below); the generated docstrings_mod
+  (R6-44, see "Text from a format" below); the generated docstrings_mod
   writes an integer setting's value inline (tools/gen-docstrings.sh), its
   `value_text` generic keeps only the other types.
 - **number-text**: a reference to a procedure named `number_to_string`,
   `int_text`, `integer_text`, `itoa`, `int_str`, `int2str` or
   `to_string` (R6-44, R6-45).
+- **percent-format**: a call of `format_text`, `styled_format` or
+  `format_message`, or a use of `format_arguments_type`: Emacs's
+  %-directive formats (owner, 2026-11-06, see "Text from a format").
 - **char-loop**: a `do K = 1, min(len(A), len(B))` loop that orders the
   characters `A(K:K)` and `B(K:K)` with `<` or `>` (also through `ichar`
   or `iachar`): string-lessp by hand, whose port is utility_functions_mod's
@@ -1036,9 +1039,21 @@ check fails on a finding the baseline does not list and on a baseline
 line that no longer occurs, so the baseline only shrinks; once it is
 empty the check stays, with the empty baseline.
 
-**Numbers to text (R6-44, R6-45).**  Text built from a format fixed in
-the source is one internal `write` with edit descriptors, never Emacs's
-`format`, a wrapper function, or a concatenation of converted numbers.
+**Text from a format (R6-44, R6-45; owner, 2026-11-06).**  Text built
+from a format fixed in the source, numbers or strings, is one internal
+`write` with edit descriptors (strings alone may be concatenated), never
+a wrapper function or a concatenation of converted numbers.  Emacs's
+%-directive formats are never used: no `format`, `format-message`,
+`%s`, `%d` or `%S`, no `format_arguments_type`, and no hand-made `%s`
+substitution; the parts around a variable piece are passed as separate
+strings (dired-aux.el's `"Change mode of %s to: "` is
+`"Change mode of ", " to: "`).  Quotes are curved with error_mod's
+`substitute_quotes` (help.el:substitute-quotes) and `message` shows its
+text as it is.  tools/intrinsics.awk's percent-format rule checks; its
+baseline lists only the format strings users give at run time
+(keyboard_macro_counter_format, rectangle_number_lines' FORMAT), which
+await the owner's decision.  Mode-line %-constructs and time formats
+(format-time-string) are separate.
 data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
 that stood in about 150 places for `write (text, "(i0)") n`, is gone
 (`write-not-number-to-string`, 2026-11-04), with the private copies
@@ -2034,11 +2049,13 @@ scroll = .not. compilation_scroll_output%is_off()
   (a fixed-length string included) is `findloc`, `any`, `count` or `where`,
   not a loop; a deferred-length component can't be searched that way and
   keeps its loop.  An integer's decimal text, and any text built from a
-  format fixed in the source, is an internal write with edit descriptors
+  format fixed in the source (numbers or strings), is an internal write
+  with edit descriptors or a concatenation of strings
   (`write (text, "(i0)") n`) where it is used ("Intrinsics first",
-  "Numbers to text"), never `number_to_string` (data_mod's generic one,
+  "Text from a format"), never `number_to_string` (data_mod's generic one,
   which `simplify-a2` had made the one copy, is gone since R6-44),
-  `format` or a private wrapper (R6-44, R6-45); a string's character
+  a private wrapper or an Emacs %-directive format (R6-44, R6-45; owner,
+  2026-11-06); a string's character
   count utility_functions_mod's `count_characters`, the ASCII lowercase of a string
   character_mod's
   `downcase_ascii` (R6-16): no module keeps its own copy (`simplify-a2`,

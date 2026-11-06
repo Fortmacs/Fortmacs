@@ -27,7 +27,7 @@ module test_files_mod
     use bindings_mod, only: initialize_bindings
     use testdrive, only: new_unittest, unittest_type, error_type, check, skip_test
     use test_support_mod, only: show_alone
-    use error_mod, only: format_message
+    use error_mod, only: substitute_quotes
     use error_mod, only: status_type, format_error, condition_matches, QUIT_CODE, USER_ERROR_CODE, &
                          FILE_ERROR_CODE
     use handle_mod, only: handle_type
@@ -657,7 +657,7 @@ contains
             deallocate (arguments)
             call append_string(arguments, "--bogus")
             call command_line_1(arguments, st)
-            call check(error, format_error(st) == format_message("Unknown option `")//"--bogus"//format_message("'"), &
+            call check(error, format_error(st) == substitute_quotes("Unknown option `")//"--bogus"//substitute_quotes("'"), &
                        format_error(st))
         end block body
 

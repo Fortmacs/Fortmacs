@@ -63,7 +63,7 @@
 module multilingual_environment_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: PREFIX_NONE, command_of
-    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, CODING_SYSTEM_ERROR_CODE, format_message
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, CODING_SYSTEM_ERROR_CODE, substitute_quotes
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, make_list, vtag, V_STRING
     use character_mod, only: downcase_ascii, string_to_multibyte
@@ -1803,7 +1803,7 @@ contains
 
         if (len(coding_system) == 0 .or. .not. is_coding_system(coding_system)) then
             call set_error(status, GENERIC_ERROR_CODE, &
-                           format_message("Invalid coding system `")//coding_system//format_message("'"))
+                           substitute_quotes("Invalid coding system `")//coding_system//substitute_quotes("'"))
             return
         end if
 
@@ -1811,7 +1811,7 @@ contains
 
         if (t == "raw-text" .or. t == "undecided") then
             call set_error(status, GENERIC_ERROR_CODE, &
-                           format_message("Can't prefer the coding system `")//coding_system//format_message("'"))
+                           substitute_quotes("Can't prefer the coding system `")//coding_system//substitute_quotes("'"))
             return
         end if
 
@@ -1910,11 +1910,11 @@ contains
                 if (source == ":coding") then
                     by = ":coding tag"
                 else
-                    by = format_message("variable `")//source//format_message("'")
+                    by = substitute_quotes("variable `")//source//substitute_quotes("'")
                 end if
 
-                call message(format_message("Warning (mule): Invalid coding system `")//auto_cs// &
-                             format_message("' is specified")//LF//"for the current buffer/file by the "//by//"."//LF// &
+                call message(substitute_quotes("Warning (mule): Invalid coding system `")//auto_cs// &
+                             substitute_quotes("' is specified")//LF//"for the current buffer/file by the "//by//"."//LF// &
                              "It is highly recommended to fix it before writing to a file.")
                 call yes_or_no(ok, status)
                 if (.not. status%ok()) return
@@ -2207,7 +2207,7 @@ contains
         coding = ""
         bufname = buffers(current)%name
         text = "These default coding systems were tried to safely encode the following"//LF// &
-               format_message("problematic characters in the buffer `")//bufname//format_message("'")//":"//LF
+               substitute_quotes("problematic characters in the buffer `")//bufname//substitute_quotes("'")//":"//LF
         firstpos = to
 
         do k = 1, size(unsafe)
@@ -2228,7 +2228,7 @@ contains
             end if
         end do
 
-        text = text//"However, each of them encountered characters it couldn"//format_message("'")//"t encode safely:"//LF
+        text = text//"However, each of them encountered characters it couldn"//substitute_quotes("'")//"t encode safely:"//LF
 
         do k = 1, size(unsafe)
             names(1) = unsafe(k)%name
@@ -2248,9 +2248,9 @@ contains
             text = text//line//LF
         end do
 
-        text = text//LF//"Click on a character (or switch to this window by "//format_message("`C-x o'")//LF// &
+        text = text//LF//"Click on a character (or switch to this window by "//substitute_quotes("`C-x o'")//LF// &
                "and select the characters by RET) to jump to the place it appears,"//LF// &
-               "where "//format_message("`C-u C-x ='")//" will give information about it."//LF
+               "where "//substitute_quotes("`C-u C-x ='")//" will give information about it."//LF
         text = text//LF//"Select one of the safe coding systems listed below,"//LF// &
                "or cancel the writing with C-g and edit the buffer"//LF// &
                "   to remove or modify the problematic characters,"//LF// &
@@ -3966,7 +3966,7 @@ contains
 
             if (cs%iso_final > 0) then
                 text = text//"Final char of ISO2022 designation sequence: "// &
-                       format_message("`"//achar(cs%iso_final)//"'")//LF
+                       substitute_quotes("`"//achar(cs%iso_final)//"'")//LF
             end if
 
             aliases = ""
@@ -4154,12 +4154,12 @@ contains
         id = find_input_method(input_method)
 
         if (id == 0) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Can't activate input method `"//input_method//"'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Can't activate input method `"//input_method//"'"))
             return
         end if
 
         if (.not. associated(input_methods(id)%activate_function)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Can't activate input method `"//input_method//"'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Can't activate input method `"//input_method//"'"))
             return
         end if
 
@@ -4266,7 +4266,7 @@ contains
         character(len=:), allocatable :: default, input_method
 
         if (toggle_input_method_active) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Recursive use of `toggle_input_method'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Recursive use of `toggle_input_method'"))
             return
         end if
 
@@ -4411,11 +4411,11 @@ contains
         if (id == 0) then
             ! Not registered: what upstream shows for its missing entry.
             call with_output_to_temporary_buffer("*Help*", "Input method: "//input_method// &
-                                                 format_message(" (`' in mode line) for ")//LF//"  "//LF, status)
+                                                 substitute_quotes(" (`' in mode line) for ")//LF//"  "//LF, status)
         else
             associate (method => input_methods(id))
-                call with_output_to_temporary_buffer("*Help*", "Input method: "//input_method//format_message(" (`")// &
-                                                     trim(method%title)//format_message("' in mode line) for ")// &
+                call with_output_to_temporary_buffer("*Help*", "Input method: "//input_method//substitute_quotes(" (`")// &
+                                                     trim(method%title)//substitute_quotes("' in mode line) for ")// &
                                                      trim(method%language_environment)//LF//"  "//method%description//LF, &
                                                      status)
             end associate
@@ -4453,8 +4453,8 @@ contains
         if (associated(describe)) then
             call describe(status)
         else
-            call message(format_message("No way to describe the current input method `"// &
-                                        buffers(current)%current_input_method//"'"))
+            call message(substitute_quotes("No way to describe the current input method `"// &
+                                           buffers(current)%current_input_method//"'"))
             call ring_bell()
         end if
     end subroutine describe_current_input_method

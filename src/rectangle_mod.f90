@@ -53,7 +53,7 @@ module rectangle_mod
     use execute_interactively_mod, only: PREFIX_NONE
     use value_mod, only: vtag, V_NULL, V_STRING, value_type
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, condition_matches, GENERIC_ERROR_CODE, &
+    use error_mod, only: status_type, set_error, substitute_quotes, condition_matches, GENERIC_ERROR_CODE, &
                          BUFFER_READ_ONLY_CODE, TEXT_READ_ONLY_CODE, WRONG_TYPE_ARGUMENT_CODE, END_OF_BUFFER_CODE, &
                          BEGINNING_OF_BUFFER_CODE
     use handle_mod, only: handle_type
@@ -86,7 +86,7 @@ module rectangle_mod
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: point, goto_character, line_beginning_position, line_end_position, is_beginning_of_line, &
                                      buffer_substring, delete_region, delete_and_extract_region, region_beginning, region_end, &
-                                     character_after, interactive_region, character_before, styled_format, format_arguments_type
+                                     character_after, interactive_region, character_before, format_text, format_arguments_type
     use editing_commands_mod, only: forward_line
     use indent_mod, only: current_column, move_to_column, indent_to, indent_tabs_mode
     use syntax_mod, only: skip_syntax_forward
@@ -596,7 +596,7 @@ contains
 
         if (cut_read_only_ok) then
             status = status_type()
-            call message(format_message("Read only text copied to `last_cut_rectangle'"))
+            call message(substitute_quotes("Read only text copied to `last_cut_rectangle'"))
             return
         end if
 
@@ -863,7 +863,7 @@ contains
         call move_to_column(startcol, column, force=.true., status=status)
         if (.not. status%ok()) return
         call arguments%append(self%counter)
-        call styled_format(self%format, arguments, .false., text, status)
+        call format_text(self%format, arguments, text, status)
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return

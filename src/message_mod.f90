@@ -35,7 +35,8 @@ module message_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE, PREFIX_RAW, PREFIX_NUMBER
-    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, VOID_FUNCTION_CODE, QUIT_CODE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, VOID_FUNCTION_CODE, QUIT_CODE, &
+                         substitute_quotes
     use rfc2047_mod, only: encode_rfc2047_message_header, fold_rfc2047_field
     use casefiddle_mod, only: downcase_string, capitalize_string
     use handle_mod, only: handle_type
@@ -4103,7 +4104,7 @@ contains
                     ! nothing to ask about).
                     if (len(address) == 0) cycle
 
-                    if (.not. ask(format_message_quote("Address `"//address//"' might be bogus.  Continue? "), status)) then
+                    if (.not. ask(substitute_quotes("Address `"//address//"' might be bogus.  Continue? "), status)) then
                         if (status%ok()) call set_error(status, USER_ERROR_CODE, "Bogus address")
                         exit body
                     end if
@@ -4113,15 +4114,6 @@ contains
 
         call save_restriction_end(restriction)
     end subroutine check_message_recipients
-
-    ! TEXT with `...' quoted as format-message quotes it.  Not a port.
-    function format_message_quote(text) result(out)
-        use error_mod, only: format_message
-        character(len=*), intent(in) :: text
-        character(len=:), allocatable :: out
-
-        out = format_message(text)
-    end function format_message_quote
 
     !> Send the message in the current buffer as mail: generate the
     !> required headers, then encode a copy and hand it to

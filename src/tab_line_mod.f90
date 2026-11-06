@@ -2661,14 +2661,14 @@ contains
                 call format%clear()
                 if (enable) format%procedure => format_tab_line
             else
-                call message("tab_line_format set outside of tab_line_mode, currently `"//format_text(format)//"'")
+                call message("tab_line_format set outside of tab_line_mode, currently `"//tab_line_format_value(format)//"'")
             end if
         end associate
 
     contains
 
         !> The tab line format as Fortran: its segments' texts, or a procedure.
-        function format_text(format) result(text)
+        function tab_line_format_value(format) result(text)
             type(header_line_format_type), intent(in) :: format
             character(len=:), allocatable :: text
             integer :: k
@@ -2686,7 +2686,7 @@ contains
             end do
 
             text = text//"]"
-        end function format_text
+        end function tab_line_format_value
     end subroutine tab_line_mode_body
 
     !> Turn on `tab_line_mode' in the current buffer if it is pertinent.

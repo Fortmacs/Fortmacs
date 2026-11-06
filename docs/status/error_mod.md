@@ -10,7 +10,8 @@ status type,
 codes (incl. `void-function`, `file-missing`, `file-notify-error`, `file-already-exists`, `mark-inactive`, `search-failed`, `invalid-regexp`, syntax.c's `scan-error`),
 file-error messages,
 `condition_matches`,
-`format_error`;
+`format_error`,
+`substitute_quotes` (help.el:substitute-quotes, the curve style; until 2026-11-06 named after format-message, whose quoting it was);
 `file-date-error` (fileio.c),
 lread.c's `end-of-file` and `invalid-read-syntax`,
 `wrong-number-of-arguments`;

@@ -1048,7 +1048,7 @@ END {
             print "            case default"
             if (vtype[i] ~ /^integer/ || vtype[i] ~ /integer_setting_type\)/) {
                 # An integer outside its named constants: its decimal text
-                # (an internal write, PORTING.md "Numbers to text").
+                # (an internal write, PORTING.md "Text from a format").
                 print "                write (digits, \"(i0)\") " ex
                 print "                entry%value = trim(digits)"
             } else print "                entry%value = value_text(" ex ")"

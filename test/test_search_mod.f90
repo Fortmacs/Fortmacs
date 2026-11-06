@@ -24,7 +24,7 @@
 module test_search_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, format_message, SEARCH_FAILED_CODE, GENERIC_ERROR_CODE, &
+    use error_mod, only: status_type, format_error, substitute_quotes, SEARCH_FAILED_CODE, GENERIC_ERROR_CODE, &
                          ARGUMENTS_OUT_OF_RANGE_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
@@ -397,7 +397,7 @@ contains
         i = string_match("b", "abc", st)
         call replace_match("x\", st, string="abc", result=r)
         call check(error, st%code == GENERIC_ERROR_CODE .and. &
-                   format_error(st) == format_message("Invalid use of `\' in replacement text"), format_error(st))
+                   format_error(st) == substitute_quotes("Invalid use of `\' in replacement text"), format_error(st))
         if (allocated(error)) return
         call enter("abc", h)
         i = string_match(groups10, "abcdefghij", st)

@@ -35,7 +35,7 @@
 !> winner.el binds them.  Deferred: see docs/status/winner_mod.md.
 module winner_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use execute_interactively_mod, only: command_type, this_command
     use keyboard_mod, only: last_command, post_command_hook
@@ -921,7 +921,7 @@ contains
         undo => commands%undo_window_change
 
         if (.not. is_same_command(last_command, undo)) then
-            call set_error(status, USER_ERROR_CODE, format_message("Previous command was not a `undo_window_change'"))
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("Previous command was not a `undo_window_change'"))
             return
         end if
 

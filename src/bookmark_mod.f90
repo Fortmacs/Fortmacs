@@ -65,7 +65,7 @@ module bookmark_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW
     use error_mod, only: status_type, set_error, condition_matches, GENERIC_ERROR_CODE, USER_ERROR_CODE, &
-                         FILE_ERROR_CODE, BOOKMARK_ERROR_NO_FILENAME_CODE, format_message
+                         FILE_ERROR_CODE, BOOKMARK_ERROR_NO_FILENAME_CODE, substitute_quotes
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
     use data_mod, only: append_locals_clearer, history_setting_type, forward_setting, choice_setting_type
@@ -1467,7 +1467,7 @@ contains
             case default
                 write (buffer, "(i0)") overwrite_or_push
                 call set_error(status, GENERIC_ERROR_CODE, &
-                               format_message("Unrecognized value for `overwrite_or_push': ")//trim(buffer))
+                               substitute_quotes("Unrecognized value for `overwrite_or_push': ")//trim(buffer))
                 return
             end select
 
@@ -1604,8 +1604,8 @@ contains
         character(len=:), allocatable :: text
         character(len=*), parameter :: LF = achar(10)
 
-        text = format_message("#  Type the annotation for bookmark `")//bookmark_name//format_message("' here.")//LF// &
-               format_message("#  All lines which start with a `#' will be deleted.")//LF// &
+        text = substitute_quotes("#  Type the annotation for bookmark `")//bookmark_name//substitute_quotes("' here.")//LF// &
+               substitute_quotes("#  All lines which start with a `#' will be deleted.")//LF// &
                substitute_command_keys("#  Type \[bookmark_edit_annotation_confirm] when done.  Type "// &
                                        "\[bookmark_edit_annotation_cancel] to cancel."//LF//"#"//LF)// &
                "#  Author: "//user_full_name()//" <"//user_login_name()//"@"//system_name()//">"//LF// &
@@ -2279,7 +2279,7 @@ contains
         if (present(new_name)) then
             final_new_name = new_name
         else
-            call read_from_minibuffer(format_message("Rename """//old_name//""" to: "), final_new_name, status, &
+            call read_from_minibuffer(substitute_quotes("Rename """//old_name//""" to: "), final_new_name, status, &
                                       keymap=bookmark_minibuffer_read_name_map, history="bookmark_history")
             if (.not. status%ok()) return
         end if

@@ -38,7 +38,7 @@ module minibuffer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: command_type
     use commands_mod, only: commands
-    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use error_mod, only: substitute_quotes, status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, get_buffer, get_or_make_buffer, set_buffer, current_buffer, erase_buffer, &
                           set_buffer_read_only, buffer_list, bury_buffer_internal, deactivate_mark_variable
@@ -1496,7 +1496,7 @@ contains
 
         status = status_type()
         position = minibuffer_prompt_end()
-        if (point() < position) call set_error(status, USER_ERROR_CODE, format_message("Can't complete in prompt"))
+        if (point() < position) call set_error(status, USER_ERROR_CODE, substitute_quotes("Can't complete in prompt"))
     end function completion_prompt_end
 
     !> Complete the minibuffer contents as far as possible.
