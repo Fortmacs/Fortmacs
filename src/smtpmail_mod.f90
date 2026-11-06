@@ -72,8 +72,8 @@ module smtpmail_mod
     use coding_mod, only: buffer_file_coding_system, coding_system_mime_character_set, coding_system_for_write, &
                           coding_system_for_read, coding_system_change_end_of_line_conversion, encode_coding_string, &
                           decode_coding_string, END_OF_LINE_UNIX
-    use time_functions_mod, only: format_date, date_format_type, MAIL_DATE, DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, &
-                                  DATE_MINUTE, DATE_SECOND
+    use time_functions_mod, only: format_date, date_format_type, MAIL_DATE, DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, &
+                                  TIME_MINUTE, TIME_SECOND
     use utility_functions_mod, only: base64_encode_string, base64_decode_string, md5, secure_hash, random, SECURE_HASH_MD5
     use simple_mod, only: count_lines
     use startup_mod, only: mail_host_address, user_mail_address_value
@@ -811,7 +811,7 @@ contains
 
         smtpmail_queue_counter = smtpmail_queue_counter + 1
         date = format_date(date_format_type('(i4.4, "-", i2.2, "-", i2.2, "_", i2.2, ":", i2.2, ":", i2.2)', &
-                                            [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND]), status=status)
+                                            [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND]), status=status)
         if (.not. status%ok()) return
         write (name, "(a, '_', i0)") date, smtpmail_queue_counter
         call expand_file_name(trim(name), file_data, status, smtpmail_queue_directory)

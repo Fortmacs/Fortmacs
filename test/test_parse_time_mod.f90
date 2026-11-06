@@ -26,7 +26,7 @@ module test_parse_time_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
     use time_functions_mod, only: time_type, decoded_time_type, encode_time, format_date, date_format_type, is_time_equal, &
-                                  DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND
+                                  DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND
     use time_date_mod, only: partial_decoded_time_type
     use parse_time_mod, only: parse_time_string, parse_iso8601_time_string
     use test_time_support_mod, only: render_partial_decoded_time
@@ -76,7 +76,7 @@ contains
         end if
 
         got = format_date(date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2)', &
-                                          [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND]), time, "UTC0", st)
+                                          [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND]), time, "UTC0", st)
 
         if (.not. st%ok()) then
             call check(error, .false., text//": "//format_error(st))

@@ -33,15 +33,16 @@ module test_time_functions_mod
                                   decode_time, encode_time, format_date, date_format_type, MAIL_DATE, current_time_string, &
                                   current_time_zone, set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM, DATE_NONE, DATE_YEAR, &
                                   DATE_CENTURY, DATE_YEAR_OF_CENTURY, DATE_ISO_WEEK_YEAR, DATE_ISO_WEEK_YEAR_OF_CENTURY, &
-                                  DATE_ISO_WEEK, DATE_QUARTER, DATE_MONTH, DATE_WEEK_OF_YEAR_SUNDAY, DATE_WEEK_OF_YEAR_MONDAY, &
-                                  DATE_DAY, DATE_DAY_OF_YEAR, DATE_WEEKDAY, DATE_ISO_WEEKDAY, DATE_HOUR, DATE_TWELVE_HOUR, &
-                                  DATE_MINUTE, DATE_SECOND, DATE_MILLISECOND, DATE_MICROSECOND, DATE_NANOSECOND, &
-                                  DATE_SECONDS_SINCE_EPOCH, DATE_ZONE_OFFSET, DATE_ZONE_OFFSET_HOURS, DATE_ZONE_OFFSET_MINUTES, &
-                                  DATE_ZONE_OFFSET_SECONDS, DATE_WEEKDAY_NAME, DATE_WEEKDAY_ABBREVIATION, &
+                                  DATE_ISO_WEEK, DATE_QUARTER, DATE_MONTH, DATE_WEEK_STARTING_SUNDAY, DATE_WEEK_STARTING_MONDAY, &
+                                  DATE_DAY, DATE_DAY_OF_YEAR, DATE_WEEKDAY, DATE_ISO_WEEKDAY, TIME_HOUR, &
+                                  TIME_HOUR_OF_TWELVE_HOUR_CLOCK, &
+                                  TIME_MINUTE, TIME_SECOND, TIME_MILLISECOND, TIME_MICROSECOND, TIME_NANOSECOND, &
+                                  TIME_SECONDS_SINCE_EPOCH, ZONE_OFFSET, ZONE_OFFSET_HOURS, ZONE_OFFSET_MINUTES, &
+                                  ZONE_OFFSET_SECONDS, DATE_WEEKDAY_NAME, DATE_WEEKDAY_ABBREVIATION, &
                                   DATE_WEEKDAY_NAME_UPPER_CASE, DATE_WEEKDAY_ABBREVIATION_UPPER_CASE, DATE_MONTH_NAME, &
                                   DATE_MONTH_ABBREVIATION, DATE_MONTH_NAME_UPPER_CASE, DATE_MONTH_ABBREVIATION_UPPER_CASE, &
-                                  DATE_MERIDIEM, DATE_MERIDIEM_LOWER_CASE, DATE_ZONE_ABBREVIATION, &
-                                  DATE_ZONE_ABBREVIATION_LOWER_CASE, DATE_ZONE_OFFSET_SIGN
+                                  TIME_MERIDIEM, TIME_MERIDIEM_LOWER_CASE, ZONE_ABBREVIATION, &
+                                  ZONE_ABBREVIATION_LOWER_CASE, ZONE_OFFSET_SIGN
     implicit none(type, external)
     private
 
@@ -132,12 +133,12 @@ contains
 
         ! "%Y-%m-%d %H:%M:%S.%3N %z" and "%Y-%m-%d %H:%M:%S.%3N %z (%Z)".
         with_zone = date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2, ".", i3.3, 1x, sp, i5.4)', &
-                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND, DATE_MILLISECOND, &
-                                      DATE_ZONE_OFFSET])
+                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, TIME_MILLISECOND, &
+                                      ZONE_OFFSET])
         with_abbreviation = date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2, ".", i3.3, 1x, sp, ' &
-                                             //'i5.4, " (", a, ")")', [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, &
-                                                                       DATE_SECOND, DATE_MILLISECOND, DATE_ZONE_OFFSET, &
-                                                                       DATE_ZONE_ABBREVIATION])
+                                             //'i5.4, " (", a, ")")', [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, &
+                                                                       TIME_SECOND, TIME_MILLISECOND, ZONE_OFFSET, &
+                                                                       ZONE_ABBREVIATION])
         ! (1202 22527 999999 999999), (7879679999900 . 100000) and
         ! (78796799999999999999 . 1000000000000).
         looks(1) = time_type(1202_int64*65536 + 22527, 999999999999_int64, 1000000000000_int64)
@@ -211,8 +212,8 @@ contains
         character(len=:), allocatable :: text
 
         text = date_text(date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2, ".", i3.3, 1x, sp, i5.4)', &
-                                          [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND, &
-                                           DATE_MILLISECOND, DATE_ZONE_OFFSET]), zone=repeat("X", 2048)//"0")
+                                          [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, &
+                                           TIME_MILLISECOND, ZONE_OFFSET]), zone=repeat("X", 2048)//"0")
         call check(error, len(text) > 0)
     end subroutine test_outlandish_zone
 
@@ -223,7 +224,7 @@ contains
 
         ! "%Y-%m-%d %H:%M:%S".
         date_and_time = date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2)', &
-                                         [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND])
+                                         [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND])
         leap_seconds = date_text(date_and_time, time_type(78796800), "UTC0") == "1972-06-30 23:59:60"
         call check(error, date_text(date_and_time, time_type(2_int64**31 - 3600), "UTC0") == "2038-01-19 02:14:08" &
                    .or. leap_seconds)
@@ -255,12 +256,12 @@ contains
 
         reference_time = utc_time(time_type(0, 3450, 1000000), 20, 10)
         ! %-z, %-4z and %4z.
-        call check(error, date_text(date_format_type("(sp, i0)", [DATE_ZONE_OFFSET]), reference_time, "IST-5:30"), "+530")
+        call check(error, date_text(date_format_type("(sp, i0)", [ZONE_OFFSET]), reference_time, "IST-5:30"), "+530")
         if (allocated(error)) return
-        call check(error, date_text(date_format_type("(sp, i4)", [DATE_ZONE_OFFSET]), reference_time, "IST-5:30"), "+530")
+        call check(error, date_text(date_format_type("(sp, i4)", [ZONE_OFFSET]), reference_time, "IST-5:30"), "+530")
         if (allocated(error)) return
         ! %-3N and %3N.
-        call check(error, date_text(date_format_type("(i3.3)", [DATE_MILLISECOND]), reference_time, "UTC0"), "003")
+        call check(error, date_text(date_format_type("(i3.3)", [TIME_MILLISECOND]), reference_time, "UTC0"), "003")
         if (allocated(error)) return
         ! %-m, %-1m and %1m.
         call check(error, date_text(date_format_type("(i0)", [DATE_MONTH]), reference_time, "UTC0"), "10")
@@ -272,15 +273,15 @@ contains
 
         reference_time = utc_time(time_type(0, 123000, 1000000), 10, 12)
         ! %_7z.
-        call check(error, date_text(date_format_type("(sp, i7)", [DATE_ZONE_OFFSET]), reference_time, "CHA-12:45"), "  +1245")
+        call check(error, date_text(date_format_type("(sp, i7)", [ZONE_OFFSET]), reference_time, "CHA-12:45"), "  +1245")
         if (allocated(error)) return
         ! %_6N, %_9N and %_12N: the blanks at the end are kept.
-        call check(error, date_text(date_format_type("(i3.3, 3x)", [DATE_MILLISECOND]), reference_time, "UTC0"), "123   ")
+        call check(error, date_text(date_format_type("(i3.3, 3x)", [TIME_MILLISECOND]), reference_time, "UTC0"), "123   ")
         if (allocated(error)) return
-        call check(error, date_text(date_format_type("(i3.3, 6x)", [DATE_MILLISECOND]), reference_time, "UTC0"), &
+        call check(error, date_text(date_format_type("(i3.3, 6x)", [TIME_MILLISECOND]), reference_time, "UTC0"), &
                    "123      ")
         if (allocated(error)) return
-        call check(error, date_text(date_format_type('(i3.3, "         ")', [DATE_MILLISECOND]), reference_time, "UTC0"), &
+        call check(error, date_text(date_format_type('(i3.3, "         ")', [TIME_MILLISECOND]), reference_time, "UTC0"), &
                    "123         ")
         if (allocated(error)) return
         ! %_m, %_2m and %_3m.
@@ -301,16 +302,16 @@ contains
         call check(error, date_text(date_format_type("(i3.3)", [DATE_MONTH]), reference_time, "UTC0"), "012")
         if (allocated(error)) return
         ! %7z.
-        call check(error, date_text(date_format_type("(sp, i7.6)", [DATE_ZONE_OFFSET]), reference_time, "CHA-12:45"), &
+        call check(error, date_text(date_format_type("(sp, i7.6)", [ZONE_OFFSET]), reference_time, "CHA-12:45"), &
                    "+001245")
         if (allocated(error)) return
         ! %12N, %9N and %6N.
-        call check(error, date_text(date_format_type('(i9.9, "000")', [DATE_NANOSECOND]), reference_time, "UTC0"), &
+        call check(error, date_text(date_format_type('(i9.9, "000")', [TIME_NANOSECOND]), reference_time, "UTC0"), &
                    "123000000000")
         if (allocated(error)) return
-        call check(error, date_text(date_format_type("(i9.9)", [DATE_NANOSECOND]), reference_time, "UTC0"), "123000000")
+        call check(error, date_text(date_format_type("(i9.9)", [TIME_NANOSECOND]), reference_time, "UTC0"), "123000000")
         if (allocated(error)) return
-        call check(error, date_text(date_format_type("(i6.6)", [DATE_MICROSECOND]), reference_time, "UTC0"), "123000")
+        call check(error, date_text(date_format_type("(i6.6)", [TIME_MICROSECOND]), reference_time, "UTC0"), "123000")
     end subroutine test_padding_zeros
 
     ! (time-equal-p nil nil): the current time equals itself.
@@ -543,18 +544,19 @@ contains
         call check(error, date_text(date_format_type('(a, 1x, a, 1x, i2, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, i4.4, "|", ' &
                                                      //'i2.2, "/", i2.2, "/", i2.2, "|", i2.2, ":", i2.2, ":", i2.2, "|", ' &
                                                      //'i2.2, "/", i2.2, "/", i2.2)', &
-                                                     [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_HOUR, &
-                                                      DATE_MINUTE, DATE_SECOND, DATE_YEAR, DATE_MONTH, DATE_DAY, &
-                                                      DATE_YEAR_OF_CENTURY, DATE_HOUR, DATE_MINUTE, DATE_SECOND, DATE_MONTH, &
+                                                     [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, TIME_HOUR, &
+                                                      TIME_MINUTE, TIME_SECOND, DATE_YEAR, DATE_MONTH, DATE_DAY, &
+                                                      DATE_YEAR_OF_CENTURY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, DATE_MONTH, &
                                                       DATE_DAY, DATE_YEAR_OF_CENTURY]), t, "UTC0"), &
                    "Sun Dec 10 13:04:05 2000|12/10/00|13:04:05|12/10/00", "formats")
         if (allocated(error)) return
         ! "%F|%R|%T|%r".
         call check(error, date_text(date_format_type('(i4.4, "-", i2.2, "-", i2.2, "|", i2.2, ":", i2.2, "|", 2(i2.2, ":"), ' &
                                                      //'i2.2, "|", 2(i2.2, ":"), i2.2, 1x, a)', &
-                                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_HOUR, &
-                                                      DATE_MINUTE, DATE_SECOND, DATE_TWELVE_HOUR, DATE_MINUTE, DATE_SECOND, &
-                                                      DATE_MERIDIEM]), t, "UTC0"), &
+                                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_HOUR, &
+                                                      TIME_MINUTE, TIME_SECOND, TIME_HOUR_OF_TWELVE_HOUR_CLOCK, TIME_MINUTE, &
+                                                      TIME_SECOND, &
+                                                      TIME_MERIDIEM]), t, "UTC0"), &
                    "2000-12-10|13:04|13:04:05|01:04:05 PM", "more formats")
         if (allocated(error)) return
         ! "%a %A %b %h %B %^a %^A %p %P %#p %Z %#Z".
@@ -562,8 +564,8 @@ contains
                                                      [DATE_WEEKDAY_ABBREVIATION, DATE_WEEKDAY_NAME, DATE_MONTH_ABBREVIATION, &
                                                       DATE_MONTH_ABBREVIATION, DATE_MONTH_NAME, &
                                                       DATE_WEEKDAY_ABBREVIATION_UPPER_CASE, DATE_WEEKDAY_NAME_UPPER_CASE, &
-                                                      DATE_MERIDIEM, DATE_MERIDIEM_LOWER_CASE, DATE_MERIDIEM_LOWER_CASE, &
-                                                      DATE_ZONE_ABBREVIATION, DATE_ZONE_ABBREVIATION_LOWER_CASE]), t, "UTC0"), &
+                                                      TIME_MERIDIEM, TIME_MERIDIEM_LOWER_CASE, TIME_MERIDIEM_LOWER_CASE, &
+                                                      ZONE_ABBREVIATION, ZONE_ABBREVIATION_LOWER_CASE]), t, "UTC0"), &
                    "Sun Sunday Dec Dec December SUN SUNDAY PM pm pm UTC utc", "names")
         if (allocated(error)) return
         ! "%^b %^B".
@@ -575,17 +577,18 @@ contains
         call check(error, date_text(date_format_type("(i2.2, 1x, i2.2, 1x, i4.4, 4(1x, i2.2), 1x, i3.3, 3(1x, i1), " &
                                                      //"3(1x, i2), 1x, i2.2, 1x, i0)", &
                                                      [DATE_CENTURY, DATE_YEAR_OF_CENTURY, DATE_ISO_WEEK_YEAR, &
-                                                      DATE_ISO_WEEK_YEAR_OF_CENTURY, DATE_ISO_WEEK, DATE_WEEK_OF_YEAR_SUNDAY, &
-                                                      DATE_WEEK_OF_YEAR_MONDAY, DATE_DAY_OF_YEAR, DATE_ISO_WEEKDAY, DATE_WEEKDAY, &
-                                                      DATE_QUARTER, DATE_DAY, DATE_HOUR, DATE_TWELVE_HOUR, DATE_TWELVE_HOUR, &
-                                                      DATE_SECONDS_SINCE_EPOCH]), t, "UTC0"), &
+                                                      DATE_ISO_WEEK_YEAR_OF_CENTURY, DATE_ISO_WEEK, DATE_WEEK_STARTING_SUNDAY, &
+                                                      DATE_WEEK_STARTING_MONDAY, DATE_DAY_OF_YEAR, DATE_ISO_WEEKDAY, DATE_WEEKDAY, &
+                                                      DATE_QUARTER, DATE_DAY, TIME_HOUR, TIME_HOUR_OF_TWELVE_HOUR_CLOCK, &
+                                                      TIME_HOUR_OF_TWELVE_HOUR_CLOCK, &
+                                                      TIME_SECONDS_SINCE_EPOCH]), t, "UTC0"), &
                    "20 00 2000 00 49 50 49 345 7 0 4 10 13  1 01 976453445", "numbers")
         if (allocated(error)) return
         ! "%t|%:z|%::z".
         call check(error, date_text(date_format_type('("'//achar(9)//'|", a, i2.2, ":", i2.2, "|", a, 2(i2.2, ":"), i2.2)', &
-                                                     [DATE_ZONE_OFFSET_SIGN, DATE_ZONE_OFFSET_HOURS, DATE_ZONE_OFFSET_MINUTES, &
-                                                      DATE_ZONE_OFFSET_SIGN, DATE_ZONE_OFFSET_HOURS, DATE_ZONE_OFFSET_MINUTES, &
-                                                      DATE_ZONE_OFFSET_SECONDS]), t, "UTC0"), &
+                                                     [ZONE_OFFSET_SIGN, ZONE_OFFSET_HOURS, ZONE_OFFSET_MINUTES, &
+                                                      ZONE_OFFSET_SIGN, ZONE_OFFSET_HOURS, ZONE_OFFSET_MINUTES, &
+                                                      ZONE_OFFSET_SECONDS]), t, "UTC0"), &
                    achar(9)//"|+00:00|+00:00:00", "others")
         if (allocated(error)) return
         ! "%10F|%+6Y|%_5d|%05e".
@@ -595,8 +598,8 @@ contains
                    "2000-12-10|+02000|   10|00010", "widths")
         if (allocated(error)) return
         ! "%:z" west of Greenwich, by half an hour.
-        call check(error, date_text(date_format_type('(a, i2.2, ":", i2.2)', [DATE_ZONE_OFFSET_SIGN, DATE_ZONE_OFFSET_HOURS, &
-                                                                              DATE_ZONE_OFFSET_MINUTES]), t, &
+        call check(error, date_text(date_format_type('(a, i2.2, ":", i2.2)', [ZONE_OFFSET_SIGN, ZONE_OFFSET_HOURS, &
+                                                                              ZONE_OFFSET_MINUTES]), t, &
                                     time_zone_rule(-1800)), "-00:30", "west")
     end subroutine test_parts
 
@@ -607,10 +610,10 @@ contains
         type(time_type) :: t
 
         t = encode_time(decoded_time_type(second=time_type(5), minute=4, hour=13, day=10, month=12, year=2000), "UTC0")
-        call check(error, date_text(date_format_type('  (2(I2.2, ":"), I2.2)  ', [DATE_HOUR, DATE_MINUTE, DATE_SECOND]), t, &
+        call check(error, date_text(date_format_type('  (2(I2.2, ":"), I2.2)  ', [TIME_HOUR, TIME_MINUTE, TIME_SECOND]), t, &
                                     "UTC0"), "13:04:05", "group")
         if (allocated(error)) return
-        call check(error, date_text(date_format_type("(t5, i2.2, t1, a)", [DATE_HOUR, DATE_WEEKDAY_ABBREVIATION]), t, "UTC0"), &
+        call check(error, date_text(date_format_type("(t5, i2.2, t1, a)", [TIME_HOUR, DATE_WEEKDAY_ABBREVIATION]), t, "UTC0"), &
                    "Sun 13", "positions")
         if (allocated(error)) return
         call check(error, date_text(date_format_type("('it''s ', a5, 1x, g0, tr2, i0, 1x)", &
@@ -635,7 +638,7 @@ contains
         integer :: k
 
         do k = 1, size(FORMATS)
-            call check(error, index(date_text(date_format_type(trim(FORMATS(k)), [DATE_HOUR])), "error: ") == 1, &
+            call check(error, index(date_text(date_format_type(trim(FORMATS(k)), [TIME_HOUR])), "error: ") == 1, &
                        trim(FORMATS(k)))
             if (allocated(error)) return
         end do
@@ -644,11 +647,11 @@ contains
         if (allocated(error)) return
         call check(error, index(date_text(date_format_type("(i2)", [99])), "error: ") == 1, "not a part")
         if (allocated(error)) return
-        call check(error, index(date_text(date_format_type("(17i2)", [(DATE_HOUR, k=1, 17)])), "error: ") == 1, "17 parts")
+        call check(error, index(date_text(date_format_type("(17i2)", [(TIME_HOUR, k=1, 17)])), "error: ") == 1, "17 parts")
         if (allocated(error)) return
-        call check(error, index(date_text(date_format_type("(i2)", [DATE_NONE, DATE_HOUR])), "error: ") == 1, "a gap")
+        call check(error, index(date_text(date_format_type("(i2)", [DATE_NONE, TIME_HOUR])), "error: ") == 1, "a gap")
         if (allocated(error)) return
-        call check(error, index(date_text(date_format_type("(i2, /, i2)", [DATE_HOUR, DATE_MINUTE])), "error: ") == 1, &
+        call check(error, index(date_text(date_format_type("(i2, /, i2)", [TIME_HOUR, TIME_MINUTE])), "error: ") == 1, &
                    "a new record")
     end subroutine test_format_errors
 
@@ -666,18 +669,18 @@ contains
         if (allocated(error)) return
         ! list_generations, "%b %d %Y %H:%M:%S".
         call check(error, date_text(date_format_type('(a, 1x, i2.2, 1x, i4.4, 1x, i2.2, ":", i2.2, ":", i2.2)', &
-                                                     [DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_YEAR, DATE_HOUR, DATE_MINUTE, &
-                                                      DATE_SECOND]), t, "IST-5:30"), "Feb 05 2000 08:34:05", "generations")
+                                                     [DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_YEAR, TIME_HOUR, TIME_MINUTE, &
+                                                      TIME_SECOND]), t, "IST-5:30"), "Feb 05 2000 08:34:05", "generations")
         if (allocated(error)) return
         ! Dired's touch default, "%Y%m%d%H%M.%S".
-        call check(error, date_text(date_format_type('(i4.4, 4i2.2, ".", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, &
-                                                                                  DATE_MINUTE, DATE_SECOND]), t, "IST-5:30"), &
+        call check(error, date_text(date_format_type('(i4.4, 4i2.2, ".", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, &
+                                                                                  TIME_MINUTE, TIME_SECOND]), t, "IST-5:30"), &
                    "200002050834.05", "touch")
         if (allocated(error)) return
         ! mail_rfc822_date, "%-d %b %Y %T %z".
         call check(error, date_text(date_format_type('(i0, 1x, a, 1x, i4.4, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4)', &
-                                                     [DATE_DAY, DATE_MONTH_ABBREVIATION, DATE_YEAR, DATE_HOUR, DATE_MINUTE, &
-                                                      DATE_SECOND, DATE_ZONE_OFFSET]), t, "IST-5:30"), &
+                                                     [DATE_DAY, DATE_MONTH_ABBREVIATION, DATE_YEAR, TIME_HOUR, TIME_MINUTE, &
+                                                      TIME_SECOND, ZONE_OFFSET]), t, "IST-5:30"), &
                    "5 Feb 2000 08:34:05 +0530", "rfc822")
         if (allocated(error)) return
         ! MAIL_DATE, "%a, %d %b %Y %T %z".
@@ -689,18 +692,18 @@ contains
         ! The From line of an Fcc, "%a %b %e %T %z %Y".
         call check(error, date_text(date_format_type( &
                                     '(a, 1x, a, 1x, i2, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4, 1x, ss, i4.4)', &
-                                    [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_HOUR, DATE_MINUTE, &
-                                     DATE_SECOND, DATE_ZONE_OFFSET, DATE_YEAR]), t, "IST-5:30"), &
+                                    [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, TIME_HOUR, TIME_MINUTE, &
+                                     TIME_SECOND, ZONE_OFFSET, DATE_YEAR]), t, "IST-5:30"), &
                    "Sat Feb  5 08:34:05 +0530 2000", "from line")
         if (allocated(error)) return
         ! The draft file of Message, "-%Y%m%d-%H%M%S".
         call check(error, date_text(date_format_type('("-", i4.4, 2i2.2, "-", 3i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, &
-                                                                                        DATE_HOUR, DATE_MINUTE, DATE_SECOND]), &
+                                                                                        TIME_HOUR, TIME_MINUTE, TIME_SECOND]), &
                                     t, "IST-5:30"), "-20000205-083405", "draft")
         if (allocated(error)) return
         ! The queued mail of smtpmail, "%Y-%m-%d_%H:%M:%S".
         call check(error, date_text(date_format_type('(i4.4, "-", i2.2, "-", i2.2, "_", i2.2, ":", i2.2, ":", i2.2)', &
-                                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND]), &
+                                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND]), &
                                     t, "IST-5:30"), "2000-02-05_08:34:05", "queue")
     end subroutine test_callers
 
@@ -716,8 +719,8 @@ contains
         allocate (character(len=max(length, 0)) :: saved)
         if (had_rule .and. length > 0) call get_environment_variable("TZ", saved)
         call set_time_zone_rule("IST-5:30")
-        call check(error, date_text(date_format_type('(i2.2, ":", i2.2, 1x, a)', [DATE_HOUR, DATE_MINUTE, &
-                                                                                  DATE_ZONE_ABBREVIATION]), time_type(0)), &
+        call check(error, date_text(date_format_type('(i2.2, ":", i2.2, 1x, a)', [TIME_HOUR, TIME_MINUTE, &
+                                                                                  ZONE_ABBREVIATION]), time_type(0)), &
                    "05:30 IST", "IST")
 
         if (had_rule) then
@@ -766,7 +769,7 @@ contains
         allocate (character(len=max(length, 0)) :: saved)
         ! "%Y-%m-%d %H:%M:%S %z".
         format = date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4)', &
-                                  [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND, DATE_ZONE_OFFSET])
+                                  [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, ZONE_OFFSET])
         if (had_rule .and. length > 0) call get_environment_variable("TZ", saved)
         call set_time_zone_rule()
         system = date_text(format, time_type(0))

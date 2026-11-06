@@ -26,8 +26,8 @@ module test_iso8601_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use time_functions_mod, only: time_type, format_date, date_format_type, time_zone_rule, DATE_ZONE_OFFSET, &
-                                  DATE_ZONE_OFFSET_SIGN, DATE_ZONE_OFFSET_HOURS, DATE_ZONE_OFFSET_MINUTES
+    use time_functions_mod, only: time_type, format_date, date_format_type, time_zone_rule, ZONE_OFFSET, &
+                                  ZONE_OFFSET_SIGN, ZONE_OFFSET_HOURS, ZONE_OFFSET_MINUTES
     use time_date_mod, only: partial_decoded_time_type
     use iso8601_mod, only: parse_iso8601, parse_iso8601_date, parse_iso8601_time, parse_iso8601_zone, &
                            parse_iso8601_duration, parse_iso8601_interval, is_iso8601_valid
@@ -456,9 +456,9 @@ contains
         type(status_type) :: st
         integer :: k, f, offset
 
-        formats(1) = date_format_type("(sp, i5.4)", [DATE_ZONE_OFFSET])
-        formats(2) = date_format_type('(a, i2.2, ":", i2.2)', [DATE_ZONE_OFFSET_SIGN, DATE_ZONE_OFFSET_HOURS, &
-                                                               DATE_ZONE_OFFSET_MINUTES])
+        formats(1) = date_format_type("(sp, i5.4)", [ZONE_OFFSET])
+        formats(2) = date_format_type('(a, i2.2, ":", i2.2)', [ZONE_OFFSET_SIGN, ZONE_OFFSET_HOURS, &
+                                                               ZONE_OFFSET_MINUTES])
 
         do k = 1, size(OFFSETS)
             do f = 1, size(formats)

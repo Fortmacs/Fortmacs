@@ -89,7 +89,7 @@ module message_mod
     use read_multiple_choice_mod, only: read_multiple_choice, read_multiple_choice_choice_type
     use coding_mod, only: buffer_file_coding_system
     use time_functions_mod, only: format_date, date_format_type, MAIL_DATE, current_time, current_time_string, time_type, &
-                                  DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND
+                                  DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND
     use startup_mod, only: mail_host_address, user_mail_address_value
     use execute_process_mod, only: execute_process_region
     use undo_mod, only: undo_boundary
@@ -3248,8 +3248,8 @@ contains
         ! regular file in `message_auto_save_directory'.  Append a unique
         ! time-based suffix to the filename to allow multiple drafts to be
         ! saved simultaneously without overwriting each other.
-        suffix = format_date(date_format_type('("-", i4.4, 2i2.2, "-", 3i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, &
-                                                                                 DATE_MINUTE, DATE_SECOND]), status=status)
+        suffix = format_date(date_format_type('("-", i4.4, 2i2.2, "-", 3i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, &
+                                                                                 TIME_MINUTE, TIME_SECOND]), status=status)
         if (.not. status%ok()) return
         call expand_file_name("*message*"//suffix, file, status, message_auto_save_directory)
         if (.not. status%ok()) return

@@ -114,6 +114,10 @@ module time_functions_mod
     !> The longest Fortran format a `date_format_type' holds.
     integer, parameter, public :: DATE_FORMAT_LENGTH = 256
 
+    ! The parts of a date take the stems of the intrinsic date_and_time's
+    ! arguments (owner, 2026-11-06, #272): DATE_ for the calendar, TIME_ for
+    ! the time of day and ZONE_ for the time zone.
+
     !> No part: the unused entries of a date format's `parts'.
     integer, parameter, public :: DATE_NONE = 0
     !> The year, a number (strftime's %Y; i4.4 for four digits).
@@ -136,10 +140,10 @@ module time_functions_mod
     integer, parameter, public :: DATE_MONTH = 8
     !> The week of the year, a number 0-53, with weeks starting on Sunday
     !> and week 1 at the year's first Sunday (%U).
-    integer, parameter, public :: DATE_WEEK_OF_YEAR_SUNDAY = 9
+    integer, parameter, public :: DATE_WEEK_STARTING_SUNDAY = 9
     !> The week of the year, a number 0-53, with weeks starting on Monday
     !> and week 1 at the year's first Monday (%W).
-    integer, parameter, public :: DATE_WEEK_OF_YEAR_MONDAY = 10
+    integer, parameter, public :: DATE_WEEK_STARTING_MONDAY = 10
     !> The day of the month, a number 1-31 (%d with i2.2, %e with i2).
     integer, parameter, public :: DATE_DAY = 11
     !> The day of the year, a number 1-366 (%j; i3.3).
@@ -150,36 +154,36 @@ module time_functions_mod
     integer, parameter, public :: DATE_ISO_WEEKDAY = 14
     !> The hour on a 24-hour clock, a number 0-23 (%H with i2.2, %k with
     !> i2).
-    integer, parameter, public :: DATE_HOUR = 15
+    integer, parameter, public :: TIME_HOUR = 15
     !> The hour on a 12-hour clock, a number 1-12 (%I with i2.2, %l with
     !> i2).
-    integer, parameter, public :: DATE_TWELVE_HOUR = 16
+    integer, parameter, public :: TIME_HOUR_OF_TWELVE_HOUR_CLOCK = 16
     !> The minute, a number 0-59 (%M; i2.2).
-    integer, parameter, public :: DATE_MINUTE = 17
+    integer, parameter, public :: TIME_MINUTE = 17
     !> The second, a number 0-60, 60 for a leap second (%S; i2.2).
-    integer, parameter, public :: DATE_SECOND = 18
+    integer, parameter, public :: TIME_SECOND = 18
     !> The millisecond of the second, a number 0-999 (%3N; i3.3).
-    integer, parameter, public :: DATE_MILLISECOND = 19
+    integer, parameter, public :: TIME_MILLISECOND = 19
     !> The microsecond of the second, a number 0-999999 (%6N; i6.6).
-    integer, parameter, public :: DATE_MICROSECOND = 20
+    integer, parameter, public :: TIME_MICROSECOND = 20
     !> The nanosecond of the second, a number 0-999999999 (%N; i9.9).
-    integer, parameter, public :: DATE_NANOSECOND = 21
+    integer, parameter, public :: TIME_NANOSECOND = 21
     !> The seconds since 1970-01-01 00:00:00 UTC, a number (%s).
-    integer, parameter, public :: DATE_SECONDS_SINCE_EPOCH = 22
+    integer, parameter, public :: TIME_SECONDS_SINCE_EPOCH = 22
     !> The offset of the time zone from UTC as hours and minutes, a number
     !> (+0530 is 530; %z with sp, i5.4).  A zero offset that the zone
-    !> writes as -0000 needs DATE_ZONE_OFFSET_SIGN.
-    integer, parameter, public :: DATE_ZONE_OFFSET = 23
+    !> writes as -0000 needs ZONE_OFFSET_SIGN.
+    integer, parameter, public :: ZONE_OFFSET = 23
     !> The whole hours of the time zone's offset from UTC, a number
-    !> without its sign (%:z is a, i2.2, ":", i2.2 of DATE_ZONE_OFFSET_SIGN,
-    !> DATE_ZONE_OFFSET_HOURS and DATE_ZONE_OFFSET_MINUTES).
-    integer, parameter, public :: DATE_ZONE_OFFSET_HOURS = 24
+    !> without its sign (%:z is a, i2.2, ":", i2.2 of ZONE_OFFSET_SIGN,
+    !> ZONE_OFFSET_HOURS and ZONE_OFFSET_MINUTES).
+    integer, parameter, public :: ZONE_OFFSET_HOURS = 24
     !> The minutes of the time zone's offset beyond its hours, a number
     !> 0-59 without its sign.
-    integer, parameter, public :: DATE_ZONE_OFFSET_MINUTES = 25
+    integer, parameter, public :: ZONE_OFFSET_MINUTES = 25
     !> The seconds of the time zone's offset beyond its minutes, a number
     !> 0-59 without its sign (the last field of %::z).
-    integer, parameter, public :: DATE_ZONE_OFFSET_SECONDS = 26
+    integer, parameter, public :: ZONE_OFFSET_SECONDS = 26
     !> The name of the day of the week, text: "Sunday" (%A).
     integer, parameter, public :: DATE_WEEKDAY_NAME = 41
     !> The abbreviated name of the day of the week, text: "Sun" (%a).
@@ -198,25 +202,25 @@ module time_functions_mod
     !> The abbreviated name of the month in upper case, text: "DEC" (%^b).
     integer, parameter, public :: DATE_MONTH_ABBREVIATION_UPPER_CASE = 48
     !> Before or after noon, text: "AM" or "PM" (%p).
-    integer, parameter, public :: DATE_MERIDIEM = 49
+    integer, parameter, public :: TIME_MERIDIEM = 49
     !> Before or after noon in lower case, text: "am" or "pm" (%P).
-    integer, parameter, public :: DATE_MERIDIEM_LOWER_CASE = 50
+    integer, parameter, public :: TIME_MERIDIEM_LOWER_CASE = 50
     !> The abbreviation of the time zone, text: "CET" (%Z).
-    integer, parameter, public :: DATE_ZONE_ABBREVIATION = 51
+    integer, parameter, public :: ZONE_ABBREVIATION = 51
     !> The abbreviation of the time zone in lower case, text: "cet" (%#Z).
-    integer, parameter, public :: DATE_ZONE_ABBREVIATION_LOWER_CASE = 52
+    integer, parameter, public :: ZONE_ABBREVIATION_LOWER_CASE = 52
     !> The sign of the time zone's offset from UTC, text: "+" east of
     !> Greenwich and for UTC, "-" west of it and for a zone that writes
     !> itself as "-00".
-    integer, parameter, public :: DATE_ZONE_OFFSET_SIGN = 53
+    integer, parameter, public :: ZONE_OFFSET_SIGN = 53
 
     ! The ranges of the number parts and of the text parts.
-    integer, parameter :: FIRST_NUMBER_PART = DATE_YEAR, LAST_NUMBER_PART = DATE_ZONE_OFFSET_SECONDS, &
-                          FIRST_TEXT_PART = DATE_WEEKDAY_NAME, LAST_TEXT_PART = DATE_ZONE_OFFSET_SIGN
+    integer, parameter :: FIRST_NUMBER_PART = DATE_YEAR, LAST_NUMBER_PART = ZONE_OFFSET_SECONDS, &
+                          FIRST_TEXT_PART = DATE_WEEKDAY_NAME, LAST_TEXT_PART = ZONE_OFFSET_SIGN
 
     !> A date and time format: `format', a Fortran format with edit
-    !> descriptors, and `parts', the DATE_ constants of the parts of the
-    !> date it writes, in order, one for each data edit descriptor: I, B,
+    !> descriptors, and `parts', the DATE_, TIME_ and ZONE_ constants of the
+    !> parts of the date it writes, in order, one for each data edit descriptor: I, B,
     !> O, Z or G for a number, A or G for text.  `format_date' writes a
     !> time with it:
     !>
@@ -248,8 +252,8 @@ module time_functions_mod
     !> of message-make-date).
     type(date_format_type), parameter, public :: MAIL_DATE = &
                          date_format_type(format='(a, ", ", i2.2, 1x, a, 1x, i4.4, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4)', &
-                                parts=reshape([DATE_WEEKDAY_ABBREVIATION, DATE_DAY, DATE_MONTH_ABBREVIATION, DATE_YEAR, DATE_HOUR, &
-                                                         DATE_MINUTE, DATE_SECOND, DATE_ZONE_OFFSET], [DATE_FORMAT_MAXIMUM_PARTS], &
+                                parts=reshape([DATE_WEEKDAY_ABBREVIATION, DATE_DAY, DATE_MONTH_ABBREVIATION, DATE_YEAR, TIME_HOUR, &
+                                                              TIME_MINUTE, TIME_SECOND, ZONE_OFFSET], [DATE_FORMAT_MAXIMUM_PARTS], &
                                                                                 pad=[DATE_NONE]), &
                                                                   is_truncated=.false.)
 
@@ -927,7 +931,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> The date format of FORMAT, a Fortran format with edit descriptors,
-    !> and PARTS, the DATE_ constants of the parts it writes, in order: the
+    !> and PARTS, the DATE_, TIME_ and ZONE_ constants of the parts it writes, in order: the
     !> constructor date_format_type(format, parts).  A FORMAT longer than
     !> DATE_FORMAT_LENGTH or more than DATE_FORMAT_MAXIMUM_PARTS parts make
     !> a date format that `format_date' reports as an error.  Not a port.
@@ -1461,7 +1465,7 @@ contains
     end subroutine expand_format_tokens
 
     ! Whether PART is a number part of a date (DATE_YEAR to
-    ! DATE_ZONE_OFFSET_SECONDS).  Not a port.
+    ! ZONE_OFFSET_SECONDS).  Not a port.
     elemental logical function is_date_number_part(part)
         integer, intent(in) :: part
 
@@ -1469,7 +1473,7 @@ contains
     end function is_date_number_part
 
     ! Whether PART is a text part of a date (DATE_WEEKDAY_NAME to
-    ! DATE_ZONE_OFFSET_SIGN).  Not a port.
+    ! ZONE_OFFSET_SIGN).  Not a port.
     elemental logical function is_date_text_part(part)
         integer, intent(in) :: part
 
@@ -1529,9 +1533,9 @@ contains
             value = tm%month/3 + 1
         case (DATE_MONTH)
             value = tm%month + 1
-        case (DATE_WEEK_OF_YEAR_SUNDAY)
+        case (DATE_WEEK_STARTING_SUNDAY)
             value = (tm%year_day - tm%weekday + 7)/7
-        case (DATE_WEEK_OF_YEAR_MONDAY)
+        case (DATE_WEEK_STARTING_MONDAY)
             value = (tm%year_day - mod(tm%weekday - 1 + 7, 7) + 7)/7
         case (DATE_DAY)
             value = tm%day
@@ -1541,31 +1545,31 @@ contains
             value = tm%weekday
         case (DATE_ISO_WEEKDAY)
             value = mod(tm%weekday - 1 + 7, 7) + 1
-        case (DATE_HOUR)
+        case (TIME_HOUR)
             value = tm%hour
-        case (DATE_TWELVE_HOUR)
+        case (TIME_HOUR_OF_TWELVE_HOUR_CLOCK)
             value = mod(tm%hour + 11, 12) + 1
-        case (DATE_MINUTE)
+        case (TIME_MINUTE)
             value = tm%minute
-        case (DATE_SECOND)
+        case (TIME_SECOND)
             value = tm%second
-        case (DATE_MILLISECOND)
+        case (TIME_MILLISECOND)
             value = tm%nanoseconds/1000000
-        case (DATE_MICROSECOND)
+        case (TIME_MICROSECOND)
             value = tm%nanoseconds/1000
-        case (DATE_NANOSECOND)
+        case (TIME_NANOSECOND)
             value = tm%nanoseconds
-        case (DATE_SECONDS_SINCE_EPOCH)
+        case (TIME_SECONDS_SINCE_EPOCH)
             ! (strftime.c regenerates the count with mktime_z; it is the
             ! time that was broken down.)
             value = tm%seconds
-        case (DATE_ZONE_OFFSET)
+        case (ZONE_OFFSET)
             value = sign(abs(offset)/3600*100 + mod(abs(offset)/60, 60), offset)
-        case (DATE_ZONE_OFFSET_HOURS)
+        case (ZONE_OFFSET_HOURS)
             value = abs(offset)/3600
-        case (DATE_ZONE_OFFSET_MINUTES)
+        case (ZONE_OFFSET_MINUTES)
             value = mod(abs(offset)/60, 60)
-        case (DATE_ZONE_OFFSET_SECONDS)
+        case (ZONE_OFFSET_SECONDS)
             value = mod(abs(offset), 60)
         case default
             value = 0
@@ -1614,15 +1618,15 @@ contains
             text = changed_case(trim(MONTH_NAMES(tm%month)), .true.)
         case (DATE_MONTH_ABBREVIATION_UPPER_CASE)
             text = changed_case(MONTH_NAMES(tm%month) (1:3), .true.)
-        case (DATE_MERIDIEM)
+        case (TIME_MERIDIEM)
             text = merge("PM", "AM", 12 <= tm%hour)
-        case (DATE_MERIDIEM_LOWER_CASE)
+        case (TIME_MERIDIEM_LOWER_CASE)
             text = merge("pm", "am", 12 <= tm%hour)
-        case (DATE_ZONE_ABBREVIATION)
+        case (ZONE_ABBREVIATION)
             text = tm%abbreviation
-        case (DATE_ZONE_ABBREVIATION_LOWER_CASE)
+        case (ZONE_ABBREVIATION_LOWER_CASE)
             text = changed_case(tm%abbreviation, .false.)
-        case (DATE_ZONE_OFFSET_SIGN)
+        case (ZONE_OFFSET_SIGN)
             text = "+"
             if (tm%offset < 0) text = "-"
 

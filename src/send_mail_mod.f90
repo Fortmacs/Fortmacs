@@ -85,8 +85,8 @@ module send_mail_mod
     use coding_mod, only: buffer_file_coding_system, coding_system_mime_character_set
     use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     use time_functions_mod, only: format_date, date_format_type, MAIL_DATE, DATE_WEEKDAY_ABBREVIATION, &
-                                  DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND, &
-                                  DATE_ZONE_OFFSET, DATE_YEAR
+                                  DATE_MONTH_ABBREVIATION, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, &
+                                  ZONE_OFFSET, DATE_YEAR
     use editing_functions_mod, only: user_full_name, user_login_name
     use startup_mod, only: user_mail_address_value
     use execute_process_mod, only: execute_process_region
@@ -1968,8 +1968,8 @@ contains
             ! file (see below).
             from_date = format_date(date_format_type( &
                                     '(a, 1x, a, 1x, i2, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4, 1x, ss, i4.4)', &
-                                    [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_HOUR, &
-                                     DATE_MINUTE, DATE_SECOND, DATE_ZONE_OFFSET, DATE_YEAR]), status=status)
+                                    [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, TIME_HOUR, &
+                                     TIME_MINUTE, TIME_SECOND, ZONE_OFFSET, DATE_YEAR]), status=status)
             if (.not. status%ok()) exit body
             date = format_date(MAIL_DATE, status=status)
             if (.not. status%ok()) exit body

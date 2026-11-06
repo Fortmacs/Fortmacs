@@ -1095,8 +1095,11 @@ a pure procedure.
 
 **Dates to text (owner, 2026-11-06).**  A date and time format is a
 `date_format_type` (time_functions_mod): a Fortran format with edit
-descriptors and the DATE_ parts of the date it writes, in order, one per
-data edit descriptor (I, B, O, Z or G for a number, A or G for a name).
+descriptors and the parts of the date it writes, in order, one per data
+edit descriptor (I, B, O, Z or G for a number, A or G for a name).  The
+parts take the stems of the intrinsic date_and_time's arguments: DATE_
+for the calendar, TIME_ for the time of day and ZONE_ for the time zone
+(owner, 2026-11-06, #272).
 `format_date(date_format, time, zone, status)` decodes the time, takes
 each part's value or English name and writes the text; it counts as the
 one `write` of "Text from a format".  Upstream's strftime strings
@@ -1109,13 +1112,13 @@ in settings; a format used in several places is a named constant
 s = format_date(date_format_type('(i4.4, "-", i2.2, "-", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY]), status=status)
 if (.not. status%ok()) return
 ! a setting, in init.f90 (upstream: "%H:%M")
-display_time_format = date_format_type('(i2.2, ":", i2.2)', [DATE_HOUR, DATE_MINUTE])
+display_time_format = date_format_type('(i2.2, ":", i2.2)', [TIME_HOUR, TIME_MINUTE])
 ```
 
 - `%d` is `i2.2`, `%e` `i2`, `%-d` `i0`, `%Y` `i4.4`, `%3N` `i3.3` of
-  DATE_MILLISECOND, `%z` `sp, i5.4` of DATE_ZONE_OFFSET (`ss` after it
+  TIME_MILLISECOND, `%z` `sp, i5.4` of ZONE_OFFSET (`ss` after it
   if a number follows), `%:z` `a, i2.2, ":", i2.2` of
-  DATE_ZONE_OFFSET_SIGN, _HOURS and _MINUTES; `%a` and `%b` are `a` of
+  ZONE_OFFSET_SIGN, _HOURS and _MINUTES; `%a` and `%b` are `a` of
   DATE_WEEKDAY_ABBREVIATION and DATE_MONTH_ABBREVIATION.
 - One `write` cannot take a list of items whose types are chosen at run
   time, so `format_date` splits the format: each part is written alone

@@ -54,7 +54,7 @@ module configuration_mod
     use execute_process_mod, only: execute_process
     use system_dependent_mod, only: fortmacs_readlink, ENOENT
     use time_functions_mod, only: format_date, date_format_type, time_type, DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_YEAR, &
-                                  DATE_HOUR, DATE_MINUTE, DATE_SECOND
+                                  TIME_HOUR, TIME_MINUTE, TIME_SECOND
     implicit none(type, external)
     private
 
@@ -485,8 +485,8 @@ contains
 
             if (found) then
                 when = format_date(date_format_type('(a, 1x, i2.2, 1x, i4.4, 1x, i2.2, ":", i2.2, ":", i2.2)', &
-                                                    [DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_YEAR, DATE_HOUR, DATE_MINUTE, &
-                                                     DATE_SECOND]), time_type(st%mtime_second), status=status)
+                                                    [DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_YEAR, TIME_HOUR, TIME_MINUTE, &
+                                                     TIME_SECOND]), time_type(st%mtime_second), status=status)
                 if (.not. status%ok()) return
             end if
 

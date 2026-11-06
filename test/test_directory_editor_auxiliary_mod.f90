@@ -39,8 +39,8 @@ module test_directory_editor_auxiliary_mod
                                      create_directory_internal, file_modes, set_file_modes, file_symlink_target, file_attributes, &
                                      file_status_type, is_file_executable
     use files_mod, only: find_file_noselect, delete_directory
-    use time_functions_mod, only: format_date, date_format_type, time_type, DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, &
-                                  DATE_MINUTE, DATE_SECOND
+    use time_functions_mod, only: format_date, date_format_type, time_type, DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, &
+                                  TIME_MINUTE, TIME_SECOND
     use directory_editor_mode_mod, only: directory_editor, directory_editor_goto_file, directory_editor_buffers_for_directory, &
                                          directory_editor_get_marked_files, directory_editor_deletion_confirmer, &
                                          directory_editor_auto_revert_buffer, directory_editor_mark_files_regular_expression, &
@@ -482,8 +482,8 @@ contains
             call file_attributes(tdir()//"a.txt", attributes, found)
             call check(error, found, last_message)
             if (allocated(error)) exit body
-            date = format_date(date_format_type('(i4.4, 4i2.2, ".", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_HOUR, &
-                                                                             DATE_MINUTE, DATE_SECOND]), &
+            date = format_date(date_format_type('(i4.4, 4i2.2, ".", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, &
+                                                                             TIME_MINUTE, TIME_SECOND]), &
                                time_type(attributes%mtime_second), status=st)
             call check(error, st%ok() .and. date == "202001020304.05", last_message)
         end block body
