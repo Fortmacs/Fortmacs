@@ -9,7 +9,7 @@ back to, as in Guix.
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
 missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
-**Time on the project:** 2 weeks, 2 days, 23 hours, 57 minutes.
+**Time on the project:** 2 weeks, 2 days, 23 hours, 58 minutes.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
