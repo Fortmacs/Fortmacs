@@ -26,7 +26,7 @@ module test_display_engine_mod
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, resolve_buffer, &
-                          erase_buffer
+                          erase_buffer, current_buffer
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: goto_character, buffer_string
     use glyph_matrices_mod, only: glyph_row_type, glyph_type, DEFAULT_FACE_ID
@@ -41,8 +41,9 @@ module test_display_engine_mod
                           set_window_start, window_start, window_end, window_scroll_functions
     use display_engine_mod, only: layout_window, redisplay_internal, mode_line_text, glyph_width, mode_line_row, &
                                   initialize_frame_windows, mode_line_percent, recenter_start, message, mode_line_modes, &
-                                  pre_redisplay_function
-    use buffer_mod, only: buffers
+                                  pre_redisplay_function, mode_line_part_text, mode_line_identification, face_span_type
+    use buffer_mod, only: buffers, current, header_line_format_type, MODE_LINE_NONE, MODE_LINE_BUFFER_NAME, &
+                          MODE_LINE_BUFFER_PROCESS_STATUS
     use keyboard_mod, only: last_message, set_minibuffer_message_text
     use frame_mod, only: selected_frame, ensure_frame_windows
     use handle_mod, only: null_handle
@@ -86,6 +87,7 @@ contains
                     new_unittest("layout-end-of-buffer", test_end_of_buffer), &
                     new_unittest("layout-region-face", test_region), &
                     new_unittest("mode-line-text", test_mode_line), &
+                    new_unittest("mode-line-computed-parts", test_mode_line_parts), &
                     new_unittest("redisplay-recenters", test_redisplay), &
                     new_unittest("redisplay-split-windows", test_split_redisplay), &
                     new_unittest("redisplay-forced-start", test_forced_start), &
@@ -537,6 +539,54 @@ contains
         call check(error,.not. at_end .and. end_position == 4, "more text")
         call close_buffer(h, st)
     end subroutine test_end_of_buffer
+
+    !> Upstream's %-constructs as computed parts (panel, 2026-11-06): the
+    !> buffer name padded on the right to at least WIDTH columns and never
+    !> cut (%12b), the status of the buffer's process (%s), and text shown
+    !> as it is (no %% escaping).
+    subroutine test_mode_line_parts(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old, h
+        type(status_type) :: st
+        type(header_line_format_type) :: id
+        type(face_span_type), allocatable :: spans(:)
+        character(len=64), allocatable :: faces(:)
+        character(len=:), allocatable :: text
+
+        old = current_buffer()
+        call get_or_make_buffer("mode-line-parts", h, st)
+        call set_buffer(h, st)
+
+        run: block
+            call check(error, mode_line_part_text(current, MODE_LINE_BUFFER_NAME, 0, ""), "mode-line-parts")
+            if (allocated(error)) exit run
+            ! A minimum: a longer name is not cut, a shorter one is padded.
+            call check(error, mode_line_part_text(current, MODE_LINE_BUFFER_NAME, 12, ""), "mode-line-parts")
+            if (allocated(error)) exit run
+            call check(error, mode_line_part_text(current, MODE_LINE_BUFFER_NAME, 18, ""), "mode-line-parts   ")
+            if (allocated(error)) exit run
+            call check(error, mode_line_part_text(current, MODE_LINE_BUFFER_PROCESS_STATUS, 0, ""), "no process")
+            if (allocated(error)) exit run
+            call check(error, mode_line_part_text(current, MODE_LINE_NONE, 8, "100%"), "100%")
+            if (allocated(error)) exit run
+            ! list-charset-chars' identification: the name padded to 12, then
+            ! the character set, the name in mode_line_buffer_id.
+            call id%append(MODE_LINE_BUFFER_NAME, width=20, face="mode_line_buffer_id")
+            call id%append(" (latin-1 50%)")
+            buffers(current)%mode_line_buffer_identification = id
+            call mode_line_identification(current, text, spans, faces)
+            call check(error, text, "mode-line-parts      (latin-1 50%)")
+            if (allocated(error)) exit run
+            call check(error, size(spans), 1)
+            if (allocated(error)) exit run
+            call check(error, spans(1)%first == 1 .and. spans(1)%last == 20, "the name and its padding in the face")
+            if (allocated(error)) exit run
+            call check(error, trim(faces(1)), "mode_line_buffer_id")
+        end block run
+
+        call close_buffer(h, st)
+        call set_buffer(old, st)
+    end subroutine test_mode_line_parts
 
     subroutine test_mode_line(error)
         type(error_type), allocatable, intent(out) :: error

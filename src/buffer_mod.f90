@@ -107,17 +107,30 @@ module buffer_mod
         logical :: cons = .false., ellipsis = .false.
     end type invisibility_entry_type
 
+    !> Values of a segment's `part': the computed parts of a mode line,
+    !> header line or tab line (upstream's %-constructs, decided by the
+    !> panel, 2026-11-06).  MODE_LINE_NONE: the segment shows its TEXT.
+    !> MODE_LINE_BUFFER_NAME: the buffer's name (upstream %b).
+    !> MODE_LINE_BUFFER_PROCESS_STATUS: the status of the buffer's process, or
+    !> "no process" (upstream %s).  The other constructs are Deferred
+    !> (docs/status/display_engine_mod.md).
+    integer, parameter, public :: MODE_LINE_NONE = 0, MODE_LINE_BUFFER_NAME = 1, MODE_LINE_BUFFER_PROCESS_STATUS = 2
+
     !> A part of a header line: TEXT in FACE (empty for the header line's
     !> own face) merged above the faces EXTRA_FACES, the first above the
     !> others (upstream a list of faces; unallocated for none), starting
     !> at column ALIGN_TO of the window's text area if ALIGN_TO is not
     !> negative (as a `(space :align-to ALIGN_TO)' display spec before it
-    !> would).
+    !> would).  A segment whose PART is not MODE_LINE_NONE shows that
+    !> computed part instead of TEXT, padded with blanks on the right to at
+    !> least WIDTH columns (upstream's field width: a minimum, nothing cut).
     type, public :: header_line_segment_type
         character(len=:), allocatable :: text
         character(len=:), allocatable :: face
         character(len=40), allocatable :: extra_faces(:)
         integer :: align_to = -1
+        integer :: part = MODE_LINE_NONE
+        integer :: width = 0
     end type header_line_segment_type
 
     abstract interface
@@ -138,17 +151,19 @@ module buffer_mod
     !> A header line: its segments in order, or the procedure that gives
     !> them at each redisplay (`procedure', upstream `(:eval FORM)',
     !> decision 44 Q8).  A buffer shows no header line while SEGMENTS is
-    !> unallocated and PROCEDURE null; `append' starts one.  (The
-    !> %-constructs and the other mode-line-format elements are Deferred,
-    !> as for the mode line; the procedure is read for the header line and
-    !> the tab line.)
+    !> unallocated and PROCEDURE null; `append' starts one.  Upstream's
+    !> %-constructs are segments of a computed part (`part'); the other
+    !> mode-line-format elements are Deferred, as for the mode line (the
+    !> procedure is read for the header line and the tab line).
     type, public :: header_line_format_type
         type(header_line_segment_type), allocatable :: segments(:)
         procedure(header_line_format_procedure), pointer, nopass :: procedure => null()
     contains
-        !> Append a segment: TEXT, in FACE if present, at column ALIGN_TO
-        !> if present.
-        procedure :: append => header_line_append
+        !> Append a segment: TEXT, or the computed part PART padded to at
+        !> least WIDTH columns, in FACE if present, at column ALIGN_TO if
+        !> present.
+        generic :: append => header_line_append, header_line_append_part
+        procedure, private :: header_line_append, header_line_append_part
         !> No header line.
         procedure :: clear => header_line_clear
         !> Whether it is set: it has segments or a procedure.
@@ -302,15 +317,16 @@ module buffer_mod
         !> procedure).
         type(header_line_format_type) :: tab_line_format
         !> `mode_line_buffer_identification': the buffer's own identification
-        !> in the mode line, as segments in which "%b" stands for the buffer
-        !> name and "%%" for "%" (the ALIGN_TO of a segment is ignored).
-        !> While SEGMENTS is unallocated the mode line shows the default,
-        !> the name in `mode_line_buffer_id' padded to 12 columns ("%12b").
+        !> in the mode line, as segments of text and computed parts
+        !> (MODE_LINE_BUFFER_NAME for the buffer name; the ALIGN_TO of a
+        !> segment is ignored).  While SEGMENTS is unallocated the mode line
+        !> shows the default, the name in `mode_line_buffer_id' padded to 12
+        !> columns.
         type(header_line_format_type) :: mode_line_buffer_identification
         !> BVAR mode_line_format (`mode_line_format'), as a string: while
         !> SEGMENTS is unallocated the mode line is the default one, else
-        !> the text of the segments in the mode line's face (their FACE and
-        !> ALIGN_TO are ignored; the %-constructs and the other
+        !> the text of the segments (their computed parts included) in the
+        !> mode line's face (their FACE and ALIGN_TO are ignored; the other
         !> mode-line-format elements are Deferred).
         type(header_line_format_type) :: mode_line_format
         !> BVAR mode_name (`mode_name'): the major mode's name for the mode
@@ -580,6 +596,28 @@ contains
         if (present(align_to)) segment%align_to = align_to
         self%segments = [self%segments, segment]
     end subroutine header_line_append
+
+    !> Append the segment showing the computed part PART (a MODE_LINE_
+    !> constant), padded with blanks on the right to at least WIDTH
+    !> columns if present, in FACE if present, at column ALIGN_TO if
+    !> present, to header line SELF.  Not a port.
+    subroutine header_line_append_part(self, part, width, face, align_to)
+        class(header_line_format_type), intent(inout) :: self
+        integer, intent(in) :: part
+        integer, intent(in), optional :: width
+        character(len=*), intent(in), optional :: face
+        integer, intent(in), optional :: align_to
+        type(header_line_segment_type) :: segment
+
+        if (.not. allocated(self%segments)) allocate (self%segments(0))
+        segment%text = ""
+        segment%part = part
+        if (present(width)) segment%width = width
+        segment%face = ""
+        if (present(face)) segment%face = face
+        if (present(align_to)) segment%align_to = align_to
+        self%segments = [self%segments, segment]
+    end subroutine header_line_append_part
 
     !> Clear header line SELF: no header line.  Not a port.
     subroutine header_line_clear(self)

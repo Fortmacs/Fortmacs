@@ -74,7 +74,7 @@ module command_interpreter_mod
                         append_locals_clearer, forward_setting, choice_setting_type
     use buffer_local_setting_mod, only: buffer_local_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
-                          barf_if_buffer_read_only
+                          barf_if_buffer_read_only, MODE_LINE_BUFFER_PROCESS_STATUS
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker, copy_marker_at, &
                           detach_marker
     use insert_delete_mod, only: insert
@@ -1618,11 +1618,15 @@ contains
     !> The body of comint-mode (also run by the modes derived from it,
     !> through their parent).  Port of comint.el:comint-mode (its body).
     subroutine command_interpreter_mode_body()
-        type(mode_line_part_type) :: parts(1)
+        type(mode_line_part_type) :: parts(2)
         integer :: k
 
-        parts(1)%text = ":%s"
+        ! (":%s"): a colon, then the status of the process.
+        parts(1)%text = ":"
         parts(1)%face = ""
+        parts(2)%text = ""
+        parts(2)%part = MODE_LINE_BUFFER_PROCESS_STATUS
+        parts(2)%face = ""
         call set_mode_line_process(parts)
         call make_current_entry(k)
         call make_locals(k)

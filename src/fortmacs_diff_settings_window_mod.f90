@@ -28,7 +28,7 @@ submodule(fortmacs_diff_settings_mod) fortmacs_diff_settings_window_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use, intrinsic :: ieee_arithmetic, only: ieee_rint
     use handle_mod, only: handle_type
-    use buffer_mod, only: buffers, is_buffer_live, header_line_format_type
+    use buffer_mod, only: buffers, is_buffer_live, header_line_format_type, MODE_LINE_BUFFER_NAME
     use window_mod, only: windows, split_window_below, split_window_right
     implicit none(type, external)
 
@@ -59,7 +59,8 @@ contains
             end if
         end associate
 
-        call id%append("%b   ")
+        call id%append(MODE_LINE_BUFFER_NAME)
+        call id%append("   ")
         call id%append(trim(position), "mode_line_buffer_id")
     end function make_wide_control_buffer_id
 
