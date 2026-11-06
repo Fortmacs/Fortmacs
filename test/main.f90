@@ -39,6 +39,7 @@ program tester
     use test_replace_mod, only: collect_replace_mod
     use test_read_multiple_choice_mod, only: collect_read_multiple_choice_mod
     use test_novice_mod, only: collect_novice_mod
+    use test_warnings_mod, only: collect_warnings_mod
     use test_fill_mod, only: collect_fill_mod
     use test_newcomment_mod, only: collect_newcomment_mod
     use test_configuration_mode_mod, only: collect_configuration_mode_mod
@@ -302,6 +303,7 @@ program tester
                  new_testsuite("replace_mod", collect_replace_mod), &
                  new_testsuite("read_multiple_choice_mod", collect_read_multiple_choice_mod), &
                  new_testsuite("novice_mod", collect_novice_mod), &
+                 new_testsuite("warnings_mod", collect_warnings_mod), &
                  new_testsuite("fill_mod", collect_fill_mod), &
                  new_testsuite("newcomment_mod", collect_newcomment_mod), &
                  new_testsuite("configuration_mode_mod", collect_configuration_mode_mod), &

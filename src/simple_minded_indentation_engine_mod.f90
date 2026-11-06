@@ -51,9 +51,7 @@
 !> the answers of `simple_minded_indentation_engine_rules_function'.
 !>
 !> Deferred: marking `simple_minded_indentation_engine_configuration' as set for Customize,
-!> `simple_minded_indentation_engine_edebug', the
-!> conflict warnings (display-warning, from warnings.el, is not ported;
-!> conflicting constraints are resolved as upstream but not reported) and
+!> `simple_minded_indentation_engine_edebug' and
 !> `debug_on_error' in `simple_minded_indentation_engine_rule_separator' (a message is shown).
 module simple_minded_indentation_engine_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -91,6 +89,7 @@ module simple_minded_indentation_engine_mod
     use indent_mod, only: current_column, current_indentation, indent_line_to, move_to_column, indent_according_to_mode, &
                           indent_line_function
     use fill_mod, only: current_fill_column
+    use warnings_mod, only: display_warning
     use simple_mod, only: newline, newline_and_indent, reindent_then_newline_and_indent, blink_matching_open, &
                           blink_matching_check_mismatch, blink_matching_check_procedure, blink_matching_check_function, &
                           blink_matching_parenthesis, normal_auto_fill_function, do_auto_fill, &
@@ -768,8 +767,11 @@ contains
                     table%relative(k) = override%relative(o)
                 else
                     ! FIXME: The override is meant to resolve ambiguities,
-                    ! but it also hides real conflicts.  (The warning
-                    ! "Conflict: X OLD/VALUE Y" is deferred.)
+                    ! but it also hides real conflicts.  It would be great to
+                    ! be able to distinguish the two cases so that overrides
+                    ! don't hide real conflicts.
+                    call display_warning("simple_minded_indentation_engine", "Conflict: "//x//" "// &
+                                         relation_text(table%relative(k))//"/"//relation_text(value)//" "//y)
                     warning_count = warning_count + 1
                 end if
 
@@ -778,6 +780,23 @@ contains
         end if
 
         call prec2_set(table, x, y, value)
+
+    contains
+
+        ! The relation RELATION as text: <, = or >.
+        function relation_text(relation) result(text)
+            integer, intent(in) :: relation
+            character(len=1) :: text
+
+            select case (relation)
+            case (SIMPLE_MINDED_INDENTATION_ENGINE_LT)
+                text = "<"
+            case (SIMPLE_MINDED_INDENTATION_ENGINE_GT)
+                text = ">"
+            case default
+                text = "="
+            end select
+        end function relation_text
     end subroutine simple_minded_indentation_engine_set_prec2tab
 
     !> Compute a 2D precedence table from a list of precedences.
@@ -983,6 +1002,7 @@ contains
         type(simple_minded_indentation_engine_prec2_type), allocatable :: tables(:)
         type(string_type), allocatable :: ops(:)
         integer :: r, h, i, n, nrules, saved_count, k, j
+        character(len=40) :: count_text
 
         status = status_type()
         saved_count = warning_count
@@ -1134,8 +1154,12 @@ contains
         prec2%has_open_close = .true.
         call simple_minded_indentation_engine_backus_naur_form_closer_table(backus_naur_form, prec2%openers, prec2%closers)
         prec2%has_closer_table = .true.
-        ! (The total of warnings is not reported: display-warning is
-        ! deferred.)
+
+        if (warning_count > 0) then
+            write (count_text, "(a, i0, a)") "Total: ", warning_count, " warnings"
+            call display_warning("simple_minded_indentation_engine", trim(count_text))
+        end if
+
         warning_count = saved_count
 
     contains
@@ -1340,8 +1364,8 @@ contains
                         ! Non-terminal.
                         continue
                     else
-                        ! (The warning "token TOKEN is both CLASS and PREVIOUS" is
-                        ! deferred.)
+                        call display_warning("simple_minded_indentation_engine", "token "//token//" is both "// &
+                                             class_name(class)//" and "//class_name(previous))
                         values(m) = SIMPLE_MINDED_INDENTATION_ENGINE_NEITHER
                     end if
 
@@ -1352,6 +1376,21 @@ contains
             call append_string(table, token)
             values = [values, class]
         end subroutine set_class
+
+        ! The name of the token class CLASS, as upstream prints it.
+        function class_name(class) result(name)
+            integer, intent(in) :: class
+            character(len=:), allocatable :: name
+
+            select case (class)
+            case (SIMPLE_MINDED_INDENTATION_ENGINE_OPENER)
+                name = "opener"
+            case (SIMPLE_MINDED_INDENTATION_ENGINE_CLOSER)
+                name = "closer"
+            case default
+                name = "neither"
+            end select
+        end function class_name
     end subroutine simple_minded_indentation_engine_backus_naur_form_classify
 
     !> Take a 2D precedence table and turn it into a table of precedence levels.

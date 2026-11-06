@@ -33,7 +33,7 @@
 !> submodules calendar_julian_mod and calendar_islamic_mod.  What is not ported yet is
 !> listed in docs/status/holidays_mod.md.
 module holidays_mod
-    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE
+    use error_mod, only: status_type, set_error, format_error, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: current_buffer, set_buffer, is_buffer_live
     use calendar_mod, only: calendar_date_type, operator(==), calendar_display_type, set_calendar_display, &
@@ -60,6 +60,7 @@ module holidays_mod
     use casefiddle_mod, only: capitalize_string
     use simple_mod, only: read_variable
     use frame_mod, only: selected_frame, frame_columns
+    use warnings_mod, only: display_warning, WARNING_LEVEL_ERROR
     use search_mod, only: string_characters
     implicit none(type, external)
     private
@@ -470,22 +471,37 @@ contains
     ! ------------------------------------------------------------------
 
     !> Form the list of holidays that occur on dates in the calendar window.
-    !> The holidays are those in the list `calendar_holidays'.  Port of
-    !> holidays.el:calendar-holiday-list (an entry whose procedure fails
-    !> gives no holidays; the warning upstream displays, and
-    !> `calendar_debug_expression', are Deferred).
-    recursive subroutine calendar_holiday_list(holidays)
+    !> The holidays are those in the list `calendar_holidays'.  An entry
+    !> whose procedure fails gives no holidays and a warning; STATUS
+    !> reports an error of displaying it.  Port of
+    !> holidays.el:calendar-holiday-list (`calendar_debug_expression' is
+    !> Deferred).
+    recursive subroutine calendar_holiday_list(holidays, status)
         type(holiday_type), allocatable, intent(out) :: holidays(:)
+        type(status_type), intent(out), optional :: status
         type(holiday_type), allocatable :: h(:), res(:)
-        type(status_type) :: st
+        type(status_type) :: st, warning_status
         integer :: k
 
+        if (present(status)) status = status_type()
         call ensure_calendar_holidays()
         allocate (res(0))
 
         do k = 1, size(calendar_holidays%entries)
             call compute_entry_holidays(calendar_holidays%entries(k), h, st)
-            if (.not. st%ok()) cycle
+
+            if (.not. st%ok()) then
+                call display_warning("holidays", "Bad holiday list item: "//holiday_entry_text(calendar_holidays%entries(k))// &
+                                     achar(10)//"Error: "//format_error(st)//achar(10), WARNING_LEVEL_ERROR, status=warning_status)
+
+                if (.not. warning_status%ok()) then
+                    if (present(status)) status = warning_status
+                    allocate (holidays(0))
+                    return
+                end if
+
+                cycle
+            end if
 
             ! The holidays of an entry go before those of the entries before it.
             if (size(h) > 0) then
@@ -520,6 +536,64 @@ contains
             holidays(j + 1) = item
         end do
     end subroutine sort_holidays
+
+    ! ENTRY as its keyword constructor (the components that differ from
+    ! their defaults; procedures have no name to show), as a warning
+    ! shows a bad entry.  Not a port.
+    function holiday_entry_text(entry) result(text)
+        type(holiday_entry_type), intent(in) :: entry
+        character(len=:), allocatable :: text
+        character(len=*), parameter :: KINDS(9) = [character(len=35) :: "HOLIDAY_ENTRY_FIXED", "HOLIDAY_ENTRY_FLOAT", &
+                                                                           "HOLIDAY_ENTRY_EXPRESSION", "HOLIDAY_ENTRY_EASTER_ETC", &
+                                                                    "HOLIDAY_ENTRY_ADVENT", "HOLIDAY_ENTRY_GREEK_ORTHODOX_EASTER", &
+                                                                                  "HOLIDAY_ENTRY_JULIAN", "HOLIDAY_ENTRY_ISLAMIC", &
+                                                                                                          "HOLIDAY_ENTRY_PROCEDURE"]
+        character(len=24) :: number
+        integer :: i
+
+        if (entry%kind >= 1 .and. entry%kind <= size(KINDS)) then
+            text = "holiday_entry_type(kind="//trim(KINDS(entry%kind))
+        else
+            write (number, "(i0)") entry%kind
+            text = "holiday_entry_type(kind="//trim(number)
+        end if
+
+        if (entry%month /= 0) then
+            write (number, "(i0)") entry%month
+            text = text//", month="//trim(number)
+        end if
+
+        if (entry%day /= 0) then
+            write (number, "(i0)") entry%day
+            text = text//", day="//trim(number)
+        end if
+
+        if (entry%dayname /= 0) then
+            write (number, "(i0)") entry%dayname
+            text = text//", dayname="//trim(number)
+        end if
+
+        if (entry%n /= 0) then
+            write (number, "(i0)") entry%n
+            text = text//", n="//trim(number)
+        end if
+
+        if (len_trim(entry%string) > 0) then
+            text = text//", string="""
+
+            do i = 1, len_trim(entry%string)
+                if (entry%string(i:i) == """") then
+                    text = text//""""""
+                else
+                    text = text//entry%string(i:i)
+                end if
+            end do
+
+            text = text//""""
+        end if
+
+        text = text//")"
+    end function holiday_entry_text
 
     ! The holidays of ENTRY visible in the calendar window, what
     ! calendar-holiday-list gets for each element.  Not a port.
@@ -616,7 +690,8 @@ contains
         if (present(found)) found = .false.
         old = current_buffer()
         call message("Looking up holidays...")
-        call calendar_holiday_list(holiday_list)
+        call calendar_holiday_list(holiday_list, status)
+        if (.not. status%ok()) return
         call calendar_get_month_range(m1, y1, m2, y2)
 
         if (size(holiday_list) == 0) then
@@ -1034,7 +1109,8 @@ contains
         status = status_type()
         calendar_mark_holidays_variable = .true.
         call message("Marking holidays...")
-        call calendar_holiday_list(holiday_list)
+        call calendar_holiday_list(holiday_list, status)
+        if (.not. status%ok()) return
 
         do k = 1, size(holiday_list)
             call calendar_mark_visible_date(holiday_list(k)%date, status, face=holiday)

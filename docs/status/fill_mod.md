@@ -44,7 +44,8 @@ kinsoku (`fill-find-break-point`),
 invisible text,
 `fill-individual-paragraphs`,
 `fill-nonuniform-paragraphs`,
-`set-justification`
+`set-justification`,
+the obsolescence warning of `current-fill-column` for a `fill_column` of FILL_COLUMN_NONE (warnings.el:lwarn; `current_fill_column` is a function, and the warning would be a side effect)
 
 ## Tests
 

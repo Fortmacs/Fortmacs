@@ -13,7 +13,7 @@
 `recentf-include-p` and `recentf-keep-p` (`recentf-exclude`, `recentf-keep` as `recent_files_check_type` records: a regexp or a test; `recentf-exclude-file-by-extension-p` with `recentf-exclude-ignored-extensions`, `recentf-keep-default-predicate`),
 `recentf-filename-handlers` (`abbreviate-file-name`, `file-truename`),
 `recentf-max-saved-items`,
-`recentf-save-list` and `recentf-load-list` (namelist syntax, `recentf-save-file-modes`, `recentf-initialize-file-name-history`),
+`recentf-save-list` (its warning when the file can't be written) and `recentf-load-list` (namelist syntax, `recentf-save-file-modes`, `recentf-initialize-file-name-history`),
 `recentf-cleanup`,
 `recentf-open` (`recent_files`, completing with category `recent_files`, `recentf-menu-action`),
 `recentf-open-most-recent-file`,
@@ -26,7 +26,6 @@ the menu bar's Open Recent menu and its filters,
 the `recentf-open-files` and `recentf-edit-list` dialogs (widget.el),
 remote files,
 a time string in `recentf-auto-cleanup`,
-the warning when the file can't be written,
 obsolete functions
 
 ## Tests

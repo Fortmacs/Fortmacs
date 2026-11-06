@@ -51,6 +51,7 @@ redisplay before waiting for input (a hook, to keep keyboard_mod below display_e
 `recursive_edit_1` and the `exit` catch (`exit-recursive-edit`, `abort-recursive-edit`),
 a pre-command hook (one function; it may change `this-command`),
 `post-command-hook` (a hook; an error ends its run),
+`delayed-warnings-list` (`delayed_warnings`; `delayed-warnings-hook` runs after `post-command-hook` while it is not empty, its functions in warnings_mod),
 `has_unread_command_events`,
 C-g from SIGINT read as the quit character,
 subr.el `sit-for`,

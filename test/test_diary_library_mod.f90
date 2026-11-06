@@ -35,8 +35,9 @@ module test_diary_library_mod
     use editing_functions_mod, only: buffer_string, point_minimum, point_maximum
     use interval_tree_mod, only: overlays_in, overlay_get
     use value_mod, only: value_type
-    use display_engine_mod, only: current_message
     use bindings_mod, only: initialize_bindings
+    use startup_mod, only: after_initialization_time
+    use time_functions_mod, only: current_time
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: delete_window_tree, resize_window_tree
     use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, delete_file_internal, &
@@ -389,19 +390,36 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(diary_entry_type), allocatable :: entries(:)
         character(len=:), allocatable :: text
+        type(handle_type) :: h, old
         type(status_type) :: st
 
         call setup()
+        after_initialization_time = current_time()
+        h = get_buffer("*Warnings*")
+        if (h%index /= 0) call close_buffer(h, st)
         call write_diary("diary-bad", "11/5/2026 Good"//NEWLINE//"%%(diary-moon 1) Bad"//NEWLINE// &
                          "%%(diary-cyclic 0 1 1 2026) Zero")
         call list_diary_entries(calendar_date_type(11, 5, 2026), st, 1, .true., entries)
         call check(error, st%ok() .and. entry_lines(entries) == "11/5/2026 Good | 1/5/2026"//NEWLINE, entry_lines(entries))
-        if (allocated(error)) return
-        call current_message(text)
-        call check(error, allocated(text), "a message")
-        if (allocated(error)) return
-        call check(error, index(text, "Bad diary expression at line 3 in ") == 1 .and. &
-                   index(text, ": (diary-cyclic 0 1 1 2026): Day count must be positive") > 0, text)
+
+        if (.not. allocated(error)) then
+            text = ""
+            h = get_buffer("*Warnings*")
+
+            if (h%index /= 0) then
+                old = current_buffer()
+                call set_buffer(h, st)
+                text = buffer_string()
+                call set_buffer(old, st)
+            end if
+
+            call check(error, index(text, "Error (diary): Bad diary expression at line 2 in ") == 1 .and. &
+                       index(text, NEWLINE//"Error (diary): Bad diary expression at line 3 in ") > 0 .and. &
+                       index(text, ":"//NEWLINE//"(diary-cyclic 0 1 1 2026)"//NEWLINE// &
+                             "Error: Day count must be positive"//NEWLINE//NEWLINE) > 0, text)
+        end if
+
+        deallocate (after_initialization_time)
     end subroutine test_bad_expression
 
     ! The text of the buffer visiting the diary file.

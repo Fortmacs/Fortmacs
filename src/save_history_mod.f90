@@ -34,7 +34,8 @@
 !> is saved if it is a string, an integer, true or false, or a list of
 !> those; other values (names, nested lists) are not printable.
 !> Deferred: the text properties of saved strings, the warning about a
-!> file that can't be written (warnings.el is not ported), and the
+!> file that can't be written (it shows the system's error message from
+!> the error's data, which a status_type does not keep apart), and the
 !> obsolete `save_history_trim_history'.
 module save_history_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
@@ -653,7 +654,8 @@ contains
         call set_buffer(old, st)
 
         if (.not. status%ok()) then
-            ! (The warning is Deferred: warnings.el is not ported.)
+            ! (The warning is Deferred: it needs the system's error message
+            ! apart from the rest of the status.)
             save_history_has_given_file_warning = .true.
             status = status_type()
             return

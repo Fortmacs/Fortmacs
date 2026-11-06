@@ -21,7 +21,7 @@ minibuffer_reading_mod's `minibuffer-setup-hook`
 ## Deferred
 
 the text properties of saved strings,
-the warning when the file can't be written (warnings.el),
+the warning when the file can't be written (warnings.el:lwarn with the system's error message, an element of the error's data, which a `status_type` does not keep apart),
 the obsolete `savehist-trim-history`
 
 ## Tests

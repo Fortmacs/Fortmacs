@@ -38,9 +38,11 @@ module window_move_mod
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
-    use value_mod, only: value_type, list_elements
+    use value_mod, only: value_type, list_elements, make_keymap_reference, symbols, xsymbol, command_type
     use data_mod, only: logical_setting_type
-    use keymap_mod, only: keymap_set, define_key, where_is_internal, key_modifiers_type
+    use keymap_mod, only: keymap_set, define_key, where_is_internal, key_modifiers_type, key_parse, key_binding, lookup_key
+    use execute_interactively_mod, only: command_of
+    use warnings_mod, only: warn
     use buffer_mod, only: close_buffer
     use minibuffer_reading_mod, only: minibuf_level
     use frame_mod, only: selected_frame
@@ -324,9 +326,7 @@ contains
     !> PREFIX (a key description, "" for none) to the beginning, before
     !> installing the key.  Previous bindings of each command are unbound.
     !> If UNINSTALL is true, just remove the keys of COMMANDS.  Port of
-    !> windmove.el:windmove-install-defaults (the warnings about shadowing
-    !> `self_insert_command' or overriding a binding are Deferred:
-    !> warnings.el is not ported).
+    !> windmove.el:windmove-install-defaults.
     subroutine install_windmove_defaults(prefix, modifiers, commands_to_bind, keys, status, uninstall)
         character(len=*), intent(in) :: prefix, commands_to_bind(:), keys(:)
         type(key_modifiers_type), intent(in) :: modifiers
@@ -334,6 +334,8 @@ contains
         logical, intent(in), optional :: uninstall
         type(value_type) :: found
         type(value_type), allocatable :: seqs(:), events(:)
+        type(command_type), pointer :: binding
+        type(status_type) :: st
         character(len=:), allocatable :: key
         logical :: removing
         integer :: i, j
@@ -358,6 +360,24 @@ contains
             if (.not. removing) then
                 key = modified_key(modifiers, trim(keys(i)))
                 if (len(prefix) > 0) key = prefix//" "//key
+                call key_parse(key, events, status)
+                if (.not. status%ok()) return
+                call key_binding(events, found, st)
+                binding => command_of(found)
+
+                if (associated(binding, commands%self_insert_command)) then
+                    call warn("Command "//trim(commands_to_bind(i))//" is shadowing self-insert-key", status)
+                    if (.not. status%ok()) return
+                end if
+
+                call lookup_key(make_keymap_reference(windmove_mode_map), events, found, st)
+                binding => command_of(found)
+
+                if (associated(binding)) then
+                    call warn("Overriding "//symbols(xsymbol(found))%name//" with "//trim(commands_to_bind(i)), status)
+                    if (.not. status%ok()) return
+                end if
+
                 call keymap_set(windmove_mode_map, key, trim(commands_to_bind(i)), status)
                 if (.not. status%ok()) return
             end if

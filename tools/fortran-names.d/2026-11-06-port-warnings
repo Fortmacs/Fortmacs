@@ -1,0 +1,16 @@
+# Port of warnings.el (and subr.el's delayed warnings).
+# warning-suppress-p is a predicate: is_* (CLAUDE.md; rule-decided).
+name	warning_suppress_p	is_warning_suppressed
+# delayed-warnings-list is an array: a plain plural name, no _list
+# (CLAUDE.md; rule-decided).
+name	delayed_warnings_list	delayed_warnings
+# after-init-time spells init out, as init-file is initialization_file (no
+# abbreviations in any name, owner 2026-11-05; rule-decided).
+name	after_init_time	after_initialization_time
+# warning--display-buffer is verb first (R6-17, R6-40; rule-decided).
+name	warning_display_buffer	display_warning_buffer
+# The levels (panel 2026-11-06, #272): warning-minimum-level and
+# warning-minimum-log-level take WARNING_MINIMUM_EMERGENCY to _DEBUG; the
+# LEVEL argument of display-warning and the level of a warning-levels entry
+# are the internal family WARNING_LEVEL_EMERGENCY to _DEBUG, and code that
+# compares a setting with a warning's level maps them explicitly.

@@ -47,7 +47,7 @@ module buffer_mod
     use time_functions_mod, only: time_type
     use value_mod, only: value_type, make_symbol_reference
     use names_mod, only: intern
-    use data_mod, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type, history_setting_type
+    use data_mod, only: symbol_value, set, integer_setting_type, logical_setting_type, function_setting_type, history_setting_type
     use intervals_mod, only: intervals_type, find_interval, textget
     use character_mod, only: bytes_by_character_head, raw_previous_character_length, &
                              string_character_and_length
@@ -553,7 +553,7 @@ module buffer_mod
     public :: set_buffer, close_buffer, erase_buffer, swap_buffer_text
     public :: is_buffer_modified, restore_buffer_modified, &
               buffer_modified_tick, buffer_characters_modified_tick
-    public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only
+    public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only, inhibit_read_only_begin, inhibit_read_only_end
     public :: modiff_increment, buffer_compute_unchanged
     public :: buffer_byte_index, buffer_fetch_byte, buffer_fetch_character, &
               buffer_next_character_length, buffer_previous_character_length, buffer_bytes
@@ -1228,8 +1228,35 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call symbol_value(make_symbol_reference(intern("inhibit_read_only")), v, st)
+        call symbol_value(inhibit_read_only_name(), v, st)
     end function inhibit_read_only
+
+    !> Make `inhibit_read_only' .true. for a while, keeping its value in
+    !> SAVED for `inhibit_read_only_end'.  Not a port.
+    subroutine inhibit_read_only_begin(saved)
+        type(value_type), intent(out) :: saved
+        type(status_type) :: st
+
+        saved = inhibit_read_only()
+        call set(inhibit_read_only_name(), value_type(.true.), st)
+    end subroutine inhibit_read_only_begin
+
+    !> Give `inhibit_read_only' back the value SAVED that
+    !> `inhibit_read_only_begin' kept.  Not a port.
+    subroutine inhibit_read_only_end(saved)
+        type(value_type), intent(in) :: saved
+        type(status_type) :: st
+
+        call set(inhibit_read_only_name(), saved, st)
+    end subroutine inhibit_read_only_end
+
+    ! The name `inhibit_read_only', a variable and a text property.
+    ! Not a port.
+    function inhibit_read_only_name() result(name)
+        type(value_type) :: name
+
+        name = make_symbol_reference(intern("inhibit_read_only"))
+    end function inhibit_read_only_name
 
     !> Fail with buffer-read-only if the current buffer is read-only,
     !> unless `inhibit_read_only' is .true. or the text at `position'
@@ -1253,7 +1280,7 @@ contains
                 .and. position_value < b%end_of_accessible_portion) then
                 k = find_interval(iv, position_value)
                 properties = iv%runs(k)%plist
-                if (vtag(textget(properties, make_symbol_reference(intern("inhibit_read_only")))) /= V_NULL) return
+                if (vtag(textget(properties, inhibit_read_only_name())) /= V_NULL) return
             end if
         end associate
 

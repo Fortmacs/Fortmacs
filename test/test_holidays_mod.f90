@@ -27,7 +27,7 @@
 module test_holidays_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, get_buffer, &
                           is_buffer_live
@@ -35,6 +35,8 @@ module test_holidays_mod
     use interval_tree_mod, only: overlays_in
     use display_engine_mod, only: current_message
     use bindings_mod, only: initialize_bindings
+    use startup_mod, only: after_initialization_time
+    use time_functions_mod, only: current_time
     use handle_mod, only: null_handle
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: delete_window_tree, resize_window_tree
@@ -44,6 +46,7 @@ module test_holidays_mod
                             restore_calendar_display, calendar_unmark, calendar_mark_holidays_variable, &
                             calendar_christian_all_holidays_flag, calendar_islamic_all_holidays_flag
     use holidays_mod, only: holiday_type, holiday_entry_type, holidays_type, HOLIDAY_ENTRY_EXPRESSION, &
+                            HOLIDAY_ENTRY_PROCEDURE, &
                             holiday_easter_etc, holiday_easter_etc_absolute, holiday_greek_orthodox_easter_absolute, &
                             holiday_float, holiday_julian, holiday_advent, holiday_islamic, holiday_islamic_new_year, &
                             holiday_greek_orthodox_easter, holiday_in_range, calendar_julian_from_absolute, &
@@ -152,7 +155,8 @@ contains
                     new_unittest("holidays-expression", test_expression), &
                     new_unittest("holidays-calendar-list-holidays", test_calendar_list_holidays), &
                     new_unittest("holidays-check-holidays", test_check_holidays), &
-                    new_unittest("holidays-mark", test_mark) &
+                    new_unittest("holidays-mark", test_mark), &
+                    new_unittest("holidays-bad-entry", test_bad_entry) &
                     ]
     end subroutine collect_holidays_mod
 
@@ -421,6 +425,56 @@ contains
         if (allocated(error)) return
         call check(error, index(mode_line, "-Election Holidays for 2027-2028-") > 0, mode_line)
     end subroutine test_expression
+
+    !> A failing entry gives no holidays and the warning upstream displays
+    !> in the *Warnings* buffer.
+    subroutine test_bad_entry(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(holidays_type) :: l
+        type(handle_type) :: h, old
+        type(status_type) :: st
+        character(len=:), allocatable :: text, mode_line
+
+        call setup()
+        after_initialization_time = current_time()
+        h = get_buffer("*Warnings*")
+        if (h%index /= 0) call close_buffer(h, st)
+        call l%append(holiday_entry_type(kind=HOLIDAY_ENTRY_PROCEDURE, procedure=failing_holidays))
+        call l%append(holiday_entry_type(month=7, day=4, string="Independence Day"))
+        call list_holidays(2027, st, 2027, l, "Some Holidays")
+        call check(error, st%ok(), "list_holidays")
+
+        if (.not. allocated(error)) then
+            call holiday_buffer_text(text, mode_line)
+            call check(error, text == "Sunday, July 4, 2027: Independence Day", text)
+        end if
+
+        if (.not. allocated(error)) then
+            h = get_buffer("*Warnings*")
+            text = ""
+
+            if (h%index /= 0) then
+                old = current_buffer()
+                call set_buffer(h, st)
+                text = buffer_string()
+                call set_buffer(old, st)
+            end if
+
+            call check(error, text == "Error (holidays): Bad holiday list item: holiday_entry_type(kind=HOLIDAY_ENTRY_PROCEDURE)" &
+                       //NEWLINE//"Error: Boom"//NEWLINE//NEWLINE, text)
+        end if
+
+        deallocate (after_initialization_time)
+    end subroutine test_bad_entry
+
+    ! A holiday entry's procedure that fails.
+    recursive subroutine failing_holidays(holidays, status)
+        type(holiday_type), allocatable, intent(out) :: holidays(:)
+        type(status_type), intent(out) :: status
+
+        allocate (holidays(0))
+        call set_error(status, GENERIC_ERROR_CODE, "Boom")
+    end subroutine failing_holidays
 
     subroutine test_calendar_list_holidays(error)
         type(error_type), allocatable, intent(out) :: error

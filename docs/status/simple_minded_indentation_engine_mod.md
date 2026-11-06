@@ -6,7 +6,7 @@
 
 ## Ported
 
-the grammar conversions (`smie-bnf->prec2` with precs and (T1 REL T2) resolvers and the adjacent-nonterminal errors, `smie-precs->prec2`, `smie-merge-prec2s`, `smie-prec2->grammar` with its cycle error, `smie-set-prec2tab` with overrides, `smie-bnf--classify`, `smie-bnf--closer-alist`; insertion-ordered prec2 tables, so the levels are upstream's),
+the grammar conversions (`smie-bnf->prec2` with precs and (T1 REL T2) resolvers and the adjacent-nonterminal errors, `smie-precs->prec2`, `smie-merge-prec2s`, `smie-prec2->grammar` with its cycle error, `smie-set-prec2tab` with overrides, `smie-bnf--classify`, their warnings ("Conflict: ...", "token ... is both ...", "Total: N warnings", of the type simple_minded_indentation_engine), `smie-bnf--closer-alist`; insertion-ordered prec2 tables, so the levels are upstream's),
 the BNF,
 precs,
 prec2 and grammar as types,
@@ -31,7 +31,6 @@ smie-config (`smie-config` as an array of `simple_minded_indentation_engine_conf
 
 marking `simple_minded_indentation_engine_configuration` as set for Customize in `smie-config-save` (customize-mark-as-set),
 `smie-edebug`,
-the conflict warnings (display-warning; warnings.el is not ported),
 `debug-on-error` in `smie-rule-separator`
 
 ## Tests
