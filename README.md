@@ -102,39 +102,64 @@ Fortmacs behaves like Emacs: the same commands, keys and results, with
 Emacs's own tests ported to check it. It is not a 1:1 copy, though: its
 names, help and internals are Fortran-first.
 
-- Names use underscores (`M-x find_file`, `C-h v fill_column`,
-  `text_mode_hook`), and Lisp terms take Fortran names: defun, sexp and <!-- fortran-names: keep -->
-  alist become subprogram, expression and table (`C-M-f` is <!-- fortran-names: keep -->
-  `forward_expression`). Keys and mode-line text are unchanged.
-  PORTING.md, "Fortran names for Lisp terms", has the full list.
-- One word per meaning. Emacs's names grew over forty years, so the same
-  idea is spelled several ways; since everything is being rewritten anyway,
-  Fortmacs unifies the wording. Running anything is `execute`:
-  `call_interactively`, `run_mode_hooks` and `run_with_timer` become <!-- fortran-names: keep -->
-  `execute_interactively`, `execute_mode_hooks` and `execute_with_timer`.
-  Text is cut, copied and pasted, and the copies are kept in the
-  clipboard history: `kill_region`, `kill_ring_save`, `yank` and <!-- fortran-names: keep -->
-  `kill_ring` are `cut_region`, `copy_region`, `paste` and <!-- fortran-names: keep -->
-  `clipboard_history` (C-w, M-w and C-y stay). A buffer is closed and
-  a process stopped: `kill_buffer` and `kill_process` are <!-- fortran-names: keep -->
-  `close_buffer` and `stop_process`. Objects are made and destroyed,
-  files created and deleted (`free_marker` is `destroy_marker`, <!-- fortran-names: keep -->
-  `make_directory` is `create_directory`); arrays grow with append and <!-- fortran-names: keep -->
-  prepend (`add_auto_mode` is `prepend_auto_mode`). Predicates are <!-- fortran-names: keep -->
-  `is_*` (`process_live_p` is `is_process_live`), and other helpers <!-- fortran-names: keep -->
-  use one word each: get, not fetch; make, not new, for an object in <!-- fortran-names: keep -->
-  memory (files are created, not made). Where Emacs gives
-  two words two behaviors, both stay: cut saves to the clipboard
-  history, delete does not; read prompts, get looks up. PORTING.md,
-  "One word per meaning", has the full list.
-- Help shows Fortran values (`.true.`, `8`, `"text"`, named constants) and
-  names the Fortran file a definition lives in.
-- Settings read plainly. `.true.` and `.false.` mean what the option's name says, with no knowledge of Emacs assumed: `directory_editor_recursive_deletes = .true.` deletes directories recursively, where Emacs's `t` means "ask for each directory"; that state is the named constant `DIRECTORY_EDITOR_RECURSIVE_ASK`. Options whose Emacs values hide their meaning are renamed so that their values read plainly.
-- There is no Lisp to evaluate at run time: no `M-:`, `eval-buffer` or
-  `ielm`, and `*scratch*` starts in Fundamental mode. Changing the
-  configuration means rebuilding.
-- Configuration and packages are Fortran modules compiled into the binary;
-  commands that save settings write Fortran into `init.f90`.
+- **Fortran names.** PORTING.md, "Fortran names for Lisp terms", has the
+  full list.
+  - Names use underscores:
+    - `find-file`→`find_file` <!-- fortran-names: keep -->
+    - `fill-column`→`fill_column` <!-- fortran-names: keep -->
+    - `text-mode-hook`→`text_mode_hook` <!-- fortran-names: keep -->
+  - Lisp terms take Fortran names:
+    - defun→subprogram <!-- fortran-names: keep -->
+    - sexp→expression <!-- fortran-names: keep -->
+    - alist→table <!-- fortran-names: keep -->
+- **The same keys and mode line.** Keys and the text the mode line shows
+  are unchanged; mode-line formats are written in Fortran, never with
+  Emacs's %-constructs.
+- **One word per meaning.** Emacs's names grew over forty years, so the
+  same idea is spelled several ways; since everything is being rewritten
+  anyway, Fortmacs unifies the wording. PORTING.md, "One word per
+  meaning", has the full list.
+  - Running anything is `execute`:
+    - `call_interactively`→`execute_interactively` <!-- fortran-names: keep -->
+    - `run_mode_hooks`→`execute_mode_hooks` <!-- fortran-names: keep -->
+    - `run_with_timer`→`execute_with_timer` <!-- fortran-names: keep -->
+  - Text is cut, copied and pasted, and the copies are kept in the
+    clipboard history (C-w, M-w and C-y stay):
+    - `kill_region`→`cut_region` <!-- fortran-names: keep -->
+    - `kill_ring_save`→`copy_region` <!-- fortran-names: keep -->
+    - `yank`→`paste` <!-- fortran-names: keep -->
+    - `kill_ring`→`clipboard_history` <!-- fortran-names: keep -->
+  - A buffer is closed and a process stopped:
+    - `kill_buffer`→`close_buffer` <!-- fortran-names: keep -->
+    - `kill_process`→`stop_process` <!-- fortran-names: keep -->
+  - Objects in memory are made and destroyed, files created and deleted:
+    - `free_marker`→`destroy_marker` <!-- fortran-names: keep -->
+    - `make_directory`→`create_directory` <!-- fortran-names: keep -->
+  - Arrays grow with append and prepend:
+    - `add_auto_mode`→`prepend_auto_mode` <!-- fortran-names: keep -->
+  - Predicates are `is_*`:
+    - `process_live_p`→`is_process_live` <!-- fortran-names: keep -->
+  - Other helpers use one word each: get, not fetch; make, not new.
+  - Where Emacs gives two words two behaviors, both stay: cut saves to
+    the clipboard history, delete does not; read prompts, get looks up.
+- **Fortran in help.** Help shows Fortran values (`.true.`, `8`,
+  `"text"`, named constants) and names the Fortran file a definition
+  lives in.
+- **Settings that read plainly.**
+  - `.true.` and `.false.` mean what the option's name says, with no
+    knowledge of Emacs assumed:
+    `directory_editor_recursive_deletes = .true.` deletes directories
+    recursively.
+  - Where Emacs's `t` means something else ("ask for each directory"),
+    that state is a named constant: `DIRECTORY_EDITOR_RECURSIVE_ASK`.
+  - Options whose Emacs values hide their meaning are renamed so that
+    their values read plainly.
+- **No Lisp at run time.** There is no `M-:`, `eval-buffer` or `ielm`,
+  and `*scratch*` starts in Fundamental mode. Changing the configuration
+  means rebuilding.
+- **Configuration in Fortran.** Configuration and packages are Fortran
+  modules compiled into the binary; commands that save settings write
+  Fortran into `init.f90`.
 
 ## Why AI assistance?
 
