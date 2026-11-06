@@ -118,8 +118,10 @@ names, help and internals are Fortran-first.
 - **Names that read like plain English.** A name says what you want done,
   verb first, in everyday words, with one word for each idea: `close_buffer`,
   `cut_region`, `execute_with_timer`. Emacs's names grew over forty years,
-  so the same idea is spelled several ways; Fortmacs picks one. PORTING.md,
-  "One word per meaning", has the full list.
+  so the same idea is spelled several ways; Fortmacs picks one: get, not
+  fetch; make, not new. Where Emacs's two words mean two behaviors, both
+  stay: cut saves to the clipboard history, delete does not; read prompts,
+  get looks up. PORTING.md, "One word per meaning", has the full list.
   - Running anything is `execute`:
     - `call_interactively`→`execute_interactively` <!-- fortran-names: keep -->
     - `run_mode_hooks`→`execute_mode_hooks` <!-- fortran-names: keep -->
@@ -141,9 +143,6 @@ names, help and internals are Fortran-first.
   - Predicates are `is_*` or `has_*`:
     - `process_live_p`→`is_process_live` <!-- fortran-names: keep -->
     - `diff_some_hunks_p`→`has_diff_hunks` <!-- fortran-names: keep -->
-  - Other helpers use one word each: get, not fetch; make, not new.
-  - Where Emacs gives two words two behaviors, both stay: cut saves to
-    the clipboard history, delete does not; read prompts, get looks up.
 - **Fortran in help.** Help shows Fortran values (`.true.`, `8`,
   `"text"`, named constants) and names the Fortran file a definition
   lives in.
