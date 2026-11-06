@@ -1058,7 +1058,7 @@ contains
         type(handle_type) :: log_buffer, old
         type(status_type) :: st
         integer(int64) :: position
-        logical :: found, has, saved_follow
+        logical :: found, saved_follow
         integer :: b
 
         status = status_type()
@@ -1087,9 +1087,9 @@ contains
             ! Look for a log buffer that already displays the correct file.
             old = current_buffer()
             call set_buffer(log_buffer, st)
-            call log_view_version_control_fileset(fileset, has)
+            call log_view_version_control_fileset%get_current(fileset)
 
-            if (b == log_view_version_control_backend() .and. has) then
+            if (b == log_view_version_control_backend%value) then
                 if (size(fileset) == 1) then
                     ! Check if the entry we require can be found.
                     if (fileset(1)%text == file .and. associated(version_control_backends(b)%show_log_entry)) then

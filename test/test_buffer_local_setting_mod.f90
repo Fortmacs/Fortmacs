@@ -22,21 +22,31 @@
 !> `is_local' and `clear_local' in two buffers, on a procedure setting
 !> (`blink_matching_check_function') and on an array setting
 !> (`electric_indent_characters'), and the reuse of a closed buffer's
-!> entry; also `local_abbreviation_table', `command_interpreter_completion_fignore'
-!> and `syntax_parser_state_table'.  Not a port.
+!> entry; also `local_abbreviation_table', `command_interpreter_completion_fignore',
+!> `syntax_parser_state_table', log-view.el's per-buffer variables and
+!> `next_error_function'.  Not a port.
 module test_buffer_local_setting_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use faces_mod, only: initialize_faces
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer
-    use simple_mod, only: blink_matching_check_function, blink_matching_check_procedure
+    use simple_mod, only: blink_matching_check_function, blink_matching_check_procedure, next_error_function, &
+                          next_error_function_procedure, initialize_simple_next_error
     use electric_mod, only: electric_indent_characters
     use abbreviation_mod, only: local_abbreviation_table, global_abbreviation_table, fundamental_mode_abbreviation_table, &
                                 abbreviation_table_type
     use command_interpreter_mod, only: command_interpreter_completion_fignore
     use syntax_mod, only: syntax_table
     use syntax_propertize_mod, only: syntax_parser_state_table
+    use data_mod, only: clear_all_local_variables
+    use string_type_mod, only: string_type, append_string
+    use font_core_mod, only: font_lock_keyword_type
+    use font_lock_mod, only: font_lock_keyword
+    use log_view_mod, only: initialize_log_view, log_view_file_regular_expression, log_view_message_regular_expression, &
+                            log_view_per_file_logs, log_view_font_lock_keywords, log_view_version_control_fileset, &
+                            log_view_version_control_backend, LOG_VIEW_FILE_REGULAR_EXPRESSION_DEFAULT
     implicit none(type, external)
     private
 
@@ -56,7 +66,9 @@ contains
                     new_unittest("array-setting-per-buffer", test_array_setting), &
                     new_unittest("abbreviation-table-per-buffer", test_abbreviation_table), &
                     new_unittest("completion-fignore-per-buffer", test_completion_fignore), &
-                    new_unittest("parser-state-table-per-buffer", test_parser_state_table) &
+                    new_unittest("parser-state-table-per-buffer", test_parser_state_table), &
+                    new_unittest("log-view-settings-per-buffer", test_log_view_settings), &
+                    new_unittest("next-error-function-per-buffer", test_next_error_function) &
                     ]
     end subroutine collect_buffer_local_setting_mod
 
@@ -331,4 +343,117 @@ contains
 
         call close_buffers(b1, b2, saved)
     end subroutine test_parser_state_table
+
+    !> The per-buffer variables of log-view.el: a log buffer's own values
+    !> are seen only there, and `clear_all_local_variables' clears them.
+    subroutine test_log_view_settings(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: b1, b2, saved
+        type(status_type) :: st
+        type(string_type), allocatable :: files(:), got(:)
+        type(font_lock_keyword_type), allocatable :: keywords(:)
+
+        ! The standard faces first, as at startup: Log View defines faces too,
+        ! and test_faces_mod checks that faces.el's come first.
+        call initialize_faces()
+        call initialize_log_view()
+        call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
+        call set_buffer(b1, st)
+        call log_view_file_regular_expression%set_local("\`a\`")
+        call log_view_message_regular_expression%set_local("^commit")
+        call log_view_per_file_logs%set_local(.false.)
+        call log_view_version_control_backend%set_local(3)
+        call append_string(files, "a.f90", "b.f90")
+        call log_view_version_control_fileset%set_local(files)
+        allocate (keywords(1))
+        keywords(1) = font_lock_keyword("^commit", face="log_view_message")
+        call log_view_font_lock_keywords%set_local(keywords)
+        call log_view_version_control_fileset%get_current(got)
+        call check(error, size(got), 2, "b1 fileset")
+        if (.not. allocated(error)) call check(error, got(2)%text == "b.f90", "b1 fileset file")
+        if (.not. allocated(error)) call check(error, log_view_message_regular_expression%value == "^commit", "b1 message")
+        if (.not. allocated(error)) call check(error,.not. log_view_per_file_logs%value, "b1 per-file")
+        if (.not. allocated(error)) call check(error, int(log_view_version_control_backend%value), 3, "b1 backend")
+
+        if (.not. allocated(error)) then
+            call log_view_font_lock_keywords%get_current(keywords)
+            call check(error, size(keywords), 1, "b1 keywords")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_buffer(b2, st)
+            call log_view_version_control_fileset%get_current(got)
+            call check(error, size(got), 0, "b2 fileset")
+            if (.not. allocated(error)) call check(error,.not. log_view_version_control_fileset%is_local(), "b2 local")
+            if (.not. allocated(error)) call check(error, log_view_per_file_logs%value, "b2 per-file")
+            if (.not. allocated(error)) call check(error, int(log_view_version_control_backend%value), 0, "b2 backend")
+
+            if (.not. allocated(error)) then
+                call check(error, log_view_file_regular_expression%value == LOG_VIEW_FILE_REGULAR_EXPRESSION_DEFAULT, "b2 file")
+            end if
+
+            if (.not. allocated(error)) then
+                call log_view_font_lock_keywords%get_current(keywords)
+                call check(error, size(keywords), 2, "b2 keywords")
+            end if
+        end if
+
+        if (.not. allocated(error)) then
+            call set_buffer(b1, st)
+            call clear_all_local_variables()
+            call check(error,.not. log_view_version_control_fileset%is_local(), "cleared fileset")
+            if (.not. allocated(error)) call check(error,.not. log_view_font_lock_keywords%is_local(), "cleared keywords")
+            if (.not. allocated(error)) call check(error, log_view_per_file_logs%value, "cleared per-file")
+            if (.not. allocated(error)) call check(error, int(log_view_version_control_backend%value), 0, "cleared backend")
+
+            if (.not. allocated(error)) then
+                call check(error, log_view_file_regular_expression%value == LOG_VIEW_FILE_REGULAR_EXPRESSION_DEFAULT, &
+                           "cleared file")
+            end if
+        end if
+
+        call close_buffers(b1, b2, saved)
+    end subroutine test_log_view_settings
+
+    ! A `next_error_function' that does nothing.
+    recursive subroutine no_errors(n, reset, status)
+        integer(int64), intent(in) :: n
+        logical, intent(in) :: reset
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        if (n < 0 .and. reset) return
+    end subroutine no_errors
+
+    !> `next_error_function': a buffer's own value is seen only there, and
+    !> `clear_all_local_variables' clears it.
+    subroutine test_next_error_function(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: b1, b2, saved
+        type(status_type) :: st
+        procedure(next_error_function_procedure), pointer :: function_now
+
+        call initialize_simple_next_error()
+        call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
+        call set_buffer(b1, st)
+        call next_error_function%set_local(no_errors)
+        function_now => next_error_function%get_current()
+        call check(error, associated(function_now, no_errors), "b1")
+
+        if (.not. allocated(error)) then
+            call set_buffer(b2, st)
+            function_now => next_error_function%get_current()
+            call check(error,.not. associated(function_now), "b2")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_buffer(b1, st)
+            call clear_all_local_variables()
+            function_now => next_error_function%get_current()
+            call check(error,.not. associated(function_now), "cleared")
+            if (.not. allocated(error)) call check(error,.not. next_error_function%is_local(), "cleared local")
+        end if
+
+        call close_buffers(b1, b2, saved)
+    end subroutine test_next_error_function
 end module test_buffer_local_setting_mod

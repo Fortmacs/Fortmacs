@@ -139,8 +139,8 @@ module simple_mod
     !> `initialize_message' points it at its default, `message_user_agent').
     type(mail_user_agent_type), pointer, public :: mail_user_agent => null()
     public :: asynchronous_shell_command, shell_command_sentinel
-    public :: set_next_error_function, has_next_error_function, is_next_error_buffer, next_error_find_buffer, &
-              next_error, next_error_internal, next_error_found, initialize_simple_next_error
+    public :: is_next_error_buffer, next_error_find_buffer, next_error, next_error_internal, next_error_found, &
+              initialize_simple_next_error
     public :: fundamental_mode, special_mode, initialize_simple_modes, messages_buffer_mode, messages_buffer
     public :: set_variable, read_variable
     public :: read_only_mode, what_line, what_line_text
@@ -1195,29 +1195,39 @@ module simple_mod
     !> Port of simple.el next-error-verbose.
     type(logical_setting_type), public :: next_error_verbose = logical_setting_type(name="next_error_verbose", value=.true.)
 
+    !> One buffer's own `next_error_function'.
+    type :: next_error_entry_type
+        procedure(next_error_function_procedure), pointer, nopass :: procedure => null()
+    end type next_error_entry_type
+
+    !> The type of `next_error_function': the global value `procedure' (set
+    !> with `=>'; null for none) and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: next_error_setting_type
+        procedure(next_error_function_procedure), pointer, nopass :: procedure => null()
+        type(next_error_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_next_error_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_next_error_current
+        procedure :: append_local_entry => append_next_error_entry
+        procedure :: clear_local_entry => clear_next_error_entry
+    end type next_error_setting_type
+
+    !> Function to use to find the next error in the current buffer.
+    !> The function is called with 2 parameters:
+    !> N is an integer specifying by how many errors to move.
+    !> RESET is a logical which, if true, says to go back to the beginning
+    !> of the errors before moving.
+    !> Major modes providing compile-like functionality should set this
+    !> variable to indicate to `next_error' that this is a candidate buffer
+    !> and how to navigate in it.  Port of simple.el next-error-function
+    !> (`%procedure' is the global value, null; `%set_local' gives a buffer
+    !> its own).
+    type(next_error_setting_type), public :: next_error_function
+
     ! next-error, in submodule simple_next_error_mod.
     interface
-        !> Give the current buffer its own `next_error_function': the
-        !> function to use to find the next error in the current buffer.
-        !> The function is called with 2 parameters:
-        !> N is an integer specifying by how many errors to move.
-        !> RESET is a logical which, if true, says to go back to the
-        !> beginning of the errors before moving.
-        !> Major modes providing compile-like functionality should set this
-        !> variable to indicate to `next_error' that this is a candidate
-        !> buffer and how to navigate in it.  Port of the buffer-local setting of
-        !> simple.el next-error-function.  (In simple_next_error_mod.)
-        module subroutine set_next_error_function(fn)
-            implicit none(type, external)
-            procedure(next_error_function_procedure) :: fn
-        end subroutine set_next_error_function
-
-        !> Whether buffer slot BI has a `next_error_function'.  Not a port.
-        module logical function has_next_error_function(bi)
-            implicit none(type, external)
-            integer(int64), intent(in) :: bi
-        end function has_next_error_function
-
         !> Return true if BUFFER is a `next_error' capable buffer.
         !> If AVOID_CURRENT is true, and BUFFER is the current buffer,
         !> return false.
@@ -1688,6 +1698,48 @@ contains
 
         self%locals(k)%procedure => null()
     end subroutine clear_blink_matching_check_entry
+
+    !> Give the current buffer its own `next_error_function', LOCAL_PROCEDURE
+    !> (null when absent).  Not a port.
+    subroutine set_next_error_local(self, local_procedure)
+        class(next_error_setting_type), intent(inout) :: self
+        procedure(next_error_function_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_next_error_local
+
+    !> The current buffer's `next_error_function': its own value, else the
+    !> global one.  Not a port.
+    function get_next_error_current(self) result(current_procedure)
+        class(next_error_setting_type), intent(in) :: self
+        procedure(next_error_function_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_next_error_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_next_error_entry(self)
+        class(next_error_setting_type), intent(inout) :: self
+        type(next_error_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_next_error_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_next_error_entry(self, k)
+        class(next_error_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_next_error_entry
 
     ! kill-all-local-variables: forget the current buffer's own
     ! `blink_matching_check_function'.  Not a port.

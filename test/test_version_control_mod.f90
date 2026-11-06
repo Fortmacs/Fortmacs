@@ -1216,7 +1216,7 @@ contains
             entries = 0
 
             do
-                call regular_expression_search_forward(log_view_message_regular_expression(), found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(log_view_message_regular_expression%value, found, st, noerror=SEARCH_NOERROR)
                 if (found == 0) exit
                 entries = entries + 1
             end do

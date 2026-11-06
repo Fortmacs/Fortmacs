@@ -687,14 +687,14 @@ contains
 
     !> Major mode for SUBVERSION logs.  Port of vc-svn.el:vc-svn-log-view-mode.
     recursive subroutine version_control_subversion_log_view_mode(status)
-        use log_view_mod, only: set_log_view_per_file_logs
+        use log_view_mod, only: log_view_per_file_logs
         type(status_type), intent(out) :: status
         logical :: saved
 
         if (.not. associated(major_modes%version_control_subversion_log_view_mode%execute)) call define_log_view_mode()
         call major_modes%version_control_subversion_log_view_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call set_log_view_per_file_logs(.false.)
+        call log_view_per_file_logs%set_local(.false.)
         call major_modes%version_control_subversion_log_view_mode%end(saved, status)
     end subroutine version_control_subversion_log_view_mode
 

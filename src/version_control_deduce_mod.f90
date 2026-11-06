@@ -40,7 +40,7 @@ contains
     if (mode_p("version_control_directory_mode")) then
         b = version_control_directory_backend()
     else if (mode_p("log_view_mode")) then
-        b = log_view_version_control_backend()
+        b = int(log_view_version_control_backend%value)
     else if (mode_p("log_edit_mode")) then
         b = log_edit_version_control_backend()
     end if
@@ -55,15 +55,13 @@ contains
     end procedure version_control_directory_fileset
 
     module procedure log_view_fileset
-    logical :: has
-
     handled = mode_p("log_view_mode")
     if (.not. handled) return
     ! 'log-view-mode' stashes the backend and the fileset in the
     ! two special variables, so we use them to avoid any possible
     ! mistakes from a decision made here ad-hoc.
-    fs%backend = log_view_version_control_backend()
-    call log_view_version_control_fileset(fs%files, has)
+    fs%backend = int(log_view_version_control_backend%value)
+    call log_view_version_control_fileset%get_current(fs%files)
     end procedure log_view_fileset
 
     module procedure version_control_directory_ensure_buffer

@@ -1946,6 +1946,12 @@ Checked by hand on every PR's diff (no script can tell):
   `restore_signal`), as test_process_mod's `process-kill-buffer` does.
   It failed after 100 s with "finished" (its `sleep 100` ran out) only in
   `nohup` runs, which looked like a flake under load.
+- A test that initializes a module defining faces (Log View, diff-mode,
+  vc-dir) before faces.el's faces exist puts that module's faces first
+  in the face list, and test_faces_mod's `face-list-order` then fails
+  in the run of all the suites in one process (CI's test run), though
+  each suite passes alone: call `initialize_faces` first, as startup
+  does (#331).
 
 A newly learned hazard goes into `tools/hazards.awk` when a script can find
 it, otherwise into this checklist.

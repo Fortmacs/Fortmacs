@@ -822,9 +822,8 @@ contains
         use version_control_mod, only: version_control_log_view_type, version_control_shortlog, &
                                        VERSION_CONTROL_LOG_VIEW_LOG_UNINTEGRATED, VERSION_CONTROL_LOG_VIEW_SHORT, &
                                        VERSION_CONTROL_LOG_VIEW_LOG_INCOMING, VERSION_CONTROL_LOG_VIEW_LOG_OUTGOING
-        use log_view_mod, only: set_log_view_file_regular_expression, set_log_view_message_regular_expression, &
-                                set_log_view_per_file_logs, log_view_expanded_log_entry_function, &
-                                set_log_view_font_lock_keywords, log_view_font_lock_keywords
+        use log_view_mod, only: log_view_file_regular_expression, log_view_message_regular_expression, &
+                                log_view_per_file_logs, log_view_expanded_log_entry_function, log_view_font_lock_keywords
         use display_engine_mod, only: tab_width
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type), allocatable :: keywords(:), more(:)
@@ -845,13 +844,13 @@ contains
         end if
 
         ! A file regexp that matches nothing (regexp-unmatchable).
-        call set_log_view_file_regular_expression("\`a\`")
-        call set_log_view_per_file_logs(.false.)
+        call log_view_file_regular_expression%set_local("\`a\`")
+        call log_view_per_file_logs%set_local(.false.)
 
         if (shortp) then
-            call set_log_view_message_regular_expression(version_control_mercurial_root_log_format%regular_expression)
+            call log_view_message_regular_expression%set_local(version_control_mercurial_root_log_format%regular_expression)
         else
-            call set_log_view_message_regular_expression("^changeset:[ "//TAB//"]*\([0-9]+\):\(.+\)")
+            call log_view_message_regular_expression%set_local("^changeset:[ "//TAB//"]*\([0-9]+\):\(.+\)")
         end if
 
         call tab_width%set_local(2_int64)
@@ -864,7 +863,7 @@ contains
             keywords(1) = font_lock_keyword(version_control_mercurial_root_log_format%regular_expression, &
                                             highlights=version_control_mercurial_root_log_format%highlights)
         else
-            call log_view_font_lock_keywords(keywords)
+            call log_view_font_lock_keywords%get_current(keywords)
             allocate (more(5))
             ! Handle the case:
             ! user: FirstName LastName <foo@bar>
@@ -882,7 +881,7 @@ contains
             keywords = [keywords, more]
         end if
 
-        call set_log_view_font_lock_keywords(keywords)
+        call log_view_font_lock_keywords%set_local(keywords)
         call major_modes%version_control_mercurial_log_view_mode%end(saved, status)
 
     contains

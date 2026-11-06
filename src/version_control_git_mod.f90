@@ -1640,9 +1640,8 @@ contains
                                        VERSION_CONTROL_LOG_VIEW_LOG_SEARCH, VERSION_CONTROL_LOG_VIEW_WITH_DIFF, &
                                        VERSION_CONTROL_LOG_VIEW_SHORT, VERSION_CONTROL_LOG_VIEW_LOG_OUTGOING, &
                                        VERSION_CONTROL_LOG_VIEW_LOG_INCOMING, VERSION_CONTROL_LOG_VIEW_MERGEBASE
-        use log_view_mod, only: set_log_view_file_regular_expression, set_log_view_message_regular_expression, &
-                                set_log_view_per_file_logs, log_view_expanded_log_entry_function, &
-                                set_log_view_font_lock_keywords
+        use log_view_mod, only: log_view_file_regular_expression, log_view_message_regular_expression, &
+                                log_view_per_file_logs, log_view_expanded_log_entry_function, log_view_font_lock_keywords
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type), allocatable :: keywords(:)
         character(len=*), parameter :: TAB = achar(9)
@@ -1656,8 +1655,8 @@ contains
         if (.not. status%ok()) return
         view = version_control_log_view_type()
         ! Don't have file markers, so use impossible regexp.
-        call set_log_view_file_regular_expression("\`a\`")
-        call set_log_view_per_file_logs(.false.)
+        call log_view_file_regular_expression%set_local("\`a\`")
+        call log_view_per_file_logs%set_local(.false.)
 
         if (view == VERSION_CONTROL_LOG_VIEW_LOG_UNINTEGRATED) then
             short = version_control_shortlog()
@@ -1672,7 +1671,7 @@ contains
             message_regular_expression = "^commit +\([0-9a-z]+\)"
         end if
 
-        call set_log_view_message_regular_expression(message_regular_expression)
+        call log_view_message_regular_expression%set_local(message_regular_expression)
 
         ! Allow expanding short log entries.
         if (view == VERSION_CONTROL_LOG_VIEW_LOG_UNINTEGRATED) then
@@ -1712,7 +1711,7 @@ contains
             keywords(8) = font_lock_keyword("^summary:[ "//TAB//"]+\(.+\)", face="log_view_message", subexp=1)
         end if
 
-        call set_log_view_font_lock_keywords(keywords)
+        call log_view_font_lock_keywords%set_local(keywords)
         call major_modes%version_control_git_log_view_mode%end(saved, status)
 
     contains

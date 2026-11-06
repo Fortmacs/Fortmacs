@@ -25,10 +25,11 @@
 !> region (d, =, D, M-RET, M-n, M-p), visiting (f) or annotating (a) a
 !> revision and copying revision IDs (w).
 !>
-!> The buffer-local variables `log_view_file_regular_expression', `log_view_message_regular_expression',
-!> `log_view_per_file_logs', `log_view_expanded_log_entry_function',
-!> `log_view_version_control_fileset' and `log_view_version_control_backend' are set with
-!> `set_log_view_file_regular_expression' and its siblings, as `set_local' does.
+!> A log buffer gets its own `log_view_file_regular_expression',
+!> `log_view_message_regular_expression', `log_view_per_file_logs',
+!> `log_view_font_lock_keywords', `log_view_expanded_log_entry_function',
+!> `log_view_version_control_fileset' and `log_view_version_control_backend'
+!> with their `%set_local'.
 !>
 !> Deferred: `log_view_modify_change_comment' (e, needing the backend's
 !> `modify-change-comment'), `log_view_cherry_pick' (C), `log_view_revert_or_delete_revisions' (R),
@@ -46,10 +47,11 @@ module log_view_mod
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xstring, vtag, V_NULL
-    use data_mod, only: symbol_value, set, append_locals_clearer, value_eq
+    use data_mod, only: symbol_value, set, append_locals_clearer, value_eq, forward_setting, integer_setting_type, &
+                        logical_setting_type, string_setting_type
     use hooks_mod, only: hook_type
     use buffer_local_setting_mod, only: buffer_local_setting_type
-    use buffer_mod, only: buffers, current, current_buffer, set_buffer, buffer_serial_live, is_buffer_live, deactivate_mark_variable
+    use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, deactivate_mark_variable
     use commands_mod, only: commands
     use modes_mod, only: major_modes
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_buffer, &
@@ -88,14 +90,7 @@ module log_view_mod
               log_view_get_marked, log_view_toggle_entry_display, log_view_display_entry_and_diff, &
               log_view_beginning_of_entry, log_view_end_of_entry, log_view_find_revision, log_view_diff, &
               log_view_diff_changeset, log_view_diff_common, log_view_copy_revision, log_view_annotate_version, &
-              log_view_version_control_annotate_procedure, &
-              log_view_file_regular_expression, log_view_message_regular_expression, log_view_per_file_logs, &
-              log_view_version_control_fileset, &
-              log_view_version_control_backend, &
-              set_log_view_file_regular_expression, set_log_view_message_regular_expression, set_log_view_per_file_logs, &
-              set_log_view_version_control_fileset, &
-              set_log_view_version_control_backend, &
-              set_log_view_font_lock_keywords, log_view_font_lock_keywords, initialize_log_view
+              log_view_version_control_annotate_procedure, initialize_log_view
 
     abstract interface
         !> `log_view_expanded_log_entry_function': return in TEXT the detailed
@@ -198,23 +193,83 @@ module log_view_mod
     !> own).
     type(log_view_expanded_log_entry_setting_type), public :: log_view_expanded_log_entry_function
 
-    ! The buffer-local values of a Log View buffer, by serial number:
-    ! log-view-file-re, log-view-message-re, log-view-per-file-logs,
-    ! log-view-font-lock-keywords, log-view-vc-fileset and
-    ! log-view-vc-backend.
-    type :: local_type
-        integer(int64) :: serial = 0
-        character(len=:), allocatable :: file_regular_expression, message_regular_expression
-        logical :: has_per_file_logs = .false.
-        logical :: per_file_logs = .true.
-        logical :: has_keywords = .false.
-        type(font_lock_keyword_type), allocatable :: keywords(:)
-        logical :: has_fileset = .false.
-        type(string_type), allocatable :: fileset(:)
-        integer :: backend = 0
-    end type local_type
+    !> Regexp matching the text identifying the file.
+    !> The match group number 1 should match the file name itself.
+    !> Port of log-view.el log-view-file-re (its default
+    !> `LOG_VIEW_FILE_REGULAR_EXPRESSION_DEFAULT'; a log buffer gets its own
+    !> with `%set_local').
+    type(string_setting_type), target, public :: log_view_file_regular_expression = &
+                                                 string_setting_type(name="log_view_file_regular_expression")
 
-    type(local_type), allocatable :: locals(:)
+    !> Set to .true. if the logs are shown one file at a time.  Port of
+    !> log-view.el log-view-per-file-logs.
+    type(logical_setting_type), target, public :: log_view_per_file_logs = &
+                                                  logical_setting_type(name="log_view_per_file_logs", value=.true.)
+
+    !> Regexp matching the text identifying a revision.
+    !> The match group number 1 should match the revision number itself.
+    !> Port of log-view.el log-view-message-re (its default
+    !> `LOG_VIEW_MESSAGE_REGULAR_EXPRESSION_DEFAULT'; a log buffer gets its
+    !> own with `%set_local').
+    type(string_setting_type), target, public :: log_view_message_regular_expression = &
+                                                 string_setting_type(name="log_view_message_regular_expression")
+
+    !> One buffer's own `log_view_font_lock_keywords'.
+    type :: log_view_font_lock_keywords_entry_type
+        type(font_lock_keyword_type), allocatable :: keywords(:)
+    end type log_view_font_lock_keywords_entry_type
+
+    !> The type of `log_view_font_lock_keywords': the global value, which
+    !> highlights the lines `log_view_file_regular_expression' and
+    !> `log_view_message_regular_expression' match, and the buffers' own
+    !> values (`set_local').
+    type, extends(buffer_local_setting_type), public :: log_view_font_lock_keywords_setting_type
+        type(log_view_font_lock_keywords_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, KEYWORDS (also its
+        !> `font_lock_defaults').
+        procedure :: set_local => set_log_view_font_lock_keywords_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_log_view_font_lock_keywords_current
+        procedure :: append_local_entry => append_log_view_font_lock_keywords_entry
+        procedure :: clear_local_entry => clear_log_view_font_lock_keywords_entry
+    end type log_view_font_lock_keywords_setting_type
+
+    !> The font-lock keywords of `log_view_mode'.  Port of log-view.el
+    !> log-view-font-lock-keywords (the global value highlights the lines
+    !> the buffer's `log_view_file_regular_expression' and
+    !> `log_view_message_regular_expression' match; `%set_local' gives a
+    !> buffer its own, `%get_current' reads it).
+    type(log_view_font_lock_keywords_setting_type), public :: log_view_font_lock_keywords
+
+    !> One buffer's own `log_view_version_control_fileset'.
+    type :: log_view_version_control_fileset_entry_type
+        type(string_type), allocatable :: files(:)
+    end type log_view_version_control_fileset_entry_type
+
+    !> The type of `log_view_version_control_fileset': the global value
+    !> (no files) and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: log_view_version_control_fileset_setting_type
+        type(log_view_version_control_fileset_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, FILES.
+        procedure :: set_local => set_log_view_version_control_fileset_local
+        !> The current buffer's value: its own, else no files.
+        procedure :: get_current => get_log_view_version_control_fileset_current
+        procedure :: append_local_entry => append_log_view_version_control_fileset_entry
+        procedure :: clear_local_entry => clear_log_view_version_control_fileset_entry
+    end type log_view_version_control_fileset_setting_type
+
+    !> The VERSION_CONTROL fileset corresponding to the current log.  Port
+    !> of log-view.el log-view-vc-fileset (none unless the buffer has its
+    !> own: `%is_local', `%set_local(files)', `%get_current(files)').
+    type(log_view_version_control_fileset_setting_type), public :: log_view_version_control_fileset
+
+    !> The VERSION_CONTROL backend that created the current log (0 for
+    !> none).  Port of log-view.el log-view-vc-backend (a log buffer gets
+    !> its own with `%set_local').
+    type(integer_setting_type), target, public :: log_view_version_control_backend = &
+                                                  integer_setting_type(name="log_view_version_control_backend")
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -223,169 +278,6 @@ contains
     ! ------------------------------------------------------------------
     ! Buffer-local values
     ! ------------------------------------------------------------------
-
-    ! The index of the current buffer's entry in `locals' (0 if none).
-    ! Not a port.
-    integer function local_index() result(k)
-        k = 0
-        if (current == 0) return
-        if (.not. allocated(locals)) return
-        k = findloc(locals%serial, buffers(current)%serial, dim=1)
-    end function local_index
-
-    ! Find or make the current buffer's entry in `locals', reusing the
-    ! entry of a closed buffer; K is its index (0 without a current
-    ! buffer).  Not a port.
-    subroutine make_local_entry(k)
-        integer, intent(out) :: k
-        type(local_type) :: entry
-
-        k = local_index()
-        if (k > 0 .or. current == 0) return
-        if (.not. allocated(locals)) allocate (locals(0))
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) exit
-        end do
-
-        if (k > size(locals)) locals = [locals, entry]
-        locals(k) = local_type(serial=buffers(current)%serial)
-    end subroutine make_local_entry
-
-    ! kill-all-local-variables: forget the current buffer's values.
-    ! Not a port.
-    subroutine clear_log_view_locals()
-        integer :: k
-
-        k = local_index()
-        if (k > 0) locals(k) = local_type()
-        call log_view_expanded_log_entry_function%clear_local()
-    end subroutine clear_log_view_locals
-
-    !> The current buffer's `log_view_file_regular_expression': the regexp matching the
-    !> text identifying the file.  The match group number 1 should match
-    !> the file name itself.  Not a port.
-    function log_view_file_regular_expression() result(regular_expression)
-        character(len=:), allocatable :: regular_expression
-        integer :: k
-
-        regular_expression = LOG_VIEW_FILE_REGULAR_EXPRESSION_DEFAULT
-        k = local_index()
-
-        if (k > 0) then
-            if (allocated(locals(k)%file_regular_expression)) regular_expression = locals(k)%file_regular_expression
-        end if
-    end function log_view_file_regular_expression
-
-    !> The current buffer's `log_view_message_regular_expression': the regexp matching the
-    !> text identifying a revision.  The match group number 1 should match
-    !> the revision number itself.  Not a port.
-    function log_view_message_regular_expression() result(regular_expression)
-        character(len=:), allocatable :: regular_expression
-        integer :: k
-
-        regular_expression = LOG_VIEW_MESSAGE_REGULAR_EXPRESSION_DEFAULT
-        k = local_index()
-
-        if (k > 0) then
-            if (allocated(locals(k)%message_regular_expression)) regular_expression = locals(k)%message_regular_expression
-        end if
-    end function log_view_message_regular_expression
-
-    !> The current buffer's `log_view_per_file_logs': true if the logs are
-    !> shown one file at a time.  Not a port.
-    logical function log_view_per_file_logs()
-        integer :: k
-
-        log_view_per_file_logs = .true.
-        k = local_index()
-
-        if (k > 0) then
-            if (locals(k)%has_per_file_logs) log_view_per_file_logs = locals(k)%per_file_logs
-        end if
-    end function log_view_per_file_logs
-
-    !> The current buffer's `log_view_version_control_fileset': the VERSION_CONTROL fileset
-    !> corresponding to the current log (HAS .false. for none).  Not a port.
-    subroutine log_view_version_control_fileset(fileset, has)
-        type(string_type), allocatable, intent(out) :: fileset(:)
-        logical, intent(out) :: has
-        integer :: k
-
-        has = .false.
-        k = local_index()
-        if (k > 0) has = locals(k)%has_fileset
-
-        if (has) then
-            fileset = locals(k)%fileset
-        else
-            allocate (fileset(0))
-        end if
-    end subroutine log_view_version_control_fileset
-
-    !> The current buffer's `log_view_version_control_backend': the VERSION_CONTROL backend that
-    !> created the current log (0 for none).  Not a port.
-    integer function log_view_version_control_backend() result(b)
-        integer :: k
-
-        b = 0
-        k = local_index()
-        if (k > 0) b = locals(k)%backend
-    end function log_view_version_control_backend
-
-    !> The current buffer's `log_view_font_lock_keywords' (the default
-    !> highlights the file and message lines when not set).  Not a port.
-    subroutine log_view_font_lock_keywords(keywords)
-        type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
-        type(font_lock_highlight_type) :: h(1)
-        integer :: k
-
-        k = local_index()
-
-        if (k > 0) then
-            if (locals(k)%has_keywords) then
-                keywords = locals(k)%keywords
-                return
-            end if
-        end if
-
-        ! We use `eval' so as to use the buffer-local value of
-        ! log-view-file-re and log-view-message-re, if applicable.
-        ! ((1 (if (boundp 'cvs-filename-face) cvs-filename-face)): PCL-CVS
-        ! is not ported.)
-        allocate (keywords(2))
-        h(1) = font_lock_highlight(0, face="log_view_file", override=FONT_LOCK_OVERRIDE_APPEND)
-        keywords(1) = font_lock_keyword(log_view_file_regular_expression(), highlights=h)
-        keywords(2) = font_lock_keyword(log_view_message_regular_expression(), face="log_view_message")
-    end subroutine log_view_font_lock_keywords
-
-    !> Give the current buffer its own `log_view_file_regular_expression', REGULAR_EXPRESSION (set_local).  Not a port.
-    subroutine set_log_view_file_regular_expression(regular_expression)
-        character(len=*), intent(in) :: regular_expression
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%file_regular_expression = regular_expression
-    end subroutine set_log_view_file_regular_expression
-
-    !> Give the current buffer its own `log_view_message_regular_expression', REGULAR_EXPRESSION (set_local).  Not a port.
-    subroutine set_log_view_message_regular_expression(regular_expression)
-        character(len=*), intent(in) :: regular_expression
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%message_regular_expression = regular_expression
-    end subroutine set_log_view_message_regular_expression
-
-    !> Give the current buffer its own `log_view_per_file_logs', FLAG (set_local).  Not a port.
-    subroutine set_log_view_per_file_logs(flag)
-        logical, intent(in) :: flag
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%has_per_file_logs = .true.
-        locals(k)%per_file_logs = flag
-    end subroutine set_log_view_per_file_logs
 
     !> Give the current buffer its own value LOCAL_PROCEDURE (null when
     !> absent) of
@@ -431,35 +323,124 @@ contains
         self%locals(k)%procedure => null()
     end subroutine clear_log_view_expanded_log_entry_entry
 
-    !> Give the current buffer its own `log_view_version_control_fileset', FILESET (set_local).  Not a port.
-    subroutine set_log_view_version_control_fileset(fileset)
-        type(string_type), intent(in) :: fileset(:)
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%has_fileset = .true.
-        locals(k)%fileset = fileset
-    end subroutine set_log_view_version_control_fileset
-
-    !> Give the current buffer its own `log_view_version_control_backend', B (set_local).  Not a port.
-    subroutine set_log_view_version_control_backend(b)
-        integer, intent(in) :: b
-        integer :: k
-
-        call make_local_entry(k)
-        locals(k)%backend = b
-    end subroutine set_log_view_version_control_backend
-
-    !> Give the current buffer its own `log_view_font_lock_keywords', KEYWORDS (set_local).  Not a port.
-    subroutine set_log_view_font_lock_keywords(keywords)
+    !> Give the current buffer its own `log_view_font_lock_keywords',
+    !> KEYWORDS, and make them its `font_lock_defaults' (upstream's
+    !> font-lock-defaults name the variable, read when font-lock starts).
+    !> Not a port.
+    subroutine set_log_view_font_lock_keywords_local(self, keywords)
+        class(log_view_font_lock_keywords_setting_type), intent(inout) :: self
         type(font_lock_keyword_type), intent(in) :: keywords(:)
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%has_keywords = .true.
-        locals(k)%keywords = keywords
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%keywords = keywords
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
-    end subroutine set_log_view_font_lock_keywords
+    end subroutine set_log_view_font_lock_keywords_local
+
+    !> The current buffer's `log_view_font_lock_keywords', KEYWORDS: its
+    !> own value, else the global one, which highlights the lines the
+    !> buffer's `log_view_file_regular_expression' and
+    !> `log_view_message_regular_expression' match.  Not a port.
+    subroutine get_log_view_font_lock_keywords_current(self, keywords)
+        class(log_view_font_lock_keywords_setting_type), intent(in) :: self
+        type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
+        type(font_lock_highlight_type) :: h(1)
+        integer :: k
+
+        k = self%get_local_index()
+
+        if (k > 0) then
+            if (allocated(self%locals(k)%keywords)) then
+                keywords = self%locals(k)%keywords
+                return
+            end if
+        end if
+
+        ! We use `eval' so as to use the buffer-local value of
+        ! log-view-file-re and log-view-message-re, if applicable.
+        ! ((1 (if (boundp 'cvs-filename-face) cvs-filename-face)): PCL-CVS
+        ! is not ported.)
+        allocate (keywords(2))
+        h(1) = font_lock_highlight(0, face="log_view_file", override=FONT_LOCK_OVERRIDE_APPEND)
+        keywords(1) = font_lock_keyword(log_view_file_regular_expression%value, highlights=h)
+        keywords(2) = font_lock_keyword(log_view_message_regular_expression%value, face="log_view_message")
+    end subroutine get_log_view_font_lock_keywords_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_log_view_font_lock_keywords_entry(self)
+        class(log_view_font_lock_keywords_setting_type), intent(inout) :: self
+        type(log_view_font_lock_keywords_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_log_view_font_lock_keywords_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_log_view_font_lock_keywords_entry(self, k)
+        class(log_view_font_lock_keywords_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%keywords)) deallocate (self%locals(k)%keywords)
+    end subroutine clear_log_view_font_lock_keywords_entry
+
+    !> Give the current buffer its own `log_view_version_control_fileset',
+    !> FILES.  Not a port.
+    subroutine set_log_view_version_control_fileset_local(self, files)
+        class(log_view_version_control_fileset_setting_type), intent(inout) :: self
+        type(string_type), intent(in) :: files(:)
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%files = files
+    end subroutine set_log_view_version_control_fileset_local
+
+    !> The current buffer's `log_view_version_control_fileset', FILES: its
+    !> own value, else no files.  Not a port.
+    subroutine get_log_view_version_control_fileset_current(self, files)
+        class(log_view_version_control_fileset_setting_type), intent(in) :: self
+        type(string_type), allocatable, intent(out) :: files(:)
+        integer :: k
+
+        k = self%get_local_index()
+
+        if (k > 0) then
+            if (allocated(self%locals(k)%files)) then
+                files = self%locals(k)%files
+                return
+            end if
+        end if
+
+        allocate (files(0))
+    end subroutine get_log_view_version_control_fileset_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_log_view_version_control_fileset_entry(self)
+        class(log_view_version_control_fileset_setting_type), intent(inout) :: self
+        type(log_view_version_control_fileset_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_log_view_version_control_fileset_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_log_view_version_control_fileset_entry(self, k)
+        class(log_view_version_control_fileset_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%files)) deallocate (self%locals(k)%files)
+    end subroutine clear_log_view_version_control_fileset_entry
+
+    ! kill-all-local-variables: forget the current buffer's own
+    ! `log_view_font_lock_keywords', `log_view_version_control_fileset' and
+    ! `log_view_expanded_log_entry_function' (the forwarded settings are
+    ! cleared with the buffer's other local variables).  Not a port.
+    subroutine clear_log_view_locals()
+        call log_view_font_lock_keywords%clear_local()
+        call log_view_version_control_fileset%clear_local()
+        call log_view_expanded_log_entry_function%clear_local()
+    end subroutine clear_log_view_locals
 
     ! ------------------------------------------------------------------
     ! The mode
@@ -476,7 +457,7 @@ contains
         call major_modes%log_view_mode%begin(saved, status)
         if (.not. status%ok()) return
         buffers(current)%read_only = .true.
-        call log_view_font_lock_keywords(keywords)
+        call log_view_font_lock_keywords%get_current(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
         call major_modes%log_view_mode%end(saved, status)
     end subroutine log_view_mode
@@ -496,7 +477,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(log_view_message_regular_expression(), "log message", n, status)
+        call easy_mmode_next(log_view_message_regular_expression%value, "log message", n, status)
     end subroutine log_view_message_next
 
     !> Go to the previous COUNT'th log message.
@@ -509,7 +490,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_previous(log_view_message_regular_expression(), "log message", n, status)
+        call easy_mmode_previous(log_view_message_regular_expression%value, "log message", n, status)
     end subroutine log_view_message_previous
 
     !> Go to the next COUNT'th file.
@@ -522,7 +503,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_next(log_view_file_regular_expression(), "file", n, status)
+        call easy_mmode_next(log_view_file_regular_expression%value, "file", n, status)
     end subroutine log_view_file_next
 
     !> Go to the previous COUNT'th file.
@@ -535,7 +516,7 @@ contains
 
         n = 1
         if (present(count)) n = count
-        call easy_mmode_previous(log_view_file_regular_expression(), "file", n, status)
+        call easy_mmode_previous(log_view_file_regular_expression%value, "file", n, status)
     end subroutine log_view_file_previous
 
     !> Go to revision REVISION (FOUND false if there is none).  Port of
@@ -604,7 +585,7 @@ contains
         status = status_type()
         original_point = point()
         shortage = forward_line(1_int64)
-        regular_expression = log_view_file_regular_expression()
+        regular_expression = log_view_file_regular_expression%value
         call search_regular_expression_backward(regular_expression, found, st, noerror=SEARCH_NOERROR)
         if (found == 0) call search_regular_expression_forward(regular_expression, found, st, noerror=SEARCH_NOERROR)
 
@@ -661,7 +642,7 @@ contains
             shortage = forward_line(1_int64)
         end if
 
-        regular_expression = log_view_message_regular_expression()
+        regular_expression = log_view_message_regular_expression%value
         looping = .true.
         p = 0
 
@@ -1126,7 +1107,7 @@ contains
         logical :: looping
         type(status_type) :: st
 
-        regular_expression = log_view_message_regular_expression()
+        regular_expression = log_view_message_regular_expression%value
         looping = .true.
         if (looking_at(regular_expression, st)) call goto_character(match_end(0, st))
 
@@ -1179,14 +1160,14 @@ contains
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: fileset(:)
-        logical :: has, several
+        logical :: several
 
         status = status_type()
-        call log_view_version_control_fileset(fileset, has)
+        call log_view_version_control_fileset%get_current(fileset)
         file = ""
         if (size(fileset) > 0) file = fileset(1)%text
 
-        if (.not. log_view_per_file_logs()) then
+        if (.not. log_view_per_file_logs%value) then
             several = size(fileset) > 1 .or. size(fileset) == 0
             if (.not. several) several = is_file_directory(file)
             if (several) call set_error(status, USER_ERROR_CODE, &
@@ -1210,11 +1191,11 @@ contains
         if (.not. status%ok()) return
         original_point = point()
         call goto_character(position)
-        if (log_view_per_file_logs()) call log_view_current_file(file, status)
+        if (log_view_per_file_logs%value) call log_view_current_file(file, status)
 
         if (status%ok()) then
             call log_view_current_tag(tag, has)
-            call version_control_find_revision(file, tag, buffer, status, log_view_version_control_backend())
+            call version_control_find_revision(file, tag, buffer, status, int(log_view_version_control_backend%value))
         end if
 
         call goto_character(original_point)
@@ -1238,7 +1219,7 @@ contains
         old = current_buffer()
         original_point = point()
         call goto_character(position)
-        if (log_view_per_file_logs()) call log_view_current_file(file, status)
+        if (log_view_per_file_logs%value) call log_view_current_file(file, status)
 
         if (status%ok()) then
             call log_view_current_tag(tag, has)
@@ -1246,7 +1227,7 @@ contains
             if (.not. associated(log_view_version_control_annotate)) then
                 call set_error(status, GENERIC_ERROR_CODE, "VC-Annotate is not loaded")
             else
-                call log_view_version_control_annotate(file, tag, log_view_version_control_backend(), status)
+                call log_view_version_control_annotate(file, tag, int(log_view_version_control_backend%value), status)
             end if
         end if
 
@@ -1292,7 +1273,7 @@ contains
         integer :: b
 
         status = status_type()
-        b = log_view_version_control_backend()
+        b = int(log_view_version_control_backend%value)
 
         if (b > 0) then
             ! (eq (vc-call-backend ... 'revision-granularity) 'file): every
@@ -1319,7 +1300,6 @@ contains
         type(version_control_fileset_type) :: fs
         integer(int64) :: fr_beginning, original_point, last
         logical :: has_to, has_fr, whole, changes, has, previous
-        type(string_type), allocatable :: fileset(:)
 
         status = status_type()
         whole = .false.
@@ -1340,7 +1320,7 @@ contains
             previous = end >= last
         end if
 
-        fs%backend = log_view_version_control_backend()
+        fs%backend = int(log_view_version_control_backend%value)
 
         if (previous) then
             has = .false.
@@ -1364,13 +1344,12 @@ contains
         ! the file list.
         if (whole) then
             allocate (fs%files(0))
-        else if (log_view_per_file_logs()) then
+        else if (log_view_per_file_logs%value) then
             call log_view_current_file(file, status)
             if (.not. status%ok()) return
             call append_string(fs%files, file)
         else
-            call log_view_version_control_fileset(fileset, has)
-            fs%files = fileset
+            call log_view_version_control_fileset%get_current(fs%files)
         end if
 
         if (len(to) == 0) then
@@ -1631,5 +1610,17 @@ contains
         call keymap_set(log_view_mode_map, "TAB", "log_view_message_next", st)
         call keymap_set(log_view_mode_map, "<backtab>", "log_view_message_previous", st)
         call append_locals_clearer(clear_log_view_locals)
+        call forward_setting(log_view_file_regular_expression)
+        call forward_setting(log_view_message_regular_expression)
+        call forward_setting(log_view_per_file_logs)
+        call forward_setting(log_view_version_control_backend)
+
+        if (.not. allocated(log_view_file_regular_expression%value)) then
+            log_view_file_regular_expression = LOG_VIEW_FILE_REGULAR_EXPRESSION_DEFAULT
+        end if
+
+        if (.not. allocated(log_view_message_regular_expression%value)) then
+            log_view_message_regular_expression = LOG_VIEW_MESSAGE_REGULAR_EXPRESSION_DEFAULT
+        end if
     end subroutine initialize_log_view
 end module log_view_mod

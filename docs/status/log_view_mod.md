@@ -6,7 +6,7 @@
 
 ## Ported
 
-`log-view-mode` (read-only, the font lock of file and message lines, `log-view-file-re`, `log-view-message-re`, `log-view-per-file-logs`, `log-view-expanded-log-entry-function`, `log-view-vc-fileset`, `log-view-vc-backend` as buffer-local values),
+`log-view-mode` (read-only, the font lock of file and message lines), the per-buffer variables as setting objects: `log-view-file-re`, `log-view-message-re`, `log-view-per-file-logs` and `log-view-vc-backend` forwarded settings (`%set_local`, `%value`), `log-view-font-lock-keywords` and `log-view-vc-fileset` array settings (`%set_local`, `%get_current`, `%is_local`), cleared by kill-all-local-variables,
 `log-view-msg-next`/`-prev` (n, p, TAB, <backtab>),
 `log-view-file-next`/`-prev`,
 `log-view-goto-rev`,
@@ -42,4 +42,4 @@ directory-local variables
 
 ## Tests
 
-test_version_control_mod (own: Git logs, n and p, d, m, U, RET)
+test_version_control_mod (own: Git logs, n and p, d, m, U, RET), test_buffer_local_setting_mod (own: the per-buffer variables, kill-all-local-variables)

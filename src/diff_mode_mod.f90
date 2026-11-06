@@ -67,7 +67,7 @@ module diff_mode_mod
                           match_end, replace_match, SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: match_string
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
-    use simple_mod, only: cut_region, special_mode_map, set_next_error_function, read_only_mode_hook, is_use_region
+    use simple_mod, only: cut_region, special_mode_map, next_error_function, read_only_mode_hook, is_use_region
     use editing_functions_mod, only: region_beginning, region_end
     use file_input_output_mod, only: is_file_regular, file_exists, expand_file_name, file_name_directory, file_name_nondirectory
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, keymap_set, append_minor_mode_map, is_keymap_live, &
@@ -1918,7 +1918,7 @@ contains
         call diff_font_lock_keywords(keywords)
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
         call index_menu_patterns%set_local(diff_index_menu_patterns)
-        call set_next_error_function(diff_next_error)
+        call next_error_function%set_local(diff_next_error)
         if (diff_default_read_only) buffers(current)%read_only = .true.
         if (buffers(current)%read_only) call diff_mode_read_only%set_local(.true.)
         call read_only_mode_hook%prepend(track_read_only, local=.true.)

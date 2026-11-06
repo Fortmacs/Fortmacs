@@ -27,7 +27,7 @@
 !>
 !> Deferred: see docs/status/version_control_mod.md.
 submodule(version_control_mod) version_control_log_mod
-    use log_view_mod, only: log_view_mode, set_log_view_version_control_backend, set_log_view_version_control_fileset, &
+    use log_view_mod, only: log_view_mode, log_view_version_control_backend, log_view_version_control_fileset, &
                             log_view_goto_revision
     use execute_interactively_mod, only: PREFIX_NUMBER
     use version_control_dispatcher_mod, only: version_control_exec_after, version_control_action_type, &
@@ -152,8 +152,8 @@ contains
         call set(value_type(name="inhibit_read_only"), saved, st)
 
         if (status%ok()) then
-            call set_log_view_version_control_backend(backend)
-            call set_log_view_version_control_fileset(files)
+            call log_view_version_control_backend%set_local(backend)
+            call log_view_version_control_fileset%set_local(files)
             call make_log_buffer_entry(k)
             log_buffers(k)%has_arguments = .true.
             log_buffers(k)%backend = backend
