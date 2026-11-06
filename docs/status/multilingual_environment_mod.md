@@ -66,7 +66,8 @@ the per-buffer `current-input-method`,
 `previous-transient-input-method`,
 `input-method-history`,
 `deactivate-current-input-method-function` and `describe-current-input-method-function` (buffer_mod),
-the title in the mode line (bindings.el)
+the title in the mode line (bindings.el);
+`coding-system-from-name` and `canonicalize-coding-system-name` (step 52d, for Rmail)
 
 ## Deferred
 

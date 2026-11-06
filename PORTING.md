@@ -284,16 +284,24 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `tab-bar-mode`/`tab-line-mode`: 44a terminal frames and C-x 5 —
        done; 44b tab-bar.el on terminal frames (the tab bar line, tabs,
        C-x t, tab history; see docs/status/tab_bar_mod.md) — done; 44c
-       tab-line.el.
+       tab-line.el on terminal frames (the tab line of each window,
+       Global Tab-Line mode, switching, moving and closing tabs, grouping;
+       see docs/status/tab_line_mod.md) — done.
    45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
    46. Calendar and diary, in parts: 46a the calendar core (calendar.el
        and cal-move.el: M-x calendar, Calendar mode, movement and
        scrolling) — done; 46b the holidays (holidays.el, with the
        Julian and Islamic conversions of cal-julian.el and cal-islam.el;
-       docs/status/holidays_mod.md) — partial; then the diary, the
+       docs/status/holidays_mod.md) — partial; 46c the diary core
+       (diary-lib.el: M-x diary, the calendar's d, D, s, m and i keys,
+       the date forms, the fancy and simple displays, the expression
+       entries diary-date, diary-block, diary-float, diary-anniversary,
+       diary-cyclic, diary-offset and diary-remind read by a fixed
+       reader; docs/status/diary_library_mod.md) — partial; then the
        other calendars (cal-iso.el, the rest of cal-julian.el and the
-       others), lunar.el and solar.el (and the holidays that need them).
+       others, with their diary entries), lunar.el and solar.el (and the
+       holidays that need them).
    47. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
        and push, incoming and outgoing logs, and the vc-hg and vc-svn
        backends (vc-svn: done).
@@ -341,7 +349,13 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `mail-user-agent`: Message mode, composing with C-x m, sending
        with sendmail or SMTP, the generated headers and Fcc; MML, RFC 2047,
        news and replies deferred; see docs/status/message_mod.md) —
-       partial; then Rmail.
+       partial; 52d the Rmail core: reading mbox files and
+       new mail moved from local inboxes with lock files (rmail.el,
+       movemail.c in Fortran), Rmail mode with the summary, output,
+       editing and labels (rmailsum.el, rmailout.el, rmailedit.el,
+       rmailkwd.el) — partial (MIME display (rmailmm.el), RFC 2047
+       decoding, replying and forwarding, Babyl files, remote mailboxes
+       and sorting deferred; see docs/status/rmail_mod.md).
    53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 

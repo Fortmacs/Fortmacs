@@ -22,9 +22,9 @@
 !> Part of buffer_mod.  A submodule can use marker_mod and insert_delete_mod even
 !> though both use buffer_mod, which a module cannot.
 submodule(buffer_mod) buffer_operations_mod
-    use marker_mod, only: unchain_all_markers, clear_character_position_cache, destroy_marker
+    use marker_mod, only: unchain_all_markers, clear_character_position_cache, destroy_marker, markers
     use insert_delete_mod, only: delete_range
-    use interval_tree_mod, only: delete_all_overlays
+    use interval_tree_mod, only: delete_all_overlays, swap_buffer_overlays
     use hooks_mod, only: buffer_list_update_hook
     use data_mod, only: buffer_local_value
     use utility_functions_mod, only: value_equal
@@ -135,6 +135,124 @@ contains
 
         call delete_range(BEGINNING, buffers(current)%text%z, status)
     end subroutine erase_buffer
+
+    module subroutine swap_buffer_text(buffer, status)
+        type(handle_type), intent(in) :: buffer
+        type(status_type), intent(out) :: status
+        type(buffer_text_type) :: text
+        character(len=:), allocatable :: bytes_a, bytes_b
+        type(undo_entry_type), allocatable :: undo_entries(:)
+        integer(int64), allocatable :: undo_equiv(:)
+        type(handle_type) :: mark, this
+        integer(int64) :: other, m, n
+        integer :: direction
+        logical :: flag
+
+        status = status_type()
+        if (current == 0) return
+
+        if (.not. is_buffer_live(buffer)) then
+            call set_error(status, GENERIC_ERROR_CODE, "Cannot swap a dead buffer's text")
+            return
+        end if
+
+        other = buffer%index
+        this = current_buffer()
+
+        associate (a => buffers(current), b => buffers(other))
+            ! The text, with its markers and text properties.
+            call move_alloc(a%text%beginning, bytes_a)
+            call move_alloc(b%text%beginning, bytes_b)
+            text = a%text
+            a%text = b%text
+            b%text = text
+            call move_alloc(bytes_b, a%text%beginning)
+            call move_alloc(bytes_a, b%text%beginning)
+            n = a%point
+            a%point = b%point
+            b%point = n
+            n = a%point_byte
+            a%point_byte = b%point_byte
+            b%point_byte = n
+            n = a%beginning_of_accessible_portion
+            a%beginning_of_accessible_portion = b%beginning_of_accessible_portion
+            b%beginning_of_accessible_portion = n
+            n = a%beginning_of_accessible_portion_byte
+            a%beginning_of_accessible_portion_byte = b%beginning_of_accessible_portion_byte
+            b%beginning_of_accessible_portion_byte = n
+            n = a%end_of_accessible_portion
+            a%end_of_accessible_portion = b%end_of_accessible_portion
+            b%end_of_accessible_portion = n
+            n = a%end_of_accessible_portion_byte
+            a%end_of_accessible_portion_byte = b%end_of_accessible_portion_byte
+            b%end_of_accessible_portion_byte = n
+            ! The undo list.
+            call move_alloc(a%undo_entries, undo_entries)
+            call move_alloc(b%undo_entries, a%undo_entries)
+            call move_alloc(undo_entries, b%undo_entries)
+            n = a%undo_count
+            a%undo_count = b%undo_count
+            b%undo_count = n
+            call move_alloc(a%undo_equiv, undo_equiv)
+            call move_alloc(b%undo_equiv, a%undo_equiv)
+            call move_alloc(undo_equiv, b%undo_equiv)
+            flag = a%undo_enabled
+            a%undo_enabled = b%undo_enabled
+            b%undo_enabled = flag
+            ! The mark belongs with the text.
+            mark = a%mark
+            a%mark = b%mark
+            b%mark = mark
+            flag = a%mark_active
+            a%mark_active = b%mark_active
+            b%mark_active = flag
+            flag = a%multibyte
+            a%multibyte = b%multibyte
+            b%multibyte = flag
+            flag = a%bidirectional_display_reordering
+            a%bidirectional_display_reordering = b%bidirectional_display_reordering
+            b%bidirectional_display_reordering = flag
+            direction = a%bidirectional_paragraph_direction
+            a%bidirectional_paragraph_direction = b%bidirectional_paragraph_direction
+            b%bidirectional_paragraph_direction = direction
+            call modiff_increment(a%text%modiff, 1_int64)
+            call modiff_increment(b%text%modiff, 1_int64)
+            call modiff_increment(a%text%characters_modiff, 1_int64)
+            call modiff_increment(b%text%characters_modiff, 1_int64)
+            call modiff_increment(a%text%overlay_modiff, 1_int64)
+            call modiff_increment(b%text%overlay_modiff, 1_int64)
+            a%text%beginning_unchanged = a%text%gpt
+            a%text%end_unchanged = a%text%gpt
+            b%text%beginning_unchanged = b%text%gpt
+            b%text%end_unchanged = b%text%gpt
+        end associate
+
+        call clear_character_position_cache(current)
+        call clear_character_position_cache(other)
+        call swap_buffer_overlays(this, buffer)
+        m = buffers(current)%text%markers
+
+        do while (m /= 0)
+            if (markers(m)%buffer == other) markers(m)%buffer = current
+            m = markers(m)%next
+        end do
+
+        m = buffers(other)%text%markers
+
+        do while (m /= 0)
+            if (markers(m)%buffer == current) markers(m)%buffer = other
+            m = markers(m)%next
+        end do
+
+        ! Some of the code expects that both window markers of a live
+        ! window point to that window's buffer.  So since we just swapped
+        ! the markers between the two buffers, we need to undo the effect
+        ! of this swap for window markers.
+        if (associated(reset_window_markers_hook)) then
+            call reset_window_markers_hook(this)
+            call reset_window_markers_hook(buffer)
+        end if
+    end subroutine swap_buffer_text
 
     !> Drop `h' from the live-buffer list.  Lives here, its only user:
     !> gfortran drops private parent procedures that only a submodule uses.

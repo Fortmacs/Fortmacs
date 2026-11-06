@@ -13,8 +13,9 @@
 `set-window-start`,
 `window-point`,
 `set-window-point`,
-`window-body-height` (less the header line),
-`window_wants_header_line`;
+`window-body-height` (less the header line and the tab line),
+`window_wants_header_line`,
+`window_wants_tab_line` (step 44c; with the tab line's height and window parameters, `window_tab_line_type`, `tab-line-buffers` persistent in window configurations and states);
 scrolling: `scroll-up`,
 `scroll-down`,
 `recenter`,
@@ -169,7 +170,6 @@ resizing whole combinations other than a frame's root window and combination lim
 resizing the minibuffer window (`resize-mini-windows`) (`Fresize_mini_window_internal`, `grow_mini_window`, `shrink_mini_window`, `resize_mini_window_apply`);
 the window change hooks other than `window-configuration-change-hook` (`window-buffer-change-functions`, `window-size-change-functions`, `window-selection-change-functions`, `window-state-change-functions`, `window-state-change-hook`) (step 45) (`run_window_change_functions_globally`, `run_window_change_functions_locally`, `Fwindow_old_buffer`, `Fwindow_old_point`, `Fframe_old_selected_window`, `Fold_selected_window`);
 an error in `window-configuration-change-hook` during redisplay is not reported (redisplay has no way to pass it to the command loop yet);
-the tab line (step 44) (`window_wants_tab_line`);
 display tables (`Fwindow_display_table`, `Fset_window_display_table`, `window_display_table`);
 `scroll-margin` (`window_scroll_margin`);
 long-line optimizations (`window_scroll_for_long_lines`);
@@ -214,7 +214,8 @@ the scanner's artifacts `buffer`,
 step 44b: window.el's `window-state-get` and `window-state-put` in part (`get_window_state`, `set_window_state`, `destroy_window_state`: the selected frame's root window, markers for starts and points, put into the whole frame with new windows when the sizes are equal, as tab-bar.el uses them),
 the `tab` quit-restore type (`QR_TAB`, window.el's display-buffer-record-window) and the `tab` cases of `window-deletable-p`, `window--delete` (through `close_tab_hook`) and `quit-restore-window`,
 an ACTION function argument of `display-buffer` and `pop-to-buffer` (`action_function`),
-`set-window-configuration` resizing the windows to the frame's top margin (adjust_frame_size, when the configuration was saved with other tab bar lines)
+`set-window-configuration` resizing the windows to the frame's top margin (adjust_frame_size, when the configuration was saved with other tab bar lines);
+step 52d: `frame-first-window` public, and the window markers of buffer.c's buffer-swap-text (`reset_window_markers`)
 
 ## Deferred
 

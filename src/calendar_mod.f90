@@ -27,13 +27,16 @@
 !> since the imaginary Gregorian date Sunday, December 31, 1 BC.
 !>
 !> The holidays (holidays.el: a, h, x) are holidays_mod, which sets
-!> `calendar_mark_holidays_hook' and `calendar_list_holidays_hook'.
+!> `calendar_mark_holidays_hook' and `calendar_list_holidays_hook'; the
+!> diary (diary-lib.el: d, D, s, m and the i keys) is diary_library_mod,
+!> which sets `calendar_mark_diary_entries_hook' and
+!> `calendar_view_diary_entries_hook'.  calendar.el's diary options are
+!> here: `diary_file', `diary_nonmarking_symbol', `diary_date_forms',
+!> `calendar_mark_diary_entries_flag' and the others.
 !>
 !> Deferred to the next parts of roadmap step 46: `calendar_holiday_marker',
-!> the diary (diary-lib.el: d, D, s, m, i d and the other insert commands;
-!> `diary_file', `calendar_mark_diary_entries_flag',
-!> `calendar_view_diary_initially_flag', `diary_entry_marker', the
-!> diary check of `calendar_exit'), the other calendars (cal-iso.el,
+!> `diary_entry_marker', `diary_date_insertion_form' (the date style
+!> chooses the insertion form), the other calendars (cal-iso.el,
 !> cal-julian.el, cal-hebrew.el, cal-islam.el, cal-bahai.el, cal-china.el,
 !> cal-coptic.el, cal-persia.el, cal-french.el, cal-mayan.el: the g and
 !> p keys but g d, g D and p d, `calendar_other_dates' and
@@ -65,7 +68,7 @@
 module calendar_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
-    use handle_mod, only: handle_type
+    use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, make_keymap_reference, command_procedure
     use buffer_mod, only: buffers, current, current_buffer, get_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           close_buffer, restore_buffer_modified, erase_buffer, buffer_serial_live, force_mode_line_update, &
@@ -104,6 +107,10 @@ module calendar_mod
     use data_mod, only: append_locals_clearer
     use faces_mod, only: named_face_type, display_when, face_attributes, highlight, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
+    use configuration_mod, only: data_directory
+    use file_input_output_mod, only: expand_file_name
+    use buffer_mod, only: get_file_buffer, is_buffer_modified
+    use utility_functions_mod, only: read_yes_or_no
     implicit none(type, external)
     private
 
@@ -124,7 +131,8 @@ module calendar_mod
               calendar_displayed_month, calendar_displayed_year, calendar_total_months_local, calendar_mode_line_text, &
               initialize_calendar, calendar_local_index, has_calendar_date_property, set_calendar_display, &
               restore_calendar_display, get_calendar_month_visible_year, get_calendar_nongregorian_visible_dates, &
-              calendar_set_mode_line, calendar_in_read_only_buffer
+              calendar_set_mode_line, calendar_in_read_only_buffer, calendar_get_date_range, calendar_marked_date, &
+              ensure_diary_date_forms, diary_file_buffer
     public :: calendar_cursor_to_nearest_date, calendar_cursor_to_visible_date, calendar_goto_today, &
               calendar_forward_month, calendar_forward_year, calendar_backward_month, calendar_backward_year, &
               calendar_scroll_left, calendar_scroll_right, calendar_scroll_calendar_left, &
@@ -265,6 +273,27 @@ module calendar_mod
     !> calendar.  Port of calendar.el calendar-islamic-all-holidays-flag.
     logical, public :: calendar_islamic_all_holidays_flag = .false.
 
+    !> True means display current date's diary entries on entry to calendar.
+    !> The diary is displayed in another window when the calendar is first displayed,
+    !> if the current date is visible.  The number of days of diary entries displayed
+    !> is governed by the variable `diary_number_of_entries'.  Port of
+    !> calendar.el calendar-view-diary-initially-flag (`calendar_setup' is
+    !> Deferred).
+    logical, public :: calendar_view_diary_initially_flag = .false.
+
+    !> True means mark dates with diary entries, in the calendar window.
+    !> The dates are marked with the `diary' face.  Port of calendar.el
+    !> calendar-mark-diary-entries-flag (`diary_entry_marker', a face or a
+    !> single-character string, is Deferred).
+    logical, public :: calendar_mark_diary_entries_flag = .false.
+
+    !> True means include holidays in the diary display.
+    !> The holidays appear in the mode line of the diary buffer, or in the
+    !> fancy diary buffer next to the date.  This slows down the diary functions
+    !> somewhat; setting it to .false. makes the diary display faster.  Port
+    !> of calendar.el diary-show-holidays-flag.
+    logical, public :: diary_show_holidays_flag = .true.
+
     !> String displayed when the cursor is over a date in the calendar.
     !>
     !> Changing this variable without using customize has no effect on
@@ -313,10 +342,15 @@ module calendar_mod
     !> CALENDAR_DATE_STYLE_AMERICAN - month/day/year
     !> CALENDAR_DATE_STYLE_EUROPEAN - day/month/year
     !> CALENDAR_DATE_STYLE_ISO      - year/month/day
-    !> This affects how dates are displayed in the calendar: the date
-    !> strings of `calendar_date_string' and the month headers.  Port of
-    !> calendar.el calendar-date-style (the diary's date forms are
-    !> Deferred).
+    !> This affects how dates written in your diary are interpreted.
+    !> It also affects date display, as well as those calendar and diary
+    !> functions that take a date as an argument, e.g. the diary-date
+    !> entries, by changing the order in which the arguments are
+    !> interpreted.
+    !>
+    !> Setting this variable directly after the calendar or the diary
+    !> was first used does not change `diary_date_forms'; use
+    !> `calendar_set_date_style'.  Port of calendar.el calendar-date-style.
     integer, public :: calendar_date_style = CALENDAR_DATE_STYLE_AMERICAN
 
     !> Array of capitalized strings giving, in order from Sunday, the day names.
@@ -448,6 +482,196 @@ module calendar_mod
     !> `calendar_list_holidays', which holidays_mod sets (calendar_mod
     !> cannot use it).  Not a port.
     procedure(command_procedure), pointer, public :: calendar_list_holidays_hook => null()
+
+    !> Variable version of the user option `calendar_mark_diary_entries_flag'.
+    !> Port of calendar.el calendar-mark-diary-entries.
+    logical, public :: calendar_mark_diary_entries = .false.
+
+    !> `mark_diary_entries' (with REDRAW .false.), which diary_library_mod
+    !> sets (calendar_mod cannot use it).  Not a port.
+    procedure(command_procedure), pointer, public :: calendar_mark_diary_entries_hook => null()
+
+    !> `view_diary_entries' for one day, which diary_library_mod sets
+    !> (calendar_mod cannot use it).  Not a port.
+    procedure(command_procedure), pointer, public :: calendar_view_diary_entries_hook => null()
+
+    !> The longest part of a pseudo-pattern of `diary_date_forms'.
+    integer, parameter, public :: DIARY_DATE_FORM_PART_MAXIMUM = 80
+
+    !> The most parts of a pseudo-pattern of `diary_date_forms'.
+    integer, parameter, public :: DIARY_DATE_FORM_PARTS_MAXIMUM = 8
+
+    !> A pseudo-pattern of `diary_date_forms': its COUNT PARTS in order, each
+    !> a regular expression or one of the keywords month, day, year,
+    !> monthname and dayname, and whether the date recognizer backs up to
+    !> the beginning of the current word (BACKUP, upstream's leading
+    !> `backup').
+    type, public :: diary_date_form_type
+        logical :: backup = .false.
+        integer :: count = 0
+        character(len=DIARY_DATE_FORM_PART_MAXIMUM) :: parts(DIARY_DATE_FORM_PARTS_MAXIMUM) = ""
+    end type diary_date_form_type
+
+    !> A list of pseudo-patterns describing the forms of date used in the
+    !> diary: its ENTRIES in order.
+    type, public :: diary_date_forms_type
+        type(diary_date_form_type), allocatable :: entries(:)
+    contains
+        !> Add a pseudo-pattern at the end: its parts (a regular expression
+        !> or a keyword each), then BACKUP:
+        !> `call diary_date_forms%append("month", "/", "day", "[^/0-9]")'.
+        procedure :: append => append_diary_date_form
+        !> Remove all the pseudo-patterns.
+        procedure :: clear => clear_diary_date_forms
+    end type diary_date_forms_type
+
+    !> Name of the file in which one's personal diary of dates is kept.
+    !>
+    !> The file's entries are lines beginning with any of the forms
+    !> specified by the variable `diary_date_forms', which by default
+    !> uses the forms of `diary_american_date_forms':
+    !>
+    !>             MONTH/DAY
+    !>             MONTH/DAY/YEAR
+    !>             MONTHNAME DAY
+    !>             MONTHNAME DAY, YEAR
+    !>             DAYNAME
+    !>
+    !> with the remainder of the line being the diary entry string for
+    !> that date.  MONTH and DAY are one or two digit numbers, YEAR is a
+    !> number and may be written in full or abbreviated to the final two
+    !> digits (if `diary_abbreviated_year_flag' is .true.).  MONTHNAME
+    !> and DAYNAME can be spelled in full (as specified by the variables
+    !> `calendar_month_names' and `calendar_day_names'), or
+    !> abbreviated (as specified by `calendar_month_abbreviations' and
+    !> `calendar_day_abbreviations') with or without a period.  Case is
+    !> ignored.  Any of DAY, MONTH, or MONTHNAME, YEAR can be `*' which
+    !> matches any day, month, or year, respectively.  If the date does
+    !> not contain a year, it is generic and applies to any year.  A
+    !> DAYNAME entry applies to the appropriate day of the week in every week.
+    !>
+    !> You can customize `diary_date_forms' to your preferred format.
+    !> Three default styles are provided: `diary_american_date_forms',
+    !> `diary_european_date_forms', and `diary_iso_date_forms'.
+    !> You can choose between these by setting `calendar_date_style' in your
+    !> init file, or by using `calendar_set_date_style' when in the calendar.
+    !>
+    !> A diary entry can be preceded by the character `diary_nonmarking_symbol'
+    !> (ordinarily `&') to make that entry nonmarking--that is, it will not be
+    !> marked on dates in the calendar window but will appear in a diary window.
+    !>
+    !> Multiline diary entries are made by indenting lines after the first with
+    !> either a TAB or one or more spaces.
+    !>
+    !> Lines not in one the above formats are ignored.  Here are some sample diary
+    !> entries (in the default American style):
+    !>
+    !>      12/22/1988 Twentieth wedding anniversary!!
+    !>      &1/1. Happy New Year!
+    !>      10/22 Ruth's birthday.
+    !>      21: Payday
+    !>      Tuesday--weekly meeting with grad students at 10am
+    !>               Supowit, Shen, Bitner, and Kapoor to attend.
+    !>      1/13/89 Friday the thirteenth!!
+    !>      &thu 4pm squash game with Lloyd.
+    !>      mar 16 Dad's birthday
+    !>      April 15, 1989 Income tax due.
+    !>      &* 15 time cards due.
+    !>
+    !> If the first line of a diary entry consists only of the date or day name with
+    !> no trailing blanks or punctuation, then that line is not displayed in the
+    !> diary window; only the continuation lines is shown.  For example, the
+    !> single diary entry
+    !>
+    !>      02/11/1989
+    !>       Bill Blattner visits Princeton today
+    !>       2pm Cognitive Studies Committee meeting
+    !>       2:30-5:30 Lizzie at Lawrenceville for `Group Initiative'
+    !>       4:00pm Jamie Tappenden
+    !>       7:30pm Dinner at George and Ed's for Alan Ryan
+    !>       7:30-10:00pm dance at Stewart Country Day School
+    !>
+    !> will appear in the diary window without the date line at the beginning.  This
+    !> facility allows the diary window to look neater, but can cause confusion if
+    !> used with more than one day's entries displayed.
+    !>
+    !> Diary entries can be based on expressions.  For example, the diary entry
+    !>
+    !>       %%(diary-block 11 1 1990 11 10 1990) Vacation
+    !>
+    !> causes the diary entry "Vacation" to appear from November 1 through
+    !> November 10, 1990.  See the documentation for the function
+    !> `list_diary_expression_entries' for more details.
+    !>
+    !> Diary files can contain directives to include the contents of other files; for
+    !> details, see the documentation for the variable `diary_list_entries_hook'.
+    !> Port of calendar.el diary-file (in the data directory,
+    !> `~/.local/share/fortmacs/diary'; the entries of the other calendars,
+    !> with `diary_nongregorian_listing_hook', are Deferred).
+    character(len=:), allocatable, public :: diary_file
+
+    !> Symbol indicating that a diary entry is not to be marked in the calendar.
+    !> Port of calendar.el diary-nonmarking-symbol.
+    character(len=:), allocatable, public :: diary_nonmarking_symbol
+
+    !> List of pseudo-patterns describing the ISO style of dates.
+    !> The defaults are: MONTH[-/]DAY; YEAR[-/]MONTH[-/]DAY; MONTHNAME DAY;
+    !> YEAR MONTHNAME DAY; DAYNAME.  Normally you should not customize this,
+    !> but `diary_date_forms' (which see).  Port of calendar.el
+    !> diary-iso-date-forms.
+    type(diary_date_forms_type), public :: diary_iso_date_forms
+
+    !> List of pseudo-patterns describing the American style of dates.
+    !> The defaults are: MONTH/DAY; MONTH/DAY/YEAR; MONTHNAME DAY;
+    !> MONTHNAME DAY, YEAR; DAYNAME.  Normally you should not customize this,
+    !> but `diary_date_forms' (which see).  Port of calendar.el
+    !> diary-american-date-forms.
+    type(diary_date_forms_type), public :: diary_american_date_forms
+
+    !> List of pseudo-patterns describing the European style of dates.
+    !> The defaults are: DAY/MONTH; DAY/MONTH/YEAR; DAY MONTHNAME;
+    !> DAY MONTHNAME YEAR; DAYNAME.  Normally you should not customize this, but
+    !> `diary_date_forms' (which see).  Port of calendar.el
+    !> diary-european-date-forms.
+    type(diary_date_forms_type), public :: diary_european_date_forms
+
+    !> List of pseudo-patterns describing the forms of date used in the diary.
+    !> The patterns on the list must be MUTUALLY EXCLUSIVE and should not match
+    !> any portion of the diary entry itself, just the date component.
+    !>
+    !> A pseudo-pattern is a list of regular expressions and the keywords month,
+    !> day, year, monthname, and dayname (a part that is exactly one of these
+    !> words).  The keyword monthname will
+    !> match the name of the month (see `calendar_month_names'), capitalized
+    !> or not, or its user-specified abbreviation (see `calendar_month_abbreviations'),
+    !> followed by a period or not; it will also match `*'.  Similarly, dayname
+    !> will match the name of the day (see `calendar_day_names'), capitalized or
+    !> not, or its user-specified abbreviation (see `calendar_day_abbreviations'),
+    !> followed by a period or not.  The keywords month, day, and year will
+    !> match those numerical values, preceded by arbitrarily many zeros; they will
+    !> also match `*'.
+    !>
+    !> The matching of the diary entries with the date forms is done with the
+    !> standard syntax table from Fundamental mode, but with the `*' changed so
+    !> that it is a word constituent.
+    !>
+    !> If, to be mutually exclusive, a pseudo-pattern must match a portion of the
+    !> diary entry itself, its BACKUP must be .true.  This
+    !> directive causes the date recognizer to back up to the beginning of the
+    !> current word of the diary entry, so in no case can the pattern match more than
+    !> a portion of the first word of the diary entry.
+    !>
+    !> For examples of three common styles, see `diary_american_date_forms',
+    !> `diary_european_date_forms', and `diary_iso_date_forms'.  For example,
+    !>
+    !>     call diary_date_forms%clear()
+    !>     call diary_date_forms%append("month", "/", "day", "[^/0-9]")
+    !>     call diary_date_forms%append("dayname", "\W")
+    !>
+    !> Port of calendar.el diary-date-forms (the forms of
+    !> `calendar_date_style' when first used, unless the init file set it,
+    !> as upstream's calendar.el is loaded after the init file).
+    type(diary_date_forms_type), public :: diary_date_forms
 
     !> Name of the buffer used for the optional fancy display of the diary.
     !> Port of calendar.el diary-fancy-buffer.
@@ -1642,8 +1866,12 @@ contains
             end if
         end if
 
-        ! The diary's marks (`calendar_mark_diary_entries') are Deferred.
         if (status%ok()) then
+            ! (unwind-protect (if calendar-mark-diary-entries (diary-mark-entries)) ...)
+            if (calendar_mark_diary_entries .and. associated(calendar_mark_diary_entries_hook)) then
+                call calendar_mark_diary_entries_hook(status)
+            end if
+
             if (.not. is_calendar_date_visible(today)) then
                 call calendar_today_invisible_hook%execute(status)
             else
@@ -1729,9 +1957,9 @@ contains
         call indent_tabs_mode%set_local(.false.)
         call make_local_entry(k)
         call calendar_update_mode_line()
-        ! Init with user options (the diary's
-        ! `calendar_mark_diary_entries_flag' is Deferred).
+        ! Init with user options.
         calendar_mark_holidays_variable = calendar_mark_holidays_flag
+        calendar_mark_diary_entries = calendar_mark_diary_entries_flag
         ! Most functions only work if displayed-month and displayed-year are set,
         ! so let's make sure they're always set.  Most likely, this will be reset
         ! soon in calendar-generate, but better safe than sorry.
@@ -1851,12 +2079,11 @@ contains
     !> If optional prefix argument ARGUMENT is true, prompts for the month
     !> and year, else uses the current date.  If NODISPLAY is true, don't
     !> display the generated calendar.  Port of
-    !> calendar.el:calendar-basic-setup (the diary shown initially is
-    !> Deferred).
+    !> calendar.el:calendar-basic-setup.
     recursive subroutine calendar_basic_setup(status, argument, nodisplay)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: argument, nodisplay
-        type(handle_type) :: buffer_handle, buffer, window, sw
+        type(handle_type) :: buffer_handle, buffer, window, sw, diary_buffer
         type(calendar_date_type) :: today, date, first
         type(status_type) :: st
         integer :: month, year, saved_height, saved_width
@@ -1942,6 +2169,16 @@ contains
             end if
 
             call calendar_update_mode_line()
+
+            if (calendar_view_diary_initially_flag .and. is_calendar_date_visible(date) &
+                .and. associated(calendar_view_diary_entries_hook)) then
+                ! Do not clobber the calendar with the diary, if the diary
+                ! has previously been shown in the window that now shows the
+                ! calendar (bug#18381): the selected window shows the
+                ! calendar here, and the diary goes to another one.
+                call calendar_view_diary_entries_hook(status)
+                if (.not. status%ok()) exit setup
+            end if
         end block setup
 
         pop_up_windows = saved_pop_up
@@ -1950,9 +2187,16 @@ contains
         if (.not. status%ok()) return
 
         if (calendar_view_holidays_initially_flag .and. associated(calendar_list_holidays_hook)) then
-            ! (split-height-threshold (if diary-window 2 1000)): the
-            ! diary's window waits for the diary.
+            ! (diary-live-p): the fancy diary buffer or the buffer visiting
+            ! the diary file.
+            diary_buffer = get_buffer(diary_fancy_buffer)
+            if (.not. is_buffer_live(diary_buffer)) diary_buffer = diary_file_buffer()
             split_height_threshold = 1000
+
+            if (is_buffer_live(diary_buffer)) then
+                if (is_window_live(get_buffer_window(diary_buffer))) split_height_threshold = 2
+            end if
+
             ! FIXME display buffer?
             call calendar_list_holidays_hook(status)
             split_height_threshold = saved_height
@@ -1971,8 +2215,7 @@ contains
     end subroutine execute_calendar_basic_setup
 
     !> List of all calendar-related buffers (as buffers, not strings).
-    !> Port of calendar.el:calendar-buffer-list (the diary file's buffer
-    !> waits for the diary).
+    !> Port of calendar.el:calendar-buffer-list.
     function calendar_buffer_list() result(buffers)
         type(handle_type), allocatable :: buffers(:)
         character(len=64) :: names(7)
@@ -1986,18 +2229,38 @@ contains
         do k = 1, size(names)
             b = get_buffer(trim(names(k)))
             if (is_buffer_live(b)) buffers = [b, buffers]
+
+            ! (get-file-buffer diary-file) comes after the fancy diary.
+            if (k == 5) then
+                b = diary_file_buffer()
+                if (is_buffer_live(b)) buffers = [b, buffers]
+            end if
         end do
     end function calendar_buffer_list
 
+    !> The buffer visiting `diary_file', or the null handle.  Not a port
+    !> (calendar.el's (get-file-buffer diary-file)).
+    function diary_file_buffer() result(buffer)
+        type(handle_type) :: buffer
+        character(len=:), allocatable :: expanded
+        type(status_type) :: st
+
+        buffer = null_handle()
+        call ensure_diary_file()
+        call expand_file_name(diary_file, expanded, st)
+        if (st%ok()) buffer = get_file_buffer(expanded)
+    end function diary_file_buffer
+
     !> Get out of the calendar window and hide it and related buffers.
     !> If KILL (interactively, the prefix), close the buffers instead of
-    !> hiding them.  Port of calendar.el:calendar-exit (the diary's check
-    !> and the frames of `calendar_setup' are Deferred).
+    !> hiding them.  Port of calendar.el:calendar-exit (the frames of
+    !> `calendar_setup' are Deferred).
     recursive subroutine calendar_exit(status, kill)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: kill
         type(handle_type), allocatable :: calendar_buffers(:)
-        logical :: close_buffers
+        type(handle_type) :: diary_buffer
+        logical :: close_buffers, modified, answer
         integer :: k
         type(status_type) :: st
 
@@ -2016,7 +2279,18 @@ contains
             end if
         end if
 
+        diary_buffer = diary_file_buffer()
         calendar_buffers = calendar_buffer_list()
+
+        if (is_buffer_live(diary_buffer)) then
+            call is_buffer_modified(diary_buffer, modified, st)
+
+            if (modified) then
+                call read_yes_or_no("Diary modified; do you really want to exit the calendar? ", answer, status)
+                if (.not. status%ok()) return
+                if (.not. answer) return
+            end if
+        end if
 
         do k = 1, size(calendar_buffers)
             call quit_windows_on(calendar_buffers(k), close_buffers, st)
@@ -2177,6 +2451,37 @@ contains
             y1 = y1 - 1
         end if
     end subroutine calendar_get_month_range
+
+    !> Return the range FIRST to LAST of dates of the current calendar.
+    !> The day in the date is 1 by default.  If optional argument FULL is
+    !> true, the day in the end date is the last day.  Port of
+    !> calendar.el:calendar-get-date-range.
+    subroutine calendar_get_date_range(first, last, full)
+        type(calendar_date_type), intent(out) :: first, last
+        logical, intent(in), optional :: full
+        integer :: m1, y1, m2, y2
+
+        call calendar_get_month_range(m1, y1, m2, y2)
+        first = calendar_date_type(m1, 1, y1)
+        last = calendar_date_type(m2, 1, y2)
+
+        if (present(full)) then
+            if (full) last%day = calendar_last_day_of_month(m2, y2)
+        end if
+    end subroutine calendar_get_date_range
+
+    !> The marked date of the current calendar buffer (the first element
+    !> of `calendar_mark_ring'), `calendar_date_type()' for none.
+    !> Not a port.
+    function calendar_marked_date() result(date)
+        type(calendar_date_type) :: date
+        integer :: k
+
+        date = calendar_date_type()
+        k = calendar_local_index()
+        if (.not. allocated(locals(k)%mark_ring)) return
+        if (size(locals(k)%mark_ring) > 0) date = locals(k)%mark_ring(1)
+    end function calendar_marked_date
 
     !> Save the current buffer's displayed month and year and its number
     !> of months in SAVED and set them to MONTH, YEAR and TOTAL_MONTHS,
@@ -2761,8 +3066,7 @@ contains
     end subroutine calendar_not_implemented
 
     !> Delete all diary/holiday marks/highlighting from the calendar.
-    !> Port of calendar.el:calendar-unmark (the diary's marking flag,
-    !> `calendar_mark_diary_entries', waits for the diary).
+    !> Port of calendar.el:calendar-unmark.
     recursive subroutine calendar_unmark(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
@@ -2770,6 +3074,7 @@ contains
         integer :: k
 
         calendar_mark_holidays_variable = .false.
+        calendar_mark_diary_entries = .false.
         status = status_type()
         buffer = calendar_get_buffer()
         old = current_buffer()
@@ -2884,10 +3189,10 @@ contains
         call message(calendar_day_of_year_string(date))
     end subroutine calendar_print_day_of_year
 
-    !> Set the style of calendar dates to STYLE.
+    !> Set the style of calendar and diary dates to STYLE.
     !> The valid styles are described in the documentation of `calendar_date_style'.
-    !> Port of calendar.el:calendar-set-date-style (the diary's date forms
-    !> are Deferred).
+    !> Port of calendar.el:calendar-set-date-style (`diary_date_insertion_form'
+    !> follows the style).
     recursive subroutine calendar_set_date_style(style, status)
         integer, intent(in) :: style
         type(status_type), intent(out) :: status
@@ -2899,6 +3204,7 @@ contains
             calendar_date_style = CALENDAR_DATE_STYLE_AMERICAN
         end select
 
+        call set_style_diary_date_forms()
         call calendar_redraw(status)
     end subroutine calendar_set_date_style
 
@@ -2924,6 +3230,104 @@ contains
             call calendar_set_date_style(CALENDAR_DATE_STYLE_AMERICAN, status)
         end select
     end subroutine execute_calendar_set_date_style
+
+    ! ------------------------------------------------------------------
+    ! The diary's options
+    ! ------------------------------------------------------------------
+
+    !> Add the pseudo-pattern of PART1 to PART8 (each a regular expression
+    !> or one of the keywords month, day, year, monthname and dayname) at
+    !> the end of SELF; BACKUP makes the date recognizer back up to the
+    !> beginning of the current word.  Not a port.
+    subroutine append_diary_date_form(self, part1, part2, part3, part4, part5, part6, part7, part8, backup)
+        class(diary_date_forms_type), intent(inout) :: self
+        character(len=*), intent(in) :: part1
+        character(len=*), intent(in), optional :: part2, part3, part4, part5, part6, part7, part8
+        logical, intent(in), optional :: backup
+        type(diary_date_form_type) :: form
+
+        if (present(backup)) form%backup = backup
+        call add_part(part1)
+        if (present(part2)) call add_part(part2)
+        if (present(part3)) call add_part(part3)
+        if (present(part4)) call add_part(part4)
+        if (present(part5)) call add_part(part5)
+        if (present(part6)) call add_part(part6)
+        if (present(part7)) call add_part(part7)
+        if (present(part8)) call add_part(part8)
+        if (.not. allocated(self%entries)) allocate (self%entries(0))
+        self%entries = [self%entries, form]
+
+    contains
+
+        subroutine add_part(part)
+            character(len=*), intent(in) :: part
+
+            form%count = form%count + 1
+            form%parts(form%count) = part
+        end subroutine add_part
+    end subroutine append_diary_date_form
+
+    !> Remove all the pseudo-patterns of SELF.  Not a port.
+    subroutine clear_diary_date_forms(self)
+        class(diary_date_forms_type), intent(inout) :: self
+
+        if (allocated(self%entries)) deallocate (self%entries)
+        allocate (self%entries(0))
+    end subroutine clear_diary_date_forms
+
+    ! The three styles' pseudo-patterns of calendar.el.  Not a port.
+    subroutine set_default_diary_date_forms()
+        call diary_iso_date_forms%clear()
+        call diary_iso_date_forms%append("month", "[-/]", "day", "[^-/0-9]")
+        call diary_iso_date_forms%append("year", "[-/]", "month", "[-/]", "day", "[^0-9]")
+        ! Cannot allow [-/] as separators here, since it would also match
+        ! the first element (bug#7377).
+        call diary_iso_date_forms%append("monthname", " *", "day", "[^-0-9]")
+        call diary_iso_date_forms%append("year", " *", "monthname", " *", "day", "[^0-9]")
+        call diary_iso_date_forms%append("dayname", "\W")
+        call diary_american_date_forms%clear()
+        call diary_american_date_forms%append("month", "/", "day", "[^/0-9]")
+        call diary_american_date_forms%append("month", "/", "day", "/", "year", "[^0-9]")
+        call diary_american_date_forms%append("monthname", " *", "day", "[^,0-9]")
+        call diary_american_date_forms%append("monthname", " *", "day", ", *", "year", "[^0-9]")
+        call diary_american_date_forms%append("dayname", "\W")
+        call diary_european_date_forms%clear()
+        call diary_european_date_forms%append("day", "/", "month", "[^/0-9]")
+        call diary_european_date_forms%append("day", "/", "month", "/", "year", "[^0-9]")
+        call diary_european_date_forms%append("day", " *", "monthname", "\W+\<\([^*0-9]\|\([0-9]+[:.aApP]\)\)", &
+                                              backup=.true.)
+        call diary_european_date_forms%append("day", " *", "monthname", " *", "year", "[^0-9:.aApP]")
+        call diary_european_date_forms%append("dayname", "\W")
+    end subroutine set_default_diary_date_forms
+
+    ! Set `diary_date_forms' to the pseudo-patterns of `calendar_date_style'
+    ! (calendar-set-date-style's setq of diary-date-forms).  Not a port.
+    subroutine set_style_diary_date_forms()
+        select case (calendar_date_style)
+        case (CALENDAR_DATE_STYLE_ISO)
+            diary_date_forms = diary_iso_date_forms
+        case (CALENDAR_DATE_STYLE_EUROPEAN)
+            diary_date_forms = diary_european_date_forms
+        case default
+            diary_date_forms = diary_american_date_forms
+        end select
+    end subroutine set_style_diary_date_forms
+
+    !> Give `diary_date_forms' the pseudo-patterns of `calendar_date_style'
+    !> unless it has its own (the default value of calendar.el's
+    !> diary-date-forms, computed when the diary is first used).
+    !> Not a port.
+    subroutine ensure_diary_date_forms()
+        if (.not. allocated(diary_date_forms%entries)) call set_style_diary_date_forms()
+    end subroutine ensure_diary_date_forms
+
+    ! Give `diary_file' and `diary_nonmarking_symbol' their default values
+    ! unless they have their own.  Not a port.
+    subroutine ensure_diary_file()
+        if (.not. allocated(diary_file)) diary_file = data_directory()//"diary"
+        if (.not. allocated(diary_nonmarking_symbol)) diary_nonmarking_symbol = "&"
+    end subroutine ensure_diary_file
 
     ! ------------------------------------------------------------------
     ! Definitions
@@ -2983,6 +3387,8 @@ contains
 
         if (.not. allocated(calendar_intermonth_header)) calendar_intermonth_header = ""
         if (.not. allocated(calendar_intermonth_text)) calendar_intermonth_text = ""
+        call ensure_diary_file()
+        call set_default_diary_date_forms()
         call ensure_locals()
         call append_locals_clearer(clear_calendar_locals)
         call define_faces()

@@ -167,6 +167,7 @@ program tester
     use test_save_history_mod, only: collect_save_history_mod
     use test_winner_mod, only: collect_winner_mod
     use test_tab_bar_mod, only: collect_tab_bar_mod
+    use test_tab_line_mod, only: collect_tab_line_mod
     use test_window_move_mod, only: collect_window_move_mod
     use test_saveplace_mod, only: collect_saveplace_mod
     use test_recent_files_mod, only: collect_recent_files_mod
@@ -180,10 +181,17 @@ program tester
     use test_send_mail_mod, only: collect_send_mail_mod
     use test_message_mod, only: collect_message_mod
     use test_smtpmail_mod, only: collect_smtpmail_mod
+    use test_movemail_mod, only: collect_movemail_mod
+    use test_rmail_mod, only: collect_rmail_mod
+    use test_rmail_keywords_mod, only: collect_rmail_keywords_mod
+    use test_rmail_edit_mod, only: collect_rmail_edit_mod
+    use test_rmail_output_mod, only: collect_rmail_output_mod
+    use test_rmail_summary_mod, only: collect_rmail_summary_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buffer_menu_mod, only: collect_buffer_menu_mod
     use test_calendar_mod, only: collect_calendar_mod
     use test_holidays_mod, only: collect_holidays_mod
+    use test_diary_library_mod, only: collect_diary_library_mod
     use test_ibuffer_mod, only: collect_ibuffer_mod
     use test_ibuffer_extensions_mod, only: collect_ibuffer_extensions_mod
     use test_time_date_mod, only: collect_time_date_mod
@@ -345,6 +353,7 @@ program tester
                  new_testsuite("save_history_mod", collect_save_history_mod), &
                  new_testsuite("winner_mod", collect_winner_mod), &
                  new_testsuite("tab_bar_mod", collect_tab_bar_mod), &
+                 new_testsuite("tab_line_mod", collect_tab_line_mod), &
                  new_testsuite("window_move_mod", collect_window_move_mod), &
                  new_testsuite("saveplace_mod", collect_saveplace_mod), &
                  new_testsuite("recent_files_mod", collect_recent_files_mod), &
@@ -352,6 +361,7 @@ program tester
                  new_testsuite("buffer_menu_mod", collect_buffer_menu_mod), &
                  new_testsuite("calendar_mod", collect_calendar_mod), &
                  new_testsuite("holidays_mod", collect_holidays_mod), &
+                 new_testsuite("diary_library_mod", collect_diary_library_mod), &
                  new_testsuite("ibuffer_mod", collect_ibuffer_mod), &
                  new_testsuite("ibuffer_extensions_mod", collect_ibuffer_extensions_mod), &
                  new_testsuite("time_date_mod", collect_time_date_mod), &
@@ -366,7 +376,13 @@ program tester
                  new_testsuite("mail_abbreviations_mod", collect_mail_abbreviations_mod), &
                  new_testsuite("send_mail_mod", collect_send_mail_mod), &
                  new_testsuite("message_mod", collect_message_mod), &
-                 new_testsuite("smtpmail_mod", collect_smtpmail_mod) &
+                 new_testsuite("smtpmail_mod", collect_smtpmail_mod), &
+                 new_testsuite("movemail_mod", collect_movemail_mod), &
+                 new_testsuite("rmail_mod", collect_rmail_mod), &
+                 new_testsuite("rmail_keywords_mod", collect_rmail_keywords_mod), &
+                 new_testsuite("rmail_edit_mod", collect_rmail_edit_mod), &
+                 new_testsuite("rmail_output_mod", collect_rmail_output_mod), &
+                 new_testsuite("rmail_summary_mod", collect_rmail_summary_mod) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

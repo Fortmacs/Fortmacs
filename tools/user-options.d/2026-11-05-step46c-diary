@@ -1,0 +1,19 @@
+# The user options of step 46c, the diary (diary-lib.el, calendar.el).
+calendar_mark_diary_entries_flag
+calendar_view_diary_initially_flag
+diary_abbreviated_year_flag
+diary_american_date_forms
+diary_comment_end
+diary_comment_start
+diary_date_forms
+diary_european_date_forms
+diary_expression_entry_symbol
+diary_file
+diary_file_name_prefix
+diary_include_string
+diary_iso_date_forms
+diary_list_include_blanks
+diary_nonmarking_symbol
+diary_number_of_entries
+diary_show_holidays_flag
+diary_unknown_time

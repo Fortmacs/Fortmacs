@@ -1,0 +1,56 @@
+# Step 46c, the diary (diary-lib.el, calendar.el), decided by rule and
+# reported in the PR: procedures and commands verb first (R6-17, R6-40),
+# a verb taken from what the procedure does where the name has none
+# (diary-simple-display displays, diary-sexp-entry processes an entry,
+# diary-make-entry inserts an entry string: make_ is for objects in memory),
+# append_ for growing an array (one word per meaning: diary-add-to-list),
+# plural array names (diary-entries-list), sexp -> expression (term).
+# The entry functions of the diary file (diary-date, diary-block,
+# diary-float, diary-anniversary, diary-cyclic, diary-offset,
+# diary-remind, diary-day-of-year) keep their names, as the forms the
+# file names them by; they are private to diary_library_mod.
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+name	diary_view_entries	view_diary_entries
+name	diary_view_other_diary_entries	view_other_diary_entries
+name	diary_show_all_entries	show_all_diary_entries
+name	diary_mark_entries	mark_diary_entries
+name	diary_mark_entries_1	mark_diary_entries_1
+name	diary_insert_entry	insert_diary_entry
+name	diary_insert_entry_1	insert_diary_entry_1
+name	diary_insert_weekly_entry	insert_weekly_diary_entry
+name	diary_insert_monthly_entry	insert_monthly_diary_entry
+name	diary_insert_yearly_entry	insert_yearly_diary_entry
+name	diary_insert_anniversary_entry	insert_anniversary_diary_entry
+name	diary_insert_block_entry	insert_block_diary_entry
+name	diary_insert_cyclic_entry	insert_cyclic_diary_entry
+name	diary_list_entries	list_diary_entries
+name	diary_list_entries_2	list_diary_entries_2
+name	diary_list_sexp_entries	list_diary_expression_entries
+name	diary_mark_sexp_entries	mark_diary_expression_entries
+name	diary_sexp_entry	process_diary_expression_entry
+name	diary_add_to_list	append_diary_entry
+name	diary_display_no_entries	display_no_diary_entries
+name	diary_simple_display	display_simple_diary
+name	diary_fancy_display	display_fancy_diary
+name	diary_unhide_everything	unhide_diary_everything
+name	diary_check_diary_file	check_diary_file
+name	diary_include_files	include_diary_files
+name	diary_include_other_diary_files	include_other_diary_files
+name	diary_mark_included_diary_files	mark_included_diary_files
+name	diary_goto_entry	goto_diary_entry
+name	diary_sort_entries	sort_diary_entries
+name	diary_make_date	make_diary_date
+name	diary_make_entry	insert_diary_entry_string
+name	diary_redraw_calendar	redraw_diary_calendar
+name	calendar_mark_days_named	mark_calendar_days_named
+name	calendar_mark_month	mark_calendar_month
+name	calendar_mark_date_pattern	mark_calendar_date_pattern
+name	diary_entries_list	diary_entries
+name	diary_sexp_entry_symbol	diary_expression_entry_symbol
+keep	diary_list_entries_hook
+keep	diary_mark_entries_hook
+keep	diary_fancy_display_mode
+keep	diary_fancy_display_mode_hook
