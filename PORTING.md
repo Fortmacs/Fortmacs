@@ -1157,8 +1157,8 @@ procedure, procedure pointer or binding named `run`, `run_*` or
 a verb takes one from what it does (`undo_window_change`); keys and
 behavior are unchanged.  The verb-last names in the tables below
 (`kmacro_execute_*`, `hook_execute`, `table_destroy`, `history_append`,
-`hook_append`, `buffer_order_append`, `process_order_prepend`, the
-`X_set_local` examples) keep their form until the verb-first rename
+`hook_append`, `buffer_order_append`, `process_order_prepend`,
+`abbreviation_table_set_local`) keep their form until the verb-first rename
 (R6-17).
 
 **Running something: execute (V1).**  Commands, keyboard macros, hooks,
@@ -1190,9 +1190,10 @@ words (a name whose citation uses the word stays: `buffer_fetch_character`,
 | read a value | get (fetch) | `get_character_before` |
 | construct | make_ (new_) | `make_info`, `make_node`, `make_table`, `make_token`, `make_keymap_slot` (keymap_mod's `make_keymap` is upstream's) |
 | destroy | destroy_ (release, free_; R2-Q6) | `destroy_dead_window`, `table_destroy` (until the verb-first rename, R6-17), `destroy_marker_if_live`, `destroy_marker_position` |
-| forget a buffer-local value | clear_local, clear_X_locals (drop_local, free_local, reset_local, kill_local; R2-Q3) | isearch's `%clear_local`, `search_function_clear_local`, data_buffer_mod's `clear_local` |
-| a setting's local value | set_local_X, clear_local_X (X_set_local, X_clear_local; R6-17) | `abbreviation_table_set_local`, `blink_matching_check_function_clear_local`, `electric_indent_characters_set_local` (until the verb-first rename, R6-17) |
-| a setting's current value | current_X, the binding `%current` (X_get, `%get`) | `fill_paragraph_function%current()`, `current_adaptive_fill`, `current_message_function` |
+| forget a buffer-local value | clear_local, clear_X_locals (drop_local, free_local, reset_local, kill_local; R2-Q3) | the setting objects' `%clear_local`, `clear_incremental_search_locals`, data_buffer_mod's `clear_local` |
+| a setting's local value | the bindings `%set_local`, `%clear_local` (set_local_X, X_set_local, X_clear_local; panel 14) | `blink_matching_check_function%set_local(check)`, `electric_indent_characters%clear_local()`; `abbreviation_table_set_local` (until the verb-first rename, R6-17) |
+| a setting's current value | the binding `%get_current` (current_X, `%current`, X_get, `%get`; R6-17, panel 14) | `fill_paragraph_function%get_current()`, `index_menu_patterns%get_current()` |
+| whether a buffer has its own value | the binding `%is_local` (`%local_p`, X_local_p) | `forward_expression_function%is_local()`, `fill_column%is_local()` |
 | store | set (put) | `set_current`, `prec2_set`; put-text-property's helpers (`put_property`, `put_syntax`) keep Emacs's word, and output keeps put (`terminal_put_bytes`, display_engine_mod's glyph `put`) |
 | grow an array by one | append_X, prepend_X at the front (push, add_, add_X_front; R2-Q4) | `append_string`, `append_record`, `prepend_record`, `append_undo_entry`, `buffer_order_append` (until the verb-first rename, R6-17); a stack's push (terminfo_mod, Info's history) stays; version_control_git_mod's helper that appends many is `append_all`; moving to the front is `move_to_front` |
 | draw the whole frame again; update what changed | redraw; redisplay (garbaged, SET_FRAME_GARBAGED, frame_garbaged; R6-9) | the frame flag `needs_redraw` (upstream `f->garbaged`), `redraw_frame`, `redraw_display`; `redisplay`, `redisplay_internal` |
@@ -2134,15 +2135,42 @@ scroll = .not. compilation_scroll_output%is_off()
   `apropos_user_option` lists it; gen-docstrings.sh generates its
   setter (a variable listed there must be documented).
 
-- Buffer-local procedure variables: one whose procedures take no
-  arguments but a status is a `function_setting_type` given to
+- Buffer-local procedure settings (panel 14): one whose procedures take
+  no arguments but a status is a `function_setting_type` given to
   `forward_setting`, swapped with the buffer like other settings
   (`comment_insert_comment_function`, `normal_auto_fill_function`).
-  Another interface gets a type of its own with a default `value`, per
-  buffer entries keyed by `buffers(current)%serial` and `set_local`, `get`
-  and `clear_local`, registered with `append_locals_clearer`
-  (`comment_indent_function`, `indent_region_function`,
-  `fill_paragraph_function`).
+  Another interface gets a setting object of its own, an extension of
+  buffer_local_setting_mod's abstract `buffer_local_setting_type` (Fortran
+  has no procedure pointer component of a generic interface, so one
+  extension per interface, as the `*_choice_setting_type` extensions are
+  one per kind).  The parent keeps the serial numbers of the buffers with
+  their own value and finds, makes (reusing a closed buffer's entry) and
+  clears entries; the extension holds the global value in `procedure`
+  (R6-37) and the buffers' own values in `locals`, and binds `set_local`,
+  `get_current` and the parent's two deferred hooks, `append_local_entry`
+  and `clear_local_entry`:
+
+  ```fortran
+  blink_matching_check_function%procedure => mine     ! init.f90: the global value
+  call blink_matching_check_function%set_local(check)  ! this buffer's own (absent: null)
+  check_now => blink_matching_check_function%get_current()
+  if (blink_matching_check_function%is_local()) ...
+  call blink_matching_check_function%clear_local()     ! back to the global value
+  ```
+
+  A buffer's own value wins even when null (upstream's local nil).  The
+  module's `clear_X_locals`, registered with `append_locals_clearer`, calls
+  `clear_local` for kill-all-local-variables (not for a permanently local
+  one, `revert_buffer_function`).  `get_current` is a subroutine,
+  `call x%get_current(f)`, for `incremental_search_search_function_function`
+  (gfortran rejects a function returning a pointer to a procedure that
+  returns a procedure pointer) and the pcomplete function variables
+  (whose callers took it that way).  A value of another type is the same
+  parent with a component named for it: `electric_indent_characters`
+  (`characters`, set with `=`), `skeleton_pairs` and
+  `skeleton_default_pairs` (`pairs`, grown with `%append`).  The free
+  procedures `X_set_local`, `current_X` and `X_clear_local` this replaced
+  are gone.
 
 - Shell-dependent settings (sh-script.el's tables read by `sh-feature`)
   are typed feature tables, one per kind of value (`shell_strings_feature_type`,

@@ -70,7 +70,7 @@ module javascript_mod
     use expression_motion_mod, only: forward_expression, backward_expression, forward_group, backward_group, up_group, &
                                      beginning_of_subprogram_function, end_of_subprogram_function
     use newcomment_mod, only: comment_start, comment_start_skip, comment_end
-    use electric_mod, only: electric_indent_characters_value, electric_indent_characters_set_local
+    use electric_mod, only: electric_indent_characters
     use programming_mode_mod, only: programming_first_column
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type, &
                                      syntax_property_type, &
@@ -3496,8 +3496,8 @@ contains
         call before_change_functions%append(flush_caches_hook, local=.true.)
         ! Frameworks
         call update_quick_match_regular_expression()
-        call electric_indent_characters_set_local([iachar("{"), iachar("}"), iachar("("), iachar(")"), iachar(":"), &
-                                                   iachar(";"), iachar(","), electric_indent_characters_value()])
+        call electric_indent_characters%set_local([iachar("{"), iachar("}"), iachar("("), iachar(")"), iachar(":"), &
+                                                   iachar(";"), iachar(","), electric_indent_characters%get_current()])
     end subroutine mode_setup
 
     !> Major mode for editing JavaScript.  Port of js.el:js-mode.

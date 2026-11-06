@@ -71,7 +71,8 @@ invisible text in line motion: `line-move-ignore-invisible` in `line-move-1`,
 `deactivate-mark-hook` (also run when the command loop deactivates the mark),
 a kill ring of strings with text properties (`kill-new`, `current-kill`, `kill-append` for text or propertized strings),
 `insert-for-yank` with `yank-handler` properties (FUNCTION, PARAM; `define_paste_handler_function` names FUNCTIONs),
-`yank-undo-function` in `yank-pop`
+`yank-undo-function` in `yank-pop`,
+`blink-matching-check-function` as a buffer-local procedure setting (`%procedure`, `%set_local`, `%get_current`, `%is_local`, `%clear_local`)
 
 ## Deferred
 

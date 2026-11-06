@@ -61,6 +61,7 @@ module index_menu_mod
     use simple_mod, only: push_mark
     use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -196,7 +197,7 @@ module index_menu_mod
         !> Give the current buffer its own value MATCHERS (set_local).
         procedure :: set_local => patterns_set_local
         !> The value in the current buffer (empty when unset).
-        procedure :: current => current_patterns
+        procedure :: get_current => current_patterns
         !> Make the current buffer use the default again.
         procedure :: clear_local => patterns_clear_local
     end type index_menu_patterns_type
@@ -216,72 +217,76 @@ module index_menu_mod
         !> Give the current buffer its own value MODIFICATIONS (set_local).
         procedure :: set_local => syntax_set_local
         !> The value in the current buffer (empty when unset).
-        procedure :: current => current_syntax
+        procedure :: get_current => current_syntax
         !> Make the current buffer use the default again.
         procedure :: clear_local => syntax_clear_local
     end type index_menu_syntax_modifications_type
 
-    ! One buffer's own `index_menu_create_index_function'.
-    type :: create_entry_type
-        integer(int64) :: serial = 0
-        procedure(index_menu_create_index_procedure), pointer, nopass :: fn => null()
-    end type create_entry_type
+    !> One buffer's own value of
+    !> `index_menu_create_index_function'.
+    type :: index_menu_create_index_entry_type
+        procedure(index_menu_create_index_procedure), pointer, nopass :: procedure => null()
+    end type index_menu_create_index_entry_type
 
-    !> The type of `index_menu_create_index_function': the default `value'
-    !> (assign with `=>') and buffers' own values (`set_local').
-    type, public :: index_menu_create_index_function_type
-        procedure(index_menu_create_index_procedure), pointer, nopass :: value => null()
-        type(create_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `index_menu_create_index_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: index_menu_create_index_setting_type
+        procedure(index_menu_create_index_procedure), pointer, nopass :: procedure => null()
+        type(index_menu_create_index_entry_type), allocatable :: locals(:)
     contains
-        !> Give the current buffer its own value FN (set_local).
-        procedure :: set_local => create_set_local
-        !> The value in the current buffer.
-        procedure :: current => current_create
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => create_clear_local
-    end type index_menu_create_index_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_index_menu_create_index_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_index_menu_create_index_current
+        procedure :: append_local_entry => append_index_menu_create_index_entry
+        procedure :: clear_local_entry => clear_index_menu_create_index_entry
+    end type index_menu_create_index_setting_type
 
-    ! One buffer's own `index_menu_previous_index_position_function'.
-    type :: previous_entry_type
-        integer(int64) :: serial = 0
-        procedure(index_menu_previous_index_position_procedure), pointer, nopass :: fn => null()
-    end type previous_entry_type
+    !> One buffer's own value of
+    !> `index_menu_previous_index_position_function'.
+    type :: index_menu_previous_index_position_entry_type
+        procedure(index_menu_previous_index_position_procedure), pointer, nopass :: procedure => null()
+    end type index_menu_previous_index_position_entry_type
 
-    !> The type of `index_menu_previous_index_position_function': the default
-    !> `value' (assign with `=>') and buffers' own values (`set_local';
-    !> absent sets the buffer's own value to null).
-    type, public :: index_menu_previous_index_position_function_type
-        procedure(index_menu_previous_index_position_procedure), pointer, nopass :: value => null()
-        type(previous_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `index_menu_previous_index_position_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: index_menu_previous_index_position_setting_type
+        procedure(index_menu_previous_index_position_procedure), pointer, nopass :: procedure => null()
+        type(index_menu_previous_index_position_entry_type), allocatable :: locals(:)
     contains
-        !> Give the current buffer its own value FN (set_local).
-        procedure :: set_local => previous_set_local
-        !> The value in the current buffer (null when unset).
-        procedure :: current => current_previous
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => previous_clear_local
-    end type index_menu_previous_index_position_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_index_menu_previous_index_position_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_index_menu_previous_index_position_current
+        procedure :: append_local_entry => append_index_menu_previous_index_position_entry
+        procedure :: clear_local_entry => clear_index_menu_previous_index_position_entry
+    end type index_menu_previous_index_position_setting_type
 
-    ! One buffer's own `index_menu_extract_index_name_function'.
-    type :: extract_entry_type
-        integer(int64) :: serial = 0
-        procedure(index_menu_extract_index_name_procedure), pointer, nopass :: fn => null()
-    end type extract_entry_type
+    !> One buffer's own value of
+    !> `index_menu_extract_index_name_function'.
+    type :: index_menu_extract_index_name_entry_type
+        procedure(index_menu_extract_index_name_procedure), pointer, nopass :: procedure => null()
+    end type index_menu_extract_index_name_entry_type
 
-    !> The type of `index_menu_extract_index_name_function': the default
-    !> `value' (assign with `=>') and buffers' own values (`set_local';
-    !> absent sets the buffer's own value to null).
-    type, public :: index_menu_extract_index_name_function_type
-        procedure(index_menu_extract_index_name_procedure), pointer, nopass :: value => null()
-        type(extract_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `index_menu_extract_index_name_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: index_menu_extract_index_name_setting_type
+        procedure(index_menu_extract_index_name_procedure), pointer, nopass :: procedure => null()
+        type(index_menu_extract_index_name_entry_type), allocatable :: locals(:)
     contains
-        !> Give the current buffer its own value FN (set_local).
-        procedure :: set_local => extract_set_local
-        !> The value in the current buffer (null when unset).
-        procedure :: current => current_extract
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => extract_clear_local
-    end type index_menu_extract_index_name_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_index_menu_extract_index_name_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_index_menu_extract_index_name_current
+        procedure :: append_local_entry => append_index_menu_extract_index_name_entry
+        procedure :: clear_local_entry => clear_index_menu_extract_index_name_entry
+    end type index_menu_extract_index_name_setting_type
 
     ! A buffer's cached index (imenu--index-alist: HAS_INDEX false is nil)
     ! and imenu-menubar-modified-tick.
@@ -401,7 +406,7 @@ module index_menu_mod
     !>
     !> See `index_menu_index_type' for the format of the buffer index.  Port of
     !> imenu.el imenu-create-index-function.
-    type(index_menu_create_index_function_type), public :: index_menu_create_index_function
+    type(index_menu_create_index_setting_type), public :: index_menu_create_index_function
 
     !> Function for finding the next index position.
     !>
@@ -413,7 +418,7 @@ module index_menu_mod
     !> The function should leave point at the place to be connected to the
     !> index and it should give FOUND .false. when it doesn't find another
     !> index.  Port of imenu.el imenu-prev-index-position-function.
-    type(index_menu_previous_index_position_function_type), public :: index_menu_previous_index_position_function
+    type(index_menu_previous_index_position_setting_type), public :: index_menu_previous_index_position_function
 
     !> Function for extracting the index item name, given a position.
     !>
@@ -421,7 +426,7 @@ module index_menu_mod
     !> finds a position for an index item, with point at that position.
     !> It should return the name for that index item.  Port of imenu.el
     !> imenu-extract-index-name-function.
-    type(index_menu_extract_index_name_function_type), public :: index_menu_extract_index_name_function
+    type(index_menu_extract_index_name_setting_type), public :: index_menu_extract_index_name_function
 
     !> Function to compare string with index item.
     !>
@@ -478,12 +483,12 @@ contains
         if (.not. allocated(index_menu_patterns%value)) allocate (index_menu_patterns%value(0))
         if (.not. allocated(index_menu_syntax_modifications%value)) allocate (index_menu_syntax_modifications%value(0))
 
-        if (.not. associated(index_menu_create_index_function%value)) then
-            index_menu_create_index_function%value => create_index_menu_index
+        if (.not. associated(index_menu_create_index_function%procedure)) then
+            index_menu_create_index_function%procedure => create_index_menu_index
         end if
 
-        if (.not. associated(index_menu_previous_index_position_function%value)) then
-            index_menu_previous_index_position_function%value => index_menu_beginning_of_subprogram
+        if (.not. associated(index_menu_previous_index_position_function%procedure)) then
+            index_menu_previous_index_position_function%procedure => index_menu_beginning_of_subprogram
         end if
 
         if (.not. associated(index_menu_default_goto_function)) then
@@ -827,7 +832,7 @@ contains
             saved_end = point_maximum()
             narrowed = is_buffer_narrowed()
             call widen()
-            create => index_menu_create_index_function%current()
+            create => index_menu_create_index_function%get_current()
             call create(made, status)
             if (narrowed) call narrow_to_region(saved_beginning, saved_end, status)
             call goto_character(saved_point)
@@ -921,8 +926,8 @@ contains
 
         status = status_type()
         allocate (index%entries(0))
-        previous => index_menu_previous_index_position_function%current()
-        extract => index_menu_extract_index_name_function%current()
+        previous => index_menu_previous_index_position_function%get_current()
+        extract => index_menu_extract_index_name_function%get_current()
 
         if (associated(previous) .and. associated(extract)) then
             allocate (found_items(0))
@@ -966,7 +971,7 @@ contains
             end do
         else
             ! Use generic expression if possible.
-            patterns = index_menu_patterns%current()
+            patterns = index_menu_patterns%get_current()
 
             if (size(patterns) > 0) then
                 call make_index_menu_generic_index(patterns, index, status)
@@ -1022,10 +1027,10 @@ contains
         allocate (index%entries(0))
         allocate (menus(0))
 
-        if (index_menu_case_fold_search%local_p() .or. .not. font_lock_defaults%present_p()) then
+        if (index_menu_case_fold_search%is_local() .or. .not. font_lock_defaults%present_p()) then
             fold = index_menu_case_fold_search%value
         else
-            defaults = font_lock_defaults%current()
+            defaults = font_lock_defaults%get_current()
             fold = defaults%case_fold
         end if
 
@@ -1034,7 +1039,7 @@ contains
         call copy_syntax_table(table, status, old_table)
         if (.not. status%ok()) return
         ! Modify the syntax table used while matching regexps.
-        modifications = index_menu_syntax_modifications%current()
+        modifications = index_menu_syntax_modifications%get_current()
 
         do k = 1, size(modifications)
             call modify_characters(modifications(k))
@@ -1713,140 +1718,135 @@ contains
         if (allocated(self%entries(i)%modifications)) deallocate (self%entries(i)%modifications)
     end subroutine syntax_clear_local
 
-    ! Not a port.
-    subroutine create_set_local(self, fn)
-        class(index_menu_create_index_function_type), intent(inout) :: self
-        procedure(index_menu_create_index_procedure) :: fn
-        type(create_entry_type) :: entry
-        integer :: i
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `index_menu_create_index_function'.  Not a port.
+    subroutine set_index_menu_create_index_local(self, local_procedure)
+        class(index_menu_create_index_setting_type), intent(inout) :: self
+        procedure(index_menu_create_index_procedure), optional :: local_procedure
+        integer :: k
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i == 0) i = free_index([self%entries%serial])
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_index_menu_create_index_local
 
-        if (i == 0) then
-            self%entries = [self%entries, entry]
-            i = size(self%entries)
-        end if
+    !> The current buffer's value of
+    !> `index_menu_create_index_function':
+    !> its own, else the global one.  Not a port.
+    function get_index_menu_create_index_current(self) result(current_procedure)
+        class(index_menu_create_index_setting_type), intent(in) :: self
+        procedure(index_menu_create_index_procedure), pointer :: current_procedure
+        integer :: k
 
-        self%entries(i)%serial = buffers(current)%serial
-        self%entries(i)%fn => fn
-    end subroutine create_set_local
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_index_menu_create_index_current
 
-    ! Not a port.
-    function current_create(self) result(fn)
-        class(index_menu_create_index_function_type), intent(in) :: self
-        procedure(index_menu_create_index_procedure), pointer :: fn
-        integer :: i
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_index_menu_create_index_entry(self)
+        class(index_menu_create_index_setting_type), intent(inout) :: self
+        type(index_menu_create_index_entry_type) :: entry
 
-        fn => self%value
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i > 0) fn => self%entries(i)%fn
-    end function current_create
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_index_menu_create_index_entry
 
-    ! Not a port.
-    subroutine create_clear_local(self)
-        class(index_menu_create_index_function_type), intent(inout) :: self
-        integer :: i
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_index_menu_create_index_entry(self, k)
+        class(index_menu_create_index_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i == 0) return
-        self%entries(i)%serial = 0
-        self%entries(i)%fn => null()
-    end subroutine create_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_index_menu_create_index_entry
 
-    ! Not a port.
-    subroutine previous_set_local(self, fn)
-        class(index_menu_previous_index_position_function_type), intent(inout) :: self
-        procedure(index_menu_previous_index_position_procedure), optional :: fn
-        type(previous_entry_type) :: entry
-        integer :: i
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `index_menu_previous_index_position_function'.  Not a port.
+    subroutine set_index_menu_previous_index_position_local(self, local_procedure)
+        class(index_menu_previous_index_position_setting_type), intent(inout) :: self
+        procedure(index_menu_previous_index_position_procedure), optional :: local_procedure
+        integer :: k
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i == 0) i = free_index([self%entries%serial])
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_index_menu_previous_index_position_local
 
-        if (i == 0) then
-            self%entries = [self%entries, entry]
-            i = size(self%entries)
-        end if
+    !> The current buffer's value of
+    !> `index_menu_previous_index_position_function':
+    !> its own, else the global one.  Not a port.
+    function get_index_menu_previous_index_position_current(self) result(current_procedure)
+        class(index_menu_previous_index_position_setting_type), intent(in) :: self
+        procedure(index_menu_previous_index_position_procedure), pointer :: current_procedure
+        integer :: k
 
-        self%entries(i)%serial = buffers(current)%serial
-        self%entries(i)%fn => null()
-        if (present(fn)) self%entries(i)%fn => fn
-    end subroutine previous_set_local
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_index_menu_previous_index_position_current
 
-    ! Not a port.
-    function current_previous(self) result(fn)
-        class(index_menu_previous_index_position_function_type), intent(in) :: self
-        procedure(index_menu_previous_index_position_procedure), pointer :: fn
-        integer :: i
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_index_menu_previous_index_position_entry(self)
+        class(index_menu_previous_index_position_setting_type), intent(inout) :: self
+        type(index_menu_previous_index_position_entry_type) :: entry
 
-        fn => self%value
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i > 0) fn => self%entries(i)%fn
-    end function current_previous
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_index_menu_previous_index_position_entry
 
-    ! Not a port.
-    subroutine previous_clear_local(self)
-        class(index_menu_previous_index_position_function_type), intent(inout) :: self
-        integer :: i
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_index_menu_previous_index_position_entry(self, k)
+        class(index_menu_previous_index_position_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i == 0) return
-        self%entries(i)%serial = 0
-        self%entries(i)%fn => null()
-    end subroutine previous_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_index_menu_previous_index_position_entry
 
-    ! Not a port.
-    subroutine extract_set_local(self, fn)
-        class(index_menu_extract_index_name_function_type), intent(inout) :: self
-        procedure(index_menu_extract_index_name_procedure), optional :: fn
-        type(extract_entry_type) :: entry
-        integer :: i
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `index_menu_extract_index_name_function'.  Not a port.
+    subroutine set_index_menu_extract_index_name_local(self, local_procedure)
+        class(index_menu_extract_index_name_setting_type), intent(inout) :: self
+        procedure(index_menu_extract_index_name_procedure), optional :: local_procedure
+        integer :: k
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i == 0) i = free_index([self%entries%serial])
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_index_menu_extract_index_name_local
 
-        if (i == 0) then
-            self%entries = [self%entries, entry]
-            i = size(self%entries)
-        end if
+    !> The current buffer's value of
+    !> `index_menu_extract_index_name_function':
+    !> its own, else the global one.  Not a port.
+    function get_index_menu_extract_index_name_current(self) result(current_procedure)
+        class(index_menu_extract_index_name_setting_type), intent(in) :: self
+        procedure(index_menu_extract_index_name_procedure), pointer :: current_procedure
+        integer :: k
 
-        self%entries(i)%serial = buffers(current)%serial
-        self%entries(i)%fn => null()
-        if (present(fn)) self%entries(i)%fn => fn
-    end subroutine extract_set_local
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_index_menu_extract_index_name_current
 
-    ! Not a port.
-    function current_extract(self) result(fn)
-        class(index_menu_extract_index_name_function_type), intent(in) :: self
-        procedure(index_menu_extract_index_name_procedure), pointer :: fn
-        integer :: i
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_index_menu_extract_index_name_entry(self)
+        class(index_menu_extract_index_name_setting_type), intent(inout) :: self
+        type(index_menu_extract_index_name_entry_type) :: entry
 
-        fn => self%value
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i > 0) fn => self%entries(i)%fn
-    end function current_extract
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_index_menu_extract_index_name_entry
 
-    ! Not a port.
-    subroutine extract_clear_local(self)
-        class(index_menu_extract_index_name_function_type), intent(inout) :: self
-        integer :: i
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_index_menu_extract_index_name_entry(self, k)
+        class(index_menu_extract_index_name_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, current_serial(), dim=1)
-        if (i == 0) return
-        self%entries(i)%serial = 0
-        self%entries(i)%fn => null()
-    end subroutine extract_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_index_menu_extract_index_name_entry
 end module index_menu_mod

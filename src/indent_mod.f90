@@ -31,7 +31,7 @@
 module indent_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: prefix_argument_type
-    use buffer_mod, only: buffers, current, buffer_fetch_character, buffer_next_character_length, buffer_serial_live
+    use buffer_mod, only: buffers, current, buffer_fetch_character, buffer_next_character_length
     use category_mod, only: character_has_category
     use marker_mod, only: character_to_byte
     use error_mod, only: status_type
@@ -49,6 +49,7 @@ module indent_mod
                                   line_beginning
     use frame_mod, only: selected_frame, frame_selected_window_reference
     use window_mod, only: window_type, window_text_columns
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -132,32 +133,33 @@ module indent_mod
     !> indent-line-function (null is the default, `indent_relative').
     type(indent_line_setting_type), public :: indent_line_function = indent_line_setting_type(name="indent_line_function")
 
-    !> One buffer's `indent_region_function'.
+    !> One buffer's own value of
+    !> `indent_region_function'.
     type :: indent_region_entry_type
-        integer(int64) :: serial = 0
-        procedure(indent_region_procedure), pointer, nopass :: fn => null()
+        procedure(indent_region_procedure), pointer, nopass :: procedure => null()
     end type indent_region_entry_type
 
-    !> The type of `indent_region_function': a default `value' (assign
-    !> with `=>'; null is `indent_region_line_by_line') and buffers' own
-    !> (`set_local').
-    type, public :: indent_region_function_type
-        procedure(indent_region_procedure), pointer, nopass :: value => null()
-        type(indent_region_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `indent_region_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: indent_region_setting_type
+        procedure(indent_region_procedure), pointer, nopass :: procedure => null()
+        type(indent_region_entry_type), allocatable :: locals(:)
     contains
-        !> Make FN the current buffer's function (set_local).
-        procedure :: set_local => indent_region_set_local
-        !> The current buffer's function (null for the default).
-        procedure :: current => current_indent_region
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => indent_region_clear_local
-    end type indent_region_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_indent_region_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_indent_region_current
+        procedure :: append_local_entry => append_indent_region_entry
+        procedure :: clear_local_entry => clear_indent_region_entry
+    end type indent_region_setting_type
 
     !> Short cut function to indent region using `indent_according_to_mode'.
     !> Default is to really run `indent_according_to_mode' on each line.
     !> Port of indent.el indent-region-function (null is
     !> `indent_region_line_by_line').
-    type(indent_region_function_type), public :: indent_region_function
+    type(indent_region_setting_type), public :: indent_region_function
 
     interface
         !> Indent line in proper way for current major mode.
@@ -458,60 +460,49 @@ module indent_mod
 
 contains
 
-    ! Not a port.
-    subroutine indent_region_set_local(self, fn)
-        class(indent_region_function_type), intent(inout) :: self
-        procedure(indent_region_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `indent_region_function'.  Not a port.
+    subroutine set_indent_region_local(self, local_procedure)
+        class(indent_region_setting_type), intent(inout) :: self
+        procedure(indent_region_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_indent_region_local
+
+    !> The current buffer's value of
+    !> `indent_region_function':
+    !> its own, else the global one.  Not a port.
+    function get_indent_region_current(self) result(current_procedure)
+        class(indent_region_setting_type), intent(in) :: self
+        procedure(indent_region_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_indent_region_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_indent_region_entry(self)
+        class(indent_region_setting_type), intent(inout) :: self
         type(indent_region_entry_type) :: entry
-        integer :: i
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_indent_region_entry
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_indent_region_entry(self, k)
+        class(indent_region_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
-
-        self%entries(i)%fn => fn
-    end subroutine indent_region_set_local
-
-    ! Not a port.
-    function current_indent_region(self) result(fn)
-        class(indent_region_function_type), intent(in) :: self
-        procedure(indent_region_procedure), pointer :: fn
-        integer :: i
-
-        fn => self%value
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-        end if
-    end function current_indent_region
-
-    ! Not a port.
-    subroutine indent_region_clear_local(self)
-        class(indent_region_function_type), intent(inout) :: self
-        integer :: i
-
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            self%entries(i)%serial = 0
-            self%entries(i)%fn => null()
-        end if
-    end subroutine indent_region_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_indent_region_entry
 
     !> kill-all-local-variables: forget the current buffer's
     !> `indent_region_function'.  Not a port.

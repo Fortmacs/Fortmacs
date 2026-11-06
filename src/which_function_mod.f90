@@ -275,7 +275,7 @@ contains
     !> ported).
     subroutine try_to_enable_which_function()
         if (.not. minor_modes%which_function_mode%enabled()) return
-        if (which_function_mode_variable%local_p()) return
+        if (which_function_mode_variable%is_local()) return
 
         if (which_function_modes%all) then
             call which_function_mode_variable%set_local(.true.)
@@ -308,7 +308,7 @@ contains
         if (non_auto) return
         if (.not. (buffers(current)%save_length < which_function_maxout .or. which_function_maxout == 0)) return
         here = point()
-        create => index_menu_create_index_function%current()
+        create => index_menu_create_index_function%get_current()
         call create(index, status)
         call goto_character(here)
 
@@ -470,7 +470,7 @@ contains
 
         ! If Imenu is loaded, try to make an index with it.
         ! If `add_log_current_subprogram' ran and gave nothing, accept that.
-        if (.not. allocated(name) .and. .not. associated(add_log_current_subprogram_function%current())) then
+        if (.not. allocated(name) .and. .not. associated(add_log_current_subprogram_function%get_current())) then
             call buffer_characters_modified_tick(current_buffer(), tick, st)
             if (.not. st%ok()) tick = 0
 

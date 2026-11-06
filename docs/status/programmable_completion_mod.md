@@ -32,7 +32,8 @@
 `pcomplete-default-completion-function` (buffer-local with `set_local`),
 `pcomplete-try-first-hook`,
 `pcomplete-expand-before-complete`,
-`pcomplete-allow-modifications`
+`pcomplete-allow-modifications`,
+`pcomplete-parse-arguments-function`, `pcomplete-command-completion-function` and `pcomplete-default-completion-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

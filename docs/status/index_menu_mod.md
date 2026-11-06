@@ -29,7 +29,8 @@ the index as `index_menu_index_type` (a flat array of `index_menu_entry_type`: n
 `imenu-choose-buffer-index` (rescanning),
 `imenu-default-goto-function` (the procedure `goto_index_menu_position`; `index_menu_default_goto_function` for the variable),
 `index_menu` (M-g i; by name or entry, `push-mark`, `imenu-after-jump-hook`),
-`imenu-menubar-modified-tick`
+`imenu-menubar-modified-tick`,
+`imenu-create-index-function`, `imenu-prev-index-position-function` and `imenu-extract-index-name-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

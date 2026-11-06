@@ -64,6 +64,7 @@ program tester
     use test_string_type_mod, only: collect_string_type_mod
     use test_character_mod, only: collect_character_mod
     use test_buffer_mod, only: collect_buffer_mod
+    use test_buffer_local_setting_mod, only: collect_buffer_local_setting_mod
     use test_insert_delete_mod, only: collect_insert_delete_mod
     use test_marker_mod, only: collect_marker_mod
     use test_system_dependent_mod, only: collect_system_dependent_mod
@@ -210,6 +211,7 @@ program tester
                  new_testsuite("string_type_mod", collect_string_type_mod), &
                  new_testsuite("character_mod", collect_character_mod), &
                  new_testsuite("buffer_mod", collect_buffer_mod), &
+                 new_testsuite("buffer_local_setting_mod", collect_buffer_local_setting_mod), &
                  new_testsuite("insert_delete_mod", collect_insert_delete_mod), &
                  new_testsuite("marker_mod", collect_marker_mod), &
                  new_testsuite("system_dependent_mod", collect_system_dependent_mod), &

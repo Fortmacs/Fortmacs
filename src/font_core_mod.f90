@@ -281,7 +281,7 @@ module font_core_mod
         !> set).
         procedure :: present_p => has_defaults
         !> The current buffer's defaults (call only when present_p).
-        procedure :: current => current_defaults
+        procedure :: get_current => current_defaults
         !> Forget the current buffer's defaults.
         procedure :: clear_local => defaults_clear_local
     end type font_lock_defaults_setting_type
