@@ -1559,7 +1559,7 @@ contains
     function select_message_coding_system() result(coding)
         character(len=:), allocatable :: coding
 
-        if (buffer_file_coding_system%local_p()) then
+        if (buffer_file_coding_system%is_local()) then
             coding = buffer_file_coding_system%value
         else if (allocated(sendmail_coding_system)) then
             coding = sendmail_coding_system

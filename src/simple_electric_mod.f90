@@ -58,7 +58,11 @@ contains
     commands%newline_and_indent%execute => execute_newline_and_indent
     commands%reindent_then_newline_and_indent%execute => execute_reindent_then_newline_and_indent
     commands%backward_delete_character_untabify%execute => execute_backward_delete_character_untabify
-    if (.not. associated(blink_matching_check_function)) blink_matching_check_function => blink_matching_check_mismatch
+
+    if (.not. associated(blink_matching_check_function%procedure)) then
+        blink_matching_check_function%procedure => blink_matching_check_mismatch
+    end if
+
     if (.not. associated(blink_parenthesis_function)) blink_parenthesis_function => blink_matching_open
     ! Most likely, this hook is nil, so this arg doesn't matter, but I use
     ! it as a reminder that this function usually likes to be run after
@@ -164,7 +168,7 @@ contains
     call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
     call goto_character(oldpos)
     mismatch = .false.
-    check => current_blink_matching_check_function()
+    check => blink_matching_check_function%get_current()
     if (associated(check)) mismatch = check(blinkpos, oldpos)
 
     if (mismatch) then

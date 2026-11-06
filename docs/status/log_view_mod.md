@@ -24,7 +24,8 @@ marking (`log-view-mark-entry` m, `log-view-unmark-entry` u, `log-view-unmark-al
 `log-view-diff-changeset` (D),
 `log-view-copy-revision-as-kill` (w),
 `log-view-annotate-version` (a, calling `version_control_annotate` through the pointer `log_view_version_control_annotate`),
-the faces
+the faces,
+`log-view-expanded-log-entry-function` as a buffer-local procedure setting (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

@@ -62,6 +62,7 @@ module simple_minded_indentation_engine_mod
     use print_mod, only: fortran_string, quoted_text
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live, current_buffer, buffer_characters_modified_tick
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use value_mod, only: command_procedure, xfixnum, vtag, V_INTEGER
     use data_mod, only: append_locals_clearer, function_setting_default
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_buffer, &
@@ -91,16 +92,12 @@ module simple_minded_indentation_engine_mod
                           indent_line_function
     use fill_mod, only: current_fill_column
     use simple_mod, only: newline, newline_and_indent, reindent_then_newline_and_indent, blink_matching_open, &
-                          blink_matching_check_mismatch, blink_matching_check_procedure, &
-                          blink_matching_check_function_set_local, current_blink_matching_check_function, &
-                          is_blink_matching_check_function_local, blink_matching_check_function_clear_local, &
+                          blink_matching_check_mismatch, blink_matching_check_procedure, blink_matching_check_function, &
                           blink_matching_parenthesis, normal_auto_fill_function, do_auto_fill, &
                           blink_matching_delay
     use newcomment_mod, only: comment_normalize_variables, comment_start_skip, comment_end_skip, comment_continue, &
                               comment_string_strip
-    use parenthesis_mod, only: show_parenthesis_data_type, show_parenthesis_data_procedure, &
-                               show_parenthesis_data_function_set_local, current_show_parenthesis_data_function, &
-                               is_show_parenthesis_data_function_local, show_parenthesis_data_function
+    use parenthesis_mod, only: show_parenthesis_data_type, show_parenthesis_data_procedure, show_parenthesis_data_function
     use programming_mode_mod, only: programming_first_column
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use keyboard_mod, only: last_command_event
@@ -146,7 +143,6 @@ module simple_minded_indentation_engine_mod
               simple_minded_indentation_engine_parent, simple_minded_indentation_engine_parent_level, &
               initialize_simple_minded_indentation_engine, &
               is_simple_minded_indentation_engine_default_hanging_end_of_line, &
-              set_simple_minded_indentation_engine_hanging_line_test, &
               simple_minded_indentation_engine_indent_procedure, simple_minded_indentation_token_procedure, &
               simple_minded_indentation_engine_rules_procedure, simple_minded_indentation_engine_hanging_line_procedure, &
               simple_minded_indentation_engine_configuration_local, simple_minded_indentation_engine_configuration_show_indent, &
@@ -433,7 +429,7 @@ module simple_minded_indentation_engine_mod
         !> Remove FN (from the current buffer's own list with LOCAL).
         procedure :: remove => indent_functions_remove
         procedure, private :: local_index => indent_functions_local_index
-        procedure, private :: current => indent_functions_current
+        procedure, private :: get_current => indent_functions_current
     end type simple_minded_indentation_engine_indent_functions_type
 
     ! A buffer's own SIMPLE_MINDED_INDENTATION_ENGINE variables.
@@ -458,8 +454,6 @@ module simple_minded_indentation_engine_mod
         procedure(command_procedure), pointer, nopass :: auto_fill => null()
         logical :: has_parenthesis_data = .false., parenthesis_data_local = .false.
         procedure(show_parenthesis_data_procedure), pointer, nopass :: parenthesis_data => null()
-        ! smie--hanging-eolp-function, when advised in the buffer.
-        procedure(simple_minded_indentation_engine_hanging_line_procedure), pointer, nopass :: is_hanging_end_of_line => null()
         ! smie-config--buffer-local and smie-config--mode-local.
         type(simple_minded_indentation_engine_configuration_rule_type), allocatable :: buffer_rules(:), mode_rules(:)
     end type simple_minded_indentation_engine_local_type
@@ -476,6 +470,37 @@ module simple_minded_indentation_engine_mod
     !> like a close-paren.  Port of smie.el smie-grammar (the default value,
     !> 'unset; `simple_minded_indentation_engine_setup' gives a buffer its own).
     type(simple_minded_indentation_engine_grammar_type), target, public :: simple_minded_indentation_engine_grammar
+
+    !> One buffer's own value of
+    !> `simple_minded_indentation_engine_hanging_line_test_function'.
+    type :: simple_minded_indentation_engine_hanging_line_test_entry_type
+        procedure(simple_minded_indentation_engine_hanging_line_procedure), pointer, nopass :: procedure => null()
+    end type simple_minded_indentation_engine_hanging_line_test_entry_type
+
+    !> The type of
+    !> `simple_minded_indentation_engine_hanging_line_test_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: simple_minded_indentation_engine_hanging_line_test_setting_type
+        procedure(simple_minded_indentation_engine_hanging_line_procedure), pointer, nopass :: procedure => null()
+        type(simple_minded_indentation_engine_hanging_line_test_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_simple_minded_indentation_engine_hanging_line_test_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_simple_minded_indentation_engine_hanging_line_test_current
+        procedure :: append_local_entry => append_simple_minded_indentation_engine_hanging_line_test_entry
+        procedure :: clear_local_entry => clear_simple_minded_indentation_engine_hanging_line_test_entry
+    end type simple_minded_indentation_engine_hanging_line_test_setting_type
+
+    !> smie--hanging-eolp-function: the test of whether the line ends
+    !> after a hanging token.  A mode advises it in a buffer
+    !> (add-function :around (local ...)) with `%set_local', its procedure
+    !> calling `is_simple_minded_indentation_engine_default_hanging_end_of_line'
+    !> for the original; null for the default.  Port of smie.el
+    !> smie--hanging-eolp-function.
+    type(simple_minded_indentation_engine_hanging_line_test_setting_type), public :: &
+        simple_minded_indentation_engine_hanging_line_test_function
 
     !> Function to scan forward for the next token.
     !> Called with no argument should return a token and move to its end.
@@ -1761,6 +1786,7 @@ contains
         if (k > 0) locals(k) = simple_minded_indentation_engine_local_type()
         k = simple_minded_indentation_engine_indent_functions%local_index()
         if (k > 0) simple_minded_indentation_engine_indent_functions%locals(k)%serial = 0
+        call simple_minded_indentation_engine_hanging_line_test_function%clear_local()
     end subroutine clear_simple_minded_indentation_engine_locals
 
     ! The current buffer's `simple_minded_indentation_engine_grammar'.  Not a port.
@@ -2359,8 +2385,8 @@ contains
         forw = n > 0
         left = n
         ! (let ((forward-sexp-function nil)) ...)
-        was_local = forward_expression_function%local_p()
-        saved => forward_expression_function%current()
+        was_local = forward_expression_function%is_local()
+        saved => forward_expression_function%get_current()
         call forward_expression_function%set_local()
 
         do while (left /= 0)
@@ -2857,15 +2883,15 @@ contains
             ! buffer-locally so that interactive calls to
             ! blink-matching-open work right, but let's not presume
             ! that's the case.
-            was_local = is_blink_matching_check_function_local()
-            saved => current_blink_matching_check_function()
-            call blink_matching_check_function_set_local(simple_minded_indentation_engine_blink_matching_check)
+            was_local = blink_matching_check_function%is_local()
+            saved => blink_matching_check_function%get_current()
+            call blink_matching_check_function%set_local(simple_minded_indentation_engine_blink_matching_check)
             call blink_matching_open(status)
 
             if (was_local) then
-                call blink_matching_check_function_set_local(saved)
+                call blink_matching_check_function%set_local(saved)
             else
-                call blink_matching_check_function_clear_local()
+                call blink_matching_check_function%clear_local()
             end if
         end block body
 
@@ -3093,7 +3119,7 @@ contains
         if (locals(k)%parenthesis_data_local) then
             fn => locals(k)%parenthesis_data
         else
-            fn => show_parenthesis_data_function
+            fn => show_parenthesis_data_function%procedure
         end if
 
         if (associated(fn)) call fn(found, data)
@@ -3106,18 +3132,15 @@ contains
     ! (funcall smie--hanging-eolp-function): the buffer's advised one, or
     ! the default.  Not a port.
     recursive logical function is_hanging_end_of_line()
-        integer :: k
+        procedure(simple_minded_indentation_engine_hanging_line_procedure), pointer :: test
 
-        k = local_index()
+        test => simple_minded_indentation_engine_hanging_line_test_function%get_current()
 
-        if (k > 0) then
-            if (associated(locals(k)%is_hanging_end_of_line)) then
-                is_hanging_end_of_line = locals(k)%is_hanging_end_of_line()
-                return
-            end if
+        if (associated(test)) then
+            is_hanging_end_of_line = test()
+        else
+            is_hanging_end_of_line = is_simple_minded_indentation_engine_default_hanging_end_of_line()
         end if
-
-        is_hanging_end_of_line = is_simple_minded_indentation_engine_default_hanging_end_of_line()
     end function is_hanging_end_of_line
 
     !> The default smie--hanging-eolp-function: skip blanks; true at the
@@ -3134,16 +3157,49 @@ contains
         if (.not. end_of_line) end_of_line = forward_comment(point_maximum())
     end function is_simple_minded_indentation_engine_default_hanging_end_of_line
 
-    !> Advise smie--hanging-eolp-function in the current buffer with FN
-    !> (add-function :around (local ...)): FN calls
-    !> `is_simple_minded_indentation_engine_default_hanging_end_of_line' for the original.  Not a port.
-    subroutine set_simple_minded_indentation_engine_hanging_line_test(fn)
-        procedure(simple_minded_indentation_engine_hanging_line_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `simple_minded_indentation_engine_hanging_line_test_function'.  Not a port.
+    subroutine set_simple_minded_indentation_engine_hanging_line_test_local(self, local_procedure)
+        class(simple_minded_indentation_engine_hanging_line_test_setting_type), intent(inout) :: self
+        procedure(simple_minded_indentation_engine_hanging_line_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_entry(k)
-        if (k > 0) locals(k)%is_hanging_end_of_line => fn
-    end subroutine set_simple_minded_indentation_engine_hanging_line_test
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_simple_minded_indentation_engine_hanging_line_test_local
+
+    !> The current buffer's value of
+    !> `simple_minded_indentation_engine_hanging_line_test_function':
+    !> its own, else the global one.  Not a port.
+    function get_simple_minded_indentation_engine_hanging_line_test_current(self) result(current_procedure)
+        class(simple_minded_indentation_engine_hanging_line_test_setting_type), intent(in) :: self
+        procedure(simple_minded_indentation_engine_hanging_line_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_simple_minded_indentation_engine_hanging_line_test_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_simple_minded_indentation_engine_hanging_line_test_entry(self)
+        class(simple_minded_indentation_engine_hanging_line_test_setting_type), intent(inout) :: self
+        type(simple_minded_indentation_engine_hanging_line_test_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_simple_minded_indentation_engine_hanging_line_test_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_simple_minded_indentation_engine_hanging_line_test_entry(self, k)
+        class(simple_minded_indentation_engine_hanging_line_test_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_simple_minded_indentation_engine_hanging_line_test_entry
 
     !> Return true if the current token is "hanging".
     !> A hanging keyword is one that's at the end of a line except it's not at
@@ -4620,7 +4676,7 @@ contains
         integer :: i
 
         status = status_type()
-        functions = simple_minded_indentation_engine_indent_functions%current()
+        functions = simple_minded_indentation_engine_indent_functions%get_current()
 
         do i = 1, size(functions)
             if (.not. associated(functions(i)%fn)) cycle
@@ -4855,7 +4911,7 @@ contains
         ! which does nothing when the advice is already there.
         if (.not. locals(k)%has_auto_fill) then
             locals(k)%has_auto_fill = .true.
-            locals(k)%auto_fill_local = normal_auto_fill_function%local_p()
+            locals(k)%auto_fill_local = normal_auto_fill_function%is_local()
             locals(k)%auto_fill => normal_auto_fill_function%value
             call normal_auto_fill_function%set_local(simple_minded_indentation_engine_auto_fill_function)
         end if
@@ -4866,15 +4922,15 @@ contains
         if (.not. grammar_in%has_closer_table) return
         locals(k)%has_closer_table = .true.
         ! Only needed for interactive calls to blink-matching-open.
-        call blink_matching_check_function_set_local(simple_minded_indentation_engine_blink_matching_check)
+        call blink_matching_check_function%set_local(simple_minded_indentation_engine_blink_matching_check)
         call post_self_insert_hook%append(simple_minded_indentation_engine_blink_matching_open, local=.true.)
 
         ! (add-function :around (local 'show-paren-data-function) #'smie--matching-block-data)
         if (.not. locals(k)%has_parenthesis_data) then
             locals(k)%has_parenthesis_data = .true.
-            locals(k)%parenthesis_data_local = is_show_parenthesis_data_function_local()
-            locals(k)%parenthesis_data => current_show_parenthesis_data_function()
-            call show_parenthesis_data_function_set_local(simple_minded_indentation_engine_parenthesis_data_function)
+            locals(k)%parenthesis_data_local = show_parenthesis_data_function%is_local()
+            locals(k)%parenthesis_data => show_parenthesis_data_function%get_current()
+            call show_parenthesis_data_function%set_local(simple_minded_indentation_engine_parenthesis_data_function)
         end if
 
         ! Setup smie-blink-matching-triggers.  Rather than wait for SPC to

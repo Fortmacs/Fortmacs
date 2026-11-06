@@ -415,7 +415,7 @@ contains
         character(len=:), allocatable :: local
         logical :: had_local
 
-        had_local = tags_file_name%local_p()
+        had_local = tags_file_name%is_local()
 
         if (had_local) then
             local = current_tags_file_name()
@@ -1183,7 +1183,7 @@ contains
             end if
 
             ! First, try a local variable.
-            if (.not. has .and. tags_file_name%local_p()) then
+            if (.not. has .and. tags_file_name%is_local()) then
                 name = current_tags_file_name()
                 has = len(name) > 0
             end if

@@ -43,7 +43,8 @@ the faces (`smerge-upper`, `-lower`, `-base`, `-markers`, `-refined-changed`, `-
 `smerge-diff-switches`,
 `smerge-auto-leave`,
 `smerge-start-session`,
-`smerge-repeat-map`
+`smerge-repeat-map`,
+`smerge-resolve-function` as a buffer-local procedure setting (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

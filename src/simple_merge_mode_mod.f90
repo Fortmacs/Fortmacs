@@ -38,6 +38,7 @@ module simple_merge_mode_mod
     use commands_mod, only: commands
     use data_mod, only: append_locals_clearer, string_to_number
     use hooks_mod, only: hook_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, close_buffer, erase_buffer, buffer_modified_tick
     use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_end_of_buffer, character_after, &
@@ -89,7 +90,6 @@ module simple_merge_mode_mod
               auto_combine_simple_merge, resolve_simple_merge, resolve_simple_merge_all, swap_simple_merge, extend_simple_merge, &
               diff_simple_merge_base_upper, diff_simple_merge_base_lower, diff_simple_merge_upper_lower, auto_leave_simple_merge, &
               keep_simple_merge_n, get_simple_merge_current, simple_merge_resolve_procedure, &
-              simple_merge_resolve_function_set_local, &
               simple_merge_conflict_style
 
     abstract interface
@@ -128,13 +128,35 @@ module simple_merge_mode_mod
     !> Port of smerge-mode.el smerge-auto-combine-max-separation.
     integer, public :: simple_merge_auto_combine_maximum_separation = 2
 
+    !> One buffer's own value of
+    !> `simple_merge_resolve_function'.
+    type :: simple_merge_resolve_entry_type
+        procedure(simple_merge_resolve_procedure), pointer, nopass :: procedure => null()
+    end type simple_merge_resolve_entry_type
+
+    !> The type of
+    !> `simple_merge_resolve_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: simple_merge_resolve_setting_type
+        procedure(simple_merge_resolve_procedure), pointer, nopass :: procedure => null()
+        type(simple_merge_resolve_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_simple_merge_resolve_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_simple_merge_resolve_current
+        procedure :: append_local_entry => append_simple_merge_resolve_entry
+        procedure :: clear_local_entry => clear_simple_merge_resolve_entry
+    end type simple_merge_resolve_setting_type
+
     !> Mode-specific merge function.
     !> The function is called with or without its SAFE argument (true if
     !> the resolution function should only apply safe heuristics) and with
-    !> the match data set according to `match_simple_merge_conflict'.  A buffer
-    !> gives it its own value with `simple_merge_resolve_function_set_local'.
-    !> Port of smerge-mode.el smerge-resolve-function.
-    procedure(simple_merge_resolve_procedure), pointer, public :: simple_merge_resolve_function => null()
+    !> the match data set according to `match_simple_merge_conflict'.
+    !> Port of smerge-mode.el smerge-resolve-function (`%procedure' is the
+    !> global value; `%set_local' gives a buffer its own).
+    type(simple_merge_resolve_setting_type), public :: simple_merge_resolve_function
 
     !> Run after `simple_merge_mode' is turned on or off.  Port of smerge-mode.el
     !> smerge-mode-hook.
@@ -217,8 +239,7 @@ module simple_merge_mode_mod
     !> A buffer's Smerge variables (buffer-local upstream), by buffer
     !> serial number: `simple_merge_conflict_style', smerge-check-cache (the
     !> match data of the conflict at `check_point' while the buffer's
-    !> modification count was `check_tick') and the buffer's own
-    !> `simple_merge_resolve_function'.
+    !> modification count was `check_tick').
     type :: simple_merge_local_type
         integer(int64) :: serial = 0
         logical :: set = .false.
@@ -226,7 +247,6 @@ module simple_merge_mode_mod
         logical :: has_check_cache = .false.
         integer(int64) :: check_point = 0, check_tick = 0
         integer(int64), allocatable :: check_data(:)
-        procedure(simple_merge_resolve_procedure), pointer, nopass :: resolve_function => null()
     end type simple_merge_local_type
 
     type(simple_merge_local_type), allocatable :: locals(:)
@@ -284,6 +304,7 @@ contains
 
         k = local_index()
         if (k > 0) locals(k) = simple_merge_local_type()
+        call simple_merge_resolve_function%clear_local()
     end subroutine clear_simple_merge_locals
 
     !> Keep track of which style of conflict is in use in the current
@@ -298,15 +319,49 @@ contains
         if (k > 0) style = locals(k)%conflict_style
     end function simple_merge_conflict_style
 
-    !> Give the current buffer FN as its own `simple_merge_resolve_function'
-    !> (its buffer-local value).  Not a port.
-    subroutine simple_merge_resolve_function_set_local(fn)
-        procedure(simple_merge_resolve_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `simple_merge_resolve_function'.  Not a port.
+    subroutine set_simple_merge_resolve_local(self, local_procedure)
+        class(simple_merge_resolve_setting_type), intent(inout) :: self
+        procedure(simple_merge_resolve_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_entry(k)
-        if (k > 0) locals(k)%resolve_function => fn
-    end subroutine simple_merge_resolve_function_set_local
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_simple_merge_resolve_local
+
+    !> The current buffer's value of
+    !> `simple_merge_resolve_function':
+    !> its own, else the global one.  Not a port.
+    function get_simple_merge_resolve_current(self) result(current_procedure)
+        class(simple_merge_resolve_setting_type), intent(in) :: self
+        procedure(simple_merge_resolve_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_simple_merge_resolve_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_simple_merge_resolve_entry(self)
+        class(simple_merge_resolve_setting_type), intent(inout) :: self
+        type(simple_merge_resolve_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_simple_merge_resolve_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_simple_merge_resolve_entry(self, k)
+        class(simple_merge_resolve_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_simple_merge_resolve_entry
 
     !> The default `simple_merge_resolve_function'.  Port of smerge-mode.el
     !> smerge-resolve-function (its default value).
@@ -1533,15 +1588,8 @@ contains
             type(change_group_type) :: group
             type(status_type) :: fst, cst
             procedure(simple_merge_resolve_procedure), pointer :: fn
-            integer :: k
 
-            fn => simple_merge_resolve_function
-            k = local_index()
-
-            if (k > 0) then
-                if (associated(locals(k)%resolve_function)) fn => locals(k)%resolve_function
-            end if
-
+            fn => simple_merge_resolve_function%get_current()
             if (.not. associated(fn)) fn => resolve_unknown
             call prepare_change_group(group)
             call activate_change_group(group)
@@ -2192,7 +2240,10 @@ contains
             end if
         end if
 
-        if (.not. associated(simple_merge_resolve_function)) simple_merge_resolve_function => resolve_unknown
+        if (.not. associated(simple_merge_resolve_function%procedure)) then
+            simple_merge_resolve_function%procedure => resolve_unknown
+        end if
+
         if (.not. allocated(conflict_overlays)) allocate (conflict_overlays(0))
         call define_faces()
         call minor_modes%simple_merge_mode%define("simple_merge_mode", " SMerge", hook=simple_merge_mode_hook, keymap=.true., &

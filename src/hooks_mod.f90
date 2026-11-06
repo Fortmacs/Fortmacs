@@ -277,7 +277,7 @@ module hooks_mod
         !> Forget the current buffer's own functions.
         procedure :: clear_local => hook_clear_local
         !> Whether the current buffer has its own functions.
-        procedure :: local_p => is_hook_local
+        procedure :: is_local => is_hook_local
         !> Whether the hook's value in the current buffer is empty.
         procedure :: empty => hook_empty
         !> Make the hook's value in the current buffer empty.

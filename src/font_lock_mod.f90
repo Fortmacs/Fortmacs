@@ -52,6 +52,7 @@ module font_lock_mod
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, make_list, vtag, V_NULL, V_NAME, V_ARRAY
     use data_mod, only: symbol_value, set, append_locals_clearer, value_eq
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use marker_mod, only: make_marker, destroy_marker, set_marker, marker_position
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, widen, narrow_to_region, &
                                      line_beginning_position, line_end_position
@@ -90,7 +91,7 @@ module font_lock_mod
                                      syntax_parser_state_flush_cache
     implicit none(type, external)
     private
-    public :: font_lock_forget_defaults, font_lock_fontify_region_procedure, font_lock_fontify_region_function_set_local
+    public :: font_lock_forget_defaults, font_lock_fontify_region_procedure
     public :: c_preprocessor_font_lock_keywords, font_lock_apply_highlight
 
     !> Regular expression used in `c_preprocessor_font_lock_keywords'.  Port of
@@ -212,6 +213,39 @@ module font_lock_mod
         end subroutine font_lock_fontify_region_procedure
     end interface
 
+    !> One buffer's own value of
+    !> `font_lock_fontify_region_function'.
+    type :: font_lock_fontify_region_entry_type
+        procedure(font_lock_fontify_region_procedure), pointer, nopass :: procedure => null()
+    end type font_lock_fontify_region_entry_type
+
+    !> The type of
+    !> `font_lock_fontify_region_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: font_lock_fontify_region_setting_type
+        procedure(font_lock_fontify_region_procedure), pointer, nopass :: procedure => null()
+        type(font_lock_fontify_region_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_font_lock_fontify_region_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_font_lock_fontify_region_current
+        procedure :: append_local_entry => append_font_lock_fontify_region_entry
+        procedure :: clear_local_entry => clear_font_lock_fontify_region_entry
+    end type font_lock_fontify_region_setting_type
+
+    !> Function to use for fontifying a region.
+    !> It should take two arguments, the beginning and end of the region,
+    !> and a third argument LOUDLY.  If LOUDLY is true, the function should
+    !> print status messages.  This is normally set via `font_lock_defaults'.
+    !> If it fontifies a larger region, it should ideally give the bounds of
+    !> the region actually fontified in DONE_BEGINNING and DONE_END.  Port of
+    !> font-lock.el font-lock-fontify-region-function (`%procedure' is the
+    !> global value, `font_lock_default_fontify_region' by default;
+    !> `%set_local' gives a buffer its own).
+    type(font_lock_fontify_region_setting_type), public :: font_lock_fontify_region_function
+
     !> The buffer-local variables of font-lock.el, by buffer.
     type :: locals_type
         integer(int64) :: serial = 0
@@ -240,9 +274,6 @@ module font_lock_mod
         !> OTHER-VARS of `font_lock_defaults').
         logical :: has_syntactic_face = .false.
         procedure(syntactic_face_procedure), pointer, nopass :: syntactic_face => null()
-        !> The buffer's own `font_lock_fontify_region_function' (null for
-        !> `font_lock_default_fontify_region').
-        procedure(font_lock_fontify_region_procedure), pointer, nopass :: fontify_region => null()
     end type locals_type
 
     type(locals_type), allocatable :: locals(:)
@@ -500,23 +531,56 @@ contains
         locals(k)%serial = buffers(current)%serial
     end subroutine make_local_entry
 
-    !> Give the current buffer its own `font_lock_fontify_region_function'
-    !> FN (set_local).  Port of font-lock.el
-    !> font-lock-fontify-region-function (buffer-local; its default is
-    !> `font_lock_default_fontify_region').
-    subroutine font_lock_fontify_region_function_set_local(fn)
-        procedure(font_lock_fontify_region_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `font_lock_fontify_region_function'.  Not a port.
+    subroutine set_font_lock_fontify_region_local(self, local_procedure)
+        class(font_lock_fontify_region_setting_type), intent(inout) :: self
+        procedure(font_lock_fontify_region_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_entry(k)
-        if (k > 0) locals(k)%fontify_region => fn
-    end subroutine font_lock_fontify_region_function_set_local
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_font_lock_fontify_region_local
+
+    !> The current buffer's value of
+    !> `font_lock_fontify_region_function':
+    !> its own, else the global one.  Not a port.
+    function get_font_lock_fontify_region_current(self) result(current_procedure)
+        class(font_lock_fontify_region_setting_type), intent(in) :: self
+        procedure(font_lock_fontify_region_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_font_lock_fontify_region_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_font_lock_fontify_region_entry(self)
+        class(font_lock_fontify_region_setting_type), intent(inout) :: self
+        type(font_lock_fontify_region_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_font_lock_fontify_region_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_font_lock_fontify_region_entry(self, k)
+        class(font_lock_fontify_region_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_font_lock_fontify_region_entry
 
     !> kill-all-local-variables: forget the current buffer's font-lock.el
     !> variables.  Not a port.
     subroutine clear_font_lock_locals()
         integer :: k
 
+        call font_lock_fontify_region_function%clear_local()
         k = local_index()
         if (k == 0) return
         locals(k) = locals_type()
@@ -861,7 +925,7 @@ contains
         allocate (keywords(0))
 
         if (font_lock_defaults%present_p()) then
-            defaults = font_lock_defaults%current()
+            defaults = font_lock_defaults%get_current()
 
             ! font-lock-choose-keywords.
             if (allocated(defaults%levels)) then
@@ -1114,7 +1178,6 @@ contains
         integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion, b, e
         logical :: loud
         procedure(font_lock_fontify_region_procedure), pointer :: fn
-        integer :: k
 
         loud = .false.
         if (present(loudly)) loud = loudly
@@ -1123,9 +1186,7 @@ contains
         beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
         end_of_accessible_portion = buffers(current)%end_of_accessible_portion
         if (.not. font_lock_dont_widen) call widen()
-        k = local_index()
-        fn => null()
-        if (k > 0) fn => locals(k)%fontify_region
+        fn => font_lock_fontify_region_function%get_current()
 
         if (associated(fn)) then
             call fn(beginning, end, loud, status, b, e)
@@ -1959,7 +2020,7 @@ contains
         call syntax_propertize(end, status)
         if (.not. status%ok()) return
         old_table = syntax_table()
-        call syntax_parser_state_table%current(table, has_parser_state_table)
+        call syntax_parser_state_table%get_current(table, has_parser_state_table)
 
         if (has_parser_state_table) then
             call set_syntax_table(table, st)
@@ -2102,6 +2163,10 @@ contains
 
         if (.not. associated(font_lock_syntactic_face_function)) then
             font_lock_syntactic_face_function => default_syntactic_face
+        end if
+
+        if (.not. associated(font_lock_fontify_region_function%procedure)) then
+            font_lock_fontify_region_function%procedure => font_lock_default_fontify_region
         end if
 
         call append_locals_clearer(clear_font_lock_locals)

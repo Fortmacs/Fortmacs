@@ -44,7 +44,8 @@ module electric_mod
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
-    use buffer_mod, only: buffers, current, buffer_list, resolve_buffer, barf_if_buffer_read_only, buffer_serial_live
+    use buffer_mod, only: buffers, current, buffer_list, resolve_buffer, barf_if_buffer_read_only
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use editing_functions_mod, only: point, goto_character, is_beginning_of_line, is_end_of_line, character_before, &
                                      line_beginning_position
@@ -58,24 +59,39 @@ module electric_mod
     implicit none(type, external)
     private
 
-    public :: electric_indent_characters_value, electric_indent_characters_set_local
     public :: initialize_electric, electric_indent_mode, electric_indent_local_mode, electric_after_character_position, &
               is_electric_indent_can_reindent, electric_indent_post_self_insert_function, &
               electric_indent_just_newline, electric_newline_and_maybe_indent
 
+    !> One buffer's own value of `electric_indent_characters'.
+    type :: electric_indent_characters_entry_type
+        integer, allocatable :: characters(:)
+    end type electric_indent_characters_entry_type
+
+    !> The type of `electric_indent_characters': the global value
+    !> `characters' (assigned with `=', as in
+    !> `electric_indent_characters = [10, iachar("}")]') and the buffers'
+    !> own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: electric_indent_characters_setting_type
+        integer, allocatable :: characters(:)
+        type(electric_indent_characters_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value CHARACTERS.
+        procedure :: set_local => set_electric_indent_characters_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_electric_indent_characters_current
+        procedure :: append_local_entry => append_electric_indent_characters_entry
+        procedure :: clear_local_entry => clear_electric_indent_characters_entry
+        procedure, private :: assign_electric_indent_characters
+        !> Make CHARACTERS the global value.
+        generic :: assignment(=) => assign_electric_indent_characters
+    end type electric_indent_characters_setting_type
+
     !> Characters that should cause automatic reindentation.  Port of
-    !> electric.el electric-indent-chars (the default value; `initialize_electric'
-    !> gives it the newline unless the configuration set it; a buffer's own
-    !> value is set with `electric_indent_characters_set_local').
-    integer, allocatable, public :: electric_indent_characters(:)
-
-    ! One buffer's own `electric_indent_characters'.
-    type :: indent_characters_entry_type
-        integer(int64) :: serial = 0
-        integer, allocatable :: chars(:)
-    end type indent_characters_entry_type
-
-    type(indent_characters_entry_type), allocatable :: local_indent_characters(:)
+    !> electric.el electric-indent-chars (`=' sets the global value,
+    !> which `initialize_electric' makes the newline unless the
+    !> configuration set it; `%set_local' gives a buffer its own).
+    type(electric_indent_characters_setting_type), public :: electric_indent_characters
 
     !> If true, reindentation is not appropriate for this buffer.
     !> This should be set by major modes such as `python_mode' since
@@ -121,7 +137,7 @@ contains
         commands%electric_indent_local_mode%execute => electric_indent_local_mode
         commands%electric_indent_just_newline%execute => electric_indent_just_newline
         commands%electric_newline_and_maybe_indent%execute => electric_newline_and_maybe_indent
-        if (.not. allocated(electric_indent_characters)) electric_indent_characters = [10]
+        if (.not. allocated(electric_indent_characters%characters)) electric_indent_characters = [10]
         call append_locals_clearer(clear_electric_locals)
 
         if (.not. allocated(electric_indent_functions_without_reindent)) then
@@ -134,73 +150,67 @@ contains
         call define_key(global_map, key, value_type(name="electric_newline_and_maybe_indent"), st)
     end subroutine initialize_electric
 
-    ! The index of the current buffer's own `electric_indent_characters', 0 if
-    ! none.
-    ! Not a port.
-    integer function indent_characters_index() result(k)
-        k = 0
-        if (current == 0) return
-        if (.not. allocated(local_indent_characters)) return
-        k = findloc(local_indent_characters%serial, buffers(current)%serial, dim=1)
-    end function indent_characters_index
-
-    ! Find or make the current buffer's own `electric_indent_characters' entry,
-    ! reusing the entry of a closed buffer; K is its index (0 without a
-    ! current buffer).
-    ! Not a port.
-    subroutine make_indent_characters_entry(k)
-        integer, intent(out) :: k
-        type(indent_characters_entry_type) :: entry
-
-        k = indent_characters_index()
-        if (k > 0 .or. current == 0) return
-        if (.not. allocated(local_indent_characters)) allocate (local_indent_characters(0))
-
-        do k = 1, size(local_indent_characters)
-            if (.not. buffer_serial_live(local_indent_characters(k)%serial)) exit
-        end do
-
-        if (k > size(local_indent_characters)) local_indent_characters = [local_indent_characters, entry]
-        local_indent_characters(k)%serial = buffers(current)%serial
-    end subroutine make_indent_characters_entry
-
-    !> The value of `electric_indent_characters' in the current buffer: its own,
-    !> else the default.
-    !> Not a port.
-    function electric_indent_characters_value() result(chars)
-        integer, allocatable :: chars(:)
+    !> Give the current buffer its own value CHARACTERS of
+    !> `electric_indent_characters'.  Not a port.
+    subroutine set_electric_indent_characters_local(self, characters)
+        class(electric_indent_characters_setting_type), intent(inout) :: self
+        integer, intent(in) :: characters(:)
         integer :: k
 
-        k = indent_characters_index()
+        call self%make_local_entry(k)
+        if (k > 0) self%locals(k)%characters = characters
+    end subroutine set_electric_indent_characters_local
+
+    !> The current buffer's value of `electric_indent_characters': its
+    !> own, else the global one (none when unset).  Not a port.
+    function get_electric_indent_characters_current(self) result(characters)
+        class(electric_indent_characters_setting_type), intent(in) :: self
+        integer, allocatable :: characters(:)
+        integer :: k
+
+        k = self%get_local_index()
 
         if (k > 0) then
-            chars = local_indent_characters(k)%chars
-        else if (allocated(electric_indent_characters)) then
-            chars = electric_indent_characters
+            characters = self%locals(k)%characters
+        else if (allocated(self%characters)) then
+            characters = self%characters
         else
-            allocate (chars(0))
+            allocate (characters(0))
         end if
-    end function electric_indent_characters_value
+    end function get_electric_indent_characters_current
 
-    !> Give the current buffer its own value CHARS of `electric_indent_characters'
-    !> (set_local).
-    !> Not a port.
-    subroutine electric_indent_characters_set_local(chars)
-        integer, intent(in) :: chars(:)
-        integer :: k
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_electric_indent_characters_entry(self)
+        class(electric_indent_characters_setting_type), intent(inout) :: self
+        type(electric_indent_characters_entry_type) :: entry
 
-        call make_indent_characters_entry(k)
-        if (k > 0) local_indent_characters(k)%chars = chars
-    end subroutine electric_indent_characters_set_local
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_electric_indent_characters_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_electric_indent_characters_entry(self, k)
+        class(electric_indent_characters_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%characters)) deallocate (self%locals(k)%characters)
+        allocate (self%locals(k)%characters(0))
+    end subroutine clear_electric_indent_characters_entry
+
+    ! `electric_indent_characters = CHARACTERS': the global value.
+    ! Not a port.
+    subroutine assign_electric_indent_characters(self, characters)
+        class(electric_indent_characters_setting_type), intent(inout) :: self
+        integer, intent(in) :: characters(:)
+
+        self%characters = characters
+    end subroutine assign_electric_indent_characters
 
     ! kill-all-local-variables: forget the current buffer's own
     ! `electric_indent_characters'.
     ! Not a port.
     subroutine clear_electric_locals()
-        integer :: k
-
-        k = indent_characters_index()
-        if (k > 0) local_indent_characters(k)%serial = 0
+        call electric_indent_characters%clear_local()
     end subroutine clear_electric_locals
 
     !> The character `last_command_event' is, or -1.  Not a port.
@@ -285,7 +295,7 @@ contains
 
         position = electric_after_character_position()
         if (position == 0) return
-        if (.not. any(electric_indent_characters_value() == ev)) return
+        if (.not. any(electric_indent_characters%get_current() == ev)) return
         ! If we error during indent, silently give up since this is an
         ! automatic action that the user didn't explicitly request.
         ! For newline, we want to reindent both lines and basically behave

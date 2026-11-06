@@ -31,7 +31,8 @@ the highlighting overlays (`make-flyspell-overlay`, `flyspell-highlight-incorrec
 `flyspell-accept-buffer-local-defs` and the dash dictionaries,
 `flyspell-kill-ispell-hook`;
 the mode tests of Mail and SGML/HTML modes (`mail-mode-flyspell-verify`, `sgml-mode-flyspell-verify`) as the `spellcheck_mode_test_function` of `major_mode_type` (upstream's `flyspell-mode-predicate` property);
-the options, with `flyspell-large-region` as `spellcheck_large_region_variable` (`%characters`, R6-39) and `flyspell-duplicate-distance` with `SPELLCHECK_DUPLICATE_DISTANCE_UNLIMITED`
+the options, with `flyspell-large-region` as `spellcheck_large_region_variable` (`%characters`, R6-39) and `flyspell-duplicate-distance` with `SPELLCHECK_DUPLICATE_DISTANCE_UNLIMITED`,
+`flyspell-generic-check-word-predicate` as a buffer-local procedure setting (`spellcheck_generic_check_word_test_function`: `%procedure`, `%set_local`, `%get_current`, `%clear_local`; cleared by `clear_all_local_variables`)
 
 ## Deferred
 

@@ -32,7 +32,8 @@ the subprogram commands: `beginning-of-defun` (C-M-a, C-M-<home>),
 `narrow-to-defun-include-comments`,
 `buffer-end`;
 `insert-pair` (`insert-pair-alist`, `parens-require-spaces`),
-`insert-parentheses` (M-(), `delete-pair` (`delete-pair-blink-delay`, `delete-pair-push-mark`), `raise-sexp`, `check-parens`
+`insert-parentheses` (M-(), `delete-pair` (`delete-pair-blink-delay`, `delete-pair-push-mark`), `raise-sexp`, `check-parens`,
+`forward-sexp-function` and `beginning-of-defun-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`, `%is_local`, `%clear_local`)
 
 ## Deferred
 

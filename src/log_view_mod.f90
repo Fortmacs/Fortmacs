@@ -48,6 +48,7 @@ module log_view_mod
     use value_mod, only: value_type, xstring, vtag, V_NULL
     use data_mod, only: symbol_value, set, append_locals_clearer, value_eq
     use hooks_mod, only: hook_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, buffer_serial_live, is_buffer_live, deactivate_mark_variable
     use commands_mod, only: commands
     use modes_mod, only: major_modes
@@ -92,7 +93,7 @@ module log_view_mod
               log_view_version_control_fileset, &
               log_view_version_control_backend, &
               set_log_view_file_regular_expression, set_log_view_message_regular_expression, set_log_view_per_file_logs, &
-              set_log_view_expanded_log_entry_function, set_log_view_version_control_fileset, &
+              set_log_view_version_control_fileset, &
               set_log_view_version_control_backend, &
               set_log_view_font_lock_keywords, log_view_font_lock_keywords, initialize_log_view
 
@@ -166,16 +167,46 @@ module log_view_mod
     ! "^cvs[.ex]* [a-z]+: Logging \\(.+\\)$"
     character(len=*), parameter :: LOG_VIEW_DIRECTORY_REGULAR_EXPRESSION = "^cvs[.ex]* [a-z]+: Logging \(.+\)$"
 
+    !> One buffer's own value of
+    !> `log_view_expanded_log_entry_function'.
+    type :: log_view_expanded_log_entry_entry_type
+        procedure(log_view_entry_procedure), pointer, nopass :: procedure => null()
+    end type log_view_expanded_log_entry_entry_type
+
+    !> The type of
+    !> `log_view_expanded_log_entry_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: log_view_expanded_log_entry_setting_type
+        procedure(log_view_entry_procedure), pointer, nopass :: procedure => null()
+        type(log_view_expanded_log_entry_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_log_view_expanded_log_entry_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_log_view_expanded_log_entry_current
+        procedure :: append_local_entry => append_log_view_expanded_log_entry_entry
+        procedure :: clear_local_entry => clear_log_view_expanded_log_entry_entry
+    end type log_view_expanded_log_entry_setting_type
+
+    !> Function returning the detailed description of a Log View entry.
+    !> It is called by the command `log_view_toggle_entry_display' with
+    !> one argument, the revision ID of the current entry, and gives its
+    !> long description in TEXT (FOUND .false. for none).  Port of
+    !> log-view.el log-view-expanded-log-entry-function (`%procedure' is
+    !> the global value, null for none; `%set_local' gives a buffer its
+    !> own).
+    type(log_view_expanded_log_entry_setting_type), public :: log_view_expanded_log_entry_function
+
     ! The buffer-local values of a Log View buffer, by serial number:
     ! log-view-file-re, log-view-message-re, log-view-per-file-logs,
-    ! log-view-expanded-log-entry-function, log-view-font-lock-keywords,
-    ! log-view-vc-fileset and log-view-vc-backend.
+    ! log-view-font-lock-keywords, log-view-vc-fileset and
+    ! log-view-vc-backend.
     type :: local_type
         integer(int64) :: serial = 0
         character(len=:), allocatable :: file_regular_expression, message_regular_expression
         logical :: has_per_file_logs = .false.
         logical :: per_file_logs = .true.
-        procedure(log_view_entry_procedure), pointer, nopass :: expanded => null()
         logical :: has_keywords = .false.
         type(font_lock_keyword_type), allocatable :: keywords(:)
         logical :: has_fileset = .false.
@@ -228,6 +259,7 @@ contains
 
         k = local_index()
         if (k > 0) locals(k) = local_type()
+        call log_view_expanded_log_entry_function%clear_local()
     end subroutine clear_log_view_locals
 
     !> The current buffer's `log_view_file_regular_expression': the regexp matching the
@@ -355,14 +387,49 @@ contains
         locals(k)%per_file_logs = flag
     end subroutine set_log_view_per_file_logs
 
-    !> Give the current buffer its own `log_view_expanded_log_entry_function', FN (set_local).  Not a port.
-    subroutine set_log_view_expanded_log_entry_function(fn)
-        procedure(log_view_entry_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `log_view_expanded_log_entry_function'.  Not a port.
+    subroutine set_log_view_expanded_log_entry_local(self, local_procedure)
+        class(log_view_expanded_log_entry_setting_type), intent(inout) :: self
+        procedure(log_view_entry_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%expanded => fn
-    end subroutine set_log_view_expanded_log_entry_function
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_log_view_expanded_log_entry_local
+
+    !> The current buffer's value of
+    !> `log_view_expanded_log_entry_function':
+    !> its own, else the global one.  Not a port.
+    function get_log_view_expanded_log_entry_current(self) result(current_procedure)
+        class(log_view_expanded_log_entry_setting_type), intent(in) :: self
+        procedure(log_view_entry_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_log_view_expanded_log_entry_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_log_view_expanded_log_entry_entry(self)
+        class(log_view_expanded_log_entry_setting_type), intent(inout) :: self
+        type(log_view_expanded_log_entry_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_log_view_expanded_log_entry_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_log_view_expanded_log_entry_entry(self, k)
+        class(log_view_expanded_log_entry_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_log_view_expanded_log_entry_entry
 
     !> Give the current buffer its own `log_view_version_control_fileset', FILESET (set_local).  Not a port.
     subroutine set_log_view_version_control_fileset(fileset)
@@ -902,14 +969,13 @@ contains
         character(len=:), allocatable :: tag, long_entry
         type(value_type) :: expanded, saved, properties(4)
         logical :: found, has, changed
-        integer :: k
+        procedure(log_view_entry_procedure), pointer :: expand
 
         status = status_type()
         ! Don't do anything unless `log_view_expanded_log_entry_function'
         ! is defined in this mode.
-        k = local_index()
-        if (k == 0) return
-        if (.not. associated(locals(k)%expanded)) return
+        expand => log_view_expanded_log_entry_function%get_current()
+        if (.not. associated(expand)) return
         original_point = point()
         call log_view_current_entry(beginning, tag, found, move=.true.)
         if (.not. found) return
@@ -935,7 +1001,7 @@ contains
             end if
         else
             ! Otherwise, expand the entry.
-            call locals(k)%expanded(tag, long_entry, has)
+            call expand(tag, long_entry, has)
 
             if (has) then
                 call put_text_property(beginning, beginning + 1, value_type(name="log_view_entry_expanded"), &

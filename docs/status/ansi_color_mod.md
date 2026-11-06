@@ -24,7 +24,8 @@ the contexts (`ansi-color-context`, `ansi-color-context-region`, partial sequenc
 `ansi-color-bold-is-bright`,
 the basic,
 normal and bright face vectors,
-the faces `ansi-color-bold` to `ansi-color-bright-white`
+the faces `ansi-color-bold` to `ansi-color-bright-white`,
+`ansi-color-apply-face-function` as a buffer-local procedure setting (`%procedure`, default `ansi_color_apply_overlay_face`; `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

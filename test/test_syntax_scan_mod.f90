@@ -938,7 +938,7 @@ contains
 
         call temporary_buffer("", table)
         call set(value_type(name="comment_end_can_be_escaped"), value_type(.true.), st)
-        call check(error, st%ok() .and. comment_end_can_be_escaped%value .and. comment_end_can_be_escaped%local_p())
+        call check(error, st%ok() .and. comment_end_can_be_escaped%value .and. comment_end_can_be_escaped%is_local())
         call comment_end_can_be_escaped%clear_local()
         call done_buffer(table)
     end subroutine test_escaped_variable
