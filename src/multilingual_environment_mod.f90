@@ -111,7 +111,7 @@ module multilingual_environment_mod
                                  current_iso639_language, character_sets, find_character_set, character_set_list, &
                                  character_set_characters, decode_character
     use help_mod, only: with_output_to_temporary_buffer
-    use buffer_mod, only: header_line_format_type, current_input_method_procedure
+    use buffer_mod, only: header_line_format_type, current_input_method_procedure, MODE_LINE_BUFFER_NAME
     use keyboard_mod, only: ring_bell
     implicit none(type, external)
     private
@@ -3913,7 +3913,7 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call id%append("%12b", "mode_line_buffer_id")
+        call id%append(MODE_LINE_BUFFER_NAME, width=12, face="mode_line_buffer_id")
         call id%append(" ("//listed_character_set//")")
         buffers(current)%mode_line_buffer_identification = id
         call tab_width%set_local(4_int64)

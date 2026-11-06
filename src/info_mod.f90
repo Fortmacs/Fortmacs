@@ -66,7 +66,7 @@ module info_mod
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, get_or_make_buffer, &
                           generate_new_buffer_name, close_buffer, erase_buffer, restore_buffer_modified, get_buffer, &
-                          inhibit_read_only, transient_mark_mode, header_line_format_type, buffer_list
+                          inhibit_read_only, transient_mark_mode, header_line_format_type, buffer_list, MODE_LINE_BUFFER_NAME
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker, &
                           detach_marker, set_marker_insertion_type, byte_to_character, character_to_byte
     use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_beginning_of_buffer, &
@@ -3692,17 +3692,16 @@ contains
             manual = file_name_nondirectory(file)
             i = index(manual, ".")
             if (i > 0) manual = manual(1:i - 1)
-            manual = replace_all("%", "%%", manual)
         else
             manual = "*nil*"
         end if
 
-        call id%append("%b", "mode_line_buffer_id")
+        call id%append(MODE_LINE_BUFFER_NAME, face="mode_line_buffer_id")
         call id%append(" ("//manual//") ")
         node = info_current_node()
 
         if (allocated(node)) then
-            call id%append(replace_all("%", "%%", node), "mode_line_buffer_id")
+            call id%append(node, "mode_line_buffer_id")
         else
             call id%append("")
         end if
@@ -8835,7 +8834,7 @@ contains
                 end if
 
                 call put_text_property(point_minimum(), point_minimum() + 1, value_type(name="header_line"), &
-                                       value_type(text=replace_all("%", "%%", header)), st)
+                                       value_type(text=header), st)
 
                 ! Hide the part of the first line that is in the header, if
                 ! it is just part.

@@ -97,7 +97,8 @@ module display_engine_mod
                                    next_single_character_property_change, text_property_means_invisible, propertized_substring
     use interval_tree_mod, only: overlays_in, overlay_start, overlay_end, overlay_get
     use buffer_mod, only: current, set_buffer_internal, header_line_format_type, header_line_segment_type, &
-                          header_line_format_procedure
+                          header_line_format_procedure, MODE_LINE_NONE, MODE_LINE_BUFFER_NAME, &
+                          MODE_LINE_BUFFER_PROCESS_STATUS
     use buffer_mod, only: buffers, resolve_buffer, current_buffer, buffer_fetch_character, &
                           buffer_fetch_byte, buffer_next_character_length, is_buffer_modified, transient_mark_mode
     use marker_mod, only: buffer_character_position_to_byte_position, buffer_byte_position_to_character_position, markers
@@ -153,7 +154,7 @@ module display_engine_mod
     public :: message_nolog, message_dolog, message_log_echo, message_log_maybe_newline, current_message
     public :: highlight_region_procedure, unhighlight_region_procedure, pre_redisplay_procedure
     public :: bidirectional_find_overridden_directionality, current_bidirectional_paragraph_direction
-    public :: is_mode_line_window_selected
+    public :: is_mode_line_window_selected, mode_line_part_text, mode_line_identification
 
     !> The window redisplay is displaying (it->w); the null handle
     !> between windows.
@@ -390,14 +391,16 @@ module display_engine_mod
     ! modes (bindings.el mode-line-misc-info: its elements in order).
     type(miscellaneous_info_entry_type), allocatable :: miscellaneous_info_entries(:)
 
-    !> One part of a `mode_line_process' construct: TEXT, in which "%s"
-    !> stands for the status of the buffer's process (decode_mode_specification's
-    !> %s) and "%%" for "%", shown in FACE (none if empty).  Upstream
-    !> the parts are the strings and (:propertize STRING face FACE)
-    !> elements of the construct.
+    !> One part of a `mode_line_process' construct: TEXT, or the computed
+    !> part PART (a MODE_LINE_ constant of buffer_mod: MODE_LINE_BUFFER_PROCESS_STATUS
+    !> for the status of the buffer's process) padded to at least WIDTH
+    !> columns, shown in FACE (none if empty).  Upstream the parts are the
+    !> strings and (:propertize STRING face FACE) elements of the construct.
     type, public :: mode_line_part_type
         character(len=:), allocatable :: text
         character(len=:), allocatable :: face
+        integer :: part = MODE_LINE_NONE
+        integer :: width = 0
     end type mode_line_part_type
 
     !> A buffer's own `mode_line_process'.
@@ -2802,9 +2805,9 @@ contains
 
     !> The buffer identification of buffer slot BI in the mode line
     !> (mode-line-buffer-identification): the buffer's own
-    !> `mode_line_buffer_identification' segments, "%b" standing for the
-    !> buffer name and "%%" for "%", or by default the name padded to 12
-    !> columns ("%12b", from propertized-buffer-identification).  SPANS
+    !> `mode_line_buffer_identification' segments, of text and computed
+    !> parts (`mode_line_part_text'), or by default the name padded to 12
+    !> columns (upstream's "%12b", from propertized-buffer-identification).  SPANS
     !> give the characters of ID (counted from 1) that are in a face,
     !> FACES the names of those faces.  Port of
     !> xdisp.c:display_mode_element and xdisp.c:decode_mode_spec, in part.
@@ -2833,7 +2836,7 @@ contains
             ns = 0
 
             do k = 1, size(segs)
-                part = expand_identification(segs(k)%text, buffers(bi)%name)
+                part = mode_line_part_text(bi, segs(k)%part, segs(k)%width, segs(k)%text)
                 call decode_string(part, chars, n)
 
                 if (len(segs(k)%face) > 0 .and. n > 0) then
@@ -2849,45 +2852,6 @@ contains
 
         spans = spans(1:ns)
         faces = faces(1:ns)
-
-    contains
-
-        !> TEXT with %b replaced by NAME (padded to the width of %12b) and %%
-        !> by %.
-        function expand_identification(text, name) result(t)
-            character(len=*), intent(in) :: text, name
-            character(len=:), allocatable :: t
-            integer :: i, digits, width
-
-            t = ""
-            i = 1
-
-            do while (i <= len(text))
-                if (text(i:i) == "%" .and. i < len(text)) then
-                    ! The field width's digits after the %, then the spec.
-                    digits = verify(text(i + 1:), "0123456789") - 1
-
-                    if (digits >= 0) then
-                        if (text(i + 1 + digits:i + 1 + digits) == "b") then
-                            width = 0
-                            if (digits > 0) read (text(i + 1:i + digits), *) width
-                            t = t//pad_characters(name, width)
-                            i = i + digits + 2
-                            cycle
-                        end if
-                    end if
-
-                    if (text(i + 1:i + 1) == "%") then
-                        t = t//"%"
-                        i = i + 2
-                        cycle
-                    end if
-                end if
-
-                t = t//text(i:i)
-                i = i + 1
-            end do
-        end function expand_identification
     end subroutine mode_line_identification
 
     !> What %p shows: the percentage of the accessible text above window
@@ -3198,41 +3162,35 @@ contains
         allocate (process_entries(k)%parts(0))
     end subroutine clear_mode_line_process
 
-    !> TEXT of a `mode_line_process' part as buffer slot BI's mode line
-    !> shows it: %s is the status of its process, %% a percent sign.
-    !> Port of xdisp.c:decode_mode_spec, in part (the %s case).
-    function expand_process_part(bi, text) result(s)
+    !> What a segment shows in the mode line, header line or tab line of
+    !> buffer slot BI: TEXT when PART is MODE_LINE_NONE, else the computed
+    !> part PART (the buffer's name, the status of its process or "no
+    !> process") padded with blanks on the right to at least WIDTH
+    !> columns (upstream's field width: a minimum, nothing is cut).  Port of
+    !> xdisp.c:decode_mode_spec, in part (%b and %s), with the field width
+    !> of xdisp.c:display_mode_element.
+    function mode_line_part_text(bi, part, width, text) result(s)
         integer(int64), intent(in) :: bi
+        integer, intent(in) :: part, width
         character(len=*), intent(in) :: text
-        character(len=:), allocatable :: s, status_name
-        integer :: k
+        character(len=:), allocatable :: s
 
-        s = ""
-        k = 1
-
-        do while (k <= len(text))
-            if (text(k:k) == "%" .and. k < len(text)) then
-                if (text(k + 1:k + 1) == "s") then
-                    if (associated(mode_line_process_status)) then
-                        call mode_line_process_status(bi, status_name)
-                    else
-                        status_name = "no process"
-                    end if
-
-                    s = s//status_name
-                    k = k + 2
-                    cycle
-                else if (text(k + 1:k + 1) == "%") then
-                    s = s//"%"
-                    k = k + 2
-                    cycle
-                end if
+        select case (part)
+        case (MODE_LINE_BUFFER_NAME)
+            s = buffers(bi)%name
+        case (MODE_LINE_BUFFER_PROCESS_STATUS)
+            if (associated(mode_line_process_status)) then
+                call mode_line_process_status(bi, s)
+            else
+                s = "no process"
             end if
+        case default
+            s = text
+            return
+        end select
 
-            s = s//text(k:k)
-            k = k + 1
-        end do
-    end function expand_process_part
+        s = pad_characters(s, width)
+    end function mode_line_part_text
 
     !> The text `mode_line_process' adds to buffer slot BI's mode line
     !> (for tests and for help).  Not a port.
@@ -3246,7 +3204,9 @@ contains
         if (e == 0) return
 
         do i = 1, size(process_entries(e)%parts)
-            s = s//expand_process_part(bi, process_entries(e)%parts(i)%text)
+            associate (p => process_entries(e)%parts(i))
+                s = s//mode_line_part_text(bi, p%part, p%width, p%text)
+            end associate
         end do
     end function mode_line_process_text
 
@@ -3338,7 +3298,7 @@ contains
 
         do i = 1, size(parts)
             call decode_string(modes, chars, before)
-            modes = modes//expand_process_part(bi, parts(i)%text)
+            modes = modes//mode_line_part_text(bi, parts(i)%part, parts(i)%width, parts(i)%text)
 
             if (len(parts(i)%face) > 0) then
                 call decode_string(modes, chars, nchars)
@@ -3472,7 +3432,9 @@ contains
             text = ""
 
             do k = 1, size(buffers(bi)%mode_line_format%segments)
-                text = text//buffers(bi)%mode_line_format%segments(k)%text
+                associate (segment => buffers(bi)%mode_line_format%segments(k))
+                    text = text//mode_line_part_text(bi, segment%part, segment%width, segment%text)
+                end associate
             end do
 
             spans = spans(1:0)
@@ -3575,7 +3537,10 @@ contains
 
             do i = 1, size(segments%segments)
                 call decode_string(miscellaneous, chars, before)
-                miscellaneous = miscellaneous//segments%segments(i)%text
+
+                associate (segment => segments%segments(i))
+                    miscellaneous = miscellaneous//mode_line_part_text(bi, segment%part, segment%width, segment%text)
+                end associate
 
                 if (len(segments%segments(i)%face) > 0 .and. n < MAXIMUM_SPANS) then
                     call decode_string(miscellaneous, chars, nchars)
@@ -3766,7 +3731,8 @@ contains
 
     !> SEGMENTS, what the `tab_line_format' (with TAB_LINE) or the
     !> `header_line_format' of buffer slot BI shows in WINDOW: its
-    !> segments, or what its procedure gives with the buffer current.
+    !> segments, or what its procedure gives with the buffer current, their
+    !> computed parts turned into the text they show.
     !> Port of xdisp.c:display_mode_element for a header line or tab line
     !> format (its strings and `(:eval FORM)'), with display_mode_lines's
     !> current buffer.
@@ -3777,6 +3743,7 @@ contains
         type(header_line_segment_type), allocatable, intent(out) :: segments(:)
         procedure(header_line_format_procedure), pointer :: format
         integer(int64) :: saved
+        integer :: k
 
         if (tab_line) then
             format => buffers(bi)%tab_line_format%procedure
@@ -3786,11 +3753,22 @@ contains
             if (allocated(buffers(bi)%header_line_format%segments)) segments = buffers(bi)%header_line_format%segments
         end if
 
-        if (.not. associated(format)) return
-        saved = current
-        if (bi /= current) call set_buffer_internal(bi)
-        call format(window, segments)
-        if (saved > 0 .and. saved /= current) call set_buffer_internal(saved)
+        if (associated(format)) then
+            saved = current
+            if (bi /= current) call set_buffer_internal(bi)
+            call format(window, segments)
+            if (saved > 0 .and. saved /= current) call set_buffer_internal(saved)
+        end if
+
+        if (.not. allocated(segments)) return
+
+        ! The computed parts, as the text they show.
+        do k = 1, size(segments)
+            if (segments(k)%part /= MODE_LINE_NONE) then
+                segments(k)%text = mode_line_part_text(bi, segments(k)%part, segments(k)%width, segments(k)%text)
+                segments(k)%part = MODE_LINE_NONE
+            end if
+        end do
     end subroutine line_format_segments
 
     !> Return true if we're updating the mode line for the selected window.

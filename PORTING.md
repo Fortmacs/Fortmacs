@@ -1072,7 +1072,7 @@ panel, 2026-11-06).  So are the string templates of settings (owner,
 order or repeat, a format with an `items` component naming what its `a`
 edit descriptors write in order (`completing_read_multiple_prompt`, the
 dired compression rules).  Mode-line %-constructs
-are separate; dates are written with `format_date` ("Dates to text").
+are computed parts of segments ("Header lines as typed segments"); dates are written with `format_date` ("Dates to text").
 data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
 that stood in about 150 places for `write (text, "(i0)") n`, is gone
 (`write-not-number-to-string`, 2026-11-04), with the private copies
@@ -2830,12 +2830,30 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
     line, which is still built by fixed code.  When they are ported they
     are written in Fortran, never with Emacs's %-constructs (`%b`, `%*`,
     `%l`) or `:eval` (owner, 2026-11-06); the mode line still shows the
-    same text.  Their Fortran form is decided when that step comes.
+    same text.
+  - A computed part (upstream's %-construct) is a segment holding a
+    named constant under the one MODE_LINE_ stem, with an optional
+    minimum `width` and a `face` (panel, 2026-11-06, #272): strings are
+    padded with blanks on the right and nothing is cut, as upstream's
+    field width, so the text shown is unchanged; text segments are shown
+    as they are, with no `%%` escaping; `procedure` stays for what
+    upstream does with `:eval`.  Chosen over a Fortran format with its
+    parts (`date_format_type`'s form), whose `a12` pads on the left,
+    cuts and counts bytes, and over a procedure per mode.  Ported:
+    `MODE_LINE_BUFFER_NAME` (%b) and `MODE_LINE_BUFFER_PROCESS_STATUS`
+    (%s, also a part of `mode_line_part_type` for `mode_line_process`);
+    the others come with the mode-line-format step
+    (docs/status/display_engine_mod.md).
+    ```fortran
+    ! before
+    call id%append("%12b", "mode_line_buffer_id")
+    ! after
+    call id%append(MODE_LINE_BUFFER_NAME, width=12, face="mode_line_buffer_id")
+    ```
   - A buffer's `mode_line_buffer_identification` (step 34a, for Info's
     "*info* (fortmacs) Node") is a `header_line_format_type` too: its
     segments replace the buffer name padded to 12 columns in the mode
-    line.  Its "%b" (the buffer name) and "%%" ("%") are converted to
-    the Fortran form in the same step.
+    line.
 
 - **The manuals (2026-10-29, chosen with the user).** The Info manuals
   of Fortmacs (step 34d) are made from upstream's Texinfo sources by an

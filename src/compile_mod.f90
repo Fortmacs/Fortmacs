@@ -96,7 +96,7 @@ module compile_mod
     use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting, choice_setting_type, string_to_number
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
-                          buffer_list, erase_buffer, restore_buffer_modified
+                          buffer_list, erase_buffer, restore_buffer_modified, MODE_LINE_BUFFER_PROCESS_STATUS
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker, marker_buffer, make_marker
     use insert_delete_mod, only: insert, before_change_functions
     use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, widen, narrow_to_region, &
@@ -4613,12 +4613,12 @@ contains
     end function is_compilation_in_progress
 
     !> Give entry K's buffer (the current buffer) the `mode_line_process'
-    !> of its state: ":%s" or the exit status, then
+    !> of its state: a colon and the status of its process, or the exit status, then
     !> `compilation_mode_line_errors' (the counts by default).  Not a port.
     subroutine update_mode_line_process(k)
         integer, intent(in) :: k
         type(mode_line_part_type), allocatable :: parts(:), errors(:)
-        integer :: i
+        integer :: i, first
 
         if (compilation_buffers(k)%mode_line == 0) return
 
@@ -4628,18 +4628,25 @@ contains
             call compilation_mode_line_errors(k, errors)
         end if
 
-        allocate (parts(size(errors) + 1))
-
         if (compilation_buffers(k)%mode_line == 1) then
-            parts(1)%text = ":%s"
+            ! (:propertize ":%s" face compilation-mode-line-run): a colon,
+            ! then the status of the process.
+            allocate (parts(size(errors) + 2))
+            parts(1)%text = ":"
             parts(1)%face = "compilation_mode_line_run"
+            parts(2)%text = ""
+            parts(2)%part = MODE_LINE_BUFFER_PROCESS_STATUS
+            parts(2)%face = "compilation_mode_line_run"
+            first = 2
         else
+            allocate (parts(size(errors) + 1))
             parts(1)%text = compilation_buffers(k)%exit_text
             parts(1)%face = compilation_buffers(k)%exit_face
+            first = 1
         end if
 
         do i = 1, size(errors)
-            parts(i + 1) = errors(i)
+            parts(first + i) = errors(i)
         end do
 
         call set_mode_line_process(parts)
