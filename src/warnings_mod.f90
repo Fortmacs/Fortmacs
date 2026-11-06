@@ -781,7 +781,8 @@ contains
     !> This is equivalent to `display_warning', using
     !> "fortmacs" as the type and WARNING_LEVEL_WARNING as the level.  Port of
     !> warnings.el:warn (the message is built by the caller, with an
-    !> internal write).
+    !> internal write, its literal parts passed through `format_message' as
+    !> upstream's format-message does).
     recursive subroutine warn(message, status)
         character(len=*), intent(in) :: message
         type(status_type), intent(out), optional :: status

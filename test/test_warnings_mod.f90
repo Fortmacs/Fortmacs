@@ -29,7 +29,7 @@ module test_warnings_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type
+    use error_mod, only: status_type, format_message
     use handle_mod, only: handle_type
     use string_type_mod, only: string_type, append_string
     use buffer_mod, only: buffers, get_buffer, get_or_make_buffer, set_buffer, close_buffer, current_buffer
@@ -260,21 +260,24 @@ contains
         call leave()
     end subroutine test_warnings_buffer
 
-    !> `warn' (finished text, type fortmacs), a message built with an
-    !> internal write, and a level whose Fortran format leaves the type out.
+    !> `warn' (finished text, type fortmacs; its literal quotes curved with
+    !> `format_message', as upstream's format-message does), a message built
+    !> with an internal write, and a level whose Fortran format leaves the
+    !> type out.
     subroutine test_warn(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=40) :: message
 
         call enter()
-        call warn("Can't find x", status=st)
+        call warn(format_message("Can't find `x'"), status=st)
         write (message, "(a, i0)") "Bad file at line ", 3
         call display_warning("diary", trim(message), WARNING_LEVEL_ERROR, status=st)
         warning_levels(4)%string = "(""Debug: "")"
         warning_minimum_log_level = WARNING_MINIMUM_DEBUG
         call display_warning("diary", "no type", WARNING_LEVEL_DEBUG, status=st)
-        call check(error, text_of("*Warnings*") == "Warning (fortmacs): Can't find x"//achar(10)// &
+        call check(error, text_of("*Warnings*") == "Warning (fortmacs): Can"//char(226)//char(128)//char(153)//"t find "// &
+                   char(226)//char(128)//char(152)//"x"//char(226)//char(128)//char(153)//achar(10)// &
                    "Error (diary): Bad file at line 3"//achar(10)//"Debug: no type"//achar(10), "text: "//text_of("*Warnings*"))
         call leave()
     end subroutine test_warn
