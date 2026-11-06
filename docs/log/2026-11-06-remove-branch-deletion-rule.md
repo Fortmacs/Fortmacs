@@ -1,0 +1,1 @@
+2026-11-06 — Branch deletion (`remove-branch-deletion-rule`, based on main; the owner's request): CLAUDE.md no longer says branches are deleted only at the owner's request (every report still ends with "Branches to delete:"), and .claude/settings.json, which only pre-approved `git push origin --delete`, is removed with the .claude/ folder.
