@@ -1059,8 +1059,8 @@ strings (dired-aux.el's `"Change mode of %s to: "` is
 text as it is.  tools/intrinsics.awk's percent-format rule checks; its
 baseline lists only the format strings users give at run time
 (keyboard_macro_counter_format, rectangle_number_lines' FORMAT), which
-await the owner's decision.  Mode-line %-constructs and time formats
-(format-time-string) are separate.
+await the owner's decision.  Mode-line %-constructs are separate, and
+dates are written with `format_date` ("Dates to text").
 data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
 that stood in about 150 places for `write (text, "(i0)") n`, is gone
 (`write-not-number-to-string`, 2026-11-04), with the private copies
@@ -1099,7 +1099,7 @@ descriptors and the DATE_ parts of the date it writes, in order, one per
 data edit descriptor (I, B, O, Z or G for a number, A or G for a name).
 `format_date(date_format, time, zone, status)` decodes the time, takes
 each part's value or English name and writes the text; it counts as the
-one `write` of "Numbers to text".  Upstream's strftime strings
+one `write` of "Text from a format".  Upstream's strftime strings
 (`format-time-string`, not applicable) are never used, in the source or
 in settings; a format used in several places is a named constant
 (`MAIL_DATE`).
