@@ -109,9 +109,9 @@ names, help and internals are Fortran-first.
     - `fill-column`→`fill_column` <!-- fortran-names: keep -->
     - `text-mode-hook`→`text_mode_hook` <!-- fortran-names: keep -->
   - Lisp terms take Fortran names:
-    - defun→subprogram <!-- fortran-names: keep -->
-    - sexp→expression <!-- fortran-names: keep -->
-    - alist→table <!-- fortran-names: keep -->
+    - `defun`→`subprogram` <!-- fortran-names: keep -->
+    - `sexp`→`expression` <!-- fortran-names: keep -->
+    - `alist`→`table` <!-- fortran-names: keep -->
 - **The same keys and mode line.** Keys and the text the mode line shows
   are unchanged; mode-line formats are written in Fortran, never with
   Emacs's %-constructs.
