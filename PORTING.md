@@ -284,16 +284,24 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `tab-bar-mode`/`tab-line-mode`: 44a terminal frames and C-x 5 —
        done; 44b tab-bar.el on terminal frames (the tab bar line, tabs,
        C-x t, tab history; see docs/status/tab_bar_mod.md) — done; 44c
-       tab-line.el.
+       tab-line.el on terminal frames (the tab line of each window,
+       Global Tab-Line mode, switching, moving and closing tabs, grouping;
+       see docs/status/tab_line_mod.md) — done.
    45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
    46. Calendar and diary, in parts: 46a the calendar core (calendar.el
        and cal-move.el: M-x calendar, Calendar mode, movement and
        scrolling) — done; 46b the holidays (holidays.el, with the
        Julian and Islamic conversions of cal-julian.el and cal-islam.el;
-       docs/status/holidays_mod.md) — partial; then the diary, the
+       docs/status/holidays_mod.md) — partial; 46c the diary core
+       (diary-lib.el: M-x diary, the calendar's d, D, s, m and i keys,
+       the date forms, the fancy and simple displays, the expression
+       entries diary-date, diary-block, diary-float, diary-anniversary,
+       diary-cyclic, diary-offset and diary-remind read by a fixed
+       reader; docs/status/diary_library_mod.md) — partial; then the
        other calendars (cal-iso.el, the rest of cal-julian.el and the
-       others), lunar.el and solar.el (and the holidays that need them).
+       others, with their diary entries), lunar.el and solar.el (and the
+       holidays that need them).
    47. VC, the rest: `vc-annotate` (C-x v g), branches and tags, pull
        and push, incoming and outgoing logs, and the vc-hg and vc-svn
        backends (vc-svn: done).
@@ -341,7 +349,13 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `mail-user-agent`: Message mode, composing with C-x m, sending
        with sendmail or SMTP, the generated headers and Fcc; MML, RFC 2047,
        news and replies deferred; see docs/status/message_mod.md) —
-       partial; then Rmail.
+       partial; 52d the Rmail core: reading mbox files and
+       new mail moved from local inboxes with lock files (rmail.el,
+       movemail.c in Fortran), Rmail mode with the summary, output,
+       editing and labels (rmailsum.el, rmailout.el, rmailedit.el,
+       rmailkwd.el) — partial (MIME display (rmailmm.el), RFC 2047
+       decoding, replying and forwarding, Babyl files, remote mailboxes
+       and sorting deferred; see docs/status/rmail_mod.md).
    53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 
@@ -1796,6 +1810,11 @@ Checked by hand on every PR's diff (no script can tell):
   nested expression.
 - A dummy argument that hides a module entity of the same name in another
   case (`beginning` and `BEGINNING`).
+- A type-bound procedure called on a registry entry
+  (`fortmacs_diff_sessions(session_index)%quit(.false., status)`) whose body
+  can append to that registry, directly or through a hook: SELF then
+  points into the freed array.  Find the entry again on entry and work
+  through the registry (see "Type-bound procedures on registry objects").
 - A component of a registry passed as an `intent(in)` argument to a
   procedure that changes that registry (`call close_buffer(windows(w%index)%buffer,
   status)`: closing the buffer gives the window another buffer, so the
@@ -2218,6 +2237,54 @@ scroll = .not. compilation_scroll_output%is_off()
 - gfortran does not emit a private module procedure that only a submodule
   calls, so such helpers are made public with a comment saying so (they are
   not part of the config API); ibuffer_mod does this for ibuffer_extensions_mod.
+
+### Type-bound procedures on registry objects (panels 13, 14)
+
+An object kept in an allocatable registry and referred to by its integer
+index there (an Ediff session in `fortmacs_diff_sessions`, a session
+group in `fortmacs_diff_session_groups`) has no handle wrapper: the index
+is named for the thing, `session_index`, `group_index` (plain loop
+counters stay `i`, `j`, `k`).  A helper that acts on one such object is a
+type-bound procedure, called on the registry entry, verb first and
+spelled out: `call fortmacs_diff_sessions(session_index)%select_difference(difference,
+status)`, `fortmacs_diff_session_groups(group_index)%get_session_at(position)`
+(ediff-select-difference, ediff-get-session-number-at-pos).  Commands (the
+`execute_` procedures in `commands%`) keep their command names, and so do
+the procedures that find or make a registry entry
+(`make_fortmacs_diff_session_entry`, `fortmacs_diff_session_index`).
+
+- A binding is declared in the type's module and its procedure lives in
+  that module or one of its submodules.  When the procedures need modules
+  that use the type's module, they go into submodules of it named for
+  their upstream file: fortmacs_diff_settings_mod (ediff-init.el) holds
+  `fortmacs_diff_session_type` and has fortmacs_diff_settings_diff_mod,
+  `_merging_mod`, `_utilities_mod`, `_window_mod` and `_help_mod` for the
+  session procedures of ediff-diff.el, ediff-merg.el, ediff-util.el,
+  ediff-wind.el and ediff-help.el; those files' modules keep their
+  settings, commands and other procedures.  A procedure that needs a
+  private procedure of another submodule stays free and takes the index
+  (`set_up_fortmacs_diff_keymap`, which binds the commands of
+  fortmacs_diff_utilities_session_mod).
+- The registry can grow, and move, while a bound procedure runs (a new
+  session, a hook running user code), leaving SELF dangling: see the
+  Hazards checklist.  A bound subroutine that can get there looks its
+  entry up again on entry by a key that does not move, through the private
+  binding `get_index` (`call self%get_index(session_index, status)`: the
+  serial number, or the group's buffer), and works through the registry
+  from then on.  A lookup that finds nothing (the control or group buffer
+  was closed) is a `user_error`, as for a command run outside an Ediff
+  buffer, never an index of 0.  A function, which has no side effects, and
+  a subroutine that calls nothing that can run user code or make a session
+  read SELF.  SELF has `intent(inout), target` in a subroutine,
+  so changing the entry through the registry while SELF is associated
+  with it is allowed.
+- A binding whose name meets a name its submodule imports keeps the
+  binding name and renames the procedure: `procedure :: recenter =>
+  recenter_session` (window_mod's `recenter`).
+- Bindings used outside the type's module and its submodules are public,
+  each with its own `!>` line (FORD documents every public entity;
+  tools/audit.awk does not look inside derived types); the others are
+  `private`, documented by a comment over each group of them.
 
 ## Added features
 

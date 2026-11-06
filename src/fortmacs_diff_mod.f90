@@ -49,13 +49,13 @@ module fortmacs_diff_mod
     use minibuffer_mod, only: read_file_name, read_buffer, REQUIRE_MATCH_YES
     use basic_subprograms_mod, only: add_to_history
     use display_engine_mod, only: message
-    use fortmacs_diff_settings_mod, only: initialize_fortmacs_diff_initialize, fortmacs_diff_session_index
+    use fortmacs_diff_settings_mod, only: initialize_fortmacs_diff_initialize, fortmacs_diff_session_index, fortmacs_diff_sessions
     use fortmacs_diff_utilities_mod, only: set_up_fortmacs_diff, read_fortmacs_diff_file_name, &
                                            create_fortmacs_diff_temporary_file, verify_fortmacs_diff_file_buffer, &
                                            fortmacs_diff_other_buffer, initialize_fortmacs_diff_utility
     use fortmacs_diff_window_mod, only: initialize_fortmacs_diff_wind
     use fortmacs_diff_diff_mod, only: initialize_fortmacs_diff_diff
-    use fortmacs_diff_merging_mod, only: do_fortmacs_diff_merge, initialize_fortmacs_diff_merg
+    use fortmacs_diff_merging_mod, only: initialize_fortmacs_diff_merg
     implicit none(type, external)
     private
 
@@ -598,17 +598,17 @@ contains
     ! Merging files and buffers
     ! ------------------------------------------------------------------
 
-    !> Merge the differences of session K's buffers into its merge buffer
+    !> Merge the differences of the current session's buffers into its merge buffer
     !> (a startup hook of the merge jobs).  Port of
     !> ediff.el:ediff-merge-on-startup.
     recursive subroutine merge_fortmacs_diff_on_startup(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
         status = status_type()
-        k = fortmacs_diff_session_index()
-        if (k == 0) return
-        call do_fortmacs_diff_merge(k, 0, status)
+        session_index = fortmacs_diff_session_index()
+        if (session_index == 0) return
+        call fortmacs_diff_sessions(session_index)%merge_differences(0, status)
     end subroutine merge_fortmacs_diff_on_startup
 
     !> STARTUP_HOOKS (none if absent) with `merge_fortmacs_diff_on_startup' added

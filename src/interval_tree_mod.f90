@@ -61,7 +61,7 @@ module interval_tree_mod
     implicit none(type, external)
     private
 
-    public :: make_overlay, move_overlay, delete_overlay, destroy_overlay, delete_all_overlays, is_overlay, &
+    public :: make_overlay, move_overlay, delete_overlay, destroy_overlay, delete_all_overlays, is_overlay, swap_buffer_overlays, &
               overlay_start, overlay_end, overlay_buffer, overlay_get, overlay_get_property, overlay_advance, overlay_put, &
               overlay_properties, &
               overlays_at, overlays_in, next_overlay_change, previous_overlay_change, sort_overlays, &
@@ -469,6 +469,26 @@ contains
             call drop_overlay(index(k))
         end do
     end subroutine delete_all_overlays
+
+    !> Move the overlays of buffer A to buffer B and those of B to A.
+    !> Port of buffer.c:swap_buffer_overlays (the overlays name their
+    !> buffer instead of being in a tree of it).
+    subroutine swap_buffer_overlays(a, b)
+        type(handle_type), intent(in) :: a, b
+        integer(int64) :: i
+
+        if (.not. allocated(overlays)) return
+
+        do i = 1, size(overlays, kind=int64)
+            if (.not. table%is_live(table%handle_of(i))) cycle
+
+            if (in_buffer(i, a%index)) then
+                overlays(i)%buffer = b
+            else if (in_buffer(i, b%index)) then
+                overlays(i)%buffer = a
+            end if
+        end do
+    end subroutine swap_buffer_overlays
 
     !> Return the position at which OVERLAY starts (0 if it is deleted).
     !> Port of buffer.c:Foverlay_start (with

@@ -50,7 +50,8 @@ for tests: a signal ignored or set to its default and its handling restored (`ig
 for time_functions_mod (step 42e): `system_localtime` (localtime_r with tm_gmtoff and tm_zone),
 `system_mktime`,
 `system_set_time_zone` (TZ for the C library, then tzset),
-`fortmacs_clock_process_cputime`
+`fortmacs_clock_process_cputime`;
+for movemail_mod (step 52d): `fortmacs_fsync` (fsync), `fortmacs_sleep` (sleep, as poll on no descriptors) and the change time of `system_status`
 
 ## Deferred
 

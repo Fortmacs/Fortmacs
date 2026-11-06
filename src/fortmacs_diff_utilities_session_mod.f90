@@ -23,87 +23,61 @@
 ! The procedures of fortmacs_diff_utilities_mod that use fortmacs_diff_window_mod and
 ! fortmacs_diff_diff_mod (which use fortmacs_diff_utilities_mod), with the commands.
 submodule(fortmacs_diff_utilities_mod) fortmacs_diff_utilities_session_mod
-    use error_mod, only: set_error, format_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE, QUIT_CODE
-    use handle_mod, only: null_handle, same_handle
-    use value_mod, only: value_type, vtag, xfixnum, V_INTEGER, choice_type
-    use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, buffer_list, is_buffer_modified, &
-                          header_line_format_type, restore_buffer_modified, erase_buffer, get_file_buffer
-    use syntax_mod, only: skip_characters_forward
+    use error_mod, only: set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use handle_mod, only: null_handle
+    use value_mod, only: vtag, xfixnum, V_INTEGER
+    use buffer_mod, only: buffers, current, get_or_make_buffer, buffer_list, is_buffer_modified
     use data_mod, only: clear_all_local_variables, choice_state
-    use editing_functions_mod, only: point, goto_character, is_beginning_of_line, buffer_substring, delete_region, &
-                                     narrow_to_region, widen, insert_buffer_substring
+    use editing_functions_mod, only: point, goto_character, widen, insert_buffer_substring
     use derived_mod, only: major_mode_type, major_mode_named
-    use diff_mode_mod, only: diff_mode
-    use insert_delete_mod, only: insert
     use editing_commands_mod, only: backward_character
-    use simple_mod, only: count_lines, deactivate_mark
     use keymap_mod, only: make_sparse_keymap, keymap_set, use_local_map, destroy_keymap
     use keyboard_mod, only: last_command_event, sit_for
-    use help_mod, only: with_output_to_temporary_buffer
     use execute_interactively_mod, only: this_command, current_prefix_argument, prefix_numeric_value, PREFIX_NONE, PREFIX_NUMBER, &
                                          PREFIX_RAW, PREFIX_MINUS
     use commands_mod, only: commands
-    use interval_tree_mod, only: overlay_start, overlay_end, overlay_buffer, overlay_put, destroy_overlay, is_overlay
-    use window_mod, only: windows, select_window, delete_window, is_window_live, set_window_start, set_window_dedication, &
-                          is_position_visible_in_window, move_to_window_line, recenter, window_total_height, frame_root_window, &
-                          fit_window_to_buffer, switch_to_buffer, window_parent, split_window_below, &
-                          split_window_right, window_minimum_height, DEDICATED_WEAK
+    use interval_tree_mod, only: overlay_start
+    use window_mod, only: windows, select_window, delete_window, is_window_live, recenter, switch_to_buffer, &
+                          split_window_below, split_window_right, window_minimum_height
     use frame_mod, only: selected_frame
     use file_input_output_mod, only: expand_file_name, file_name_directory, file_name_nondirectory, file_name_as_directory, &
                                      is_file_directory, write_region, set_file_modes, is_visited_file_modtime_current, file_exists
     use files_mod, only: create_temporary_file, abbreviate_file_name, delete_file, save_buffer, revert_buffer, &
-                         set_visited_file_name, write_file_functions
+                         write_file_functions
     use minibuffer_mod, only: read_file_name, REQUIRE_MATCH_YES
     use basic_subprograms_mod, only: read_y_or_n
     use utility_functions_mod, only: read_yes_or_no
     use coding_mod, only: coding_system_for_write
     use display_update_mod, only: ding
     use display_engine_mod, only: message
-    use fortmacs_diff_settings_mod, only: fortmacs_diff_sessions, fortmacs_diff_session_type, fortmacs_diff_replaced_region_type, &
-                                          fortmacs_diff_session_index, make_fortmacs_diff_session_entry, &
-                                          drop_fortmacs_diff_session, has_fortmacs_diff_face_support, is_fortmacs_diff_buffer_job, &
-                                          fortmacs_diff_character_to_buffer_type, fortmacs_diff_buffer_type_name, &
-                                          set_fortmacs_diff_overlay_face, move_fortmacs_diff_overlay, &
-                                          fortmacs_diff_background_face, paint_fortmacs_diff_background_regions, &
+    use fortmacs_diff_settings_mod, only: fortmacs_diff_sessions, fortmacs_diff_session_index, FORTMACS_DIFF_SELECT_ONLY, &
+                                          FORTMACS_DIFF_UNSELECT_ONLY, make_fortmacs_diff_session_entry, &
+                                          drop_fortmacs_diff_session, has_fortmacs_diff_face_support, &
+                                          is_fortmacs_diff_buffer_job, fortmacs_diff_character_to_buffer_type, &
                                           check_fortmacs_diff_control_buffer, close_fortmacs_diff_buffer_carefully, &
-                                          fortmacs_diff_use_faces, fortmacs_diff_highlight_all_diffs, fortmacs_diff_keep_variants, &
-                                          fortmacs_diff_make_buffers_readonly_at_startup, &
-                                          fortmacs_diff_fortmacs_help_in_control_buffer, &
-                                          fortmacs_diff_before_flag_beginning_of_line, fortmacs_diff_before_flag_mol, &
-                                          fortmacs_diff_after_flag_end_of_line, fortmacs_diff_after_flag_mol, &
-                                          fortmacs_diff_temporary_file_mode, fortmacs_diff_coding_system_for_write, &
-                                          fortmacs_diff_before_setup_hook, fortmacs_diff_startup_hook, fortmacs_diff_select_hook, &
-                                          fortmacs_diff_unselect_hook, fortmacs_diff_prepare_buffer_hook, fortmacs_diff_mode_hook, &
-                                          fortmacs_diff_keymap_setup_hook, fortmacs_diff_quit_hook, fortmacs_diff_cleanup_hook, &
-                                          FORTMACS_DIFF_CURRENT_DIFF_FACES, FORTMACS_DIFF_KILLED_VITAL_BUFFER, &
-                                          FORTMACS_DIFF_NO_DIFFERENCES, FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_B, &
-                                          FORTMACS_DIFF_BUFFER_TYPE_C, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR, &
-                                          FORTMACS_DIFF_HIGHLIGHTING_STYLE_FACE, FORTMACS_DIFF_HIGHLIGHTING_STYLE_ASCII, &
-                                          FORTMACS_DIFF_HIGHLIGHTING_STYLE_NONE, fortmacs_diff_show_ancestor, &
-                                          fortmacs_diff_autostore_merges, FORTMACS_DIFF_AUTOSTORE_MERGES_GROUP_JOBS_ONLY, &
+                                          fortmacs_diff_use_faces, fortmacs_diff_highlight_all_diffs, &
+                                          fortmacs_diff_keep_variants, fortmacs_diff_make_buffers_readonly_at_startup, &
+                                          fortmacs_diff_fortmacs_help_in_control_buffer, fortmacs_diff_temporary_file_mode, &
+                                          fortmacs_diff_coding_system_for_write, fortmacs_diff_before_setup_hook, &
+                                          fortmacs_diff_startup_hook, fortmacs_diff_prepare_buffer_hook, &
+                                          fortmacs_diff_mode_hook, fortmacs_diff_keymap_setup_hook, fortmacs_diff_quit_hook, &
+                                          FORTMACS_DIFF_KILLED_VITAL_BUFFER, FORTMACS_DIFF_BUFFER_TYPE_A, &
+                                          FORTMACS_DIFF_BUFFER_TYPE_B, FORTMACS_DIFF_BUFFER_TYPE_C, &
+                                          FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR, FORTMACS_DIFF_HIGHLIGHTING_STYLE_FACE, &
+                                          FORTMACS_DIFF_HIGHLIGHTING_STYLE_ASCII, FORTMACS_DIFF_HIGHLIGHTING_STYLE_NONE, &
+                                          fortmacs_diff_show_ancestor, fortmacs_diff_autostore_merges, &
                                           fortmacs_diff_split_window_procedure
-    use fortmacs_diff_help_mod, only: fortmacs_diff_use_long_help_message, set_fortmacs_diff_help_message, &
-                                      indent_fortmacs_diff_help_message, set_fortmacs_diff_help_overlays
+    use fortmacs_diff_help_mod, only: fortmacs_diff_use_long_help_message
     use fortmacs_diff_window_mod, only: fortmacs_diff_split_window_function, fortmacs_diff_merge_split_window_function, &
-                                        set_up_fortmacs_diff_windows, refresh_fortmacs_diff_mode_lines, &
-                                        get_fortmacs_diff_visible_buffer_window, fortmacs_diff_window_configuration
-    use fortmacs_diff_diff_mod, only: set_up_fortmacs_diff_diff_regions, set_up_fortmacs_diff_diff_regions3, &
-                                      set_fortmacs_diff_actual_diff_options, fortmacs_diff_actual_diff_options, &
-                                      execute_fortmacs_diff_process, fortmacs_diff_custom_diff_program, &
-                                      fortmacs_diff_custom_diff_options
+                                        set_up_fortmacs_diff_windows, get_fortmacs_diff_visible_buffer_window
+    use fortmacs_diff_diff_mod, only: set_fortmacs_diff_actual_diff_options, fortmacs_diff_actual_diff_options
     use fortmacs_diff_multiple_mod, only: fortmacs_diff_session_registry, update_fortmacs_diff_registry, &
-                                          update_fortmacs_diff_meta_buffer, show_fortmacs_diff_meta_buffer
+                                          update_fortmacs_diff_meta_buffer
     use fortmacs_diff_merging_mod, only: fortmacs_diff_default_variant, fortmacs_diff_show_clashes_only, &
-                                         fortmacs_diff_skip_merge_regions_that_differ_from_default, fortmacs_diff_quit_merge_hook, &
-                                         set_fortmacs_diff_state_of_diff_in_all_buffers, &
-                                         set_fortmacs_diff_state_of_all_diffs_in_all_buffers, set_fortmacs_diff_merge_mode, &
+                                         fortmacs_diff_skip_merge_regions_that_differ_from_default, &
+                                         fortmacs_diff_quit_merge_hook, set_fortmacs_diff_merge_mode, &
                                          FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_B
     implicit none(type, external)
-
-    character, parameter :: LF = achar(10)
-
-    !> Flags of `unselect_and_select_fortmacs_diff_difference'.
-    integer, parameter :: SELECT_ONLY = 1, UNSELECT_ONLY = -1
 
 contains
 
@@ -111,10 +85,7 @@ contains
     ! Helpers
     ! ------------------------------------------------------------------
 
-    ! Make BUFFER current, or return with the error condition of a killed
-    ! Ediff buffer (none while quitting).  Port of
-    ! ediff-init.el:ediff-with-current-buffer (its entry).
-    recursive subroutine enter_fortmacs_diff_buffer(buffer, status)
+    recursive module subroutine enter_fortmacs_diff_buffer(buffer, status)
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
 
@@ -127,22 +98,7 @@ contains
         end if
     end subroutine enter_fortmacs_diff_buffer
 
-    ! Whether N (the current difference if absent) is a difference of
-    ! session K.  Port of ediff-init.el:ediff-valid-difference-p.
-    logical function is_valid_difference(k, n)
-        integer, intent(in) :: k
-        integer, intent(in), optional :: n
-        integer :: m
-
-        m = fortmacs_diff_sessions(k)%current_difference
-        if (present(n)) m = n
-        is_valid_difference = m >= 0 .and. m < fortmacs_diff_sessions(k)%number_of_differences
-    end function is_valid_difference
-
-    ! Select WINDOW (if live) for a while, saving the selected window and
-    ! the current buffer in OLD_WINDOW and OLD_BUFFER.  Not a port: the
-    ! entry of with-selected-window.
-    recursive subroutine select_window_begin(window, old_window, old_buffer, status)
+    recursive module subroutine select_window_begin(window, old_window, old_buffer, status)
         type(handle_type), intent(in) :: window
         type(handle_type), intent(out) :: old_window, old_buffer
         type(status_type), intent(out) :: status
@@ -152,9 +108,7 @@ contains
         call select_window(window, status, norecord=.true.)
     end subroutine select_window_begin
 
-    ! Select OLD_WINDOW again and make OLD_BUFFER current.  Not a port:
-    ! the exit of with-selected-window.
-    recursive subroutine select_window_end(old_window, old_buffer, status)
+    recursive module subroutine select_window_end(old_window, old_buffer, status)
         type(handle_type), intent(in) :: old_window, old_buffer
         type(status_type), intent(out) :: status
 
@@ -163,21 +117,6 @@ contains
         if (.not. status%ok()) return
         if (is_buffer_live(old_buffer)) call set_buffer(old_buffer, status)
     end subroutine select_window_end
-
-    ! The message of an invalid difference number N (counted from 0) of
-    ! session K.  Port of ediff-init.el ediff-BAD-DIFF-NUMBER.
-    function bad_diff_number(k, n) result(text)
-        integer, intent(in) :: k, n
-        character(len=:), allocatable :: text
-        character(len=:), allocatable :: name
-        character(len=80) :: numbers
-
-        name = "null()"
-        if (associated(this_command)) name = trim(this_command%name)
-        write (numbers, '(": Bad diff region number, ", i0, ".  Valid numbers are 1 to ", i0)') n + 1, &
-            fortmacs_diff_sessions(k)%number_of_differences
-        text = name//trim(numbers)
-    end function bad_diff_number
 
     ! ------------------------------------------------------------------
     ! The mode and its keymap
@@ -196,12 +135,12 @@ contains
         call fortmacs_diff_mode_hook%execute(status)
     end subroutine fortmacs_diff_mode
 
-    ! Set up the keymap used in the control buffer of session K
+    ! Set up the keymap used in the control buffer of session SESSION_INDEX
     ! (`fortmacs_diff_mode_map') and use it.  Port of
     ! ediff-util.el:ediff-setup-keymap with ediff-set-keys (the keys of
     ! the deferred commands are not bound).
-    recursive subroutine set_up_fortmacs_diff_keymap(k, status)
-        integer, intent(in) :: k
+    recursive subroutine set_up_fortmacs_diff_keymap(session_index, status)
+        integer, intent(in) :: session_index
         type(status_type), intent(out) :: status
         type(handle_type) :: map
         character(len=1) :: digit
@@ -209,7 +148,7 @@ contains
 
         status = status_type()
         call make_sparse_keymap(map)
-        fortmacs_diff_sessions(k)%keymap = map
+        fortmacs_diff_sessions(session_index)%keymap = map
         ! (suppress-keymap ediff-mode-map)
         call bind("<remap> <self_insert_command>", "undefined")
         call bind("-", "negative_argument")
@@ -239,7 +178,7 @@ contains
         call bind("M", "show_fortmacs_diff_current_session_meta_buffer")
         call bind("R", "show_fortmacs_diff_registry")
 
-        if (fortmacs_diff_sessions(k)%merge_job) then
+        if (fortmacs_diff_sessions(session_index)%merge_job) then
             ! Will barf if no ancestor.
             call bind("/", "toggle_fortmacs_diff_show_ancestor")
             ! In merging, we allow only A->C and B->C copying.
@@ -251,7 +190,7 @@ contains
             call bind("$ $", "toggle_fortmacs_diff_show_clashes_only")
             call bind("$ *", "toggle_fortmacs_diff_skip_changed_regions")
             call bind("&", "regular_expression_merge_fortmacs_diff")
-        else if (fortmacs_diff_sessions(k)%three_way_comparison_job) then
+        else if (fortmacs_diff_sessions(session_index)%three_way_comparison_job) then
             call bind("a b", "copy_fortmacs_diff_a_to_b")
             call bind("b a", "copy_fortmacs_diff_b_to_a")
             call bind("a c", "copy_fortmacs_diff_a_to_c")
@@ -274,7 +213,7 @@ contains
         call bind("w b", "save_fortmacs_diff_buffer")
         call bind("w d", "save_fortmacs_diff_buffer")
 
-        if (fortmacs_diff_sessions(k)%three_way_job) then
+        if (fortmacs_diff_sessions(session_index)%three_way_job) then
             call bind("w c", "save_fortmacs_diff_buffer")
             call bind("g c", "jump_to_fortmacs_diff_difference_at_point")
         end if
@@ -312,7 +251,7 @@ contains
         type(handle_type) :: old, old_window, old_buffer, buffer_c_of_job
         type(status_type) :: st
         integer(int64) :: shift
-        integer :: k, t, lt, gt, digits
+        integer :: session_index, t, lt, gt, digits
 
         call fortmacs_diff_before_setup_hook%execute(status)
         if (.not. status%ok()) return
@@ -356,9 +295,9 @@ contains
         if (.not. status%ok()) return
         call fortmacs_diff_mode(status)
         if (.not. status%ok()) return
-        call make_fortmacs_diff_session_entry(control_buffer, k)
+        call make_fortmacs_diff_session_entry(control_buffer, session_index)
 
-        associate (s => fortmacs_diff_sessions(k))
+        associate (s => fortmacs_diff_sessions(session_index))
             s%use_long_help_message = fortmacs_diff_use_long_help_message
             s%split_window_function => fortmacs_diff_split_window_function
             s%default_variant = choice_state(fortmacs_diff_default_variant)
@@ -398,17 +337,17 @@ contains
         buffer_c_of_job = buffer_c
 
         ! Adjust for merge jobs.
-        if (fortmacs_diff_sessions(k)%merge_job) then
-            fortmacs_diff_sessions(k)%split_window_function => fortmacs_diff_merge_split_window_function
+        if (fortmacs_diff_sessions(session_index)%merge_job) then
+            fortmacs_diff_sessions(session_index)%split_window_function => fortmacs_diff_merge_split_window_function
             ! Remember the ancestor buffer, if any.
-            fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR) = buffer_c
+            fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR) = buffer_c
             call make_fortmacs_diff_merge_buffer(buffer_c_of_job, status)
             if (.not. status%ok()) return
         end if
 
         buffers(current)%read_only = .false.
 
-        associate (s => fortmacs_diff_sessions(k))
+        associate (s => fortmacs_diff_sessions(session_index))
             s%buffers(FORTMACS_DIFF_BUFFER_TYPE_A) = buffer_a
             s%buffers(FORTMACS_DIFF_BUFFER_TYPE_B) = buffer_b
             s%buffers(FORTMACS_DIFF_BUFFER_TYPE_C) = buffer_c_of_job
@@ -428,34 +367,38 @@ contains
             end if
         end associate
 
-        call get_or_make_buffer(fortmacs_diff_unique_buffer_name("*ediff-errors", "*"), fortmacs_diff_sessions(k)%error_buffer, &
+        call get_or_make_buffer(fortmacs_diff_unique_buffer_name("*ediff-errors", "*"), &
+                                fortmacs_diff_sessions(session_index)%error_buffer, &
                                 status)
         if (.not. status%ok()) return
-        buffers(fortmacs_diff_sessions(k)%error_buffer%index)%undo_enabled = .false.
+        buffers(fortmacs_diff_sessions(session_index)%error_buffer%index)%undo_enabled = .false.
         if (.not. allocated(fortmacs_diff_actual_diff_options)) call set_fortmacs_diff_actual_diff_options(.false.)
 
         do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_C
-            call make_fortmacs_diff_bullet_proof_overlay(0_int64, 0_int64, fortmacs_diff_sessions(k)%buffers(t), &
-                                                         fortmacs_diff_sessions(k)%wide_bounds(t), status, whole=.true.)
+            call make_fortmacs_diff_bullet_proof_overlay(0_int64, 0_int64, fortmacs_diff_sessions(session_index)%buffers(t), &
+                                                         fortmacs_diff_sessions(session_index)%wide_bounds(t), status, whole=.true.)
             if (.not. status%ok()) return
         end do
 
         ! This has effect only on ediff-windows/regions.
-        fortmacs_diff_sessions(k)%visible_bounds = fortmacs_diff_sessions(k)%wide_bounds
-        call set_up_fortmacs_diff_keymap(k, status)
+        fortmacs_diff_sessions(session_index)%visible_bounds = fortmacs_diff_sessions(session_index)%wide_bounds
+        call set_up_fortmacs_diff_keymap(session_index, status)
         if (.not. status%ok()) return
-        fortmacs_diff_sessions(k)%narrow_bounds = fortmacs_diff_sessions(k)%wide_bounds
+        fortmacs_diff_sessions(session_index)%narrow_bounds = fortmacs_diff_sessions(session_index)%wide_bounds
 
         ! These won't run if there are errors in diff.
         do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_C
-            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(k)%three_way_job) exit
-            call set_buffer(fortmacs_diff_sessions(k)%buffers(t), status)
+            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(session_index)%three_way_job) exit
+            call set_buffer(fortmacs_diff_sessions(session_index)%buffers(t), status)
             if (.not. status%ok()) return
             ! The merge buffer should never be narrowed.
-            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. fortmacs_diff_sessions(k)%merge_job) call widen()
+            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. fortmacs_diff_sessions(session_index)%merge_job) call widen()
             call fortmacs_diff_prepare_buffer_hook%execute(status)
             if (.not. status%ok()) return
-            if (fortmacs_diff_sessions(k)%merge_job .and. t /= FORTMACS_DIFF_BUFFER_TYPE_C) buffers(current)%read_only = .true.
+
+            if (fortmacs_diff_sessions(session_index)%merge_job .and. t /= FORTMACS_DIFF_BUFFER_TYPE_C) then
+                buffers(current)%read_only = .true.
+            end if
 
             if (fortmacs_diff_make_buffers_readonly_at_startup) then
                 buffers(current)%read_only = .true.
@@ -464,8 +407,8 @@ contains
             end if
         end do
 
-        if (is_buffer_live(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR))) then
-            call set_buffer(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR), status)
+        if (is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR))) then
+            call set_buffer(fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR), status)
             if (.not. status%ok()) return
             buffers(current)%read_only = .true.
             call fortmacs_diff_prepare_buffer_hook%execute(status)
@@ -476,22 +419,23 @@ contains
         if (.not. status%ok()) return
 
         ! The following must be after setting up ediff-narrow-bounds.
-        if (fortmacs_diff_sessions(k)%diff3_job) then
-            call set_up_fortmacs_diff_diff_regions3(k, fa, fb, fc, status)
+        if (fortmacs_diff_sessions(session_index)%diff3_job) then
+            call fortmacs_diff_sessions(session_index)%set_up_difference_regions3(fa, fb, fc, status)
         else
-            call set_up_fortmacs_diff_diff_regions(k, fa, fb, status)
+            call fortmacs_diff_sessions(session_index)%set_up_difference_regions(fa, fb, status)
         end if
 
         if (.not. status%ok()) return
         call set_buffer(control_buffer, status)
         if (.not. status%ok()) return
-        fortmacs_diff_sessions(k)%number_of_differences = size(fortmacs_diff_sessions(k)%differences, 2)
-        fortmacs_diff_sessions(k)%current_difference = -1
+        fortmacs_diff_sessions(session_index)%number_of_differences = size(fortmacs_diff_sessions(session_index)%differences, 2)
+        fortmacs_diff_sessions(session_index)%current_difference = -1
 
         do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR
-            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(k)%three_way_job) cycle
-            if (t == FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR .and. .not. fortmacs_diff_sessions(k)%merge_with_ancestor_job) cycle
-            call make_fortmacs_diff_current_diff_overlay(k, t, status)
+            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(session_index)%three_way_job) cycle
+            if (t == FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR &
+                .and. .not. fortmacs_diff_sessions(session_index)%merge_with_ancestor_job) cycle
+            call fortmacs_diff_sessions(session_index)%make_current_difference_overlay(t, status)
             if (.not. status%ok()) return
         end do
 
@@ -500,10 +444,10 @@ contains
 
         ! Position point in buffers A, B (and C).
         do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_C
-            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(k)%three_way_job) exit
-            if (.not. is_window_live(fortmacs_diff_sessions(k)%windows(t))) cycle
-            shift = overlay_start(fortmacs_diff_sessions(k)%narrow_bounds(t))
-            call select_window_begin(fortmacs_diff_sessions(k)%windows(t), old_window, old_buffer, status)
+            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(session_index)%three_way_job) exit
+            if (.not. is_window_live(fortmacs_diff_sessions(session_index)%windows(t))) cycle
+            shift = overlay_start(fortmacs_diff_sessions(session_index)%narrow_bounds(t))
+            call select_window_begin(fortmacs_diff_sessions(session_index)%windows(t), old_window, old_buffer, status)
             if (status%ok()) call goto_character(shift)
             ! Select the old window again, keeping the first error.
             call select_window_end(old_window, old_buffer, st)
@@ -511,14 +455,15 @@ contains
             if (.not. status%ok()) return
         end do
 
-        if (fortmacs_diff_select_control_window_on_setup .and. is_window_live(fortmacs_diff_sessions(k)%control_window)) then
-            call select_window(fortmacs_diff_sessions(k)%control_window, status)
+        if (fortmacs_diff_select_control_window_on_setup &
+            .and. is_window_live(fortmacs_diff_sessions(session_index)%control_window)) then
+            call select_window(fortmacs_diff_sessions(session_index)%control_window, status)
             if (.not. status%ok()) return
         end if
 
         call set_buffer(control_buffer, status)
         if (.not. status%ok()) return
-        call make_fortmacs_diff_region_visible(k, status)
+        call fortmacs_diff_sessions(session_index)%make_region_visible(status)
         if (.not. status%ok()) return
 
         if (present(startup_hooks)) then
@@ -530,24 +475,24 @@ contains
         if (.not. status%ok()) return
 
         if (allocated(merge_file)) then
-            call arrange_fortmacs_diff_autosave_in_merge_jobs(k, status, merge_file)
+            call fortmacs_diff_sessions(session_index)%arrange_autosave_in_merge_jobs(status, merge_file)
         else
-            call arrange_fortmacs_diff_autosave_in_merge_jobs(k, status)
+            call fortmacs_diff_sessions(session_index)%arrange_autosave_in_merge_jobs(status)
         end if
 
         if (.not. status%ok()) return
         call set_buffer(control_buffer, status)
         if (.not. status%ok()) return
-        call refresh_fortmacs_diff_mode_lines(k)
+        call fortmacs_diff_sessions(session_index)%refresh_mode_lines()
         buffers(current)%read_only = .true.
         if (.not. allocated(fortmacs_diff_session_registry)) allocate (fortmacs_diff_session_registry(0))
         fortmacs_diff_session_registry = [control_buffer, fortmacs_diff_session_registry]
         call update_fortmacs_diff_registry(status)
         if (.not. status%ok()) return
 
-        if (is_buffer_live(fortmacs_diff_sessions(k)%meta_buffer)) then
-            call update_fortmacs_diff_meta_buffer(fortmacs_diff_sessions(k)%meta_buffer, status, &
-                                                  session_number=fortmacs_diff_sessions(k)%meta_session_number)
+        if (is_buffer_live(fortmacs_diff_sessions(session_index)%meta_buffer)) then
+            call update_fortmacs_diff_meta_buffer(fortmacs_diff_sessions(session_index)%meta_buffer, status, &
+                                                  session_number=fortmacs_diff_sessions(session_index)%meta_session_number)
             if (.not. status%ok()) return
         end if
 
@@ -574,9 +519,13 @@ contains
             type(major_mode_type), pointer :: mode
 
             ! If default variant is `combined', the right stuff is inserted
-            ! by do_fortmacs_diff_merge.
+            ! by merge_differences.
             variant = buffer_a
-            if (fortmacs_diff_sessions(k)%default_variant%choice == FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_B) variant = buffer_b
+
+            if (fortmacs_diff_sessions(session_index)%default_variant%choice == FORTMACS_DIFF_DEFAULT_VARIANT_DEFAULT_B) then
+                variant = buffer_b
+            end if
+
             call get_or_make_buffer(fortmacs_diff_unique_buffer_name("*ediff-merge", "*"), buffer, status)
             if (.not. status%ok()) return
             call set_buffer(buffer, status)
@@ -599,109 +548,6 @@ contains
         end subroutine make_fortmacs_diff_merge_buffer
     end subroutine set_up_fortmacs_diff
 
-    ! Set the visited file name and auto-saving of the merge buffer of
-    ! session K: with MERGE_BUFFER_FILE, the merge is stored there (and
-    ! `fortmacs_diff_autostore_merges' becomes .true. for the session).  Runs in
-    ! the control buffer.  Port of
-    ! ediff-util.el:ediff-arrange-autosave-in-merge-jobs (`buffer-offer-save'
-    ! and `auto-save-mode' are Deferred, see docs/status/fortmacs_diff_utilities_mod.md).
-    recursive subroutine arrange_fortmacs_diff_autosave_in_merge_jobs(k, status, merge_buffer_file)
-        integer, intent(in) :: k
-        type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: merge_buffer_file
-        type(handle_type) :: old
-        type(status_type) :: st
-
-        status = status_type()
-        if (.not. fortmacs_diff_sessions(k)%merge_job) return
-
-        if (present(merge_buffer_file)) then
-            fortmacs_diff_sessions(k)%autostore_merges = choice_type(value=.true.)
-            fortmacs_diff_sessions(k)%merge_store_file = merge_buffer_file
-        end if
-
-        if (.not. allocated(fortmacs_diff_sessions(k)%merge_store_file)) return
-        ! Save before leaving ctl buffer.
-        call verify_fortmacs_diff_file_merge_buffer(fortmacs_diff_sessions(k)%merge_store_file, status)
-        if (.not. status%ok()) return
-        old = current_buffer()
-        call set_buffer(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C), status)
-        if (status%ok()) call set_visited_file_name(fortmacs_diff_sessions(k)%merge_store_file, status)
-        ! Make the old buffer current again, keeping the first error.
-        call set_buffer(old, st)
-        if (status%ok()) status = st
-    end subroutine arrange_fortmacs_diff_autosave_in_merge_jobs
-
-    recursive module subroutine set_up_fortmacs_diff_control_buffer(k, control_buffer, status)
-        integer, intent(in) :: k
-        type(handle_type), intent(in) :: control_buffer
-        type(status_type), intent(out) :: status
-        type(handle_type) :: window, parent, root
-        integer :: root_height
-        integer(int64) :: moved
-
-        window = selected_frame%selected_window
-        call set_buffer(control_buffer, status)
-        if (.not. status%ok()) return
-
-        if (windows(window%index)%dedicated == 0) then
-            call switch_to_buffer(buffers(current)%name, status)
-            if (.not. status%ok()) return
-            call set_buffer(control_buffer, status)
-            if (.not. status%ok()) return
-        end if
-
-        call erase_control_buffer()
-        if (.not. status%ok()) return
-        call set_fortmacs_diff_help_message(k, status)
-        if (.not. status%ok()) return
-        call set_buffer(control_buffer, status)
-        if (.not. status%ok()) return
-        call insert(fortmacs_diff_sessions(k)%help_message, status)
-        if (.not. status%ok()) return
-        parent = window_parent(window, status)
-        if (.not. status%ok()) return
-
-        ! Emulate the behavior of Emacs 27: fit the window, but to at most
-        ! half the frame (the lower window of a split gets the residue
-        ! line).
-        if (parent%index /= 0) then
-            if (is_position_visible_in_window(point_minimum(), window)) then
-                root = frame_root_window(window, status)
-                if (.not. status%ok()) return
-                root_height = window_total_height(root, status)
-                if (.not. status%ok()) return
-                call fit_window_to_buffer(window, (root_height + 1)/2)
-            end if
-        end if
-
-        call indent_fortmacs_diff_help_message(k, status)
-        if (.not. status%ok()) return
-        call set_fortmacs_diff_help_overlays(status)
-        if (.not. status%ok()) return
-        call restore_buffer_modified(.false.)
-        call refresh_fortmacs_diff_mode_lines(k)
-        fortmacs_diff_sessions(k)%control_window = selected_frame%selected_window
-        fortmacs_diff_sessions(k)%window_configuration_saved = fortmacs_diff_window_configuration(k)
-        call set_window_dedication(selected_frame%selected_window, DEDICATED_WEAK, status)
-        if (.not. status%ok()) return
-        call goto_character(point_minimum())
-        ! (skip-chars-forward ediff-whitespace)
-        moved = skip_characters_forward(" "//LF//achar(9)//achar(12)//achar(13)//char(194)//char(160), status)
-
-    contains
-
-        ! (erase-buffer) in the read-only control buffer.
-        subroutine erase_control_buffer()
-            logical :: saved
-
-            saved = buffers(current)%read_only
-            buffers(current)%read_only = .false.
-            call erase_buffer(status)
-            buffers(current)%read_only = saved
-        end subroutine erase_control_buffer
-    end subroutine set_up_fortmacs_diff_control_buffer
-
     ! ------------------------------------------------------------------
     ! Commands for working with Ediff
     ! ------------------------------------------------------------------
@@ -712,17 +558,17 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: file_a, file_b, file_c, file_ancestor
         integer(int64) :: point_a
-        integer :: k, diff_no
+        integer :: session_index, diff_no
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
         old = current_buffer()
-        call enter_fortmacs_diff_buffer(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A), status)
+        call enter_fortmacs_diff_buffer(fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A), status)
         if (.not. status%ok()) return
         point_a = point()
         call set_buffer(old, status)
         if (.not. status%ok()) return
-        call unselect_and_select_fortmacs_diff_difference(k, -1, status)
+        call fortmacs_diff_sessions(session_index)%unselect_and_select_difference(-1, status)
         if (.not. status%ok()) return
         call make_temporary(FORTMACS_DIFF_BUFFER_TYPE_A, file_a)
         if (.not. status%ok()) return
@@ -730,30 +576,34 @@ contains
         if (.not. status%ok()) return
         file_c = ""
 
-        if (fortmacs_diff_sessions(k)%three_way_job) then
+        if (fortmacs_diff_sessions(session_index)%three_way_job) then
             call make_temporary(FORTMACS_DIFF_BUFFER_TYPE_C, file_c)
             if (.not. status%ok()) return
         end if
 
         file_ancestor = ""
 
-        if (fortmacs_diff_sessions(k)%merge_with_ancestor_job) then
+        if (fortmacs_diff_sessions(session_index)%merge_with_ancestor_job) then
             call make_temporary(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR, file_ancestor)
             if (.not. status%ok()) return
         end if
 
-        call clear_fortmacs_diff_differences(k)
+        call fortmacs_diff_sessions(session_index)%clear_differences()
+
         ! Invalidate the replaced regions.
-        if (allocated(fortmacs_diff_sessions(k)%replaced_regions)) deallocate (fortmacs_diff_sessions(k)%replaced_regions)
-        call set_buffer(fortmacs_diff_sessions(k)%control_buffer, status)
+        if (allocated(fortmacs_diff_sessions(session_index)%replaced_regions)) then
+            deallocate (fortmacs_diff_sessions(session_index)%replaced_regions)
+        end if
+
+        call set_buffer(fortmacs_diff_sessions(session_index)%control_buffer, status)
 
         if (status%ok()) then
-            if (fortmacs_diff_sessions(k)%merge_with_ancestor_job) then
-                call set_up_fortmacs_diff_diff_regions3(k, file_a, file_b, file_ancestor, status)
-            else if (fortmacs_diff_sessions(k)%diff3_job) then
-                call set_up_fortmacs_diff_diff_regions3(k, file_a, file_b, file_c, status)
+            if (fortmacs_diff_sessions(session_index)%merge_with_ancestor_job) then
+                call fortmacs_diff_sessions(session_index)%set_up_difference_regions3(file_a, file_b, file_ancestor, status)
+            else if (fortmacs_diff_sessions(session_index)%diff3_job) then
+                call fortmacs_diff_sessions(session_index)%set_up_difference_regions3(file_a, file_b, file_c, status)
             else
-                call set_up_fortmacs_diff_diff_regions(k, file_a, file_b, status)
+                call fortmacs_diff_sessions(session_index)%set_up_difference_regions(file_a, file_b, status)
             end if
         end if
 
@@ -774,16 +624,17 @@ contains
         end if
 
         if (.not. status%ok()) return
-        fortmacs_diff_sessions(k)%number_of_differences = size(fortmacs_diff_sessions(k)%differences, 2)
+        fortmacs_diff_sessions(session_index)%number_of_differences = size(fortmacs_diff_sessions(session_index)%differences, 2)
 
-        if (fortmacs_diff_sessions(k)%three_way_job) then
-            call set_fortmacs_diff_state_of_all_diffs_in_all_buffers(k, status)
+        if (fortmacs_diff_sessions(session_index)%three_way_job) then
+            call fortmacs_diff_sessions(session_index)%set_all_difference_states(status)
             if (.not. status%ok()) return
         end if
 
-        call set_buffer(fortmacs_diff_sessions(k)%control_buffer, status)
+        call set_buffer(fortmacs_diff_sessions(session_index)%control_buffer, status)
         if (.not. status%ok()) return
-        call fortmacs_diff_diff_at_point(k, FORTMACS_DIFF_BUFFER_TYPE_A, diff_no, status, position=point_a)
+        call fortmacs_diff_sessions(session_index)%get_difference_at_point(FORTMACS_DIFF_BUFFER_TYPE_A, diff_no, status, &
+                                                                           position=point_a)
         if (.not. status%ok()) return
         call jump_to_fortmacs_diff_difference(int(diff_no, int64), status)
         if (.not. status%ok()) return
@@ -798,13 +649,16 @@ contains
             character(len=:), allocatable, intent(out) :: temporary
             integer(int64) :: bi
 
-            bi = fortmacs_diff_sessions(k)%buffers(buffer_type)%index
+            bi = fortmacs_diff_sessions(session_index)%buffers(buffer_type)%index
 
-            if (is_buffer_live(fortmacs_diff_sessions(k)%buffers(buffer_type)) .and. allocated(buffers(bi)%filename)) then
-                call create_fortmacs_diff_temporary_file(fortmacs_diff_sessions(k)%buffers(buffer_type), temporary, status, &
+            if (is_buffer_live(fortmacs_diff_sessions(session_index)%buffers(buffer_type)) &
+                .and. allocated(buffers(bi)%filename)) then
+                call create_fortmacs_diff_temporary_file(fortmacs_diff_sessions(session_index)%buffers(buffer_type), &
+                                                         temporary, status, &
                                                          file_name_nondirectory(buffers(bi)%filename))
             else
-                call create_fortmacs_diff_temporary_file(fortmacs_diff_sessions(k)%buffers(buffer_type), temporary, status)
+                call create_fortmacs_diff_temporary_file(fortmacs_diff_sessions(session_index)%buffers(buffer_type), &
+                                                         temporary, status)
             end if
         end subroutine make_temporary
     end subroutine update_fortmacs_diff_diffs
@@ -812,192 +666,47 @@ contains
     recursive module subroutine recenter_fortmacs_diff(status, no_rehighlight)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: no_rehighlight
-        integer :: k
+        integer :: session_index
         logical :: flag
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
         flag = .false.
         if (present(no_rehighlight)) flag = no_rehighlight
-        call recenter_fortmacs_diff_session(k, flag, status)
+        call fortmacs_diff_sessions(session_index)%recenter(flag, status)
     end subroutine recenter_fortmacs_diff
-
-    ! The body of `recenter_fortmacs_diff' for session K, current in its control
-    ! buffer.  Port of ediff-util.el:ediff-recenter.
-    recursive subroutine recenter_fortmacs_diff_session(k, no_rehighlight, status)
-        integer, intent(in) :: k
-        logical, intent(in) :: no_rehighlight
-        type(status_type), intent(out) :: status
-        type(handle_type) :: control
-        type(status_type) :: st
-        logical :: saved, all_live
-        integer :: t
-
-        status = status_type()
-        control = fortmacs_diff_sessions(k)%control_buffer
-        all_live = is_buffer_live(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A)) .and. &
-                   is_buffer_live(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_B))
-        if (fortmacs_diff_sessions(k)%three_way_job) all_live = all_live .and. &
-                                                                is_buffer_live(fortmacs_diff_sessions(k)%buffers( &
-                                                                               FORTMACS_DIFF_BUFFER_TYPE_C))
-        ! The control buffer is writable while the windows are set up.
-        saved = buffers(current)%read_only
-        buffers(current)%read_only = .false.
-
-        if (all_live) then
-            associate (s => fortmacs_diff_sessions(k))
-                call set_up_fortmacs_diff_windows(s%buffers(FORTMACS_DIFF_BUFFER_TYPE_A), s%buffers(FORTMACS_DIFF_BUFFER_TYPE_B), &
-                                                  s%buffers(FORTMACS_DIFF_BUFFER_TYPE_C), control, status)
-            end associate
-        else if (.not. associated(this_command, commands%quit_fortmacs_diff)) then
-            call ding()
-            call message(FORTMACS_DIFF_KILLED_VITAL_BUFFER)
-        end if
-
-        ! Make the control buffer current again, keeping the first error.
-        if (is_buffer_live(control)) then
-            call set_buffer(control, st)
-            if (st%ok()) buffers(current)%read_only = saved
-            if (status%ok()) status = st
-        end if
-
-        if (.not. status%ok()) return
-        ! Set visibility range appropriate to this invocation of Ediff.
-        call make_fortmacs_diff_region_visible(k, status)
-        if (.not. status%ok()) return
-
-        ! Redisplay whatever buffers are showing, if there is a selected
-        ! difference.
-        if (all_live) then
-            if (.not. no_rehighlight) then
-                call select_fortmacs_diff_difference(k, fortmacs_diff_sessions(k)%current_difference, status)
-                if (.not. status%ok()) return
-            end if
-
-            do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_C
-                if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(k)%three_way_job) exit
-                call recenter_fortmacs_diff_one_window(k, t, status)
-                if (.not. status%ok()) return
-            end do
-        end if
-
-        if (.not. no_rehighlight) then
-            call restore_fortmacs_diff_highlighting(k, status)
-            if (.not. status%ok()) return
-        end if
-
-        if (is_buffer_live(control)) then
-            call set_buffer(control, status)
-            if (.not. status%ok()) return
-        end if
-
-        call refresh_fortmacs_diff_mode_lines(k)
-    end subroutine recenter_fortmacs_diff_session
-
-    ! Show the current difference of session K in the window of
-    ! BUFFER_TYPE, without changing the selected window.  Port of
-    ! ediff-util.el:ediff-recenter-one-window.
-    recursive subroutine recenter_fortmacs_diff_one_window(k, buffer_type, status)
-        integer, intent(in) :: k, buffer_type
-        type(status_type), intent(out) :: status
-        type(handle_type) :: window, old_window, old_buffer, control
-        type(status_type) :: st
-        integer(int64) :: beginning, end
-
-        status = status_type()
-        if (.not. is_valid_difference(k)) return
-        ! Context must be saved before switching to windows A/B/C.
-        control = fortmacs_diff_sessions(k)%control_buffer
-        window = fortmacs_diff_sessions(k)%windows(buffer_type)
-        if (.not. is_window_live(window)) return
-        call get_fortmacs_diff_diff_position(k, buffer_type, .false., beginning, status)
-        if (.not. status%ok()) return
-        call get_fortmacs_diff_diff_position(k, buffer_type, .true., end, status)
-        if (.not. status%ok()) return
-        call select_window_begin(window, old_window, old_buffer, status)
-
-        if (status%ok()) then
-            call deactivate_mark()
-            call position_fortmacs_diff_region(beginning, end, beginning, status)
-        end if
-
-        ! Select the old window again, keeping the first error.
-        call select_window_end(old_window, old_buffer, st)
-        if (status%ok()) status = st
-        if (.not. status%ok()) return
-        call set_buffer(control, status)
-    end subroutine recenter_fortmacs_diff_one_window
-
-    ! Show BEGINNING to END in the selected window, centered when it
-    ! fits, and put point at POSITION.  Port of ediff-util.el:ediff-position-region
-    ! (windows jobs are deferred).
-    recursive subroutine position_fortmacs_diff_region(beginning, end_in, position, status)
-        integer(int64), intent(in) :: beginning, end_in, position
-        type(status_type), intent(out) :: status
-        integer(int64) :: end, lines, previous_point, line
-        integer :: height
-
-        end = min(end_in, point_maximum())
-        call set_window_start(windows(selected_frame%selected_window%index), beginning, status)
-        if (.not. status%ok()) return
-
-        if (is_position_visible_in_window(end, selected_frame%selected_window)) then
-            ! Determine the number of lines that the region occupies.
-            lines = 0
-            previous_point = 0
-
-            do
-                call move_to_window_line(prefix_argument_type(PREFIX_NUMBER, lines), line, status)
-                if (.not. status%ok()) return
-                if (.not. end > point()) exit
-                ! `end' may be beyond the window bottom, so check that we
-                ! are making progress.
-                if (.not. previous_point < point()) exit
-                previous_point = point()
-                lines = lines + 1
-            end do
-
-            ! And position the beginning on the right line.
-            call goto_character(beginning)
-            height = window_total_height(selected_frame%selected_window, status)
-            if (.not. status%ok()) return
-            call recenter(prefix_argument_type(PREFIX_NUMBER, (1 + max(height - 1 - lines, 1_int64))/2), .false., status)
-            if (.not. status%ok()) return
-        end if
-
-        call goto_character(position)
-    end subroutine position_fortmacs_diff_region
 
     recursive module subroutine toggle_fortmacs_diff_split(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
 
         ! The windows of buffers A, B and C are on one frame.
-        if (associated(fortmacs_diff_sessions(k)%split_window_function, split_window_below)) then
-            fortmacs_diff_sessions(k)%split_window_function => split_window_right
+        if (associated(fortmacs_diff_sessions(session_index)%split_window_function, split_window_below)) then
+            fortmacs_diff_sessions(session_index)%split_window_function => split_window_right
         else
-            fortmacs_diff_sessions(k)%split_window_function => split_window_below
+            fortmacs_diff_sessions(session_index)%split_window_function => split_window_below
         end if
 
-        call recenter_fortmacs_diff_session(k, .true., status)
+        call fortmacs_diff_sessions(session_index)%recenter(.true., status)
     end subroutine toggle_fortmacs_diff_split
 
     recursive module subroutine toggle_fortmacs_diff_highlighting(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
         logical :: faces
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
-        call unselect_and_select_fortmacs_diff_difference(k, fortmacs_diff_sessions(k)%current_difference, status, UNSELECT_ONLY)
+        call fortmacs_diff_sessions(session_index)%unselect_and_select_difference( &
+            fortmacs_diff_sessions(session_index)%current_difference, status, FORTMACS_DIFF_UNSELECT_ONLY)
         if (.not. status%ok()) return
         faces = has_fortmacs_diff_face_support()
 
         ! Cycle through highlighting.
-        associate (s => fortmacs_diff_sessions(k))
+        associate (s => fortmacs_diff_sessions(session_index))
             if (s%use_faces .and. faces .and. s%highlight_all_diffs) then
                 call message("Unhighlighting unselected difference regions")
                 s%highlight_all_diffs = .false.
@@ -1020,25 +729,28 @@ contains
                 s%highlight_all_diffs = .true.
             end if
 
-            call paint_fortmacs_diff_background_regions(k,.not. (s%use_faces .and. s%highlight_all_diffs), status)
+            call fortmacs_diff_sessions(session_index)%paint_background_regions(.not. (s%use_faces &
+                                                                                       .and. s%highlight_all_diffs), status)
         end associate
 
         if (.not. status%ok()) return
-        call unselect_and_select_fortmacs_diff_difference(k, fortmacs_diff_sessions(k)%current_difference, status, SELECT_ONLY)
+        call fortmacs_diff_sessions(session_index)%unselect_and_select_difference( &
+            fortmacs_diff_sessions(session_index)%current_difference, status, FORTMACS_DIFF_SELECT_ONLY)
     end subroutine toggle_fortmacs_diff_highlighting
 
     recursive module subroutine toggle_fortmacs_diff_help(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
-        fortmacs_diff_sessions(k)%use_long_help_message = .not. fortmacs_diff_sessions(k)%use_long_help_message
-        call set_fortmacs_diff_help_message(k, status)
+        fortmacs_diff_sessions(session_index)%use_long_help_message = &
+            .not. fortmacs_diff_sessions(session_index)%use_long_help_message
+        call fortmacs_diff_sessions(session_index)%set_help_message(status)
         if (.not. status%ok()) return
         ! Force redisplay.
-        fortmacs_diff_sessions(k)%window_configuration_saved = ""
-        call recenter_fortmacs_diff_session(k, .true., status)
+        fortmacs_diff_sessions(session_index)%window_configuration_saved = ""
+        call fortmacs_diff_sessions(session_index)%recenter(.true., status)
     end subroutine toggle_fortmacs_diff_help
 
     ! ------------------------------------------------------------------
@@ -1062,7 +774,7 @@ contains
             session_index)%number_of_differences) then
             difference = int(min(int(fortmacs_diff_sessions(session_index)%number_of_differences, int64), &
                                  fortmacs_diff_sessions(session_index)%current_difference + count))
-            call make_fortmacs_diff_region_visible(session_index, status)
+            call fortmacs_diff_sessions(session_index)%make_region_visible(status)
             if (.not. status%ok()) return
             skip = .false.
 
@@ -1087,9 +799,9 @@ contains
             end do
 
             call message("")
-            call unselect_and_select_fortmacs_diff_difference(session_index, difference, status)
+            call fortmacs_diff_sessions(session_index)%unselect_and_select_difference(difference, status)
         else
-            call make_fortmacs_diff_region_visible(session_index, status)
+            call fortmacs_diff_sessions(session_index)%make_region_visible(status)
             if (status%ok()) call set_error(status, USER_ERROR_CODE, "At end of the difference list")
         end if
     end subroutine next_fortmacs_diff_difference
@@ -1109,7 +821,7 @@ contains
 
         if (fortmacs_diff_sessions(session_index)%current_difference > -1) then
             difference = int(max(-1_int64, fortmacs_diff_sessions(session_index)%current_difference - count))
-            call make_fortmacs_diff_region_visible(session_index, status)
+            call fortmacs_diff_sessions(session_index)%make_region_visible(status)
             if (.not. status%ok()) return
             skip = .false.
 
@@ -1133,9 +845,9 @@ contains
             end do
 
             call message("")
-            call unselect_and_select_fortmacs_diff_difference(session_index, difference, status)
+            call fortmacs_diff_sessions(session_index)%unselect_and_select_difference(difference, status)
         else
-            call make_fortmacs_diff_region_visible(session_index, status)
+            call fortmacs_diff_sessions(session_index)%make_region_visible(status)
             if (status%ok()) call set_error(status, USER_ERROR_CODE, "At beginning of the difference list")
         end if
     end subroutine previous_fortmacs_diff_difference
@@ -1143,13 +855,13 @@ contains
     recursive module subroutine jump_to_fortmacs_diff_difference(difference_number, status)
         integer(int64), intent(in) :: difference_number
         type(status_type), intent(out) :: status
-        integer :: k, n
+        integer :: session_index, n
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
 
         if (difference_number < 0) then
-            n = int(fortmacs_diff_sessions(k)%number_of_differences + difference_number)
+            n = int(fortmacs_diff_sessions(session_index)%number_of_differences + difference_number)
         else if (difference_number > 0) then
             n = int(difference_number - 1)
         else
@@ -1158,10 +870,10 @@ contains
 
         ! -1 is allowed by ediff-unselect-and-select-difference --- it is
         ! the position before the first one.
-        if (n >= -1 .and. n <= fortmacs_diff_sessions(k)%number_of_differences) then
-            call unselect_and_select_fortmacs_diff_difference(k, n, status)
+        if (n >= -1 .and. n <= fortmacs_diff_sessions(session_index)%number_of_differences) then
+            call fortmacs_diff_sessions(session_index)%unselect_and_select_difference(n, status)
         else
-            call set_error(status, GENERIC_ERROR_CODE, bad_diff_number(k, n))
+            call set_error(status, GENERIC_ERROR_CODE, fortmacs_diff_sessions(session_index)%get_bad_difference_message(n))
         end if
     end subroutine jump_to_fortmacs_diff_difference
 
@@ -1172,12 +884,12 @@ contains
         type(handle_type) :: buffer, old, wind(3), old_window, old_buffer
         type(status_type) :: st
         integer(int64) :: point_value, beginning, shift
-        integer :: k, diff_no, t
+        integer :: session_index, diff_no, t
         logical :: past_last_diff
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
-        buffer = fortmacs_diff_sessions(k)%buffers(buffer_type)
+        buffer = fortmacs_diff_sessions(session_index)%buffers(buffer_type)
         old = current_buffer()
         call enter_fortmacs_diff_buffer(buffer, status)
         if (.not. status%ok()) return
@@ -1186,13 +898,13 @@ contains
         if (.not. status%ok()) return
 
         if (argument) then
-            call fortmacs_diff_diff_at_point(k, buffer_type, diff_no, status, which_diff=1)
+            call fortmacs_diff_sessions(session_index)%get_difference_at_point(buffer_type, diff_no, status, which_diff=1)
         else
-            call fortmacs_diff_diff_at_point(k, buffer_type, diff_no, status)
+            call fortmacs_diff_sessions(session_index)%get_difference_at_point(buffer_type, diff_no, status)
         end if
 
         if (.not. status%ok()) return
-        past_last_diff = fortmacs_diff_sessions(k)%number_of_differences < diff_no
+        past_last_diff = fortmacs_diff_sessions(session_index)%number_of_differences < diff_no
 
         if (past_last_diff) then
             call set_buffer(buffer, status)
@@ -1202,13 +914,13 @@ contains
             if (.not. status%ok()) return
             call jump_to_fortmacs_diff_difference(-1_int64, status)
         else
-            call get_fortmacs_diff_diff_position(k, buffer_type, .false., beginning, status, diff_no - 1)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(buffer_type, .false., beginning, status, diff_no - 1)
             if (.not. status%ok()) return
             call jump_to_fortmacs_diff_difference(int(diff_no, int64), status)
         end if
 
         if (.not. status%ok()) return
-        wind = fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_A:FORTMACS_DIFF_BUFFER_TYPE_C)
+        wind = fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_A:FORTMACS_DIFF_BUFFER_TYPE_C)
         if (.not. argument) return
         shift = beginning - point_value
 
@@ -1230,64 +942,6 @@ contains
         end do
     end subroutine jump_to_fortmacs_diff_difference_at_point
 
-    recursive module subroutine fortmacs_diff_diff_at_point(k, buffer_type, diff_no, status, position, which_diff)
-        integer, intent(in) :: k, buffer_type
-        integer, intent(out) :: diff_no
-        type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: position
-        integer, intent(in), optional :: which_diff
-        type(handle_type) :: old
-        type(status_type) :: st
-        integer(int64) :: p, previous_beginning, previous_end, beginning, end
-        integer :: maximum_dif_number, which
-
-        old = current_buffer()
-        maximum_dif_number = fortmacs_diff_sessions(k)%number_of_differences - 1
-        diff_no = -1
-        previous_beginning = 0
-        previous_end = 0
-        beginning = 0
-        end = 0
-        which = 0
-        if (present(which_diff)) which = which_diff
-        call enter_fortmacs_diff_buffer(fortmacs_diff_sessions(k)%buffers(buffer_type), status)
-        if (.not. status%ok()) return
-        p = point()
-        if (present(position)) p = position
-
-        do while ((p < previous_beginning .or. p > beginning) .and. diff_no < maximum_dif_number)
-            diff_no = diff_no + 1
-            previous_beginning = beginning
-            previous_end = end
-            call get_fortmacs_diff_diff_position(k, buffer_type, .false., beginning, status, diff_no)
-            if (status%ok()) call get_fortmacs_diff_diff_position(k, buffer_type, .true., end, status, diff_no)
-
-            ! Make the old buffer current again, keeping the first error.
-            if (.not. status%ok()) then
-                call set_buffer(old, st)
-                return
-            end if
-        end do
-
-        ! Boost diff-no by 1, if past the last diff region.
-        if (which /= 0 .and. p > beginning .and. diff_no == maximum_dif_number) diff_no = diff_no + 1
-
-        if (which == 1) then
-            diff_no = diff_no + 1
-        else if (which == -1) then
-            continue
-        else if (abs(count_lines(p, max(point_minimum(), previous_end))) < abs(count_lines(p, max(point_minimum(), &
-                                                                                                  beginning)))) then
-            ! Choose prev difference.
-            continue
-        else
-            ! Choose next difference.
-            diff_no = diff_no + 1
-        end if
-
-        call set_buffer(old, status)
-    end subroutine fortmacs_diff_diff_at_point
-
     ! ------------------------------------------------------------------
     ! Copying diffs
     ! ------------------------------------------------------------------
@@ -1296,16 +950,16 @@ contains
         type(prefix_argument_type), intent(in) :: argument
         character(len=*), intent(in) :: keys
         type(status_type), intent(out) :: status
-        integer :: k, n
+        integer :: session_index, n
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
 
         if (argument%kind == PREFIX_RAW .and. argument%value == 4) then
             ! Copy all differences with `C-u' prefix.
             n = 0
 
-            do while (is_valid_difference(k, n))
+            do while (fortmacs_diff_sessions(session_index)%is_valid_difference(n))
                 call copy_fortmacs_diff_diff_to_diff(prefix_argument_type(PREFIX_NUMBER, int(n + 1, int64)), keys, status)
                 if (.not. status%ok()) return
                 n = n + 1
@@ -1323,235 +977,21 @@ contains
 
         if (.not. status%ok()) return
         if (len(keys) < 2) return
-        call copy_fortmacs_diff_diff(k, fortmacs_diff_sessions(k)%current_difference, &
-                                     fortmacs_diff_character_to_buffer_type(keys(1:1)), &
-                                     fortmacs_diff_character_to_buffer_type(keys(2:2)), status)
+        call fortmacs_diff_sessions(session_index)%copy_difference(fortmacs_diff_sessions(session_index)%current_difference, &
+                                                                   fortmacs_diff_character_to_buffer_type(keys(1:1)), &
+                                                                   fortmacs_diff_character_to_buffer_type(keys(2:2)), status)
         if (.not. status%ok()) return
         ! Recenter with rehighlighting, but no messages.
-        call recenter_fortmacs_diff_session(k, .false., status)
+        call fortmacs_diff_sessions(session_index)%recenter(.false., status)
     end subroutine copy_fortmacs_diff_diff_to_diff
-
-    recursive module subroutine copy_fortmacs_diff_diff(k, n, from_type, to_type, status, batch_invocation, region_to_copy)
-        integer, intent(in) :: k, n, from_type, to_type
-        type(status_type), intent(out) :: status
-        logical, intent(in), optional :: batch_invocation
-        character(len=*), intent(in), optional :: region_to_copy
-        type(handle_type) :: to_buffer, old
-        type(status_type) :: st, restore_status
-        character(len=:), allocatable :: reg_to_copy, reg_to_delete, messg
-        integer(int64) :: reg_to_delete_beginning, reg_to_delete_end
-        logical :: batch, saved
-
-        batch = .false.
-        if (present(batch_invocation)) batch = batch_invocation
-        to_buffer = fortmacs_diff_sessions(k)%buffers(to_type)
-        saved = .true.
-        messg = ""
-        call get_fortmacs_diff_diff_position(k, to_type, .false., reg_to_delete_beginning, status, n)
-        if (.not. status%ok()) return
-        call get_fortmacs_diff_diff_position(k, to_type, .true., reg_to_delete_end, status, n)
-        if (.not. status%ok()) return
-
-        if (present(region_to_copy)) then
-            reg_to_copy = region_to_copy
-        else
-            call get_fortmacs_diff_region_contents(k, n, from_type, reg_to_copy, status)
-            if (.not. status%ok()) return
-        end if
-
-        call get_fortmacs_diff_region_contents(k, n, to_type, reg_to_delete, status, reg_to_delete_beginning, reg_to_delete_end)
-        if (.not. status%ok()) return
-
-        if (reg_to_delete == reg_to_copy) then
-            ! Don't copy identical buffers.
-            saved = .false.
-        else
-            ! Seems ok to copy.
-            if (.not. batch) then
-                call test_fortmacs_diff_save_region(k, n, to_type, status)
-                if (.not. status%ok()) return
-            end if
-
-            ! An error here is shown, as upstream's condition-case does.
-            old = current_buffer()
-            call set_buffer(to_buffer, st)
-
-            if (st%ok()) then
-                call goto_character(reg_to_delete_end)
-                call insert(reg_to_copy, st)
-            end if
-
-            if (st%ok() .and. reg_to_delete_end > reg_to_delete_beginning) then
-                call delete_region(reg_to_delete_beginning, reg_to_delete_end, st)
-            end if
-
-            ! Make the old buffer current again, keeping the first error.
-            call set_buffer(old, restore_status)
-            if (st%ok()) st = restore_status
-
-            if (st%ok()) then
-                if (.not. batch) call save_fortmacs_diff_diff_region(k, n, to_type, reg_to_delete, messg)
-            else
-                call message("copy_fortmacs_diff_diff: "//format_error(st))
-                call ding()
-                ! Let the user see the error msg.
-                saved = .false.
-            end if
-        end if
-
-        ! Adjust state of difference in case 3-way and diff was copied ok.
-        if (saved .and. fortmacs_diff_sessions(k)%three_way_job) then
-            call set_fortmacs_diff_state_of_diff_in_all_buffers(k, n, status)
-            if (.not. status%ok()) return
-        end if
-
-        if (.not. batch) then
-            call refresh_fortmacs_diff_mode_lines(k)
-            ! Make sure that the message about saving and how to restore is
-            ! seen by the user.
-            call message(messg)
-        end if
-    end subroutine copy_fortmacs_diff_diff
-
-    ! Save TEXT, the old difference N of BUFFER_TYPE in session K (in the
-    ! session's `replaced_regions'), and give in MESSG what was
-    ! saved.  Port of ediff-util.el:ediff-save-diff-region.
-    subroutine save_fortmacs_diff_diff_region(k, n, buffer_type, text, messg)
-        integer, intent(in) :: k, n, buffer_type
-        character(len=*), intent(in) :: text
-        character(len=:), allocatable, intent(out) :: messg
-        type(fortmacs_diff_replaced_region_type) :: entry
-        integer :: j
-        character(len=:), allocatable :: recover
-        character(len=20) :: digits
-
-        j = replaced_region_index(k, n, buffer_type)
-
-        if (j > 0) then
-            fortmacs_diff_sessions(k)%replaced_regions(j)%text = text
-        else
-            entry%n = n
-            entry%buffer_type = buffer_type
-            entry%text = text
-            if (.not. allocated(fortmacs_diff_sessions(k)%replaced_regions)) allocate (fortmacs_diff_sessions(k)%replaced_regions( &
-                                                                                       0))
-            fortmacs_diff_sessions(k)%replaced_regions = [fortmacs_diff_sessions(k)%replaced_regions, entry]
-        end if
-
-        recover = ""
-        if (.not. fortmacs_diff_sessions(k)%merge_job) recover = char(ichar(fortmacs_diff_buffer_type_name(buffer_type)) + 32)
-        write (digits, "(i0)") n + 1
-        messg = "Saving old diff region #"//trim(digits)//" of buffer "// &
-                fortmacs_diff_buffer_type_name(buffer_type)//format_message(".  To recover, type `r")//recover//format_message("'")
-        call message(messg)
-    end subroutine save_fortmacs_diff_diff_region
-
-    ! The index of the replaced region of difference N of BUFFER_TYPE in
-    ! session K, 0 if none.  Not a port: the lookup in
-    ! ediff-killed-diffs-alist that ediff-util.el does inline.
-    integer function replaced_region_index(k, n, buffer_type) result(j)
-        integer, intent(in) :: k, n, buffer_type
-
-        j = 0
-        if (.not. allocated(fortmacs_diff_sessions(k)%replaced_regions)) return
-        j = findloc(fortmacs_diff_sessions(k)%replaced_regions%n == n .and. &
-                    fortmacs_diff_sessions(k)%replaced_regions%buffer_type == buffer_type, .true., dim=1)
-    end function replaced_region_index
-
-    ! Whether difference N of BUFFER_TYPE may be saved: if it was saved
-    ! before, ask; "Quit" if the user declines.  Port of
-    ! ediff-util.el:ediff-test-save-region.
-    recursive subroutine test_fortmacs_diff_save_region(k, n, buffer_type, status)
-        integer, intent(in) :: k, n, buffer_type
-        type(status_type), intent(out) :: status
-        logical :: answer
-        character(len=20) :: digits
-
-        status = status_type()
-        if (replaced_region_index(k, n, buffer_type) == 0) return
-        write (digits, "(i0)") n + 1
-        call read_yes_or_no("You've previously copied diff region "//trim(digits)//" to buffer "// &
-                            fortmacs_diff_buffer_type_name(buffer_type)//".  Confirm? ", answer, status)
-        if (.not. status%ok()) return
-        if (.not. answer) call set_error(status, QUIT_CODE)
-    end subroutine test_fortmacs_diff_save_region
-
-    ! Pop last killed Nth diff region from buffer BUFFER_TYPE.  Port of
-    ! ediff-util.el:ediff-pop-diff.
-    recursive subroutine pop_fortmacs_diff_diff(k, n, buffer_type, status)
-        integer, intent(in) :: k, n, buffer_type
-        type(status_type), intent(out) :: status
-        type(handle_type) :: old
-        type(status_type) :: st, restore_status
-        character(len=:), allocatable :: saved_diff
-        type(fortmacs_diff_replaced_region_type), allocatable :: rest(:)
-        integer(int64) :: reg_beginning, reg_end
-        integer :: i, j
-        logical :: recovered
-        character(len=20) :: digits
-
-        write (digits, "(i0)") n + 1
-        j = replaced_region_index(k, n, buffer_type)
-
-        if (j > 0) then
-            saved_diff = fortmacs_diff_sessions(k)%replaced_regions(j)%text
-        else if (fortmacs_diff_sessions(k)%number_of_differences > 0) then
-            call set_error(status, USER_ERROR_CODE, "Nothing saved for diff "//trim(digits)//" in buffer "// &
-                           fortmacs_diff_buffer_type_name(buffer_type))
-            return
-        else
-            call set_error(status, GENERIC_ERROR_CODE, FORTMACS_DIFF_NO_DIFFERENCES)
-            return
-        end if
-
-        call get_fortmacs_diff_diff_position(k, buffer_type, .false., reg_beginning, status, n)
-        if (.not. status%ok()) return
-        call get_fortmacs_diff_diff_position(k, buffer_type, .true., reg_end, status, n)
-        if (.not. status%ok()) return
-        ! An error here is shown, as upstream's condition-case does.
-        old = current_buffer()
-        call enter_fortmacs_diff_buffer(fortmacs_diff_sessions(k)%buffers(buffer_type), st)
-
-        if (st%ok()) then
-            call goto_character(reg_end)
-            call insert(saved_diff, st)
-            if (st%ok() .and. reg_end > reg_beginning) call delete_region(reg_beginning, reg_end, st)
-        end if
-
-        ! Make the old buffer current again, keeping the first error.
-        call set_buffer(old, restore_status)
-        if (st%ok()) st = restore_status
-        recovered = st%ok()
-
-        if (.not. recovered) then
-            call message("pop_fortmacs_diff_diff: "//format_error(st))
-            call ding()
-        end if
-
-        ! Adjust state of difference.
-        if (fortmacs_diff_sessions(k)%three_way_job .and. recovered) then
-            call set_fortmacs_diff_state_of_diff_in_all_buffers(k, n, status)
-            if (.not. status%ok()) return
-        end if
-
-        call refresh_fortmacs_diff_mode_lines(k)
-
-        if (recovered) then
-            rest = pack(fortmacs_diff_sessions(k)%replaced_regions, [(i /= j, i=1, &
-                                                                      size(fortmacs_diff_sessions(k)%replaced_regions))])
-            call move_alloc(rest, fortmacs_diff_sessions(k)%replaced_regions)
-            call message("Diff region "//trim(digits)//" in buffer "//fortmacs_diff_buffer_type_name(buffer_type)// &
-                         " restored")
-        end if
-    end subroutine pop_fortmacs_diff_diff
 
     recursive module subroutine restore_fortmacs_diff_diff(argument, key, status)
         type(prefix_argument_type), intent(in) :: argument
         character, intent(in) :: key
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
 
         if (argument%kind == PREFIX_NUMBER) then
@@ -1559,11 +999,12 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call pop_fortmacs_diff_diff(k, fortmacs_diff_sessions(k)%current_difference, fortmacs_diff_character_to_buffer_type(key), &
-                                    status)
+        call fortmacs_diff_sessions(session_index)%pop_difference(fortmacs_diff_sessions(session_index)%current_difference, &
+                                                                  fortmacs_diff_character_to_buffer_type(key), &
+                                                                  status)
         if (.not. status%ok()) return
         ! Recenter with rehighlighting, but no messages.
-        call recenter_fortmacs_diff_session(k, .false., status)
+        call fortmacs_diff_sessions(session_index)%recenter(.false., status)
     end subroutine restore_fortmacs_diff_diff
 
     ! ------------------------------------------------------------------
@@ -1576,13 +1017,13 @@ contains
         type(handle_type) :: control
         character(len=:), allocatable :: group
         logical :: answer
-        integer :: k
+        integer :: session_index
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
         control = current_buffer()
         group = ""
-        if (is_buffer_live(fortmacs_diff_sessions(k)%meta_buffer)) group = " & show containing session group"
+        if (is_buffer_live(fortmacs_diff_sessions(session_index)%meta_buffer)) group = " & show containing session group"
         call read_y_or_n("Quit this Ediff session"//group//"? ", answer, status)
         if (.not. status%ok()) return
         call message("")
@@ -1590,73 +1031,8 @@ contains
         this_command => commands%quit_fortmacs_diff
         call set_buffer(control, status)
         if (.not. status%ok()) return
-        call quit_fortmacs_diff_session(k, reverse_default_keep_variants, status)
+        call fortmacs_diff_sessions(session_index)%quit(reverse_default_keep_variants, status)
     end subroutine quit_fortmacs_diff
-
-    recursive module subroutine quit_fortmacs_diff_session(k, reverse_default_keep_variants, status)
-        integer, intent(in) :: k
-        logical, intent(in) :: reverse_default_keep_variants
-        type(status_type), intent(out) :: status
-        type(handle_type) :: control_buffer, meta_buffer
-        logical :: keep_variants
-        integer :: t, session_number
-
-        control_buffer = fortmacs_diff_sessions(k)%control_buffer
-        meta_buffer = fortmacs_diff_sessions(k)%meta_buffer
-        session_number = fortmacs_diff_sessions(k)%meta_session_number
-        call unhighlight_fortmacs_diff_diffs_totally(k, status)
-        if (.not. status%ok()) return
-        call clear_fortmacs_diff_differences(k)
-        ! Restore the visibility range.  This affects only
-        ! ediff-*-regions/windows.
-        fortmacs_diff_sessions(k)%visible_bounds = fortmacs_diff_sessions(k)%wide_bounds
-        ! Apply selective display to narrow or widen.
-        call make_fortmacs_diff_region_visible(k, status)
-        if (.not. status%ok()) return
-
-        do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_C
-            if (is_overlay(fortmacs_diff_sessions(k)%wide_bounds(t))) call destroy_overlay(fortmacs_diff_sessions(k)%wide_bounds(t))
-            fortmacs_diff_sessions(k)%wide_bounds(t) = null_handle()
-            fortmacs_diff_sessions(k)%narrow_bounds(t) = null_handle()
-            fortmacs_diff_sessions(k)%visible_bounds(t) = null_handle()
-        end do
-
-        if (allocated(fortmacs_diff_session_registry)) then
-            fortmacs_diff_session_registry = pack(fortmacs_diff_session_registry,.not. same_handle(fortmacs_diff_session_registry, &
-                                                                                                   control_buffer))
-        end if
-
-        call update_fortmacs_diff_registry(status)
-        if (.not. status%ok()) return
-        call set_buffer(control_buffer, status)
-        if (.not. status%ok()) return
-
-        ! If the user interrupts (canceling saving the merge buffer),
-        ! continue normally.
-        if (fortmacs_diff_sessions(k)%merge_job) then
-            call fortmacs_diff_quit_merge_hook%execute(status)
-            if (status%code == QUIT_CODE) status = status_type()
-            if (.not. status%ok()) return
-        end if
-
-        call fortmacs_diff_cleanup_hook%execute(status)
-        if (.not. status%ok()) return
-        ! reverse-default-keep-variants is t if the user quits with a
-        ! prefix arg.
-        keep_variants = fortmacs_diff_sessions(k)%keep_variants
-        if (reverse_default_keep_variants) keep_variants = .not. keep_variants
-        call dispose_of_fortmacs_diff_variants(k, .true., keep_variants, status)
-        if (.not. status%ok()) return
-        ! One hook here is clean_up_fortmacs_diff_mess, which kills the control
-        ! buffer and other auxiliary buffers.
-        call fortmacs_diff_quit_hook%execute(status)
-        if (.not. status%ok()) return
-        call update_fortmacs_diff_meta_buffer(meta_buffer, status, session_number=session_number)
-        if (.not. status%ok()) return
-        ! What ediff-mult.el:ediff-filegroup-action adds to
-        ! `ediff-after-quit-hook-internal': back to the session group.
-        if (is_buffer_live(meta_buffer)) call show_fortmacs_diff_meta_buffer(status, meta_buffer, session_number=session_number)
-    end subroutine quit_fortmacs_diff_session
 
     ! Kill control buffer, other auxiliary Ediff buffers.
     ! Leave one of the frames split between buffers A/B/C.  Port of
@@ -1667,25 +1043,25 @@ contains
         type(status_type) :: st
         procedure(fortmacs_diff_split_window_procedure), pointer :: split_window_function
         logical :: three_way_job
-        integer :: k
+        integer :: session_index
 
         status = status_type()
-        k = fortmacs_diff_session_index()
-        if (k == 0) return
-        buffer_a = fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A)
-        buffer_b = fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_B)
-        buffer_c = fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C)
-        control_buffer = fortmacs_diff_sessions(k)%control_buffer
+        session_index = fortmacs_diff_session_index()
+        if (session_index == 0) return
+        buffer_a = fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A)
+        buffer_b = fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_B)
+        buffer_c = fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C)
+        control_buffer = fortmacs_diff_sessions(session_index)%control_buffer
         control_window = get_fortmacs_diff_visible_buffer_window(control_buffer)
-        three_way_job = fortmacs_diff_sessions(k)%three_way_job
-        split_window_function => fortmacs_diff_sessions(k)%split_window_function
-        call close_fortmacs_diff_buffer_carefully(fortmacs_diff_sessions(k)%diff_buffer, status)
+        three_way_job = fortmacs_diff_sessions(session_index)%three_way_job
+        split_window_function => fortmacs_diff_sessions(session_index)%split_window_function
+        call close_fortmacs_diff_buffer_carefully(fortmacs_diff_sessions(session_index)%diff_buffer, status)
         if (.not. status%ok()) return
-        call close_fortmacs_diff_buffer_carefully(fortmacs_diff_sessions(k)%custom_diff_buffer, status)
+        call close_fortmacs_diff_buffer_carefully(fortmacs_diff_sessions(session_index)%custom_diff_buffer, status)
         if (.not. status%ok()) return
         call close_fortmacs_diff_buffer_carefully(get_buffer(" *ediff-tmp*"), status)
         if (.not. status%ok()) return
-        call close_fortmacs_diff_buffer_carefully(fortmacs_diff_sessions(k)%error_buffer, status)
+        call close_fortmacs_diff_buffer_carefully(fortmacs_diff_sessions(session_index)%error_buffer, status)
         if (.not. status%ok()) return
         call close_fortmacs_diff_buffer_carefully(get_buffer(" *ediff-message*"), status)
         if (.not. status%ok()) return
@@ -1698,9 +1074,9 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call destroy_keymap(fortmacs_diff_sessions(k)%keymap, status)
+        call destroy_keymap(fortmacs_diff_sessions(session_index)%keymap, status)
         if (.not. status%ok()) return
-        call drop_fortmacs_diff_session(k)
+        call drop_fortmacs_diff_session(session_index)
         call close_fortmacs_diff_buffer_carefully(control_buffer, status)
         if (.not. status%ok()) return
 
@@ -1736,495 +1112,9 @@ contains
         call message("")
     end subroutine clean_up_fortmacs_diff_mess
 
-    ! Kill buffers A, B, and, possibly, C, if these buffers aren't
-    ! modified; ASK asks the user about each unmodified buffer, unless
-    ! KEEP_VARIANTS, in which case buffers are never killed.  Port of
-    ! ediff-util.el:ediff-janitor.
-    recursive subroutine dispose_of_fortmacs_diff_variants(k, ask, keep_variants, status)
-        integer, intent(in) :: k
-        logical, intent(in) :: ask, keep_variants
-        type(status_type), intent(out) :: status
-        type(handle_type) :: buffers_of(4)
-
-        buffers_of = fortmacs_diff_sessions(k)%buffers
-        call dispose_of_fortmacs_diff_variant(buffers_of(FORTMACS_DIFF_BUFFER_TYPE_A), FORTMACS_DIFF_BUFFER_TYPE_A, ask, &
-                                              keep_variants, status)
-        if (.not. status%ok()) return
-        call dispose_of_fortmacs_diff_variant(buffers_of(FORTMACS_DIFF_BUFFER_TYPE_B), FORTMACS_DIFF_BUFFER_TYPE_B, ask, &
-                                              keep_variants, status)
-        if (.not. status%ok()) return
-
-        ! When merging, the ancestor buffer is disposed of instead of buffer C.
-        if (fortmacs_diff_sessions(k)%merge_job) then
-            call dispose_of_fortmacs_diff_variant(buffers_of(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR), &
-                                                  FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR, ask, &
-                                                  keep_variants, status)
-        else
-            call dispose_of_fortmacs_diff_variant(buffers_of(FORTMACS_DIFF_BUFFER_TYPE_C), FORTMACS_DIFF_BUFFER_TYPE_C, ask, &
-                                                  keep_variants, status)
-        end if
-    end subroutine dispose_of_fortmacs_diff_variants
-
-    ! Kill the variant buffer BUFFER of BUFFER_TYPE, according to user
-    ! directives (ask, kill unconditionally, keep).  Port of
-    ! ediff-util.el:ediff-dispose-of-variant-according-to-user (indirect
-    ! buffers are deferred with region jobs).
-    recursive subroutine dispose_of_fortmacs_diff_variant(buffer, buffer_type, ask, keep_variants, status)
-        type(handle_type), intent(in) :: buffer
-        integer, intent(in) :: buffer_type
-        logical, intent(in) :: ask, keep_variants
-        type(status_type), intent(out) :: status
-        logical :: modified, answer
-
-        status = status_type()
-        if (.not. is_buffer_live(buffer) .or. keep_variants) return
-        call is_buffer_modified(buffer, modified, status)
-        if (.not. status%ok() .or. modified) return
-
-        if (ask) then
-            call read_y_or_n("Kill buffer "//fortmacs_diff_buffer_type_name(buffer_type)//" ["//buffers(buffer%index)%name// &
-                             "]? ", answer, status)
-            if (.not. status%ok() .or. .not. answer) return
-        end if
-
-        call close_fortmacs_diff_buffer_carefully(buffer, status)
-    end subroutine dispose_of_fortmacs_diff_variant
-
     ! ------------------------------------------------------------------
     ! Selecting and highlighting differences
     ! ------------------------------------------------------------------
-
-    ! Select difference N of session K: highlight it and run
-    ! `fortmacs_diff_select_hook'.  Port of ediff-util.el:ediff-select-difference
-    ! (fine differences are deferred).
-    recursive subroutine select_fortmacs_diff_difference(k, n, status)
-        integer, intent(in) :: k, n
-        type(status_type), intent(out) :: status
-        integer :: t
-
-        status = status_type()
-        if (.not. is_buffer_live(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_A))) return
-        if (.not. is_buffer_live(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_B))) return
-        if (.not. is_valid_difference(k, n)) return
-
-        if (has_fortmacs_diff_face_support() .and. fortmacs_diff_sessions(k)%use_faces) then
-            do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR
-                call highlight_fortmacs_diff_diff_in_one_buffer(k, n, t, status)
-                if (.not. status%ok()) return
-            end do
-        else if (fortmacs_diff_sessions(k)%highlighting_style == FORTMACS_DIFF_HIGHLIGHTING_STYLE_ASCII) then
-            do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_C
-                if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(k)%three_way_job) exit
-                call place_fortmacs_diff_flags_in_buffer(k, t, n, status)
-                if (.not. status%ok()) return
-            end do
-        end if
-
-        ! Set current difference here so the hook will be able to refer to
-        ! it.
-        fortmacs_diff_sessions(k)%current_difference = n
-        call fortmacs_diff_select_hook%execute(status)
-    end subroutine select_fortmacs_diff_difference
-
-    ! Unselect difference N of session K by removing the ASCII flags or
-    ! the highlighting.  Port of ediff-util.el:ediff-unselect-difference.
-    recursive subroutine unselect_fortmacs_diff_difference(k, n, status)
-        integer, intent(in) :: k, n
-        type(status_type), intent(out) :: status
-        integer :: t
-
-        status = status_type()
-        if (.not. is_valid_difference(k, n)) return
-
-        if (has_fortmacs_diff_face_support() .and. fortmacs_diff_sessions(k)%use_faces) then
-            do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR
-                call unhighlight_fortmacs_diff_diff_in_one_buffer(k, t, status)
-                if (.not. status%ok()) return
-            end do
-        else if (fortmacs_diff_sessions(k)%highlighting_style == FORTMACS_DIFF_HIGHLIGHTING_STYLE_ASCII) then
-            do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_C
-                if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(k)%three_way_job) exit
-                call remove_fortmacs_diff_flags(fortmacs_diff_sessions(k)%differences(t, n + 1)%overlay, status)
-                if (.not. status%ok()) return
-            end do
-        end if
-
-        call fortmacs_diff_unselect_hook%execute(status)
-    end subroutine unselect_fortmacs_diff_difference
-
-    recursive module subroutine unselect_and_select_fortmacs_diff_difference(k, n, status, flag, no_recenter)
-        integer, intent(in) :: k, n
-        type(status_type), intent(out) :: status
-        integer, intent(in), optional :: flag
-        logical, intent(in), optional :: no_recenter
-        integer :: saved, how
-        logical :: recentering
-
-        how = 0
-        if (present(flag)) how = flag
-        recentering = .true.
-        if (present(no_recenter)) recentering = .not. no_recenter
-        status = status_type()
-
-        if (recentering) then
-            ! Recenter on difference N without highlighting it again.
-            saved = fortmacs_diff_sessions(k)%current_difference
-            fortmacs_diff_sessions(k)%current_difference = n
-            call recenter_fortmacs_diff_session(k, .true., status)
-            fortmacs_diff_sessions(k)%current_difference = saved
-            if (.not. status%ok()) return
-        end if
-
-        if (how /= SELECT_ONLY) then
-            call unselect_fortmacs_diff_difference(k, fortmacs_diff_sessions(k)%current_difference, status)
-            if (.not. status%ok()) return
-        end if
-
-        if (how /= UNSELECT_ONLY) then
-            call select_fortmacs_diff_difference(k, n, status)
-            if (.not. status%ok()) return
-        end if
-
-        ! Need to set current diff here even though it is also set in
-        ! select_fortmacs_diff_difference because it might not be called if
-        ! unselect-only is specified.
-        fortmacs_diff_sessions(k)%current_difference = n
-
-        if (is_buffer_live(fortmacs_diff_sessions(k)%control_buffer)) then
-            call set_buffer(fortmacs_diff_sessions(k)%control_buffer, status)
-            if (.not. status%ok()) return
-        end if
-
-        call refresh_fortmacs_diff_mode_lines(k)
-    end subroutine unselect_and_select_fortmacs_diff_difference
-
-    ! Highlight difference N of session K in BUFFER_TYPE with the current
-    ! difference overlay.  Port of
-    ! ediff-util.el:ediff-highlight-diff-in-one-buffer.
-    recursive subroutine highlight_fortmacs_diff_diff_in_one_buffer(k, n, buffer_type, status)
-        integer, intent(in) :: k, n, buffer_type
-        type(status_type), intent(out) :: status
-        type(handle_type) :: buffer, old
-        integer(int64) :: last, beginning, end, end_hilit
-
-        status = status_type()
-        buffer = fortmacs_diff_sessions(k)%buffers(buffer_type)
-        if (.not. is_buffer_live(buffer)) return
-        if (.not. allocated(fortmacs_diff_sessions(k)%differences)) return
-        old = current_buffer()
-        call set_buffer(buffer, status)
-        if (.not. status%ok()) return
-        last = point_maximum()
-        call set_buffer(old, status)
-        if (.not. status%ok()) return
-        call get_fortmacs_diff_diff_position(k, buffer_type, .false., beginning, status, n)
-        if (.not. status%ok()) return
-        call get_fortmacs_diff_diff_position(k, buffer_type, .true., end, status, n)
-        if (.not. status%ok()) return
-        end_hilit = end
-        if (beginning == end) end_hilit = end + 1
-        end_hilit = min(last, end_hilit)
-        call move_fortmacs_diff_overlay(fortmacs_diff_sessions(k)%current_diff_overlays(buffer_type), beginning, end_hilit, status)
-        if (.not. status%ok()) return
-        ! Unhighlight the background overlay for diff n so it won't
-        ! interfere with the current diff overlay.
-        call set_fortmacs_diff_overlay_face(fortmacs_diff_sessions(k)%differences(buffer_type, n + 1)%overlay, "", status)
-    end subroutine highlight_fortmacs_diff_diff_in_one_buffer
-
-    ! Remove the current difference overlay of session K in BUFFER_TYPE
-    ! and give the difference its background face again.  Port of
-    ! ediff-util.el:ediff-unhighlight-diff-in-one-buffer.
-    recursive subroutine unhighlight_fortmacs_diff_diff_in_one_buffer(k, buffer_type, status)
-        integer, intent(in) :: k, buffer_type
-        type(status_type), intent(out) :: status
-        integer :: n
-
-        status = status_type()
-        if (.not. is_buffer_live(fortmacs_diff_sessions(k)%buffers(buffer_type))) return
-        call move_fortmacs_diff_overlay(fortmacs_diff_sessions(k)%current_diff_overlays(buffer_type), 1_int64, 1_int64, status)
-        if (.not. status%ok()) return
-        n = fortmacs_diff_sessions(k)%current_difference
-        if (.not. is_valid_difference(k, n)) return
-
-        ! Rehighlight the overlay in the background of the current
-        ! difference region.
-        if (has_fortmacs_diff_face_support() .and. fortmacs_diff_sessions(k)%use_faces .and. fortmacs_diff_sessions( &
-            k)%highlight_all_diffs) then
-            call set_fortmacs_diff_overlay_face(fortmacs_diff_sessions(k)%differences(buffer_type, n + 1)%overlay, &
-                                                fortmacs_diff_background_face(buffer_type, n), status)
-        else
-            call set_fortmacs_diff_overlay_face(fortmacs_diff_sessions(k)%differences(buffer_type, n + 1)%overlay, "", status)
-        end if
-    end subroutine unhighlight_fortmacs_diff_diff_in_one_buffer
-
-    ! Delete the highlighting overlays of session K and restore the faces
-    ! to their original form.  Port of
-    ! ediff-util.el:ediff-unhighlight-diffs-totally with
-    ! ediff-unhighlight-diffs-totally-in-one-buffer.
-    recursive subroutine unhighlight_fortmacs_diff_diffs_totally(k, status)
-        integer, intent(in) :: k
-        type(status_type), intent(out) :: status
-        integer :: t
-
-        do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR
-            call unselect_and_select_fortmacs_diff_difference(k, -1, status)
-            if (.not. status%ok()) return
-
-            if (has_fortmacs_diff_face_support() .and. fortmacs_diff_sessions(k)%use_faces) then
-                call paint_fortmacs_diff_background_regions(k, .true., status)
-                if (.not. status%ok()) return
-
-                if (is_overlay(fortmacs_diff_sessions(k)%current_diff_overlays(t))) then
-                    call destroy_overlay(fortmacs_diff_sessions(k)%current_diff_overlays(t))
-                end if
-
-                fortmacs_diff_sessions(k)%current_diff_overlays(t) = null_handle()
-            end if
-        end do
-    end subroutine unhighlight_fortmacs_diff_diffs_totally
-
-    ! Put the ASCII flags around difference N of session K in BUFFER_TYPE.
-    ! Port of ediff-util.el:ediff-place-flags-in-buffer with
-    ! ediff-place-flags-in-buffer1.
-    recursive subroutine place_fortmacs_diff_flags_in_buffer(k, buffer_type, n, status)
-        integer, intent(in) :: k, buffer_type, n
-        type(status_type), intent(out) :: status
-        type(handle_type) :: old, overlay
-        type(status_type) :: st
-        integer(int64) :: before, after
-        logical :: ascii
-
-        status = status_type()
-        if (.not. is_buffer_live(fortmacs_diff_sessions(k)%buffers(buffer_type))) return
-        overlay = fortmacs_diff_sessions(k)%differences(buffer_type, n + 1)%overlay
-        ascii = fortmacs_diff_sessions(k)%highlighting_style == FORTMACS_DIFF_HIGHLIGHTING_STYLE_ASCII
-        call get_fortmacs_diff_diff_position(k, buffer_type, .false., before, status, n)
-        if (.not. status%ok()) return
-        old = current_buffer()
-        call set_buffer(fortmacs_diff_sessions(k)%buffers(buffer_type), status)
-        if (.not. status%ok()) return
-        ! Insert flag before the difference.
-        call goto_character(before)
-
-        if (.not. ascii) then
-            call overlay_put(overlay, "before_string", value_type(), status)
-        else if (is_beginning_of_line()) then
-            call overlay_put(overlay, "before_string", value_type(text=fortmacs_diff_before_flag_beginning_of_line), status)
-        else
-            call overlay_put(overlay, "before_string", value_type(text=fortmacs_diff_before_flag_mol), status)
-        end if
-
-        ! Insert the flag after the difference.
-        if (status%ok()) call get_fortmacs_diff_diff_position(k, buffer_type, .true., after, status, n)
-
-        if (status%ok()) then
-            call goto_character(after)
-
-            if (.not. ascii) then
-                call overlay_put(overlay, "after_string", value_type(), status)
-            else if (is_beginning_of_line()) then
-                call overlay_put(overlay, "after_string", value_type(text=fortmacs_diff_after_flag_end_of_line), status)
-            else
-                call overlay_put(overlay, "after_string", value_type(text=fortmacs_diff_after_flag_mol), status)
-            end if
-        end if
-
-        ! Make the old buffer current again, keeping the first error.
-        call set_buffer(old, st)
-        if (status%ok()) status = st
-    end subroutine place_fortmacs_diff_flags_in_buffer
-
-    ! Remove the ASCII flags of OVERLAY.  Port of
-    ! ediff-util.el:ediff-remove-flags-from-buffer.
-    subroutine remove_fortmacs_diff_flags(overlay, status)
-        type(handle_type), intent(in) :: overlay
-        type(status_type), intent(out) :: status
-
-        call overlay_put(overlay, "before_string", value_type(), status)
-        if (.not. status%ok()) return
-        call overlay_put(overlay, "after_string", value_type(), status)
-    end subroutine remove_fortmacs_diff_flags
-
-    recursive module subroutine get_fortmacs_diff_diff_position(k, buffer_type, at_end, position, status, n)
-        integer, intent(in) :: k, buffer_type
-        logical, intent(in) :: at_end
-        integer(int64), intent(out) :: position
-        type(status_type), intent(out) :: status
-        integer, intent(in), optional :: n
-        type(handle_type) :: overlay
-        integer :: m
-
-        status = status_type()
-        position = 0
-        m = fortmacs_diff_sessions(k)%current_difference
-        if (present(n)) m = n
-
-        if (m < 0 .or. m >= fortmacs_diff_sessions(k)%number_of_differences) then
-            if (fortmacs_diff_sessions(k)%number_of_differences > 0) then
-                call set_error(status, GENERIC_ERROR_CODE, bad_diff_number(k, m))
-            else
-                call set_error(status, GENERIC_ERROR_CODE, FORTMACS_DIFF_NO_DIFFERENCES)
-            end if
-
-            return
-        end if
-
-        overlay = fortmacs_diff_sessions(k)%differences(buffer_type, m + 1)%overlay
-
-        if (.not. is_buffer_live(overlay_buffer(overlay))) then
-            call set_error(status, GENERIC_ERROR_CODE, FORTMACS_DIFF_KILLED_VITAL_BUFFER)
-            return
-        end if
-
-        if (at_end) then
-            position = overlay_end(overlay)
-        else
-            position = overlay_start(overlay)
-        end if
-    end subroutine get_fortmacs_diff_diff_position
-
-    recursive module subroutine get_fortmacs_diff_region_contents(k, n, buffer_type, text, status, start, end)
-        integer, intent(in) :: k, n, buffer_type
-        character(len=:), allocatable, intent(out) :: text
-        type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: start, end
-        type(handle_type) :: old
-        type(status_type) :: st
-        integer(int64) :: s, e
-
-        text = ""
-
-        if (present(start)) then
-            s = start
-        else
-            call get_fortmacs_diff_diff_position(k, buffer_type, .false., s, status, n)
-            if (.not. status%ok()) return
-        end if
-
-        if (present(end)) then
-            e = end
-        else
-            call get_fortmacs_diff_diff_position(k, buffer_type, .true., e, status, n)
-            if (.not. status%ok()) return
-        end if
-
-        old = current_buffer()
-        call enter_fortmacs_diff_buffer(fortmacs_diff_sessions(k)%buffers(buffer_type), status)
-        if (.not. status%ok()) return
-        call buffer_substring(s, e, text, status)
-        ! Make the old buffer current again, keeping the first error.
-        call set_buffer(old, st)
-        if (status%ok()) status = st
-    end subroutine get_fortmacs_diff_region_contents
-
-    ! Restore highlighting to what it should be according to
-    ! `fortmacs_diff_use_faces', the highlighting style and
-    ! `fortmacs_diff_highlight_all_diffs'.  Port of
-    ! ediff-util.el:ediff-restore-highlighting.
-    recursive subroutine restore_fortmacs_diff_highlighting(k, status)
-        integer, intent(in) :: k
-        type(status_type), intent(out) :: status
-
-        status = status_type()
-
-        if (has_fortmacs_diff_face_support() .and. fortmacs_diff_sessions(k)%use_faces .and. fortmacs_diff_sessions( &
-            k)%highlight_all_diffs) then
-            call paint_fortmacs_diff_background_regions(k, .false., status)
-            if (.not. status%ok()) return
-        end if
-
-        call select_fortmacs_diff_difference(k, fortmacs_diff_sessions(k)%current_difference, status)
-    end subroutine restore_fortmacs_diff_highlighting
-
-    ! Delete the difference overlays of session K so they won't slow down
-    ! future editing operations.  Port of
-    ! ediff-util.el:ediff-clear-diff-vector (for the vectors of all the
-    ! buffers; fine differences are deferred).
-    subroutine clear_fortmacs_diff_differences(k)
-        integer, intent(in) :: k
-        integer :: t, n
-
-        if (.not. allocated(fortmacs_diff_sessions(k)%differences)) return
-
-        do n = 1, size(fortmacs_diff_sessions(k)%differences, 2)
-            do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR
-                if (is_overlay(fortmacs_diff_sessions(k)%differences(t, n)%overlay)) then
-                    call destroy_overlay(fortmacs_diff_sessions(k)%differences(t, n)%overlay)
-                end if
-            end do
-        end do
-
-        deallocate (fortmacs_diff_sessions(k)%differences)
-        allocate (fortmacs_diff_sessions(k)%differences(4, 0))
-    end subroutine clear_fortmacs_diff_differences
-
-    ! Make the current difference overlay of session K in BUFFER_TYPE,
-    ! when the display has faces.  Port of
-    ! ediff-util.el:ediff-make-current-diff-overlay.
-    recursive subroutine make_fortmacs_diff_current_diff_overlay(k, buffer_type, status)
-        integer, intent(in) :: k, buffer_type
-        type(status_type), intent(out) :: status
-        integer(int64) :: position
-
-        status = status_type()
-        if (.not. has_fortmacs_diff_face_support()) return
-        ! (point-max) of the control buffer.
-        position = point_maximum()
-        call make_fortmacs_diff_bullet_proof_overlay(position, position, fortmacs_diff_sessions(k)%buffers(buffer_type), &
-                                                     fortmacs_diff_sessions(k)%current_diff_overlays(buffer_type), status)
-        if (.not. status%ok()) return
-        call set_fortmacs_diff_overlay_face(fortmacs_diff_sessions(k)%current_diff_overlays(buffer_type), &
-                                            trim(FORTMACS_DIFF_CURRENT_DIFF_FACES(buffer_type)), status)
-    end subroutine make_fortmacs_diff_current_diff_overlay
-
-    ! Narrow buffers A, B (and C) of session K to the visible bounds.
-    ! Port of ediff-util.el:ediff-visible-region.
-    recursive subroutine make_fortmacs_diff_region_visible(k, status)
-        integer, intent(in) :: k
-        type(status_type), intent(out) :: status
-        type(handle_type) :: old
-        type(status_type) :: st
-        integer :: t
-
-        status = status_type()
-
-        associate (b => fortmacs_diff_sessions(k)%buffers)
-            if (same_handle(b(FORTMACS_DIFF_BUFFER_TYPE_A), b(FORTMACS_DIFF_BUFFER_TYPE_B))) return
-            if (same_handle(b(FORTMACS_DIFF_BUFFER_TYPE_A), b(FORTMACS_DIFF_BUFFER_TYPE_C))) return
-            if (same_handle(b(FORTMACS_DIFF_BUFFER_TYPE_C), b(FORTMACS_DIFF_BUFFER_TYPE_B))) return
-        end associate
-
-        ! If ediff-*-regions/windows, ediff-visible-bounds is already set.
-        ! Otherwise, always use full range.
-        if (.not. fortmacs_diff_sessions(k)%narrow_job) fortmacs_diff_sessions(k)%visible_bounds = fortmacs_diff_sessions( &
-                                                                                                   k)%wide_bounds
-        old = current_buffer()
-
-        do t = FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_C
-            if (t == FORTMACS_DIFF_BUFFER_TYPE_C .and. .not. fortmacs_diff_sessions(k)%three_way_job) exit
-
-            associate (overlay => fortmacs_diff_sessions(k)%visible_bounds(t))
-                if (.not. is_buffer_live(overlay_buffer(overlay))) cycle
-                call enter_fortmacs_diff_buffer(fortmacs_diff_sessions(k)%buffers(t), status)
-                if (status%ok()) call narrow_to_region(overlay_start(overlay), overlay_end(overlay), status)
-            end associate
-
-            if (.not. status%ok()) exit
-        end do
-
-        ! Make the old buffer current again, keeping the first error.
-        call set_buffer(old, st)
-        if (status%ok()) status = st
-
-    contains
-
-        ! Whether A and B are the same live buffer.
-        logical function same_handle(a, b)
-            type(handle_type), intent(in) :: a, b
-
-            same_handle = a%index /= 0 .and. a%index == b%index .and. a%generation == b%generation
-        end function same_handle
-    end subroutine make_fortmacs_diff_region_visible
 
     ! ------------------------------------------------------------------
     ! Files and buffers
@@ -2456,79 +1346,62 @@ contains
     ! Merging
     ! ------------------------------------------------------------------
 
-    ! A `user_error' unless session K has a live ancestor buffer.  Port of
-    ! ediff-util.el:ediff--check-ancestor-exists.
-    subroutine check_fortmacs_diff_ancestor_exists(k, status)
-        integer, intent(in) :: k
-        type(status_type), intent(out) :: status
-
-        status = status_type()
-        if (is_buffer_live(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR))) return
-
-        if (fortmacs_diff_sessions(k)%merge_with_ancestor_job) then
-            call set_error(status, USER_ERROR_CODE, "Lost connection to ancestor buffer.  This shouldn't happen.  "// &
-                           "Please report this bug to bug-gnu-emacs@gnu.org")
-        else
-            call set_error(status, USER_ERROR_CODE, "Not merging with ancestor")
-        end if
-    end subroutine check_fortmacs_diff_ancestor_exists
-
     ! Restore `fortmacs_diff_show_ancestor' on exit: a function of
     ! `fortmacs_diff_quit_hook', run in the control buffer of the session that
     ! quits.  Port of ediff-util.el:ediff--restore-options-on-exit.
     recursive subroutine restore_fortmacs_diff_options_on_exit(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
         status = status_type()
-        k = fortmacs_diff_session_index()
-        if (k == 0) return
+        session_index = fortmacs_diff_session_index()
+        if (session_index == 0) return
 
-        if (fortmacs_diff_sessions(k)%show_ancestor_original) then
+        if (fortmacs_diff_sessions(session_index)%show_ancestor_original) then
             call message("Restoring fortmacs_diff_show_ancestor to .true....")
         else
             call message("Restoring fortmacs_diff_show_ancestor to .false....")
         end if
 
-        fortmacs_diff_show_ancestor = fortmacs_diff_sessions(k)%show_ancestor_original
-        fortmacs_diff_sessions(k)%show_ancestor_original = .false.
+        fortmacs_diff_show_ancestor = fortmacs_diff_sessions(session_index)%show_ancestor_original
+        fortmacs_diff_sessions(session_index)%show_ancestor_original = .false.
         call fortmacs_diff_quit_hook%remove(restore_fortmacs_diff_options_on_exit)
     end subroutine restore_fortmacs_diff_options_on_exit
 
     recursive module subroutine toggle_fortmacs_diff_show_ancestor(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
-        call check_fortmacs_diff_ancestor_exists(k, status)
+        call fortmacs_diff_sessions(session_index)%check_ancestor_exists(status)
         if (.not. status%ok()) return
 
         ! Save original value if not yet, and add hook to restore it on
         ! exit.
-        if (.not. fortmacs_diff_sessions(k)%show_ancestor_original) then
-            fortmacs_diff_sessions(k)%show_ancestor_original = fortmacs_diff_show_ancestor
+        if (.not. fortmacs_diff_sessions(session_index)%show_ancestor_original) then
+            fortmacs_diff_sessions(session_index)%show_ancestor_original = fortmacs_diff_show_ancestor
             call fortmacs_diff_quit_hook%prepend(restore_fortmacs_diff_options_on_exit)
         end if
 
         fortmacs_diff_show_ancestor = .not. fortmacs_diff_show_ancestor
 
         ! If equal than orig, then nothing to restore on exit.
-        if (fortmacs_diff_show_ancestor .eqv. fortmacs_diff_sessions(k)%show_ancestor_original) then
-            fortmacs_diff_sessions(k)%show_ancestor_original = .false.
+        if (fortmacs_diff_show_ancestor .eqv. fortmacs_diff_sessions(session_index)%show_ancestor_original) then
+            fortmacs_diff_sessions(session_index)%show_ancestor_original = .false.
             call fortmacs_diff_quit_hook%remove(restore_fortmacs_diff_options_on_exit)
         end if
 
         if (.not. fortmacs_diff_show_ancestor) then
-            call delete_window(fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR), status)
+            call delete_window(fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR), status)
             if (.not. status%ok()) return
-            call recenter_fortmacs_diff_session(k, .false., status)
+            call fortmacs_diff_sessions(session_index)%recenter(.false., status)
             if (.not. status%ok()) return
             call message("Ancestor buffer is hidden")
         else
             ! The ancestor's frame is the selected one (control frames are
             ! Deferred).
-            call recenter_fortmacs_diff_session(k, .false., status)
+            call fortmacs_diff_sessions(session_index)%recenter(.false., status)
             if (.not. status%ok()) return
             call message("Showing ancestor buffer")
         end if
@@ -2536,19 +1409,19 @@ contains
 
     recursive module subroutine toggle_fortmacs_diff_show_clashes_only(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
 
-        if (.not. fortmacs_diff_sessions(k)%merge_with_ancestor_job) then
+        if (.not. fortmacs_diff_sessions(session_index)%merge_with_ancestor_job) then
             call set_error(status, USER_ERROR_CODE, "This command makes sense only when merging with an ancestor")
             return
         end if
 
-        fortmacs_diff_sessions(k)%show_clashes_only = .not. fortmacs_diff_sessions(k)%show_clashes_only
+        fortmacs_diff_sessions(session_index)%show_clashes_only = .not. fortmacs_diff_sessions(session_index)%show_clashes_only
 
-        if (fortmacs_diff_sessions(k)%show_clashes_only) then
+        if (fortmacs_diff_sessions(session_index)%show_clashes_only) then
             call message("Focus on regions where both buffers differ from the ancestor")
         else
             call message("Canceling focus on regions where changes clash")
@@ -2557,14 +1430,14 @@ contains
 
     recursive module subroutine toggle_fortmacs_diff_skip_changed_regions(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
-        fortmacs_diff_sessions(k)%skip_merge_regions_that_differ_from_default = &
-            .not. fortmacs_diff_sessions(k)%skip_merge_regions_that_differ_from_default
+        fortmacs_diff_sessions(session_index)%skip_merge_regions_that_differ_from_default = &
+            .not. fortmacs_diff_sessions(session_index)%skip_merge_regions_that_differ_from_default
 
-        if (fortmacs_diff_sessions(k)%skip_merge_regions_that_differ_from_default) then
+        if (fortmacs_diff_sessions(session_index)%skip_merge_regions_that_differ_from_default) then
             call message("Skipping regions that differ from default setting")
         else
             call message("Showing regions that differ from default setting")
@@ -2573,148 +1446,13 @@ contains
 
     recursive module subroutine maybe_save_and_delete_fortmacs_diff_merge(status)
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
         status = status_type()
-        k = fortmacs_diff_session_index()
-        if (k == 0) return
-        call maybe_save_and_delete_fortmacs_diff_merge_session(k, .false., status)
+        session_index = fortmacs_diff_session_index()
+        if (session_index == 0) return
+        call fortmacs_diff_sessions(session_index)%save_and_delete_merge(.false., status)
     end subroutine maybe_save_and_delete_fortmacs_diff_merge
-
-    recursive module subroutine maybe_save_and_delete_fortmacs_diff_merge_session(k, save_and_continue, status)
-        integer, intent(in) :: k
-        logical, intent(in) :: save_and_continue
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: merge_store_file
-        logical :: always
-
-        status = status_type()
-        ! Fake ediff-autostore-merges, if necessary.
-        always = save_and_continue .or. fortmacs_diff_sessions(k)%autostore_merges%value
-        if (.not. always .and. fortmacs_diff_sessions(k)%autostore_merges%choice &
-            /= FORTMACS_DIFF_AUTOSTORE_MERGES_GROUP_JOBS_ONLY) return
-
-        if (allocated(fortmacs_diff_sessions(k)%merge_store_file)) then
-            ! Store, ask to delete.
-            call write_fortmacs_diff_merge_buffer_and_maybe_close(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C), &
-                                                            fortmacs_diff_sessions(k)%merge_store_file, .true., save_and_continue, &
-                                                                  status)
-        else if (always) then
-            ! Ask for file name.
-            call read_file_name("Save the result of the merge in file: ", merge_store_file, status)
-            if (.not. status%ok()) return
-            call write_fortmacs_diff_merge_buffer_and_maybe_close(fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_C), &
-                                                                  merge_store_file, &
-                                                                  .false., save_and_continue, status)
-        end if
-        ! Otherwise the parent session group's job passed no file.
-    end subroutine maybe_save_and_delete_fortmacs_diff_merge_session
-
-    ! Write merge buffer BUFFER into FILE (asking before overwriting an
-    ! existing file); with SHOW_FILE, say where.  Unless
-    ! SAVE_AND_CONTINUE, offer to close the buffer.  Port of
-    ! ediff-util.el:ediff-write-merge-buffer-and-maybe-kill.
-    recursive subroutine write_fortmacs_diff_merge_buffer_and_maybe_close(buffer, file, show_file, save_and_continue, status)
-        type(handle_type), intent(in) :: buffer
-        character(len=*), intent(in) :: file
-        logical, intent(in) :: show_file, save_and_continue
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: expanded, warn_message
-        type(handle_type) :: visiting, old
-        type(status_type) :: st
-        logical :: answer
-
-        call expand_file_name(file, expanded, status)
-        if (.not. status%ok()) return
-        visiting = get_file_buffer(expanded)
-
-        if (.not. same_handle(visiting, buffer)) then
-            warn_message = "Another buffer is visiting file "//file//". Too dangerous to save the merge buffer"
-            call ding()
-            call message(warn_message)
-            call with_output_to_temporary_buffer(" *ediff-message*", LF//LF//warn_message//LF//LF, status)
-            if (.not. status%ok()) return
-            call sit_for(2000)
-            return
-        end if
-
-        old = current_buffer()
-        call enter_fortmacs_diff_buffer(buffer, status)
-        if (.not. status%ok()) return
-        answer = .true.
-        if (file_exists(file)) call read_y_or_n("File "//file//" exists, overwrite? ", answer, status)
-
-        if (status%ok() .and. answer) then
-            call set_visited_file_name(file, status)
-            if (status%ok()) call save_buffer(1_int64, .false., status)
-
-            if (status%ok() .and. show_file) then
-                call message("Merge buffer saved in: "//file)
-                call restore_buffer_modified(.false.)
-                call sit_for(3000)
-            end if
-
-            if (status%ok() .and. .not. save_and_continue) then
-                call read_y_or_n("Merge buffer saved.  Now kill the buffer? ", answer, status)
-                if (status%ok() .and. answer) call close_fortmacs_diff_buffer_carefully(buffer, status)
-            end if
-        end if
-
-        ! Make the old buffer current again, keeping the first error.
-        if (is_buffer_live(old)) then
-            call set_buffer(old, st)
-            if (status%ok()) status = st
-        end if
-
-    contains
-
-        ! Whether A and B are the same buffer.
-        logical function same_handle(a, b)
-            type(handle_type), intent(in) :: a, b
-
-            same_handle = a%index == b%index .and. a%generation == b%generation
-        end function same_handle
-    end subroutine write_fortmacs_diff_merge_buffer_and_maybe_close
-
-    ! If a buffer visits FILE, where the merge is to be saved, offer to
-    ! save and close it; an error condition occurs if the user declines.
-    ! Port of ediff-util.el:ediff-verify-file-merge-buffer.
-    recursive subroutine verify_fortmacs_diff_file_merge_buffer(file, status)
-        character(len=*), intent(in) :: file
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: expanded, warn_message
-        type(handle_type) :: buffer, old
-        type(status_type) :: st
-        logical :: answer
-
-        call expand_file_name(file, expanded, status)
-        if (.not. status%ok()) return
-        buffer = get_file_buffer(expanded)
-        if (.not. is_buffer_live(buffer)) return
-        warn_message = "Buffer "//buffers(buffer%index)%name//" is visiting "//file//". Save and kill the buffer? "
-        call with_output_to_temporary_buffer(" *ediff-message*", LF//LF//warn_message//LF//LF, status)
-        if (.not. status%ok()) return
-        call message(warn_message)
-        call read_y_or_n(warn_message, answer, status)
-        if (.not. status%ok()) return
-
-        if (.not. answer) then
-            call set_error(status, GENERIC_ERROR_CODE, "Too dangerous to merge versions of a file visited by another buffer")
-            return
-        end if
-
-        old = current_buffer()
-        call set_buffer(buffer, status)
-        if (.not. status%ok()) return
-        call save_buffer(1_int64, .false., status)
-        if (status%ok()) call close_buffer(buffer, status)
-
-        ! Make the old buffer current again, keeping the first error.
-        if (is_buffer_live(old)) then
-            call set_buffer(old, st)
-            if (status%ok()) status = st
-        end if
-    end subroutine verify_fortmacs_diff_file_merge_buffer
 
     ! ------------------------------------------------------------------
     ! Saving
@@ -2726,33 +1464,33 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer, old
         type(status_type) :: st
-        integer :: k, saved_window_minimum_height
+        integer :: session_index, saved_window_minimum_height
 
-        call check_fortmacs_diff_control_buffer(k, status)
+        call check_fortmacs_diff_control_buffer(session_index, status)
         if (.not. status%ok()) return
-        call compute_fortmacs_diff_custom_diffs_maybe(k, status)
+        call fortmacs_diff_sessions(session_index)%compute_custom_diffs(status)
         if (.not. status%ok()) return
 
         select case (key)
         case ("a", "b", "c")
-            buffer = fortmacs_diff_sessions(k)%buffers(fortmacs_diff_character_to_buffer_type(key))
+            buffer = fortmacs_diff_sessions(session_index)%buffers(fortmacs_diff_character_to_buffer_type(key))
         case ("d")
             call message("Saving diff output ...")
             ! Give the user time to see the message.
             call sit_for(1000)
 
-            if (argument .and. is_buffer_live(fortmacs_diff_sessions(k)%diff_buffer)) then
-                buffer = fortmacs_diff_sessions(k)%diff_buffer
-            else if (is_buffer_live(fortmacs_diff_sessions(k)%custom_diff_buffer)) then
-                buffer = fortmacs_diff_sessions(k)%custom_diff_buffer
-            else if (is_buffer_live(fortmacs_diff_sessions(k)%diff_buffer)) then
-                buffer = fortmacs_diff_sessions(k)%diff_buffer
+            if (argument .and. is_buffer_live(fortmacs_diff_sessions(session_index)%diff_buffer)) then
+                buffer = fortmacs_diff_sessions(session_index)%diff_buffer
+            else if (is_buffer_live(fortmacs_diff_sessions(session_index)%custom_diff_buffer)) then
+                buffer = fortmacs_diff_sessions(session_index)%custom_diff_buffer
+            else if (is_buffer_live(fortmacs_diff_sessions(session_index)%diff_buffer)) then
+                buffer = fortmacs_diff_sessions(session_index)%diff_buffer
             else
                 call set_error(status, USER_ERROR_CODE, format_message("Output from `diff' not found"))
                 return
             end if
         case default
-            buffer = fortmacs_diff_sessions(k)%control_buffer
+            buffer = fortmacs_diff_sessions(session_index)%control_buffer
         end select
 
         old = current_buffer()
@@ -2770,92 +1508,6 @@ contains
             if (status%ok()) status = st
         end if
     end subroutine save_fortmacs_diff_buffer
-
-    recursive module subroutine compute_fortmacs_diff_custom_diffs_maybe(k, status)
-        integer, intent(in) :: k
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: file_a, file_b
-        type(handle_type) :: old
-        type(status_type) :: st
-
-        call temporary_unless_visited(FORTMACS_DIFF_BUFFER_TYPE_A, file_a, status)
-        if (.not. status%ok()) return
-        call temporary_unless_visited(FORTMACS_DIFF_BUFFER_TYPE_B, file_b, status)
-        if (.not. status%ok()) return
-
-        if (.not. is_buffer_live(fortmacs_diff_sessions(k)%custom_diff_buffer)) then
-            call get_or_make_buffer(fortmacs_diff_unique_buffer_name("*ediff-custom-diff", "*"), &
-                                    fortmacs_diff_sessions(k)%custom_diff_buffer, status)
-            if (.not. status%ok()) return
-        end if
-
-        old = current_buffer()
-        call set_buffer(fortmacs_diff_sessions(k)%custom_diff_buffer, status)
-        if (.not. status%ok()) return
-        buffers(current)%read_only = .false.
-        call erase_buffer(status)
-        if (status%ok()) call set_buffer(old, status)
-        if (.not. status%ok()) return
-        call execute_fortmacs_diff_process(fortmacs_diff_custom_diff_program, fortmacs_diff_sessions(k)%custom_diff_buffer, &
-                                           fortmacs_diff_custom_diff_options, &
-                                           status, file1=file_a, file2=file_b)
-
-        ! Put the diff file in diff-mode.
-        if (status%ok()) then
-            call set_buffer(fortmacs_diff_sessions(k)%custom_diff_buffer, status)
-            if (status%ok()) call diff_mode(status)
-            call set_buffer(old, st)
-            if (status%ok()) status = st
-        end if
-
-        ! Delete the temporary files, keeping the first error.
-        call delete_temporary(FORTMACS_DIFF_BUFFER_TYPE_A, file_a)
-        call delete_temporary(FORTMACS_DIFF_BUFFER_TYPE_B, file_b)
-
-    contains
-
-        ! The file of buffer BUFFER_TYPE in FILE: the one it visits if that
-        ! exists, else a temporary copy.
-        recursive subroutine temporary_unless_visited(buffer_type, file, status)
-            integer, intent(in) :: buffer_type
-            character(len=:), allocatable, intent(out) :: file
-            type(status_type), intent(out) :: status
-            type(handle_type) :: buffer
-
-            status = status_type()
-            buffer = fortmacs_diff_sessions(k)%buffers(buffer_type)
-
-            if (is_buffer_live(buffer)) then
-                if (allocated(buffers(buffer%index)%filename)) then
-                    if (file_exists(buffers(buffer%index)%filename)) then
-                        file = buffers(buffer%index)%filename
-                        return
-                    end if
-                end if
-            end if
-
-            call create_fortmacs_diff_temporary_file(buffer, file, status)
-        end subroutine temporary_unless_visited
-
-        ! Delete FILE if it is a temporary copy of buffer BUFFER_TYPE.
-        subroutine delete_temporary(buffer_type, file)
-            integer, intent(in) :: buffer_type
-            character(len=*), intent(in) :: file
-            type(handle_type) :: buffer
-
-            buffer = fortmacs_diff_sessions(k)%buffers(buffer_type)
-
-            if (is_buffer_live(buffer)) then
-                if (allocated(buffers(buffer%index)%filename)) then
-                    if (buffers(buffer%index)%filename == file) return
-                end if
-            end if
-
-            if (.not. file_exists(file)) return
-            call delete_file(file, st)
-            if (status%ok()) status = st
-        end subroutine delete_temporary
-    end subroutine compute_fortmacs_diff_custom_diffs_maybe
 
     ! ------------------------------------------------------------------
     ! Commands

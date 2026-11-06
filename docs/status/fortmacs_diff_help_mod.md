@@ -6,6 +6,7 @@
 
 ## Ported
 
+the procedures that act on one session, as type-bound procedures of `fortmacs_diff_session_type` (panel 14) in fortmacs_diff_settings_help_mod, a submodule of fortmacs_diff_settings_mod,
 `ediff-long-help-message-head`,
 `-tail`,
 `-compare2`,

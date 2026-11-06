@@ -52,8 +52,8 @@ submodule(window_mod) window_display_mod
     use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
                           frame_buffer_list, get_buffer, get_or_make_buffer, close_buffer, &
                           set_buffer_read_only, restore_buffer_modified, replace_buffer_in_windows_hook, &
-                          buffer_handle
-    use marker_mod, only: set_marker_restricted, copy_marker
+                          buffer_handle, buffers, reset_window_markers_hook
+    use marker_mod, only: set_marker_restricted, copy_marker, set_marker
     use frame_mod, only: selected_frame, ensure_frame_windows, selected_window, frame_list, select_frame_begin, &
                          select_frame_end, window_frame, select_frame, make_frame, get_frame, frame_type, next_frame, &
                          delete_frame
@@ -1205,6 +1205,33 @@ contains
         end do
     end subroutine replace_buffer_in_windows
 
+    module subroutine reset_window_markers(buffer)
+        type(handle_type), intent(in) :: buffer
+        type(handle_type), allocatable :: frames(:)
+        type(handle_type) :: saved
+        type(status_type) :: status
+        integer(int64) :: beginning_of_accessible_portion
+        integer :: k, i
+
+        if (.not. is_buffer_live(buffer)) return
+        beginning_of_accessible_portion = buffers(buffer%index)%beginning_of_accessible_portion
+        frames = frame_list()
+
+        do k = 1, size(frames)
+            call select_frame_begin(frames(k), saved)
+
+            do i = 1, size(windows)
+                if (.not. is_window_live(wtable%handle_of(int(i, int64)))) cycle
+                if (windows(i)%buffer%index /= buffer%index .or. windows(i)%buffer%generation /= buffer%generation) cycle
+                if (windows(i)%pointm%index /= 0) call set_marker(windows(i)%pointm, beginning_of_accessible_portion, &
+                                                                  status, buffer)
+                if (windows(i)%start%index /= 0) call set_marker(windows(i)%start, beginning_of_accessible_portion, status, buffer)
+            end do
+
+            call select_frame_end(saved)
+        end do
+    end subroutine reset_window_markers
+
     !> `replace_buffer_in_windows' for the windows of the selected frame.
     !> Port of window.el:replace-buffer-in-windows (its loop body).
     subroutine replace_buffer_in_frame_windows(buffer)
@@ -1344,32 +1371,52 @@ contains
     !> In selected window switch to ARGth previous buffer.
     !> Call `switch_to_previous_buffer' unless the selected window is the
     !> minibuffer window or is dedicated to its buffer.  Port of
-    !> window.el:previous-buffer (`switch_to_previous_buffer_skip' unset).
+    !> window.el:previous-buffer (the command; `switch_to_previous_buffer_skip'
+    !> unset).
     subroutine execute_previous_buffer(status)
         type(status_type), intent(out) :: status
 
-        call previous_or_next_buffer(.true., status)
+        call previous_buffer(status, prefix_numeric_value(current_prefix_argument), .true.)
     end subroutine execute_previous_buffer
 
     !> In selected window switch to ARGth next buffer.
     !> Call `switch_to_next_buffer' unless the selected window is the
     !> minibuffer window or is dedicated to its buffer.  Port of
-    !> window.el:next-buffer.
+    !> window.el:next-buffer (the command).
     subroutine execute_next_buffer(status)
         type(status_type), intent(out) :: status
 
-        call previous_or_next_buffer(.false., status)
+        call next_buffer(status, prefix_numeric_value(current_prefix_argument), .true.)
     end subroutine execute_next_buffer
 
-    !> The common part of `previous_buffer' and `next_buffer' (called
-    !> interactively; the exception for keyboard macros is deferred).
-    !> Port of window.el:previous-buffer and window.el:next-buffer (their
-    !> common part).
-    subroutine previous_or_next_buffer(previous, status)
+    module subroutine previous_buffer(status, argument, interactive)
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: argument
+        logical, intent(in), optional :: interactive
+
+        call previous_or_next_buffer(.true., status, argument, interactive)
+    end subroutine previous_buffer
+
+    module subroutine next_buffer(status, argument, interactive)
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: argument
+        logical, intent(in), optional :: interactive
+
+        call previous_or_next_buffer(.false., status, argument, interactive)
+    end subroutine next_buffer
+
+    !> The common part of `previous_buffer' and `next_buffer' (the
+    !> exception for keyboard macros is deferred).  Port of
+    !> window.el:previous-buffer and window.el:next-buffer (their common
+    !> part).
+    subroutine previous_or_next_buffer(previous, status, argument, interactive)
         logical, intent(in) :: previous
         type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: argument
+        logical, intent(in), optional :: interactive
         type(handle_type) :: sw, b
-        integer(int64) :: argument, k
+        integer(int64) :: n, k
+        logical :: complain
 
         status = status_type()
         sw = selected_window()
@@ -1384,15 +1431,18 @@ contains
             return
         end if
 
-        ! (interactive "p"): dotimes does nothing for ARGUMENT <= 0.
-        argument = prefix_numeric_value(current_prefix_argument)
+        ! No switch for ARGUMENT <= 0.
+        n = 1
+        if (present(argument)) n = argument
+        complain = .false.
+        if (present(interactive)) complain = interactive
 
-        do k = 1, argument
+        do k = 1, n
             if (previous) then
                 b = switch_to_previous_buffer(sw, BK_NONE, status)
                 if (.not. status%ok()) return
 
-                if (b%index == 0) then
+                if (b%index == 0 .and. complain) then
                     call set_error(status, USER_ERROR_CODE, "No previous buffer")
                     return
                 end if
@@ -1400,7 +1450,7 @@ contains
                 b = switch_to_next_buffer(sw, status)
                 if (.not. status%ok()) return
 
-                if (b%index == 0) then
+                if (b%index == 0 .and. complain) then
                     call set_error(status, USER_ERROR_CODE, "No next buffer")
                     return
                 end if
@@ -1752,9 +1802,7 @@ contains
         end if
     end function display_buffer_in_previous_window
 
-    !> The frame's first window (the top left one).  Port of
-    !> window.c:Fframe_first_window.
-    function frame_first_window() result(h)
+    module function frame_first_window() result(h)
         type(handle_type) :: h
         type(handle_type), allocatable :: leaves(:)
 
@@ -2984,6 +3032,7 @@ contains
 
     module subroutine initialize_window_display()
         replace_buffer_in_windows_hook => replace_buffer_in_windows
+        reset_window_markers_hook => reset_window_markers
         call append_locals_clearer(clear_window_sides_shown)
         commands%quit_window%execute => execute_quit_window
         commands%bury_buffer%execute => execute_bury_buffer

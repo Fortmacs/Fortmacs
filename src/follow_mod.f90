@@ -1399,7 +1399,8 @@ contains
                 do k = 1, size(chain)
                     ! Count mode-line, too.
                     lines = lines + windows(chain(k)%index)%total_lines - 1
-                    if (allocated(buffers(current)%header_line_format%segments)) lines = lines - 1
+                    if (buffers(current)%header_line_format%is_set()) lines = lines - 1
+                    if (buffers(current)%tab_line_format%is_set()) lines = lines - 1
                 end do
 
                 lines = lines - next_screen_context_lines

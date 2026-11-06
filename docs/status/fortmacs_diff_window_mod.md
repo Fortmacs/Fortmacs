@@ -6,6 +6,7 @@
 
 ## Ported
 
+the procedures that act on one session, as type-bound procedures of `fortmacs_diff_session_type` (panel 14) in fortmacs_diff_settings_window_mod, a submodule of fortmacs_diff_settings_mod,
 `ediff-window-setup-function` and `ediff-split-window-function` (procedure pointers; `split_window_below` and `split_window_right`),
 `ediff-setup-windows`,
 `ediff-setup-windows-default`,

@@ -1294,6 +1294,7 @@ contains
     buffers(current)%read_only_mode_state_set = .false.
     if (allocated(buffers(current)%invisibility_specification)) deallocate (buffers(current)%invisibility_specification)
     call buffers(current)%mode_line_format%clear()
+    call buffers(current)%tab_line_format%clear()
 
     do i = buffers(current)%nlocal, 1, -1
         if (.not. all) then

@@ -1,5 +1,7 @@
 # Step 48c (R6-17 verb first, word order only; is_* for predicates, kill
 # is close; decided by rule and reported in the PR): Ediff merging.
+# Fixed on 2026-11-05 (fortmacs-diff-bindings, panels 13 and 14): a procedure
+# acting on one session or group is a type-bound procedure, named by its binding.
 name	ediff_toggle_show_ancestor	toggle_ediff_show_ancestor
 name	ediff_toggle_show_clashes_only	toggle_ediff_show_clashes_only
 name	ediff_toggle_skip_changed_regions	toggle_ediff_skip_changed_regions
@@ -8,23 +10,23 @@ name	ediff_save_buffer	save_ediff_buffer
 name	ediff_re_merge	re_merge_ediff
 name	ediff_shrink_window_c	shrink_ediff_window_c
 name	ediff_combine_diffs	combine_ediff_diffs
-name	ediff_get_combined_region	get_ediff_combined_region
-name	ediff_get_state_of_merge	get_ediff_state_of_merge
-name	ediff_set_state_of_all_diffs_in_all_buffers	set_ediff_state_of_all_diffs_in_all_buffers
-name	ediff_set_state_of_diff_in_all_buffers	set_ediff_state_of_diff_in_all_buffers
+name	ediff_get_combined_region	get_combined_region
+name	ediff_get_state_of_merge	get_state_of_merge
+name	ediff_set_state_of_all_diffs_in_all_buffers	set_all_difference_states
+name	ediff_set_state_of_diff_in_all_buffers	set_difference_state
 name	ediff_set_merge_mode	set_ediff_merge_mode
-name	ediff_do_merge	do_ediff_merge
+name	ediff_do_merge	merge_differences
 name	ediff_merge_on_startup	merge_ediff_on_startup
-name	ediff_merge_region_is_non_clash	is_ediff_merge_region_non_clash
+name	ediff_merge_region_is_non_clash	is_merge_region_non_clash
 name	ediff_merge_region_is_non_clash_to_skip	check_region_skip
-name	ediff_merge_changed_from_default_p	is_ediff_merge_changed_from_default
+name	ediff_merge_changed_from_default_p	check_region_changed
 name	ediff_maybe_save_and_delete_merge	maybe_save_and_delete_ediff_merge
 name	ediff_write_merge_buffer_and_maybe_kill	write_ediff_merge_buffer_and_maybe_close
 name	ediff_verify_file_merge_buffer	verify_ediff_file_merge_buffer
-name	ediff_arrange_autosave_in_merge_jobs	arrange_ediff_autosave_in_merge_jobs
+name	ediff_arrange_autosave_in_merge_jobs	arrange_autosave_in_merge_jobs
 name	ediff_setup_windows_plain_merge	set_up_ediff_windows_plain_merge
 name	ediff_select_lowest_window	select_lowest_ediff_window
-name	ediff_compute_custom_diffs_maybe	compute_ediff_custom_diffs_maybe
+name	ediff_compute_custom_diffs_maybe	compute_custom_diffs
 # The hook keeps its name (a hook, not the command quit_ediff).
 name	ediff_quit_merge_hook	fortmacs_diff_quit_merge_hook
 # Both tests are one type-bound check of the Ediff session (panel 13).

@@ -38,6 +38,7 @@
 | [css_mode_mod](../status/css_mode_mod.md) | textmodes/css-mode.el | partial |
 | [cursor_motion_mod](../status/cursor_motion_mod.md) | cm.c, cm.h macros | done |
 | [derived_mod](../status/derived_mod.md) | emacs-lisp/derived.el | partial |
+| [diary_library_mod](../status/diary_library_mod.md) | calendar/diary-lib.el (in part), calendar/calendar.el (the diary options) | partial |
 | [diff_mod](../status/diff_mod.md) | vc/diff.el | done |
 | [diff_mode_mod](../status/diff_mode_mod.md) | vc/diff-mode.el (+ emacs-lisp/easy-mmode.el `easy-mmode--next`/`--prev` in easy_minor_mode_mod) | partial |
 | [directory_editor_mod](../status/directory_editor_mod.md) | dired.c | partial |
@@ -121,6 +122,7 @@
 | [minibuffer_mod](../status/minibuffer_mod.md) | minibuffer.el | partial |
 | [minibuffer_reading_mod](../status/minibuffer_reading_mod.md) | minibuf.c | partial |
 | [minibuffer_reading_tables_mod](../status/minibuffer_reading_tables_mod.md) | minibuf.c, minibuffer.el (split from minibuffer_reading_mod so that hooks_mod's hooks can hold completion-at-point functions) | done |
+| [movemail_mod](../status/movemail_mod.md) | lib-src/movemail.c | partial |
 | [multilingual_environment_configuration_mod](../status/multilingual_environment_configuration_mod.md) | international/mule-conf.el | partial |
 | [multilingual_environment_mod](../status/multilingual_environment_mod.md) | mule.el, mule-cmds.el, mule-diag.el (coding systems, charsets) | partial |
 | [multilingual_environment_utilities_mod](../status/multilingual_environment_utilities_mod.md) | international/mule-util.el | partial |
@@ -147,6 +149,11 @@
 | [repeat_mod](../status/repeat_mod.md) | repeat.el | partial |
 | [replace_mod](../status/replace_mod.md) | replace.el (query replace part) | partial |
 | [ring_mod](../status/ring_mod.md) | emacs-lisp/ring.el | partial |
+| [rmail_edit_mod](../status/rmail_edit_mod.md) | mail/rmailedit.el | partial |
+| [rmail_keywords_mod](../status/rmail_keywords_mod.md) | mail/rmailkwd.el | done |
+| [rmail_mod](../status/rmail_mod.md) | mail/rmail.el | partial |
+| [rmail_output_mod](../status/rmail_output_mod.md) | mail/rmailout.el | partial |
+| [rmail_summary_mod](../status/rmail_summary_mod.md) | mail/rmailsum.el | partial |
 | [save_history_mod](../status/save_history_mod.md) | savehist.el | partial |
 | [saveplace_mod](../status/saveplace_mod.md) | saveplace.el | partial |
 | [search_mod](../status/search_mod.md) | search.c | done |
@@ -178,6 +185,7 @@
 | [system_linux_mod](../status/system_linux_mod.md) | — (glibc/kernel headers) | done |
 | [system_worker_mod](../status/system_worker_mod.md) | — (replaces select and SIGCHLD in process.c) | done |
 | [tab_bar_mod](../status/tab_bar_mod.md) | tab-bar.el (step 44b; with xdisp.c's display_tab_bar for terminal frames in display_engine_mod, frame.c's set_tab_bar_lines in frame_mod, window.el's window-state-get/put in part in window_mod) | partial |
+| [tab_line_mod](../status/tab_line_mod.md) | tab-line.el (step 44c; with xdisp.c's display_mode_lines for the tab line in display_engine_mod, window.c's window_wants_tab_line in window_mod, buffer.c's tab-line-format in buffer_mod, bindings.el's mode-line-window-selected-p in display_engine_mod) | partial |
 | [tabulated_list_mod](../status/tabulated_list_mod.md) | emacs-lisp/tabulated-list.el | partial |
 | [terminal_colors_mod](../status/terminal_colors_mod.md) | term/tty-colors.el, xfaces.c (`tty-defined-color-alist`, `color-values-from-color-spec` / `parse_color_spec`), startup.el and faces.el (the color part of terminal setup) | partial |
 | [terminal_colors_rgb_mod](../status/terminal_colors_rgb_mod.md) | term/tty-colors.el `color-name-rgb-alist` | done |

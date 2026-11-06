@@ -1,12 +1,12 @@
 # fortmacs_diff_settings_mod
 
-- Module: fortmacs_diff_settings_mod, fortmacs_diff_settings_skip_mod (submodule)
+- Module: fortmacs_diff_settings_mod, fortmacs_diff_settings_diff_mod, fortmacs_diff_settings_merging_mod, fortmacs_diff_settings_utilities_mod, fortmacs_diff_settings_window_mod, fortmacs_diff_settings_help_mod (submodules)
 - Upstream: vc/ediff-init.el
 - State: partial
 
 ## Ported
 
-the session variables of the control buffer as `fortmacs_diff_session_type` (`ediff-buffer-A`/`-B`/`-C`, `ediff-ancestor-buffer`, `ediff-control-buffer`, the difference vectors, `ediff-current-difference`, `ediff-number-of-differences`, the bounds, the diff and error buffers, `ediff-killed-diffs-alist` as `replaced_regions` of `fortmacs_diff_replaced_region_type` records, `ediff-highlighting-style`, `ediff-job-name` as a pointer to the command that started the session, and the job classification of `fortmacs_diff-3way-comparison-job` and the others; its type-bound `check_region_skip`, the merge-region skip check of n and p, is in the submodule fortmacs_diff_settings_skip_mod, see fortmacs_diff_merging_mod),
+the session variables of the control buffer as `fortmacs_diff_session_type` (`ediff-buffer-A`/`-B`/`-C`, `ediff-ancestor-buffer`, `ediff-control-buffer`, the difference vectors, `ediff-current-difference`, `ediff-number-of-differences`, the bounds, the diff and error buffers, `ediff-killed-diffs-alist` as `replaced_regions` of `fortmacs_diff_replaced_region_type` records, `ediff-highlighting-style`, `ediff-job-name` as a pointer to the command that started the session, and the job classification of `fortmacs_diff-3way-comparison-job` and the others; the procedures that act on one session are its type-bound procedures, called on the session's entry of `fortmacs_diff_sessions` by its index, `call fortmacs_diff_sessions(session_index)%quit(.false., status)` (panel 14), each in the submodule for its upstream file: ediff-diff.el in fortmacs_diff_settings_diff_mod, ediff-merg.el in fortmacs_diff_settings_merging_mod (with `check_region_skip`, panel 13), ediff-util.el in fortmacs_diff_settings_utilities_mod, ediff-wind.el in fortmacs_diff_settings_window_mod and ediff-help.el in fortmacs_diff_settings_help_mod; their status is in those files' modules),
 the buffer types A, B, C and Ancestor as named constants,
 `ediff-force-faces`,
 `ediff-has-face-support-p`,
