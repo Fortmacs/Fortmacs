@@ -104,10 +104,14 @@ names, help and internals are Fortran-first.
 
 - **Fortran names.** PORTING.md, "Fortran names for Lisp terms", has the
   full list.
-  - Names use underscores: `M-x find_file`, `C-h v fill_column`,
-    `text_mode_hook`.
-  - Lisp terms take Fortran names: defun→subprogram, sexp→expression, <!-- fortran-names: keep -->
-    alist→table. <!-- fortran-names: keep -->
+  - Names use underscores:
+    - `find-file`→`find_file` <!-- fortran-names: keep -->
+    - `fill-column`→`fill_column` <!-- fortran-names: keep -->
+    - `text-mode-hook`→`text_mode_hook` <!-- fortran-names: keep -->
+  - Lisp terms take Fortran names:
+    - defun→subprogram <!-- fortran-names: keep -->
+    - sexp→expression <!-- fortran-names: keep -->
+    - alist→table <!-- fortran-names: keep -->
 - **The same keys and mode line.** Keys and the text the mode line shows
   are unchanged; mode-line formats are written in Fortran, never with
   Emacs's %-constructs.
@@ -115,20 +119,27 @@ names, help and internals are Fortran-first.
   same idea is spelled several ways; since everything is being rewritten
   anyway, Fortmacs unifies the wording. PORTING.md, "One word per
   meaning", has the full list.
-  - Running anything is `execute`: `call_interactively`→`execute_interactively`, <!-- fortran-names: keep -->
-    `run_mode_hooks`→`execute_mode_hooks`, <!-- fortran-names: keep -->
-    `run_with_timer`→`execute_with_timer`. <!-- fortran-names: keep -->
+  - Running anything is `execute`:
+    - `call_interactively`→`execute_interactively` <!-- fortran-names: keep -->
+    - `run_mode_hooks`→`execute_mode_hooks` <!-- fortran-names: keep -->
+    - `run_with_timer`→`execute_with_timer` <!-- fortran-names: keep -->
   - Text is cut, copied and pasted, and the copies are kept in the
-    clipboard history (C-w, M-w and C-y stay): `kill_region`→`cut_region`, <!-- fortran-names: keep -->
-    `kill_ring_save`→`copy_region`, `yank`→`paste`, <!-- fortran-names: keep -->
-    `kill_ring`→`clipboard_history`. <!-- fortran-names: keep -->
-  - A buffer is closed and a process stopped: `kill_buffer`→`close_buffer`, <!-- fortran-names: keep -->
-    `kill_process`→`stop_process`. <!-- fortran-names: keep -->
+    clipboard history (C-w, M-w and C-y stay):
+    - `kill_region`→`cut_region` <!-- fortran-names: keep -->
+    - `kill_ring_save`→`copy_region` <!-- fortran-names: keep -->
+    - `yank`→`paste` <!-- fortran-names: keep -->
+    - `kill_ring`→`clipboard_history` <!-- fortran-names: keep -->
+  - A buffer is closed and a process stopped:
+    - `kill_buffer`→`close_buffer` <!-- fortran-names: keep -->
+    - `kill_process`→`stop_process` <!-- fortran-names: keep -->
   - Objects in memory are made and destroyed, files created and deleted:
-    `free_marker`→`destroy_marker`, `make_directory`→`create_directory`. <!-- fortran-names: keep -->
-  - Arrays grow with append and prepend: `add_auto_mode`→`prepend_auto_mode`. <!-- fortran-names: keep -->
-  - Predicates are `is_*`: `process_live_p`→`is_process_live`. Other <!-- fortran-names: keep -->
-    helpers use one word each: get, not fetch; make, not new.
+    - `free_marker`→`destroy_marker` <!-- fortran-names: keep -->
+    - `make_directory`→`create_directory` <!-- fortran-names: keep -->
+  - Arrays grow with append and prepend:
+    - `add_auto_mode`→`prepend_auto_mode` <!-- fortran-names: keep -->
+  - Predicates are `is_*`:
+    - `process_live_p`→`is_process_live` <!-- fortran-names: keep -->
+  - Other helpers use one word each: get, not fetch; make, not new.
   - Where Emacs gives two words two behaviors, both stay: cut saves to
     the clipboard history, delete does not; read prompts, get looks up.
 - **Fortran in help.** Help shows Fortran values (`.true.`, `8`,

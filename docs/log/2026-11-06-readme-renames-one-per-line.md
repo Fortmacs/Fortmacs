@@ -1,0 +1,1 @@
+2026-11-06 — README: in "Differences from Emacs" each rename example is on its own line, old→new (`readme-renames-one-per-line`, owner); the underscore item gets real before/after names (`find-file`→`find_file`).
