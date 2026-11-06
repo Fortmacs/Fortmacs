@@ -16,7 +16,7 @@
 `diary-list-entries-2` (the date forms),
 `diary-add-to-list` (`append_diary_entry`, with `diary_comment_start`, `diary_comment_end` and `diary_file_name_prefix`),
 `diary-list-sexp-entries` (`list_diary_expression_entries`),
-`diary-sexp-entry` (`process_diary_expression_entry`: a fixed reader of the entry forms diary-date, diary-block, diary-float, diary-anniversary, diary-cyclic, diary-offset, diary-remind and diary-day-of-year, whose arguments are integers, t, nil, quoted lists of integers, strings, quoted face names and quoted entry forms; any other form is reported as a bad entry and does not apply),
+`diary-sexp-entry` (`process_diary_expression_entry`: a fixed reader of the entry forms diary-date, diary-block, diary-float, diary-anniversary, diary-cyclic, diary-offset, diary-remind and diary-day-of-year, whose arguments are integers, t, nil, quoted lists of integers, strings, quoted face names and quoted entry forms; any other form is reported as a bad entry, in a warning (display-warning), and does not apply),
 `diary-date`,
 `diary-block`,
 `diary-float`,
@@ -32,7 +32,7 @@
 `diary-fancy-display` (`display_fancy_diary`, the default `diary_display_function`, with the holidays of each date and a button for each entry),
 `diary-goto-entry` (the diary-entry buttons),
 `diary-unhide-everything`,
-`diary-include-files`,
+`diary-include-files` (with the warnings about a file that can't be found or read),
 `diary-include-other-diary-files`,
 `diary-mark-included-diary-files`,
 `diary-mark-entries-1` (the date forms),
@@ -78,7 +78,7 @@ expression entries beyond the fixed reader's forms (other functions, `let`, `and
 format directives in anniversary and cyclic entries other than %d, %s and %%,
 the face markup of entries (`diary-face-attrs`, `diary-glob-file-regexp-prefix`, `diary-pull-attrs`, `diary-attrtype-convert`, `calendar-make-temp-face`) and marks given as attribute lists,
 `diary-entry-marker` (dates are marked with the `diary` face),
-the *Warnings* buffer (warnings.el: a bad expression entry and an include file that cannot be read are reported in the echo area) and `calendar-debug-sexp`,
+`calendar-debug-sexp`,
 the header line of Diary mode (`diary-header-line-flag`, `diary-header-line-format`, `diary-selective-display`, `diary-set-header`),
 the font-lock keywords of Diary mode and of the fancy display (`diary-font-lock-keywords`, `diary-font-lock-sexps`, `diary-font-lock-date-forms`, `diary-time-regexp`, `diary-fancy-font-lock-keywords`, `diary-fancy-font-lock-fontify-region-function`; the obsolete `diary-fancy-date-pattern` and `diary-fancy-date-matcher`),
 `diary-fancy-overriding-map`,
@@ -97,4 +97,4 @@ diary-icalendar.el and appt.el
 
 ## Tests
 
-test_diary_library_mod (own tests: diary-lib.el has no tests upstream; the times of entries, the ordinal suffix, the date styles, the entries of the date forms and of the expression entries for a range of days, the sort by time, the fancy display, the marks in the calendar, a bad expression entry, the i keys' entries and the European date forms, the expected text made by GNU Emacs from upstream's 31.1 calendar.el, holidays.el and diary-lib.el)
+test_diary_library_mod (own tests: diary-lib.el has no tests upstream; the times of entries, the ordinal suffix, the date styles, the entries of the date forms and of the expression entries for a range of days, the sort by time, the fancy display, the marks in the calendar, a bad expression entry (its warning), the i keys' entries and the European date forms, the expected text made by GNU Emacs from upstream's 31.1 calendar.el, holidays.el and diary-lib.el)

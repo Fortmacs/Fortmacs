@@ -37,7 +37,7 @@
 !> listed in docs/status/diary_library_mod.md.
 module diary_library_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
+    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, command_procedure, xfixnum
     use string_type_mod, only: string_type, append_string
@@ -74,6 +74,7 @@ module diary_library_mod
     use help_mod, only: register_keymap_name
     use minibuffer_mod, only: read_file_name, REQUIRE_MATCH_YES
     use display_engine_mod, only: message, current_message
+    use warnings_mod, only: display_warning, WARNING_ERROR
     use frame_mod, only: selected_window, selected_frame, frame_columns
     use window_mod, only: windows, display_buffer, pop_to_buffer, select_window, is_window_live, set_window_point, &
                           set_window_start, get_buffer_window, window_body_height, fit_window_to_buffer, window_buffer
@@ -1077,9 +1078,7 @@ contains
     !> Specify include files using lines matching `diary_include_string', e.g.
     !>     #include "filename"
     !> This is recursive; that is, included files may include other files.
-    !> Port of diary-lib.el:diary-include-files (a file that cannot be
-    !> found or read is reported in the echo area: warnings.el is
-    !> Deferred).
+    !> Port of diary-lib.el:diary-include-files.
     recursive subroutine include_diary_files(mark, status)
         logical, intent(in) :: mark
         type(status_type), intent(out) :: status
@@ -1103,13 +1102,17 @@ contains
             file = match_string_no_properties(1)
 
             if (.not. file_exists(file)) then
-                call message(format_message("Can't find included diary file "//file))
+                call display_warning("diary", format_message("Can't find included diary file ")//file//achar(10), &
+                                     WARNING_ERROR, status=status)
+                if (.not. status%ok()) return
                 call goto_character(after)
                 cycle
             end if
 
             if (.not. is_file_readable(file)) then
-                call message(format_message("Can't read included diary file "//file))
+                call display_warning("diary", format_message("Can't read included diary file ")//file//achar(10), &
+                                     WARNING_ERROR, status=status)
+                if (.not. status%ok()) return
                 call goto_character(after)
                 cycle
             end if
@@ -2316,11 +2319,11 @@ contains
     !> Process an expression diary ENTRY for DATE: EXPRESSION is the entry's
     !> form, upstream's Lisp call of a diary entry function.  RESULT says
     !> whether the entry applies, with its text and its mark.  A form that
-    !> cannot be read or evaluated is reported in the echo area ("Bad
-    !> diary expression") and does not apply.  Port of
+    !> cannot be read or evaluated is reported as a warning ("Bad diary
+    !> expression") and does not apply.  Port of
     !> diary-lib.el:diary-sexp-entry (a fixed reader of the forms
-    !> `list_diary_expression_entries' describes; the *Warnings* buffer
-    !> of warnings.el and `calendar_debug_expression' are Deferred).
+    !> `list_diary_expression_entries' describes; `calendar_debug_expression'
+    !> is Deferred).
     recursive subroutine process_diary_expression_entry(expression, entry, date, result)
         character(len=*), intent(in) :: expression, entry
         type(calendar_date_type), intent(in) :: date
@@ -2332,14 +2335,8 @@ contains
 
         if (.not. status%ok()) then
             write (digits, "(i0)") count_lines(point_minimum(), point())
-
-            if (allocated(status%detail)) then
-                call message("Bad diary expression at line "//trim(digits)//" in "//diary_file//": "//expression//": " &
-                             //status%detail)
-            else
-                call message("Bad diary expression at line "//trim(digits)//" in "//diary_file//": "//expression)
-            end if
-
+            call display_warning("diary", "Bad diary expression at line "//trim(digits)//" in "//diary_file//":"//achar(10)// &
+                                 expression//achar(10)//"Error: "//format_error(status)//achar(10), WARNING_ERROR)
             result = expression_result_type()
         end if
     end subroutine process_diary_expression_entry

@@ -700,9 +700,9 @@ contains
         call sit_for(0)
     end subroutine display_warning_buffer
 
-    ! The window height of the warnings buffer's window: (lambda (window)
-    ! (fit-window-to-buffer window 10)).  Port of the window-height
-    ! entry of warnings.el:warning--display-buffer.
+    ! The window height of the warnings buffer's window: fit to its buffer,
+    ! at most 10 lines.  Port of the window-height entry of
+    ! warnings.el:warning--display-buffer.
     subroutine fit_warning_window(window)
         type(handle_type), intent(in) :: window
 
