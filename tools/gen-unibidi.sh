@@ -130,8 +130,8 @@ END {
     print "! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>."
     print ""
     print "!> The bidi class of every code point up to U+10FFFF as sorted runs"
-    print "!> from `bidi_starts` to `bidi_ends` (inclusive) of class `bidi_codes`"
-    print "!> (dispextern.h bidi_type_t: 1 L, 2 R, 3 EN, ... 23 ON); the mirrored"
+    print "!> from `bidirectional_starts` to `bidirectional_ends` (inclusive) of class `bidirectional_codes`"
+    print "!> (dispextern.h bidirectional_type_t: 1 L, 2 R, 3 EN, ... 23 ON); the mirrored"
     print "!> characters, `mirror_from` to `mirror_to`, sorted; the opening and"
     print "!> the closing paired brackets, sorted.  Used by bidirectional_mod."
     print "module unicode_bidirectional_mod"
@@ -139,19 +139,19 @@ END {
     print "    implicit none(type, external)"
     print "    private"
     print ""
-    print "    public :: bidi_runs, bidi_starts, bidi_ends, bidi_codes, mirror_count, mirror_from, mirror_to, &"
+    print "    public :: bidirectional_runs, bidirectional_starts, bidirectional_ends, bidirectional_codes, mirror_count, mirror_from, mirror_to, &"
     print "              open_bracket_count, open_brackets, close_bracket_count, close_brackets"
     print ""
     print "    !> The numbers of runs of one bidi class, of mirrored characters and of"
     print "    !> opening and closing brackets."
-    printf "    integer, parameter :: bidi_runs = %d, mirror_count = %d, open_bracket_count = %d, &\n", g, nm, no
+    printf "    integer, parameter :: bidirectional_runs = %d, mirror_count = %d, open_bracket_count = %d, &\n", g, nm, no
     printf "                          close_bracket_count = %d\n\n", nc
     print "    !> The first characters of the runs of one bidi class."
-    array("bidi_starts", "bidi_runs", gs, g)
+    array("bidirectional_starts", "bidirectional_runs", gs, g)
     print "    !> The last characters of the runs of one bidi class."
-    array("bidi_ends", "bidi_runs", ge, g)
+    array("bidirectional_ends", "bidirectional_runs", ge, g)
     print "    !> The bidi class of each run."
-    array("bidi_codes", "bidi_runs", gc, g)
+    array("bidirectional_codes", "bidirectional_runs", gc, g)
     print "    !> The mirrored characters (BidiMirroring.txt)."
     array("mirror_from", "mirror_count", mf, nm)
     print "    !> The mirror image of each of `mirror_from`."
