@@ -44,17 +44,18 @@ the window part of `kill-buffer` (through a hook to window_mod),
 `fill-column`,
 `left-margin` and `auto-fill-function` (one global value each);
 BVAR `invisibility_specification` (`buffer-invisibility-spec`: t, or ATOM and (ATOM . ELLIPSIS) entries; reset by kill-all-local-variables);
-BVAR `header_line_format` (a `header_line_format_type`: text segments with a face and a column each, `add` and `clear`);
+BVAR `header_line_format` (a `header_line_format_type`: text segments with faces and a column each, or a procedure giving them (`(:eval FORM)`, decision 44 Q8), `append`, `clear` and `is_set`);
+BVAR `tab_line_format` (the same type; cleared by `kill-all-local-variables`);
 the overlay functions of buffer.c are interval_tree_mod's,
 `buffer-local-value` and `buffer-local-variables` (with `buffer_local_value`, `buffer_lisp_local_variables`, `buffer_local_variables_1`) data_mod's;
 step 44a: the frames' buffer lists exchanged on a frame switch (`exchange_frame_buffers`; closed buffers leave a frame's lists when it is selected again);
 BVAR `save_length` (`buffer-saved-size`, set where fileio.c sets it; not a variable of its own yet) (step 49c),
-`frame_buried_buffers` (the selected frame's buried_buffer_list, for tab-bar.el)
+`frame_buried_buffers` (the selected frame's buried_buffer_list, for tab-bar.el);
+step 52d: `buffer-swap-text` (`swap_buffer_text`: the texts with their markers, text properties and overlays, point, the restriction, undo list, mark and multibyteness; the window markers through window_mod's `reset_window_markers`; no indirect buffers, so none of their checks; the region caches are not kept)
 
 ## Deferred
 
 indirect buffers (`make-indirect-buffer`, `buffer-base-buffer`, `copy_overlays`, `clone_per_buffer_values`, `record_buffer_markers`, `fetch_buffer_markers`: they need buffer text shared between buffer records, held outside `buffer_type`),
-`buffer-swap-text` (`swap_buffer_overlays`; swapping texts, markers and overlays between records),
 `set-buffer-multibyte` (`advance_to_char_boundary`, `set_overlays_multibyte`, intervals.c `set_intervals_multibyte`),
 `get-truename-buffer` (BVAR `file_truename` is not kept yet: files.el sets it, with file locking in 42e),
 `overlay_strings`,
@@ -78,4 +79,4 @@ waits for the GUI: nothing
 
 ## Tests
 
-test_buffer_mod (ports bug27966, buffer-tests-inhibit-buffer-hooks (its `buffer-list-update-hook` part) and the file-independent parts of test-buffer-modifications, test-restore-buffer-modified-p, test-buffer-chars-modified-ticks; own: buffer-list-update-hook runs, the DEFUNs)
+test_buffer_mod (ports bug27966, buffer-tests-inhibit-buffer-hooks (its `buffer-list-update-hook` part) and the file-independent parts of test-buffer-modifications, test-restore-buffer-modified-p, test-buffer-chars-modified-ticks; own: buffer-list-update-hook runs, the DEFUNs, swap-buffer-text)

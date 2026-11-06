@@ -6,7 +6,7 @@
 
 ## Ported
 
-the meta list and its header as `fortmacs_diff_session_group_type` (one per group buffer in `fortmacs_diff_session_groups`: `ediff-metajob-name` as a pointer to the command, the regexp, the directories, the merge autostore directory, `ediff-meta-list`'s sessions as `fortmacs_diff_group_session_type` records with their files as `fortmacs_diff_group_file_type`, `ediff-dir-difference-list` as `ediff_dir_difference_type` records, `ediff-dir-diffs-buffer`, `ediff-parent-meta-buffer`, `ediff-meta-session-number`, `ediff-meta-diff-buffer`, `ediff-verbose-help-enabled`, `ediff-recurse-to-subdirectories`, `ediff-meta-buffer-map`),
+the meta list and its header as `fortmacs_diff_session_group_type` (one per group buffer in `fortmacs_diff_session_groups`: `ediff-metajob-name` as a pointer to the command, the regexp, the directories, the merge autostore directory, `ediff-meta-list`'s sessions as `fortmacs_diff_group_session_type` records with their files as `fortmacs_diff_group_file_type`, `ediff-dir-difference-list` as `ediff_dir_difference_type` records, `ediff-dir-diffs-buffer`, `ediff-parent-meta-buffer`, `ediff-meta-session-number`, `ediff-meta-diff-buffer`, `ediff-verbose-help-enabled`, `ediff-recurse-to-subdirectories`, `ediff-meta-buffer-map`; the procedures that act on one group are its type-bound procedures, called on its entry by the group index, `call fortmacs_diff_session_groups(group_index)%update_markers(status)`, panel 14),
 the session status as EDIFF_SESSION_STATUS_* (H, I, *),
 `ediff-registry-buffer`,
 `ediff-session-registry`,

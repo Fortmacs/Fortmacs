@@ -55,7 +55,7 @@ module utility_functions_mod
 
     public :: value_test_procedure
     public :: value_equal
-    public :: is_string_less, is_string_greater, compare_strings, COMPARE_EQUAL, count_characters, substring
+    public :: is_string_less, is_string_less_text, is_string_greater, compare_strings, COMPARE_EQUAL, count_characters, substring
 
     !> `is_string_less(a, b)': whether string A sorts before B, comparing
     !> characters by code (a prefix first); A and B are values (symbols

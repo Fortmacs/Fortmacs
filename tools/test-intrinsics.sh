@@ -2,7 +2,8 @@
 # test-intrinsics.sh -- check tools/intrinsics.awk on the fixture in
 # tools/intrinsics-test: the thin wrappers and Lisp helper names it must
 # report, the ones it must not (two statements, a module variable, nested
-# intrinsics, an interface body), the hand-written string comparison,
+# intrinsics, an interface body, constants named after yes-or-no-p and
+# y-or-n-p), the hand-written string comparison,
 # blank skips, constructor wrapper and private copy of a Lisp function
 # (and the module that may define it, utility_functions_mod.f90), a finding its
 # baseline excuses and a baseline entry that no longer occurs.

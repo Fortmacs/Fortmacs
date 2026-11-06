@@ -6,6 +6,7 @@
 
 ## Ported
 
+the procedures that act on one session, as type-bound procedures of `fortmacs_diff_session_type` (panel 14) in fortmacs_diff_settings_diff_mod, a submodule of fortmacs_diff_settings_mod,
 `ediff-diff-program`,
 `ediff-diff3-program`,
 `ediff-diff-options` (the actual options computed when the first session starts),

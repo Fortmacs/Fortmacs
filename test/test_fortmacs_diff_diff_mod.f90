@@ -29,15 +29,14 @@ module test_fortmacs_diff_diff_mod
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
-    use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
-                          get_buffer, is_buffer_live
+    use buffer_mod, only: buffers, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, get_buffer, &
+                          is_buffer_live
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string
     use keyboard_mod, only: discard_input
     use bindings_mod, only: initialize_bindings
     use fortmacs_diff_settings_mod, only: fortmacs_diff_sessions, fortmacs_diff_session_index, FORTMACS_DIFF_BUFFER_TYPE_A, &
                                           FORTMACS_DIFF_BUFFER_TYPE_B, FORTMACS_DIFF_BUFFER_TYPE_C
-    use fortmacs_diff_utilities_mod, only: get_fortmacs_diff_diff_position, quit_fortmacs_diff_session
     use fortmacs_diff_diff_mod, only: execute_fortmacs_diff_process
     use fortmacs_diff_mod, only: fortmacs_diff_buffers, fortmacs_diff_buffers3
     implicit none(type, external)
@@ -175,7 +174,7 @@ contains
         type(handle_type) :: a, b, control
         type(status_type) :: st
         integer(int64) :: position
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff", error)) return
         call setup()
@@ -189,35 +188,40 @@ contains
             control = get_buffer("*Ediff Control Panel*")
             call check(error, is_buffer_live(control), "the control buffer exists")
             if (allocated(error)) exit body
-            k = fortmacs_diff_session_index(control)
-            call check(error, fortmacs_diff_sessions(k)%number_of_differences, 2)
+            session_index = fortmacs_diff_session_index(control)
+            call check(error, fortmacs_diff_sessions(session_index)%number_of_differences, 2)
             if (allocated(error)) exit body
             call check(error, buffers(control%index)%major_mode, "fortmacs_diff_mode")
             if (allocated(error)) exit body
             ! "two" in A (5 to 9), "TWO" in B.
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .false., position, st, 0)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_A, .false., &
+                                                                               position, st, 0)
             call check(error, position, 5_int64)
             if (allocated(error)) exit body
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .true., position, st, 0)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_A, .true., position, st, 0)
             call check(error, position, 9_int64)
             if (allocated(error)) exit body
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_B, .false., position, st, 0)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_B, .false., &
+                                                                               position, st, 0)
             call check(error, position, 5_int64)
             if (allocated(error)) exit body
             ! "four" added at the end of B: empty in A.
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .false., position, st, 1)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_A, .false., &
+                                                                               position, st, 1)
             call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .true., position, st, 1)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_A, .true., position, st, 1)
             call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_B, .false., position, st, 1)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_B, .false., &
+                                                                               position, st, 1)
             call check(error, position, 15_int64)
             if (allocated(error)) exit body
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_B, .true., position, st, 1)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_B, .true., position, st, 1)
             call check(error, position, 20_int64)
             if (allocated(error)) exit body
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_A, .false., position, st, 2)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_A, .false., &
+                                                                               position, st, 2)
             call check(error,.not. st%ok(), "difference 3 is invalid")
         end block body
 
@@ -232,7 +236,7 @@ contains
         type(handle_type) :: a, b, c, control
         type(status_type) :: st
         integer(int64) :: position
-        integer :: k
+        integer :: session_index
 
         if (.not. has_program("diff3", error)) return
         call setup()
@@ -245,19 +249,21 @@ contains
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             control = get_buffer("*Ediff Control Panel*")
-            k = fortmacs_diff_session_index(control)
-            call check(error, k > 0, "a session")
+            session_index = fortmacs_diff_session_index(control)
+            call check(error, session_index > 0, "a session")
             if (allocated(error)) exit body
-            call check(error, fortmacs_diff_sessions(k)%number_of_differences, 1)
+            call check(error, fortmacs_diff_sessions(session_index)%number_of_differences, 1)
             if (allocated(error)) exit body
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_C, .false., position, st, 0)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_C, .false., &
+                                                                               position, st, 0)
             call check(error, position, 5_int64)
             if (allocated(error)) exit body
-            call get_fortmacs_diff_diff_position(k, FORTMACS_DIFF_BUFFER_TYPE_C, .true., position, st, 0)
+            call fortmacs_diff_sessions(session_index)%get_difference_position(FORTMACS_DIFF_BUFFER_TYPE_C, .true., position, st, 0)
             call check(error, position, 7_int64)
             if (allocated(error)) exit body
             ! A and B agree: C is the one that differs.
-            call check(error, trim(fortmacs_diff_sessions(k)%differences(FORTMACS_DIFF_BUFFER_TYPE_A, 1)%state_of_diff), "=diff(B)")
+            call check(error, trim(fortmacs_diff_sessions(session_index)%differences(FORTMACS_DIFF_BUFFER_TYPE_A, &
+                                                                                     1)%state_of_diff), "=diff(B)")
         end block body
 
         call quit_session()
@@ -270,12 +276,12 @@ contains
     subroutine quit_session()
         type(handle_type) :: control
         type(status_type) :: st
-        integer :: k
+        integer :: session_index
 
         control = get_buffer("*Ediff Control Panel*")
         if (.not. is_buffer_live(control)) return
         call set_buffer(control, st)
-        k = fortmacs_diff_session_index(control)
-        if (k > 0) call quit_fortmacs_diff_session(k, .false., st)
+        session_index = fortmacs_diff_session_index(control)
+        if (session_index > 0) call fortmacs_diff_sessions(session_index)%quit(.false., st)
     end subroutine quit_session
 end module test_fortmacs_diff_diff_mod

@@ -4559,7 +4559,7 @@ contains
                     if (associated(message_fcc_handler_function)) then
                         call message_fcc_handler_function(expanded, status)
                     else
-                        call set_error(status, VOID_FUNCTION_CODE, "rmail_output")
+                        call set_error(status, VOID_FUNCTION_CODE, "output_rmail_message")
                     end if
                 end if
 

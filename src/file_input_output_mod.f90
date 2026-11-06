@@ -41,7 +41,8 @@ module file_input_output_mod
                          GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, PERMISSION_DENIED_CODE, FILE_DATE_ERROR_CODE, &
                          ARGUMENTS_OUT_OF_RANGE_CODE
     use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, buffer_bytes, barf_if_buffer_read_only, &
-                          deactivate_mark_variable, current_buffer, buffer_visited_file_modtime
+                          deactivate_mark_variable, current_buffer, buffer_visited_file_modtime, set_buffer_internal
+    use hooks_mod, only: change_hook_type
     use marker_mod, only: character_to_byte, byte_to_character, set_marker, marker_position, destroy_marker
     use handle_mod, only: handle_type
     use character_mod, only: is_character_head
@@ -77,6 +78,17 @@ module file_input_output_mod
               open_dribble_file
     public :: copy_directory_hook, delete_directory_hook, delete_file_hook, file_operation_procedure, &
               copy_directory_procedure
+
+    !> A list of functions to be called at the start of `write_region'.
+    !> Each is passed two arguments, BEGINNING and END as for
+    !> `write_region' (BEGINNING 0 when the whole buffer is written).  A
+    !> function that makes a different buffer current means that buffer
+    !> contains altered text to be output: its accessible text is written
+    !> instead.  Port of fileio.c write-region-annotate-functions (the
+    !> annotations its functions return are not ported: see
+    !> docs/status/file_input_output_mod.md).
+    type(change_hook_type), target, public :: write_region_annotate_functions = &
+                                              change_hook_type(name="write_region_annotate_functions")
     public :: set_auto_coding_procedure, after_insert_file_set_coding_procedure, select_safe_coding_system_procedure, &
               choose_write_coding_system, is_file_name_match, read_file
 
@@ -1940,7 +1952,7 @@ contains
         character(len=:), allocatable :: absname, text, coding, bytes, used
         type(file_status_type) :: st
         type(status_type) :: wst
-        integer(int64) :: s, e, written
+        integer(int64) :: s, e, written, given
         integer(int32) :: fd, err
         logical :: appending
 
@@ -1948,22 +1960,39 @@ contains
         if (present(append)) appending = append
         call expand_file_name(filename, absname, status)
         if (.not. status%ok()) return
+        given = current
 
         if (present(start) .and. present(end)) then
             s = start
             e = end
             call validate_region(s, e, status)
             if (.not. status%ok()) return
-            text = buffer_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
+            call write_region_annotate_functions%execute(s, e, status)
+
+            if (current /= given) then
+                ! The function made a different buffer current: write its text.
+                s = buffers(current)%beginning_of_accessible_portion
+                e = buffers(current)%end_of_accessible_portion
+            end if
         else
+            call write_region_annotate_functions%execute(0_int64, 0_int64, status)
             s = BEGINNING
             e = buffers(current)%text%z
-            text = buffer_bytes(buffers(current), BEGINNING_BYTE, buffers(current)%text%z_byte)
+
+            if (current /= given) then
+                s = buffers(current)%beginning_of_accessible_portion
+                e = buffers(current)%end_of_accessible_portion
+            end if
         end if
 
-        call choose_write_coding_system(s, e, absname, coding, status)
-        if (.not. status%ok()) return
-        call encode_coding_text(text, coding, bytes, used, status, multibyte=buffers(current)%multibyte)
+        if (status%ok()) then
+            text = buffer_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
+            call choose_write_coding_system(s, e, absname, coding, status)
+        end if
+
+        if (status%ok()) call encode_coding_text(text, coding, bytes, used, status, multibyte=buffers(current)%multibyte)
+        ! Back to the buffer being written (the annotation buffers' end).
+        if (current /= given) call set_buffer_internal(given)
         if (.not. status%ok()) return
 
         if (appending) then

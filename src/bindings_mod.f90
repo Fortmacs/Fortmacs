@@ -124,6 +124,7 @@ module bindings_mod
     use save_history_mod, only: initialize_save_history
     use winner_mod, only: initialize_winner
     use tab_bar_mod, only: initialize_tab_bar
+    use tab_line_mod, only: initialize_tab_line
     use window_move_mod, only: initialize_windmove
     use saveplace_mod, only: initialize_saveplace
     use recent_files_mod, only: initialize_recent_files
@@ -154,6 +155,11 @@ module bindings_mod
     use mail_extract_mod, only: initialize_mail_extract
     use send_mail_mod, only: initialize_sendmail, mail_mode_map
     use smtpmail_mod, only: initialize_smtpmail
+    use rmail_mod, only: initialize_rmail
+    use rmail_keywords_mod, only: initialize_rmail_keywords
+    use rmail_edit_mod, only: initialize_rmail_edit
+    use rmail_output_mod, only: initialize_rmail_output
+    use rmail_summary_mod, only: initialize_rmail_summary
     use message_mod, only: initialize_message
     use mail_abbreviations_mod, only: initialize_mailabbrev
     use simple_mod, only: initialize_simple_mail
@@ -779,6 +785,7 @@ contains
         key(1) = value_type(int(iachar("t"), int64))
         call define_key(control_x_map, key, make_keymap_reference(tab_prefix_map), status)
         call initialize_tab_bar(tab_prefix_map)
+        call initialize_tab_line(control_x_map)
         call initialize_version_control_hooks(control_x_map)
         ! (After version_control_hooks: `grep_find_ignored_directories' defaults to
         ! `version_control_directory_exclusions'.)
@@ -809,6 +816,11 @@ contains
         call initialize_smtpmail()
         call initialize_mailabbrev()
         call initialize_message()
+        call initialize_rmail()
+        call initialize_rmail_keywords()
+        call initialize_rmail_edit()
+        call initialize_rmail_output()
+        call initialize_rmail_summary()
         call initialize_simple_mail()
         call bind(control_x_map, "m", "compose_mail")
         call bind(control_x_4_map, "m", "compose_mail_other_window")

@@ -394,7 +394,7 @@ contains
             associate (w => windows(f%selected_window%index))
                 if (w%cursor_horizontal_position >= w%left_column + window_text_columns(w)) w%cursor_horizontal_position = 0
 
-                if (w%cursor_vertical_position >= w%top_line + w%header_line_height + window_body_lines(w)) then
+                if (w%cursor_vertical_position >= w%top_line + w%tab_line_height + w%header_line_height + window_body_lines(w)) then
                     w%cursor_vertical_position = 0
                 end if
             end associate

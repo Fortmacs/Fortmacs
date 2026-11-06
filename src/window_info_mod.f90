@@ -346,6 +346,8 @@ contains
 
         n = 0
         call decode_live_window(window, i, status)
+        if (.not. status%ok()) return
+        if (window_wants_tab_line(windows(i))) n = 1
     end function window_tab_line_height
 
     module function window_hscroll(window, status) result(n)
@@ -637,6 +639,15 @@ contains
         if (window_wants_mode_line(w) .and. y >= bottom_y - 1) then
             part = ON_MODE_LINE
             return
+        end if
+
+        if (window_wants_tab_line(w)) then
+            if (y < top_y + 1) then
+                part = ON_TAB_LINE
+                return
+            end if
+
+            top_y = top_y + 1
         end if
 
         if (window_wants_header_line(w) .and. y < top_y + 1) then

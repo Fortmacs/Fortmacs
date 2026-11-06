@@ -1,0 +1,227 @@
+# Step 52d (rmail.el, rmailsum.el, rmailkwd.el, rmailedit.el, rmailout.el,
+# movemail.c).  No abbreviations in any name (owner, 2026-11-05): msg is
+# message, attr attribute, perm permanent, msgbeg and msgend the message's
+# beginning and end.  The functions that return a position or a number
+# keep their noun (rmail_message_beginning, as point and current_buffer).
+name	rmail_msgbeg	rmail_message_beginning
+name	rmail_msgend	rmail_message_end
+name	rmail_summary_msg_number	rmail_summary_message_number
+name	rmail_answered_attr_index	rmail_answered_attribute_index
+name	rmail_deleted_attr_index	rmail_deleted_attribute_index
+name	rmail_edited_attr_index	rmail_edited_attribute_index
+name	rmail_filed_attr_index	rmail_filed_attribute_index
+name	rmail_retried_attr_index	rmail_retried_attribute_index
+name	rmail_forwarded_attr_index	rmail_forwarded_attribute_index
+name	rmail_unseen_attr_index	rmail_unseen_attribute_index
+name	rmail_resent_attr_index	rmail_resent_attribute_index
+# Verb first, the package word after the verb (R6-17, R6-40; coordinator
+# 2026-11-05, as message.el's send_message and goto_message_to): rmail-add-label
+# is add_rmail_label, rmail-delete-forward delete_rmail_message_forward.  The
+# package entry commands without a verb keep their noun (rmail, rmail_input,
+# rmail_summary and its rmail_summary_by_* variants, as directory_editor and
+# ibuffer), as do the modes and the settings.  A command without a verb takes
+# one from what it does (R6-40): < and > show the first and last message.
+name	rmail_summary_goto_msg	goto_rmail_summary_message
+name	rmail_summary_next_msg	next_rmail_summary_message
+name	rmail_summary_previous_msg	previous_rmail_summary_message
+name	rmail_summary_scroll_msg_up	scroll_rmail_summary_message_up
+name	rmail_summary_scroll_msg_down	scroll_rmail_summary_message_down
+name	rmail_get_attr_names	get_rmail_attribute_names
+name	rmail_get_attr_value	get_rmail_attribute_value
+name	rmail_perm_variables	set_rmail_permanent_variables
+name	rmail_generate_viewer_buffer	generate_rmail_viewer_buffer
+name	rmail_swap_buffers	swap_rmail_buffers
+name	rmail_swap_buffers_maybe	swap_rmail_buffers_maybe
+name	rmail_modify_format	modify_rmail_format
+name	rmail_dont_modify_format	keep_rmail_format
+name	rmail_mode_2	set_up_rmail_mode_2
+name	rmail_mode_1	set_up_rmail_mode_1
+name	rmail_variables	set_rmail_variables
+name	rmail_write_region_annotate	annotate_rmail_write_region
+name	rmail_convert_file_maybe	convert_rmail_file_maybe
+name	rmail_error_bad_format	set_rmail_bad_format_error
+name	rmail_get_coding_system	get_rmail_coding_system
+name	rmail_get_new_mail	get_rmail_new_mail
+name	rmail_get_new_mail_1	get_rmail_new_mail_1
+name	rmail_insert_inbox_text	insert_rmail_inbox_text
+name	rmail_decode_region	decode_rmail_region
+name	rmail_ensure_blank_line	ensure_rmail_blank_line
+name	rmail_add_mbox_headers	add_rmail_mbox_headers
+name	rmail_get_header	get_rmail_header
+name	rmail_set_header	set_rmail_header
+name	rmail_get_keywords	get_rmail_keywords
+name	rmail_get_labels	get_rmail_labels
+name	rmail_display_labels	display_rmail_labels
+name	rmail_set_attribute_1	set_rmail_attribute_1
+name	rmail_set_attribute	set_rmail_attribute
+name	rmail_forget_messages	forget_rmail_messages
+name	rmail_maybe_set_message_counters	set_rmail_message_counters_maybe
+name	rmail_set_message_counters_counter	set_rmail_message_counters_counter
+name	rmail_count_new_messages	count_rmail_new_messages
+name	rmail_set_message_counters	set_rmail_message_counters
+name	rmail_toggle_header	toggle_rmail_header
+name	rmail_beginning_of_message	beginning_of_rmail_message
+name	rmail_end_of_message	end_of_rmail_message
+name	rmail_widen	widen_rmail
+name	rmail_show_message	show_rmail_message
+name	rmail_show_message_1	show_rmail_message_1
+name	rmail_copy_headers	copy_rmail_headers
+name	rmail_highlight_headers	highlight_rmail_headers
+name	rmail_next_message	next_rmail_message
+name	rmail_previous_message	previous_rmail_message
+name	rmail_next_undeleted_message	next_rmail_undeleted_message
+name	rmail_previous_undeleted_message	previous_rmail_undeleted_message
+name	rmail_first_message	show_first_rmail_message
+name	rmail_last_message	show_last_rmail_message
+name	rmail_what_message	get_rmail_message_at
+name	rmail_search_message	search_rmail_message
+name	rmail_search	search_rmail
+name	rmail_search_backwards	search_rmail_backwards
+name	rmail_first_unseen_message	get_first_rmail_unseen_message
+name	rmail_delete_message	delete_rmail_message
+name	rmail_undelete_previous_message	undelete_previous_rmail_message
+name	rmail_delete_forward	delete_rmail_message_forward
+name	rmail_delete_backward	delete_rmail_message_backward
+name	rmail_expunge_confirmed	is_rmail_expunge_confirmed
+name	rmail_only_expunge	expunge_rmail_only
+name	rmail_expunge	expunge_rmail
+name	rmail_expunge_and_save	expunge_and_save_rmail
+name	rmail_quit	quit_rmail
+name	rmail_bury	bury_rmail
+name	rmail_maybe_display_summary	display_rmail_summary_maybe
+name	rmail_select_summary	select_rmail_summary
+name	rmail_pop_to_buffer	pop_to_rmail_buffer
+name	rmail_summary_recipient_strip_quoted_names	strip_rmail_summary_recipient_quoted_names
+name	rmail_update_summary	update_rmail_summary
+name	rmail_summary_populate_displayed_messages	populate_rmail_summary_displayed_messages
+name	rmail_new_summary	make_rmail_new_summary
+name	rmail_new_summary_1	make_rmail_new_summary_1
+name	rmail_get_create_summary_buffer	get_or_make_rmail_summary_buffer
+name	rmail_get_summary	get_rmail_summary
+name	rmail_create_summary_line	create_rmail_summary_line
+name	rmail_get_summary_labels	get_rmail_summary_labels
+name	rmail_create_summary	create_rmail_summary
+name	rmail_header_summary	summarize_rmail_header
+name	rmail_summary_next_all	next_rmail_summary_all
+name	rmail_summary_previous_all	previous_rmail_summary_all
+name	rmail_summary_next_labeled_message	next_rmail_summary_labeled_message
+name	rmail_summary_previous_labeled_message	previous_rmail_summary_labeled_message
+name	rmail_summary_delete_forward	delete_rmail_summary_message_forward
+name	rmail_summary_delete_backward	delete_rmail_summary_message_backward
+name	rmail_summary_mark_deleted	mark_rmail_summary_deleted
+name	rmail_summary_mark_undeleted	mark_rmail_summary_undeleted
+name	rmail_summary_update_line	update_rmail_summary_line
+name	rmail_summary_undelete	undelete_rmail_summary
+name	rmail_summary_undelete_many	undelete_rmail_summary_many
+name	rmail_summary_disable	disable_rmail_summary
+name	rmail_summary_enable	enable_rmail_summary
+name	rmail_summary_mark_seen	mark_rmail_summary_seen
+name	rmail_summary_rmail_update	update_rmail_from_summary
+name	rmail_summary_save_buffer	save_rmail_summary_buffer
+name	rmail_summary_update_highlight	update_rmail_summary_highlight
+name	rmail_summary_beginning_of_message	beginning_of_rmail_summary_message
+name	rmail_summary_end_of_message	end_of_rmail_summary_message
+name	rmail_summary_show_message	show_rmail_summary_message
+name	rmail_summary_bury	bury_rmail_summary
+name	rmail_summary_quit	quit_rmail_summary
+name	rmail_summary_wipe	wipe_rmail_summary
+name	rmail_summary_expunge	expunge_rmail_summary
+name	rmail_summary_expunge_and_save	expunge_and_save_rmail_summary
+name	rmail_summary_get_new_mail	get_rmail_summary_new_mail
+name	rmail_summary_first_message	show_first_rmail_summary_message
+name	rmail_summary_last_message	show_last_rmail_summary_message
+name	rmail_summary_edit_current_message	edit_rmail_summary_current_message
+name	rmail_summary_cease_edit	cease_rmail_summary_edit
+name	rmail_summary_abort_edit	abort_rmail_summary_edit
+name	rmail_summary_search	search_rmail_summary
+name	rmail_summary_search_backward	search_rmail_summary_backward
+name	rmail_summary_toggle_header	toggle_rmail_summary_header
+name	rmail_summary_add_label	add_rmail_summary_label
+name	rmail_summary_output	output_rmail_summary_message
+name	rmail_summary_output_as_seen	output_rmail_summary_message_as_seen
+name	rmail_summary_output_body	output_rmail_summary_message_body
+name	rmail_add_label	add_rmail_label
+name	rmail_set_label	set_rmail_label
+name	rmail_previous_labeled_message	previous_rmail_labeled_message
+name	rmail_next_labeled_message	next_rmail_labeled_message
+name	rmail_edit_current_message	edit_rmail_current_message
+name	rmail_cease_edit	cease_rmail_edit
+name	rmail_abort_edit	abort_rmail_edit
+name	rmail_edit_diff_headers	diff_rmail_edit_headers
+name	rmail_edit_update_headers	update_rmail_edit_headers
+name	rmail_output_read_file_name	read_rmail_output_file_name
+name	rmail_delete_unwanted_fields	delete_rmail_unwanted_fields
+name	rmail_output_as_mbox	output_rmail_message_as_mbox
+name	rmail_output_to_rmail_buffer	output_rmail_message_to_rmail_buffer
+name	rmail_output	output_rmail_message
+name	rmail_output_as_seen	output_rmail_message_as_seen
+name	rmail_output_body_to_file	output_rmail_message_body_to_file
+# Predicates are is_*/has_* logical functions (CLAUDE.md; rule-decided).
+name	rmail_buffers_swapped_p	is_rmail_buffers_swapped
+name	rmail_is_text_p	is_rmail_text
+name	rmail_message_attr_p	has_rmail_message_attributes
+name	rmail_message_labels_p	has_rmail_message_labels
+name	rmail_message_unseen_p	is_rmail_message_unseen
+name	rmail_message_deleted_p	is_rmail_message_deleted
+name	rmail_set_message_deleted_p	set_rmail_message_deleted
+name	rmail_msg_is_pruned	is_rmail_message_pruned
+# Arrays have plain plural names (CLAUDE.md; rule-decided): the inbox
+# lists, and the obarray of labels (an obarray is a table of names,
+# PORTING.md's decision guide), with rmail-make-label adding to it
+# (an array grows with append_X).
+name	rmail_primary_inbox_list	rmail_primary_inboxes
+name	rmail_inbox_list	rmail_inboxes
+name	rmail_label_obarray	rmail_labels
+name	rmail_make_label	append_rmail_label
+# Prompts are read_* (CLAUDE.md; rule-decided).
+name	rmail_read_label	read_rmail_label
+# Kill by meaning (R2-Q2): a label is removed from the message, as
+# upstream's docstring says and as hooks' %remove does (rule-decided).
+name	rmail_kill_label	remove_rmail_label
+name	rmail_summary_kill_label	remove_rmail_summary_label
+# The kill-buffer hooks: a buffer is closed (R2-Q2); hooks are named for
+# what they do (rule-decided).
+name	rmail_mode_kill_summary	close_rmail_summary
+name	rmail_mode_kill_buffer_hook	close_rmail_view_buffer
+name	rmail_change_major_mode_hook	change_rmail_major_mode
+name	rmail_after_save_hook	update_rmail_after_save
+# rmail-edit-headers-alist is a function that looks the fields up: verb
+# first, get_ (R6-17; CLAUDE.md "One word per meaning"; rule-decided).
+name	rmail_edit_headers_alist	get_rmail_edit_headers
+# buffer-swap-text is verb first (R6-17; rule-decided).
+name	buffer_swap_text	swap_buffer_text
+# The settings and hooks of Rmail keep their noun names (coordinator,
+# 2026-11-05), although the commands' names above match them.
+keep	rmail_delete_message_hook
+keep	rmail_get_new_mail_hook
+keep	rmail_quit_hook
+keep	rmail_show_message_hook
+keep	rmail_show_message_set_modified
+keep	rmail_show_message_verbose_min
+keep	rmail_output_decode_coding
+keep	rmail_output_file_alist
+keep	rmail_output_reset_deleted_flag
+# The module of rmailout.el and its startup and test names keep the file's
+# name (CLAUDE.md: one module per upstream file, named after it).
+keep	rmail_output_mod
+keep	initialize_rmail_output
+keep	test_rmail_output_mod
+keep	collect_rmail_output_mod
+# New names that contain an entry's old name as a run of parts: kept, so
+# that applying the table again changes nothing.
+keep	is_rmail_expunge_confirmed
+keep	make_rmail_new_summary
+keep	make_rmail_new_summary_1
+keep	set_up_rmail_mode_1
+keep	set_up_rmail_mode_2
+keep	set_rmail_variables
+keep	read_rmail_search
+keep	read_rmail_output_file_name
+# Predicates are is_*/has_* logical functions (CLAUDE.md; coordinator,
+# 2026-11-05): rmail-summary-displayed is is_rmail_summary_displayed, and
+# rmail-summary-exists ("an associated summary buffer exists")
+# has_rmail_summary.  The new name of the first contains the old one: kept,
+# so that applying the table again changes nothing.
+name	rmail_summary_displayed	is_rmail_summary_displayed
+keep	is_rmail_summary_displayed
+name	rmail_summary_exists	has_rmail_summary

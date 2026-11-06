@@ -3221,7 +3221,7 @@ contains
         character(len=:), allocatable :: coding_system
         type(coding_system_list_entry_type), allocatable :: names(:)
         character(len=:), allocatable :: base, wanted
-        integer :: suffix_end_of_line, k, n
+        integer :: end_of_line_type, k, n
 
         if (is_coding_system(name)) then
             coding_system = name
@@ -3230,17 +3230,17 @@ contains
 
         coding_system = ""
         base = name
-        suffix_end_of_line = END_OF_LINE_UNDECIDED
+        end_of_line_type = END_OF_LINE_UNDECIDED
         n = len(name)
 
         if (n >= 5) then
-            if (name(n - 4:) == "-unix") suffix_end_of_line = END_OF_LINE_UNIX
-            if (name(n - 3:) == "-dos") suffix_end_of_line = END_OF_LINE_DOS
-            if (name(n - 3:) == "-mac") suffix_end_of_line = END_OF_LINE_MAC
+            if (name(n - 4:) == "-unix") end_of_line_type = END_OF_LINE_UNIX
+            if (name(n - 3:) == "-dos") end_of_line_type = END_OF_LINE_DOS
+            if (name(n - 3:) == "-mac") end_of_line_type = END_OF_LINE_MAC
         end if
 
-        if (suffix_end_of_line == END_OF_LINE_UNIX) base = name(1:n - 5)
-        if (suffix_end_of_line == END_OF_LINE_DOS .or. suffix_end_of_line == END_OF_LINE_MAC) base = name(1:n - 4)
+        if (end_of_line_type == END_OF_LINE_UNIX) base = name(1:n - 5)
+        if (end_of_line_type == END_OF_LINE_DOS .or. end_of_line_type == END_OF_LINE_MAC) base = name(1:n - 4)
         wanted = canonicalize_coding_system_name(downcase_ascii(base))
         call coding_system_list(names)
 
@@ -3248,8 +3248,8 @@ contains
             if (canonicalize_coding_system_name(names(k)%name) == wanted) then
                 coding_system = names(k)%name
 
-                if (suffix_end_of_line /= END_OF_LINE_UNDECIDED) then
-                    coding_system = coding_system_change_end_of_line_conversion(coding_system, suffix_end_of_line)
+                if (end_of_line_type /= END_OF_LINE_UNDECIDED) then
+                    coding_system = coding_system_change_end_of_line_conversion(coding_system, end_of_line_type)
                 end if
 
                 return

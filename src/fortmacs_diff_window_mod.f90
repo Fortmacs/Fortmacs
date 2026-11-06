@@ -23,13 +23,15 @@
 !> The window layout of an Ediff session on one frame: buffers A and B
 !> (and C) in windows split by `fortmacs_diff_split_window_function', the
 !> control buffer in a window across the bottom, and the control
-!> buffer's mode line naming the current difference.
+!> buffer's mode line naming the current difference.  The procedures that act on one
+!> session are type-bound procedures of `fortmacs_diff_session_type', in
+!> fortmacs_diff_settings_window_mod.
 module fortmacs_diff_window_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use, intrinsic :: ieee_arithmetic, only: ieee_rint
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
-    use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, header_line_format_type
+    use buffer_mod, only: buffers, current, current_buffer, is_buffer_live
     use window_mod, only: windows, select_window, split_window, delete_other_windows, set_window_buffer, &
                           set_window_dedication, get_buffer_window, is_window_live, is_window_minibuffer, other_window, &
                           window_buffer, same_handle, pop_to_buffer, split_window_below, split_window_right, window_list_1, &
@@ -39,17 +41,14 @@ module fortmacs_diff_window_mod
                                           fortmacs_diff_before_setup_windows_hook, fortmacs_diff_after_setup_windows_hook, &
                                           FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_B, FORTMACS_DIFF_BUFFER_TYPE_C, &
                                           FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR, fortmacs_diff_show_ancestor
-    use fortmacs_diff_utilities_mod, only: set_up_fortmacs_diff_control_buffer
     implicit none(type, external)
     private
 
     public :: fortmacs_diff_window_setup_procedure, set_up_fortmacs_diff_windows, set_up_fortmacs_diff_windows_default, &
-              set_up_fortmacs_diff_windows_plain, &
-              set_up_fortmacs_diff_windows_plain_compare, set_up_fortmacs_diff_windows_plain_merge, &
-              select_lowest_fortmacs_diff_window, &
-              refresh_fortmacs_diff_mode_lines, make_fortmacs_diff_wide_control_buffer_id, &
+              set_up_fortmacs_diff_windows_plain, set_up_fortmacs_diff_windows_plain_compare, &
+              set_up_fortmacs_diff_windows_plain_merge, select_lowest_fortmacs_diff_window, &
               get_fortmacs_diff_visible_buffer_window, is_fortmacs_diff_window_configuration_kept, &
-              fortmacs_diff_window_configuration, initialize_fortmacs_diff_wind
+              initialize_fortmacs_diff_wind
 
     abstract interface
         !> A function that sets up the windows of an Ediff session
@@ -161,13 +160,13 @@ contains
     recursive subroutine set_up_fortmacs_diff_windows_plain(buffer_a, buffer_b, buffer_c, control_buffer, status)
         type(handle_type), intent(in) :: buffer_a, buffer_b, buffer_c, control_buffer
         type(status_type), intent(out) :: status
-        integer :: k
+        integer :: session_index
 
         status = status_type()
-        k = session_of(control_buffer)
-        if (k == 0) return
+        session_index = session_of(control_buffer)
+        if (session_index == 0) return
 
-        if (fortmacs_diff_sessions(k)%merge_job) then
+        if (fortmacs_diff_sessions(session_index)%merge_job) then
             call set_up_fortmacs_diff_windows_plain_merge(buffer_a, buffer_b, buffer_c, control_buffer, status)
         else
             call set_up_fortmacs_diff_windows_plain_compare(buffer_a, buffer_b, buffer_c, control_buffer, status)
@@ -217,17 +216,17 @@ contains
         procedure(fortmacs_diff_split_window_procedure), pointer :: split_window_function
         type(handle_type) :: wind_a, wind_b, wind_c, wind_ancestor, new, buffer_ancestor
         real :: merge_window_share
-        integer :: merge_window_lines, k, saved_window_minimum_height, height
+        integer :: merge_window_lines, session_index, saved_window_minimum_height, height
         logical :: with_ancestor
 
         status = status_type()
-        k = session_of(control_buffer)
-        if (k == 0) return
-        with_ancestor = fortmacs_diff_sessions(k)%merge_with_ancestor_job
-        buffer_ancestor = fortmacs_diff_sessions(k)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR)
-        merge_window_share = fortmacs_diff_sessions(k)%merge_window_share
+        session_index = session_of(control_buffer)
+        if (session_index == 0) return
+        with_ancestor = fortmacs_diff_sessions(session_index)%merge_with_ancestor_job
+        buffer_ancestor = fortmacs_diff_sessions(session_index)%buffers(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR)
+        merge_window_share = fortmacs_diff_sessions(session_index)%merge_window_share
         ! This lets us have local versions of ediff-split-window-function.
-        split_window_function => fortmacs_diff_sessions(k)%split_window_function
+        split_window_function => fortmacs_diff_sessions(session_index)%split_window_function
         if (.not. associated(split_window_function)) split_window_function => split_window_right
         wind_ancestor = null_handle()
         ! window_minimum_height is 1 while the windows are set up.
@@ -243,7 +242,7 @@ contains
             if (.not. status%ok()) exit body
             call select_lowest_fortmacs_diff_window(status)
             if (.not. status%ok()) exit body
-            call set_up_fortmacs_diff_control_buffer(k, control_buffer, status)
+            call fortmacs_diff_sessions(session_index)%set_up_control_buffer(control_buffer, status)
             if (.not. status%ok()) exit body
             ! Go to the upper window and split it betw A, B, and possibly C.
             call other_window(1_int64, status)
@@ -278,13 +277,13 @@ contains
             if (.not. status%ok()) exit body
             call switch_to_buffer(buffers(buffer_b%index)%name, status)
             if (.not. status%ok()) exit body
-            fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_A) = wind_a
-            fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_B) = wind_b
-            fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_C) = wind_c
-            fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR) = wind_ancestor
+            fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_A) = wind_a
+            fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_B) = wind_b
+            fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_C) = wind_c
+            fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR) = wind_ancestor
             call select_lowest_fortmacs_diff_window(status)
             if (.not. status%ok()) exit body
-            call set_up_fortmacs_diff_control_buffer(k, control_buffer, status)
+            call fortmacs_diff_sessions(session_index)%set_up_control_buffer(control_buffer, status)
         end block body
 
         window_minimum_height = saved_window_minimum_height
@@ -303,14 +302,14 @@ contains
         type(handle_type) :: wind_a, wind_b, wind_c, control_window
         type(status_type) :: st
         logical :: three_way_comparison
-        integer :: k
+        integer :: session_index
 
-        k = session_of(control_buffer)
-        if (k == 0) return
+        session_index = session_of(control_buffer)
+        if (session_index == 0) return
         ! This lets us have local versions of ediff-split-window-function.
-        split_window_function => fortmacs_diff_sessions(k)%split_window_function
+        split_window_function => fortmacs_diff_sessions(session_index)%split_window_function
         if (.not. associated(split_window_function)) split_window_function => split_window_below
-        three_way_comparison = fortmacs_diff_sessions(k)%three_way_comparison_job
+        three_way_comparison = fortmacs_diff_sessions(session_index)%three_way_comparison_job
         call delete_other_windows(selected_frame%selected_window, status)
         if (.not. status%ok()) return
         ! Set up wind-A, wind-B and if necessary wind-C.
@@ -333,9 +332,9 @@ contains
             if (.not. status%ok()) return
         end if
 
-        fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_A) = wind_a
-        fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_B) = wind_b
-        fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_C) = wind_c
+        fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_A) = wind_a
+        fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_B) = wind_b
+        fortmacs_diff_sessions(session_index)%windows(FORTMACS_DIFF_BUFFER_TYPE_C) = wind_c
         ! The control buffer in a new window at the bottom of the frame
         ! (display-buffer-in-direction, direction bottom); if making a new
         ! window fails, reuse an existing one (its error is not passed on).
@@ -350,53 +349,16 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call set_up_fortmacs_diff_control_buffer(k, control_buffer, status)
+        call fortmacs_diff_sessions(session_index)%set_up_control_buffer(control_buffer, status)
     end subroutine set_up_fortmacs_diff_windows_plain_compare
 
     !> The session of control buffer BUFFER, 0 if none.  Not a port.
-    integer function session_of(buffer) result(k)
+    integer function session_of(buffer) result(session_index)
         use fortmacs_diff_settings_mod, only: fortmacs_diff_session_index
         type(handle_type), intent(in) :: buffer
 
-        k = fortmacs_diff_session_index(buffer)
+        session_index = fortmacs_diff_session_index(buffer)
     end function session_of
-
-    !> Revise the mode line of session K's control buffer to show which
-    !> difference is selected.  Port of ediff-wind.el:ediff-refresh-mode-lines
-    !> (the mode lines of buffers A, B and C, which show the state of the
-    !> difference, wait for `mode_line_format'; the control buffer's mode
-    !> line keeps the standard form around its identification).
-    recursive subroutine refresh_fortmacs_diff_mode_lines(k)
-        integer, intent(in) :: k
-        type(handle_type) :: control
-
-        control = fortmacs_diff_sessions(k)%control_buffer
-        if (.not. is_buffer_live(control)) return
-        ! Control buffer id.
-        buffers(control%index)%mode_line_buffer_identification = make_fortmacs_diff_wide_control_buffer_id(k)
-    end subroutine refresh_fortmacs_diff_mode_lines
-
-    !> The control buffer's identification in the mode line: its name and
-    !> where session K stands ("diff 2 of 5").  Port of
-    !> ediff-wind.el:ediff-make-wide-control-buffer-id.
-    function make_fortmacs_diff_wide_control_buffer_id(k) result(id)
-        integer, intent(in) :: k
-        type(header_line_format_type) :: id
-        character(len=64) :: position
-
-        associate (s => fortmacs_diff_sessions(k))
-            if (s%current_difference < 0) then
-                write (position, '("At start of ", i0, " diffs")') s%number_of_differences
-            else if (s%current_difference >= s%number_of_differences) then
-                write (position, '("At end of ", i0, " diffs")') s%number_of_differences
-            else
-                write (position, '("diff ", i0, " of ", i0)') s%current_difference + 1, s%number_of_differences
-            end if
-        end associate
-
-        call id%append("%b   ")
-        call id%append(trim(position), "mode_line_buffer_id")
-    end function make_fortmacs_diff_wide_control_buffer_id
 
     !> A window of the selected frame showing BUFFER, the null handle if
     !> none (or BUFFER is not live).  Port of
@@ -409,33 +371,6 @@ contains
         if (is_buffer_live(buffer)) window = get_buffer_window(buffer)
     end function get_fortmacs_diff_visible_buffer_window
 
-    !> What `fortmacs_diff_window_configuration_saved' records of session K: its windows,
-    !> split function and display.  Not a port: the string
-    !> (format "%S%S%S%S%S%S%S%S" ...) of ediff-setup-control-buffer and
-    !> ediff-keep-window-config.
-    function fortmacs_diff_window_configuration(k) result(configuration)
-        integer, intent(in) :: k
-        character(len=:), allocatable :: configuration
-        integer :: t
-        character(len=240) :: windows_text
-
-        associate (s => fortmacs_diff_sessions(k))
-            ! The control window, then the windows by buffer type.
-            write (windows_text, '(5("#<window ", i0, ".", i0, ">"))') s%control_window%index, &
-                s%control_window%generation, (s%windows(t)%index, s%windows(t)%generation, &
-                                              t=FORTMACS_DIFF_BUFFER_TYPE_A, FORTMACS_DIFF_BUFFER_TYPE_ANCESTOR)
-            configuration = trim(windows_text)
-
-            if (associated(s%split_window_function, split_window_right)) then
-                configuration = configuration//"split_window_right"
-            else if (associated(s%split_window_function, split_window_below)) then
-                configuration = configuration//"split_window_below"
-            else
-                configuration = configuration//"a procedure"
-            end if
-        end associate
-    end function fortmacs_diff_window_configuration
-
     !> Whether the windows of the session of CONTROL_BUFFER are still as
     !> Ediff set them up, so they need not be set up again.  Port of
     !> ediff-wind.el:ediff-keep-window-config.
@@ -443,17 +378,17 @@ contains
         type(handle_type), intent(in) :: control_buffer
         type(status_type), intent(out) :: status
         type(handle_type) :: shown
-        integer :: k, t
+        integer :: session_index, t
 
         status = status_type()
         kept = .false.
         if (.not. is_buffer_live(control_buffer)) return
         if (.not. same_handle(current_buffer(), control_buffer)) return
         if (buffers(current)%end_of_accessible_portion - buffers(current)%beginning_of_accessible_portion == 0) return
-        k = session_of(control_buffer)
-        if (k == 0) return
+        session_index = session_of(control_buffer)
+        if (session_index == 0) return
 
-        associate (s => fortmacs_diff_sessions(k))
+        associate (s => fortmacs_diff_sessions(session_index))
             if (.not. is_window_live(s%windows(FORTMACS_DIFF_BUFFER_TYPE_A))) return
             if (.not. is_window_live(s%windows(FORTMACS_DIFF_BUFFER_TYPE_B))) return
             ! If buffer C is defined then take it into account.
@@ -477,7 +412,7 @@ contains
             end if
 
             if (.not. allocated(s%window_configuration_saved)) return
-            kept = s%window_configuration_saved == fortmacs_diff_window_configuration(k)
+            kept = s%window_configuration_saved == fortmacs_diff_sessions(session_index)%get_window_configuration()
         end associate
     end function is_fortmacs_diff_window_configuration_kept
 

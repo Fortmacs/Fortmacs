@@ -38,8 +38,9 @@ module window_mod
     implicit none(type, external)
     private
 
+    public :: frame_first_window
     public :: set_window_buffer, set_window_buffer_internal, window_discard_buffer_from_window, record_window_buffer, &
-              switch_to_previous_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
+              switch_to_previous_buffer, switch_to_next_buffer, previous_buffer, next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
               shrink_window_if_larger_than_buffer, display_buffer_no_window, &
               switch_to_buffer_other_window, switch_to_buffer_other_frame, display_buffer_other_frame, &
@@ -53,8 +54,8 @@ module window_mod
               copy_window_configuration, is_window_configuration_equal, execute_window_change_functions, &
               execute_window_configuration_change_hook
     public :: window_start, set_window_start, window_point, &
-              set_window_point, window_body_lines, window_wants_header_line, destroy_window, destroy_previous_buffer, &
-              destroy_quit_restore, unshow_buffer
+              set_window_point, window_body_lines, window_wants_header_line, window_wants_tab_line, destroy_window, &
+              destroy_previous_buffer, destroy_quit_restore, unshow_buffer
     public :: make_window, delete_window_object, window_reference, is_window_live, is_window_valid, same_window, same_handle, &
               window_leaves, resize_window_tree, window_text_columns, split_window_internal, &
               remove_window_from_tree, replace_window, delete_window_tree
@@ -400,7 +401,7 @@ module window_mod
     !> The parts of a window `window_part_at' tells (window.h
     !> enum window_part, the ones a terminal frame has).
     integer, parameter, public :: ON_NOTHING = 0, ON_TEXT = 1, ON_MODE_LINE = 2, ON_VERTICAL_BORDER = 3, &
-                                  ON_HEADER_LINE = 4
+                                  ON_HEADER_LINE = 4, ON_TAB_LINE = 5
 
     !> Values of `split_window_preferred_direction'.
     integer, parameter, public :: SPLIT_WINDOW_PREFERRED_DIRECTION_LONGEST = 2, SPLIT_WINDOW_PREFERRED_DIRECTION_VERTICAL = 3, &
@@ -466,6 +467,31 @@ module window_mod
     !> window_select_count).
     integer(int64) :: window_select_count = 0
 
+    !> How far a window's tab line is scrolled (its `tab_line_hscroll'
+    !> parameter): the index from 0 of the first tab shown, set by the
+    !> user (`tab', upstream an integer) or by the automatic scrolling of
+    !> the tab line (`automatic_tab', upstream a float); both negative
+    !> for none.  Not a port.
+    type, public :: tab_line_hscroll_type
+        integer :: tab = -1
+        integer :: automatic_tab = -1
+    end type tab_line_hscroll_type
+
+    !> The window parameters of tab-line.el (tab_line_mod).  Not a port.
+    type, public :: window_tab_line_type
+        !> The `tab_line_buffers' parameter, a persistent one: the
+        !> buffers of the tabs in their order, kept by
+        !> `get_tab_line_fixed_window_buffers' (unallocated for none).
+        type(handle_type), allocatable :: buffers(:)
+        !> The `tab_line_hscroll' parameter.
+        type(tab_line_hscroll_type) :: hscroll
+        !> The `tab_line_group' parameter: the group whose buffers the tab
+        !> line shows (unallocated for none).
+        character(len=:), allocatable :: group
+        !> The `tab_line_groups' parameter: the tab line shows the groups.
+        logical :: groups = .false.
+    end type window_tab_line_type
+
     !> Port of the parts of window.h:struct window in use.
     type, public :: window_type
         !> The buffer shown (contents); the null handle for none.
@@ -527,6 +553,11 @@ module window_mod
         !> terminal, pixels on a window system; 0 for none): the text area
         !> starts below it (w->header_line_height).
         integer :: header_line_height = 0
+        !> The height of the tab line redisplay last drew, above the header
+        !> line (w->tab_line_height, as `header_line_height').
+        integer :: tab_line_height = 0
+        !> The window parameters of the tab line (`window_tab_line_type').
+        type(window_tab_line_type) :: tab_line
         !> Where redisplay put the cursor, relative to the window; -1: none.
         integer :: cursor_vertical_position = -1, cursor_horizontal_position = -1
         !> On a window-system frame, where and how large redisplay draws the
@@ -580,6 +611,9 @@ module window_mod
         !> Copies of the window's start and point (null for an internal
         !> window).
         type(handle_type) :: start, pointm
+        !> The window's persistent parameters (window-persistent-parameters
+        !> with the value t): `tab_line_buffers'.
+        type(handle_type), allocatable :: tab_line_buffers(:)
     end type saved_window_type
 
     !> A window configuration: the windows of the frame, their sizes and
@@ -598,7 +632,8 @@ module window_mod
     !> its parent and previous sibling in the state, 0 for none), its
     !> edges relative to the state's root window, its sizes, and for a live
     !> window its buffer with copies of its start and point, its other
-    !> buffer settings and its previous and next buffers.  Not a port.
+    !> buffer settings, its previous and next buffers and its persistent
+    !> parameters.  Not a port.
     type :: window_state_window_type
         integer :: parent = 0, previous = 0
         logical :: live = .false., horizontal = .false., divider = .false.
@@ -609,13 +644,16 @@ module window_mod
         integer :: hscroll = 0, dedicated = DEDICATED_NONE
         type(previous_buffer_type), allocatable :: previous_buffers(:)
         type(handle_type), allocatable :: next_buffers(:)
+        !> The persistent parameter `tab_line_buffers'.
+        type(handle_type), allocatable :: tab_line_buffers(:)
     end type window_state_window_type
 
     !> The state of a window and its subwindows, depth first, which
     !> `set_window_state' puts back as new windows.  Free it with
     !> `destroy_window_state'.  Port of window.el's window state (as
     !> window-state-get makes it with WRITABLE false: markers, not
-    !> positions; no window parameters, pixel sizes or minimum sizes).
+    !> positions; no window parameters besides the persistent ones, pixel
+    !> sizes or minimum sizes).
     type, public :: window_state_type
         type(window_state_window_type), allocatable :: windows(:)
     end type window_state_type
@@ -985,6 +1023,30 @@ module window_mod
             logical, intent(in), optional :: norecord, force_same_window
         end subroutine switch_to_buffer
 
+        !> In selected window switch to ARGth previous buffer (absent: the
+        !> first).  Call `switch_to_previous_buffer' unless the selected window
+        !> is the minibuffer window or is dedicated to its buffer.  With
+        !> INTERACTIVE true, a `user_error' error condition occurs when
+        !> there is no previous buffer.  Port of window.el:previous-buffer.
+        module subroutine previous_buffer(status, argument, interactive)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: argument
+            logical, intent(in), optional :: interactive
+        end subroutine previous_buffer
+
+        !> In selected window switch to ARGth next buffer (absent: the
+        !> first).  Call `switch_to_next_buffer' unless the selected window
+        !> is the minibuffer window or is dedicated to its buffer.  With
+        !> INTERACTIVE true, a `user_error' error condition occurs when
+        !> there is no next buffer.  Port of window.el:next-buffer.
+        module subroutine next_buffer(status, argument, interactive)
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+            integer(int64), intent(in), optional :: argument
+            logical, intent(in), optional :: interactive
+        end subroutine next_buffer
+
         !> Register the window and buffer commands.  Not a port.
         module subroutine initialize_window_commands_submodule()
             implicit none(type, external)
@@ -1074,6 +1136,22 @@ module window_mod
             type(status_type), intent(out) :: status
             type(handle_type), intent(in), optional :: window
         end subroutine quit_window
+
+        !> The frame's first window (the top left one).  Port of
+        !> window.c:Fframe_first_window.  (In window_display_mod.)
+        module function frame_first_window() result(h)
+            implicit none(type, external)
+            type(handle_type) :: h
+        end function frame_first_window
+
+        !> Set the start and point markers of every window showing BUFFER,
+        !> on all frames, to BUFFER's BEGINNING_OF_ACCESSIBLE_PORTION.  Port of the window loop of
+        !> buffer.c:Fbuffer_swap_text (which undoes the swap of the window
+        !> markers).
+        module subroutine reset_window_markers(buffer)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+        end subroutine reset_window_markers
 
         !> Port of window.el:replace-buffer-in-windows (and of
         !> window.c:replace_buffer_in_windows, which calls it).
@@ -1771,7 +1849,7 @@ module window_mod
 
         !> Return the height in pixels of WINDOW's tab-line.
         !> WINDOW must be a live window and defaults to the selected one.
-        !> Port of window.c:Fwindow_tab_line_height (no tab lines yet: 0).
+        !> Port of window.c:Fwindow_tab_line_height (a terminal frame).
         module function window_tab_line_height(window, status) result(n)
             implicit none(type, external)
             type(handle_type), intent(in), optional :: window
@@ -1936,7 +2014,8 @@ module window_mod
         !> left corner of the frame.  If they are in the text portion of
         !> WINDOW, return ON_TEXT and the coordinates relative to the window
         !> in RELATIVE_X and RELATIVE_Y.  If they are in the mode line of WINDOW, return
-        !> ON_MODE_LINE; in the header line, ON_HEADER_LINE; on the border
+        !> ON_MODE_LINE; in the header line, ON_HEADER_LINE; in the tab line,
+        !> ON_TAB_LINE; on the border
         !> between WINDOW and its right sibling, ON_VERTICAL_BORDER (Fortmacs's
         !> `vertical-line'); elsewhere, ON_NOTHING.  Port of
         !> window.c:Fcoordinates_in_window_p (a terminal frame).
@@ -2160,8 +2239,8 @@ contains
         call set_marker(w%pointm, position, status, w%buffer)
     end subroutine set_window_point
 
-    !> Lines for text: the total minus the mode line and the header line.
-    !> Port of window.c:window_body_height (in lines) and
+    !> Lines for text: the total minus the mode line, the header line and
+    !> the tab line.  Port of window.c:window_body_height (in lines) and
     !> window.c:window_internal_height.
     integer function window_body_lines(w)
         type(window_type), intent(in) :: w
@@ -2169,12 +2248,13 @@ contains
         window_body_lines = w%total_lines
         if (.not. w%mini) window_body_lines = max(0, w%total_lines - 1)
         if (window_wants_header_line(w)) window_body_lines = window_body_lines - 1
+        if (window_wants_tab_line(w)) window_body_lines = window_body_lines - 1
     end function window_body_lines
 
     !> Whether window W shows a header line: its buffer has a
     !> `header_line_format' and the window has room for it besides a text
     !> line and the mode line.  Port of window.c:window_wants_header_line
-    !> (no `window_header_line_format' parameter or tab line).
+    !> (no `window_header_line_format' parameter).
     logical function window_wants_header_line(w) result(wants)
         type(window_type), intent(in) :: w
         integer(int64) :: bi
@@ -2184,8 +2264,30 @@ contains
         if (w%mini .or. w%total_lines <= 2) return
         call resolve_buffer(w%buffer, bi, st)
         if (.not. st%ok()) return
-        wants = allocated(buffers(bi)%header_line_format%segments)
+        wants = buffers(bi)%header_line_format%is_set()
     end function window_wants_header_line
+
+    !> Whether window W shows a tab line: its buffer has a
+    !> `tab_line_format' and the window has room for it besides a text
+    !> line, the mode line and the header line (they prevail).  Port of
+    !> window.c:window_wants_tab_line (no `window_tab_line_format'
+    !> parameter).
+    logical function window_wants_tab_line(w) result(wants)
+        type(window_type), intent(in) :: w
+        integer(int64) :: bi
+        type(status_type) :: st
+        integer :: lines
+
+        wants = .false.
+        if (w%mini) return
+        call resolve_buffer(w%buffer, bi, st)
+        if (.not. st%ok()) return
+        if (.not. buffers(bi)%tab_line_format%is_set()) return
+        ! The mode line, the header line and a text line.
+        lines = 2
+        if (window_wants_header_line(w)) lines = 3
+        wants = w%total_lines > lines
+    end function window_wants_tab_line
 
     !> Free the window's markers.  Not a port (upstream relies on GC).
     subroutine destroy_window(w)

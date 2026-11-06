@@ -97,6 +97,7 @@ contains
                     new_unittest("display-string", test_display_string), &
                     new_unittest("display-space-align-to", test_display_space), &
                     new_unittest("header-line", test_header_line), &
+                    new_unittest("tab-line", test_tab_line), &
                     new_unittest("emacs-main-on-a-pty", test_fortmacs_main) &
                     ]
     end subroutine collect_display_engine_mod
@@ -800,6 +801,76 @@ contains
         call delete_window_object(f%minibuffer_window)
         call close_buffer(h, st)
     end subroutine test_header_line
+
+    !> A tab line: the window's first row shows the segments its procedure
+    !> gives, above the header line; the text starts on the third row, and
+    !> the window has two text lines less.  A window too low for it shows
+    !> none.
+    subroutine test_tab_line(error)
+        use buffer_mod, only: buffers
+        use window_mod, only: window_body_lines, window_wants_tab_line
+        type(error_type), allocatable, intent(out) :: error
+        type(frame_type) :: f
+        type(terminfo_type) :: ti
+        type(handle_type) :: h
+        type(status_type) :: st
+        character(len=:), allocatable :: out, row
+        integer(int64) :: bi
+
+        call buffer_with("*xdisp-tab*", "first"//achar(10)//"second"//achar(10), h, bi)
+        call buffers(bi)%header_line_format%append("Head")
+        buffers(bi)%tab_line_format%procedure => tab_line_segments
+        call builtin_xterm(ti)
+        call initialize_terminal_entry(f%terminal, ti, "xterm-256color", -1_int32, st)
+        call initialize_frame_windows(f)
+        call set_window_buffer(f%selected_window, h, st)
+        call goto_character(1_int64)
+        call redisplay_internal(f, st)
+        out = terminal_take_output(f%terminal)
+
+        steps: block
+            row = row_text(f%current_matrix%rows(0))
+            call check(error, row(1:10), "|tab x| + ")
+            if (allocated(error)) exit steps
+            row = row_text(f%current_matrix%rows(1))
+            call check(error, row(1:4), "Head")
+            if (allocated(error)) exit steps
+            call check(error, row_text(f%current_matrix%rows(2)), "first")
+            if (allocated(error)) exit steps
+            call check(error, f%cursor_vertical_position == 2 .and. f%cursor_horizontal_position == 0, "cursor below the tab line")
+            if (allocated(error)) exit steps
+            call check(error, window_body_lines(windows(f%selected_window%index)) == 20, "20 text lines")
+            if (allocated(error)) exit steps
+            ! No room in a window of three lines with a header line.
+            windows(f%selected_window%index)%total_lines = 3
+            call check(error,.not. window_wants_tab_line(windows(f%selected_window%index)), "no room")
+            if (allocated(error)) exit steps
+            windows(f%selected_window%index)%total_lines = 4
+            call check(error, window_wants_tab_line(windows(f%selected_window%index)), "room")
+        end block steps
+
+        call buffers(bi)%tab_line_format%clear()
+        call buffers(bi)%header_line_format%clear()
+        call delete_window_tree(f%root_window)
+        call delete_window_object(f%minibuffer_window)
+        call close_buffer(h, st)
+    end subroutine test_tab_line
+
+    !> The tab line of `test_tab_line': a separator, a tab and a button.
+    recursive subroutine tab_line_segments(window, segments)
+        use buffer_mod, only: header_line_segment_type
+        type(handle_type), intent(in) :: window
+        type(header_line_segment_type), allocatable, intent(out) :: segments(:)
+
+        allocate (segments(3))
+        segments(1)%text = "|"
+        segments(1)%face = ""
+        segments(2)%text = "tab x"
+        segments(2)%face = "bold"
+        segments(3)%text = "| + "
+        segments(3)%face = ""
+        if (window%index < 0) segments(1)%text = ""
+    end subroutine tab_line_segments
 
     !> The echo area shows a message as text is shown: TAB, ^A, wide
     !> characters, its first line only, continued with \.

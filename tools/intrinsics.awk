@@ -55,7 +55,10 @@
 #                and .false. for its on and off states; only its other
 #                states are named constants.  The baseline lists the
 #                internal enumerations (arguments, return codes, record
-#                fields) and the settings not converted yet.
+#                fields) and the settings not converted yet.  A name
+#                ending in _YES_OR_NO or _Y_OR_N names an upstream
+#                function (yes-or-no-p, y-or-n-p; R6-37), not a state,
+#                and is not reported.
 #   vector       a name (variable, component, named constant, type or
 #                procedure) ending in `_vector'.  Use a plural.
 #   interactive  a component `interactive' of command_type (it is
@@ -374,7 +377,9 @@ function check_decl(line, l, names, n, i, nm) {
         if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(nil|t|true|false|disabled|never|off|on|no_limit)$/) {
             finding(line, "constant", toupper(nm), "")
         }
-        if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(yes|no)$/) finding(line, "yes-no", toupper(nm), "")
+        if (l ~ /(^|,)[ \t]*parameter([ \t]*(,|::))/ && nm ~ /_(yes|no)$/ && nm !~ /_(yes_or_no|y_or_n)$/) {
+            finding(line, "yes-no", toupper(nm), "")
+        }
         if (nm ~ /_vectors?$/) finding(line, "vector", nm, "")
         check_name(line, nm, (intype != "" ? intype "%" : "") nm)
         if (intype == "command_type" && nm == "interactive") finding(line, "interactive", "command_type%interactive", "")
