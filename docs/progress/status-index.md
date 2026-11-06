@@ -104,6 +104,7 @@
 | [insert_delete_mod](../status/insert_delete_mod.md) | insdel.c (+ buffer.c `before-change-functions`, `after-change-functions`, `first-change-hook`) | done |
 | [interval_tree_mod](../status/interval_tree_mod.md) | itree.c, buffer.c (overlays) | done |
 | [intervals_mod](../status/intervals_mod.md) | intervals.c, intervals.h | done |
+| [iso8601_mod](../status/iso8601_mod.md) | calendar/iso8601.el | done |
 | [javascript_mod](../status/javascript_mod.md) | progmodes/js.el | partial |
 | [just_in_time_lock_mod](../status/just_in_time_lock_mod.md) | jit-lock.el | partial |
 | [keyboard_macro_editor_mod](../status/keyboard_macro_editor_mod.md) | edmacro.el | partial |
@@ -118,7 +119,8 @@
 | [make_mode_mod](../status/make_mode_mod.md) | progmodes/make-mode.el | partial |
 | [marker_mod](../status/marker_mod.md) | marker.c (+ alloc.c `Fmake_marker`) | done |
 | [md5_mod](../status/md5_mod.md) | Gnulib lib/md5.c | done |
-| [message_mod](../status/message_mod.md) | gnus/message.el (+ rfc2047.el `rfc2047-fold-field`, gnus-util.el `gnus-output-to-mail`, mailheader.el `mail-header-format`, and what mml.el's `mml-generate-mime` makes of a plain ASCII body) | partial |
+| [message_mod](../status/message_mod.md) | gnus/message.el (+ gnus-util.el `gnus-output-to-mail`, mailheader.el `mail-header-format`, and what mml.el's `mml-generate-mime` makes of a plain ASCII body) | partial |
+| [mime_utilities_mod](../status/mime_utilities_mod.md) | gnus/mm-util.el (in part: the MIME charsets and coding systems rfc2047.el needs) | partial |
 | [minibuffer_mod](../status/minibuffer_mod.md) | minibuffer.el | partial |
 | [minibuffer_reading_mod](../status/minibuffer_reading_mod.md) | minibuf.c | partial |
 | [minibuffer_reading_tables_mod](../status/minibuffer_reading_tables_mod.md) | minibuf.c, minibuffer.el (split from minibuffer_reading_mod so that hooks_mod's hooks can hold completion-at-point functions) | done |
@@ -133,12 +135,14 @@
 | [paragraphs_mod](../status/paragraphs_mod.md) | textmodes/paragraphs.el | partial |
 | [parallel_concurrent_versions_system_utilities_mod](../status/parallel_concurrent_versions_system_utilities_mod.md) | vc/pcvs-util.el | partial |
 | [parenthesis_mod](../status/parenthesis_mod.md) | paren.el | done |
+| [parse_time_mod](../status/parse_time_mod.md) | calendar/parse-time.el (+ cl-extra.el `cl-parse-integer` for its tokens) | done |
 | [print_mod](../status/print_mod.md) | print.c | partial |
 | [process_mod](../status/process_mod.md) | process.c (+ subr.el `start-process`, `process-live-p`; gnulib nproc.c) | partial |
 | [programmable_completion_mod](../status/programmable_completion_mod.md) | pcomplete.el | partial |
 | [programming_mode_mod](../status/programming_mode_mod.md) | progmodes/prog-mode.el | partial |
 | [project_mod](../status/project_mod.md) | progmodes/project.el (+ vc.el `vc-default-ignore-completion-table`) | partial |
 | [python_mod](../status/python_mod.md) | progmodes/python.el | partial |
+| [quoted_printable_mod](../status/quoted_printable_mod.md) | mail/qp.el | partial |
 | [read_multiple_choice_mod](../status/read_multiple_choice_mod.md) | emacs-lisp/rmc.el | partial |
 | [read_y_or_n_each_mod](../status/read_y_or_n_each_mod.md) | emacs-lisp/map-ynp.el | partial |
 | [recent_files_mod](../status/recent_files_mod.md) | recentf.el | partial |
@@ -148,6 +152,7 @@
 | [regular_expression_optimization_mod](../status/regular_expression_optimization_mod.md) | emacs-lisp/regexp-opt.el (+ subr.el `regexp-unmatchable`) | partial |
 | [repeat_mod](../status/repeat_mod.md) | repeat.el | partial |
 | [replace_mod](../status/replace_mod.md) | replace.el (query replace part) | partial |
+| [rfc2047_mod](../status/rfc2047_mod.md) | mail/rfc2047.el (+ mail/mail-prsvr.el; mail/mail-parse.el's aliases of rfc2047.el functions collapse to these names) | partial |
 | [ring_mod](../status/ring_mod.md) | emacs-lisp/ring.el | partial |
 | [rmail_edit_mod](../status/rmail_edit_mod.md) | mail/rmailedit.el | partial |
 | [rmail_keywords_mod](../status/rmail_keywords_mod.md) | mail/rmailkwd.el | done |
@@ -195,7 +200,7 @@
 | [terminfo_mod](../status/terminfo_mod.md) | terminfo.c (`tparam`), plus the libtinfo interface Emacs uses, reimplemented | done |
 | [text_mode_mod](../status/text_mode_mod.md) | textmodes/text-mode.el | partial |
 | [text_properties_mod](../status/text_properties_mod.md) | textprop.c (+ intervals.c point motion) | partial |
-| [time_date_mod](../status/time_date_mod.md) | calendar/time-date.el | partial |
+| [time_date_mod](../status/time_date_mod.md) | calendar/time-date.el (+ timefns.c `encode-time` of a decoded time with nil components, `check_tm_member`) | done |
 | [time_functions_mod](../status/time_functions_mod.md) | timefns.c (+ Gnulib lib/strftime.c, the C locale) | partial |
 | [timer_mod](../status/timer_mod.md) | emacs-lisp/timer.el (+ keyboard.c `timer_check`, `timer_check_2`, `timer_start_idle`, `timer_stop_idle`, `timer_resume_idle`, `current-idle-time`) | done |
 | [undo_mod](../status/undo_mod.md) | undo.c (+ simple.el undo-auto) | partial |

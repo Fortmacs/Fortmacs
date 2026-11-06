@@ -53,6 +53,7 @@ cal-islam.el	diary-islamic-insert-yearly-entry	diary_islamic_insert_yearly_entry
 cal-move.el	calendar-scroll-toolkit-scroll	calendar_scroll_toolkit_scroll
 calendar.el	calendar-print-other-dates	calendar_print_other_dates
 cc-engine.el	c-toggle-parse-state-debug	c_toggle_parse_state_debug
+cl-extra.el	cl-describe-type	cl_describe_type
 comint.el	comint-dynamic-list-input-ring	command_interpreter_dynamic_list_input_ring
 comint.el	comint-dynamic-list-input-ring-select	command_interpreter_dynamic_list_input_ring_select
 comint.el	comint-get-source	command_interpreter_get_source
@@ -666,8 +667,6 @@ replace.el	occur-symbol-at-mouse	occur_identifier_at_mouse
 replace.el	occur-word-at-mouse	occur_word_at_mouse
 replace.el	query-replace-read-transpose-from-to	query_replace_read_transpose_from_to
 replace.el	read-regexp-toggle-case-fold	read_regular_expression_toggle_case_fold
-rfc2047.el	rfc2047-decode-region	rfc2047_decode_region
-rfc2047.el	rfc2047-encode-message-header	rfc2047_encode_message_header
 rmail.el	rmail-continue	rmail_continue
 rmail.el	rmail-epa-decrypt	rmail_epa_decrypt
 rmail.el	rmail-forward	rmail_forward
