@@ -1681,18 +1681,8 @@ contains
         if (n < 0) return
         call use_local_map(text_mode_map, status)
         call post_command_hook%remove(update_rmail_from_summary, local=.true.)
-        call revert_buffer_function%set_local(revert_default)
+        call revert_buffer_function%set_local()
     end subroutine disable_rmail_summary
-
-    ! The default revert function, for a summary whose own is unset.
-    ! Not a port.
-    recursive subroutine revert_default(ignore_auto, noconfirm, status)
-        use files_mod, only: revert_buffer
-        logical, intent(in) :: ignore_auto, noconfirm
-        type(status_type), intent(out) :: status
-
-        call revert_buffer(status, ignore_auto, noconfirm)
-    end subroutine revert_default
 
     !> Enable the summary's features again.  Port of
     !> rmailsum.el:rmail-summary-enable.
