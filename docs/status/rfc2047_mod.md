@@ -48,7 +48,7 @@ mail-prsvr.el: `mail-parse-charset` ("" for none),
 `rfc2047-encode-parameter` (mail-header-encode-parameter; needs rfc2045.el's `rfc2045-encode-string`),
 the obsolete `rfc2047-quote-special-characters-in-quoted-strings`,
 a unibyte STRING for `rfc2047-decode-string` (upstream decodes one by us-ascii; strings here are multibyte text),
-the other mail-parse.el functions (the aliases of rfc2231.el, ietf-drums.el and rfc2045.el functions, `mail-header-parse-addresses-lax`, `mail-header-parse-address-lax`) with those files;
+the other mail-parse.el functions (the aliases of rfc2231.el and ietf-drums.el functions not in rfc2231_mod and ietf_drums_mod, and of rfc2045.el functions, `mail-header-parse-addresses-lax`, `mail-header-parse-address-lax`) with those files;
 Not applicable: the `debug-on-error` test in `rfc2047-encode-region`'s error handler (no debugger)
 
 ## Tests
