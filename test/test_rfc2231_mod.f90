@@ -24,7 +24,7 @@ module test_rfc2231_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
     use bindings_mod, only: initialize_bindings
-    use rfc2231_mod, only: rfc2231_header_type, parse_rfc2231_string, get_rfc2231_value, decode_rfc2231_encoded_string
+    use rfc2231_mod, only: mime_header_value_type, parse_rfc2231_string, get_rfc2231_value, decode_rfc2231_encoded_string
     implicit none(type, external)
     private
 
@@ -47,7 +47,7 @@ contains
     !> The name and the parameters, in lower case where upstream downcases.
     subroutine test_parse(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rfc2231_header_type) :: header
+        type(mime_header_value_type) :: header
         character(len=:), allocatable :: value
         type(status_type) :: st
 
@@ -76,7 +76,7 @@ contains
     subroutine test_continuations(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: ETE = char(195)//char(169)//"t"//char(195)//char(169)
-        type(rfc2231_header_type) :: header
+        type(mime_header_value_type) :: header
         character(len=:), allocatable :: value
         type(status_type) :: st
 
@@ -118,7 +118,7 @@ contains
     !> wanted.
     subroutine test_invalid(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rfc2231_header_type) :: header
+        type(mime_header_value_type) :: header
         type(status_type) :: st
 
         call parse_rfc2231_string("text/plain; charset=utf-8; =x", header, st)

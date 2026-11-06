@@ -35,7 +35,7 @@ module test_rmail_mime_mod
     use bindings_mod, only: initialize_bindings
     use character_mod, only: string_to_multibyte
     use rmail_mod, only: swap_rmail_buffers_maybe
-    use rmail_mime_mod, only: show_rmail_mime_message, toggle_rmail_mime, toggle_rmail_mime_hidden, &
+    use rmail_mime_mod, only: show_rmail_mime_buffer, toggle_rmail_mime, toggle_rmail_mime_hidden, &
                               search_rmail_mime_message, &
                               rmail_mime_render_html_function, rmail_mime_prefer_html
     use test_rmail_support_mod, only: set_up_rmail, leave_rmail, visit_rmail
@@ -128,7 +128,7 @@ contains
         type(status_type) :: st
 
         call temporary_buffer(HEADER//string_to_multibyte(KOI8), .true., h)
-        call show_rmail_mime_message(st, .true.)
+        call show_rmail_mime_buffer(st, .true.)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, buffer_string() == HEADER//UTF8//LF, buffer_string())
@@ -145,7 +145,7 @@ contains
         type(status_type) :: st
 
         call temporary_buffer(genome_mail(), .true., h)
-        call show_rmail_mime_message(st)
+        call show_rmail_mime_buffer(st)
         call check(error,.not. st%ok(), buffer_string())
         call close_buffer(h, st)
     end subroutine test_bulk_handler
@@ -158,7 +158,7 @@ contains
         type(status_type) :: st
 
         call temporary_buffer(genome_mail(), .false., h)
-        call show_rmail_mime_message(st)
+        call show_rmail_mime_buffer(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, buffer_string() == LF//"[image/jpeg Show Save:genome.jpeg (337B)]"//LF//LF, buffer_string())
@@ -226,7 +226,7 @@ contains
         type(status_type) :: st
 
         call temporary_buffer(MAIL, .true., h)
-        call show_rmail_mime_message(st, .true.)
+        call show_rmail_mime_buffer(st, .true.)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, buffer_string() == SHOWN, buffer_string())

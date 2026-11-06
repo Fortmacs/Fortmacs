@@ -8,7 +8,7 @@
 
 `rfc2231-get-value` (`get_rfc2231_value`),
 `rfc2231-parse-qp-string` (`parse_rfc2231_quoted_printable_string`),
-`rfc2231-parse-string` (`parse_rfc2231_string`: an `rfc2231_header_type`, the name and the parameters; continued and encoded values; SIGNAL-ERROR as REPORT_ERROR; the value is scanned as a string with the rules of upstream's syntax table),
+`rfc2231-parse-string` (`parse_rfc2231_string`: an `mime_header_value_type`, the name and the parameters; continued and encoded values; SIGNAL-ERROR as REPORT_ERROR; the value is scanned as a string with the rules of upstream's syntax table),
 `rfc2231-decode-encoded-string` (`decode_rfc2231_encoded_string`)
 
 ## Deferred

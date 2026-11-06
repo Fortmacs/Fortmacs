@@ -3,9 +3,10 @@
 # rmail-add-label is add_rmail_label).  rmail-show-mime (the value of
 # rmail-show-mime-function) is show_rmail_mime; rmail-mime-show, whose verb
 # first name is the same, shows the current buffer as a MIME message:
-# show_rmail_mime_message.
+# show_rmail_mime_buffer (panel 18, #272).  rfc2231.el's parsed values are
+# mime_header_value_type and mime_header_parameter_type (panel 18).
 name	rmail_show_mime	show_rmail_mime
-name	rmail_mime_show	show_rmail_mime_message
+name	rmail_mime_show	show_rmail_mime_buffer
 name	rmail_mime_save	save_rmail_mime
 name	rmail_mime_entity_segment	get_rmail_mime_entity_segment
 name	rmail_mime_shown_mode	set_rmail_mime_shown_mode

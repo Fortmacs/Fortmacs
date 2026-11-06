@@ -34,7 +34,7 @@
 !> message.
 !>
 !> (2) When `rmail_enable_mime' is false, \[toggle_rmail_mime] shows a
-!> MIME message in a new buffer "*RMAIL*" (`show_rmail_mime_message',
+!> MIME message in a new buffer "*RMAIL*" (`show_rmail_mime_buffer',
 !> `handle_rmail_mime' and the handlers of
 !> `rmail_mime_media_type_handlers').
 !>
@@ -74,7 +74,7 @@ module rmail_mime_mod
     use utility_functions_mod, only: base64_decode_region
     use quoted_printable_mod, only: decode_quoted_printable_region
     use rfc2047_mod, only: decode_rfc2047_region
-    use rfc2231_mod, only: rfc2231_header_type, parse_rfc2231_quoted_printable_string, get_rfc2231_value
+    use rfc2231_mod, only: mime_header_value_type, parse_rfc2231_quoted_printable_string, get_rfc2231_value
     use mime_utilities_mod, only: mime_character_set_overrides, mime_character_set_coding_type
     use mail_utilities_mod, only: get_mail_field
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
@@ -100,7 +100,7 @@ module rmail_mime_mod
     private
 
     public :: toggle_rmail_mime, toggle_rmail_mime_hidden, toggle_rmail_mime_raw, rmail_mime_mode, show_rmail_mime, &
-              show_rmail_mime_message, parse_rmail_mime, insert_rmail_mime, search_rmail_mime_message, &
+              show_rmail_mime_buffer, parse_rmail_mime, insert_rmail_mime, search_rmail_mime_message, &
               handle_rmail_mime, handle_rmail_mime_text, handle_rmail_mime_bulk, handle_rmail_mime_multipart, &
               render_rmail_mime_html_lynx, initialize_rmail_mime
     public :: rmail_mime_handler_procedure, rmail_mime_render_html_procedure
@@ -113,9 +113,9 @@ module rmail_mime_mod
         !> handled.  Not a port.
         recursive subroutine rmail_mime_handler_procedure(content_type, content_disposition, &
                                                           content_transfer_encoding, handled, status)
-            import :: rfc2231_header_type, status_type
+            import :: mime_header_value_type, status_type
             implicit none(type, external)
-            type(rfc2231_header_type), intent(in) :: content_type, content_disposition
+            type(mime_header_value_type), intent(in) :: content_type, content_disposition
             character(len=*), intent(in) :: content_transfer_encoding
             logical, intent(out) :: handled
             type(status_type), intent(out) :: status
@@ -246,7 +246,7 @@ module rmail_mime_mod
     type :: entity_type
         logical :: used = .false.
         type(handle_type) :: owner
-        type(rfc2231_header_type) :: content_type, content_disposition
+        type(mime_header_value_type) :: content_type, content_disposition
         character(len=:), allocatable :: transfer_encoding
         type(display_type) :: current, new
         type(region_type) :: header, body
@@ -387,7 +387,7 @@ contains
     ! Not a port: upstream's '("text/plain") and the like.
     function plain_header(name) result(header)
         character(len=*), intent(in) :: name
-        type(rfc2231_header_type) :: header
+        type(mime_header_value_type) :: header
 
         header%name = name
         allocate (header%parameters(0))
@@ -395,7 +395,7 @@ contains
 
     ! The name of HEADER, "" for none.  Not a port: (car HEADER).
     function name_of(header) result(name)
-        type(rfc2231_header_type), intent(in) :: header
+        type(mime_header_value_type), intent(in) :: header
         character(len=:), allocatable :: name
 
         name = ""
@@ -404,7 +404,7 @@ contains
 
     ! HEADER as text, for an error message.  Not a port.
     function header_text(header) result(text)
-        type(rfc2231_header_type), intent(in) :: header
+        type(mime_header_value_type), intent(in) :: header
         character(len=:), allocatable :: text
         integer :: k
 
@@ -1013,7 +1013,7 @@ contains
     !> Handle the current buffer as a plain text MIME part.  Port of
     !> rmailmm.el:rmail-mime-text-handler.
     recursive subroutine handle_rmail_mime_text(content_type, content_disposition, content_transfer_encoding, handled, status)
-        type(rfc2231_header_type), intent(in) :: content_type, content_disposition
+        type(mime_header_value_type), intent(in) :: content_type, content_disposition
         character(len=*), intent(in) :: content_transfer_encoding
         logical, intent(out) :: handled
         type(status_type), intent(out) :: status
@@ -1342,7 +1342,7 @@ contains
     !> Handle the current buffer as an attachment to download.  Port of
     !> rmailmm.el:rmail-mime-bulk-handler (images are Deferred).
     recursive subroutine handle_rmail_mime_bulk(content_type, content_disposition, content_transfer_encoding, handled, status)
-        type(rfc2231_header_type), intent(in) :: content_type, content_disposition
+        type(mime_header_value_type), intent(in) :: content_type, content_disposition
         character(len=*), intent(in) :: content_transfer_encoding
         logical, intent(out) :: handled
         type(status_type), intent(out) :: status
@@ -1516,7 +1516,7 @@ contains
     !> format.  Port of rmailmm.el:rmail-mime-multipart-handler.
     recursive subroutine handle_rmail_mime_multipart(content_type, content_disposition, content_transfer_encoding, &
                                                      handled, status)
-        type(rfc2231_header_type), intent(in) :: content_type, content_disposition
+        type(mime_header_value_type), intent(in) :: content_type, content_disposition
         character(len=*), intent(in) :: content_transfer_encoding
         logical, intent(out) :: handled
         type(status_type), intent(out) :: status
@@ -1539,13 +1539,13 @@ contains
     !> Port of rmailmm.el:rmail-mime-process-multipart.
     recursive subroutine process_rmail_mime_multipart(content_type, content_disposition, content_transfer_encoding, &
                                                       children, status, parse_tag)
-        type(rfc2231_header_type), intent(in) :: content_type, content_disposition
+        type(mime_header_value_type), intent(in) :: content_type, content_disposition
         character(len=*), intent(in) :: content_transfer_encoding
         integer, allocatable, intent(out) :: children(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: parse_tag
         character(len=:), allocatable :: boundary, subtype, child_tag
-        type(rfc2231_header_type) :: child_type
+        type(mime_header_value_type) :: child_type
         type(restriction_type) :: restriction
         type(excursion_type) :: excursion
         type(handle_type) :: next
@@ -1639,7 +1639,7 @@ contains
 
             ! If this is the last boundary according to RFC 2046, hide the
             ! epilogue, else hide the boundary only.  Use a marker for
-            ! `next' because `show_rmail_mime_message' may change the
+            ! `next' because `show_rmail_mime_buffer' may change the
             ! buffer.
             has_next = .true.
 
@@ -1689,7 +1689,7 @@ contains
                 else
                     call delete_region(end, position_of(next), status)
                     if (status%ok()) call narrow_to_region(beginning, end, status)
-                    if (status%ok()) call show_rmail_mime_message(status)
+                    if (status%ok()) call show_rmail_mime_buffer(status)
                 end if
 
                 call save_restriction_end(restriction)
@@ -1789,7 +1789,7 @@ contains
     !> CONTENT_TYPE, CONTENT_DISPOSITION, and CONTENT_TRANSFER_ENCODING
     !> are the values of the respective parsed headers.  The latter should
     !> be lower-case ("" for none).  The parsed headers for CONTENT_TYPE
-    !> and CONTENT_DISPOSITION are values of `rfc2231_header_type': the
+    !> and CONTENT_DISPOSITION are values of `mime_header_value_type': the
     !> value and its parameters, each an attribute and its value.
     !>
     !> Consider the following header, for example:
@@ -1802,7 +1802,7 @@ contains
     !> "----=_NextPart_000_0104_01C617E4.BDEC4C40".  Port of
     !> rmailmm.el:rmail-mime-handle.
     recursive subroutine handle_rmail_mime(content_type, content_disposition, content_transfer_encoding, status)
-        type(rfc2231_header_type), intent(in) :: content_type, content_disposition
+        type(mime_header_value_type), intent(in) :: content_type, content_disposition
         character(len=*), intent(in) :: content_transfer_encoding
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: encoding
@@ -1870,7 +1870,7 @@ contains
     !>
     !> The current buffer must contain a single message.  It will be
     !> modified.  Port of rmailmm.el:rmail-mime-show.
-    recursive subroutine show_rmail_mime_message(status, show_headers)
+    recursive subroutine show_rmail_mime_buffer(status, show_headers)
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: show_headers
         integer :: e
@@ -1879,10 +1879,10 @@ contains
         show = .false.
         if (present(show_headers)) show = show_headers
         call process_rmail_mime(show, e, status)
-    end subroutine show_rmail_mime_message
+    end subroutine show_rmail_mime_buffer
 
     !> Process the current buffer, a message or a part of one: with
-    !> PARSE_TAG absent, modify it for showing (`show_rmail_mime_message');
+    !> PARSE_TAG absent, modify it for showing (`show_rmail_mime_buffer');
     !> with PARSE_TAG present (the depth and index number of the entity,
     !> "" for the message), parse it into the MIME entity ENTITY.
     !> DEFAULT_CONTENT_TYPE and DEFAULT_CONTENT_DISPOSITION are the values
@@ -1894,9 +1894,9 @@ contains
         integer, intent(out) :: entity
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: parse_tag
-        type(rfc2231_header_type), intent(in), optional :: default_content_type, default_content_disposition
+        type(mime_header_value_type), intent(in), optional :: default_content_type, default_content_disposition
         character(len=:), allocatable :: type_field, encoding_field, disposition_field, content_transfer_encoding
-        type(rfc2231_header_type) :: content_type, content_disposition
+        type(mime_header_value_type) :: content_type, content_disposition
         type(restriction_type) :: restriction
         integer(int64) :: end, found
         integer, allocatable :: children(:)
@@ -2326,7 +2326,7 @@ contains
             call fundamental_mode(status)
             if (status%ok()) call erase_buffer(status)
             if (status%ok()) call insert(data, status)
-            if (status%ok()) call show_rmail_mime_message(status, .true.)
+            if (status%ok()) call show_rmail_mime_buffer(status, .true.)
             if (status%ok()) call rmail_mime_mode(status)
             buffers(current)%read_only = saved_read_only
             if (.not. status%ok()) exit body
@@ -2345,7 +2345,7 @@ contains
     subroutine set_rmail_mime_boundary_error(message_text, content_type, content_disposition, &
                                              content_transfer_encoding, status)
         character(len=*), intent(in) :: message_text
-        type(rfc2231_header_type), intent(in) :: content_type, content_disposition
+        type(mime_header_value_type), intent(in) :: content_type, content_disposition
         character(len=*), intent(in) :: content_transfer_encoding
         type(status_type), intent(inout) :: status
 

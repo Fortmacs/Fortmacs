@@ -25,7 +25,7 @@
 !> Content-Disposition, `text/plain; charset=utf-8', with values continued
 !> over several parameters (`name*0=', `name*1=') and encoded
 !> (`name*=utf-8''%C3%A9t%C3%A9').  `parse_rfc2231_string' parses such a
-!> field's value into an `rfc2231_header_type': the value before the
+!> field's value into an `mime_header_value_type': the value before the
 !> parameters (`name') and the parameters, each an attribute and its value,
 !> read with `get_rfc2231_value'.  mail-parse.el's names
 !> (mail-header-parse-content-type, mail-header-parse-content-disposition,
@@ -51,24 +51,24 @@ module rfc2231_mod
 
     !> One parameter of a header field: its ATTRIBUTE (in lower case) and
     !> its VALUE.  Not a port: an element of upstream's parsed list.
-    type, public :: rfc2231_parameter_type
+    type, public :: mime_header_parameter_type
         !> The attribute's name, in lower case.
         character(len=:), allocatable :: attribute
         !> The value, decoded.
         character(len=:), allocatable :: value
-    end type rfc2231_parameter_type
+    end type mime_header_parameter_type
 
     !> A parsed header field value: the NAME before the parameters (such as
     !> "text/plain" or "attachment", in lower case; unallocated when the
     !> value does not start with a token) and the PARAMETERS.
     !> Not a port: upstream's parsed list, the name and two values for
     !> each parameter.
-    type, public :: rfc2231_header_type
+    type, public :: mime_header_value_type
         !> The value before the parameters, in lower case.
         character(len=:), allocatable :: name
         !> The parameters, in the order upstream lists them.
-        type(rfc2231_parameter_type), allocatable :: parameters(:)
-    end type rfc2231_header_type
+        type(mime_header_parameter_type), allocatable :: parameters(:)
+    end type mime_header_value_type
 
     ! A parameter as it is read, before continuations are joined.
     type :: raw_parameter_type
@@ -159,7 +159,7 @@ contains
     !> HEADER has no such parameter).  Port of rfc2231.el:rfc2231-get-value
     !> (upstream's mail-content-type-get).
     subroutine get_rfc2231_value(header, attribute, value)
-        type(rfc2231_header_type), intent(in) :: header
+        type(mime_header_value_type), intent(in) :: header
         character(len=*), intent(in) :: attribute
         character(len=:), allocatable, intent(out) :: value
         integer :: k
@@ -181,7 +181,7 @@ contains
     !> mail-header-parse-content-disposition).
     subroutine parse_rfc2231_quoted_printable_string(string, header, status)
         character(len=*), intent(in) :: string
-        type(rfc2231_header_type), intent(out) :: header
+        type(mime_header_value_type), intent(out) :: header
         type(status_type), intent(out) :: status
 
         call parse_rfc2231_string(decode_rfc2047_string(string), header, status)
@@ -199,7 +199,7 @@ contains
     !> is not needed).
     subroutine parse_rfc2231_string(string, header, status, report_error)
         character(len=*), intent(in) :: string
-        type(rfc2231_header_type), intent(out) :: header
+        type(mime_header_value_type), intent(out) :: header
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: report_error
         character(len=:), allocatable :: text, attribute, value
