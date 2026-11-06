@@ -221,6 +221,7 @@
 | [version_control_subversion_mod](../status/version_control_subversion_mod.md) | vc/vc-svn.el | partial |
 | [version_mod](../status/version_mod.md) | — | done |
 | [view_mod](../status/view_mod.md) | view.el | partial |
+| [warnings_mod](../status/warnings_mod.md) | emacs-lisp/warnings.el (+ subr.el `delay-warning`, `display-delayed-warnings`, `collapse-delayed-warnings`, `delayed-warnings-hook`; keyboard.c `delayed-warnings-list`; emacs.c `after-init-time`) | partial |
 | [which_function_mod](../status/which_function_mod.md) | progmodes/which-func.el | partial |
 | [window_mod](../status/window_mod.md) | window.c, window.h, window.el, buffer.c (`other-buffer`, `record-buffer`, `bury-buffer-internal`, frame buffer lists) | partial |
 | [window_move_mod](../status/window_move_mod.md) | windmove.el | partial |
