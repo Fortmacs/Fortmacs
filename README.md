@@ -109,9 +109,9 @@ names, help and internals are Fortran-first.
     - `fill-column`→`fill_column` <!-- fortran-names: keep -->
     - `text-mode-hook`→`text_mode_hook` <!-- fortran-names: keep -->
   - Lisp terms take Fortran names:
-    - defun→subprogram <!-- fortran-names: keep -->
-    - sexp→expression <!-- fortran-names: keep -->
-    - alist→table <!-- fortran-names: keep -->
+    - `defun`→`subprogram` <!-- fortran-names: keep -->
+    - `sexp`→`expression` <!-- fortran-names: keep -->
+    - `alist`→`table` <!-- fortran-names: keep -->
 - **The same keys and mode line.** Keys and the text the mode line shows
   are unchanged; mode-line formats are written in Fortran, never with
   Emacs's %-constructs.
@@ -124,7 +124,7 @@ names, help and internals are Fortran-first.
     - `run_mode_hooks`→`execute_mode_hooks` <!-- fortran-names: keep -->
     - `run_with_timer`→`execute_with_timer` <!-- fortran-names: keep -->
   - Text is cut, copied and pasted, and the copies are kept in the
-    clipboard history (C-w, M-w and C-y stay):
+    clipboard history:
     - `kill_region`→`cut_region` <!-- fortran-names: keep -->
     - `kill_ring_save`→`copy_region` <!-- fortran-names: keep -->
     - `yank`→`paste` <!-- fortran-names: keep -->
@@ -137,8 +137,9 @@ names, help and internals are Fortran-first.
     - `make_directory`→`create_directory` <!-- fortran-names: keep -->
   - Arrays grow with append and prepend:
     - `add_auto_mode`→`prepend_auto_mode` <!-- fortran-names: keep -->
-  - Predicates are `is_*`:
+  - Predicates are `is_*` or `has_*`:
     - `process_live_p`→`is_process_live` <!-- fortran-names: keep -->
+    - `diff_some_hunks_p`→`has_diff_hunks` <!-- fortran-names: keep -->
   - Other helpers use one word each: get, not fetch; make, not new.
   - Where Emacs gives two words two behaviors, both stay: cut saves to
     the clipboard history, delete does not; read prompts, get looks up.
