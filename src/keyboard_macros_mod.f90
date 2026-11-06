@@ -75,7 +75,7 @@ module keyboard_macros_mod
     use register_mod, only: register_read_with_preview, get_register, set_register, register_contents_type, REGISTER_EMPTY, &
                             REGISTER_MARKER, REGISTER_TEXT, REGISTER_RECTANGLE, REGISTER_NUMBER, &
                             REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
-    use editing_functions_mod, only: styled_format, format_arguments_type
+    use editing_functions_mod, only: format_text, format_arguments_type
     use keyboard_macro_editor_mod, only: format_keyboard_macro
     use simple_mod, only: keyboard_macro_keyboard_quit_hook
     implicit none(type, external)
@@ -267,11 +267,11 @@ contains
 
         if (argument%kind == PREFIX_RAW) then
             call arguments%append(keyboard_macro_last_counter)
-            call styled_format(keyboard_macro_counter_format, arguments, .false., text, status)
+            call format_text(keyboard_macro_counter_format, arguments, text, status)
             if (status%ok()) call insert(text, status)
         else
             call arguments%append(keyboard_macro_counter)
-            call styled_format(keyboard_macro_counter_format, arguments, .false., text, status)
+            call format_text(keyboard_macro_counter_format, arguments, text, status)
             if (status%ok()) call insert(text, status)
             if (status%ok()) call keyboard_macro_add_counter(prefix_numeric_value(argument), status)
         end if
@@ -323,7 +323,7 @@ contains
         v = keyboard_macro_counter
         if (present(value)) v = value
         call arguments%append(v)
-        call styled_format(keyboard_macro_counter_format, arguments, .false., text, status)
+        call format_text(keyboard_macro_counter_format, arguments, text, status)
         write (value_text, '(" (", i0, ")")') v
         if (status%ok()) call message("New macro counter value: "//text//trim(value_text))
     end subroutine keyboard_macro_display_counter
@@ -776,7 +776,7 @@ contains
 
             if (keyboard_macro_counter /= 0) then
                 call arguments%append(keyboard_macro_counter)
-                call styled_format(keyboard_macro_counter_format_start, arguments, .false., counter_part, status)
+                call format_text(keyboard_macro_counter_format_start, arguments, counter_part, status)
                 if (.not. status%ok()) return
                 counter_part = " ["//counter_part//"]"
             end if

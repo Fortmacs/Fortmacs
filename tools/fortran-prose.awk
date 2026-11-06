@@ -73,7 +73,7 @@ off { next }
     if ($0 ~ /^[ \t]*!>/) {
         text = $0
         sub(/^[ \t]*!>/, "", text)
-    } else if ($0 !~ /^[ \t]*!/ && $0 ~ /set_error\(|call message\(|user_error\(|format_message\(|minibuffer_message\(/) {
+    } else if ($0 !~ /^[ \t]*!/ && $0 ~ /set_error\(|call message\(|user_error\(|substitute_quotes\(|minibuffer_message\(/) {
         text = strings($0)
     }
     if (text == "") next

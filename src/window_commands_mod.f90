@@ -40,7 +40,7 @@
 submodule(window_mod) window_commands_mod
     use commands_mod, only: commands
     use execute_interactively_mod, only: PREFIX_NONE
-    use error_mod, only: format_message, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, USER_ERROR_CODE
+    use error_mod, only: substitute_quotes, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, USER_ERROR_CODE
     use buffer_mod, only: current, current_buffer, set_buffer, buffer_list, get_buffer, get_or_make_buffer, &
                           record_buffer, frame_seen_buffers, is_buffer_live, close_buffer, is_buffer_modified, &
                           replace_buffer_in_windows_hook
@@ -72,7 +72,7 @@ contains
         in_minibuffer = selected_frame%minibuffer_selected
 
         if (in_minibuffer) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Window commands don't work in the minibuffer yet"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Window commands don't work in the minibuffer yet"))
         else
             status = status_type()
         end if

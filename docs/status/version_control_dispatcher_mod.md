@@ -19,7 +19,7 @@
 `vc-revert-buffer-internal`,
 `vc-suppress-confirm`,
 `vc-allow-async-diff`/`-revert`,
-the log entry: `vc-start-logentry`,
+the log entry: `vc-start-logentry` (its message concatenated, no %s format, 2026-11-06),
 `vc-log-edit`,
 `vc-finish-logentry`,
 `vc-log-fileset`,

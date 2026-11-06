@@ -100,6 +100,15 @@
 #                int_text, integer_text, itoa, int_str, int2str or
 #                to_string (R6-44, R6-45): fixed-format text is one
 #                internal `write' with edit descriptors.
+# fortran-names: off
+#   percent-format  a call of format_text, styled_format or format_message,
+#                or a use of format_arguments_type: Emacs's %-directive
+#                formats (%s, %d, %S) are never used; text built from a
+#                format in the source is one internal `write' with edit
+#                descriptors, or a concatenation of strings (owner,
+#                2026-11-06).  The baseline lists the format strings
+#                users give at run time, awaiting the owner's decision.
+# fortran-names: on
 #   char-loop    a `do K = 1, min(len(A), len(B))' loop that orders the
 #                characters `A(K:K)' and `B(K:K)' with `<' or `>' (also
 #                through ichar or iachar): string-lessp by hand.  utility_functions_mod's
@@ -540,6 +549,19 @@ FNR == 1 {
         sub(/^[^a-z]/, "", name)
         sub(/[ \t]*\($/, "", name)
         finding(startline, "number-text", name, "")
+        t = substr(t, RSTART + RLENGTH)
+    }
+}
+
+# Emacs's %-directive formatting (the percent-format rule).
+{
+    t = l
+
+    while (match(t, /(^|[^a-z0-9_])((format_text|styled_format|format_message)[ \t]*\(|format_arguments_type([^a-z0-9_]|$))/)) {  # fortran-names: keep
+        name = substr(t, RSTART, RLENGTH)
+        sub(/^[^a-z]/, "", name)
+        sub(/[^a-z0-9_]+$/, "", name)
+        finding(startline, "percent-format", name, "")
         t = substr(t, RSTART + RLENGTH)
     }
 }

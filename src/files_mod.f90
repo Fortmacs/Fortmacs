@@ -35,7 +35,7 @@ module files_mod
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
-    use error_mod, only: format_message, status_type, set_error, condition_matches, format_error, GENERIC_ERROR_CODE, &
+    use error_mod, only: substitute_quotes, status_type, set_error, condition_matches, format_error, GENERIC_ERROR_CODE, &
                          USER_ERROR_CODE, FILE_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type
@@ -59,7 +59,7 @@ module files_mod
     use keyboard_mod, only: request_exit
     use display_engine_mod, only: message
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, character_after, widen, &
-                                     narrow_to_region, format_message
+                                     narrow_to_region, substitute_quotes
     use insert_delete_mod, only: insert
     use basic_subprograms_mod, only: read_y_or_n
     use utility_functions_mod, only: read_yes_or_no
@@ -1705,7 +1705,7 @@ contains
                     return
                 end if
 
-                call read_y_or_n(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
+                call read_y_or_n(substitute_quotes("File `")//file//substitute_quotes("' exists; overwrite? "), ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -1732,7 +1732,7 @@ contains
             directory = file_name_directory(directory)
 
             if (.not. file_exists(file) .and. .not. file_exists(directory)) then
-                call read_y_or_n(format_message("Directory `")//directory//format_message("' does not exist; create? "), &
+                call read_y_or_n(substitute_quotes("Directory `")//directory//substitute_quotes("' does not exist; create? "), &
                                  ok, status)
                 if (.not. status%ok()) return
 
@@ -1770,7 +1770,7 @@ contains
 
                 if (.not. ok) then
                     call set_error(status, GENERIC_ERROR_CODE, &
-                                   format_message("Attempt to save to a file that you aren't allowed to write"))
+                                   substitute_quotes("Attempt to save to a file that you aren't allowed to write"))
                     return
                 end if
 
@@ -2168,7 +2168,7 @@ contains
             end if
 
             if (confirm .and. file_exists(file)) then
-                call read_y_or_n(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
+                call read_y_or_n(substitute_quotes("File `")//file//substitute_quotes("' exists; overwrite? "), ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then

@@ -37,7 +37,7 @@ module error_mod
     implicit none(type, external)
     private
 
-    public :: status_type, format_message
+    public :: status_type, substitute_quotes
     public :: set_error, error_name, error_message, condition_matches, &
               format_error
 
@@ -309,7 +309,7 @@ contains
 
         ! print_error_message passes the message through
         ! substitute-command-keys, which curves its quotes.
-        message = format_message(error_message(status%code))
+        message = substitute_quotes(error_message(status%code))
 
         if (.not. allocated(status%detail) .or. status%code == QUIT_CODE) then
             ! A quit's data is never printed: "Quit" (keyboard.c:cmd_error_internal
@@ -328,28 +328,29 @@ contains
         end if
     end function format_error
 
-    !> Format a string out of a format-string and arguments, converting
-    !> grave accents and apostrophes in FMT to curved quotes (the
-    !> `curve' style of `text_quoting_style', the style used on a UTF-8
-    !> terminal).  Only the format string is converted, so concatenate
-    !> the arguments after converting the literal parts.  Port of
-    !> editfns.c:Fformat_message (the quoting).
-    pure function format_message(fmt) result(s)
-        character(len=*), intent(in) :: fmt
+    !> Substitute quote characters in STRING for display: each grave
+    !> accent ` becomes a left quote and each apostrophe ' a right quote
+    !> (the `curve' style of `text_quoting_style', the style used on a
+    !> UTF-8 terminal).  Text built around a quoted name concatenates the
+    !> name after converting the literal parts.  Port of
+    !> help.el:substitute-quotes (the curve style), the quoting of
+    !> editfns.c:Fformat_message.
+    pure function substitute_quotes(string) result(s)
+        character(len=*), intent(in) :: string
         character(len=:), allocatable :: s
         integer :: i
 
         s = ""
 
-        do i = 1, len(fmt)
-            select case (fmt(i:i))
+        do i = 1, len(string)
+            select case (string(i:i))
             case ("`")
                 s = s//char(int(z'E2'))//char(int(z'80'))//char(int(z'98'))
             case ("'")
                 s = s//char(int(z'E2'))//char(int(z'80'))//char(int(z'99'))
             case default
-                s = s//fmt(i:i)
+                s = s//string(i:i)
             end select
         end do
-    end function format_message
+    end function substitute_quotes
 end module error_mod

@@ -27,7 +27,7 @@ submodule(abbreviation_mod) abbreviation_commands_mod
     use utility_functions_mod, only: count_characters, is_string_less
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: set_error, format_message, GENERIC_ERROR_CODE
+    use error_mod, only: set_error, substitute_quotes, GENERIC_ERROR_CODE
     use data_mod, only: append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, erase_buffer, close_buffer, &
                           restore_buffer_modified, generate_new_buffer_name
@@ -1194,7 +1194,7 @@ contains
             call search_forward("end subroutine configure", found, st, noerror=SEARCH_NOERROR)
 
             if (found == 0) then
-                call set_error(status, GENERIC_ERROR_CODE, format_message("No `end subroutine configure' in ")//target_file)
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("No `end subroutine configure' in ")//target_file)
             else
                 call goto_character(line_beginning_position())
             end if
@@ -1428,7 +1428,7 @@ contains
         if (allocated(exp)) then
             deallocate (exp)
             yes = .true.
-            if (query) call read_y_or_n(format_message("Expand `")//string//format_message("'? "), yes, status)
+            if (query) call read_y_or_n(substitute_quotes("Expand `")//string//substitute_quotes("'? "), yes, status)
             if (.not. status%ok()) exit
             if (yes) call expand_abbreviation(status)
             if (.not. status%ok()) exit

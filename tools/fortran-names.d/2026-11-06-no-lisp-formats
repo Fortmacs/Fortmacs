@@ -1,0 +1,7 @@
+# No Emacs-style %-directive formats (owner, 2026-11-06: "%s and other
+# Lisp-isms are never used.  Only Fortran-isms.").  error_mod's
+# format_message only curved the quotes of its string (the curve style
+# of text-quoting-style), which is help.el's substitute-quotes; it takes
+# that function's name (Emacs's name with underscores, decided by rule),
+# so no format-message name is left in Fortmacs code.
+name	format_message	substitute_quotes

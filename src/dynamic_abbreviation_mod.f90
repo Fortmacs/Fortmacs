@@ -39,7 +39,7 @@ module dynamic_abbreviation_mod
     use utility_functions_mod, only: count_characters
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
     use data_mod, only: string_setting_type, forward_setting, choice_setting_type, choice_state
     use buffer_mod, only: buffers, current, BEGINNING, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer, &
@@ -691,11 +691,11 @@ contains
             end if
 
             if (has_old) then
-                call set_error(status, USER_ERROR_CODE, format_message("No further dynamic expansion for `")//abbreviation// &
-                               format_message("' found"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("No further dynamic expansion for `")//abbreviation// &
+                               substitute_quotes("' found"))
             else
-                call set_error(status, USER_ERROR_CODE, format_message("No dynamic expansion for `")//abbreviation// &
-                               format_message("' found"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("No dynamic expansion for `")//abbreviation// &
+                               substitute_quotes("' found"))
             end if
 
             return
@@ -715,7 +715,7 @@ contains
                 name = buffers(position)%name
             end if
 
-            if (allocated(name)) call message(format_message("Expansion found in `")//name//format_message("'"))
+            if (allocated(name)) call message(substitute_quotes("Expansion found in `")//name//substitute_quotes("'"))
             last_buffer_found = last_buffer
         else
             call message("")

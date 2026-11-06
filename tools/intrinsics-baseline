@@ -79,3 +79,14 @@ src/window_mod.f90:MINIBUF_NO:yes-no
 src/window_mod.f90:MINIBUF_YES:yes-no
 src/cross_reference_mod.f90:SELECT_NO:yes-no
 src/cross_reference_mod.f90:SELECT_YES:yes-no
+# The percent-format rule (2026-11-06): editing_functions_mod's port of
+# format, kept only for the format strings users give at run time
+# (keyboard_macro_counter_format, rectangle_number_lines' FORMAT) until
+# the owner decides their Fortran form (#261), and its ported ERT tests.
+src/editing_functions_mod.f90:format_arguments_type:percent-format
+src/keyboard_macros_mod.f90:format_arguments_type:percent-format
+src/keyboard_macros_mod.f90:format_text:percent-format
+src/rectangle_mod.f90:format_arguments_type:percent-format
+src/rectangle_mod.f90:format_text:percent-format
+test/test_editing_functions_mod.f90:format_arguments_type:percent-format
+test/test_editing_functions_mod.f90:format_text:percent-format

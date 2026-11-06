@@ -20,7 +20,7 @@
 
 module test_error_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: format_message
+    use error_mod, only: substitute_quotes
     use error_mod, only: condition_matches, error_message, error_name, arguments_out_of_range_code, &
                          arithmetic_error_code, buffer_read_only_code, end_of_buffer_code, generic_error_code, &
                          ok_code, overflow_error_code, quit_code, text_read_only_code, user_error_code, &
@@ -133,6 +133,6 @@ contains
         call check(error, format_error(st), "Cyclic keymap inheritance")
         if (allocated(error)) return
         call set_error(st, VOID_FUNCTION_CODE, "foo")
-        call check(error, format_error(st), format_message("Function is not defined: foo"))
+        call check(error, format_error(st), substitute_quotes("Function is not defined: foo"))
     end subroutine test_format
 end module test_error_mod

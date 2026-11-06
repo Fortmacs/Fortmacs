@@ -26,7 +26,7 @@
 module test_buffer_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: format_message
+    use error_mod, only: substitute_quotes
     use error_mod, only: status_type, INVALID_HANDLE_CODE, BUFFER_READ_ONLY_CODE, &
                          GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
@@ -173,7 +173,7 @@ contains
         call rename_buffer("tb-ren-b", .false., actual, st)
         call check(error, st%code, GENERIC_ERROR_CODE)
         if (allocated(error)) return
-        call check(error, st%detail, format_message("Buffer name `")//"tb-ren-b"//format_message("' is in use"))
+        call check(error, st%detail, substitute_quotes("Buffer name `")//"tb-ren-b"//substitute_quotes("' is in use"))
         if (allocated(error)) return
         call rename_buffer("tb-ren-b", .true., actual, st)
         call check(error, actual, "tb-ren-b<2>")

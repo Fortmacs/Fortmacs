@@ -5,7 +5,8 @@
 # intrinsics, an interface body, constants named after yes-or-no-p and
 # y-or-n-p), the hand-written string comparison,
 # blank skips, constructor wrapper and private copy of a Lisp function
-# (and the module that may define it, utility_functions_mod.f90), a finding its
+# (and the module that may define it, utility_functions_mod.f90), the
+# %-directive formats, a finding its
 # baseline excuses and a baseline entry that no longer occurs.
 #
 # Copyright (C) 2026 The Fortmacs authors

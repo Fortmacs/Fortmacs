@@ -30,7 +30,7 @@
 submodule(window_mod) window_scroll_mod
     use commands_mod, only: commands
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
-    use error_mod, only: format_message, set_error, GENERIC_ERROR_CODE, BEGINNING_OF_BUFFER_CODE, END_OF_BUFFER_CODE, &
+    use error_mod, only: substitute_quotes, set_error, GENERIC_ERROR_CODE, BEGINNING_OF_BUFFER_CODE, END_OF_BUFFER_CODE, &
                          WRONG_TYPE_ARGUMENT_CODE
     use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, buffer_list
     use editing_functions_mod, only: point, goto_character, is_end_of_buffer, is_beginning_of_buffer, point_minimum, point_maximum
@@ -229,7 +229,7 @@ contains
 
         if (.not. shows_current_buffer(w)) then
             call set_error(status, GENERIC_ERROR_CODE, &
-                           format_message("`recenter'ing a window that does not display current_buffer"))
+                           substitute_quotes("`recenter'ing a window that does not display current_buffer"))
             return
         end if
 
@@ -650,7 +650,7 @@ contains
         type(status_type) :: st
 
         if (selected_frame%minibuffer_selected) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Window commands don't work in the minibuffer yet"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Window commands don't work in the minibuffer yet"))
             return
         end if
 

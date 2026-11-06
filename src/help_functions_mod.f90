@@ -43,7 +43,7 @@
 module help_functions_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, USER_ERROR_CODE
     use value_mod, only: value_type, make_list, list_elements, V_ARRAY, vtag, list_element, xfixnum, V_NULL, V_INTEGER, V_NAME
     use handle_mod, only: handle_type
     use character_mod, only: CHARACTER_ALT, CHARACTER_SUPER, CHARACTER_HYPER, CHARACTER_SHIFT, CHARACTER_CONTROL, CHARACTER_META
@@ -424,7 +424,7 @@ contains
         ! help-fns--describe-function-or-command-prompt (no function at
         ! point yet)
         if (len(name) == 0) then
-            call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a function name"))
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("You didn't specify a function name"))
             return
         end if
 
@@ -451,7 +451,7 @@ contains
 
         ! (No variable at point yet.)
         if (len(name) == 0) then
-            call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a variable"))
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("You didn't specify a variable"))
             return
         end if
 
@@ -719,7 +719,7 @@ contains
         if (.not. status%ok()) return
 
         if (len(name) == 0) then
-            call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a function or variable"))
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("You didn't specify a function or variable"))
             return
         end if
 
@@ -739,7 +739,7 @@ contains
         if (.not. status%ok()) return
 
         if (len(name) == 0) then
-            call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a command's symbol"))
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("You didn't specify a command's symbol"))
             return
         end if
 

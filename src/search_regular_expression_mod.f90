@@ -39,7 +39,7 @@ submodule(search_mod) search_regular_expression_mod
     use insert_delete_mod, only: replace_range
     use editing_functions_mod, only: buffer_substring, goto_character
     use buffer_mod, only: temporary_set_point_both
-    use error_mod, only: format_message, ARGUMENTS_OUT_OF_RANGE_CODE
+    use error_mod, only: substitute_quotes, ARGUMENTS_OUT_OF_RANGE_CODE
     implicit none(type, external)
 
     !> Number of compiled patterns kept (REGULAR_EXPRESSION_CACHE_SIZE).
@@ -410,7 +410,7 @@ contains
     case_action = NOCHANGE
 
     if (.not. allocated(search_regs_start)) then
-        call set_error(status, GENERIC_ERROR_CODE, format_message("`replace_match' called before any match found"))
+        call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("`replace_match' called before any match found"))
         return
     end if
 
@@ -539,7 +539,7 @@ contains
                     else if (c == iachar("?")) then
                         piece = "\?"
                     else
-                        call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid use of `\' in replacement text"))
+                        call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Invalid use of `\' in replacement text"))
                         return
                     end if
                 end if
@@ -599,7 +599,7 @@ contains
                 else if (c == iachar("\")) then
                     piece = "\"
                 else
-                    call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid use of `\' in replacement text"))
+                    call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Invalid use of `\' in replacement text"))
                     return
                 end if
             end if

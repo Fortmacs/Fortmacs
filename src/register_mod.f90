@@ -54,7 +54,7 @@ module register_mod
     use utility_functions_mod, only: count_characters
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE, &
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE, &
                          WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xsymbol, symbols, xstring, vtag, V_NULL, V_INTEGER, V_NAME
@@ -778,7 +778,7 @@ contains
             call marker_buffer(value%marker, b, st)
 
             if (.not. is_buffer_live(b)) then
-                call set_error(status, USER_ERROR_CODE, format_message("That register's buffer no longer exists"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("That register's buffer no longer exists"))
                 return
             end if
 
@@ -815,7 +815,7 @@ contains
             if (status%ok()) call goto_character(value%number)
         case default
             call set_error(status, USER_ERROR_CODE, &
-                           format_message("Register doesn't contain a buffer position or configuration"))
+                           substitute_quotes("Register doesn't contain a buffer position or configuration"))
         end select
     end subroutine jump_to_register
 
@@ -1359,8 +1359,8 @@ contains
             name = ".false."
         end if
 
-        call register_read_with_preview(format_message("Store reference to buffer `")//name// &
-                                        format_message("' in register: "), register, status)
+        call register_read_with_preview(substitute_quotes("Store reference to buffer `")//name// &
+                                        substitute_quotes("' in register: "), register, status)
         if (status%ok()) call buffer_to_register(buffer, register)
     end subroutine execute_buffer_to_register
 

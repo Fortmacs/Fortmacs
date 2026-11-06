@@ -266,7 +266,7 @@ contains
         status = status_type()
 
         if (size(items_in) == 0) then
-            call message(format_message("No apropos matches for `"//apropos_pattern//"'"))
+            call message(substitute_quotes("No apropos matches for `"//apropos_pattern//"'"))
             return
         end if
 

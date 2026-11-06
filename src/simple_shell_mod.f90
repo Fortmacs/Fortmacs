@@ -1073,7 +1073,7 @@ contains
         if (shell_command_prompt_show_current_working_directory%value) then
             directory = ""
             if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
-            prompt = format_message(what//" in `")//abbreviate_file_name(directory)//format_message("': ")
+            prompt = substitute_quotes(what//" in `")//abbreviate_file_name(directory)//substitute_quotes("': ")
         else
             prompt = what//": "
         end if

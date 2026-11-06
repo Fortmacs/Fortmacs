@@ -67,7 +67,7 @@ module command_interpreter_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW, PREFIX_NUMBER, prefix_argument_type, command_type
     use value_mod, only: vtag, V_NULL, V_NAME, V_STRING, V_ARRAY, value_type
-    use error_mod, only: status_type, set_error, format_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use error_mod, only: status_type, set_error, format_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
     use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &

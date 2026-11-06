@@ -51,4 +51,8 @@ sample.f90:327: intrinsics: duplicate-helper: string_to_number (the one port is 
 sample.f90:334: intrinsics: duplicate-helper: version_le (the one port is in basic_subprograms_mod.f90)
 sample.f90:341: intrinsics: duplicate-helper: list_delq (no port: use the intrinsics)
 sample.f90:341: intrinsics: wrapper: list_delq (only `pack')
+sample.f90:354: intrinsics: percent-format: format_arguments_type
+sample.f90:359: intrinsics: percent-format: format_text
+sample.f90:360: intrinsics: percent-format: format_message
+sample.f90:361: intrinsics: percent-format: styled_format
 baseline: intrinsics: baseline entry no longer occurs: sample.f90:gone:wrapper (remove it)

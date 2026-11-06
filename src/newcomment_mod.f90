@@ -53,7 +53,7 @@
 module newcomment_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS, command_type
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use data_mod, only: value_eq, append_locals_clearer

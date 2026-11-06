@@ -54,7 +54,7 @@ module syntax_mod
                          SCAN_ERROR_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use character_mod, only: MAXIMUM_CHARACTER, string_character_and_length, unibyte_to_character
-    use error_mod, only: format_message
+    use error_mod, only: substitute_quotes
     use buffer_mod, only: buffers, current, buffer_fetch_character, buffer_next_character_length, buffer_previous_character_length
     use marker_mod, only: character_to_byte
     use editing_functions_mod, only: point, goto_character, constrain_to_field, character_to_string
@@ -971,8 +971,8 @@ contains
         if (comnested) text = text//" (nestable)"
 
         if (prefix) then
-            text = text//format_message(","//achar(10)//achar(9)// &
-                                        "  is a prefix character for `backward_prefix_characters'")
+            text = text//substitute_quotes(","//achar(10)//achar(9)// &
+                                           "  is a prefix character for `backward_prefix_characters'")
         end if
     end function internal_describe_syntax_value
 

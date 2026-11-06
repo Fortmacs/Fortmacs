@@ -51,7 +51,7 @@ module test_help_mode_mod
 
     character(len=*), parameter :: LF = achar(10)
 
-    !> The curved quotes of format_message.
+    !> The curved quotes of substitute_quotes.
     character(len=*), parameter :: LQ = char(226)//char(128)//char(152), RQ = char(226)//char(128)//char(153)
 
 contains

@@ -28,7 +28,7 @@
 !> and the modules that use it.
 submodule(fortmacs_diff_settings_mod) fortmacs_diff_settings_utilities_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE, QUIT_CODE
+    use error_mod, only: status_type, set_error, format_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE, QUIT_CODE
     use handle_mod, only: handle_type, null_handle, same_handle
     use buffer_mod, only: is_buffer_live, set_buffer, current_buffer, buffers, current, get_or_make_buffer, close_buffer, &
                           is_buffer_modified, restore_buffer_modified, erase_buffer, get_file_buffer
@@ -533,7 +533,8 @@ contains
 
         write (digits, "(i0)") difference + 1
         messg = "Saving old diff region #"//trim(digits)//" of buffer "// &
-                fortmacs_diff_buffer_type_name(buffer_type)//format_message(".  To recover, type `r")//recover//format_message("'")
+                fortmacs_diff_buffer_type_name(buffer_type)//substitute_quotes(".  To recover, type `r")//recover// &
+                substitute_quotes("'")
         call message(messg)
     end subroutine save_difference_region
 

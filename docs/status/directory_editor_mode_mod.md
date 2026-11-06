@@ -75,7 +75,7 @@ the listing updates `dired-add-file`,
 `dired-unadvertise`,
 `dired-check-process`,
 `dired-bunch-files`,
-`dired-mark-read-file-name`,
+`dired-mark-read-file-name` (and `dired-mark-read-string`: the prompt as PROMPT_BEGINNING and PROMPT_END around the marked files, no %s format; `dired-do-kill-lines`' FMT as QUIET, a caller with a message of its own writing it from COUNT; 2026-11-06),
 `dired-mark-confirm`,
 `dired-log-summary`;
 `=` (`dired-diff`) and `dired-backup-diff`;

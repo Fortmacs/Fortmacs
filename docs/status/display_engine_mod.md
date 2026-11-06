@@ -80,7 +80,7 @@ cited: `handle_invisible_prop`,
 `message3_frame_nolog`,
 `set_message`,
 `clear_message`,
-the C printf forms (`message`, `vmessage`, `message_with_string`, `add_to_log`, `vadd_to_log`, `format_nargs`: callers format with format_message);
+the C printf forms (`message`, `vmessage`, `message_with_string`, `add_to_log`, `vadd_to_log`, `format_nargs`: callers build their text with `write` and `substitute_quotes`);
 step 45c: `pre-redisplay-function` (a procedure pointer, called with all windows as prepare_menu_bars does; null for upstream's `ignore`),
 no redisplay while one runs (redisplaying_p),
 a forced window start kept and point moved to the middle of the window when it does not show (redisplay_window's force_start, on a terminal frame),
