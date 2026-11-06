@@ -32,14 +32,14 @@ module test_paragraphs_mod
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_string, mark_position
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use paragraphs_mod, only: transpose_paragraphs, transpose_sentences
     use paragraphs_mod, only: forward_paragraph, backward_paragraph, mark_paragraph, cut_paragraph, &
                               backward_cut_paragraph, start_of_paragraph_text, end_of_paragraph_text, &
-                              sentence_end_regexp, sentence_end, forward_sentence, backward_sentence, cut_sentence, &
+                              sentence_end_regular_expression, sentence_end, forward_sentence, backward_sentence, cut_sentence, &
                               backward_cut_sentence, mark_end_of_sentence, paragraph_start, paragraph_separate
     use keyboard_mod, only: last_command, this_command
     implicit none(type, external)
@@ -79,27 +79,27 @@ contains
     end subroutine collect_paragraphs_mod
 
     !> A fresh buffer holding `text`, point at its start.
-    subroutine temp_buffer(text)
+    subroutine temporary_buffer(text)
         character(len=*), intent(in) :: text
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer(" *paragraphs-test*", buffer, st)
         call set_buffer(buffer, st)
         buffers(current)%mark_active = .false.
         call erase_buffer(st)
         call insert(text, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call show_alone()
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine test_forward_backward(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: left
 
-        call temp_buffer(AB)
+        call temporary_buffer(AB)
         left = forward_paragraph(1_int64)
         call check(error, point() == 7)
         if (allocated(error)) return
@@ -110,14 +110,14 @@ contains
         call check(error, point() == 7)
         if (allocated(error)) return
         call backward_paragraph(1_int64)
-        call check(error, point() == point_min())
+        call check(error, point() == point_minimum())
     end subroutine test_forward_backward
 
     subroutine test_mark(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer(AB)
+        call temporary_buffer(AB)
         call mark_paragraph(1_int64, .false., st)
         call check(error, st%ok() .and. buffers(current)%mark_active)
         if (allocated(error)) return
@@ -131,7 +131,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer(AB)
+        call temporary_buffer(AB)
         call cut_paragraph(1_int64, st)
         call check(error, buffer_string() == LF//"BB"//LF//"BB"//LF)
     end subroutine test_kill
@@ -140,8 +140,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer(AB)
-        call goto_char(1_int64)
+        call temporary_buffer(AB)
+        call goto_character(1_int64)
         call transpose_paragraphs(1_int64, st)
         call check(error, buffer_string() == LF//"BB"//LF//"BB"//LF//"AA"//LF//"AA"//LF, buffer_string())
     end subroutine test_transpose_paragraphs
@@ -150,12 +150,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("First sentence.  Second sentence.  Third sentence.")
-        call goto_char(1_int64)
+        call temporary_buffer("First sentence.  Second sentence.  Third sentence.")
+        call goto_character(1_int64)
         call transpose_sentences(1_int64, st)
         call check(error, buffer_string() == "Second sentence.  First sentence.  Third sentence.", buffer_string())
         if (allocated(error)) return
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call transpose_sentences(2_int64, st)
         call check(error, buffer_string() == "First sentence.  Third sentence.  Second sentence.", buffer_string())
     end subroutine test_transpose_sentences
@@ -164,8 +164,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer(AB)
-        call goto_char(7_int64)
+        call temporary_buffer(AB)
+        call goto_character(7_int64)
         call backward_cut_paragraph(1_int64, st)
         call check(error, buffer_string() == LF//"BB"//LF//"BB"//LF)
     end subroutine test_backward_kill
@@ -173,8 +173,8 @@ contains
     subroutine test_start_text(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer(AB)
-        call goto_char(point_max())
+        call temporary_buffer(AB)
+        call goto_character(point_maximum())
         call start_of_paragraph_text()
         call check(error, point() == 8)
     end subroutine test_start_text
@@ -182,7 +182,7 @@ contains
     subroutine test_end_text(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer(AB)
+        call temporary_buffer(AB)
         call end_of_paragraph_text()
         call check(error, point() == 6)
     end subroutine test_end_text
@@ -192,9 +192,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("First"//LF//"paragraph"//LF//LF//"Second"//LF//LF//"Third"//LF//"paragraph"//LF//LF// &
-                         "No line end")
-        call goto_char(point_max())
+        call temporary_buffer("First"//LF//"paragraph"//LF//LF//"Second"//LF//LF//"Third"//LF//"paragraph"//LF//LF// &
+                              "No line end")
+        call goto_character(point_maximum())
         ! Just a sanity check that the text hasn't changed.
         call check(error, point() == 54)
         if (allocated(error)) return
@@ -206,11 +206,11 @@ contains
         call check(error, point() == 42 .and. mark_position() == 54)
         if (allocated(error)) return
         ! (forward-line -1)
-        call goto_char(32_int64)
+        call goto_character(32_int64)
         call mark_paragraph(1_int64, .false., st)
         call check(error, point() == 25 .and. mark_position() == 42)
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call mark_paragraph(1_int64, .false., st)
         call check(error, point() == 1 .and. mark_position() == 17)
     end subroutine test_mark_paragraphs
@@ -220,7 +220,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: left
 
-        call temp_buffer("a"//LF//"b"//LF//achar(12)//"c"//LF//"d"//LF//" "//achar(9)//LF//"e"//LF)
+        call temporary_buffer("a"//LF//"b"//LF//achar(12)//"c"//LF//"d"//LF//" "//achar(9)//LF//"e"//LF)
         left = forward_paragraph(1_int64)
         call check(error, point() == 5 .and. left == 0, "form feed line starts a paragraph")
         if (allocated(error)) return
@@ -228,7 +228,7 @@ contains
         call check(error, point() == 10, "blank line separates")
         if (allocated(error)) return
         left = forward_paragraph(2_int64)
-        call check(error, point() == point_max() .and. left == 1, "one paragraph left over")
+        call check(error, point() == point_maximum() .and. left == 1, "one paragraph left over")
         if (allocated(error)) return
         ! The blank line before is not just margin (it has a tab), so the
         ! paragraph starts after it.
@@ -242,7 +242,7 @@ contains
         type(status_type) :: st
         type(value_type), allocatable :: evs(:)
 
-        call temp_buffer(AB)
+        call temporary_buffer(AB)
         call key_parse("M-} M-}", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -262,21 +262,21 @@ contains
     subroutine test_sentence_end(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, len(sentence_end_regexp()) > 0)
+        call check(error, len(sentence_end_regular_expression()) > 0)
         if (allocated(error)) return
         sentence_end = "override works"
-        call check(error, sentence_end_regexp() == "override works")
+        call check(error, sentence_end_regular_expression() == "override works")
         deallocate (sentence_end%value)
     end subroutine test_sentence_end
 
     subroutine test_forward_sentence(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer("First sentence.  Second sentence.")
+        call temporary_buffer("First sentence.  Second sentence.")
         call forward_sentence(1_int64)
         call check(error, point() == 16, "one")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call forward_sentence(2_int64)
         call check(error, point() == 34, "two")
     end subroutine test_forward_sentence
@@ -284,8 +284,8 @@ contains
     subroutine test_backward_sentence(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer("First sentence.  Second sentence.")
-        call goto_char(point_max())
+        call temporary_buffer("First sentence.  Second sentence.")
+        call goto_character(point_maximum())
         call backward_sentence(1_int64)
         call check(error, point() == 18)
     end subroutine test_backward_sentence
@@ -294,7 +294,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("First sentence.  Second sentence.")
+        call temporary_buffer("First sentence.  Second sentence.")
         call cut_sentence(1_int64, st)
         call check(error, buffer_string() == "  Second sentence.")
     end subroutine test_cut_sentence
@@ -303,8 +303,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("Should not be killed.  Should be killed.")
-        call goto_char(point_max())
+        call temporary_buffer("Should not be killed.  Should be killed.")
+        call goto_character(point_maximum())
         call backward_cut_sentence(1_int64, st)
         call check(error, buffer_string() == "Should not be killed.  ")
     end subroutine test_backward_cut_sentence
@@ -312,16 +312,16 @@ contains
     subroutine test_mark_end_of_sentence(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer("Example sentence.  Followed by another one.")
+        call temporary_buffer("Example sentence.  Followed by another one.")
         call mark_end_of_sentence(1_int64)
         call check(error, buffers(current)%mark_active .and. mark_position() == 18, "one")
         if (allocated(error)) return
-        call temp_buffer("Example sentence.  Followed by another one.")
+        call temporary_buffer("Example sentence.  Followed by another one.")
         call mark_end_of_sentence(2_int64)
         call check(error, buffers(current)%mark_active .and. mark_position() == 44, "two")
         if (allocated(error)) return
         ! Repeating the command marks the next sentence.
-        call temp_buffer("Example sentence.  Followed by another one.")
+        call temporary_buffer("Example sentence.  Followed by another one.")
         call mark_end_of_sentence(1_int64)
         last_command => commands%mark_end_of_sentence
         this_command => commands%mark_end_of_sentence
@@ -340,7 +340,7 @@ contains
         ! Lines starting with "* " start paragraphs; "---" lines separate.
         paragraph_start = "\* \|---$\|[ "//achar(9)//"]*$"
         paragraph_separate = "---$\|[ "//achar(9)//"]*$"
-        call temp_buffer("* one"//LF//"text"//LF//"* two"//LF//"---"//LF//"three"//LF)
+        call temporary_buffer("* one"//LF//"text"//LF//"* two"//LF//"---"//LF//"three"//LF)
 
         body: block
             left = forward_paragraph(1_int64)
@@ -350,7 +350,7 @@ contains
             call check(error, point() == 18, "before separator")
             if (allocated(error)) exit body
             left = forward_paragraph(1_int64)
-            call check(error, point() == point_max(), "last")
+            call check(error, point() == point_maximum(), "last")
             if (allocated(error)) exit body
             call backward_paragraph(1_int64)
             call check(error, point() == 22, "back")

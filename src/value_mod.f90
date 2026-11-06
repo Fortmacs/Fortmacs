@@ -37,7 +37,7 @@
 !>
 !> A string with text properties keeps them as its children: the
 !> string atom holds the number of property intervals and spans them,
-!> each a list (START END PROP VALUE ...) of 0-based character
+!> each a list (START END PROPERTY VALUE ...) of 0-based character
 !> positions, sorted and not overlapping, with non-empty plists (the
 !> interval tree upstream keeps for a string).
 !>
@@ -57,7 +57,7 @@
 !>
 !> Symbols are stored here (struct Lisp_Symbol); interning is names_mod,
 !> values and properties are data_mod and utility_functions_mod.  Symbols are never
-!> freed, so a symbol is just an id; ids 1 and 2 are `nil' and `t'.
+!> freed, so a symbol is just an id; ids 1 and 2 are `false' and `t'.
 module value_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use handle_mod, only: handle_type
@@ -82,7 +82,7 @@ module value_mod
                                          V_SYNTAX_TABLE = 8, V_WINDOW = 9
 
     !> Ids of the predefined symbols.
-    integer(int64), parameter, public :: SYM_NIL = 1, SYM_T = 2
+    integer(int64), parameter, public :: SYMBOL_FALSE = 1, SYMBOL_T = 2
 
     !> One node of a value's tree.
     type, public :: atom_type
@@ -147,8 +147,9 @@ module value_mod
     !> component (an allocatable component makes gfortran compile the
     !> 1,200 generated commands a hundred times slower at -O3: 126 s against
     !> 1 s, measured 2026-11-02).
-    integer, parameter, public :: COMMAND_NAME_MAX = 64, ADVERTISED_BINDING_MAX = 32, INFO_FILE_MAX = 64, REPEAT_HINT_MAX = 80, &
-                                  DISABLED_MESSAGE_MAX = 400, REPEAT_CONTINUE_MAX = 8
+    integer, parameter, public :: COMMAND_NAME_MAXIMUM = 64, ADVERTISED_BINDING_MAXIMUM = 32, INFO_FILE_MAXIMUM = 64, &
+                                  REPEAT_HINT_MAXIMUM = 80, &
+                                  DISABLED_MESSAGE_MAXIMUM = 400, REPEAT_CONTINUE_MAXIMUM = 8
 
     !> A named function: what upstream keeps in a symbol's function cell,
     !> its interactive spec (`interactive': a command) and its `disabled'
@@ -162,7 +163,7 @@ module value_mod
     type, public :: command_type
         !> The name, as M-x and the help commands show it (blank-padded;
         !> "" while a built-in command has not been looked up yet).
-        character(len=COMMAND_NAME_MAX) :: name = ""
+        character(len=COMMAND_NAME_MAXIMUM) :: name = ""
         !> The procedure; null if the command is not defined.
         procedure(command_procedure), pointer, nopass :: execute => null()
         !> Whether it is a command (has an interactive spec), so M-x and
@@ -173,12 +174,12 @@ module value_mod
         logical :: disabled = .false.
         !> A message to show instead of the standard one when `disabled'
         !> (a string `disabled' property); "" for none.
-        character(len=DISABLED_MESSAGE_MAX) :: disabled_message = ""
+        character(len=DISABLED_MESSAGE_MAXIMUM) :: disabled_message = ""
         !> A key sequence (`key_parse' syntax) that `where_is_internal'
         !> returns first for this command when it still runs it, as the
         !> one key to show in menus and docstrings (the
         !> `:advertised-binding' property; one key here); "" for none.
-        character(len=ADVERTISED_BINDING_MAX) :: advertised_binding = ""
+        character(len=ADVERTISED_BINDING_MAXIMUM) :: advertised_binding = ""
         !> The keymap of single keys that repeat this command in Repeat
         !> mode (the `repeat-map' property; the null handle for none).
         type(handle_type) :: repeat_map
@@ -188,7 +189,7 @@ module value_mod
         !> the handles before the first null one, added with
         !> `append_repeat_continue').
         logical :: repeat_continue_all = .false.
-        type(handle_type) :: repeat_continue(REPEAT_CONTINUE_MAX)
+        type(handle_type) :: repeat_continue(REPEAT_CONTINUE_MAXIMUM)
         !> Whether Repeat mode checks that the last key is in the repeat
         !> map (the `repeat-check-key' property): .true., .false., or
         !> REPEAT_CHECK_KEY_DEFAULT to follow the option `repeat_check_key'.
@@ -201,7 +202,7 @@ module value_mod
         logical :: repeat_exit_timeout_no = .false.
         !> A hint shown by Repeat mode for the command's key (the
         !> `repeat-hint' property); "" for none.
-        character(len=REPEAT_HINT_MAX) :: repeat_hint = ""
+        character(len=REPEAT_HINT_MAXIMUM) :: repeat_hint = ""
         !> Whether `execute_any_command_in_project' passes the project to
         !> the command through `project_current_directory_override' rather
         !> than binding `default_directory' (upstream: the command's name
@@ -209,20 +210,20 @@ module value_mod
         logical :: project_aware = .false.
         !> The Info manual that documents the command (the `info-file'
         !> property, for `info_goto_fortmacs_command_node'); "" for none.
-        character(len=INFO_FILE_MAX) :: info_file = ""
+        character(len=INFO_FILE_MAXIMUM) :: info_file = ""
         !> The command changes neither the buffer text nor the selected
         !> window or current buffer, so Follow mode can keep the window
         !> positions it computed (the `follow-mode-use-cache' property).
         logical :: follow_mode_use_cache = .false.
-        !> After the command, Flyspell waits `flyspell_delay' seconds before
+        !> After the command, Flyspell waits `spellcheck_delay' seconds before
         !> checking the word at point (the `flyspell-delayed' property, set
-        !> by `set_flyspell_delayed_command').
-        logical :: flyspell_delayed = .false.
+        !> by `set_spellcheck_delayed_command').
+        logical :: spellcheck_delayed = .false.
         !> The command moves the cursor: after it, Flyspell checks the word
         !> at point only if the previous command was another one (the
         !> `flyspell-deplacement' property, set by
-        !> `set_flyspell_deplacement_command').
-        logical :: flyspell_deplacement = .false.
+        !> `set_spellcheck_deplacement_command').
+        logical :: spellcheck_deplacement = .false.
         !> For a keyboard macro held as a command (`this_command' after
         !> C-x e, so that C-x z repeats it): the handle of its key events
         !> in keyboard_mod's registry of macros; 0 for any other command.
@@ -238,12 +239,12 @@ module value_mod
     end type command_type
 
     !> The pointer to a defined command.
-    type :: command_ref_type
+    type :: command_reference_type
         type(command_type), pointer :: p => null()
-    end type command_ref_type
+    end type command_reference_type
 
     !> Commands defined with `define', not built in.
-    type(command_ref_type), allocatable :: defined_commands(:)
+    type(command_reference_type), allocatable :: defined_commands(:)
     integer :: defined_command_count = 0
 
     public :: command_procedure, defined_command, defined_command_name_of
@@ -252,14 +253,14 @@ module value_mod
     type, public :: symbol_type
         character(len=:), allocatable :: name
         !> The global value, valid when `bound'.
-        type(value_type) :: val
+        type(value_type) :: value
         logical :: bound = .false.
         !> trapped_write == SYMBOL_NOWRITE: nil, t and keywords.
         logical :: constant = .false.
         type(value_type) :: plist
         !> The default value while the current buffer has a local value
         !> (`default_bound' false for void); see data_mod.
-        type(value_type) :: default_val
+        type(value_type) :: default_value
         logical :: default_bound = .false.
         !> make-variable-buffer-local: setting makes the variable local.
         logical :: local_if_set = .false.
@@ -294,10 +295,11 @@ module value_mod
         end function value_of_string
     end interface value_type
 
-    public :: make_symbol_ref, &
-              make_buffer_ref, make_marker_ref, make_keymap_ref, make_syntax_table_ref, make_window_ref, make_list, list, cons
+    public :: make_symbol_reference, &
+              make_buffer_reference, make_marker_reference, make_keymap_reference, make_syntax_table_reference, &
+              make_window_reference, make_list, list, cons
     public :: vtag
-    public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_elt, &
+    public :: xfixnum, xsymbol, xstring, xhandle, list_length, list_element, &
               list_elements, list_tail, string_intervals, set_string_intervals
 
 contains
@@ -383,7 +385,7 @@ contains
         logical, intent(in) :: flag
         type(value_type) :: v
 
-        if (flag) v = make_symbol_ref(SYM_T)
+        if (flag) v = make_symbol_reference(SYMBOL_T)
     end function value_of_logical
 
     !> The integer `n'.  Port of lisp.h:make_fixnum.
@@ -397,21 +399,21 @@ contains
         v = scalar(atom)
     end function value_of_integer
 
-    !> The symbol with id `id'; id SYM_NIL gives nil.
+    !> The symbol with id `id'; id SYMBOL_FALSE gives nil.
     !> Port of lisp.h:make_lisp_symbol.
-    pure function make_symbol_ref(id) result(v)
+    pure function make_symbol_reference(id) result(v)
         integer(int64), intent(in) :: id
         type(value_type) :: v
         type(atom_type) :: atom
 
-        if (id == SYM_NIL) return
+        if (id == SYMBOL_FALSE) return
         atom%tag = V_NAME
         atom%i = id
         v = scalar(atom)
-    end function make_symbol_ref
+    end function make_symbol_reference
 
     !> A value referring to buffer `h'.  Not a port.
-    pure function make_buffer_ref(h) result(v)
+    pure function make_buffer_reference(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
@@ -419,10 +421,10 @@ contains
         atom%tag = V_BUFFER
         atom%h = h
         v = scalar(atom)
-    end function make_buffer_ref
+    end function make_buffer_reference
 
     !> A value referring to marker `h'.  Not a port.
-    pure function make_marker_ref(h) result(v)
+    pure function make_marker_reference(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
@@ -430,10 +432,10 @@ contains
         atom%tag = V_MARKER
         atom%h = h
         v = scalar(atom)
-    end function make_marker_ref
+    end function make_marker_reference
 
     !> A value referring to keymap `h'.  Not a port.
-    pure function make_keymap_ref(h) result(v)
+    pure function make_keymap_reference(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
@@ -441,11 +443,11 @@ contains
         atom%tag = V_KEYMAP
         atom%h = h
         v = scalar(atom)
-    end function make_keymap_ref
+    end function make_keymap_reference
 
     !> A value referring to syntax table `h' (a char-table upstream).
     !> Not a port.
-    pure function make_syntax_table_ref(h) result(v)
+    pure function make_syntax_table_reference(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
@@ -453,10 +455,10 @@ contains
         atom%tag = V_SYNTAX_TABLE
         atom%h = h
         v = scalar(atom)
-    end function make_syntax_table_ref
+    end function make_syntax_table_reference
 
     !> A value referring to window `h'.  Not a port.
-    pure function make_window_ref(h) result(v)
+    pure function make_window_reference(h) result(v)
         type(handle_type), intent(in) :: h
         type(value_type) :: v
         type(atom_type) :: atom
@@ -464,7 +466,7 @@ contains
         atom%tag = V_WINDOW
         atom%h = h
         v = scalar(atom)
-    end function make_window_ref
+    end function make_window_reference
 
     !> The atoms of `v' as an element of a list (nil becomes an explicit
     !> V_NULL atom).  Not a port.
@@ -551,17 +553,17 @@ contains
         v = make_list(parts(1:n))
     end function list
 
-    !> `elt' prepended to `list' (nil or a list).  Anything else would be a
+    !> `element' prepended to `list' (nil or a list).  Anything else would be a
     !> dotted pair, which this model does not have: `ok' is then false.
     !> Port of alloc.c:Fcons (proper lists only).
-    pure subroutine cons(elt, list, v, ok)
-        type(value_type), intent(in) :: elt, list
+    pure subroutine cons(element, list, v, ok)
+        type(value_type), intent(in) :: element, list
         type(value_type), intent(out) :: v
         logical, intent(out) :: ok
         type(atom_type), allocatable :: head(:)
 
         ok = .true.
-        call element_atoms(elt, head)
+        call element_atoms(element, head)
 
         select case (vtag(list))
         case (V_NULL)
@@ -600,12 +602,12 @@ contains
         if (vtag(v) == V_INTEGER) xfixnum = v%a(1)%i
     end function xfixnum
 
-    !> The symbol id of `v' (SYM_NIL for nil), unchecked.
+    !> The symbol id of `v' (SYMBOL_FALSE for nil), unchecked.
     !> Port of lisp.h:XSYMBOL.
     elemental integer(int64) function xsymbol(v)
         type(value_type), intent(in) :: v
 
-        xsymbol = SYM_NIL
+        xsymbol = SYMBOL_FALSE
         if (vtag(v) == V_NAME) xsymbol = v%a(1)%i
     end function xsymbol
 
@@ -640,7 +642,7 @@ contains
 
     !> Atom index where element `k' (1-based) of list `v' starts.
     !> Not a port.
-    pure integer(int64) function elt_start(v, k) result(p)
+    pure integer(int64) function element_start(v, k) result(p)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k
         integer(int64) :: j
@@ -650,33 +652,33 @@ contains
         do j = 1, k - 1
             p = p + v%a(p)%span
         end do
-    end function elt_start
+    end function element_start
 
     !> Element `k' (1-based) of list `v'; nil if out of range.  Port of
     !> fns.c:Fnth (a 1-based K; with K 1, data.c:Fcar).
-    pure function list_elt(v, k) result(e)
+    pure function list_element(v, k) result(e)
         type(value_type), intent(in) :: v
         integer(int64), intent(in) :: k
         type(value_type) :: e
         integer(int64) :: p
 
         if (k >= 1 .and. k <= list_length(v)) then
-            p = elt_start(v, k)
+            p = element_start(v, k)
             if (v%a(p)%tag /= V_NULL) e%a = v%a(p:p + v%a(p)%span - 1)
         end if
-    end function list_elt
+    end function list_element
 
     !> All elements of list `v' as an array (size 0 for nil).  Not a port.
-    pure subroutine list_elements(v, elems)
+    pure subroutine list_elements(v, elements)
         type(value_type), intent(in) :: v
-        type(value_type), allocatable, intent(out) :: elems(:)
+        type(value_type), allocatable, intent(out) :: elements(:)
         integer(int64) :: k, p
 
-        allocate (elems(list_length(v)))
+        allocate (elements(list_length(v)))
         p = 2
 
-        do k = 1, size(elems, kind=int64)
-            if (v%a(p)%tag /= V_NULL) elems(k)%a = v%a(p:p + v%a(p)%span - 1)
+        do k = 1, size(elements, kind=int64)
+            if (v%a(p)%tag /= V_NULL) elements(k)%a = v%a(p:p + v%a(p)%span - 1)
             p = p + v%a(p)%span
         end do
     end subroutine list_elements
@@ -699,7 +701,7 @@ contains
         end if
 
         if (n >= len) return
-        p = elt_start(v, n + 1)
+        p = element_start(v, n + 1)
         atoms = [v%a(1:1), v%a(p:)]
         atoms(1)%i = len - n
         atoms(1)%span = size(atoms)
@@ -726,8 +728,8 @@ contains
 
         do k = 1, v%a(1)%i
             child%a = v%a(p:p + v%a(p)%span - 1)
-            starts(k) = xfixnum(list_elt(child, 1_int64))
-            ends(k) = xfixnum(list_elt(child, 2_int64))
+            starts(k) = xfixnum(list_element(child, 1_int64))
+            ends(k) = xfixnum(list_element(child, 2_int64))
             plists(k) = list_tail(child, 2_int64)
             p = p + v%a(p)%span
         end do
@@ -771,7 +773,7 @@ contains
     !> the same name).  Not a port.
     subroutine define_command(self)
         class(command_type), target, intent(inout) :: self
-        type(command_ref_type), allocatable :: grown(:)
+        type(command_reference_type), allocatable :: grown(:)
         integer :: i
 
         do i = 1, defined_command_count
@@ -802,7 +804,7 @@ contains
         type(handle_type), intent(in) :: map
         integer :: k
 
-        do k = 1, REPEAT_CONTINUE_MAX
+        do k = 1, REPEAT_CONTINUE_MAXIMUM
             if (self%repeat_continue(k)%index == 0) then
                 self%repeat_continue(k) = map
                 return

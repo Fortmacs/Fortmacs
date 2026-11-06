@@ -46,7 +46,7 @@
 !> (compile_mod defers `compilation_window_height' and
 !> `compilation_search_path'), `find_tag_default_function', the
 !> functions of `file_name_at_point_functions', the case-fold toggle of
-!> `read_regexp' (`read_regexp_case_fold_search' is `case_fold_search'),
+!> `read_regular_expression' (`read_regular_expression_case_fold_search' is `case_fold_search'),
 !> remote directories (`file_remote_p': the defaults of the local host
 !> only, `grep_quoting_style' stays false).
 module grep_mod
@@ -54,7 +54,7 @@ module grep_mod
     use utility_functions_mod, only: count_characters
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW, find_command
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, list, xstring, xfixnum, list_elements, vtag, V_INTEGER, V_STRING, V_ARRAY
     use data_mod, only: symbol_value, append_locals_clearer, history_setting_type, forward_setting, &
@@ -64,30 +64,31 @@ module grep_mod
                           close_buffer, is_buffer_modified, is_buffer_live, transient_mark_mode
     use marker_mod, only: copy_marker_at, destroy_marker, marker_position, set_marker
     use insert_delete_mod, only: insert, insert_before_markers
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, line_beginning_position, line_end_position, &
-                                     buffer_substring, mark_position, char_after
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, line_beginning_position, &
+                                     line_end_position, buffer_substring, mark_position, character_after
     use editing_commands_mod, only: forward_line
     use text_properties_mod, only: put_text_property, get_text_property, add_text_properties, text_property_any, &
                                    next_single_property_change, remove_list_of_text_properties
-    use search_mod, only: re_search_forward, match_beginning, match_end, match_data, set_match_data, replace_match, &
-                          string_match, looking_at, case_fold_search, string_index_to_offset, SEARCH_NOERROR, SEARCH_MOVE
+    use search_mod, only: regular_expression_search_forward, match_beginning, match_end, match_data, set_match_data, &
+                          replace_match, string_match, looking_at, case_fold_search, string_index_to_offset, SEARCH_NOERROR, &
+                          SEARCH_MOVE
     use basic_subprograms_mod, only: match_string, shell_quote_argument, add_to_history, find_tag_default, &
                                      silent_modifications_type, silent_modifications_begin, silent_modifications_end
     use file_input_output_mod, only: expand_file_name, file_name_as_directory, file_name_nondirectory, is_file_directory, &
                                      is_file_accessible_directory
-    use files_mod, only: save_some_buffers, file_name_extension, wildcard_to_regexp, create_temp_file, delete_file
+    use files_mod, only: save_some_buffers, file_name_extension, wildcard_to_regular_expression, create_temporary_file, delete_file
     use execute_process_mod, only: execute_process
     use simple_mod, only: read_shell_command, next_error_last_buffer, shell_command_switch
-    use execute_process_mod, only: shell_file_name, init_callproc
+    use execute_process_mod, only: shell_file_name, initialize_callproc
     use minibuffer_reading_mod, only: read_from_minibuffer, read_string
     use minibuffer_reading_tables_mod, only: completion_table_type, completion_function_table, completion_list_table, &
                                              completion_test_procedure, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuffer_reading_mod, only: try_completion, all_completions, is_exact_completion
     use minibuffer_mod, only: completing_read, read_directory_name, completion_file_name_table, &
                               read_file_name_completion_ignore_case
-    use replace_mod, only: read_regexp, format_prompt
-    use incremental_search_mod, only: is_isearch_no_upper_case
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use replace_mod, only: read_regular_expression, format_prompt
+    use incremental_search_mod, only: is_incremental_search_no_upper_case
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use keymap_mod, only: keymap_set, set_keymap_parent, make_sparse_keymap, current_local_map, use_local_map
     use text_mode_mod, only: text_mode_map
     use derived_mod, only: is_derived_mode
@@ -103,8 +104,8 @@ module grep_mod
     use font_core_mod, only: font_lock_keyword_type, font_lock_highlight_type, font_lock_mode_enabled, &
                              FONT_LOCK_OVERRIDE_REPLACE
     use font_lock_mod, only: font_lock_highlight
-    use faces_mod, only: named_face_type, display_when, face_attrs
-    use version_control_hooks_mod, only: vc_directory_exclusions
+    use faces_mod, only: named_face_type, display_when, face_attributes
+    use version_control_hooks_mod, only: version_control_directory_exclusions
     use directory_editor_mod, only: completion_ignored_extensions
     use display_engine_mod, only: message, mode_line_part_type
     use compile_mod, only: compilation_start, compilation_set_mode_locals, compilation_update_mode_line, &
@@ -114,7 +115,7 @@ module grep_mod
                            compilation_error_screen_columns, compilation_disable_input, compilation_filter_hook, &
                            compilation_filter_start, compilation_info_face, compilation_warning_face, &
                            compilation_minor_mode_map, compilation_message_info, compilation_message_info_type, &
-                           stop_compilation, init_compile, compilation_message_location
+                           stop_compilation, initialize_compile, compilation_message_location
     use string_type_mod, only: string_type, append_string
     use value_mod, only: choice_type
     implicit none(type, external)
@@ -124,7 +125,7 @@ module grep_mod
     public :: grep, grep_find, lgrep, rgrep, zrgrep, grep_mode, grep_compute_defaults, grep_default_command, &
               grep_expand_template, rgrep_default_command, grep_find_toggle_abbreviation, grep_file_at_point, &
               grep_process_setup, grep_exit_message, grep_filter, grep_find_ignored_files, &
-              rgrep_find_ignored_directories, grep_read_files, grep_apply_setting, grep_tag_default, init_grep
+              rgrep_find_ignored_directories, grep_read_files, grep_apply_setting, grep_tag_default, initialize_grep
 
     !> Values of `grep_use_null_device' besides .false. and .true.: not yet probed.
     integer, parameter, public :: GREP_USE_NULL_DEVICE_AUTO_DETECT = 2
@@ -164,10 +165,10 @@ module grep_mod
     abstract interface
         !> The test of an element of `grep_find_ignored_files_variable' and
         !> `grep_find_ignored_directories': whether the element applies to
-        !> the search directory DIR.  Not a port.
-        logical function grep_ignore_test_procedure(dir)
+        !> the search directory DIRECTORY.  Not a port.
+        logical function grep_ignore_test_procedure(directory)
             implicit none(type, external)
-            character(len=*), intent(in) :: dir
+            character(len=*), intent(in) :: directory
         end function grep_ignore_test_procedure
 
         !> `grep_read_files_function': the file name whose extension gives
@@ -239,7 +240,7 @@ module grep_mod
     !> It matches SGR ANSI escape sequences which are emitted by grep to
     !> color its output.  This variable is used in `grep_filter'.  Port of
     !> grep.el grep-match-regexp.
-    character(len=:), allocatable, public :: grep_match_regexp
+    character(len=:), allocatable, public :: grep_match_regular_expression
 
     !> True to scroll the *grep* buffer window as output appears.
     !>
@@ -358,7 +359,7 @@ module grep_mod
     !> search directory to determine whether NAME should not be recursed
     !> into.
     !>
-    !> The default value is inherited from `vc_directory_exclusions'.
+    !> The default value is inherited from `version_control_directory_exclusions'.
     !> Port of grep.el grep-find-ignored-directories.
     type(grep_ignore_type), allocatable, public :: grep_find_ignored_directories(:)
 
@@ -406,9 +407,9 @@ module grep_mod
     character(len=:), allocatable, public :: grep_match_face
 
     !> Regexp used to match grep hits.
-    !> See `compilation_error_regexp_names' for format details.  Port of
+    !> See `compilation_error_regular_expression_names' for format details.  Port of
     !> grep.el grep-regexp-alist.
-    type(compilation_rule_type), allocatable, public :: grep_regexps(:)
+    type(compilation_rule_type), allocatable, public :: grep_regular_expressions(:)
 
     !> Value to use for `compilation_first_column' in grep buffers.  Port
     !> of grep.el grep-first-column.
@@ -452,7 +453,7 @@ module grep_mod
     !> line.  The buffer range of the second capture, if present, is
     !> made invisible (presumably because displaying it would be
     !> redundant).  Port of grep.el grep-heading-regexp.
-    character(len=:), allocatable, public :: grep_heading_regexp
+    character(len=:), allocatable, public :: grep_heading_regular_expression
 
     !> Additional things to highlight in grep output.
     !> This gets tacked on the end of the generated expressions.  Port of
@@ -471,7 +472,7 @@ module grep_mod
     character(len=:), allocatable, public :: grep_program
 
     !> The default find program.
-    !> This is used by commands like `grep_find_command', `find_dired' and
+    !> This is used by commands like `grep_find_command', `find_directory_editor' and
     !> others.  Port of grep.el find-program.
     character(len=:), allocatable, public :: find_program
 
@@ -510,7 +511,7 @@ module grep_mod
     !> Option to `find' to match the base name of files.  Port of
     !> find-dired.el find-name-arg (it moves to find-dired's module when
     !> that is ported).
-    character(len=:), allocatable, public :: find_name_arg
+    character(len=:), allocatable, public :: find_name_argument
 
     ! The values grep-compute-defaults computes (an entry of
     ! grep-host-defaults-alist).
@@ -550,7 +551,7 @@ module grep_mod
     ! completion-table-merge makes of them and completion-file-name-table.
     type(string_type), allocatable :: read_files_defaults(:)
 
-    character(len=*), parameter :: NL = achar(10), TB = achar(9), NUL = achar(0), ESC = achar(27)
+    character(len=*), parameter :: NEWLINE = achar(10), TB = achar(9), NUL = achar(0), ESC = achar(27)
     character(len=*), parameter :: NULL_DEVICE = "/dev/null"
 
     !> History list for grep.  Port of grep.el grep-history.
@@ -559,7 +560,8 @@ module grep_mod
     type(history_setting_type), target, public :: grep_find_history = history_setting_type(name="grep_find_history")
     !> History of `lgrep' and `rgrep' regexp args.  Port of grep.el
     !> grep-regexp-history.
-    type(history_setting_type), target, public :: grep_regexp_history = history_setting_type(name="grep_regexp_history")
+    type(history_setting_type), target, public :: grep_regular_expression_history = history_setting_type( &
+                                                  name="grep_regular_expression_history")
     !> History of `lgrep' and `rgrep' files args.  Port of grep.el
     !> grep-files-history.
     type(history_setting_type), target, public :: grep_files_history = history_setting_type(name="grep_files_history")
@@ -742,8 +744,8 @@ contains
     ! ------------------------------------------------------------------
 
     !> The column (relative to the end of the match) of the first grep
-    !> match on a line, from the faces `grep_filter' put there: COL of the
-    !> `grep_regexps' rule.  Not a port.
+    !> match on a line, from the faces `grep_filter' put there: COLUMN of the
+    !> `grep_regular_expressions' rule.  Not a port.
     subroutine first_match_column(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
@@ -760,7 +762,7 @@ contains
     end subroutine first_match_column
 
     !> The end column of the first grep match on a line: END-COL of the
-    !> `grep_regexps' rule.  Not a port.
+    !> `grep_regular_expressions' rule.  Not a port.
     subroutine first_match_end_column(number, found)
         integer(int64), intent(out) :: number
         logical, intent(out) :: found
@@ -778,98 +780,98 @@ contains
         if (found) number = mend - beginning - 1
     end subroutine first_match_end_column
 
-    !> The end of the line at POS (save-excursion, goto-char,
+    !> The end of the line at POSITION (save-excursion, goto-char,
     !> line-end-position).  Not a port.
-    integer(int64) function line_end_at(pos) result(eol)
-        integer(int64), intent(in) :: pos
-        integer(int64) :: opoint
+    integer(int64) function line_end_at(position) result(end_of_line)
+        integer(int64), intent(in) :: position
+        integer(int64) :: original_point
 
-        opoint = point()
-        call goto_char(pos)
-        eol = line_end_position()
-        call goto_char(opoint)
+        original_point = point()
+        call goto_character(position)
+        end_of_line = line_end_position()
+        call goto_character(original_point)
     end function line_end_at
 
-    !> The value of `grep_regexps'.  Not a port.
-    subroutine init_grep_regexps()
-        if (allocated(grep_regexps)) deallocate (grep_regexps)
-        allocate (grep_regexps(2))
-        grep_regexps(1)%regexp = "^\(?:" &
-                                 ! Parse using NUL characters when `--null' is used.  Note
-                                 ! that we must still assume no newlines in filenames due to
-                                 ! "foo: Is a directory." type messages.
-                                 //"\(?1:[^"//NUL//NL//"]+\)\(?3:"//NUL//"\)\(?2:[0-9]+\):" &
-                                 //"\|" &
-                                 ! Fallback if `--null' is not used, use a tight regexp to
-                                 ! handle weird file names (with colons in them) as well as
-                                 ! possible.  E.g., use [1-9][0-9]* rather than [0-9]+ so as
-                                 ! to accept ":034:" in file names.
-                                 //"\(?1:" &
-                                 //"\(?:[a-zA-Z]:\)?" & ! Allow "C:..." for w32.
-                                 //"[^"//NL//":]+?[^"//NL//"/:]\):["//TB//" ]*\(?2:[1-9][0-9]*\)["//TB//" ]*:" &
-                                 //"\)"
-        grep_regexps(1)%file = 1
-        grep_regexps(1)%line = 2
+    !> The value of `grep_regular_expressions'.  Not a port.
+    subroutine initialize_grep_regular_expressions()
+        if (allocated(grep_regular_expressions)) deallocate (grep_regular_expressions)
+        allocate (grep_regular_expressions(2))
+        grep_regular_expressions(1)%regular_expression = "^\(?:" &
+                                                         ! Parse using NUL characters when `--null' is used.  Note
+                                                         ! that we must still assume no newlines in filenames due to
+                                                         ! "foo: Is a directory." type messages.
+                                                         //"\(?1:[^"//NUL//NEWLINE//"]+\)\(?3:"//NUL//"\)\(?2:[0-9]+\):" &
+                                                         //"\|" &
+                                                         ! Fallback if `--null' is not used, use a tight regexp to
+                                                         ! handle weird file names (with colons in them) as well as
+                                                         ! possible.  E.g., use [1-9][0-9]* rather than [0-9]+ so as
+                                                         ! to accept ":034:" in file names.
+                                                         //"\(?1:" &
+                                                         //"\(?:[a-zA-Z]:\)?" & ! Allow "C:..." for w32.
+                                           //"[^"//NEWLINE//":]+?[^"//NEWLINE//"/:]\):["//TB//" ]*\(?2:[1-9][0-9]*\)["//TB//" ]*:" &
+                                                         //"\)"
+        grep_regular_expressions(1)%file = 1
+        grep_regular_expressions(1)%line = 2
         ! Calculate column positions (col . end-col) of first grep match on
         ! a line.
-        grep_regexps(1)%column_function => first_match_column
-        grep_regexps(1)%end_column_function => first_match_end_column
-        allocate (grep_regexps(1)%highlights(1))
-        grep_regexps(1)%highlights(1)%submatch = 3
-        grep_regexps(1)%highlights(1)%face = ""
-        grep_regexps(1)%highlights(1)%display = ":"
-        grep_regexps(2)%regexp = "^Binary file \(.+\) matches"
-        grep_regexps(2)%file = 1
-        grep_regexps(2)%type = 0
-        grep_regexps(2)%hyperlink = 1
-        allocate (grep_regexps(2)%highlights(0))
-    end subroutine init_grep_regexps
+        grep_regular_expressions(1)%column_function => first_match_column
+        grep_regular_expressions(1)%end_column_function => first_match_end_column
+        allocate (grep_regular_expressions(1)%highlights(1))
+        grep_regular_expressions(1)%highlights(1)%submatch = 3
+        grep_regular_expressions(1)%highlights(1)%face = ""
+        grep_regular_expressions(1)%highlights(1)%display = ":"
+        grep_regular_expressions(2)%regular_expression = "^Binary file \(.+\) matches"
+        grep_regular_expressions(2)%file = 1
+        grep_regular_expressions(2)%type = 0
+        grep_regular_expressions(2)%hyperlink = 1
+        allocate (grep_regular_expressions(2)%highlights(0))
+    end subroutine initialize_grep_regular_expressions
 
     !> The value of `grep_mode_font_lock_keywords' (the faces of the face
     !> variables are read when the keywords are made).  Not a port.
-    subroutine init_grep_mode_font_lock_keywords()
+    subroutine initialize_grep_mode_font_lock_keywords()
         type(font_lock_keyword_type), allocatable :: k(:)
         character(len=*), parameter :: NO_MESSAGE(3) = [character(len=19) :: "compilation_message", "help_echo", &
                                                                                                                        "mouse_face"]
 
         allocate (k(7))
         ! Command output lines.
-        k(1)%regexp = ": \(.\{,200\}\): \(?:Permission denied\|No such \(?:file or directory\|device or address\)\)$"
+        k(1)%regular_expression = ": \(.\{,200\}\): \(?:Permission denied\|No such \(?:file or directory\|device or address\)\)$"
         allocate (k(1)%highlights(1))
         k(1)%highlights(1) = font_lock_highlight(1, face=grep_error_face)
         ! Remove match from grep-regexp-alist before fontifying.
-        k(2)%regexp = "^Grep[/a-zA-Z]* started.*"
+        k(2)%regular_expression = "^Grep[/a-zA-Z]* started.*"
         allocate (k(2)%highlights(1))
-        k(2)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, nil_properties=NO_MESSAGE)
-        k(3)%regexp = "^Grep[/a-zA-Z]* finished with \(?:\(\(?:[0-9]+ \)?match\(?:es\)? found\)\|" &
-                      //"\(no matches found\)\).*"
+        k(2)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, false_properties=NO_MESSAGE)
+        k(3)%regular_expression = "^Grep[/a-zA-Z]* finished with \(?:\(\(?:[0-9]+ \)?match\(?:es\)? found\)\|" &
+                                  //"\(no matches found\)\).*"
         allocate (k(3)%highlights(3))
-        k(3)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, nil_properties=NO_MESSAGE)
+        k(3)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, false_properties=NO_MESSAGE)
         k(3)%highlights(2) = font_lock_highlight(1, face=setting_value(compilation_info_face%value), laxmatch=.true.)
         k(3)%highlights(3) = font_lock_highlight(2, face=setting_value(compilation_warning_face%value), laxmatch=.true.)
-        k(4)%regexp = "^Grep[/a-zA-Z]* \(exited abnormally\|interrupt\|killed\|terminated\)" &
-                      //"\(?:.*with code \([0-9]+\)\)?.*"
+        k(4)%regular_expression = "^Grep[/a-zA-Z]* \(exited abnormally\|interrupt\|killed\|terminated\)" &
+                                  //"\(?:.*with code \([0-9]+\)\)?.*"
         allocate (k(4)%highlights(3))
-        k(4)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, nil_properties=NO_MESSAGE)
+        k(4)%highlights(1) = font_lock_highlight(0, override=FONT_LOCK_OVERRIDE_REPLACE, false_properties=NO_MESSAGE)
         k(4)%highlights(2) = font_lock_highlight(1, face=grep_error_face)
         k(4)%highlights(3) = font_lock_highlight(2, face=grep_error_face, laxmatch=.true.)
         ! "filename-linenumber-" format is used for context lines in GNU
         ! grep, "filename=linenumber=" for lines with function names in
         ! "git grep -p".
-        k(5)%regexp = "^.+?\([-="//NUL//"]\)[0-9]+\([-=]\).*"//NL
+        k(5)%regular_expression = "^.+?\([-="//NUL//"]\)[0-9]+\([-=]\).*"//NEWLINE
         allocate (k(5)%highlights(2))
         k(5)%highlights(1) = font_lock_highlight(0, face=grep_context_face)
         k(5)%highlights(2) = font_lock_highlight(1, properties_function=context_separator_properties)
         ! Hide excessive part of rgrep command.
-        k(6)%regexp = "^find \(\(?:-H \)?\. -type d .*\(?:\\)\|"")""\)\)"
+        k(6)%regular_expression = "^find \(\(?:-H \)?\. -type d .*\(?:\\)\|"")""\)\)"
         allocate (k(6)%highlights(1))
         k(6)%highlights(1) = font_lock_highlight(1, properties_function=abbreviate_properties)
         ! Hide excessive part of lgrep command.
-        k(7)%regexp = "^grep \( *--exclude.*--exclude[^ ]+\)"
+        k(7)%regular_expression = "^grep \( *--exclude.*--exclude[^ ]+\)"
         allocate (k(7)%highlights(1))
         k(7)%highlights(1) = font_lock_highlight(1, properties_function=abbreviate_properties)
         call move_alloc(k, grep_mode_font_lock_keywords)
-    end subroutine init_grep_mode_font_lock_keywords
+    end subroutine initialize_grep_mode_font_lock_keywords
 
     !> S, or "" when unallocated.  Not a port.
     function setting_value(s) result(v)
@@ -890,7 +892,7 @@ contains
         logical :: found
 
         status = status_type()
-        call char_after(c, found, start)
+        call character_after(c, found, start)
         if (.not. found .or. c /= 0) return
         call put_text_property(start, end, value_type(name="face"), value_type(), status)
         if (status%ok()) call put_text_property(start, end, value_type(name="display"), value_type(text=match_string(2)), status)
@@ -915,8 +917,8 @@ contains
     !> Properties of button-like ellipsis on part of rgrep command line
     !> (the `keymap' is Deferred).  Port of grep.el
     !> grep-find-abbreviate-properties.
-    function grep_find_abbreviate_properties() result(props)
-        type(value_type) :: props
+    function grep_find_abbreviate_properties() result(properties)
+        type(value_type) :: properties
         type(value_type) :: parts(10)
 
         parts(1) = value_type(name="face")
@@ -930,7 +932,7 @@ contains
         parts(8) = value_type(text="RET, mouse-2: show unabbreviated command")
         parts(9) = value_type(name="abbreviated_command")
         parts(10) = value_type(.true.)
-        props = make_list(parts)
+        properties = make_list(parts)
     end function grep_find_abbreviate_properties
 
     !> The mode line of grep buffers after the process state: the number
@@ -961,13 +963,13 @@ contains
         logical :: saved
         integer :: n, i
 
-        if (.not. associated(major_modes%grep_mode%execute)) call init_grep()
+        if (.not. associated(major_modes%grep_mode%execute)) call initialize_grep()
         call major_modes%grep_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! The variables define-compilation-mode sets from the mode's name.
         call compilation_scroll_output%set_local(grep_scroll_output)
         call compilation_first_column%set_local(grep_first_column)
-        call init_grep_mode_font_lock_keywords()
+        call initialize_grep_mode_font_lock_keywords()
         ! The body.
         grep_last_buffer = current_buffer()
         call compilation_error_face%set_local(grep_hit_face)
@@ -989,9 +991,9 @@ contains
 
         ! compilation-directory-matcher can't be nil, so we set it to a
         ! regexp that can never match.
-        matcher%regexp = "\`a\`"
-        allocate (matcher%dir(0), matcher%leave(0))
-        call compilation_set_mode_locals(error_regexps=grep_regexps, directory_matcher=matcher, &
+        matcher%regular_expression = "\`a\`"
+        allocate (matcher%directory(0), matcher%leave(0))
+        call compilation_set_mode_locals(error_regular_expressions=grep_regular_expressions, directory_matcher=matcher, &
                                          transform_file_match_table=transforms, error=grep_error, &
                                          mode_font_lock_keywords=grep_mode_font_lock_keywords, &
                                          mode_line_errors=grep_mode_line_matches, &
@@ -1085,8 +1087,8 @@ contains
 
     !> Return a status message for grep results.  Port of
     !> grep.el:grep-exit-message.
-    subroutine grep_exit_message(process_status, exit_status, msg, message, code)
-        character(len=*), intent(in) :: process_status, msg
+    subroutine grep_exit_message(process_status, exit_status, message_text, message, code)
+        character(len=*), intent(in) :: process_status, message_text
         integer, intent(in) :: exit_status
         character(len=:), allocatable, intent(out) :: message, code
         character(len=24) :: buffer
@@ -1095,7 +1097,7 @@ contains
         integer :: k
 
         write (buffer, "(i0)") exit_status
-        message = msg
+        message = message_text
         code = trim(buffer)
         if (process_status /= "exit") return
         ! This relies on the fact that `compilation_start' sets
@@ -1110,17 +1112,17 @@ contains
                 write (buffer, "(i0)") locals(k)%found_match_count
 
                 if (locals(k)%found_match_count == 1) then
-                    message = "finished with "//trim(buffer)//" match found"//NL
+                    message = "finished with "//trim(buffer)//" match found"//NEWLINE
                 else
-                    message = "finished with "//trim(buffer)//" matches found"//NL
+                    message = "finished with "//trim(buffer)//" matches found"//NEWLINE
                 end if
             else
-                message = "finished with matches found"//NL
+                message = "finished with matches found"//NEWLINE
             end if
 
             code = "matched"
         else if (.not. modified) then
-            message = "finished with no matches found"//NL
+            message = "finished with no matches found"//NEWLINE
             code = "no match"
         end if
     end subroutine grep_exit_message
@@ -1132,15 +1134,15 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: endm
         type(status_type) :: st
-        integer(int64) :: opoint, end, beginning, found, mb, me, limit
+        integer(int64) :: original_point, end, beginning, found, mb, me, limit
         character(len=:), allocatable :: text
         integer :: k
 
         status = status_type()
-        opoint = point()
+        original_point = point()
         call forward_line_0()
         end = point()
-        call goto_char(compilation_filter_start)
+        call goto_character(compilation_filter_start)
         call forward_line_0()
         beginning = point()
 
@@ -1153,7 +1155,8 @@ contains
             ! Highlight grep matches and delete marking sequences.
             do
                 call marker_position(endm, limit, st)
-                call re_search_forward(grep_match_regexp, found, status, bound=limit, noerror=SEARCH_MOVE)
+                call regular_expression_search_forward(grep_match_regular_expression, found, status, bound=limit, &
+                                                       noerror=SEARCH_MOVE)
                 if (.not. status%ok()) exit
                 if (found == 0) exit
                 text = match_string(1)
@@ -1167,11 +1170,11 @@ contains
             end do
 
             ! Delete all remaining escape sequences.
-            call goto_char(beginning)
+            call goto_character(beginning)
 
             do while (status%ok())
                 call marker_position(endm, limit, st)
-                call re_search_forward(ESC//"\[[0-9;]*[mK]", found, status, bound=limit, noerror=SEARCH_MOVE)
+                call regular_expression_search_forward(ESC//"\[[0-9;]*[mK]", found, status, bound=limit, noerror=SEARCH_MOVE)
                 if (.not. status%ok()) exit
                 if (found == 0) exit
                 call replace_match("", st, fixedcase=.true., literal=.true.)
@@ -1181,7 +1184,7 @@ contains
             call compilation_update_mode_line()
         end if
 
-        call goto_char(min(opoint, point_max()))
+        call goto_character(min(original_point, point_maximum()))
 
     contains
 
@@ -1199,7 +1202,7 @@ contains
         type(value_type) :: annotation
         type(status_type) :: st
         character(len=:), allocatable :: heading
-        integer(int64) :: opoint, limit, bol, found, start, end, here, hb
+        integer(int64) :: original_point, limit, beginning_of_line, found, start, end, here, hb
         logical :: matched
         integer :: k
 
@@ -1207,19 +1210,20 @@ contains
         call make_local_entry(k)
 
         if (.not. locals(k)%has_heading_state) then
-            call copy_marker_at(point_min(), locals(k)%heading_limit, .false., st)
+            call copy_marker_at(point_minimum(), locals(k)%heading_limit, .false., st)
             locals(k)%has_heading_state = .true.
         end if
 
-        opoint = point()
+        original_point = point()
         ! Move point to the old limit and update limit marker.
-        bol = line_beginning_position()
+        beginning_of_line = line_beginning_position()
         call marker_position(locals(k)%heading_limit, limit, st)
-        call goto_char(limit)
-        call set_marker(locals(k)%heading_limit, bol, st)
+        call goto_character(limit)
+        call set_marker(locals(k)%heading_limit, beginning_of_line, st)
 
         do
-            call re_search_forward(grep_heading_regexp, found, status, bound=bol, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(grep_heading_regular_expression, found, status, bound=beginning_of_line, &
+                                                   noerror=SEARCH_NOERROR)
             if (.not. status%ok()) exit
             if (found == 0) exit
             call get_text_property(point(), value_type(name="compilation_annotation"), annotation, st)
@@ -1236,22 +1240,22 @@ contains
             end if
 
             here = point()
-            call goto_char(line_beginning_position())
+            call goto_character(line_beginning_position())
             hb = point()
             ! grep--heading-format.
-            call insert_before_markers(heading//NL, st)
+            call insert_before_markers(heading//NEWLINE, st)
             call put_text_property(hb, hb + count_characters(heading), value_type(name="font_lock_face"), &
                                    value_type(name="grep_heading"), st)
             call put_text_property(hb, hb + count_characters(heading), value_type(name="outline_level"), value_type(1_int64), st)
             call put_text_property(hb, point(), value_type(name="compilation_annotation"), value_type(.true.), st)
-            call goto_char(here + (point() - hb))
+            call goto_character(here + (point() - hb))
             locals(k)%heading = heading
             ! The limit marker is a marker; the bound of the search moves
             ! with the inserted text.
-            bol = bol + (point() - here)
+            beginning_of_line = beginning_of_line + (point() - here)
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine grep_heading_filter
 
     ! ------------------------------------------------------------------
@@ -1260,53 +1264,53 @@ contains
 
     !> Make a temporary buffer current (with-temp-buffer); OLD is the
     !> buffer to go back to.  Not a port.
-    subroutine temp_begin(old, tmp)
-        type(handle_type), intent(out) :: old, tmp
+    subroutine temporary_begin(old, temporary)
+        type(handle_type), intent(out) :: old, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
         old = current_buffer()
-        dir = ""
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
-        call set_buffer(tmp, st)
-        buffers(current)%directory = dir
-    end subroutine temp_begin
+        directory = ""
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
+        call set_buffer(temporary, st)
+        buffers(current)%directory = directory
+    end subroutine temporary_begin
 
-    !> Kill the temporary buffer TMP and make OLD current again.
+    !> Kill the temporary buffer TEMPORARY and make OLD current again.
     !> Not a port.
-    subroutine temp_end(old, tmp)
-        type(handle_type), intent(in) :: old, tmp
+    subroutine temporary_end(old, temporary)
+        type(handle_type), intent(in) :: old, temporary
         type(status_type) :: st
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call set_buffer(old, st)
-    end subroutine temp_end
+    end subroutine temporary_end
 
-    !> Run PROGRAM with ARGS (process-file), its output in the current
+    !> Run PROGRAM with ARGUMENTS (process-file), its output in the current
     !> buffer if INSERT; whether it exits with status RESULT (default 0).
     !> Port of grep.el:grep-probe.
-    logical function grep_probe(program, args, insert, result) result(ok)
+    logical function grep_probe(program, arguments, insert, result) result(ok)
         character(len=*), intent(in) :: program
-        type(string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: arguments(:)
         logical, intent(in) :: insert
         integer, intent(in), optional :: result
         type(value_type), allocatable :: argv(:)
-        type(value_type) :: res, dest
+        type(value_type) :: res, destination_name
         type(status_type) :: st
         integer :: expected, i
 
         expected = 0
         if (present(result)) expected = result
-        allocate (argv(size(args)))
+        allocate (argv(size(arguments)))
 
-        do i = 1, size(args)
-            argv(i) = value_type(text=args(i)%text)
+        do i = 1, size(arguments)
+            argv(i) = value_type(text=arguments(i)%text)
         end do
 
-        dest = value_type()
-        if (insert) dest = value_type(.true.)
-        call execute_process(program, res, st, destination=dest, args=make_list(argv))
+        destination_name = value_type()
+        if (insert) destination_name = value_type(.true.)
+        call execute_process(program, res, st, destination=destination_name, arguments=make_list(argv))
         ok = .false.
         if (.not. st%ok()) return
         if (vtag(res) == V_INTEGER) ok = xfixnum(res) == expected
@@ -1320,19 +1324,19 @@ contains
         type(status_type), intent(out) :: status
         integer :: unit, ios
 
-        call create_temp_file("grep-test-", file, status)
+        call create_temporary_file("grep-test-", file, status)
         if (.not. status%ok()) return
         open (newunit=unit, file=file, access="stream", form="unformatted", status="replace", action="write", &
               iostat=ios)
 
         if (ios /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Cannot write "//file)
+            call set_error(status, GENERIC_ERROR_CODE, "Cannot write "//file)
             return
         end if
 
-        write (unit, iostat=ios) "Copyright"//NL
+        write (unit, iostat=ios) "Copyright"//NEWLINE
         close (unit)
-        if (ios /= 0) call set_error(status, FM_GENERIC_ERROR, "Cannot write "//file)
+        if (ios /= 0) call set_error(status, GENERIC_ERROR_CODE, "Cannot write "//file)
     end subroutine grep_hello_file
 
     !> Compute the defaults for the `grep' command.
@@ -1343,7 +1347,7 @@ contains
     !> grep.el:grep-compute-defaults (the local host only).
     recursive subroutine grep_compute_defaults(status)
         type(status_type), intent(out) :: status
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         type(grep_defaults_type) :: d
         character(len=:), allocatable :: hello, grep_options, cmd0, null, gcmd, color
@@ -1371,7 +1375,7 @@ contains
         call set_defaults(d)
 
         if (grep_use_null_device%choice == GREP_USE_NULL_DEVICE_AUTO_DETECT) then
-            call temp_begin(old, tmp)
+            call temporary_begin(old, temporary)
             call grep_hello_file(hello, st)
             ok = .false.
 
@@ -1379,11 +1383,11 @@ contains
                 if (allocated(grep_command)) then
                     ! `grep_command' is already set, so use that for testing.
                     ! process-file-shell-command.
-                    if (.not. allocated(shell_file_name%value)) call init_callproc()
+                    if (.not. allocated(shell_file_name%value)) call initialize_callproc()
                     call execute_process(shell_file_name%value, res, st, destination=value_type(.true.), &
-                                         args=list(value_type(text=shell_command_switch%value), &
-                                                   value_type(text=grep_command//" "//shell_quote_argument("^Copyright")// &
-                                                              " "//shell_quote_argument(hello))))
+                                         arguments=list(value_type(text=shell_command_switch%value), &
+                                                        value_type(text=grep_command//" "//shell_quote_argument("^Copyright")// &
+                                                                   " "//shell_quote_argument(hello))))
                     if (st%ok() .and. vtag(res) == V_INTEGER) ok = xfixnum(res) == 0
                 else
                     ! Otherwise use `grep_program'.
@@ -1391,19 +1395,19 @@ contains
                 end if
 
                 if (ok) then
-                    call goto_char(point_min())
-                    ok = looking_at(regexp_quote(hello)//":[0-9]+:Copyright", st)
+                    call goto_character(point_minimum())
+                    ok = looking_at(regular_expression_quote(hello)//":[0-9]+:Copyright", st)
                 end if
 
                 call delete_file(hello, st)
             end if
 
             grep_use_null_device = .not. ok
-            call temp_end(old, tmp)
+            call temporary_end(old, temporary)
         end if
 
         if (grep_use_null_filename_separator%choice == GREP_USE_NULL_FILENAME_SEPARATOR_AUTO_DETECT) then
-            call temp_begin(old, tmp)
+            call temporary_begin(old, temporary)
             call grep_hello_file(hello, st)
             ok = .false.
 
@@ -1417,23 +1421,23 @@ contains
                 end if
 
                 if (ok) then
-                    call goto_char(point_min())
-                    ok = looking_at(regexp_quote(hello)//NUL//"[0-9]+:Copyright", st)
+                    call goto_character(point_minimum())
+                    ok = looking_at(regular_expression_quote(hello)//NUL//"[0-9]+:Copyright", st)
                 end if
 
                 call delete_file(hello, st)
             end if
 
             grep_use_null_filename_separator = ok
-            call temp_end(old, tmp)
+            call temporary_end(old, temporary)
         end if
 
         if (grep_highlight_matches%choice == GREP_HIGHLIGHT_MATCHES_AUTO_DETECT) then
-            call temp_begin(old, tmp)
+            call temporary_begin(old, temporary)
             ! The "grep --help" exit status varies; pay no attention to it.
             ok = grep_probe(grep_program, strings([character(len=6) :: "--help"]), .true.)
-            call goto_char(point_min())
-            call re_search_forward_cs("--color[^a-z]", ok)
+            call goto_character(point_minimum())
+            call regular_expression_search_forward_cs("--color[^a-z]", ok)
 
             if (ok) then
                 grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO
@@ -1441,7 +1445,7 @@ contains
                 grep_highlight_matches = .false.
             end if
 
-            call temp_end(old, tmp)
+            call temporary_end(old, temporary)
         end if
 
         if (.not. (allocated(grep_command) .and. allocated(grep_find_command) .and. allocated(grep_template) .and. &
@@ -1556,19 +1560,19 @@ contains
 
         !> re-search-forward with case-fold-search false, FOUND whether
         !> it matched.
-        subroutine re_search_forward_cs(regexp, found)
-            character(len=*), intent(in) :: regexp
+        subroutine regular_expression_search_forward_cs(regular_expression, found)
+            character(len=*), intent(in) :: regular_expression
             logical, intent(out) :: found
             logical :: saved
-            integer(int64) :: pos
+            integer(int64) :: position
             type(status_type) :: s
 
             saved = case_fold_search%value
             case_fold_search = .false.
-            call re_search_forward(regexp, pos, s, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(regular_expression, position, s, noerror=SEARCH_NOERROR)
             case_fold_search = saved
-            found = s%ok() .and. pos /= 0
-        end subroutine re_search_forward_cs
+            found = s%ok() .and. position /= 0
+        end subroutine regular_expression_search_forward_cs
     end subroutine grep_compute_defaults
 
     !> The strings WORDS (trimmed), then FILE and EXTRA if given.
@@ -1602,7 +1606,7 @@ contains
     end function strings
 
     !> A regexp matching exactly S (regexp-quote).  Not a port.
-    function regexp_quote(s) result(r)
+    function regular_expression_quote(s) result(r)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: r
         integer :: i
@@ -1613,7 +1617,7 @@ contains
             if (index("[*.\?+^$", s(i:i)) > 0) r = r//"\"
             r = r//s(i:i)
         end do
-    end function regexp_quote
+    end function regular_expression_quote
 
     !> The default for the grep commands: the region if it is active and
     !> not empty, else the tag at point (`find_tag_default'), else "".
@@ -1644,16 +1648,16 @@ contains
         character(len=:), allocatable, intent(out) :: first
         logical, intent(out) :: found
         type(value_type) :: v
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
 
         found = .false.
         call symbol_value(value_type(name=history), v, st)
         if (.not. st%ok()) return
         if (vtag(v) /= V_ARRAY) return
-        call list_elements(v, elems)
-        if (vtag(elems(1)) /= V_STRING) return
-        first = xstring(elems(1))
+        call list_elements(v, elements)
+        if (vtag(elements(1)) /= V_STRING) return
+        first = xstring(elements(1))
         found = .true.
     end subroutine history_first
 
@@ -1661,7 +1665,7 @@ contains
     !> to offer.  Port of grep.el:grep-default-command.
     function grep_default_command() result(command)
         character(len=:), allocatable :: command
-        character(len=:), allocatable :: tag_default, sh_arg_regexp, grep_default, pattern, ext
+        character(len=:), allocatable :: tag_default, shell_argument_regular_expression, grep_default, pattern, ext
         integer(int64), allocatable :: md(:)
         type(status_type) :: st
         logical :: found, matched
@@ -1669,7 +1673,7 @@ contains
 
         tag_default = shell_quote_argument(grep_tag_default())
         ! This a regexp to match single shell arguments.
-        sh_arg_regexp = "\(\(?:""\(?:[^""]\|\\""\)+""\|'[^']+'\|[^""' "//TB//NL//"]\)+\)"
+        shell_argument_regular_expression = "\(\(?:""\(?:[^""]\|\\""\)+""\|'[^']+'\|[^""' "//TB//NEWLINE//"]\)+\)"
         call history_first("grep_history", grep_default, found)
 
         if (.not. found) then
@@ -1680,7 +1684,8 @@ contains
         command = grep_default
 
         ! In the default command, find the arg that specifies the pattern.
-        if (string_match("[^ ]+\s +\(?:-[^ ]+\s +\)*"//sh_arg_regexp//"\(\s +\(\S +\)\)?", grep_default, st) == 0) then
+        if (string_match("[^ ]+\s +\(?:-[^ ]+\s +\)*"//shell_argument_regular_expression//"\(\s +\(\S +\)\)?", grep_default, &
+                         st) == 0) then
             ! If the string is not yet complete.
             if (string_match("\(\)\'", grep_default, st) == 0) return
         end if
@@ -1695,7 +1700,7 @@ contains
 
             if (b2 > 0) then
                 pattern = match_string(3, grep_default)
-                matched = string_match(wildcard_to_regexp(file_name_nondirectory(pattern)), &
+                matched = string_match(wildcard_to_regular_expression(file_name_nondirectory(pattern)), &
                                        file_name_nondirectory(buffers(current)%filename), st) /= 0
                 call set_match_data(md)
             end if
@@ -1725,7 +1730,7 @@ contains
     ! The commands
     ! ------------------------------------------------------------------
 
-    !> Run Grep with user-specified COMMAND_ARGS.
+    !> Run Grep with user-specified COMMAND_ARGUMENTS.
     !> The output from the command goes to the "*grep*" buffer.
     !>
     !> While Grep runs asynchronously, you can use \[next_error] (M-x
@@ -1733,31 +1738,31 @@ contains
     !> buffer, to go to the lines where Grep found matches.  To kill the
     !> Grep job before it finishes, type \[stop_compilation].
     !>
-    !> Noninteractively, COMMAND_ARGS should specify the Grep command-line
+    !> Noninteractively, COMMAND_ARGUMENTS should specify the Grep command-line
     !> arguments.
     !>
     !> For doing a recursive `grep', see the `rgrep' command.  For running
     !> Grep in a specific directory, see `lgrep'.
     !>
-    !> This command uses a special history list for its COMMAND_ARGS, so
+    !> This command uses a special history list for its COMMAND_ARGUMENTS, so
     !> you can easily repeat a grep command.
     !>
-    !> A prefix argument says to default the COMMAND_ARGS based on the
+    !> A prefix argument says to default the COMMAND_ARGUMENTS based on the
     !> current tag the cursor is over, substituting it into the last Grep
     !> command in the Grep command history (or into `grep_command' if that
     !> history list is empty).  Port of grep.el:grep.
-    recursive subroutine grep(command_args, status)
-        character(len=*), intent(in) :: command_args
+    recursive subroutine grep(command_arguments, status)
+        character(len=*), intent(in) :: command_arguments
         type(status_type), intent(out) :: status
 
-        call grep_1(command_args, .true., status)
+        call grep_1(command_arguments, .true., status)
     end subroutine grep
 
     !> `grep', appending `null_device' when USE_NULL_DEVICE and
     !> `grep_use_null_device' say so.
     !> Port of grep.el:grep, in part (its body).
-    recursive subroutine grep_1(command_args, use_null_device, status)
-        character(len=*), intent(in) :: command_args
+    recursive subroutine grep_1(command_arguments, use_null_device, status)
+        character(len=*), intent(in) :: command_arguments
         logical, intent(in) :: use_null_device
         type(status_type), intent(out) :: status
 
@@ -1772,9 +1777,9 @@ contains
         if (.not. status%ok()) return
 
         if (use_null_device .and. grep_use_null_device%value) then
-            call compilation_start(command_args//" "//NULL_DEVICE, status, mode=major_modes%grep_mode)
+            call compilation_start(command_arguments//" "//NULL_DEVICE, status, mode=major_modes%grep_mode)
         else
-            call compilation_start(command_args, status, mode=major_modes%grep_mode)
+            call compilation_start(command_arguments, status, mode=major_modes%grep_mode)
         end if
     end subroutine grep_1
 
@@ -1782,7 +1787,7 @@ contains
     !> grep.el:grep.
     !>
     !> Run grep, with user-specified args, and collect output in a buffer.
-    recursive subroutine cmd_grep(status)
+    recursive subroutine execute_grep(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default, command, initial_input
 
@@ -1790,7 +1795,7 @@ contains
         if (.not. status%ok()) return
         default = grep_default_command()
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             call read_shell_command("Run grep (like this): ", command, status, initial_input=default, history="grep_history")
         else
             initial_input = ""
@@ -1808,7 +1813,7 @@ contains
 
         if (.not. status%ok()) return
         call grep(command, status)
-    end subroutine cmd_grep
+    end subroutine execute_grep
 
     !> Mark relevant regions read-only, and add relevant occur
     !> text-properties.  Port of grep.el:grep-edit--prepare-buffer.
@@ -1818,29 +1823,29 @@ contains
         type(status_type) :: st
         type(handle_type) :: target_buffer, old
         type(handle_type) :: m(1), e(1)
-        integer(int64) :: pos, beginning, end, opoint, location, next
+        integer(int64) :: position, beginning, end, original_point, location, next
         logical :: found, changed
         integer :: index
 
         status = status_type()
-        opoint = point()
+        original_point = point()
         call symbol_value(value_type(name="inhibit_read_only"), inhibit, st)
         call set(value_type(name="inhibit_read_only"), value_type(.true.), st)
-        pos = point_min()
+        position = point_minimum()
 
         do
-            call next_region("compilation_annotation", pos, beginning, end, found)
+            call next_region("compilation_annotation", position, beginning, end, found)
             if (.not. found) exit
             call add_text_properties(beginning, end, list(value_type(name="read_only"), value_type(.true.), &
                                                           value_type(name="front_sticky"), value_type(.true.)), &
                                      changed, st)
-            pos = end
+            position = end
         end do
 
-        pos = point_min()
+        position = point_minimum()
 
         do
-            call next_region("compilation_message", pos, beginning, end, found)
+            call next_region("compilation_message", position, beginning, end, found)
             if (.not. found) exit
             ! (Allow insertion of text right after prefix, but not before.)
             call add_text_properties(beginning, end, list(value_type(name="read_only"), value_type(.true.), &
@@ -1862,36 +1867,36 @@ contains
                 call next_single_property_change(end, value_type(name="compilation_message"), next, found, st)
 
                 if (.not. found) then
-                    call goto_char(end)
+                    call goto_character(end)
                     next = line_end_position() + 1
                 end if
 
-                call put_text_property(beginning, min(next, point_max()), value_type(name="occur_target"), &
+                call put_text_property(beginning, min(next, point_maximum()), value_type(name="occur_target"), &
                                        value_type(int(index, int64)), &
                                        st)
             end if
 
-            pos = end
+            position = end
         end do
 
         call set(value_type(name="inhibit_read_only"), inhibit, st)
-        call goto_char(opoint)
+        call goto_character(original_point)
 
     contains
 
-        !> The next region from FROM where PROP has a value, of one value
+        !> The next region from FROM where PROPERTY has a value, of one value
         !> (text-property-search-forward).
-        subroutine next_region(prop, from, b, e2, ok)
-            character(len=*), intent(in) :: prop
+        subroutine next_region(property, from, b, e2, ok)
+            character(len=*), intent(in) :: property
             integer(int64), intent(in) :: from
             integer(int64), intent(out) :: b, e2
             logical, intent(out) :: ok
             type(status_type) :: s
 
-            call text_property_not_all(from, point_max(), value_type(name=prop), value_type(), b, ok, s)
+            call text_property_not_all(from, point_maximum(), value_type(name=property), value_type(), b, ok, s)
             if (.not. ok) return
-            call next_single_property_change(b, value_type(name=prop), e2, ok, s)
-            if (.not. ok) e2 = point_max()
+            call next_single_property_change(b, value_type(name=property), e2, ok, s)
+            if (.not. ok) e2 = point_maximum()
             ok = .true.
         end subroutine next_region
     end subroutine grep_edit_prepare_buffer
@@ -1908,7 +1913,7 @@ contains
     recursive subroutine grep_edit_mode(status)
         type(status_type), intent(out) :: status
 
-        call set_error(status, FM_GENERIC_ERROR, &
+        call set_error(status, GENERIC_ERROR_CODE, &
                        "This mode can be enabled only by `grep_change_to_grep_edit_mode'")
     end subroutine grep_edit_mode
 
@@ -1922,14 +1927,14 @@ contains
         status = status_type()
 
         if (.not. is_derived_mode(major_modes%grep_mode)) then
-            call set_error(status, FM_GENERIC_ERROR, "Not a Grep buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not a Grep buffer")
             return
         end if
 
         process = get_buffer_process(current_buffer())
 
         if (process%index /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Cannot switch when grep is running")
+            call set_error(status, GENERIC_ERROR_CODE, "Cannot switch when grep is running")
             return
         end if
 
@@ -1960,7 +1965,7 @@ contains
         status = status_type()
 
         if (.not. is_derived_mode("grep_edit_mode")) then
-            call set_error(status, FM_GENERIC_ERROR, "Not a Grep-Edit buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not a Grep-Edit buffer")
             return
         end if
 
@@ -1976,27 +1981,27 @@ contains
         call message("Switching to Grep mode")
     end subroutine grep_edit_save_changes
 
-    !> Run grep via find, with user-specified args COMMAND_ARGS.
+    !> Run grep via find, with user-specified args COMMAND_ARGUMENTS.
     !> Collect output in the "*grep*" buffer.
     !> While find runs asynchronously, you can use the \[next_error]
     !> command to find the text that grep hits refer to.
     !>
     !> This command uses a special history list for its arguments, so you
     !> can easily repeat a find command.  Port of grep.el:grep-find.
-    recursive subroutine grep_find(command_args, status)
-        character(len=*), intent(in) :: command_args
+    recursive subroutine grep_find(command_arguments, status)
+        character(len=*), intent(in) :: command_arguments
         type(status_type), intent(out) :: status
 
         status = status_type()
         ! (let ((null-device nil)) (grep command-args)): see grep.
-        if (len(command_args) > 0) call grep_1(command_args, .false., status)
+        if (len(command_arguments) > 0) call grep_1(command_arguments, .false., status)
     end subroutine grep_find
 
     !> The command: read the find command, then `grep_find'.  The
     !> command of grep.el:grep-find.
     !>
     !> Run grep via find, with user-specified args.
-    recursive subroutine cmd_grep_find(status)
+    recursive subroutine execute_grep_find(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: command, ignored
 
@@ -2018,31 +2023,31 @@ contains
             ! No default was set.
             call read_string("compile.el: No `grep_find_command' command available. Press RET.", ignored, status)
         end if
-    end subroutine cmd_grep_find
+    end subroutine execute_grep_find
 
     !> Expand grep COMMAND string replacing <C>, <D>, <F>, <R>, and <X>.
     !> Port of grep.el:grep-expand-template.
-    function grep_expand_template(template, regexp, files, dir, excl, more_opts) result(command)
+    function grep_expand_template(template, regular_expression, files, directory, excl, more_options) result(command)
         character(len=*), intent(in) :: template
-        character(len=*), intent(in), optional :: regexp, files, dir, excl
-        character(len=*), intent(in), optional :: more_opts(:)
+        character(len=*), intent(in), optional :: regular_expression, files, directory, excl
+        character(len=*), intent(in), optional :: more_options(:)
         character(len=:), allocatable :: command
-        character(len=:), allocatable :: opts, pattern
+        character(len=:), allocatable :: options, pattern
         integer :: i
 
         pattern = ""
-        if (present(regexp)) pattern = regexp
-        ! opts: MORE_OPTS, then "-i" and the color option pushed in front.
-        opts = ""
+        if (present(regular_expression)) pattern = regular_expression
+        ! opts: MORE_OPTIONS, then "-i" and the color option pushed in front.
+        options = ""
 
-        if (present(more_opts)) then
-            do i = 1, size(more_opts)
-                opts = opts//trim(more_opts(i))
-                if (i < size(more_opts)) opts = opts//" "
+        if (present(more_options)) then
+            do i = 1, size(more_options)
+                options = options//trim(more_options(i))
+                if (i < size(more_options)) options = options//" "
             end do
         end if
 
-        if (case_fold_search%value .and. is_isearch_no_upper_case(pattern, .true.)) call prepend("-i")
+        if (case_fold_search%value .and. is_incremental_search_no_upper_case(pattern, .true.)) call prepend("-i")
 
         if (grep_highlight_matches%choice == GREP_HIGHLIGHT_MATCHES_ALWAYS) then
             call prepend("--color=always")
@@ -2051,10 +2056,10 @@ contains
         end if
 
         command = template
-        call substitute("<C>", opts)
+        call substitute("<C>", options)
 
-        if (present(dir)) then
-            call substitute("<D>", dir)
+        if (present(directory)) then
+            call substitute("<D>", directory)
         else
             call substitute("<D>", ".")
         end if
@@ -2077,13 +2082,13 @@ contains
 
     contains
 
-        subroutine prepend(opt)
-            character(len=*), intent(in) :: opt
+        subroutine prepend(option)
+            character(len=*), intent(in) :: option
 
-            if (len(opts) > 0) then
-                opts = opt//" "//opts
+            if (len(options) > 0) then
+                options = option//" "//options
             else
-                opts = opt
+                options = option
             end if
         end subroutine prepend
 
@@ -2096,16 +2101,16 @@ contains
         end subroutine substitute
     end function grep_expand_template
 
-    !> Read regexp arg for interactive grep using `read_regexp'.  Port of
+    !> Read regexp arg for interactive grep using `read_regular_expression'.  Port of
     !> grep.el:grep-read-regexp.
-    recursive subroutine grep_read_regexp(regexp, status)
-        character(len=:), allocatable, intent(out) :: regexp
+    recursive subroutine grep_read_regular_expression(regular_expression, status)
+        character(len=:), allocatable, intent(out) :: regular_expression
         type(status_type), intent(out) :: status
         type(string_type) :: defaults(1)
 
         defaults(1)%text = grep_tag_default()
-        call read_regexp("Search for", regexp, status, defaults, "grep_regexp_history")
-    end subroutine grep_read_regexp
+        call read_regular_expression("Search for", regular_expression, status, defaults, "grep_regular_expression_history")
+    end subroutine grep_read_regular_expression
 
     !> The default `grep_read_files_function': the file name at point, the
     !> buffer's file name or the buffer's name.  Port of
@@ -2134,10 +2139,10 @@ contains
     !> completion when entering a pattern, including it requires quoting,
     !> e.g. `\[quoted_insert]<space>'.
     !>
-    !> REGEXP is used as a string in the prompt.  Port of
+    !> REGULAR_EXPRESSION is used as a string in the prompt.  Port of
     !> grep.el:grep-read-files.
-    recursive subroutine grep_read_files(regexp, files, status)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine grep_read_files(regular_expression, files, status)
+        character(len=*), intent(in) :: regular_expression
         character(len=:), allocatable, intent(out) :: files
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: bn, fn, default_alias, default_extension, default, ext, alt, head
@@ -2168,7 +2173,7 @@ contains
                     call next_word(trim(grep_files_aliases(i)%files), start, j, e)
                     if (j == 0) exit
                     if (len(alt) > 0) alt = alt//"\|"
-                    alt = alt//wildcard_to_regexp(grep_files_aliases(i)%files(j:e))
+                    alt = alt//wildcard_to_regular_expression(grep_files_aliases(i)%files(j:e))
                     start = e + 1
                 end do
 
@@ -2217,7 +2222,7 @@ contains
         end do
 
         call move_alloc(defaults, read_files_defaults)
-        call completing_read(format_prompt("Search for """//regexp//""" in files matching wildcard", default), &
+        call completing_read(format_prompt("Search for """//regular_expression//""" in files matching wildcard", default), &
                              completion_function_table(merged_files_table), files, status, &
                              history="grep_files_history", defaults=read_files_defaults)
         if (.not. status%ok()) return
@@ -2256,7 +2261,7 @@ contains
         e = 0
 
         do i = int(start), len(s)
-            if (s(i:i) /= " " .and. s(i:i) /= TB .and. s(i:i) /= NL) then
+            if (s(i:i) /= " " .and. s(i:i) /= TB .and. s(i:i) /= NEWLINE) then
                 b = i
                 exit
             end if
@@ -2266,7 +2271,7 @@ contains
         e = len(s)
 
         do i = b, len(s)
-            if (s(i:i) == " " .or. s(i:i) == TB .or. s(i:i) == NL) then
+            if (s(i:i) == " " .or. s(i:i) == TB .or. s(i:i) == NEWLINE) then
                 e = i - 1
                 exit
             end if
@@ -2285,17 +2290,17 @@ contains
         character(len=*), intent(in), optional :: suffix
         type(completion_table_type) :: list_table
         type(value_type) :: r1, r2
-        type(value_type), allocatable :: e1(:), e2(:), vals(:), all(:)
+        type(value_type), allocatable :: e1(:), e2(:), values(:), all(:)
         integer :: i, n
 
         status = status_type()
-        allocate (vals(size(read_files_defaults)))
+        allocate (values(size(read_files_defaults)))
 
         do i = 1, size(read_files_defaults)
-            vals(i) = value_type(text=read_files_defaults(i)%text)
+            values(i) = value_type(text=read_files_defaults(i)%text)
         end do
 
-        list_table = completion_list_table(make_list(vals))
+        list_table = completion_list_table(make_list(values))
 
         select case (action)
         case (COMPLETE_TRY)
@@ -2365,18 +2370,18 @@ contains
         end subroutine append_value
     end subroutine merged_files_table
 
-    !> Include elements of LIST which are applicable to DIR.  Port of
+    !> Include elements of LIST which are applicable to DIRECTORY.  Port of
     !> grep.el:grep--filter-list-by-dir.
-    function filter_list_by_dir(list, dir) result(names)
+    function filter_list_by_directory(list, directory) result(names)
         type(grep_ignore_type), intent(in) :: list(:)
-        character(len=*), intent(in) :: dir
+        character(len=*), intent(in) :: directory
         character(len=64), allocatable :: names(:)
         logical :: keep(size(list))
         integer :: i, n
 
         do i = 1, size(list)
             keep(i) = .true.
-            if (associated(list(i)%applies)) keep(i) = list(i)%applies(dir)
+            if (associated(list(i)%applies)) keep(i) = list(i)%applies(directory)
         end do
 
         ! (A loop: pack of the component section list%name copies it.)
@@ -2389,27 +2394,27 @@ contains
                 names(n) = list(i)%name
             end if
         end do
-    end function filter_list_by_dir
+    end function filter_list_by_directory
 
-    !> Return the list of ignored files applicable to DIR.  Port of
+    !> Return the list of ignored files applicable to DIRECTORY.  Port of
     !> grep.el:grep-find-ignored-files.
-    function grep_find_ignored_files(dir) result(names)
-        character(len=*), intent(in) :: dir
+    function grep_find_ignored_files(directory) result(names)
+        character(len=*), intent(in) :: directory
         character(len=64), allocatable :: names(:)
 
-        names = filter_list_by_dir(grep_find_ignored_files_variable, dir)
+        names = filter_list_by_directory(grep_find_ignored_files_variable, directory)
     end function grep_find_ignored_files
 
-    !> Return the list of ignored directories applicable to DIR.  Port of
+    !> Return the list of ignored directories applicable to DIRECTORY.  Port of
     !> grep.el:rgrep-find-ignored-directories.
-    function rgrep_find_ignored_directories(dir) result(names)
-        character(len=*), intent(in) :: dir
+    function rgrep_find_ignored_directories(directory) result(names)
+        character(len=*), intent(in) :: directory
         character(len=64), allocatable :: names(:)
 
-        names = filter_list_by_dir(grep_find_ignored_directories, dir)
+        names = filter_list_by_directory(grep_find_ignored_directories, directory)
     end function rgrep_find_ignored_directories
 
-    !> Run grep, searching for REGEXP in FILES in directory DIR.
+    !> Run grep, searching for REGULAR_EXPRESSION in FILES in directory DIRECTORY.
     !> The search is limited to file names matching shell pattern FILES.
     !> FILES may use abbreviations defined in `grep_files_aliases', e.g.
     !> entering `ch' is equivalent to `*.[ch]'.  As whitespace triggers
@@ -2430,34 +2435,34 @@ contains
     !>
     !> If CONFIRM is true, the user will be given an opportunity to edit
     !> the command before it's run.  Port of grep.el:lgrep.
-    recursive subroutine lgrep(regexp, status, files, dir, confirm)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine lgrep(regular_expression, status, files, directory, confirm)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: files, dir
+        character(len=*), intent(in), optional :: files, directory
         logical, intent(in), optional :: confirm
-        character(len=:), allocatable :: command, d, edited, excl, saved_dir
+        character(len=:), allocatable :: command, d, edited, excl, saved_directory
         character(len=64), allocatable :: ignores(:)
         character(len=19), allocatable :: more(:)
-        logical :: conf, has_command, had_dir
+        logical :: configuration, has_command, had_directory
         integer :: i
         type(handle_type) :: old
 
         status = status_type()
-        conf = .false.
-        if (present(confirm)) conf = confirm
-        if (len(regexp) == 0) return
+        configuration = .false.
+        if (present(confirm)) configuration = confirm
+        if (len(regular_expression) == 0) return
 
-        if (.not. present(dir)) then
-            call set_error(status, FM_USER_ERROR, 'Unable to open directory: ""')
+        if (.not. present(directory)) then
+            call set_error(status, USER_ERROR_CODE, 'Unable to open directory: ""')
             return
         end if
 
-        if (.not. is_file_accessible_directory(dir)) then
-            call set_error(status, FM_USER_ERROR, "Unable to open directory: "//dir)
+        if (.not. is_file_accessible_directory(directory)) then
+            call set_error(status, USER_ERROR_CODE, "Unable to open directory: "//directory)
             return
         end if
 
-        command = regexp
+        command = regular_expression
         has_command = .true.
 
         if (.not. present(files)) then
@@ -2465,7 +2470,7 @@ contains
                 if (command == grep_command .and. len(command) == len(grep_command)) has_command = .false.
             end if
         else
-            call expand_file_name(dir, d, status)
+            call expand_file_name(directory, d, status)
             if (.not. status%ok()) return
             d = file_name_as_directory(d)
 
@@ -2494,9 +2499,9 @@ contains
                 allocate (more(0))
             end if
 
-            command = grep_expand_template(setting(grep_template), regexp, files, excl=excl, more_opts=more)
+            command = grep_expand_template(setting(grep_template), regular_expression, files, excl=excl, more_options=more)
 
-            if (conf) then
+            if (configuration) then
                 call read_from_minibuffer("Confirm: ", edited, status, initial_input=command, history="grep_history")
                 if (.not. status%ok()) return
                 command = edited
@@ -2507,9 +2512,9 @@ contains
 
         if (.not. has_command) return
         old = current_buffer()
-        had_dir = allocated(buffers(current)%directory)
-        if (had_dir) saved_dir = buffers(current)%directory
-        buffers(current)%directory = file_name_as_directory(dir)
+        had_directory = allocated(buffers(current)%directory)
+        if (had_directory) saved_directory = buffers(current)%directory
+        buffers(current)%directory = file_name_as_directory(directory)
         if (present(files)) buffers(current)%directory = d
         ! Setting process-setup-function makes exit-message-function work
         ! even when async processes aren't supported.
@@ -2523,14 +2528,14 @@ contains
             end if
         end if
 
-        call restore_directory(old, had_dir, saved_dir)
+        call restore_directory(old, had_directory, saved_directory)
 
         ! Set default-directory if we started lgrep in the *grep* buffer.
         if (status%ok() .and. same_buffer(next_error_last_buffer, current_buffer())) then
             if (present(files)) then
                 buffers(current)%directory = d
             else
-                buffers(current)%directory = file_name_as_directory(dir)
+                buffers(current)%directory = file_name_as_directory(directory)
             end if
         end if
     end subroutine lgrep
@@ -2544,15 +2549,15 @@ contains
 
     !> Give OLD its directory back (restoring the saved
     !> `default_directory').  Not a port.
-    subroutine restore_directory(old, had_dir, saved_dir)
+    subroutine restore_directory(old, had_directory, saved_directory)
         type(handle_type), intent(in) :: old
-        logical, intent(in) :: had_dir
-        character(len=:), allocatable, intent(in) :: saved_dir
+        logical, intent(in) :: had_directory
+        character(len=:), allocatable, intent(in) :: saved_directory
 
         if (.not. is_buffer_live(old)) return
 
-        if (had_dir) then
-            buffers(old%index)%directory = saved_dir
+        if (had_directory) then
+            buffers(old%index)%directory = saved_directory
         else if (allocated(buffers(old%index)%directory)) then
             deallocate (buffers(old%index)%directory)
         end if
@@ -2569,14 +2574,15 @@ contains
 
     !> The arguments of `lgrep', `rgrep' and `zrgrep' read interactively:
     !> with C-u C-u the command (RUN, from COMMAND and HISTORY), else the
-    !> REGEXP, FILES, DIR (prompted with DIR_PROMPT) and CONFIRM (C-u).
+    !> REGULAR_EXPRESSION, FILES, DIRECTORY (prompted with DIRECTORY_PROMPT) and CONFIRM (C-u).
     !> Port of grep.el:lgrep, grep.el:rgrep and grep.el:zrgrep, in part
     !> (how the commands read their arguments).
-    recursive subroutine read_grep_args(command, history, dir_prompt, run, regexp, files, dir, confirm, status)
+    recursive subroutine read_grep_arguments(command, history, directory_prompt, run, regular_expression, files, directory, &
+                                             confirm, status)
         character(len=:), allocatable, intent(in) :: command
-        character(len=*), intent(in) :: history, dir_prompt
+        character(len=*), intent(in) :: history, directory_prompt
         logical, intent(out) :: run
-        character(len=:), allocatable, intent(out) :: regexp, files, dir
+        character(len=:), allocatable, intent(out) :: regular_expression, files, directory
         logical, intent(out) :: confirm
         type(status_type), intent(out) :: status
         integer :: n
@@ -2584,66 +2590,67 @@ contains
         run = .false.
         confirm = .false.
         n = 0
-        if (current_prefix_arg%kind == PREFIX_RAW) n = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind == PREFIX_RAW) n = prefix_numeric_value(current_prefix_argument)
 
         if (allocated(command) .and. n == 16) then
             run = .true.
-            call read_from_minibuffer("Run: ", regexp, status, initial_input=command, history=history)
+            call read_from_minibuffer("Run: ", regular_expression, status, initial_input=command, history=history)
             return
         end if
 
-        call grep_read_regexp(regexp, status)
+        call grep_read_regular_expression(regular_expression, status)
         if (.not. status%ok()) return
-        call grep_read_files(regexp, files, status)
+        call grep_read_files(regular_expression, files, status)
         if (.not. status%ok()) return
-        call read_directory_name(dir_prompt, dir, status, mustmatch=1)
+        call read_directory_name(directory_prompt, directory, status, mustmatch=1)
         if (.not. status%ok()) return
 
-        if (len(dir) == 0) then
-            if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        if (len(directory) == 0) then
+            if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         end if
 
         confirm = n == 4
-    end subroutine read_grep_args
+    end subroutine read_grep_arguments
 
     !> The command: read the arguments, then `lgrep'.  Port of the command
     !> of grep.el:lgrep.
     !>
     !> User-friendly grep in a directory.
-    recursive subroutine cmd_lgrep(status)
+    recursive subroutine execute_lgrep(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp, files, dir
+        character(len=:), allocatable :: regular_expression, files, directory
         logical :: run, confirm
 
         call grep_compute_defaults(status)
         if (.not. status%ok()) return
 
         if (.not. allocated(grep_template) .and. .not. (allocated(grep_command) .and. &
-                                                        prefix_numeric_value(current_prefix_arg) == 16)) then
-            call set_error(status, FM_GENERIC_ERROR, "grep.el: No `grep_template' available")
+                                                        prefix_numeric_value(current_prefix_argument) == 16)) then
+            call set_error(status, GENERIC_ERROR_CODE, "grep.el: No `grep_template' available")
             return
         end if
 
-        call read_grep_args(grep_command, "grep_history", "In directory: ", run, regexp, files, dir, confirm, status)
+        call read_grep_arguments(grep_command, "grep_history", "In directory: ", run, regular_expression, files, directory, &
+                                 confirm, status)
         if (.not. status%ok()) return
 
         if (run) then
-            call lgrep(regexp, status, dir=buffer_dir())
+            call lgrep(regular_expression, status, directory=buffer_directory())
         else
-            call lgrep(regexp, status, files, dir, confirm)
+            call lgrep(regular_expression, status, files, directory, confirm)
         end if
-    end subroutine cmd_lgrep
+    end subroutine execute_lgrep
 
     !> The current buffer's `default_directory'.  Not a port.
-    function buffer_dir() result(dir)
-        character(len=:), allocatable :: dir
+    function buffer_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = "./"
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-    end function buffer_dir
+        directory = "./"
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
+    end function buffer_directory
 
-    !> Recursively grep for REGEXP in FILES in directory tree rooted at
-    !> DIR.  The search is limited to file names matching shell pattern
+    !> Recursively grep for REGULAR_EXPRESSION in FILES in directory tree rooted at
+    !> DIRECTORY.  The search is limited to file names matching shell pattern
     !> FILES.  FILES may use abbreviations defined in
     !> `grep_files_aliases', e.g. entering `ch' is equivalent to `*.[ch]'.
     !> As whitespace triggers completion when entering a pattern, including
@@ -2663,23 +2670,23 @@ contains
     !> This command shares argument histories with \[lgrep] and
     !> \[grep_find].
     !>
-    !> When called programmatically and FILES is absent, REGEXP is expected
+    !> When called programmatically and FILES is absent, REGULAR_EXPRESSION is expected
     !> to specify a command to run.
     !>
     !> If CONFIRM is true, the user will be given an opportunity to edit
     !> the command before it's run.  Port of grep.el:rgrep.
-    recursive subroutine rgrep(regexp, status, files, dir, confirm)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine rgrep(regular_expression, status, files, directory, confirm)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: files, dir
+        character(len=*), intent(in), optional :: files, directory
         logical, intent(in), optional :: confirm
-        character(len=:), allocatable :: command, d, edited, saved_dir
-        logical :: conf, had_dir
+        character(len=:), allocatable :: command, d, edited, saved_directory
+        logical :: configuration, had_directory
         type(handle_type) :: old
 
         status = status_type()
-        conf = .false.
-        if (present(confirm)) conf = confirm
+        configuration = .false.
+        if (present(confirm)) configuration = confirm
 
         ! If called non-interactively, also compute the defaults if we
         ! haven't already.
@@ -2688,34 +2695,34 @@ contains
             if (.not. status%ok()) return
         end if
 
-        if (len(regexp) == 0) return
+        if (len(regular_expression) == 0) return
 
-        if (.not. present(dir)) then
-            call set_error(status, FM_USER_ERROR, 'Unable to open directory: ""')
+        if (.not. present(directory)) then
+            call set_error(status, USER_ERROR_CODE, 'Unable to open directory: ""')
             return
         end if
 
-        if (.not. is_file_accessible_directory(dir)) then
-            call set_error(status, FM_USER_ERROR, "Unable to open directory: "//dir)
+        if (.not. is_file_accessible_directory(directory)) then
+            call set_error(status, USER_ERROR_CODE, "Unable to open directory: "//directory)
             return
         end if
 
         if (.not. present(files)) then
             if (allocated(grep_find_command)) then
-                if (regexp == grep_find_command .and. len(regexp) == len(grep_find_command)) return
+                if (regular_expression == grep_find_command .and. len(regular_expression) == len(grep_find_command)) return
             end if
 
-            call compilation_start(regexp, status, mode=major_modes%grep_mode)
+            call compilation_start(regular_expression, status, mode=major_modes%grep_mode)
             return
         end if
 
-        call expand_file_name(dir, d, status)
+        call expand_file_name(directory, d, status)
         if (.not. status%ok()) return
         d = file_name_as_directory(d)
         ! (case-fold-search (read-regexp-case-fold-search regexp)).
-        command = rgrep_default_command(regexp, files, d)
+        command = rgrep_default_command(regular_expression, files, d)
 
-        if (conf) then
+        if (configuration) then
             call read_from_minibuffer("Confirm: ", edited, status, initial_input=command, history="grep_find_history")
             if (.not. status%ok()) return
             command = edited
@@ -2726,11 +2733,11 @@ contains
         call grep_save_buffers_now(status)
         if (.not. status%ok()) return
         old = current_buffer()
-        had_dir = allocated(buffers(current)%directory)
-        if (had_dir) saved_dir = buffers(current)%directory
+        had_directory = allocated(buffers(current)%directory)
+        if (had_directory) saved_directory = buffers(current)%directory
         buffers(current)%directory = d
         call compilation_start(command, status, mode=major_modes%grep_mode)
-        call restore_directory(old, had_dir, saved_dir)
+        call restore_directory(old, had_directory, saved_directory)
         ! Set default-directory if we started rgrep in the *grep* buffer.
         if (status%ok() .and. same_buffer(next_error_last_buffer, current_buffer())) buffers(current)%directory = d
     end subroutine rgrep
@@ -2739,66 +2746,67 @@ contains
     !> of grep.el:rgrep.
     !>
     !> User-friendly recursive grep in directory tree.
-    recursive subroutine cmd_rgrep(status)
+    recursive subroutine execute_rgrep(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp, files, dir
+        character(len=:), allocatable :: regular_expression, files, directory
         logical :: run, confirm
 
         call grep_compute_defaults(status)
         if (.not. status%ok()) return
 
         if (.not. allocated(grep_find_template) .and. .not. (allocated(grep_find_command) .and. &
-                                                             prefix_numeric_value(current_prefix_arg) == 16)) then
-            call set_error(status, FM_GENERIC_ERROR, "grep.el: No `grep_find_template' available")
+                                                             prefix_numeric_value(current_prefix_argument) == 16)) then
+            call set_error(status, GENERIC_ERROR_CODE, "grep.el: No `grep_find_template' available")
             return
         end if
 
-        call read_grep_args(grep_find_command, "grep_find_history", "Base directory: ", run, regexp, files, dir, &
-                            confirm, status)
+        call read_grep_arguments(grep_find_command, "grep_find_history", "Base directory: ", run, regular_expression, files, &
+                                 directory, &
+                                 confirm, status)
         if (.not. status%ok()) return
 
         if (run) then
-            call rgrep(regexp, status, dir=buffer_dir())
+            call rgrep(regular_expression, status, directory=buffer_directory())
         else
-            call rgrep(regexp, status, files, dir, confirm)
+            call rgrep(regular_expression, status, files, directory, confirm)
         end if
-    end subroutine cmd_rgrep
+    end subroutine execute_rgrep
 
     !> Compute the command for \[rgrep] to use by default.  Port of
     !> grep.el:rgrep-default-command.
-    function rgrep_default_command(regexp, files, dir) result(command)
-        character(len=*), intent(in) :: regexp, files
-        character(len=*), intent(in), optional :: dir
+    function rgrep_default_command(regular_expression, files, directory) result(command)
+        character(len=*), intent(in) :: regular_expression, files
+        character(len=*), intent(in), optional :: directory
         character(len=:), allocatable :: command
-        character(len=64), allocatable :: ignored_files(:), ignored_dirs(:)
-        character(len=:), allocatable :: ignored_files_arg, f, x, d
+        character(len=64), allocatable :: ignored_files(:), ignored_directories(:)
+        character(len=:), allocatable :: ignored_files_argument, f, x, d
         integer(int64) :: start, e
         integer :: i, b
 
         d = ""
-        if (present(dir)) d = dir
+        if (present(directory)) d = directory
         ignored_files = grep_find_ignored_files(d)
-        ignored_files_arg = ""
+        ignored_files_argument = ""
 
         if (size(ignored_files) > 0) then
-            ignored_files_arg = shell_quote_argument("(")//" -name "
+            ignored_files_argument = shell_quote_argument("(")//" -name "
 
             do i = 1, size(ignored_files)
-                if (i > 1) ignored_files_arg = ignored_files_arg//" -o -name "
-                ignored_files_arg = ignored_files_arg//shell_quote_argument(trim(ignored_files(i)))
+                if (i > 1) ignored_files_argument = ignored_files_argument//" -o -name "
+                ignored_files_argument = ignored_files_argument//shell_quote_argument(trim(ignored_files(i)))
             end do
 
-            ignored_files_arg = ignored_files_arg//" "//shell_quote_argument(")")
+            ignored_files_argument = ignored_files_argument//" "//shell_quote_argument(")")
         end if
 
-        f = shell_quote_argument("(")//" "//find_name_arg//" "
+        f = shell_quote_argument("(")//" "//find_name_argument//" "
         start = 1
         i = 0
 
         do
             call next_word(files, start, b, e)
             if (b == 0) exit
-            if (i > 0) f = f//" -o "//find_name_arg//" "
+            if (i > 0) f = f//" -o "//find_name_argument//" "
             f = f//shell_quote_argument(files(b:e))
             i = i + 1
             start = e + 1
@@ -2806,32 +2814,32 @@ contains
 
         f = f//" "//shell_quote_argument(")")
 
-        if (rgrep_find_ignores_in_f .and. len(ignored_files_arg) > 0) then
-            f = f//" "//shell_quote_argument("!")//" "//ignored_files_arg
+        if (rgrep_find_ignores_in_f .and. len(ignored_files_argument) > 0) then
+            f = f//" "//shell_quote_argument("!")//" "//ignored_files_argument
         end if
 
         x = ""
-        ignored_dirs = rgrep_find_ignored_directories(d)
+        ignored_directories = rgrep_find_ignored_directories(d)
 
-        if (size(ignored_dirs) > 0) then
+        if (size(ignored_directories) > 0) then
             x = "-type d "//shell_quote_argument("(")//" -path "
 
-            do i = 1, size(ignored_dirs)
+            do i = 1, size(ignored_directories)
                 if (i > 1) x = x//" -o -path "
-                x = x//shell_quote_argument("*/"//trim(ignored_dirs(i)))
+                x = x//shell_quote_argument("*/"//trim(ignored_directories(i)))
             end do
 
             x = x//" "//shell_quote_argument(")")//" -prune -o "
         end if
 
-        if (.not. rgrep_find_ignores_in_f .and. len(ignored_files_arg) > 0) then
-            x = x//shell_quote_argument("!")//" -type d "//ignored_files_arg//" -prune -o "
+        if (.not. rgrep_find_ignores_in_f .and. len(ignored_files_argument) > 0) then
+            x = x//shell_quote_argument("!")//" -type d "//ignored_files_argument//" -prune -o "
         end if
 
-        if (present(dir)) then
-            command = grep_expand_template(setting(grep_find_template), regexp, f, dir, x)
+        if (present(directory)) then
+            command = grep_expand_template(setting(grep_find_template), regular_expression, f, directory, x)
         else
-            command = grep_expand_template(setting(grep_find_template), regexp, f, excl=x)
+            command = grep_expand_template(setting(grep_find_template), regular_expression, f, excl=x)
         end if
     end function rgrep_default_command
 
@@ -2847,7 +2855,7 @@ contains
 
         status = status_type()
         call silent_modifications_begin(silent)
-        call next_single_property_change(point_min(), value_type(name="abbreviated_command"), beginning, found, st)
+        call next_single_property_change(point_minimum(), value_type(name="abbreviated_command"), beginning, found, st)
         end = 0
         if (found) call next_single_property_change(beginning, value_type(name="abbreviated_command"), end, found, st)
 
@@ -2863,23 +2871,23 @@ contains
                 call add_text_properties(beginning, end, grep_find_abbreviate_properties(), changed, st)
             end if
         else
-            call set_error(status, FM_USER_ERROR, "No abbreviated part to hide/show")
+            call set_error(status, USER_ERROR_CODE, "No abbreviated part to hide/show")
         end if
 
         call silent_modifications_end(silent)
     end subroutine grep_find_toggle_abbreviation
 
-    !> Recursively grep for REGEXP in gzipped FILES in tree rooted at DIR.
+    !> Recursively grep for REGULAR_EXPRESSION in gzipped FILES in tree rooted at DIRECTORY.
     !> Like `rgrep' but uses `zgrep' for `grep_program', sets the default
     !> file name to `*.gz', and sets `grep_highlight_matches' to
     !> GREP_HIGHLIGHT_MATCHES_ALWAYS.
     !>
     !> If CONFIRM is true, the user will be given an opportunity to edit
     !> the command before it's run.  Port of grep.el:zrgrep.
-    recursive subroutine zrgrep(regexp, status, files, dir, confirm, template)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine zrgrep(regular_expression, status, files, directory, confirm, template)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: files, dir, template
+        character(len=*), intent(in), optional :: files, directory, template
         logical, intent(in), optional :: confirm
         character(len=:), allocatable :: saved_template
         logical :: had_template
@@ -2898,7 +2906,7 @@ contains
         ! Set `grep_highlight_matches' to always since `zgrep' puts filters
         ! in the grep output.
         grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_ALWAYS
-        call rgrep(regexp, status, files, dir, confirm)
+        call rgrep(regular_expression, status, files, directory, confirm)
         grep_highlight_matches = saved_highlight
 
         if (had_template) then
@@ -2912,12 +2920,12 @@ contains
     !> `zrgrep'.  Port of the command of grep.el:zrgrep.
     !>
     !> Recursively grep for a regexp in gzipped files.
-    recursive subroutine cmd_zrgrep(status)
+    recursive subroutine execute_zrgrep(status)
         type(status_type), intent(out) :: status
         type(grep_defaults_type) :: saved
         type(grep_host_defaults_type) :: saved_table
         type(grep_files_alias_type), allocatable :: saved_aliases(:)
-        character(len=:), allocatable :: saved_program, regexp, files, dir, template
+        character(len=:), allocatable :: saved_program, regular_expression, files, directory, template
         logical :: run, confirm, has_template
 
         ! Compute standard default values.
@@ -2946,11 +2954,12 @@ contains
 
         if (status%ok()) then
             if (.not. has_template .and. .not. (allocated(grep_find_command) .and. &
-                                                prefix_numeric_value(current_prefix_arg) == 16)) then
-                call set_error(status, FM_GENERIC_ERROR, "grep.el: No `grep_find_template' available")
+                                                prefix_numeric_value(current_prefix_argument) == 16)) then
+                call set_error(status, GENERIC_ERROR_CODE, "grep.el: No `grep_find_template' available")
             else
-                call read_grep_args(grep_find_command, "grep_find_history", "Base directory: ", run, regexp, files, &
-                                    dir, confirm, status)
+                call read_grep_arguments(grep_find_command, "grep_find_history", "Base directory: ", run, regular_expression, &
+                                         files, &
+                                         directory, confirm, status)
             end if
         end if
 
@@ -2962,13 +2971,13 @@ contains
         if (.not. status%ok()) return
 
         if (run) then
-            call zrgrep(regexp, status, dir=buffer_dir())
+            call zrgrep(regular_expression, status, directory=buffer_directory())
         else if (has_template) then
-            call zrgrep(regexp, status, files, dir, confirm, template)
+            call zrgrep(regular_expression, status, files, directory, confirm, template)
         else
-            call zrgrep(regexp, status, files, dir, confirm)
+            call zrgrep(regular_expression, status, files, directory, confirm)
         end if
-    end subroutine cmd_zrgrep
+    end subroutine execute_zrgrep
 
     !> Return the name of the file at POINT a `grep_mode' buffer.
     !> The returned file name is relative.  Port of
@@ -2980,7 +2989,7 @@ contains
         type(compilation_message_info_type) :: info
 
         call compilation_message_info(point, info, found)
-        if (found) found = info%has_loc .and. allocated(info%file)
+        if (found) found = info%has_location .and. allocated(info%file)
         if (found) file = info%file
     end subroutine grep_file_at_point
 
@@ -2990,13 +2999,13 @@ contains
 
     !> Give the variables their defaults, define Grep mode and register
     !> the commands.  Not a port.
-    subroutine init_grep()
+    subroutine initialize_grep()
         type(status_type) :: st
         integer :: i, n
 
         if (associated(major_modes%grep_mode%execute)) return
-        if (.not. associated(major_modes%compilation_mode%execute)) call init_compile()
-        grep_match_regexp = ESC//"\[\(?:0?1;\)?31m\(.*?\)"//ESC//"\[[0-9]*m"
+        if (.not. associated(major_modes%compilation_mode%execute)) call initialize_compile()
+        grep_match_regular_expression = ESC//"\[\(?:0?1;\)?31m\(.*?\)"//ESC//"\[[0-9]*m"
         grep_match_face = "match"
         grep_error = "grep hit"
         ! Reverse the colors because grep hits are not errors (though we
@@ -3006,14 +3015,14 @@ contains
         if (allocated(compilation_info_face%value)) grep_hit_face = compilation_info_face%value
         grep_error_face = "compilation_error"
         grep_context_face = "shadow"
-        grep_heading_regexp = "^\(?:\(?2:\(?1:[^"//NUL//NL//"]+\)"//NUL//"\)\|\(?2:\(?1:.+?\)[:=-]\)\)[0-9]+[:=-]"
+        grep_heading_regular_expression = "^\(?:\(?2:\(?1:[^"//NUL//NEWLINE//"]+\)"//NUL//"\)\|\(?2:\(?1:.+?\)[:=-]\)\)[0-9]+[:=-]"
         if (.not. allocated(grep_program)) grep_program = "grep"
         if (.not. allocated(find_program)) find_program = "find"
         if (.not. allocated(xargs_program)) xargs_program = "xargs"
 
-        if (.not. allocated(find_name_arg)) then
-            find_name_arg = "-name"
-            if (read_file_name_completion_ignore_case) find_name_arg = "-iname"
+        if (.not. allocated(find_name_argument)) then
+            find_name_argument = "-name"
+            if (read_file_name_completion_ignore_case) find_name_argument = "-iname"
         end if
 
         if (.not. allocated(grep_files_aliases)) then
@@ -3034,13 +3043,13 @@ contains
         end if
 
         if (.not. allocated(grep_find_ignored_directories)) then
-            if (.not. allocated(vc_directory_exclusions)) then
+            if (.not. allocated(version_control_directory_exclusions)) then
                 allocate (grep_find_ignored_directories(0))
             else
-                allocate (grep_find_ignored_directories(size(vc_directory_exclusions)))
+                allocate (grep_find_ignored_directories(size(version_control_directory_exclusions)))
 
-                do i = 1, size(vc_directory_exclusions)
-                    grep_find_ignored_directories(i)%name = trim(vc_directory_exclusions(i))
+                do i = 1, size(version_control_directory_exclusions)
+                    grep_find_ignored_directories(i)%name = trim(version_control_directory_exclusions(i))
                 end do
             end if
         end if
@@ -3067,14 +3076,14 @@ contains
         end if
 
         allocate (grep_compilation_transform_finished_rules(2))
-        grep_compilation_transform_finished_rules(1)%regexp = "^Grep[/a-zA-Z]* finished with \(?:\(\(?:[0-9]+ \)?" &
-                                                              //"match\(?:es\)? found\)\|\(no matches found\)\).*"
-        grep_compilation_transform_finished_rules(2)%regexp = "^Grep[/a-zA-Z]* \(exited abnormally\|interrupt\|" &
-                                                              //"killed\|terminated\)\(?:.*with code \([0-9]+\)\)?.*"
-        call init_grep_regexps()
-        call init_grep_mode_font_lock_keywords()
+        grep_compilation_transform_finished_rules(1)%regular_expression = "^Grep[/a-zA-Z]* finished with \(?:\(\(?:[0-9]+ \)?" &
+                                                                          //"match\(?:es\)? found\)\|\(no matches found\)\).*"
+        grep_compilation_transform_finished_rules(2)%regular_expression = "^Grep[/a-zA-Z]* \(exited abnormally\|interrupt\|" &
+                                                                          //"killed\|terminated\)\(?:.*with code \([0-9]+\)\)?.*"
+        call initialize_grep_regular_expressions()
+        call initialize_grep_mode_font_lock_keywords()
         call grep_heading%define("grep_heading", "Face of headings when `grep_use_headings' is true.")
-        call grep_heading%spec_entry(display_when(), face_attrs(inherit=grep_hit_face))
+        call grep_heading%specification_entry(display_when(), face_attributes(inherit=grep_hit_face))
         call major_modes%grep_mode%define("grep_mode", "Grep", grep_mode, grep_mode_hook, &
                                           parent=major_modes%compilation_mode)
         grep_mode_map = major_modes%grep_mode%map
@@ -3093,16 +3102,16 @@ contains
         call keymap_set(grep_edit_mode_map, "C-c C-c", "grep_edit_save_changes", st)
         call forward_setting(grep_history)
         call forward_setting(grep_find_history)
-        call forward_setting(grep_regexp_history)
+        call forward_setting(grep_regular_expression_history)
         call forward_setting(grep_files_history)
         commands%grep_mode%execute => grep_mode
-        commands%grep%execute => cmd_grep
-        commands%grep_find%execute => cmd_grep_find
-        commands%find_grep%execute => cmd_grep_find
-        commands%lgrep%execute => cmd_lgrep
-        commands%rgrep%execute => cmd_rgrep
-        commands%zrgrep%execute => cmd_zrgrep
-        commands%rzgrep%execute => cmd_zrgrep
+        commands%grep%execute => execute_grep
+        commands%grep_find%execute => execute_grep_find
+        commands%find_grep%execute => execute_grep_find
+        commands%lgrep%execute => execute_lgrep
+        commands%rgrep%execute => execute_rgrep
+        commands%zrgrep%execute => execute_zrgrep
+        commands%rzgrep%execute => execute_zrgrep
         commands%stop_grep%execute => stop_compilation
         commands%grep_find_toggle_abbreviation%execute => grep_find_toggle_abbreviation
         commands%grep_edit_mode%execute => grep_edit_mode
@@ -3120,7 +3129,7 @@ contains
             ends_with_slash = .false.
             if (l > 0) ends_with_slash = s(l:l) == "/"
         end function ends_with_slash
-    end subroutine init_grep
+    end subroutine initialize_grep
 
     !> The assignment that sets the number or procedure `grep_save_buffers' takes, for the error of a rejected
     !> value.  Not a port.

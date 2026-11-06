@@ -41,13 +41,13 @@
 !> environment); `with-environment-variables' (save, `setenv', run,
 !> restore).
 module environment_mod
-    use error_mod, only: status_type, set_error, format_message, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE
     use execute_process_mod, only: getenv_internal, setenv_internal, GETENV_SET
-    use system_dependent_mod, only: sys_setenv, sys_unsetenv
+    use system_dependent_mod, only: system_setenv, system_unsetenv
     implicit none(type, external)
     private
 
-    public :: getenv, setenv, substitute_env_vars
+    public :: getenv, setenv, substitute_environment_variables
 
 contains
 
@@ -86,7 +86,7 @@ contains
         integer :: err
 
         if (index(variable, "=") > 0) then
-            call set_error(st, FM_GENERIC_ERROR, &
+            call set_error(st, GENERIC_ERROR_CODE, &
                            format_message("Environment variable name `")//variable//format_message("' contains `='"))
             if (present(status)) status = st
             return
@@ -96,9 +96,9 @@ contains
 
         ! The editor's own reads of the environment.
         if (present(value)) then
-            err = sys_setenv(variable, value)
+            err = system_setenv(variable, value)
         else
-            err = sys_unsetenv(variable)
+            err = system_unsetenv(variable)
         end if
 
         if (present(status)) status = st
@@ -108,7 +108,7 @@ contains
     !> $$ by $.  References to unset variables are left unchanged with
     !> `keep_undefined', else replaced by "".  Port of
     !> env.el:substitute-env-vars (WHEN-UNDEFINED absent or .true.).
-    function substitute_env_vars(string, keep_undefined) result(out)
+    function substitute_environment_variables(string, keep_undefined) result(out)
         character(len=*), intent(in) :: string
         logical, intent(in) :: keep_undefined
         character(len=:), allocatable :: out
@@ -152,7 +152,7 @@ contains
                 j = i + 1
 
                 do while (j <= len(string))
-                    if (.not. name_char(string(j:j))) exit
+                    if (.not. name_character(string(j:j))) exit
                     j = j + 1
                 end do
 
@@ -177,10 +177,10 @@ contains
     contains
 
         !> [[:alnum:]_] (ASCII).
-        pure logical function name_char(c)
+        pure logical function name_character(c)
             character, intent(in) :: c
 
-            name_char = verify(c, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == 0
-        end function name_char
-    end function substitute_env_vars
+            name_character = verify(c, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_") == 0
+        end function name_character
+    end function substitute_environment_variables
 end module environment_mod

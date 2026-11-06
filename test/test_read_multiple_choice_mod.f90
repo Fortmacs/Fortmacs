@@ -25,15 +25,15 @@
 !> `read-key`) and the layout of test-read-multiple-choice-help.
 module test_read_multiple_choice_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_QUIT
+    use error_mod, only: status_type, QUIT_CODE
     use value_mod, only: value_type
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use buffer_mod, only: get_or_make_buffer, set_buffer
     use handle_mod, only: handle_type
-    use read_multiple_choice_mod, only: rmc_choice_type, rmc_add_key_description, read_multiple_choice, generated_help, &
-                                        read_char_choice_use_read_key
+    use read_multiple_choice_mod, only: read_multiple_choice_choice_type, read_multiple_choice_add_key_description, &
+                                        read_multiple_choice, generated_help, read_character_choice_use_read_key
     implicit none(type, external)
     private
 
@@ -58,7 +58,7 @@ contains
         character, intent(in) :: key
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: description
-        type(rmc_choice_type) :: c
+        type(read_multiple_choice_choice_type) :: c
 
         c%key = iachar(key)
         c%name = name
@@ -70,7 +70,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", h, st)
         call set_buffer(h, st)
@@ -79,16 +79,16 @@ contains
     subroutine test_add_key_description(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, rmc_add_key_description(choice("y", "yes")), "[Y]es")
+        call check(error, read_multiple_choice_add_key_description(choice("y", "yes")), "[Y]es")
         if (allocated(error)) return
-        call check(error, rmc_add_key_description(choice("n", "foo")), "n foo")
+        call check(error, read_multiple_choice_add_key_description(choice("n", "foo")), "n foo")
         if (allocated(error)) return
-        call check(error, rmc_add_key_description(choice(" ", "foo bar")), "SPC foo bar")
+        call check(error, read_multiple_choice_add_key_description(choice(" ", "foo bar")), "SPC foo bar")
     end subroutine test_add_key_description
 
     subroutine test_read(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rmc_choice_type) :: choices(2)
+        type(read_multiple_choice_choice_type) :: choices(2)
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer
@@ -110,13 +110,13 @@ contains
         call key_parse("C-g", evs, st)
         call unread_command_events(evs)
         call read_multiple_choice("Do it? ", choices, answer, st)
-        call check(error, st%code == FM_QUIT)
+        call check(error, st%code == QUIT_CODE)
         call discard_input()
     end subroutine test_read
 
     subroutine test_help(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rmc_choice_type) :: choices(3)
+        type(read_multiple_choice_choice_type) :: choices(3)
         character(len=*), parameter :: LF = achar(10)
 
         choices(1) = choice("a", "aaa")
@@ -134,7 +134,7 @@ contains
     !> "[?]" for help.
     subroutine test_read_key(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rmc_choice_type) :: choices(2)
+        type(read_multiple_choice_choice_type) :: choices(2)
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer
@@ -142,11 +142,11 @@ contains
         choices(1) = choice("y", "yes")
         choices(2) = choice("n", "no")
         call discard_input()
-        read_char_choice_use_read_key = .true.
+        read_character_choice_use_read_key = .true.
         call key_parse("n", evs, st)
         call unread_command_events(evs)
         call read_multiple_choice("Do it?", choices, answer, st)
-        read_char_choice_use_read_key = .false.
+        read_character_choice_use_read_key = .false.
         call check(error, st%ok() .and. answer == 2, "n")
         if (allocated(error)) return
         call check(error, last_message == "Do it? ([Y]es, [N]o, [?]): ", last_message)
@@ -155,7 +155,7 @@ contains
     !> LONG-FORM reads a name with completion.
     subroutine test_long_form(error)
         type(error_type), allocatable, intent(out) :: error
-        type(rmc_choice_type) :: choices(2)
+        type(read_multiple_choice_choice_type) :: choices(2)
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
         integer :: answer

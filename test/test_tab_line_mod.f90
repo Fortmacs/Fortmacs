@@ -30,16 +30,16 @@ module test_tab_line_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings, ctl_x_map
+    use bindings_mod, only: initialize_bindings, control_x_map
     use keyboard_mod, only: last_message, unread_command_events, command_loop, last_command
     use keymap_mod, only: key_parse, lookup_key
-    use value_mod, only: value_type, make_keymap_ref, vtag, xsymbol, symbols, V_NAME
+    use value_mod, only: value_type, make_keymap_reference, vtag, xsymbol, symbols, V_NAME
     use commands_mod, only: commands
     use execute_interactively_mod, only: this_command
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, is_buffer_live, buffers, current, &
                           header_line_segment_type
     use frame_mod, only: selected_frame, ensure_frame_windows, delete_other_frames
-    use window_mod, only: windows, resize_window_tree, set_window_buffer, same_handle, init_window_display, &
+    use window_mod, only: windows, resize_window_tree, set_window_buffer, same_handle, initialize_window_display, &
                           delete_other_windows, switch_to_buffer, window_wants_tab_line, destroy_previous_buffer
     use tab_line_mod, only: format_tab_line, tab_line_tabs_function, get_tab_line_tabs_fixed_window_buffers, &
                             get_tab_line_tabs_buffer_groups, get_tab_line_tabs_window_buffers, tab_line_tab_type, &
@@ -76,12 +76,12 @@ contains
     subroutine enter()
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call ensure_frame_windows()
         call delete_other_frames(st)
-        call init_window_display()
-        selected_frame%tty%wcm%cm_rows = 24
-        selected_frame%tty%wcm%cm_cols = 80
+        call initialize_window_display()
+        selected_frame%terminal%wcm%cursor_motion_rows = 24
+        selected_frame%terminal%wcm%cursor_motion_columns = 80
         call delete_other_windows(selected_frame%selected_window, st)
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         call resize_window_tree(selected_frame%minibuffer_window, 23, 0, 1, 80, 80)
@@ -106,12 +106,12 @@ contains
             if (allocated(w%tab_line%group)) deallocate (w%tab_line%group)
             if (allocated(w%next_buffers)) w%next_buffers = w%next_buffers(1:0)
 
-            if (allocated(w%prev_buffers)) then
-                do k = 1, size(w%prev_buffers)
-                    call destroy_previous_buffer(w%prev_buffers(k))
+            if (allocated(w%previous_buffers)) then
+                do k = 1, size(w%previous_buffers)
+                    call destroy_previous_buffer(w%previous_buffers(k))
                 end do
 
-                w%prev_buffers = w%prev_buffers(1:0)
+                w%previous_buffers = w%previous_buffers(1:0)
             end if
         end associate
 
@@ -331,7 +331,7 @@ contains
     end subroutine test_groups
 
     !> The binding of KEY in the C-x map, by name.
-    function ctl_x_binding_name(key) result(name)
+    function control_x_binding_name(key) result(name)
         character(len=*), intent(in) :: key
         character(len=:), allocatable :: name
         type(value_type), allocatable :: events(:)
@@ -340,9 +340,9 @@ contains
 
         name = ""
         call key_parse(key, events, st)
-        call lookup_key(make_keymap_ref(ctl_x_map), events, binding, st)
+        call lookup_key(make_keymap_reference(control_x_map), events, binding, st)
         if (vtag(binding) == V_NAME) name = trim(symbols(xsymbol(binding))%name)
-    end function ctl_x_binding_name
+    end function control_x_binding_name
 
     !> Run KEYS through the command loop.
     subroutine execute_keys(keys)
@@ -380,18 +380,18 @@ contains
             call check(error,.not. minor_modes%tab_line_mode%enabled(), "off where excluded")
             if (allocated(error)) exit checks
             call set_buffer(c, st)
-            call check(error, ctl_x_binding_name("<left>"), "switch_to_tab_line_previous_tab")
+            call check(error, control_x_binding_name("<left>"), "switch_to_tab_line_previous_tab")
             if (allocated(error)) exit checks
-            call check(error, ctl_x_binding_name("M-<right>"), "move_tab_line_tab_forward")
+            call check(error, control_x_binding_name("M-<right>"), "move_tab_line_tab_forward")
             if (allocated(error)) exit checks
             call execute_keys("C-x <left>")
             call check(error, associated(last_command, commands%switch_to_tab_line_previous_tab) .and. &
                        same_handle(current_buffer(), b), "C-x <left> switches to tab-b")
             if (allocated(error)) exit checks
             call minor_modes%global_tab_line_mode%disable(st)
-            call check(error, ctl_x_binding_name("<left>"), "previous_buffer")
+            call check(error, control_x_binding_name("<left>"), "previous_buffer")
             if (allocated(error)) exit checks
-            call check(error, ctl_x_binding_name("M-<right>"), "")
+            call check(error, control_x_binding_name("M-<right>"), "")
             if (allocated(error)) exit checks
             call set_buffer(c, st)
             call check(error,.not. minor_modes%tab_line_mode%enabled(), "off again")

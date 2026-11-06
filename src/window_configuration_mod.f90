@@ -35,10 +35,10 @@ submodule(window_mod) window_configuration_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, resolve_buffer, buffer_list, &
                           get_or_make_buffer
     use marker_mod, only: make_marker, destroy_marker, set_marker, set_marker_restricted, marker_position
-    use editing_functions_mod, only: goto_char
+    use editing_functions_mod, only: goto_character
     use frame_mod, only: selected_frame, frame_lines, frame_top_margin, resize_frame_windows
     use minibuffer_reading_mod, only: is_minibuffer, minibuf_level
-    use error_mod, only: set_error, FM_GENERIC_ERROR
+    use error_mod, only: set_error, GENERIC_ERROR_CODE
     implicit none(type, external)
 
 contains
@@ -69,11 +69,11 @@ contains
         integer, intent(in) :: i, parent
         type(handle_type) :: w
         type(status_type) :: status
-        integer(int64) :: pos, bi
-        integer :: prev
+        integer(int64) :: position, bi
+        integer :: previous
 
         next = i
-        prev = 0
+        previous = 0
         w = h
 
         do while (is_window_valid(w))
@@ -81,19 +81,19 @@ contains
                 p%window = w
                 p%buffer = null_handle()
                 if (.not. is_window_valid(x%child)) p%buffer = x%buffer
-                p%left_col = x%left_col
+                p%left_column = x%left_column
                 p%top_line = x%top_line
-                p%total_cols = x%total_cols
+                p%total_columns = x%total_columns
                 p%total_lines = x%total_lines
                 p%divider = x%divider
                 p%normal_lines = x%normal_lines
-                p%normal_cols = x%normal_cols
+                p%normal_columns = x%normal_columns
                 p%hscroll = x%hscroll
                 p%dedicated = x%dedicated
                 if (allocated(x%tab_line%buffers)) p%tab_line_buffers = x%tab_line%buffers
                 p%parent = parent
-                p%prev = prev
-                x%config_refs = x%config_refs + 1
+                p%previous = previous
+                x%configuration_references = x%configuration_references + 1
 
                 if (is_buffer_live(p%buffer)) then
                     ! Save w's value of point in the window
@@ -104,42 +104,42 @@ contains
 
                     if (same_window(w, selected_frame%selected_window)) then
                         call resolve_buffer(p%buffer, bi, status)
-                        pos = buffers(bi)%pt
+                        position = buffers(bi)%point
                     else
-                        pos = window_point(x)
+                        position = window_point(x)
                     end if
 
-                    call set_marker(p%pointm, pos, status, p%buffer)
+                    call set_marker(p%pointm, position, status, p%buffer)
                     call make_marker(p%start)
                     call set_marker(p%start, window_start(x), status, p%buffer)
                 end if
             end associate
 
-            prev = next
+            previous = next
             next = next + 1
 
             if (is_window_valid(windows(w%index)%child)) then
-                next = save_window_save(windows(w%index)%child, saved, next, prev)
+                next = save_window_save(windows(w%index)%child, saved, next, previous)
             end if
 
             w = windows(w%index)%next
         end do
     end function save_window_save
 
-    module subroutine current_window_configuration(config)
-        type(window_configuration_type), intent(out) :: config
+    module subroutine current_window_configuration(configuration)
+        type(window_configuration_type), intent(out) :: configuration
         integer :: n
 
         call ensure_frame_windows_here()
-        allocate (config%saved(count_windows(selected_frame%root_window)))
-        n = save_window_save(selected_frame%root_window, config%saved, 1, 0)
-        config%root_window = selected_frame%root_window
-        config%current_window = selected_frame%selected_window
-        config%current_buffer = current_buffer()
-        config%minibuf_scroll_window = null_handle()
-        if (minibuf_level > 0) config%minibuf_scroll_window = minibuffer_scroll_window
-        config%frame_cols = selected_frame%text_cols
-        config%frame_lines = selected_frame%text_lines
+        allocate (configuration%saved(count_windows(selected_frame%root_window)))
+        n = save_window_save(selected_frame%root_window, configuration%saved, 1, 0)
+        configuration%root_window = selected_frame%root_window
+        configuration%current_window = selected_frame%selected_window
+        configuration%current_buffer = current_buffer()
+        configuration%minibuf_scroll_window = null_handle()
+        if (minibuf_level > 0) configuration%minibuf_scroll_window = minibuffer_scroll_window
+        configuration%frame_columns = selected_frame%text_columns
+        configuration%frame_lines = selected_frame%text_lines
     end subroutine current_window_configuration
 
     !> The frame has its windows.  Not a port.
@@ -184,27 +184,27 @@ contains
     end subroutine delete_all_child_windows
 
     !> Set marker `m' (made if null) restricted to the accessible part of
-    !> `buffer' at `pos'.  Not a port.
-    subroutine restrict(m, pos, buffer)
+    !> `buffer' at `position'.  Not a port.
+    subroutine restrict(m, position, buffer)
         type(handle_type), intent(inout) :: m
-        integer(int64), intent(in) :: pos
+        integer(int64), intent(in) :: position
         type(handle_type), intent(in) :: buffer
         type(status_type) :: status
 
         if (m%index == 0) call make_marker(m)
-        call set_marker_restricted(m, pos, status, buffer)
+        call set_marker_restricted(m, position, status, buffer)
     end subroutine restrict
 
     !> The position of marker `m' (1 if it points nowhere).  Not a port.
-    integer(int64) function marker_pos(m) result(pos)
+    integer(int64) function marked_position(m) result(position)
         type(handle_type), intent(in) :: m
         type(status_type) :: status
 
-        pos = 1
+        position = 1
         if (m%index == 0) return
-        call marker_position(m, pos, status)
-        if (.not. status%ok()) pos = 1
-    end function marker_pos
+        call marker_position(m, position, status)
+        if (.not. status%ok()) position = 1
+    end function marked_position
 
     !> A live buffer other than `buffer' that isn't internal, else
     !> *scratch*.  Port of buffer.c:other_buffer_safely.
@@ -232,18 +232,18 @@ contains
         call get_or_make_buffer("*scratch*", b, status)
     end function other_buffer_safely
 
-    module subroutine set_window_configuration(config)
-        type(window_configuration_type), intent(in) :: config
+    module subroutine set_window_configuration(configuration)
+        type(window_configuration_type), intent(in) :: configuration
         type(handle_type) :: new_current_buffer, window, sw, b
         type(handle_type), allocatable :: old(:), dead_windows(:)
         type(status_type) :: status
         integer(int64) :: old_point, bi
         integer :: k, n, ndead
 
-        if (.not. allocated(config%saved)) return
-        if (size(config%saved) == 0) return
+        if (.not. allocated(configuration%saved)) return
+        if (size(configuration%saved) == 0) return
         old_point = -1
-        new_current_buffer = config%current_buffer
+        new_current_buffer = configuration%current_buffer
         sw = selected_frame%selected_window
 
         if (.not. is_buffer_live(new_current_buffer)) then
@@ -254,22 +254,22 @@ contains
             call resolve_buffer(new_current_buffer, bi, status)
             ! The point of the window to be selected, if it shows the
             ! buffer and is not the selected window; else the buffer's.
-            old_point = buffers(bi)%pt
+            old_point = buffers(bi)%point
 
-            if (window_current_shows(config%current_window, new_current_buffer) .and. &
-                .not. same_window(sw, config%current_window)) then
+            if (window_current_shows(configuration%current_window, new_current_buffer) .and. &
+                .not. same_window(sw, configuration%current_window)) then
                 if (.not. same_handle(new_current_buffer, current_buffer())) then
-                    old_point = window_point(windows(config%current_window%index))
+                    old_point = window_point(windows(configuration%current_window%index))
                 else if (window_current_shows(sw, new_current_buffer)) then
-                    old_point = window_point(windows(config%current_window%index))
+                    old_point = window_point(windows(configuration%current_window%index))
                 end if
             end if
         end if
 
         ! If a window we restore gets another buffer, record the window's
         ! old buffer.
-        do k = 1, size(config%saved)
-            associate (p => config%saved(k))
+        do k = 1, size(configuration%saved)
+            associate (p => configuration%saved(k))
                 if (.not. is_window_live(p%window)) cycle
                 if (.not. is_buffer_live(windows(p%window%index)%buffer)) cycle
                 if (same_handle(windows(p%window%index)%buffer, p%buffer)) cycle
@@ -284,7 +284,7 @@ contains
         if (is_window_live(sw)) then
             if (is_buffer_live(windows(sw%index)%buffer)) then
                 call resolve_buffer(windows(sw%index)%buffer, bi, status)
-                call set_window_point(windows(sw%index), buffers(bi)%pt, status)
+                call set_window_point(windows(sw%index), buffers(bi)%point, status)
             end if
         end if
 
@@ -305,14 +305,14 @@ contains
             windows(old(k)%index)%dead = .true.
             windows(old(k)%index)%parent = null_handle()
             windows(old(k)%index)%next = null_handle()
-            windows(old(k)%index)%prev = null_handle()
+            windows(old(k)%index)%previous = null_handle()
         end do
 
-        allocate (dead_windows(size(config%saved)))
+        allocate (dead_windows(size(configuration%saved)))
         ndead = 0
 
-        do k = 1, size(config%saved)
-            associate (p => config%saved(k))
+        do k = 1, size(configuration%saved)
+            associate (p => configuration%saved(k))
                 window = p%window
 
                 associate (w => windows(window%index))
@@ -321,20 +321,20 @@ contains
                     w%child = null_handle()
 
                     if (p%parent /= 0) then
-                        w%parent = config%saved(p%parent)%window
+                        w%parent = configuration%saved(p%parent)%window
                     else
                         w%parent = null_handle()
                     end if
 
-                    if (p%prev /= 0) then
-                        w%prev = config%saved(p%prev)%window
-                        windows(w%prev%index)%next = window
+                    if (p%previous /= 0) then
+                        w%previous = configuration%saved(p%previous)%window
+                        windows(w%previous%index)%next = window
                     else
-                        w%prev = null_handle()
+                        w%previous = null_handle()
 
                         if (is_window_valid(w%parent)) then
                             windows(w%parent%index)%horizontal = &
-                                p%total_cols /= windows(w%parent%index)%total_cols
+                                p%total_columns /= windows(w%parent%index)%total_columns
                             windows(w%parent%index)%child = window
                         end if
                     end if
@@ -345,13 +345,13 @@ contains
                         w%kept_buffer = null_handle()
                     end if
 
-                    w%left_col = p%left_col
+                    w%left_column = p%left_column
                     w%top_line = p%top_line
-                    w%total_cols = p%total_cols
+                    w%total_columns = p%total_columns
                     w%total_lines = p%total_lines
                     w%divider = p%divider
                     w%normal_lines = p%normal_lines
-                    w%normal_cols = p%normal_cols
+                    w%normal_columns = p%normal_columns
                     w%hscroll = p%hscroll
                     w%dedicated = p%dedicated
                     w%window_end_valid = .false.
@@ -366,15 +366,15 @@ contains
                         call window_discard_buffer_from_window(p%buffer, window, .false.)
                     end if
 
-                    call restrict(windows(window%index)%start, marker_pos(p%start), p%buffer)
-                    call restrict(windows(window%index)%pointm, marker_pos(p%pointm), p%buffer)
+                    call restrict(windows(window%index)%start, marked_position(p%start), p%buffer)
+                    call restrict(windows(window%index)%pointm, marked_position(p%pointm), p%buffer)
 
                     ! Don't restore the location of point in the buffer
                     ! which was current when the configuration was
                     ! recorded.
                     if (.not. same_handle(p%buffer, new_current_buffer) .and. &
                         same_handle(p%buffer, current_buffer())) then
-                        call goto_char(window_point(windows(window%index)))
+                        call goto_character(window_point(windows(window%index)))
                     end if
                 else if (is_buffer_live(windows(window%index)%buffer)) then
                     ! Keep window's old buffer; make sure the markers are
@@ -387,7 +387,7 @@ contains
                     end if
 
                     if (windows(window%index)%pointm%index == 0) then
-                        call restrict(windows(window%index)%pointm, buffers(bi)%pt, b)
+                        call restrict(windows(window%index)%pointm, buffers(bi)%point, b)
                     end if
                 else if (p%start%index /= 0) then
                     ! Leaf window has no live buffer, get one.
@@ -409,12 +409,12 @@ contains
             end associate
         end do
 
-        selected_frame%root_window = config%root_window
+        selected_frame%root_window = configuration%root_window
 
         ! Resize the frame's windows if necessary: adjust_frame_size with
         ! the frame's size, here when the configuration was saved with
         ! another top margin (tab bar lines) than the frame has now.
-        if (windows(config%root_window%index)%top_line /= frame_top_margin(selected_frame) .and. &
+        if (windows(configuration%root_window%index)%top_line /= frame_top_margin(selected_frame) .and. &
             frame_lines(selected_frame) > 0) then
             call resize_frame_windows(selected_frame, (frame_lines(selected_frame) - &
                                                        frame_top_margin(selected_frame))*selected_frame%line_height, .false.)
@@ -422,22 +422,22 @@ contains
 
         ! Arrange *not* to restore point in the buffer that was current
         ! when the window configuration was saved.
-        if (window_current_shows(config%current_window, new_current_buffer)) then
-            call restrict(windows(config%current_window%index)%pointm, old_point, new_current_buffer)
+        if (window_current_shows(configuration%current_window, new_current_buffer)) then
+            call restrict(windows(configuration%current_window%index)%pointm, old_point, new_current_buffer)
         end if
 
         ! Select the window without swapping out point in the old
         ! selected window, and without recording the buffer.
-        selected_frame%selected_window = config%current_window
-        call set_buffer(windows(config%current_window%index)%buffer, status)
-        call goto_char(window_point(windows(config%current_window%index)))
-        call resolve_buffer(windows(config%current_window%index)%buffer, bi, status)
-        if (status%ok()) buffers(bi)%last_selected_window = config%current_window
+        selected_frame%selected_window = configuration%current_window
+        call set_buffer(windows(configuration%current_window%index)%buffer, status)
+        call goto_character(window_point(windows(configuration%current_window%index)))
+        call resolve_buffer(windows(configuration%current_window%index)%buffer, bi, status)
+        if (status%ok()) buffers(bi)%last_selected_window = configuration%current_window
 
         ! Free the windows that were not reused.
         do k = 1, n
             if (windows(old(k)%index)%dead) then
-                if (windows(old(k)%index)%config_refs == 0) then
+                if (windows(old(k)%index)%configuration_references == 0) then
                     call destroy_dead_window(old(k))
                 end if
             end if
@@ -451,7 +451,7 @@ contains
         end do
 
         ! Record the selected window's buffer.
-        if (is_window_live(config%current_window)) call select_window(config%current_window, status)
+        if (is_window_live(configuration%current_window)) call select_window(configuration%current_window, status)
 
         if (is_buffer_live(new_current_buffer)) then
             call set_buffer(new_current_buffer, status)
@@ -459,11 +459,11 @@ contains
             ! If the new current buffer doesn't appear in the selected
             ! window, go to its old point (Bug#12208).
             if (.not. same_handle(windows(selected_frame%selected_window%index)%buffer, new_current_buffer)) then
-                call goto_char(old_point)
+                call goto_character(old_point)
             end if
         end if
 
-        minibuffer_scroll_window = config%minibuf_scroll_window
+        minibuffer_scroll_window = configuration%minibuf_scroll_window
     end subroutine set_window_configuration
 
     !> Free dead window `h' for good once no window configuration refers
@@ -473,7 +473,7 @@ contains
         type(status_type) :: status
 
         if (.not. wtable%is_live(h)) return
-        if (.not. windows(h%index)%dead .or. windows(h%index)%config_refs > 0) return
+        if (.not. windows(h%index)%dead .or. windows(h%index)%configuration_references > 0) return
         call destroy_window(windows(h%index))
         windows(h%index) = window_type()
         call wtable%release(h, status)
@@ -489,67 +489,68 @@ contains
         window_current_shows = same_handle(windows(h%index)%buffer, b)
     end function window_current_shows
 
-    module subroutine destroy_window_configuration(config)
-        type(window_configuration_type), intent(inout) :: config
+    module subroutine destroy_window_configuration(configuration)
+        type(window_configuration_type), intent(inout) :: configuration
         type(status_type) :: status
         integer :: k
 
-        if (.not. allocated(config%saved)) return
+        if (.not. allocated(configuration%saved)) return
 
-        do k = 1, size(config%saved)
-            associate (p => config%saved(k))
+        do k = 1, size(configuration%saved)
+            associate (p => configuration%saved(k))
                 if (p%start%index /= 0) call destroy_marker(p%start, status)
                 if (p%pointm%index /= 0) call destroy_marker(p%pointm, status)
 
                 if (wtable%is_live(p%window)) then
-                    windows(p%window%index)%config_refs = max(0, windows(p%window%index)%config_refs - 1)
+                    windows(p%window%index)%configuration_references = max(0, windows(p%window%index)%configuration_references - 1)
                     call destroy_dead_window(p%window)
                 end if
             end associate
         end do
 
-        deallocate (config%saved)
-        config%root_window = null_handle()
-        config%current_window = null_handle()
-        config%current_buffer = null_handle()
+        deallocate (configuration%saved)
+        configuration%root_window = null_handle()
+        configuration%current_window = null_handle()
+        configuration%current_buffer = null_handle()
     end subroutine destroy_window_configuration
 
-    module subroutine copy_window_configuration(config, copy)
-        type(window_configuration_type), intent(in) :: config
+    module subroutine copy_window_configuration(configuration, copy)
+        type(window_configuration_type), intent(in) :: configuration
         type(window_configuration_type), intent(out) :: copy
         type(status_type) :: status
         integer :: k
 
-        copy%root_window = config%root_window
-        copy%current_window = config%current_window
-        copy%current_buffer = config%current_buffer
-        copy%minibuf_scroll_window = config%minibuf_scroll_window
-        copy%frame_cols = config%frame_cols
-        copy%frame_lines = config%frame_lines
-        if (.not. allocated(config%saved)) return
-        allocate (copy%saved(size(config%saved)))
+        copy%root_window = configuration%root_window
+        copy%current_window = configuration%current_window
+        copy%current_buffer = configuration%current_buffer
+        copy%minibuf_scroll_window = configuration%minibuf_scroll_window
+        copy%frame_columns = configuration%frame_columns
+        copy%frame_lines = configuration%frame_lines
+        if (.not. allocated(configuration%saved)) return
+        allocate (copy%saved(size(configuration%saved)))
 
-        do k = 1, size(config%saved)
-            associate (p => config%saved(k), q => copy%saved(k))
+        do k = 1, size(configuration%saved)
+            associate (p => configuration%saved(k), q => copy%saved(k))
                 q%window = p%window
                 q%buffer = p%buffer
-                q%left_col = p%left_col
+                q%left_column = p%left_column
                 q%top_line = p%top_line
-                q%total_cols = p%total_cols
+                q%total_columns = p%total_columns
                 q%total_lines = p%total_lines
                 q%hscroll = p%hscroll
                 q%dedicated = p%dedicated
                 if (allocated(p%tab_line_buffers)) q%tab_line_buffers = p%tab_line_buffers
                 q%divider = p%divider
                 q%normal_lines = p%normal_lines
-                q%normal_cols = p%normal_cols
+                q%normal_columns = p%normal_columns
                 q%parent = p%parent
-                q%prev = p%prev
+                q%previous = p%previous
                 q%start = null_handle()
                 q%pointm = null_handle()
                 if (p%start%index /= 0) call copy_saved_marker(p%start, p%buffer, q%start)
                 if (p%pointm%index /= 0) call copy_saved_marker(p%pointm, p%buffer, q%pointm)
-                if (wtable%is_live(p%window)) windows(p%window%index)%config_refs = windows(p%window%index)%config_refs + 1
+                if (wtable%is_live(p%window)) windows(p%window%index)%configuration_references = windows( &
+                                                                                        p%window%index)%configuration_references + 1
             end associate
         end do
 
@@ -559,12 +560,12 @@ contains
         subroutine copy_saved_marker(from, buffer, m)
             type(handle_type), intent(in) :: from, buffer
             type(handle_type), intent(out) :: m
-            integer(int64) :: pos
+            integer(int64) :: position
 
             call make_marker(m)
-            call marker_position(from, pos, status)
+            call marker_position(from, position, status)
             if (.not. status%ok()) return
-            if (is_buffer_live(buffer)) call set_marker(m, pos, status, buffer)
+            if (is_buffer_live(buffer)) call set_marker(m, position, status, buffer)
         end subroutine copy_saved_marker
     end subroutine copy_window_configuration
 
@@ -576,7 +577,7 @@ contains
         equal = .false.
         if (.not. allocated(x%saved) .or. .not. allocated(y%saved)) return
         ! Frame settings must match.
-        if (x%frame_cols /= y%frame_cols .or. x%frame_lines /= y%frame_lines) return
+        if (x%frame_columns /= y%frame_columns .or. x%frame_lines /= y%frame_lines) return
         if (.not. same_handle(x%current_buffer, y%current_buffer)) return
         ! Verify that the two configurations have the same number of windows.
         if (size(x%saved) /= size(y%saved)) return
@@ -588,11 +589,11 @@ contains
                 if (same_handle(x%current_window, sw1%window) .neqv. same_handle(y%current_window, sw2%window)) return
                 ! Windows' buffers must match.
                 if (.not. same_handle(sw1%buffer, sw2%buffer)) return
-                if (sw1%left_col /= sw2%left_col .or. sw1%top_line /= sw2%top_line .or. &
-                    sw1%total_cols /= sw2%total_cols .or. sw1%total_lines /= sw2%total_lines) return
+                if (sw1%left_column /= sw2%left_column .or. sw1%top_line /= sw2%top_line .or. &
+                    sw1%total_columns /= sw2%total_columns .or. sw1%total_lines /= sw2%total_lines) return
                 ! The next two disjuncts check the window structure for
                 ! equality.
-                if (sw1%parent /= sw2%parent .or. sw1%prev /= sw2%prev) return
+                if (sw1%parent /= sw2%parent .or. sw1%previous /= sw2%previous) return
             end associate
         end do
 
@@ -621,27 +622,27 @@ contains
         integer, intent(in) :: i, parent
         type(handle_type) :: w, root
         type(status_type) :: status
-        integer(int64) :: pos, bi
-        integer :: prev, k
+        integer(int64) :: position, bi
+        integer :: previous, k
 
         next = i
-        prev = 0
+        previous = 0
         w = h
         root = selected_frame%root_window
 
         do while (is_window_valid(w))
             associate (p => states(next), x => windows(w%index))
                 p%parent = parent
-                p%prev = prev
+                p%previous = previous
                 p%live = .not. is_window_valid(x%child)
                 p%horizontal = x%horizontal
                 p%divider = x%divider
-                p%left_col = x%left_col - windows(root%index)%left_col
+                p%left_column = x%left_column - windows(root%index)%left_column
                 p%top_line = x%top_line - windows(root%index)%top_line
-                p%total_cols = x%total_cols
+                p%total_columns = x%total_columns
                 p%total_lines = x%total_lines
                 p%normal_lines = x%normal_lines
-                p%normal_cols = x%normal_cols
+                p%normal_columns = x%normal_columns
                 if (allocated(x%tab_line%buffers)) p%tab_line_buffers = x%tab_line%buffers
 
                 if (p%live .and. is_buffer_live(x%buffer)) then
@@ -653,25 +654,25 @@ contains
                     ! The selected window's point is its buffer's.
                     if (p%selected) then
                         call resolve_buffer(p%buffer, bi, status)
-                        pos = buffers(bi)%pt
+                        position = buffers(bi)%point
                     else
-                        pos = window_point(x)
+                        position = window_point(x)
                     end if
 
                     call make_marker(p%point)
-                    call set_marker(p%point, pos, status, p%buffer)
+                    call set_marker(p%point, position, status, p%buffer)
                     call make_marker(p%start)
                     call set_marker(p%start, window_start(x), status, p%buffer)
 
-                    if (allocated(x%prev_buffers)) then
-                        allocate (p%prev_buffers(size(x%prev_buffers)))
+                    if (allocated(x%previous_buffers)) then
+                        allocate (p%previous_buffers(size(x%previous_buffers)))
 
-                        do k = 1, size(x%prev_buffers)
-                            p%prev_buffers(k)%buffer = x%prev_buffers(k)%buffer
-                            call copy_saved_marker(x%prev_buffers(k)%start, x%prev_buffers(k)%buffer, &
-                                                   p%prev_buffers(k)%start)
-                            call copy_saved_marker(x%prev_buffers(k)%point, x%prev_buffers(k)%buffer, &
-                                                   p%prev_buffers(k)%point)
+                        do k = 1, size(x%previous_buffers)
+                            p%previous_buffers(k)%buffer = x%previous_buffers(k)%buffer
+                            call copy_saved_marker(x%previous_buffers(k)%start, x%previous_buffers(k)%buffer, &
+                                                   p%previous_buffers(k)%start)
+                            call copy_saved_marker(x%previous_buffers(k)%point, x%previous_buffers(k)%buffer, &
+                                                   p%previous_buffers(k)%point)
                         end do
                     end if
 
@@ -679,11 +680,11 @@ contains
                 end if
             end associate
 
-            prev = next
+            previous = next
             next = next + 1
 
             if (is_window_valid(windows(w%index)%child)) then
-                next = get_window_state_1(windows(w%index)%child, states, next, prev)
+                next = get_window_state_1(windows(w%index)%child, states, next, previous)
             end if
 
             w = windows(w%index)%next
@@ -696,14 +697,14 @@ contains
         subroutine copy_saved_marker(from, buffer, m)
             type(handle_type), intent(in) :: from, buffer
             type(handle_type), intent(out) :: m
-            integer(int64) :: pos
+            integer(int64) :: position
 
             m = null_handle()
             if (from%index == 0) return
             call make_marker(m)
-            call marker_position(from, pos, status)
+            call marker_position(from, position, status)
             if (.not. status%ok()) return
-            if (is_buffer_live(buffer)) call set_marker(m, pos, status, buffer)
+            if (is_buffer_live(buffer)) call set_marker(m, position, status, buffer)
         end subroutine copy_saved_marker
     end function get_window_state_1
 
@@ -720,14 +721,14 @@ contains
         if (size(state%windows) == 0) return
         root = selected_frame%root_window
 
-        if (state%windows(1)%total_cols /= windows(root%index)%total_cols .or. &
+        if (state%windows(1)%total_columns /= windows(root%index)%total_columns .or. &
             state%windows(1)%total_lines /= windows(root%index)%total_lines) then
-            call set_error(status, FM_GENERIC_ERROR, "Window state of another size")
+            call set_error(status, GENERIC_ERROR_CODE, "Window state of another size")
             return
         end if
 
         top = windows(root%index)%top_line
-        left = windows(root%index)%left_col
+        left = windows(root%index)%left_column
         ! Delete the frame's windows.
         call window_leaves(root, leaves)
 
@@ -746,19 +747,19 @@ contains
 
         do k = 1, size(state%windows)
             associate (p => state%windows(k), w => windows(made(k)%index))
-                w%left_col = left + p%left_col
+                w%left_column = left + p%left_column
                 w%top_line = top + p%top_line
-                w%total_cols = p%total_cols
+                w%total_columns = p%total_columns
                 w%total_lines = p%total_lines
                 w%normal_lines = p%normal_lines
-                w%normal_cols = p%normal_cols
+                w%normal_columns = p%normal_columns
                 w%horizontal = p%horizontal
                 w%divider = p%divider
                 if (p%parent /= 0) w%parent = made(p%parent)
 
-                if (p%prev /= 0) then
-                    w%prev = made(p%prev)
-                    windows(made(p%prev)%index)%next = made(k)
+                if (p%previous /= 0) then
+                    w%previous = made(p%previous)
+                    windows(made(p%previous)%index)%next = made(k)
                 else if (p%parent /= 0) then
                     windows(made(p%parent)%index)%child = made(k)
                 end if
@@ -776,8 +777,8 @@ contains
             call set_window_buffer_internal(made(k), b, .false.)
 
             if (same_handle(b, state%windows(k)%buffer)) then
-                call restrict(windows(made(k)%index)%start, marker_pos(state%windows(k)%start), b)
-                call restrict(windows(made(k)%index)%pointm, marker_pos(state%windows(k)%point), b)
+                call restrict(windows(made(k)%index)%start, marked_position(state%windows(k)%start), b)
+                call restrict(windows(made(k)%index)%pointm, marked_position(state%windows(k)%point), b)
                 windows(made(k)%index)%hscroll = state%windows(k)%hscroll
                 windows(made(k)%index)%dedicated = state%windows(k)%dedicated
 
@@ -785,7 +786,7 @@ contains
                     windows(made(k)%index)%next_buffers = state%windows(k)%next_buffers
                 end if
 
-                call put_prev_buffers(made(k), state%windows(k))
+                call put_previous_buffers(made(k), state%windows(k))
                 if (state%windows(k)%selected) selected = made(k)
             end if
         end do
@@ -815,32 +816,32 @@ contains
     !> Give window H the previous buffers of state window P (those still
     !> live), with markers of their own.  Port of
     !> window.el:window--state-put-2 (its prev-buffers part).
-    subroutine put_prev_buffers(h, p)
+    subroutine put_previous_buffers(h, p)
         type(handle_type), intent(in) :: h
         type(window_state_window_type), intent(in) :: p
-        type(prev_buffer_type), allocatable :: entries(:)
+        type(previous_buffer_type), allocatable :: entries(:)
         type(handle_type) :: m
         type(status_type) :: status
         integer :: k, n
 
-        if (.not. allocated(p%prev_buffers)) return
-        allocate (entries(size(p%prev_buffers)))
+        if (.not. allocated(p%previous_buffers)) return
+        allocate (entries(size(p%previous_buffers)))
         n = 0
 
-        do k = 1, size(p%prev_buffers)
-            if (.not. is_buffer_live(p%prev_buffers(k)%buffer)) cycle
+        do k = 1, size(p%previous_buffers)
+            if (.not. is_buffer_live(p%previous_buffers(k)%buffer)) cycle
             n = n + 1
-            entries(n)%buffer = p%prev_buffers(k)%buffer
+            entries(n)%buffer = p%previous_buffers(k)%buffer
             call make_marker(m)
-            call set_marker(m, marker_pos(p%prev_buffers(k)%start), status, entries(n)%buffer)
+            call set_marker(m, marked_position(p%previous_buffers(k)%start), status, entries(n)%buffer)
             entries(n)%start = m
             call make_marker(m)
-            call set_marker(m, marker_pos(p%prev_buffers(k)%point), status, entries(n)%buffer)
+            call set_marker(m, marked_position(p%previous_buffers(k)%point), status, entries(n)%buffer)
             entries(n)%point = m
         end do
 
-        windows(h%index)%prev_buffers = entries(1:n)
-    end subroutine put_prev_buffers
+        windows(h%index)%previous_buffers = entries(1:n)
+    end subroutine put_previous_buffers
 
     module subroutine destroy_window_state(state)
         type(window_state_type), intent(inout) :: state
@@ -854,10 +855,10 @@ contains
                 if (p%start%index /= 0) call destroy_marker(p%start, status)
                 if (p%point%index /= 0) call destroy_marker(p%point, status)
 
-                if (allocated(p%prev_buffers)) then
-                    do j = 1, size(p%prev_buffers)
-                        if (p%prev_buffers(j)%start%index /= 0) call destroy_marker(p%prev_buffers(j)%start, status)
-                        if (p%prev_buffers(j)%point%index /= 0) call destroy_marker(p%prev_buffers(j)%point, status)
+                if (allocated(p%previous_buffers)) then
+                    do j = 1, size(p%previous_buffers)
+                        if (p%previous_buffers(j)%start%index /= 0) call destroy_marker(p%previous_buffers(j)%start, status)
+                        if (p%previous_buffers(j)%point%index /= 0) call destroy_marker(p%previous_buffers(j)%point, status)
                     end do
                 end if
             end associate

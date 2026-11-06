@@ -21,19 +21,19 @@
 
 module test_register_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_error, FM_QUIT, FM_WRONG_TYPE_ARGUMENT, FM_USER_ERROR
+    use error_mod, only: status_type, format_error, QUIT_CODE, WRONG_TYPE_ARGUMENT_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, set_buffer_read_only, &
                           current_buffer, get_buffer, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, buffer_string, mark_position, buffer_substring
-    use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_message, unread_command_events
-    use execute_interactively_mod, only: prefix_arg
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: point, goto_character, buffer_string, mark_position, buffer_substring
+    use keyboard_mod, only: keyboard_store_bytes, command_loop, discard_input, last_message, unread_command_events
+    use execute_interactively_mod, only: prefix_argument
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: deactivate_mark, set_mark
     use frame_mod, only: selected_frame, selected_window
     use window_mod, only: split_window, delete_other_windows, window_leaves, windows, get_buffer_window, is_window_live
@@ -51,7 +51,7 @@ module test_register_mod
 
     public :: collect_register_mod
 
-    character(len=1), parameter :: nl = achar(10)
+    character(len=1), parameter :: newline = achar(10)
     character(len=*), parameter :: cxr = achar(24)//"r"
     integer(int64), parameter :: ra = iachar("a"), rb = iachar("b"), rc = iachar("c")
 
@@ -93,7 +93,7 @@ contains
         call erase_buffer(st)
         call deactivate_mark(.true.)
         call insert(text, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call show_alone()
 
         ! Empty every register (an empty rectangle is nil).
@@ -105,8 +105,8 @@ contains
 
         register_separator = -1
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
     end subroutine fresh
 
     !> The contents of register R.
@@ -172,16 +172,16 @@ contains
         do k = 1, 3
             select case (k)
             case (1)
-                call kbd_store_bytes(achar(7))
+                call keyboard_store_bytes(achar(7))
             case (2)
                 escape(1) = value_type(name="escape")
                 call unread_command_events(escape)
             case default
-                call kbd_store_bytes(achar(27))
+                call keyboard_store_bytes(achar(27))
             end select
 
             call commands_point_to_register(st)
-            call check(error, st%code == FM_QUIT, "quit: "//format_error(st))
+            call check(error, st%code == QUIT_CODE, "quit: "//format_error(st))
             if (allocated(error)) return
             call check(error, all_empty(), "no register set")
             if (allocated(error)) return
@@ -240,14 +240,14 @@ contains
         type(status_type) :: st
 
         call fresh(h, "hello world")
-        call goto_char(7_int64)
+        call goto_character(7_int64)
         call point_to_register(ra, st)
         call check(error, kind_of(ra) == REGISTER_MARKER, "a marker")
         if (allocated(error)) return
         ! The marker follows insertions.
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call insert(">> ", st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call jump_to_register(ra, st)
         call check(error, point() == 10 .and. mark_position() == 1, "jumped, mark pushed")
         if (allocated(error)) return
@@ -262,7 +262,7 @@ contains
         ! The buffer killed: the marker points nowhere.
         call close_buffer(h, st)
         call jump_to_register(ra, st)
-        call check(error, st%code == FM_USER_ERROR .and. format_error(st) == "That register"//char(226)//char(128)// &
+        call check(error, st%code == USER_ERROR_CODE .and. format_error(st) == "That register"//char(226)//char(128)// &
                    char(153)//"s buffer no longer exists", format_error(st))
         if (allocated(error)) return
         call check(error, describe_register_1(ra), "Register a contains a marker in no buffer")
@@ -285,13 +285,13 @@ contains
         call check(error, kind_of(ra) == REGISTER_TEXT .and. text_of(ra) == "hello", "copied")
         if (allocated(error)) return
         ! Insert: point before, mark after.
-        call goto_char(12_int64)
+        call goto_character(12_int64)
         call insert_register(ra, st)
         call check(error, buffer_string() == "hello worldhello" .and. point() == 12 .and. mark_position() == 17, &
                    "inserted")
         if (allocated(error)) return
-        ! With ARG, point after and mark before.
-        call goto_char(1_int64)
+        ! With ARGUMENT, point after and mark before.
+        call goto_character(1_int64)
         call insert_register(ra, st, .true.)
         call check(error, buffer_string() == "hellohello worldhello" .and. point() == 6 .and. mark_position() == 1, &
                    "inserted with arg")
@@ -302,13 +302,13 @@ contains
         if (allocated(error)) return
         ! A number, a position and a file are inserted as upstream does.
         call set_register(rc, 42_int64)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call insert_register(rc, st, .true.)
         call check(error, buffer_string(), "42hello worldhello")
         if (allocated(error)) return
         call file_to_register("foo", rc)
         call insert_register(rc, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT .and. &
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE .and. &
                    format_error(st) == "Wrong type argument: expected character(len=*), got file", &
                    format_error(st))
         if (allocated(error)) return
@@ -368,13 +368,13 @@ contains
         call increment_register(ra, st, -10_int64)
         call check(error, number_of(ra), -2_int64)
         if (allocated(error)) return
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call insert_register(ra, st, .true.)
         call check(error, buffer_string(), "-2  -12 apples")
         if (allocated(error)) return
         ! Text is appended to: the region.
         call set_mark(9_int64)
-        call goto_char(15_int64)
+        call goto_character(15_int64)
         call increment_register(rc, st)
         call check(error, text_of(rc), "apples")
         if (allocated(error)) return
@@ -390,7 +390,7 @@ contains
         type(status_type) :: st
         type(register_contents_type) :: v
 
-        call fresh(h, "abcdef"//nl//"ghijkl"//nl//"mnopqr")
+        call fresh(h, "abcdef"//newline//"ghijkl"//newline//"mnopqr")
         call copy_rectangle_to_register(ra, 2_int64, 19_int64, st)
         v = value_of(ra)
         call check(error, v%kind == REGISTER_RECTANGLE .and. size(v%rectangle) == 3, "copied")
@@ -398,19 +398,19 @@ contains
         call check(error, v%rectangle(2)%text, "hij")
         if (allocated(error)) return
         call copy_rectangle_to_register(rb, 2_int64, 19_int64, st, delete_flag=.true.)
-        call check(error, buffer_string(), "aef"//nl//"gkl"//nl//"mqr")
+        call check(error, buffer_string(), "aef"//newline//"gkl"//newline//"mqr")
         if (allocated(error)) return
         ! Insert: the rectangle at point, point before and mark after.
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call insert_register(rb, st)
-        call check(error, buffer_string(), "bcdaef"//nl//"hijgkl"//nl//"nopmqr")
+        call check(error, buffer_string(), "bcdaef"//newline//"hijgkl"//newline//"nopmqr")
         if (allocated(error)) return
         call check(error, point() == 1 .and. mark_position() == 18, "point and mark exchanged")
         if (allocated(error)) return
         call check(error, describe_register_1(ra), "Register a contains a rectangle starting with bcd")
         if (allocated(error)) return
-        call check(error, describe_register_1(ra, .true.), "Register a contains the rectangle:"//nl//"    bcd"//nl// &
-                   "    hij"//nl//"    nop"//nl)
+        call check(error, describe_register_1(ra, .true.), "Register a contains the rectangle:"//newline//"    bcd"//newline// &
+                   "    hij"//newline//"    nop"//newline)
         call close_buffer(h, st)
     end subroutine test_rectangle
 
@@ -421,7 +421,7 @@ contains
         type(status_type) :: st
 
         call fresh(h, "hello")
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call get_or_make_buffer("*register-other*", other, st)
         call split_window(selected_window(), 0, .false., .false., w, st)
         call window_configuration_to_register(ra)
@@ -476,36 +476,36 @@ contains
         type(status_type) :: st
 
         call fresh(h, "hello")
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call point_to_register(ra, st)
-        call check(error, describe_register_1(ra), "Register a contains a buffer position:"//nl// &
+        call check(error, describe_register_1(ra), "Register a contains a buffer position:"//newline// &
                    "    buffer *register-test*, position 3")
         if (allocated(error)) return
         call check(error, register_describe_oneline(ra), "buffer position: buffer *register-test*, position 3")
         if (allocated(error)) return
-        call check(error, register_preview_default(ra), "a: buffer position: buffer *register-test*, position 3"//nl)
+        call check(error, register_preview_default(ra), "a: buffer position: buffer *register-test*, position 3"//newline)
         if (allocated(error)) return
         ! Text: from the first non-whitespace, at most 21 characters, up to
         ! a newline.
-        call set_register(rb, "  "//nl//"  The quick brown fox jumps over"//nl//"x")
-        call check(error, describe_register_1(rb), "Register b contains text starting with"//nl// &
+        call set_register(rb, "  "//newline//"  The quick brown fox jumps over"//newline//"x")
+        call check(error, describe_register_1(rb), "Register b contains text starting with"//newline// &
                    "    The quick brown fox j")
         if (allocated(error)) return
         call check(error, register_describe_oneline(rb), "text starting with The quick brown fox j")
         if (allocated(error)) return
-        call set_register(rb, "ab"//nl//"cd")
-        call check(error, describe_register_1(rb), "Register b contains text starting with"//nl//"    ab")
+        call set_register(rb, "ab"//newline//"cd")
+        call check(error, describe_register_1(rb), "Register b contains text starting with"//newline//"    ab")
         if (allocated(error)) return
-        call set_register(rb, " "//nl//" ")
+        call set_register(rb, " "//newline//" ")
         call check(error, describe_register_1(rb), "Register b contains whitespace")
         if (allocated(error)) return
         call set_register(rb, "")
         call check(error, describe_register_1(rb), "Register b contains the empty string")
         if (allocated(error)) return
-        call check(error, describe_register_1(rb, .true.), "Register b contains the text:"//nl)
+        call check(error, describe_register_1(rb, .true.), "Register b contains the text:"//newline)
         if (allocated(error)) return
         call set_register(rc, -7_int64)
-        call check(error, register_preview_default(rc), "c: -7"//nl)
+        call check(error, register_preview_default(rc), "c: -7"//newline)
         if (allocated(error)) return
         call set_register(int(z'7F', int64), 1_int64)
         call check(error, describe_register_1(int(z'7F', int64)), "Register DEL contains 1")
@@ -540,14 +540,14 @@ contains
         call set_register(rb, "some text")
         call set_register(ra, 5_int64)
         call view_register(rb, st)
-        call check(error, contents_of("*Output*"), "Register b contains the text:"//nl//"some text")
+        call check(error, contents_of("*Output*"), "Register b contains the text:"//newline//"some text")
         if (allocated(error)) return
         call check(error, is_window_live(get_buffer_window(get_buffer("*Output*"))), "shown")
         if (allocated(error)) return
         ! Sorted by name; empty registers left out.
         call list_registers(st)
-        call check(error, contents_of("*Output*"), "Register a contains 5"//nl// &
-                   "Register b contains text starting with"//nl//"    some text"//nl)
+        call check(error, contents_of("*Output*"), "Register a contains 5"//newline// &
+                   "Register b contains text starting with"//newline//"    some text"//newline)
         call delete_other_windows(selected_window(), st)
         call close_buffer(get_buffer("*Output*"), st)
         call close_buffer(h, st)
@@ -565,7 +565,7 @@ contains
         call set_register(rb, "bee")
         call set_register(ra, 1_int64)
         ! C-x r i C-h: the preview (read here before the register).
-        call kbd_store_bytes(cxr//"i"//achar(8)//"b")
+        call keyboard_store_bytes(cxr//"i"//achar(8)//"b")
         call command_loop(st)
         call check(error, buffer_string(), "beehello")
         if (allocated(error)) return
@@ -587,27 +587,27 @@ contains
 
         call fresh(h, "alpha beta")
         ! C-x r SPC a at 3, M-> then C-x r j a.
-        call goto_char(3_int64)
-        call kbd_store_bytes(cxr//" a"//achar(27)//">"//cxr//"ja")
+        call goto_character(3_int64)
+        call keyboard_store_bytes(cxr//" a"//achar(27)//">"//cxr//"ja")
         call command_loop(st)
         call check(error, point(), 3_int64)
         if (allocated(error)) return
         ! C-x r s b copies the region; C-x r g b inserts it.
         call set_mark(1_int64)
-        call goto_char(6_int64)
-        call kbd_store_bytes(cxr//"sb"//achar(27)//">"//cxr//"gb")
+        call goto_character(6_int64)
+        call keyboard_store_bytes(cxr//"sb"//achar(27)//">"//cxr//"gb")
         call command_loop(st)
         call check(error, buffer_string() == "alpha betaalpha" .and. point() == 16, "copy and insert")
         if (allocated(error)) return
         ! C-u 3 C-x r n c, C-x r + c, C-x r i c.
-        call kbd_store_bytes(achar(21)//"3"//cxr//"nc"//cxr//"+c"//cxr//"ic")
+        call keyboard_store_bytes(achar(21)//"3"//cxr//"nc"//cxr//"+c"//cxr//"ic")
         call command_loop(st)
         call check(error, buffer_string(), "alpha betaalpha4")
         if (allocated(error)) return
         ! C-x r r d copies a rectangle; C-x r x with C-u deletes.
         call set_mark(1_int64)
-        call goto_char(3_int64)
-        call kbd_store_bytes(cxr//"rd"//achar(21)//cxr//"xe")
+        call goto_character(3_int64)
+        call keyboard_store_bytes(cxr//"rd"//achar(21)//cxr//"xe")
         call command_loop(st)
         call check(error, buffer_string() == "pha betaalpha4" .and. number_of(rc) == 4, "rectangle and delete")
         if (allocated(error)) return

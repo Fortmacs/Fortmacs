@@ -9,7 +9,7 @@
 `upcase`,
 `downcase`,
 `capitalize`,
-`upcase-initials` on characters and strings (`casify_object`; in a unibyte buffer 128..255 are raw bytes: `make_char_unibyte`),
+`upcase-initials` on characters and strings (`casify_object`; in a unibyte buffer 128..255 are raw bytes: `make_character_unibyte`),
 `upcase-region`,
 `downcase-region`,
 `capitalize-region`,

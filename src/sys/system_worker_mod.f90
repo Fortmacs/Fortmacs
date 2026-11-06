@@ -61,7 +61,7 @@ module system_worker_mod
     integer, parameter :: READMAX = 65536
 
     !> The most workers at once (upstream is limited by FD_SETSIZE too).
-    integer, parameter :: MAX_WORKERS = 1024
+    integer, parameter :: MAXIMUM_WORKERS = 1024
     !> errno EMFILE (asm-generic/errno-base.h).
     integer(int32), parameter :: EMFILE = 24
 
@@ -84,9 +84,9 @@ module system_worker_mod
         integer(c_int32_t) :: pidfd = -1
     end type reader_job_type
 
-    type(reader_job_type), target :: jobs(MAX_WORKERS)
-    integer(c_long) :: threads(MAX_WORKERS) = 0
-    logical :: in_use(MAX_WORKERS) = .false.
+    type(reader_job_type), target :: jobs(MAXIMUM_WORKERS)
+    integer(c_long) :: threads(MAXIMUM_WORKERS) = 0
+    logical :: in_use(MAXIMUM_WORKERS) = .false.
     integer :: active = 0
 
     !> The queue, shared with the workers under `queue_mutex' (a
@@ -205,8 +205,8 @@ contains
 
     !> Take the queued messages, oldest first, and join the workers whose
     !> exit is among them.  Main thread only.
-    subroutine take_worker_messages(msgs)
-        type(worker_message_type), allocatable, intent(out) :: msgs(:)
+    subroutine take_worker_messages(messages)
+        type(worker_message_type), allocatable, intent(out) :: messages(:)
         character(kind=c_char) :: junk(64)
         integer(c_long) :: n
         integer(c_int) :: r
@@ -228,13 +228,13 @@ contains
 
         r = c_pthread_mutex_lock(queue_mutex)
         count = queue_count
-        allocate (msgs(count))
+        allocate (messages(count))
 
         do k = 1, count
-            msgs(k)%worker = queue(k)%worker
-            msgs(k)%kind = queue(k)%kind
-            msgs(k)%wait_status = queue(k)%wait_status
-            if (allocated(queue(k)%bytes)) call move_alloc(queue(k)%bytes, msgs(k)%bytes)
+            messages(k)%worker = queue(k)%worker
+            messages(k)%kind = queue(k)%kind
+            messages(k)%wait_status = queue(k)%wait_status
+            if (allocated(queue(k)%bytes)) call move_alloc(queue(k)%bytes, messages(k)%bytes)
         end do
 
         if (allocated(queue)) deallocate (queue)
@@ -242,8 +242,8 @@ contains
         r = c_pthread_mutex_unlock(queue_mutex)
 
         do k = 1, count
-            if (msgs(k)%kind == WORKER_EXIT) then
-                slot = msgs(k)%worker
+            if (messages(k)%kind == WORKER_EXIT) then
+                slot = messages(k)%worker
                 r = c_pthread_join(threads(slot), c_null_ptr)
                 in_use(slot) = .false.
                 active = active - 1
@@ -258,8 +258,8 @@ contains
 
     !> The body of a worker thread: read the child's output until it
     !> exits, then the rest of it, then reap it.
-    recursive function reader_main(arg) result(ret) bind(C)
-        type(c_ptr), value :: arg
+    recursive function reader_main(argument) result(ret) bind(C)
+        type(c_ptr), value :: argument
         type(c_ptr) :: ret
         type(reader_job_type), pointer :: job
         type(pollfd_type) :: pfd(2)
@@ -269,7 +269,7 @@ contains
         logical :: exited
 
         ret = c_null_ptr
-        call c_f_pointer(arg, job)
+        call c_f_pointer(argument, job)
         allocate (buffer(READMAX))
         pfd(1)%fd = job%fd
         pfd(1)%events = POLLIN

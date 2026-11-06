@@ -21,17 +21,17 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Dynamic abbreviations: write just a few characters of words written
-!> earlier and expand them with M-/ (`dabbrev_expand'), which searches
+!> earlier and expand them with M-/ (`dynamic_abbreviation_expand'), which searches
 !> backward, then forward in the current buffer, then in other buffers.
 !>
 !> Settings whose upstream values are .false., .true. or a name are choice
 !> settings: .true., .false. and the named constants
-!> DABBREV_LIKE_CASE_FOLD_SEARCH (like `case_fold_search'),
-!> DABBREV_LIKE_CASE_REPLACE (like `case_replace') and DABBREV_ASK (another
-!> value of `dabbrev_check_other_buffers').
+!> DYNAMIC_ABBREVIATION_LIKE_CASE_FOLD_SEARCH (like `case_fold_search'),
+!> DYNAMIC_ABBREVIATION_LIKE_CASE_REPLACE (like `case_replace') and DYNAMIC_ABBREVIATION_ASK (another
+!> value of `dynamic_abbreviation_check_other_buffers').
 !>
-!> `dabbrev_completion' (C-M-/) completes through
-!> `completion_at_point' with `dabbrev_capf'.
+!> `dynamic_abbreviation_completion' (C-M-/) completes through
+!> `completion_at_point' with `dynamic_abbreviation_completion_at_point_function'.
 !>
 !> Deferred: Picture mode's `picture_replace_match'.
 module dynamic_abbreviation_mod
@@ -39,79 +39,83 @@ module dynamic_abbreviation_mod
     use utility_functions_mod, only: count_characters
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
     use data_mod, only: string_setting_type, forward_setting, choice_setting_type, choice_state
     use buffer_mod, only: buffers, current, BEGINNING, current_buffer, set_buffer, is_buffer_live, buffer_list, resolve_buffer, &
                           get_buffer, get_or_make_buffer, generate_new_buffer_name, close_buffer, &
                           barf_if_buffer_read_only, UE_POINT, undo_entry_type
     use marker_mod, only: copy_marker_at, marker_position, marker_buffer, destroy_marker
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_bob, preceding_char, buffer_substring, &
-                                     delete_region, widen, narrow_to_region, field_beginning, point_marker
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_beginning_of_buffer, &
+                                     preceding_character, buffer_substring, delete_region, widen, narrow_to_region, &
+                                     field_beginning, point_marker
     use insert_delete_mod, only: insert
-    use search_mod, only: re_search_forward, re_search_backward, search_forward, search_backward, looking_at, &
-                          string_match, match_beginning, match_end, regexp_quote, replace_match, case_fold_search, &
-                          SEARCH_NOERROR
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, search_forward, search_backward, &
+                          looking_at, string_match, match_beginning, match_end, regular_expression_quote, replace_match, &
+                          case_fold_search, SEARCH_NOERROR
     use casefiddle_mod, only: upcase_string, downcase_string, capitalize_string
     use replace_mod, only: case_replace
     use undo_mod, only: append_undo_entry
     use basic_subprograms_mod, only: read_y_or_n, progress_reporter_type, make_progress_reporter, progress_reporter_update, &
                                      progress_reporter_done
     use minibuffer_reading_mod, only: minibuffer_prompt_end, minibuf_level
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use keyboard_mod, only: last_command, this_command
-    use frame_mod, only: selected_frame, frame_selected_window_ref
+    use frame_mod, only: selected_frame, frame_selected_window_reference
     use window_mod, only: windows, window_leaves, get_mru_window, same_handle, window_type
     use derived_mod, only: provided_mode_derived_p
     use display_engine_mod, only: message
     use value_mod, only: value_type, make_list, xstring, choice_type, assignment(=)
-    use minibuffer_reading_tables_mod, only: capf_data_type, completion_test_procedure, completion_table_type, &
-                                         completion_list_table, completion_function_table, COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type, completion_test_procedure, &
+                                             completion_table_type, completion_list_table, completion_function_table, &
+                                             COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuffer_reading_mod, only: try_completion, all_completions, is_exact_completion
-    use hooks_mod, only: capf_entry_type
+    use hooks_mod, only: completion_at_point_function_entry_type
     use minibuffer_mod, only: execute_completion_at_point
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
-    public :: dabbrev_completion, dabbrev_capf
-    public :: dabbrev_expand, dabbrev_reset_global_variables, is_dabbrev_same_major_mode, dabbrev_select_buffers, &
-              dabbrev_friend_buffer_procedure, dabbrev_select_buffers_procedure, init_dabbrev
+    public :: dynamic_abbreviation_completion, dynamic_abbreviation_completion_at_point_function
+    public :: dynamic_abbreviation_expand, dynamic_abbreviation_reset_global_variables, is_dynamic_abbreviation_same_major_mode, &
+              dynamic_abbreviation_select_buffers, &
+              dynamic_abbreviation_friend_buffer_procedure, dynamic_abbreviation_select_buffers_procedure, &
+              initialize_dynamic_abbreviation
 
-    !> Values of `dabbrev_case_fold_search' besides .true. and .false.: like
+    !> Values of `dynamic_abbreviation_case_fold_search' besides .true. and .false.: like
     !> case_fold_search.
-    integer, parameter, public :: DABBREV_LIKE_CASE_FOLD_SEARCH = 2
-    !> Values of `dabbrev_case_distinction' and `dabbrev_case_replace' besides
+    integer, parameter, public :: DYNAMIC_ABBREVIATION_LIKE_CASE_FOLD_SEARCH = 2
+    !> Values of `dynamic_abbreviation_case_distinction' and `dynamic_abbreviation_case_replace' besides
     !> .true. and .false.: like case_replace.
-    integer, parameter, public :: DABBREV_LIKE_CASE_REPLACE = 3
-    !> Values of `dabbrev_check_other_buffers' besides .true. and .false.: ask.
-    integer, parameter, public :: DABBREV_ASK = 4
+    integer, parameter, public :: DYNAMIC_ABBREVIATION_LIKE_CASE_REPLACE = 3
+    !> Values of `dynamic_abbreviation_check_other_buffers' besides .true. and .false.: ask.
+    integer, parameter, public :: DYNAMIC_ABBREVIATION_ASK = 4
 
     abstract interface
         !> A function deciding whether dabbrev should search OTHER_BUFFER.
         !> Not a port.
-        logical function dabbrev_friend_buffer_procedure(other_buffer)
+        logical function dynamic_abbreviation_friend_buffer_procedure(other_buffer)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), intent(in) :: other_buffer
-        end function dabbrev_friend_buffer_procedure
+        end function dynamic_abbreviation_friend_buffer_procedure
 
         !> A function giving in LIST the buffers that should be
         !> searched by dabbrev.  Not a port.
-        subroutine dabbrev_select_buffers_procedure(list)
+        subroutine dynamic_abbreviation_select_buffers_procedure(list)
             import :: handle_type
             implicit none(type, external)
             type(handle_type), allocatable, intent(out) :: list(:)
-        end subroutine dabbrev_select_buffers_procedure
+        end subroutine dynamic_abbreviation_select_buffers_procedure
     end interface
 
-    !> If true, `dabbrev_expand' only looks backwards.  Port of dabbrev.el
+    !> If true, `dynamic_abbreviation_expand' only looks backwards.  Port of dabbrev.el
     !> dabbrev-backward-only.
-    logical, public :: dabbrev_backward_only = .false.
+    logical, public :: dynamic_abbreviation_backward_only = .false.
 
-    !> Limits region searched by `dabbrev_expand' to this many chars away
+    !> Limits region searched by `dynamic_abbreviation_expand' to this many chars away
     !> (unallocated: off).  Port of dabbrev.el dabbrev-limit.
-    integer(int64), allocatable, public :: dabbrev_limit
+    integer(int64), allocatable, public :: dynamic_abbreviation_limit
 
     !> Regexp for skipping leading characters of an abbreviation.
     !>
@@ -121,58 +125,61 @@ module dynamic_abbreviation_mod
     !>
     !> Leave this unset if no characters should be skipped.  Port of
     !> dabbrev.el dabbrev-abbrev-skip-leading-regexp.
-    type(string_setting_type), target, public :: dabbrev_abbrev_skip_leading_regexp = &
-                                                 string_setting_type(name="dabbrev_abbrev_skip_leading_regexp")
+    type(string_setting_type), target, public :: dynamic_abbreviation_skip_leading_regular_expression = &
+                                                 string_setting_type(name="dynamic_abbreviation_skip_leading_regular_expression")
 
     !> True means dabbrev should not insert newlines.
     !> Instead it converts them to spaces.  Port of dabbrev.el
     !> dabbrev-eliminate-newlines.
-    logical, public :: dabbrev_eliminate_newlines = .true.
+    logical, public :: dynamic_abbreviation_eliminate_newlines = .true.
 
     !> Control whether dabbrev searches should ignore case.
     !> .false. means case is significant.
-    !> A value of DABBREV_LIKE_CASE_FOLD_SEARCH means case is significant
+    !> A value of DYNAMIC_ABBREVIATION_LIKE_CASE_FOLD_SEARCH means case is significant
     !>  if `case_fold_search' is false.
     !> Any other value means case is not significant.  Port of dabbrev.el
     !> dabbrev-case-fold-search.
-    type(choice_setting_type), public :: dabbrev_case_fold_search = &
-                                         choice_setting_type(name="dabbrev_case_fold_search", choice=DABBREV_LIKE_CASE_FOLD_SEARCH)
+    type(choice_setting_type), public :: dynamic_abbreviation_case_fold_search = &
+                                         choice_setting_type(name="dynamic_abbreviation_case_fold_search", &
+                                                             choice=DYNAMIC_ABBREVIATION_LIKE_CASE_FOLD_SEARCH)
 
     !> The significance of an uppercase character in an abbreviation.
     !> A false value means case fold search when searching for possible expansions;
     !> true means case sensitive search.
     !>
     !> This variable has an effect only when the value of
-    !> `dabbrev_case_fold_search' says to ignore case.  Port of dabbrev.el
+    !> `dynamic_abbreviation_case_fold_search' says to ignore case.  Port of dabbrev.el
     !> dabbrev-upcase-means-case-search.
-    logical, public :: dabbrev_upcase_means_case_search = .false.
+    logical, public :: dynamic_abbreviation_upcase_means_case_search = .false.
 
     !> Whether dabbrev treats expansions that differ only in case as different.
     !>
     !> .true. means treat them as different (case differences count).
     !> .false. means treat them as the same.
-    !> A value of DABBREV_LIKE_CASE_REPLACE means distinguish them if
+    !> A value of DYNAMIC_ABBREVIATION_LIKE_CASE_REPLACE means distinguish them if
     !> `case_replace' is false.
     !>
     !> This variable has an effect only when the value of
-    !> `dabbrev_case_fold_search' specifies to ignore case.  Port of
+    !> `dynamic_abbreviation_case_fold_search' specifies to ignore case.  Port of
     !> dabbrev.el dabbrev-case-distinction.
-    type(choice_setting_type), public :: dabbrev_case_distinction = &
-                                         choice_setting_type(name="dabbrev_case_distinction", choice=DABBREV_LIKE_CASE_REPLACE)
+    type(choice_setting_type), public :: dynamic_abbreviation_case_distinction = &
+                                         choice_setting_type(name="dynamic_abbreviation_case_distinction", &
+                                                             choice=DYNAMIC_ABBREVIATION_LIKE_CASE_REPLACE)
 
     !> Whether dabbrev applies the abbreviations's case pattern to the expansion.
     !>
     !> .false. means preserve the expansion's case pattern.
-    !> A value of DABBREV_LIKE_CASE_REPLACE means preserve it if `case_replace'
+    !> A value of DYNAMIC_ABBREVIATION_LIKE_CASE_REPLACE means preserve it if `case_replace'
     !> is false.
     !> Any other value means modify the expansion
     !> by applying the abbreviation's case pattern to it.
     !>
     !> This variable has an effect only when the value of
-    !> `dabbrev_case_fold_search' specifies to ignore case.  Port of
+    !> `dynamic_abbreviation_case_fold_search' specifies to ignore case.  Port of
     !> dabbrev.el dabbrev-case-replace.
-    type(choice_setting_type), public :: dabbrev_case_replace = &
-                                         choice_setting_type(name="dabbrev_case_replace", choice=DABBREV_LIKE_CASE_REPLACE)
+    type(choice_setting_type), public :: dynamic_abbreviation_case_replace = &
+                                         choice_setting_type(name="dynamic_abbreviation_case_replace", &
+                                                             choice=DYNAMIC_ABBREVIATION_LIKE_CASE_REPLACE)
 
     !> Regexp to recognize a character in an abbreviation or expansion.
     !> This regexp will be surrounded with \\( ... \\) when actually used.
@@ -193,65 +200,67 @@ module dynamic_abbreviation_mod
     !> match `in_range', but not `in_close_range').  If expanding
     !> `debug_print_in' it would look for a word starting with
     !> `in' (e.g. `integer').  Port of dabbrev.el dabbrev-abbrev-char-regexp.
-    character(len=:), allocatable, public :: dabbrev_abbrev_char_regexp
+    character(len=:), allocatable, public :: dynamic_abbreviation_character_regular_expression
 
     !> True means dabbrev package should search *all* buffers.
     !>
     !> Dabbrev always searches the current buffer first.  Then, if
-    !> `dabbrev_check_other_buffers' says so, it searches the buffers
-    !> designated by `dabbrev_select_buffers_function'.
+    !> `dynamic_abbreviation_check_other_buffers' says so, it searches the buffers
+    !> designated by `dynamic_abbreviation_select_buffers_function'.
     !>
-    !> Then, if `dabbrev_check_all_buffers' is true, dabbrev searches
-    !> all the other buffers, except those named in `dabbrev_ignored_buffer_names',
-    !> or matched by `dabbrev_ignored_buffer_regexps'.  Port of dabbrev.el
+    !> Then, if `dynamic_abbreviation_check_all_buffers' is true, dabbrev searches
+    !> all the other buffers, except those named in `dynamic_abbreviation_ignored_buffer_names',
+    !> or matched by `dynamic_abbreviation_ignored_buffer_regular_expressions'.  Port of dabbrev.el
     !> dabbrev-check-all-buffers.
-    logical, public :: dabbrev_check_all_buffers = .true.
+    logical, public :: dynamic_abbreviation_check_all_buffers = .true.
 
     !> List of buffer names that dabbrev should not check.
-    !> See also `dabbrev_ignored_buffer_regexps' and
-    !> `dabbrev_ignored_buffer_modes'.  Port of dabbrev.el
+    !> See also `dynamic_abbreviation_ignored_buffer_regular_expressions' and
+    !> `dynamic_abbreviation_ignored_buffer_modes'.  Port of dabbrev.el
     !> dabbrev-ignored-buffer-names (trailing blanks are ignored).
-    character(len=:), allocatable, public :: dabbrev_ignored_buffer_names(:)
+    character(len=:), allocatable, public :: dynamic_abbreviation_ignored_buffer_names(:)
 
     !> List of regexps matching names of buffers that dabbrev should not check.
-    !> See also `dabbrev_ignored_buffer_names' and
-    !> `dabbrev_ignored_buffer_modes'.  Port of dabbrev.el
+    !> See also `dynamic_abbreviation_ignored_buffer_names' and
+    !> `dynamic_abbreviation_ignored_buffer_modes'.  Port of dabbrev.el
     !> dabbrev-ignored-buffer-regexps (trailing blanks are ignored).
-    character(len=:), allocatable, public :: dabbrev_ignored_buffer_regexps(:)
+    character(len=:), allocatable, public :: dynamic_abbreviation_ignored_buffer_regular_expressions(:)
 
     !> Inhibit looking for abbreviations in buffers derived from these modes.
-    !> See also `dabbrev_ignored_buffer_names' and
-    !> `dabbrev_ignored_buffer_regexps'.  Port of dabbrev.el
+    !> See also `dynamic_abbreviation_ignored_buffer_names' and
+    !> `dynamic_abbreviation_ignored_buffer_regular_expressions'.  Port of dabbrev.el
     !> dabbrev-ignored-buffer-modes (trailing blanks are ignored).
-    character(len=:), allocatable, public :: dabbrev_ignored_buffer_modes(:)
+    character(len=:), allocatable, public :: dynamic_abbreviation_ignored_buffer_modes(:)
 
-    !> Should \[dabbrev_expand] look in other buffers?
+    !> Should \[dynamic_abbreviation_expand] look in other buffers?
     !> .false.: Don't look in other buffers.
     !> .true.: Also look for expansions in the buffers pointed out by
-    !>    `dabbrev_select_buffers_function'.
-    !> DABBREV_ASK: When we can't find any more expansions in
+    !>    `dynamic_abbreviation_select_buffers_function'.
+    !> DYNAMIC_ABBREVIATION_ASK: When we can't find any more expansions in
     !> the current buffer, then ask the user whether to look in other
     !> buffers too.
     !>
     !> The default value is .true.  Port of dabbrev.el
     !> dabbrev-check-other-buffers.
-    type(choice_setting_type), public :: dabbrev_check_other_buffers = &
-                                         choice_setting_type(name="dabbrev_check_other_buffers", value=.true.)
+    type(choice_setting_type), public :: dynamic_abbreviation_check_other_buffers = &
+                                         choice_setting_type(name="dynamic_abbreviation_check_other_buffers", value=.true.)
 
     !> A function that selects buffers that should be searched by dabbrev.
     !> The function should take no arguments and return a list of buffers to
-    !> search for expansions.  See the source of `dabbrev_select_buffers'
+    !> search for expansions.  See the source of `dynamic_abbreviation_select_buffers'
     !> for an example.  Port of dabbrev.el dabbrev-select-buffers-function
-    !> (null is `dabbrev_select_buffers', its default).
-    procedure(dabbrev_select_buffers_procedure), pointer, public :: dabbrev_select_buffers_function => null()
+    !> (null is `dynamic_abbreviation_select_buffers', its default).
+    procedure(dynamic_abbreviation_select_buffers_procedure), pointer, public :: dynamic_abbreviation_select_buffers_function => &
+        null()
 
     !> A function to decide whether dabbrev should search OTHER_BUFFER.
     !> The function should take one argument, OTHER_BUFFER, and return
     !> true if that buffer should be searched.  Have a look at
-    !> `is_dabbrev_same_major_mode' for an example.  Port of dabbrev.el
+    !> `is_dynamic_abbreviation_same_major_mode' for an example.  Port of dabbrev.el
     !> dabbrev-friend-buffer-function (null is
-    !> `is_dabbrev_same_major_mode', its default).
-    procedure(dabbrev_friend_buffer_procedure), pointer, public :: dabbrev_friend_buffer_function => null()
+    !> `is_dynamic_abbreviation_same_major_mode', its default).
+    procedure(dynamic_abbreviation_friend_buffer_procedure), pointer, public :: dynamic_abbreviation_friend_buffer_function => &
+        null()
 
     !> If allocated, a list of buffers which dabbrev should search (their
     !> names).
@@ -259,7 +268,7 @@ module dynamic_abbreviation_mod
     !> these buffers.  It will not even look in the current buffer if it is not a
     !> member of this list.  Port of dabbrev.el
     !> dabbrev-search-these-buffers-only.
-    character(len=:), allocatable, public :: dabbrev_search_these_buffers_only(:)
+    character(len=:), allocatable, public :: dynamic_abbreviation_search_these_buffers_only(:)
 
     ! Table of expansions seen so far.
     type(string_type), allocatable :: last_table(:)
@@ -269,14 +278,14 @@ module dynamic_abbreviation_mod
     character(len=:), allocatable :: last_abbreviation
 
     ! Location last abbreviation began: a marker, the null handle for nil.
-    type(handle_type) :: last_abbrev_location
+    type(handle_type) :: last_abbreviation_location
 
-    ! The closure of `dabbrev_capf''s completion table: the abbreviation,
+    ! The closure of `dynamic_abbreviation_completion_at_point_function''s completion table: the abbreviation,
     ! whether case is ignored, and its expansions once computed
-    ! (`capf_list_set').
-    character(len=:), allocatable :: capf_abbrev
-    logical :: capf_ignore_case = .false., capf_list_set = .false.
-    type(value_type) :: capf_list
+    ! (`completion_at_point_function_list_set').
+    character(len=:), allocatable :: completion_at_point_function_abbreviation
+    logical :: completion_at_point_function_ignore_case = .false., completion_at_point_function_list_set = .false.
+    type(value_type) :: completion_at_point_function_list
 
     ! Direction of last dabbrevs search (nil when `last_direction_set' is
     ! false).
@@ -289,7 +298,7 @@ module dynamic_abbreviation_mod
     ! Location the last expansion was found: a position, or a marker
     ! (`location_marker'), or nil (`location_set' false).
     logical :: location_set = .false.
-    integer(int64) :: location_pos = 0
+    integer(int64) :: location_position = 0
     type(handle_type) :: location_marker
 
     ! The list of remaining buffers with the same mode as current buffer.
@@ -306,14 +315,14 @@ module dynamic_abbreviation_mod
     integer, parameter :: CASE_PATTERN_NONE = 0, CASE_PATTERN_UPCASE = 1, CASE_PATTERN_DOWNCASE = 2
     integer :: last_case_pattern = CASE_PATTERN_NONE
 
-    ! Same as dabbrev_check_other_buffers, but is set for every expand.
+    ! Same as dynamic_abbreviation_check_other_buffers, but is set for every expand.
     type(choice_type) :: check_other_buffers = choice_type(value=.true.)
 
-    ! Same as dabbrev_check_all_buffers, but is set for every expand.
+    ! Same as dynamic_abbreviation_check_all_buffers, but is set for every expand.
     logical :: check_all_buffers = .true.
 
     ! The regexp for recognizing a character in an abbreviation.
-    character(len=:), allocatable :: abbrev_char_regexp
+    character(len=:), allocatable :: abbreviation_character_regular_expression
 
     ! The progress reporter for buffer-scanning progress.
     type(progress_reporter_type) :: progress_reporter
@@ -323,7 +332,7 @@ module dynamic_abbreviation_mod
         type(handle_type) :: buffer, point
     end type excursion_type
 
-    character(len=*), parameter :: DEFAULT_CHAR_REGEXP = "\sw\|\s_"
+    character(len=*), parameter :: DEFAULT_CHARACTER_REGULAR_EXPRESSION = "\sw\|\s_"
     character(len=*), parameter :: LF = achar(10)
 
 contains
@@ -344,7 +353,7 @@ contains
     subroutine restore_excursion(e)
         type(excursion_type), intent(inout) :: e
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
         type(handle_type) :: b
 
         if (is_buffer_live(e%buffer)) then
@@ -352,8 +361,8 @@ contains
             call marker_buffer(e%point, b, st)
 
             if (same_handle(b, e%buffer)) then
-                call marker_position(e%point, pos, st)
-                call goto_char(pos)
+                call marker_position(e%point, position, st)
+                call goto_character(position)
             end if
         end if
 
@@ -397,18 +406,18 @@ contains
     integer(int64) function location()
         type(status_type) :: st
 
-        location = location_pos
+        location = location_position
         if (location_marker%index /= 0) call marker_position(location_marker, location, st)
     end function location
 
-    !> Set the location of the last expansion to the position POS.
+    !> Set the location of the last expansion to the position POSITION.
     !> Not a port.
-    subroutine set_location(pos)
-        integer(int64), intent(in) :: pos
+    subroutine set_location(position)
+        integer(int64), intent(in) :: position
 
         call clear_location()
         location_set = .true.
-        location_pos = pos
+        location_position = position
     end subroutine set_location
 
     !> Clear the location of the last expansion.  Not a port.
@@ -418,37 +427,37 @@ contains
         if (location_marker%index /= 0) call destroy_marker(location_marker, st)
         location_marker = null_handle()
         location_set = .false.
-        location_pos = 0
+        location_position = 0
     end subroutine clear_location
 
-    !> Whether `last_abbrev_location' is a marker with a position.
+    !> Whether `last_abbreviation_location' is a marker with a position.
     !> Not a port.
-    logical function is_abbrev_location()
-        integer(int64) :: pos
+    logical function is_abbreviation_location()
+        integer(int64) :: position
         type(status_type) :: st
 
-        is_abbrev_location = .false.
-        if (last_abbrev_location%index == 0) return
-        call marker_position(last_abbrev_location, pos, st)
-        is_abbrev_location = st%ok() .and. pos > 0
-    end function is_abbrev_location
+        is_abbreviation_location = .false.
+        if (last_abbreviation_location%index == 0) return
+        call marker_position(last_abbreviation_location, position, st)
+        is_abbreviation_location = st%ok() .and. position > 0
+    end function is_abbreviation_location
 
-    !> The position of `last_abbrev_location'.  Not a port.
-    integer(int64) function abbrev_location()
+    !> The position of `last_abbreviation_location'.  Not a port.
+    integer(int64) function abbreviation_location()
         type(status_type) :: st
 
-        call marker_position(last_abbrev_location, abbrev_location, st)
-    end function abbrev_location
+        call marker_position(last_abbreviation_location, abbreviation_location, st)
+    end function abbreviation_location
 
-    !> Record point POS in the current buffer's undo list
-    !> (POS added to the front of `buffer_undo_entries').  Not a port.
-    subroutine append_undo_point(pos)
-        integer(int64), intent(in) :: pos
+    !> Record point POSITION in the current buffer's undo list
+    !> (POSITION added to the front of `buffer_undo_entries').  Not a port.
+    subroutine append_undo_point(position)
+        integer(int64), intent(in) :: position
         type(undo_entry_type) :: entry
 
         if (.not. buffers(current)%undo_enabled) return
         entry%kind = UE_POINT
-        entry%beginning = pos
+        entry%beginning = position
         call append_undo_entry(entry)
     end subroutine append_undo_point
 
@@ -457,7 +466,7 @@ contains
     subroutine no_abbreviation(status)
         type(status_type), intent(out) :: status
 
-        call set_error(status, FM_USER_ERROR, "No possible abbreviation preceding point")
+        call set_error(status, USER_ERROR_CODE, "No possible abbreviation preceding point")
     end subroutine no_abbreviation
 
     !> Whether the selected window is the active minibuffer window
@@ -477,7 +486,7 @@ contains
         type(handle_type) :: b
         type(window_type), pointer :: w
 
-        w => frame_selected_window_ref()
+        w => frame_selected_window_reference()
         b = w%buffer
     end function minibuffer_origin
 
@@ -485,19 +494,19 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    !> Return true if case is ignored in searches for ABBREV.  Port of
+    !> Return true if case is ignored in searches for ABBREVIATION.  Port of
     !> dabbrev.el:dabbrev--ignore-case-p.
-    logical function is_ignore_case(abbrev)
-        character(len=*), intent(in) :: abbrev
+    logical function is_ignore_case(abbreviation)
+        character(len=*), intent(in) :: abbreviation
 
-        if (dabbrev_case_fold_search%choice == DABBREV_LIKE_CASE_FOLD_SEARCH) then
+        if (dynamic_abbreviation_case_fold_search%choice == DYNAMIC_ABBREVIATION_LIKE_CASE_FOLD_SEARCH) then
             is_ignore_case = case_fold_search%value
         else
-            is_ignore_case = .not. dabbrev_case_fold_search%is_off()
+            is_ignore_case = .not. dynamic_abbreviation_case_fold_search%is_off()
         end if
 
-        if (is_ignore_case .and. dabbrev_upcase_means_case_search) then
-            is_ignore_case = same_string(abbrev, downcase_string(abbrev))
+        if (is_ignore_case .and. dynamic_abbreviation_upcase_means_case_search) then
+            is_ignore_case = same_string(abbreviation, downcase_string(abbreviation))
         end if
     end function is_ignore_case
 
@@ -507,10 +516,10 @@ contains
     !> If no suitable preceding word is found, words following point are
     !> considered.  If still no suitable word is found, then look in the
     !> buffers accepted by the function pointed out by variable
-    !> `dabbrev_friend_buffer_function', if `dabbrev_check_other_buffers'
-    !> says so.  Then, if `dabbrev_check_all_buffers' is true, look in
+    !> `dynamic_abbreviation_friend_buffer_function', if `dynamic_abbreviation_check_other_buffers'
+    !> says so.  Then, if `dynamic_abbreviation_check_all_buffers' is true, look in
     !> all the other buffers, subject to constraints specified
-    !> by `dabbrev_ignored_buffer_names' and `dabbrev_ignored_buffer_regexps'.
+    !> by `dynamic_abbreviation_ignored_buffer_names' and `dynamic_abbreviation_ignored_buffer_regular_expressions'.
     !>
     !> A positive prefix argument, N, says to take the Nth backward *distinct*
     !> possibility.  A negative argument says search forward.
@@ -519,19 +528,19 @@ contains
     !> no argument is given, replace the previously-made expansion
     !> with the next possible expansion not yet tried.
     !>
-    !> The variable `dabbrev_backward_only' may be used to limit the
+    !> The variable `dynamic_abbreviation_backward_only' may be used to limit the
     !> direction of search to backward if set true.
     !>
-    !> See also `dabbrev_abbrev_char_regexp'.  Port of
-    !> dabbrev.el:dabbrev-expand (ARG absent for no prefix, else its numeric
+    !> See also `dynamic_abbreviation_character_regular_expression'.  Port of
+    !> dabbrev.el:dabbrev-expand (ARGUMENT absent for no prefix, else its numeric
     !> value).
-    recursive subroutine dabbrev_expand(status, arg)
+    recursive subroutine dynamic_abbreviation_expand(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         type(handle_type) :: buffer, mru
         type(excursion_type) :: ex, ex2, ex3
-        character(len=:), allocatable :: abbrev, old, expansion, name
-        integer(int64) :: orig_point, direction, found, savedb, savedz, pos
+        character(len=:), allocatable :: abbreviation, old, expansion, name
+        integer(int64) :: original_point, direction, found, savedb, savedz, position
         logical :: record_case_pattern, repeat, space, has_old, lb_same
         type(status_type) :: st
         type(handle_type) :: m
@@ -558,7 +567,7 @@ contains
             buffer = current_buffer()
         end if
 
-        orig_point = point()
+        original_point = point()
         record_case_pattern = .false.
         has_old = .false.
         direction = 0
@@ -569,19 +578,19 @@ contains
         call save_excursion(ex)
         repeat = .false.
 
-        if (.not. present(arg) .and. is_abbrev_location()) then
+        if (.not. present(argument) .and. is_abbreviation_location()) then
             if (associated(last_command, this_command)) then
                 repeat = .true.
             else if (selected_frame%minibuffer_selected) then
-                repeat = abbrev_location() == point()
+                repeat = abbreviation_location() == point()
             end if
         end if
 
         if (repeat) then
             ! Find a different expansion for the same abbrev as last time.
             last_buffer_found = null_handle()
-            abbrev = ""
-            if (allocated(last_abbreviation)) abbrev = last_abbreviation
+            abbreviation = ""
+            if (allocated(last_abbreviation)) abbreviation = last_abbreviation
 
             if (allocated(last_expansion)) then
                 old = last_expansion
@@ -592,22 +601,22 @@ contains
         else
             ! If the user inserts a space after expanding
             ! and then asks to expand again, always fetch the next word.
-            space = preceding_char() == 32
-            if (space) space = is_abbrev_location()
+            space = preceding_character() == 32
+            if (space) space = is_abbreviation_location()
             ! Comparing with point only makes sense in the buffer
             ! where we called dabbrev-expand, but if that differs
             ! from the buffer containing the expansion, we want to
             ! get the next word in the latter buffer, so we skip
             ! the comparison.
-            if (space .and. same_handle(buffer, current_buffer())) space = point() == 1 + abbrev_location()
+            if (space .and. same_handle(buffer, current_buffer())) space = point() == 1 + abbreviation_location()
 
             if (space) then
                 ! The "abbrev" to expand is just the space.
-                abbrev = " "
+                abbreviation = " "
                 call save_excursion(ex2)
                 if (is_buffer_live(last_buffer)) call set_buffer(last_buffer, st)
-                savedb = buffers(current)%begv
-                savedz = buffers(current)%text%z - buffers(current)%zv
+                savedb = buffers(current)%beginning_of_accessible_portion
+                savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
                 call widen()
 
                 ! Find the end of the last "expansion" word.
@@ -617,10 +626,10 @@ contains
                     end if
                 end if
 
-                call goto_char(location())
+                call goto_character(location())
                 ! Take the following word, with intermediate separators,
                 ! as our expansion this time.
-                call re_search_forward("\(?:"//abbrev_char_regexp//"\)+", found, status)
+                call regular_expression_search_forward("\(?:"//abbreviation_character_regular_expression//"\)+", found, status)
 
                 if (status%ok()) then
                     call buffer_substring(location(), point(), expansion, status)
@@ -642,15 +651,15 @@ contains
                 last_direction_set = .true.
             else
                 ! We have a different abbrev to expand.
-                call dabbrev_reset_global_variables()
+                call dynamic_abbreviation_reset_global_variables()
 
-                if (.not. present(arg)) then
-                    direction = merge(1, 0, dabbrev_backward_only)
+                if (.not. present(argument)) then
+                    direction = merge(1, 0, dynamic_abbreviation_backward_only)
                 else
-                    direction = arg
+                    direction = argument
                 end if
 
-                call abbrev_at_point(abbrev, status)
+                call abbreviation_at_point(abbreviation, status)
 
                 if (.not. status%ok()) then
                     call restore_excursion(ex)
@@ -662,29 +671,30 @@ contains
         end if
 
         ! Find the expansion.
-        if (.not. allocated(expansion)) call find_expansion(abbrev, direction, is_ignore_case(abbrev), expansion, status)
+        if (.not. allocated(expansion)) call find_expansion(abbreviation, direction, is_ignore_case(abbreviation), expansion, &
+                                                            status)
         call restore_excursion(ex)
         if (.not. status%ok()) return
 
         if (.not. allocated(expansion)) then
-            call dabbrev_reset_global_variables()
+            call dynamic_abbreviation_reset_global_variables()
 
             if (has_old) then
                 call save_excursion(ex3)
-                call append_undo_point(orig_point)
+                call append_undo_point(original_point)
                 ! Put back the original abbrev with its original case pattern.
                 call search_backward(old, found, status)
-                if (status%ok()) call insert(abbrev, status)
+                if (status%ok()) call insert(abbreviation, status)
                 if (status%ok()) call delete_region(point(), point() + count_characters(old), status)
                 call restore_excursion(ex3)
                 if (.not. status%ok()) return
             end if
 
             if (has_old) then
-                call set_error(status, FM_USER_ERROR, format_message("No further dynamic expansion for `")//abbrev// &
+                call set_error(status, USER_ERROR_CODE, format_message("No further dynamic expansion for `")//abbreviation// &
                                format_message("' found"))
             else
-                call set_error(status, FM_USER_ERROR, format_message("No dynamic expansion for `")//abbrev// &
+                call set_error(status, USER_ERROR_CODE, format_message("No dynamic expansion for `")//abbreviation// &
                                format_message("' found"))
             end if
 
@@ -701,8 +711,8 @@ contains
             if (last_buffer%index == 0) then
                 name = buffers(current)%name
             else if (is_buffer_live(last_buffer)) then
-                call resolve_buffer(last_buffer, pos, st)
-                name = buffers(pos)%name
+                call resolve_buffer(last_buffer, position, st)
+                name = buffers(position)%name
             end if
 
             if (allocated(name)) call message(format_message("Expansion found in `")//name//format_message("'"))
@@ -723,8 +733,8 @@ contains
         if (location_set .and. location_marker%index == 0) then
             if (same_handle(current_buffer(), last_buffer) .or. last_buffer%index == 0 .or. &
                 is_buffer_live(last_buffer)) then
-                if (location_pos > point()) then
-                    call copy_marker_at(location_pos, m, .false., st)
+                if (location_position > point()) then
+                    call copy_marker_at(location_position, m, .false., st)
                     location_marker = m
                 end if
             end if
@@ -732,24 +742,24 @@ contains
 
         call restore_excursion(ex3)
         ! Success: stick it in and return.
-        call append_undo_point(orig_point)
+        call append_undo_point(original_point)
         if (.not. has_old) old = ""
-        call substitute_expansion(old, has_old, abbrev, expansion, record_case_pattern, status)
+        call substitute_expansion(old, has_old, abbreviation, expansion, record_case_pattern, status)
         if (.not. status%ok()) return
         ! Save state for re-expand (making sure it's the state of the
         ! buffer containing the already found expansions).
         call save_excursion(ex3)
         call set_buffer(buffer, st)
         last_expansion = expansion
-        last_abbreviation = abbrev
-        if (last_abbrev_location%index /= 0) call destroy_marker(last_abbrev_location, st)
-        call point_marker(last_abbrev_location)
+        last_abbreviation = abbreviation
+        if (last_abbreviation_location%index /= 0) call destroy_marker(last_abbreviation_location, st)
+        call point_marker(last_abbreviation_location)
         call restore_excursion(ex3)
-    end subroutine dabbrev_expand
+    end subroutine dynamic_abbreviation_expand
 
     !> Check if OTHER_BUFFER has the same major mode as current buffer.
     !> Port of dabbrev.el:dabbrev--same-major-mode-p.
-    logical function is_dabbrev_same_major_mode(other_buffer) result(same)
+    logical function is_dynamic_abbreviation_same_major_mode(other_buffer) result(same)
         type(handle_type), intent(in) :: other_buffer
         integer(int64) :: i
         type(status_type) :: st
@@ -763,96 +773,97 @@ contains
         else
             same = allocated(buffers(current)%major_mode) .eqv. allocated(buffers(i)%major_mode)
         end if
-    end function is_dabbrev_same_major_mode
+    end function is_dynamic_abbreviation_same_major_mode
 
     !> Back over all abbrev type characters then move forward over all skip characters.
     !> Port of dabbrev.el:dabbrev--goto-start-of-abbrev.
-    recursive subroutine goto_start_of_abbrev()
+    recursive subroutine goto_start_of_abbreviation()
         type(status_type) :: st
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
-        regexp = DEFAULT_CHAR_REGEXP
-        if (allocated(abbrev_char_regexp)) regexp = abbrev_char_regexp
+        regular_expression = DEFAULT_CHARACTER_REGULAR_EXPRESSION
+        if (allocated(abbreviation_character_regular_expression)) regular_expression = abbreviation_character_regular_expression
 
         ! Move backwards over abbrev chars
         if (point() > minibuffer_prompt_end()) then
-            call goto_char(point() - 1)
+            call goto_character(point() - 1)
 
             do
-                if (.not. looking_at(regexp, st)) exit
+                if (.not. looking_at(regular_expression, st)) exit
                 if (.not. point() > minibuffer_prompt_end()) exit
                 if (point() == field_beginning(point(), .false., point() - 1)) exit
-                call goto_char(point() - 1)
+                call goto_character(point() - 1)
             end do
 
-            if (.not. looking_at(regexp, st)) call goto_char(point() + 1)
+            if (.not. looking_at(regular_expression, st)) call goto_character(point() + 1)
         end if
 
-        if (allocated(dabbrev_abbrev_skip_leading_regexp%value)) then
-            do while (looking_at(dabbrev_abbrev_skip_leading_regexp%value, st))
-                if (point() >= point_max()) exit
-                call goto_char(point() + 1)
+        if (allocated(dynamic_abbreviation_skip_leading_regular_expression%value)) then
+            do while (looking_at(dynamic_abbreviation_skip_leading_regular_expression%value, st))
+                if (point() >= point_maximum()) exit
+                call goto_character(point() + 1)
             end do
         end if
-    end subroutine goto_start_of_abbrev
+    end subroutine goto_start_of_abbreviation
 
     !> Extract the identifier at point to serve as abbreviation.  Port of
     !> dabbrev.el:dabbrev--abbrev-at-point.
-    recursive subroutine abbrev_at_point(abbrev, status)
-        character(len=:), allocatable, intent(out) :: abbrev
+    recursive subroutine abbreviation_at_point(abbreviation, status)
+        character(len=:), allocatable, intent(out) :: abbreviation
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer(int64) :: end, found
         logical :: after
         type(status_type) :: st
 
         ! Check for error
-        if (is_bob()) then
+        if (is_beginning_of_buffer()) then
             call no_abbreviation(status)
             return
         end if
 
         status = status_type()
-        regexp = DEFAULT_CHAR_REGEXP
-        if (allocated(dabbrev_abbrev_char_regexp)) regexp = dabbrev_abbrev_char_regexp
+        regular_expression = DEFAULT_CHARACTER_REGULAR_EXPRESSION
+        if (allocated(dynamic_abbreviation_character_regular_expression)) regular_expression = &
+            dynamic_abbreviation_character_regular_expression
         ! Record the end of the abbreviation.
         end = point()
         ! If we aren't right after an abbreviation,
         ! move point back to just after one.
         ! This is so the user can get successive words
         ! by typing the punctuation followed by M-/.
-        call goto_char(end - 1)
-        after = looking_at(regexp, st)
-        call goto_char(end)
+        call goto_character(end - 1)
+        after = looking_at(regular_expression, st)
+        call goto_character(end)
 
         if (.not. after) then
-            call re_search_backward(regexp, found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_backward(regular_expression, found, st, noerror=SEARCH_NOERROR)
 
             if (found > 0) then
-                call goto_char(point() + 1)
+                call goto_character(point() + 1)
             else
-                call goto_char(end)
+                call goto_character(end)
                 call no_abbreviation(status)
                 return
             end if
         end if
 
         ! Now find the beginning of that one.
-        call goto_start_of_abbrev()
-        call buffer_substring(point(), end, abbrev, status)
-        call goto_char(end)
-    end subroutine abbrev_at_point
+        call goto_start_of_abbreviation()
+        call buffer_substring(point(), end, abbreviation, status)
+        call goto_character(end)
+    end subroutine abbreviation_at_point
 
     !> Initialize all global variables.  Port of
     !> dabbrev.el:dabbrev--reset-global-variables.
-    subroutine dabbrev_reset_global_variables()
+    subroutine dynamic_abbreviation_reset_global_variables()
         type(status_type) :: st
 
         last_table_count = 0
         if (allocated(last_table)) deallocate (last_table)
         if (allocated(last_abbreviation)) deallocate (last_abbreviation)
-        if (last_abbrev_location%index /= 0) call destroy_marker(last_abbrev_location, st)
-        last_abbrev_location = null_handle()
+        if (last_abbreviation_location%index /= 0) call destroy_marker(last_abbreviation_location, st)
+        last_abbreviation_location = null_handle()
         last_direction = 0
         last_direction_set = .false.
         if (allocated(last_expansion)) deallocate (last_expansion)
@@ -861,29 +872,29 @@ contains
         last_buffer = null_handle()
         last_buffer_found = null_handle()
 
-        if (allocated(dabbrev_abbrev_char_regexp)) then
-            abbrev_char_regexp = dabbrev_abbrev_char_regexp
+        if (allocated(dynamic_abbreviation_character_regular_expression)) then
+            abbreviation_character_regular_expression = dynamic_abbreviation_character_regular_expression
         else
-            abbrev_char_regexp = DEFAULT_CHAR_REGEXP
+            abbreviation_character_regular_expression = DEFAULT_CHARACTER_REGULAR_EXPRESSION
         end if
 
-        check_other_buffers = choice_state(dabbrev_check_other_buffers)
-        check_all_buffers = dabbrev_check_all_buffers
-    end subroutine dabbrev_reset_global_variables
+        check_other_buffers = choice_state(dynamic_abbreviation_check_other_buffers)
+        check_all_buffers = dynamic_abbreviation_check_all_buffers
+    end subroutine dynamic_abbreviation_reset_global_variables
 
     !> Return a list of other buffers to search for a possible abbrev.
     !> The current buffer is not included in the list.
     !>
     !> This function makes a list of all the buffers returned by
     !> `buffer_list', then discards buffers whose names match
-    !> `dabbrev_ignored_buffer_names' or
-    !> `dabbrev_ignored_buffer_regexps', and major modes that match
-    !> `dabbrev_ignored_buffer_modes'.  It also discards buffers for
-    !> which `dabbrev_friend_buffer_function' returns
+    !> `dynamic_abbreviation_ignored_buffer_names' or
+    !> `dynamic_abbreviation_ignored_buffer_regular_expressions', and major modes that match
+    !> `dynamic_abbreviation_ignored_buffer_modes'.  It also discards buffers for
+    !> which `dynamic_abbreviation_friend_buffer_function' returns
     !> false when called with the buffer as argument.  It returns the list
     !> of the buffers that are not discarded.  Port of
     !> dabbrev.el:dabbrev--select-buffers.
-    subroutine dabbrev_select_buffers(list)
+    subroutine dynamic_abbreviation_select_buffers(list)
         type(handle_type), allocatable, intent(out) :: list(:)
         type(handle_type), allocatable :: all(:)
         integer :: k, n
@@ -897,10 +908,10 @@ contains
             if (same_handle(all(k), current_buffer())) cycle
             if (is_ignore_buffer(all(k))) cycle
 
-            if (associated(dabbrev_friend_buffer_function)) then
-                keep = dabbrev_friend_buffer_function(all(k))
+            if (associated(dynamic_abbreviation_friend_buffer_function)) then
+                keep = dynamic_abbreviation_friend_buffer_function(all(k))
             else
-                keep = is_dabbrev_same_major_mode(all(k))
+                keep = is_dynamic_abbreviation_same_major_mode(all(k))
             end if
 
             if (.not. keep) cycle
@@ -909,10 +920,10 @@ contains
         end do
 
         list = list(1:n)
-    end subroutine dabbrev_select_buffers
+    end subroutine dynamic_abbreviation_select_buffers
 
     !> The live buffers whose major mode is not derived from
-    !> `dabbrev_ignored_buffer_modes'.  Port of
+    !> `dynamic_abbreviation_ignored_buffer_modes'.  Port of
     !> dabbrev.el:dabbrev--filter-buffer-modes.
     subroutine filter_buffer_modes(list)
         type(handle_type), allocatable, intent(out) :: list(:)
@@ -931,9 +942,9 @@ contains
             if (.not. st%ok()) cycle
             ignored = .false.
 
-            if (allocated(dabbrev_ignored_buffer_modes) .and. allocated(buffers(i)%major_mode)) then
-                if (size(dabbrev_ignored_buffer_modes) > 0) then
-                    ignored = provided_mode_derived_p(buffers(i)%major_mode, dabbrev_ignored_buffer_modes)
+            if (allocated(dynamic_abbreviation_ignored_buffer_modes) .and. allocated(buffers(i)%major_mode)) then
+                if (size(dynamic_abbreviation_ignored_buffer_modes) > 0) then
+                    ignored = provided_mode_derived_p(buffers(i)%major_mode, dynamic_abbreviation_ignored_buffer_modes)
                 end if
             end if
 
@@ -945,13 +956,13 @@ contains
         list = list(1:n)
     end subroutine filter_buffer_modes
 
-    !> Search for ABBREV, backwards if REVERSE, N times.
+    !> Search for ABBREVIATION, backwards if REVERSE, N times.
     !> If IGNORE_CASE is true, ignore case while searching.
     !> Return the expansion found, and save the location of the start
-    !> of the expansion in `dabbrev__last_expansion_location'.  Port of
+    !> of the expansion in `dynamic_abbreviation__last_expansion_location'.  Port of
     !> dabbrev.el:dabbrev--try-find.
-    recursive subroutine try_find(abbrev, reverse, n, ignore_case, expansion, status)
-        character(len=*), intent(in) :: abbrev
+    recursive subroutine try_find(abbreviation, reverse, n, ignore_case, expansion, status)
+        character(len=*), intent(in) :: abbreviation
         logical, intent(in) :: reverse, ignore_case
         integer(int64), intent(in) :: n
         character(len=:), allocatable, intent(out) :: expansion
@@ -963,19 +974,19 @@ contains
 
         status = status_type()
         call save_excursion(ex)
-        savedb = buffers(current)%begv
-        savedz = buffers(current)%text%z - buffers(current)%zv
+        savedb = buffers(current)%beginning_of_accessible_portion
+        savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
         call widen()
-        if (location_set) call goto_char(location())
+        if (location_set) call goto_character(location())
         saved_fold = case_fold_search%value
         case_fold_search = ignore_case
         treat_as_same = .false.
 
         if (ignore_case) then
-            if (dabbrev_case_distinction%choice == DABBREV_LIKE_CASE_REPLACE) then
+            if (dynamic_abbreviation_case_distinction%choice == DYNAMIC_ABBREVIATION_LIKE_CASE_REPLACE) then
                 treat_as_same = case_replace
             else
-                treat_as_same = .not. dabbrev_case_distinction%value
+                treat_as_same = .not. dynamic_abbreviation_case_distinction%value
             end if
         end if
 
@@ -983,7 +994,7 @@ contains
 
         do while (count > 0)
             if (allocated(expansion)) deallocate (expansion)
-            call dabbrev_search(abbrev, reverse, treat_as_same, expansion, status)
+            call dynamic_abbreviation_search(abbreviation, reverse, treat_as_same, expansion, status)
             if (.not. status%ok() .or. .not. allocated(expansion)) exit
             count = count - 1
         end do
@@ -1006,18 +1017,18 @@ contains
         call resolve_buffer(buffer, i, st)
         if (.not. st%ok()) return
 
-        if (allocated(dabbrev_ignored_buffer_names)) then
-            do k = 1, size(dabbrev_ignored_buffer_names)
-                if (same_string(buffers(i)%name, trim(dabbrev_ignored_buffer_names(k)))) then
+        if (allocated(dynamic_abbreviation_ignored_buffer_names)) then
+            do k = 1, size(dynamic_abbreviation_ignored_buffer_names)
+                if (same_string(buffers(i)%name, trim(dynamic_abbreviation_ignored_buffer_names(k)))) then
                     is_ignore_buffer = .true.
                     return
                 end if
             end do
         end if
 
-        if (allocated(dabbrev_ignored_buffer_regexps)) then
-            do k = 1, size(dabbrev_ignored_buffer_regexps)
-                if (string_match(trim(dabbrev_ignored_buffer_regexps(k)), buffers(i)%name, st) > 0) then
+        if (allocated(dynamic_abbreviation_ignored_buffer_regular_expressions)) then
+            do k = 1, size(dynamic_abbreviation_ignored_buffer_regular_expressions)
+                if (string_match(trim(dynamic_abbreviation_ignored_buffer_regular_expressions(k)), buffers(i)%name, st) > 0) then
                     is_ignore_buffer = .true.
                     return
                 end if
@@ -1025,18 +1036,18 @@ contains
         end if
     end function is_ignore_buffer
 
-    !> Find one occurrence of ABBREV, and return the expansion.
+    !> Find one occurrence of ABBREVIATION, and return the expansion.
     !> DIRECTION > 0 means look that many times backwards.
     !> DIRECTION < 0 means look that many times forward.
     !> DIRECTION = 0 means try both backward and forward.
     !> IGNORE_CASE true means ignore case when searching.
-    !> This sets `dabbrev__last_direction' to 1 or -1 according
+    !> This sets `dynamic_abbreviation__last_direction' to 1 or -1 according
     !> to the direction in which the occurrence was actually found.
-    !> It sets `dabbrev__last_expansion_location' to the location
+    !> It sets `dynamic_abbreviation__last_expansion_location' to the location
     !> of the start of the occurrence.  Port of
     !> dabbrev.el:dabbrev--find-expansion.
-    recursive subroutine find_expansion(abbrev, direction, ignore_case, expansion, status)
-        character(len=*), intent(in) :: abbrev
+    recursive subroutine find_expansion(abbreviation, direction, ignore_case, expansion, status)
+        character(len=*), intent(in) :: abbreviation
         integer(int64), intent(in) :: direction
         logical, intent(in) :: ignore_case
         character(len=:), allocatable, intent(out) :: expansion
@@ -1051,7 +1062,8 @@ contains
 
         status = status_type()
         these_only = .false.
-        if (allocated(dabbrev_search_these_buffers_only)) these_only = size(dabbrev_search_these_buffers_only) > 0
+        if (allocated(dynamic_abbreviation_search_these_buffers_only)) these_only = size( &
+                                                                                 dynamic_abbreviation_search_these_buffers_only) > 0
         call save_excursion(ex)
         ! If we were scanning something other than the current buffer,
         ! continue scanning there.
@@ -1061,7 +1073,7 @@ contains
         if (.not. these_only .and. direction >= 0) then
             last_direction = min(1_int64, direction)
             last_direction_set = .true.
-            call try_find(abbrev, .true., max(1_int64, direction), ignore_case, expansion, status)
+            call try_find(abbreviation, .true., max(1_int64, direction), ignore_case, expansion, status)
         end if
 
         ! Look forward in current buffer
@@ -1070,7 +1082,7 @@ contains
             if ((.not. these_only .or. is_buffer_live(last_buffer)) .and. direction <= 0) then
                 last_direction = -1
                 last_direction_set = .true.
-                call try_find(abbrev, .false., max(1_int64, -direction), ignore_case, expansion, status)
+                call try_find(abbreviation, .false., max(1_int64, -direction), ignore_case, expansion, status)
             end if
         end if
 
@@ -1095,8 +1107,8 @@ contains
                                                     -size(friend_buffers, kind=int64), 0_int64)
                         ! Upstream's CURRENT-VALUE 0, MIN-CHANGE 1 and MIN-TIME 1.5:
                         ! start again from the time the reporter was made.
-                        progress_reporter%update_time = progress_reporter%update_time - progress_reporter%min_time
-                        progress_reporter%min_time = 1.5d0
+                        progress_reporter%update_time = progress_reporter%update_time - progress_reporter%minimum_time
+                        progress_reporter%minimum_time = 1.5d0
                         progress_reporter%next_value = real(-size(friend_buffers), kind(progress_reporter%next_value))
                         call progress_reporter_update(progress_reporter, 0_int64)
                     end if
@@ -1147,8 +1159,8 @@ contains
                         call progress_reporter_update(progress_reporter, -size(friend_buffers, kind=int64))
                     end if
 
-                    call set_location(point_min())
-                    call try_find(abbrev, .false., 1_int64, ignore_case, expansion, status)
+                    call set_location(point_minimum())
+                    call try_find(abbreviation, .false., 1_int64, ignore_case, expansion, status)
                 end do
 
                 if (status%ok() .and. allocated(progress_reporter%text)) call progress_reporter_done(progress_reporter)
@@ -1216,12 +1228,13 @@ contains
 
         status = status_type()
         these_only = .false.
-        if (allocated(dabbrev_search_these_buffers_only)) these_only = size(dabbrev_search_these_buffers_only) > 0
+        if (allocated(dynamic_abbreviation_search_these_buffers_only)) these_only = size( &
+                                                                                 dynamic_abbreviation_search_these_buffers_only) > 0
         allocate (list(0))
 
         if (these_only) then
-            do k = 1, size(dabbrev_search_these_buffers_only)
-                call append_buffer(list, get_buffer(trim(dabbrev_search_these_buffers_only(k))))
+            do k = 1, size(dynamic_abbreviation_search_these_buffers_only)
+                call append_buffer(list, get_buffer(trim(dynamic_abbreviation_search_these_buffers_only(k))))
             end do
         end if
 
@@ -1235,10 +1248,10 @@ contains
             end if
 
             if (scan) then
-                if (associated(dabbrev_select_buffers_function)) then
-                    call dabbrev_select_buffers_function(list)
+                if (associated(dynamic_abbreviation_select_buffers_function)) then
+                    call dynamic_abbreviation_select_buffers_function(list)
                 else
-                    call dabbrev_select_buffers(list)
+                    call dynamic_abbreviation_select_buffers(list)
                 end if
 
                 ! If dabbrev-check-all-buffers, tack on all the other
@@ -1297,7 +1310,7 @@ contains
 
     !> EXPANSION from its first character on, after the first FROM
     !> characters (substring).  Not a port.
-    function char_substring(s, from, to) result(sub)
+    function character_substring(s, from, to) result(sub)
         character(len=*), intent(in) :: s
         integer(int64), intent(in) :: from
         integer(int64), intent(in), optional :: to
@@ -1308,46 +1321,46 @@ contains
         b = len(s)
         if (present(to)) b = byte_after(s, to) - 1
         sub = s(a:b)
-    end function char_substring
+    end function character_substring
 
     !> Replace OLD with EXPANSION in the buffer.
     !> OLD is text currently in the buffer, perhaps the abbreviation
     !> or perhaps another expansion that was tried previously
     !> (HAS_OLD false for none).
-    !> ABBREV is the abbreviation we are expanding.
+    !> ABBREVIATION is the abbreviation we are expanding.
     !> It is " " if we are copying subsequent words.
     !> EXPANSION is the expansion substring to be used this time; it
     !> becomes the expansion actually used.
-    !> RECORD_CASE_PATTERN, if true, means set `dabbrev__last_case_pattern'
+    !> RECORD_CASE_PATTERN, if true, means set `dynamic_abbreviation__last_case_pattern'
     !> to record whether we upcased the expansion, downcased it, or did
     !> neither.  Port of dabbrev.el:dabbrev--substitute-expansion.
-    recursive subroutine substitute_expansion(old, has_old, abbrev, expansion, record_case_pattern, status)
-        character(len=*), intent(in) :: old, abbrev
+    recursive subroutine substitute_expansion(old, has_old, abbreviation, expansion, record_case_pattern, status)
+        character(len=*), intent(in) :: old, abbreviation
         logical, intent(in) :: has_old, record_case_pattern
         character(len=:), allocatable, intent(inout) :: expansion
         type(status_type), intent(out) :: status
         logical :: use_case_replace, plain
         character(len=:), allocatable :: rest, collapsed
-        integer(int64) :: first_letter, found, pos, opoint, alen
+        integer(int64) :: first_letter, found, position, original_point, alen
         integer :: k, b
         logical :: in_space
         type(status_type) :: st
 
         status = status_type()
-        use_case_replace = is_ignore_case(abbrev)
+        use_case_replace = is_ignore_case(abbreviation)
 
         if (use_case_replace) then
-            if (dabbrev_case_replace%choice == DABBREV_LIKE_CASE_REPLACE) then
+            if (dynamic_abbreviation_case_replace%choice == DYNAMIC_ABBREVIATION_LIKE_CASE_REPLACE) then
                 use_case_replace = case_replace
             else
-                use_case_replace = .not. dabbrev_case_replace%is_off()
+                use_case_replace = .not. dynamic_abbreviation_case_replace%is_off()
             end if
         end if
 
         ! If we upcased or downcased the original expansion,
         ! do likewise for the subsequent words when we copy them.
         ! Don't do any of the usual case processing, though.
-        if (same_string(abbrev, " ")) then
+        if (same_string(abbreviation, " ")) then
             if (last_case_pattern == CASE_PATTERN_UPCASE) expansion = upcase_string(expansion)
             if (last_case_pattern == CASE_PATTERN_DOWNCASE) expansion = downcase_string(expansion)
             use_case_replace = .false.
@@ -1365,9 +1378,9 @@ contains
         ! characters) abbrev as "not all upper case", so as to force
         ! preservation of the expansion's pattern if the expansion starts
         ! with a capital letter.
-        rest = char_substring(expansion, 1_int64)
-        first_letter = string_match("[[:alpha:]]", abbrev, st)
-        alen = count_characters(abbrev)
+        rest = character_substring(expansion, 1_int64)
+        first_letter = string_match("[[:alpha:]]", abbreviation, st)
+        alen = count_characters(abbreviation)
 
         if (first_letter == 0) then
             use_case_replace = .false.
@@ -1375,14 +1388,14 @@ contains
             plain = same_string(rest, downcase_string(rest)) .or. same_string(rest, upcase_string(rest))
 
             if (plain) then
-                if (.not. same_string(abbrev, downcase_string(abbrev))) then
-                    plain = same_string(abbrev, upcase_string(abbrev))
+                if (.not. same_string(abbreviation, downcase_string(abbreviation))) then
+                    plain = same_string(abbreviation, upcase_string(abbreviation))
                     if (plain) plain = alen - (first_letter - 1) > 1
                 end if
             end if
 
             if (.not. plain .and. count_characters(expansion) >= alen) then
-                if (same_string(abbrev, char_substring(expansion, 0_int64, alen))) use_case_replace = .false.
+                if (same_string(abbreviation, character_substring(expansion, 0_int64, alen))) use_case_replace = .false.
             end if
         end if
 
@@ -1390,7 +1403,7 @@ contains
         ! then don't do any conversion.  The conversion would be a no-op
         ! for this replacement, but it would carry forward to subsequent words.
         ! The goal of this is to prevent that carrying forward.
-        if (same_string(expansion, downcase_string(expansion)) .and. same_string(abbrev, downcase_string(abbrev))) then
+        if (same_string(expansion, downcase_string(expansion)) .and. same_string(abbreviation, downcase_string(abbreviation))) then
             use_case_replace = .false.
         end if
 
@@ -1403,26 +1416,26 @@ contains
             last_case_pattern = CASE_PATTERN_NONE
 
             if (use_case_replace) then
-                if (same_string(abbrev, upcase_string(abbrev))) then
+                if (same_string(abbreviation, upcase_string(abbreviation))) then
                     last_case_pattern = CASE_PATTERN_UPCASE
-                else if (same_string(abbrev, downcase_string(abbrev))) then
+                else if (same_string(abbreviation, downcase_string(abbreviation))) then
                     last_case_pattern = CASE_PATTERN_DOWNCASE
                 end if
             end if
         end if
 
         ! Convert whitespace to single spaces.
-        if (dabbrev_eliminate_newlines) then
-            ! If ABBREV is real, search after the end of it.
-            ! If ABBREV is space and we are copying successive words,
+        if (dynamic_abbreviation_eliminate_newlines) then
+            ! If ABBREVIATION is real, search after the end of it.
+            ! If ABBREVIATION is space and we are copying successive words,
             ! search starting at the front.
-            if (same_string(abbrev, " ")) then
-                pos = 0
+            if (same_string(abbreviation, " ")) then
+                position = 0
             else
-                pos = alen
+                position = alen
             end if
 
-            k = byte_after(expansion, pos)
+            k = byte_after(expansion, position)
             collapsed = expansion(1:k - 1)
             in_space = .false.
 
@@ -1444,12 +1457,12 @@ contains
         end if
 
         if (has_old) then
-            opoint = point()
+            original_point = point()
             call search_backward(old, found, status)
-            call goto_char(opoint)
+            call goto_character(original_point)
         else
-            call search_backward(abbrev, found, status)
-            if (status%ok()) call search_forward(abbrev, found, status)
+            call search_backward(abbreviation, found, status)
+            if (status%ok()) call search_forward(abbreviation, found, status)
         end if
 
         if (.not. status%ok()) return
@@ -1459,11 +1472,11 @@ contains
         call replace_match(expansion, status, fixedcase=.not. use_case_replace, literal=.true.)
     end subroutine substitute_expansion
 
-    !> Search for something that could be used to expand ABBREV, giving
+    !> Search for something that could be used to expand ABBREVIATION, giving
     !> it in RESULT (unallocated if not found).
     !>
     !> Second arg, REVERSE, is true for reverse search, false for forward.
-    !> The variable `dabbrev_limit' controls the maximum search region size.
+    !> The variable `dynamic_abbreviation_limit' controls the maximum search region size.
     !> Third argument IGNORE_CASE true means treat case as insignificant while
     !> looking for a match and when comparing with previous matches.  Also if
     !> that's true and the match is found at the beginning of a sentence
@@ -1471,40 +1484,40 @@ contains
     !> all lower case for return.
     !>
     !> Table of expansions already seen is examined in buffer
-    !> `dabbrev__last_table' so that only distinct possibilities are found
+    !> `dynamic_abbreviation__last_table' so that only distinct possibilities are found
     !> by dabbrev-re-expand.
     !>
     !> Leaves point at the location of the start of the expansion.
     !> Port of dabbrev.el:dabbrev--search.
-    recursive subroutine dabbrev_search(abbrev, reverse, ignore_case, result, status)
-        character(len=*), intent(in) :: abbrev
+    recursive subroutine dynamic_abbreviation_search(abbreviation, reverse, ignore_case, result, status)
+        character(len=*), intent(in) :: abbreviation
         logical, intent(in) :: reverse, ignore_case
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern1, pattern2, found_string
-        integer(int64) :: savedb, savedz, pos, mb, me, found
+        integer(int64) :: savedb, savedz, position, mb, me, found
         logical :: have, seen
         integer :: k
         type(status_type) :: st
         type(string_type), allocatable :: grown(:)
 
         status = status_type()
-        pattern1 = regexp_quote(abbrev)//"\("//abbrev_char_regexp//"\)"
-        pattern2 = regexp_quote(abbrev)//"\(\("//abbrev_char_regexp//"\)+\)"
+        pattern1 = regular_expression_quote(abbreviation)//"\("//abbreviation_character_regular_expression//"\)"
+        pattern2 = regular_expression_quote(abbreviation)//"\(\("//abbreviation_character_regular_expression//"\)+\)"
         ! Limited search.
-        savedb = buffers(current)%begv
-        savedz = buffers(current)%text%z - buffers(current)%zv
+        savedb = buffers(current)%beginning_of_accessible_portion
+        savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
 
-        if (allocated(dabbrev_limit)) then
+        if (allocated(dynamic_abbreviation_limit)) then
             if (.not. location_set) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type), got .false.")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer or type(marker_type), got .false.")
                 return
             end if
 
             if (reverse) then
-                call narrow_to_region(location(), point() - dabbrev_limit, status)
+                call narrow_to_region(location(), point() - dynamic_abbreviation_limit, status)
             else
-                call narrow_to_region(location(), point() + dabbrev_limit, status)
+                call narrow_to_region(location(), point() + dynamic_abbreviation_limit, status)
             end if
 
             if (.not. status%ok()) return
@@ -1515,22 +1528,22 @@ contains
 
         do while (.not. have)
             if (reverse) then
-                call re_search_backward(pattern1, found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward(pattern1, found, status, noerror=SEARCH_NOERROR)
             else
-                call re_search_forward(pattern1, found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(pattern1, found, status, noerror=SEARCH_NOERROR)
             end if
 
             if (.not. status%ok() .or. found == 0) exit
             mb = match_beginning(0, st)
             me = match_end(0, st)
-            call goto_char(mb)
+            call goto_character(mb)
             ! In case we matched in the middle of a word,
             ! back up to start of word and verify we still match.
-            call goto_start_of_abbrev()
+            call goto_start_of_abbreviation()
 
             if (looking_at(pattern1, st)) then
                 ! We have a truly valid match.  Find the end.
-                call re_search_forward(pattern2, found, status)
+                call regular_expression_search_forward(pattern2, found, status)
                 if (.not. status%ok()) exit
                 mb = match_beginning(0, st)
                 me = match_end(0, st)
@@ -1551,15 +1564,15 @@ contains
 
             ! Prepare to continue searching.
             if (reverse) then
-                call goto_char(mb)
+                call goto_character(mb)
             else
-                call goto_char(me)
+                call goto_character(me)
             end if
         end do
 
-        pos = point()
+        position = point()
         call narrow_to_region(savedb, buffers(current)%text%z - savedz, st)
-        call goto_char(pos)
+        call goto_character(position)
 
         if (.not. status%ok()) then
             if (allocated(result)) deallocate (result)
@@ -1583,97 +1596,97 @@ contains
         else if (allocated(result)) then
             deallocate (result)
         end if
-    end subroutine dabbrev_search
+    end subroutine dynamic_abbreviation_search
 
     !> Completion on current word.
-    !> Like \[dabbrev_expand] but finds all expansions in the current buffer
+    !> Like \[dynamic_abbreviation_expand] but finds all expansions in the current buffer
     !> and presents suggestions for completion.
     !>
-    !> With a prefix argument ARG, it searches all buffers accepted by the
-    !> function pointed out by `dabbrev_friend_buffer_function' to find the
+    !> With a prefix argument ARGUMENT, it searches all buffers accepted by the
+    !> function pointed out by `dynamic_abbreviation_friend_buffer_function' to find the
     !> completions.
     !>
     !> If the prefix argument is 16 (which comes from \[universal_argument] \[universal_argument]),
     !> then it searches *all* buffers.  Port of dabbrev.el:dabbrev-completion
-    !> (ARG absent for no prefix, else its numeric value).
-    recursive subroutine dabbrev_completion(status, arg)
+    !> (ARGUMENT absent for no prefix, else its numeric value).
+    recursive subroutine dynamic_abbreviation_completion(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
-        type(capf_entry_type) :: fns(1)
-        character(len=:), allocatable :: abbrev, where
+        integer(int64), intent(in), optional :: argument
+        type(completion_at_point_function_entry_type) :: functions(1)
+        character(len=:), allocatable :: abbreviation, where
         logical :: res
 
-        call dabbrev_reset_global_variables()
+        call dynamic_abbreviation_reset_global_variables()
         check_other_buffers = .false.
-        if (present(arg)) check_other_buffers = .true.
+        if (present(argument)) check_other_buffers = .true.
         check_all_buffers = .false.
-        if (present(arg)) check_all_buffers = arg == 16
-        ! Set it so `dabbrev_capf' won't reset the vars.
-        call copy_marker_at(point(), last_abbrev_location, .false., status)
-        fns(1)%fn => dabbrev_capf
-        call execute_completion_at_point(res, status, fns)
+        if (present(argument)) check_all_buffers = argument == 16
+        ! Set it so `dynamic_abbreviation_completion_at_point_function' won't reset the vars.
+        call copy_marker_at(point(), last_abbreviation_location, .false., status)
+        functions(1)%fn => dynamic_abbreviation_completion_at_point_function
+        call execute_completion_at_point(res, status, functions)
         if (.not. status%ok()) return
 
         if (.not. res) then
-            call abbrev_at_point(abbrev, status)
+            call abbreviation_at_point(abbreviation, status)
             if (.not. status%ok()) return
             where = " in this-buffer"
             if (.not. check_other_buffers%is_off()) where = ""
-            call set_error(status, FM_USER_ERROR, "No dynamic expansion for """//abbrev//""" found"//where)
+            call set_error(status, USER_ERROR_CODE, "No dynamic expansion for """//abbreviation//""" found"//where)
         end if
-    end subroutine dabbrev_completion
+    end subroutine dynamic_abbreviation_completion
 
     !> Dabbrev completion function for `completion_at_point_functions'.
     !> Port of dabbrev.el:dabbrev-capf.
-    recursive subroutine dabbrev_capf(data, status)
-        type(capf_data_type), intent(out) :: data
+    recursive subroutine dynamic_abbreviation_completion_at_point_function(data, status)
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
         type(handle_type) :: b
-        integer(int64) :: pos, found
+        integer(int64) :: position, found
         logical :: same
 
         ! Don't reset the vars if we're in the "same" completion,
         ! especially since they may have been set to different values,
-        ! e.g. if the user passes a prefix ARG to `dabbrev_completion'.
+        ! e.g. if the user passes a prefix ARGUMENT to `dynamic_abbreviation_completion'.
         same = .false.
 
-        if (last_abbrev_location%index /= 0) then
-            call marker_buffer(last_abbrev_location, b, status)
+        if (last_abbreviation_location%index /= 0) then
+            call marker_buffer(last_abbreviation_location, b, status)
 
             if (status%ok() .and. same_handle(b, current_buffer())) then
-                call marker_position(last_abbrev_location, pos, status)
-                same = status%ok() .and. point() == pos
+                call marker_position(last_abbreviation_location, position, status)
+                same = status%ok() .and. point() == position
             end if
         end if
 
         if (.not. same) then
-            call dabbrev_reset_global_variables()
-            ! Contrary to `dabbrev_completion', the CAPF protocol doesn't
+            call dynamic_abbreviation_reset_global_variables()
+            ! Contrary to `dynamic_abbreviation_completion', the COMPLETION_AT_POINT_FUNCTION protocol doesn't
             ! have a way to control the scope of the search.  We just
             ! default to confine it to the current buffer.
             check_other_buffers = .false.
             check_all_buffers = .false.
-            call copy_marker_at(point(), last_abbrev_location, .false., status)
+            call copy_marker_at(point(), last_abbreviation_location, .false., status)
         end if
 
-        call abbrev_at_point(capf_abbrev, status)
+        call abbreviation_at_point(completion_at_point_function_abbreviation, status)
         if (.not. status%ok()) return
-        call search_backward(capf_abbrev, found, status)
+        call search_backward(completion_at_point_function_abbreviation, found, status)
         if (.not. status%ok()) return
         data%start = point()
-        call search_forward(capf_abbrev, found, status)
+        call search_forward(completion_at_point_function_abbreviation, found, status)
         if (.not. status%ok()) return
         data%end = point()
-        capf_ignore_case = is_ignore_case(capf_abbrev)
-        capf_list_set = .false.
+        completion_at_point_function_ignore_case = is_ignore_case(completion_at_point_function_abbreviation)
+        completion_at_point_function_list_set = .false.
         data%found = .true.
-        data%table = completion_function_table(dabbrev_capf_table, "dabbrev")
-    end subroutine dabbrev_capf
+        data%table = completion_function_table(dynamic_abbreviation_completion_at_point_function_table, "dabbrev")
+    end subroutine dynamic_abbreviation_completion_at_point_function
 
-    !> The completion table of `dabbrev_capf': the expansions of the
+    !> The completion table of `dynamic_abbreviation_completion_at_point_function': the expansions of the
     !> abbreviation, found the first time it is used.
     !> Port of dabbrev.el:dabbrev-capf in part.
-    recursive subroutine dabbrev_capf_table(string, action, result, status, test, suffix)
+    recursive subroutine dynamic_abbreviation_completion_at_point_function_table(string, action, result, status, test, suffix)
         character(len=*), intent(in) :: string
         integer, intent(in) :: action
         type(value_type), intent(out) :: result
@@ -1686,18 +1699,19 @@ contains
         status = status_type()
         result = value_type()
 
-        if (.not. capf_list_set) then
+        if (.not. completion_at_point_function_list_set) then
             call save_excursion(ex)
             ! New abbreviation to expand.
-            last_abbreviation = capf_abbrev
+            last_abbreviation = completion_at_point_function_abbreviation
             ! Find all expansion
-            call find_all_expansions(capf_abbrev, capf_ignore_case, capf_list, status)
+            call find_all_expansions(completion_at_point_function_abbreviation, completion_at_point_function_ignore_case, &
+                                     completion_at_point_function_list, status)
             call restore_excursion(ex)
             if (.not. status%ok()) return
-            capf_list_set = .true.
+            completion_at_point_function_list_set = .true.
         end if
 
-        table = completion_list_table(capf_list)
+        table = completion_list_table(completion_at_point_function_list)
 
         select case (action)
         case (COMPLETE_TRY)
@@ -1709,13 +1723,13 @@ contains
         case default
             if (present(suffix)) continue
         end select
-    end subroutine dabbrev_capf_table
+    end subroutine dynamic_abbreviation_completion_at_point_function_table
 
-    !> The expansions of ABBREV in LIST, case-converted as
-    !> `dabbrev_capf' does.  Port of dabbrev.el:dabbrev--find-all-expansions
+    !> The expansions of ABBREVIATION in LIST, case-converted as
+    !> `dynamic_abbreviation_completion_at_point_function' does.  Port of dabbrev.el:dabbrev--find-all-expansions
     !> with dabbrev-capf's case conversion.
-    recursive subroutine find_all_expansions(abbrev, ignore_case, list, status)
-        character(len=*), intent(in) :: abbrev
+    recursive subroutine find_all_expansions(abbreviation, ignore_case, list, status)
+        character(len=*), intent(in) :: abbreviation
         logical, intent(in) :: ignore_case
         type(value_type), intent(out) :: list
         type(status_type), intent(out) :: status
@@ -1725,21 +1739,21 @@ contains
         integer :: n
 
         allocate (all(0))
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call find_expansion(abbrev, -1_int64, ignore_case, expansion, status)
+            call find_expansion(abbreviation, -1_int64, ignore_case, expansion, status)
             if (.not. status%ok()) return
             if (.not. allocated(expansion)) exit
             found = value_type(text=expansion)
             all = [found, all]
         end do
 
-        first = char_substring(abbrev, 0_int64, 1_int64)
+        first = character_substring(abbreviation, 0_int64, 1_int64)
 
-        if (ignore_case .and. .not. dabbrev_case_replace%is_off()) then
+        if (ignore_case .and. .not. dynamic_abbreviation_case_replace%is_off()) then
             do n = 1, size(all)
-                if (same_string(abbrev, upcase_string(abbrev))) then
+                if (same_string(abbreviation, upcase_string(abbreviation))) then
                     all(n) = value_type(text=upcase_string(xstring(all(n))))
                 else if (same_string(first, upcase_string(first))) then
                     all(n) = value_type(text=capitalize_string(xstring(all(n))))
@@ -1752,47 +1766,47 @@ contains
         list = make_list(all)
     end subroutine find_all_expansions
 
-    recursive subroutine cmd_dabbrev_completion(status)
+    recursive subroutine execute_dynamic_abbreviation_completion(status)
         type(status_type), intent(out) :: status
 
         ! Interactive "*P".
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
-            call dabbrev_completion(status)
+        if (current_prefix_argument%kind == PREFIX_NONE) then
+            call dynamic_abbreviation_completion(status)
         else
-            call dabbrev_completion(status, prefix_numeric_value(current_prefix_arg))
+            call dynamic_abbreviation_completion(status, prefix_numeric_value(current_prefix_argument))
         end if
-    end subroutine cmd_dabbrev_completion
+    end subroutine execute_dynamic_abbreviation_completion
 
-    recursive subroutine cmd_dabbrev_expand(status)
+    recursive subroutine execute_dynamic_abbreviation_expand(status)
         type(status_type), intent(out) :: status
 
         ! Interactive "*P".
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
-            call dabbrev_expand(status)
+        if (current_prefix_argument%kind == PREFIX_NONE) then
+            call dynamic_abbreviation_expand(status)
         else
-            call dabbrev_expand(status, prefix_numeric_value(current_prefix_arg))
+            call dynamic_abbreviation_expand(status, prefix_numeric_value(current_prefix_argument))
         end if
-    end subroutine cmd_dabbrev_expand
+    end subroutine execute_dynamic_abbreviation_expand
 
-    !> Register `dabbrev_expand' and give the list settings their
+    !> Register `dynamic_abbreviation_expand' and give the list settings their
     !> defaults.  Not a port.
-    subroutine init_dabbrev()
-        commands%dabbrev_expand%execute => cmd_dabbrev_expand
-        commands%dabbrev_completion%execute => cmd_dabbrev_completion
-        call forward_setting(dabbrev_abbrev_skip_leading_regexp)
+    subroutine initialize_dynamic_abbreviation()
+        commands%dynamic_abbreviation_expand%execute => execute_dynamic_abbreviation_expand
+        commands%dynamic_abbreviation_completion%execute => execute_dynamic_abbreviation_completion
+        call forward_setting(dynamic_abbreviation_skip_leading_regular_expression)
 
-        if (.not. allocated(dabbrev_ignored_buffer_names)) then
-            dabbrev_ignored_buffer_names = [character(len=13) :: "*Messages*", "*Buffer List*"]
+        if (.not. allocated(dynamic_abbreviation_ignored_buffer_names)) then
+            dynamic_abbreviation_ignored_buffer_names = [character(len=13) :: "*Messages*", "*Buffer List*"]
         end if
 
-        if (.not. allocated(dabbrev_ignored_buffer_modes)) then
-            dabbrev_ignored_buffer_modes = [character(len=12) :: "archive_mode", "image_mode"]
+        if (.not. allocated(dynamic_abbreviation_ignored_buffer_modes)) then
+            dynamic_abbreviation_ignored_buffer_modes = [character(len=12) :: "archive_mode", "image_mode"]
         end if
-    end subroutine init_dabbrev
+    end subroutine initialize_dynamic_abbreviation
 end module dynamic_abbreviation_mod

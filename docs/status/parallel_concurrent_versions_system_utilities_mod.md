@@ -1,6 +1,6 @@
-# pcvs_utilities_mod
+# parallel_concurrent_versions_system_utilities_mod
 
-- Module: pcvs_utilities_mod
+- Module: parallel_concurrent_versions_system_utilities_mod
 - Upstream: vc/pcvs-util.el
 - State: partial
 

@@ -21,7 +21,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Char-tables: a value for every character code from 0 to `MAX_CHAR',
+!> Char-tables: a value for every character code from 0 to `MAXIMUM_CHARACTER',
 !> plus a default value, a parent to inherit from, a subtype (the
 !> purpose) and a few extra slots.  A char-table is a registry object
 !> referenced by handle (the parent is a handle too); its values are
@@ -40,21 +40,23 @@
 !> `get_unicode_property_internal', `put_unicode_property_internal';
 !> the properties are generated Fortran tables, unicode_case_mod,
 !> unicode_category_mod and character_script_mod, and nothing asks for them as a
-!> char-table yet), `map_char_table_for_charset' (needs charsets with
+!> char-table yet), `map_character_table_for_character_set' (needs charsets with
 !> mapping tables, step 41).
 module character_table_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, ARGUMENTS_OUT_OF_RANGE_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
-    use character_mod, only: MAX_CHAR
+    use character_mod, only: MAXIMUM_CHARACTER
     implicit none(type, external)
     private
 
-    public :: make_char_table, destroy_char_table, is_char_table, char_table_subtype, char_table_parent, &
-              set_char_table_parent, char_table_extra_slot, set_char_table_extra_slot, char_table_extra_table, &
-              set_char_table_extra_table, char_table_range, &
-              set_char_table_range, char_table_ref, char_table_set, char_table_set_range, char_table_ref_and_range, &
-              map_char_table, optimize_char_table, copy_char_table, check_char_table, char_table_map_procedure
+    public :: make_character_table, destroy_character_table, is_character_table, character_table_subtype, character_table_parent, &
+              set_character_table_parent, character_table_extra_slot, set_character_table_extra_slot, character_table_extra_table, &
+              set_character_table_extra_table, character_table_range, &
+              set_character_table_range, character_table_reference, character_table_set, character_table_set_range, &
+              character_table_reference_and_range, &
+              map_character_table, optimize_character_table, copy_character_table, check_character_table, &
+              map_character_table_procedure
 
     !> The value of an element that holds nothing: looking
     !> it up gives the default value, or else the parent's value.
@@ -64,30 +66,30 @@ module character_table_mod
     integer, parameter :: chartab_size(0:3) = [64, 16, 32, 128]
 
     !> Number of characters each element of Nth level char-table covers
-    !> (chartab.c chartab_chars).
-    integer, parameter :: chartab_chars(0:3) = [65536, 4096, 128, 1]
+    !> (chartab.c chartab_characters).
+    integer, parameter :: chartab_characters(0:3) = [65536, 4096, 128, 1]
 
     !> Number of characters (in bits) each element of Nth level char-table
     !> covers (chartab.c chartab_bits).
     integer, parameter :: chartab_bits(0:3) = [16, 12, 7, 0]
 
     !> Most extra slots a char-table can have.
-    integer, parameter :: MAX_EXTRA_SLOTS = 10
+    integer, parameter :: MAXIMUM_EXTRA_SLOTS = 10
 
     !> A sub char-table of depth 1 to 3 covering the characters from
-    !> `min_char' on: each element is a value, or (`sub' > 0) the index
+    !> `minimum_character' on: each element is a value, or (`sub' > 0) the index
     !> of a deeper sub char-table in the pool.
-    type :: sub_char_table_type
+    type :: sub_character_table_type
         integer :: depth = 0
-        integer :: min_char = 0
+        integer :: minimum_character = 0
         integer(int64), allocatable :: contents(:)
         integer, allocatable :: sub(:)
-    end type sub_char_table_type
+    end type sub_character_table_type
 
-    !> A char-table (struct Lisp_Char_Table).  `ascii_sub' caches the sub
+    !> A char-table (struct Lisp_Character_Table).  `ascii_sub' caches the sub
     !> char-table of depth 3 holding the ASCII characters, or 0 when they
     !> all have `ascii' (upstream's ascii slot).
-    type :: char_table_type
+    type :: character_table_type
         character(len=:), allocatable :: purpose
         integer(int64) :: defalt = NO_VALUE
         type(handle_type) :: parent
@@ -99,27 +101,27 @@ module character_table_mod
         !> (`extra_tables'), the other being `NO_VALUE' or the null handle.
         integer(int64), allocatable :: extras(:)
         type(handle_type), allocatable :: extra_tables(:)
-        type(sub_char_table_type), allocatable :: pool(:)
+        type(sub_character_table_type), allocatable :: pool(:)
         integer :: npool = 0
         integer, allocatable :: free(:)
         integer :: nfree = 0
-    end type char_table_type
+    end type character_table_type
 
     abstract interface
-        !> What `map_char_table' calls for each character or run of
+        !> What `map_character_table' calls for each character or run of
         !> characters FROM..TO sharing the value VALUE (not `NO_VALUE');
-        !> ARG is the argument given to `map_char_table'.  Not a port.
-        recursive subroutine char_table_map_procedure(arg, from, to, value)
+        !> ARGUMENT is the argument given to `map_character_table'.  Not a port.
+        recursive subroutine map_character_table_procedure(argument, from, to, value)
             import :: handle_type, int64
             implicit none(type, external)
-            type(handle_type), intent(in) :: arg
+            type(handle_type), intent(in) :: argument
             integer, intent(in) :: from, to
             integer(int64), intent(in) :: value
-        end subroutine char_table_map_procedure
+        end subroutine map_character_table_procedure
     end interface
 
     type(slot_table_type) :: registry
-    type(char_table_type), allocatable :: tables(:)
+    type(character_table_type), allocatable :: tables(:)
 
 contains
 
@@ -130,7 +132,7 @@ contains
     !> A new slot for a char-table.  Not a port.
     subroutine make_table(h)
         type(handle_type), intent(out) :: h
-        type(char_table_type), allocatable :: grown(:)
+        type(character_table_type), allocatable :: grown(:)
 
         call registry%acquire(h)
 
@@ -142,42 +144,42 @@ contains
             call move_alloc(grown, tables)
         end if
 
-        tables(h%index) = char_table_type()
+        tables(h%index) = character_table_type()
     end subroutine make_table
 
     !> The slot of char-table H, or a `wrong_type_argument' error
     !> (char-table-p).  Port of chartab.c:CHECK_CHAR_TABLE.
-    pure subroutine check_char_table(h, i, status)
+    pure subroutine check_character_table(h, i, status)
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: i
         type(status_type), intent(out) :: status
 
         call registry%resolve(h, i, status)
-        if (.not. status%ok()) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(char_table_type)")
-    end subroutine check_char_table
+        if (.not. status%ok()) call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(character_table_type)")
+    end subroutine check_character_table
 
     !> Return true if OBJECT is a char-table.  Not a port (data.c
     !> char-table-p: a live handle).
-    pure logical function is_char_table(object)
+    pure logical function is_character_table(object)
         type(handle_type), intent(in) :: object
 
-        is_char_table = registry%is_live(object)
-    end function is_char_table
+        is_character_table = registry%is_live(object)
+    end function is_character_table
 
     !> Free char-table H.  Not a port: upstream relies on GC.
-    subroutine destroy_char_table(h, status)
+    subroutine destroy_character_table(h, status)
         type(handle_type), intent(in) :: h
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        call check_char_table(h, i, status)
+        call check_character_table(h, i, status)
         if (.not. status%ok()) return
-        tables(i) = char_table_type()
+        tables(i) = character_table_type()
         call registry%release(h, status)
-    end subroutine destroy_char_table
+    end subroutine destroy_character_table
 
     !> The number of extra slots of a char-table whose purpose is PURPOSE
-    !> when `make_char_table' isn't told (the `char_table_extra_slots'
+    !> when `make_character_table' isn't told (the `character_table_extra_slots'
     !> property upstream gives the purpose names): case tables have 3
     !> (casetab.c:init_casetab_once), category tables 2
     !> (category.c:init_category_once).  Not a port.
@@ -198,14 +200,14 @@ contains
     ! Sub char-tables
     ! ------------------------------------------------------------------
 
-    !> A new sub char-table of DEPTH from MIN_CHAR in table I, every
+    !> A new sub char-table of DEPTH from MINIMUM_CHARACTER in table I, every
     !> element DEFALT; its index in the pool.  Port of
     !> chartab.c:make_sub_char_table.
-    integer function make_sub_char_table(i, depth, min_char, defalt) result(k)
+    integer function make_sub_character_table(i, depth, minimum_character, defalt) result(k)
         integer(int64), intent(in) :: i
-        integer, intent(in) :: depth, min_char
+        integer, intent(in) :: depth, minimum_character
         integer(int64), intent(in) :: defalt
-        type(sub_char_table_type), allocatable :: grown(:)
+        type(sub_character_table_type), allocatable :: grown(:)
 
         if (tables(i)%nfree > 0) then
             k = tables(i)%free(tables(i)%nfree)
@@ -224,12 +226,12 @@ contains
         end if
 
         tables(i)%pool(k)%depth = depth
-        tables(i)%pool(k)%min_char = min_char
+        tables(i)%pool(k)%minimum_character = minimum_character
         if (allocated(tables(i)%pool(k)%contents)) deallocate (tables(i)%pool(k)%contents, tables(i)%pool(k)%sub)
         allocate (tables(i)%pool(k)%contents(chartab_size(depth)), tables(i)%pool(k)%sub(chartab_size(depth)))
         tables(i)%pool(k)%contents = defalt
         tables(i)%pool(k)%sub = 0
-    end function make_sub_char_table
+    end function make_sub_character_table
 
     !> Give sub char-table K of table I, and the deeper ones it holds,
     !> back to the pool's free list.  Not a port: upstream leaves them to
@@ -259,110 +261,110 @@ contains
     end subroutine destroy_sub
 
     !> Set element INDEX (0-based) of sub char-table K of table I (the top
-    !> level when K is 0) to the value VAL, releasing a sub char-table it
-    !> held.  Not a port (set_char_table_contents and
-    !> set_sub_char_table_contents with a value).
-    recursive subroutine set_element(i, k, index, val)
+    !> level when K is 0) to the value VALUE, releasing a sub char-table it
+    !> held.  Not a port (set_character_table_contents and
+    !> set_sub_character_table_contents with a value).
+    recursive subroutine set_element(i, k, index, value)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k, index
-        integer(int64), intent(in) :: val
+        integer(int64), intent(in) :: value
         integer :: s
 
         if (k == 0) then
             s = tables(i)%sub(index)
             tables(i)%sub(index) = 0
-            tables(i)%contents(index) = val
+            tables(i)%contents(index) = value
         else
             s = tables(i)%pool(k)%sub(index + 1)
             tables(i)%pool(k)%sub(index + 1) = 0
-            tables(i)%pool(k)%contents(index + 1) = val
+            tables(i)%pool(k)%contents(index + 1) = value
         end if
 
         if (s > 0) call destroy_sub(i, s)
     end subroutine set_element
 
     !> Element INDEX (0-based) of sub char-table K of table I (the top level
-    !> when K is 0): its value VAL, or the sub char-table S it holds
+    !> when K is 0): its value VALUE, or the sub char-table S it holds
     !> (0 for a value).  Not a port.
-    pure subroutine get_element(i, k, index, val, s)
+    pure subroutine get_element(i, k, index, value, s)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k, index
-        integer(int64), intent(out) :: val
+        integer(int64), intent(out) :: value
         integer, intent(out) :: s
 
         if (k == 0) then
-            val = tables(i)%contents(index)
+            value = tables(i)%contents(index)
             s = tables(i)%sub(index)
         else
-            val = tables(i)%pool(k)%contents(index + 1)
+            value = tables(i)%pool(k)%contents(index + 1)
             s = tables(i)%pool(k)%sub(index + 1)
         end if
     end subroutine get_element
 
-    !> The index of element C of a sub char-table of DEPTH from MIN_CHAR.
-    !> Port of chartab.c CHARTAB_IDX.
-    pure integer function chartab_idx(c, depth, min_char)
-        integer, intent(in) :: c, depth, min_char
+    !> The index of element C of a sub char-table of DEPTH from MINIMUM_CHARACTER.
+    !> Port of chartab.c CHARTAB_INDEX.
+    pure integer function chartab_index(c, depth, minimum_character)
+        integer, intent(in) :: c, depth, minimum_character
 
-        chartab_idx = ishft(c - min_char, -chartab_bits(depth))
-    end function chartab_idx
+        chartab_index = ishft(c - minimum_character, -chartab_bits(depth))
+    end function chartab_index
 
     !> Recompute the ASCII cache of table I: the sub char-table of depth 3
     !> holding the ASCII characters, or their common value.  Port of
     !> chartab.c:char_table_ascii and chartab.c:set_char_table_ascii.
-    subroutine set_char_table_ascii(i)
+    subroutine set_character_table_ascii(i)
         integer(int64), intent(in) :: i
-        integer(int64) :: val
+        integer(int64) :: value
         integer :: s
 
         tables(i)%ascii_sub = 0
-        call get_element(i, 0, 0, val, s)
+        call get_element(i, 0, 0, value, s)
 
         if (s > 0) then
-            call get_element(i, s, 0, val, s)
+            call get_element(i, s, 0, value, s)
 
             if (s > 0) then
-                call get_element(i, s, 0, val, s)
+                call get_element(i, s, 0, value, s)
 
                 if (s > 0) then
                     tables(i)%ascii_sub = s
-                    val = NO_VALUE
+                    value = NO_VALUE
                 end if
             end if
         end if
 
-        tables(i)%ascii = val
-    end subroutine set_char_table_ascii
+        tables(i)%ascii = value
+    end subroutine set_character_table_ascii
 
     ! ------------------------------------------------------------------
     ! The table
     ! ------------------------------------------------------------------
 
     !> Return a newly created char-table, with purpose PURPOSE.
-    !> Each element is initialized to INIT, which defaults to `NO_VALUE'.
+    !> Each element is initialized to INITIALIZE, which defaults to `NO_VALUE'.
     !>
     !> PURPOSE names the subtype.  N_EXTRAS, from 0 to 10, specifies how
     !> many extra slots the char-table has; it defaults to 3 for
     !> "case_table", 2 for "category_table" and 0 for other purposes.
     !> Port of chartab.c:Fmake_char_table (N_EXTRAS stands for the
-    !> purpose name's `char_table_extra_slots' property).
-    subroutine make_char_table(h, purpose, status, init, n_extras)
+    !> purpose name's `character_table_extra_slots' property).
+    subroutine make_character_table(h, purpose, status, initialize, n_extras)
         type(handle_type), intent(out) :: h
         character(len=*), intent(in) :: purpose
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: init
+        integer(int64), intent(in), optional :: initialize
         integer, intent(in), optional :: n_extras
-        integer(int64) :: val
+        integer(int64) :: value
         integer :: n
 
         status = status_type()
-        val = NO_VALUE
-        if (present(init)) val = init
+        value = NO_VALUE
+        if (present(initialize)) value = initialize
         n = purpose_extra_slots(purpose)
         if (present(n_extras)) n = n_extras
 
-        if (n < 0 .or. n > MAX_EXTRA_SLOTS) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, "char_table_extra_slots")
+        if (n < 0 .or. n > MAXIMUM_EXTRA_SLOTS) then
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "character_table_extra_slots")
             h = null_handle()
             return
         end if
@@ -371,43 +373,43 @@ contains
 
         associate (t => tables(h%index))
             t%purpose = purpose
-            t%defalt = val
-            t%ascii = val
-            t%contents = val
+            t%defalt = value
+            t%ascii = value
+            t%contents = value
             allocate (t%extras(n), t%extra_tables(n))
-            t%extras = val
+            t%extras = value
         end associate
-    end subroutine make_char_table
+    end subroutine make_character_table
 
     !> Return a copy of char-table TABLE: its sub char-tables are copied,
     !> the values and the parent are shared.  Port of
     !> chartab.c:copy_char_table and chartab.c:copy_sub_char_table (assignment
     !> copies the pool).
-    subroutine copy_char_table(table, copy, status)
+    subroutine copy_character_table(table, copy, status)
         type(handle_type), intent(in) :: table
         type(handle_type), intent(out) :: copy
         type(status_type), intent(out) :: status
         integer(int64) :: i
-        type(char_table_type) :: tmp
+        type(character_table_type) :: temporary
 
-        call check_char_table(table, i, status)
+        call check_character_table(table, i, status)
 
         if (.not. status%ok()) then
             copy = null_handle()
             return
         end if
 
-        tmp = tables(i)
+        temporary = tables(i)
         call make_table(copy)
-        call move_alloc_table(tmp, tables(copy%index))
-    end subroutine copy_char_table
+        call move_alloc_table(temporary, tables(copy%index))
+    end subroutine copy_character_table
 
     !> Move char-table FROM into TO.  Not a port.
     subroutine move_alloc_table(from, to)
-        type(char_table_type), intent(inout) :: from
-        type(char_table_type), intent(inout) :: to
+        type(character_table_type), intent(inout) :: from
+        type(character_table_type), intent(inout) :: to
 
-        to = char_table_type()
+        to = character_table_type()
         call move_alloc(from%purpose, to%purpose)
         to%defalt = from%defalt
         to%parent = from%parent
@@ -423,15 +425,15 @@ contains
         to%nfree = from%nfree
     end subroutine move_alloc_table
 
-    !> Return the subtype of char-table CHAR_TABLE.  The value is a name.
+    !> Return the subtype of char-table CHARACTER_TABLE.  The value is a name.
     !> Port of chartab.c:Fchar_table_subtype.
-    function char_table_subtype(char_table, status) result(purpose)
-        type(handle_type), intent(in) :: char_table
+    function character_table_subtype(character_table, status) result(purpose)
+        type(handle_type), intent(in) :: character_table
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: purpose
         integer(int64) :: i
 
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
 
         if (.not. status%ok()) then
             purpose = ""
@@ -439,140 +441,140 @@ contains
         end if
 
         purpose = tables(i)%purpose
-    end function char_table_subtype
+    end function character_table_subtype
 
-    !> Return the parent char-table of CHAR_TABLE.
+    !> Return the parent char-table of CHARACTER_TABLE.
     !> The value is either the null handle or another char-table.
-    !> If CHAR_TABLE holds `NO_VALUE' for a given character,
+    !> If CHARACTER_TABLE holds `NO_VALUE' for a given character,
     !> then the actual applicable value is inherited from the parent char-table
     !> (or from its parents, if necessary).  Port of
     !> chartab.c:Fchar_table_parent.
-    function char_table_parent(char_table, status) result(parent)
-        type(handle_type), intent(in) :: char_table
+    function character_table_parent(character_table, status) result(parent)
+        type(handle_type), intent(in) :: character_table
         type(status_type), intent(out) :: status
         type(handle_type) :: parent
         integer(int64) :: i
 
         parent = null_handle()
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
         if (registry%is_live(tables(i)%parent)) parent = tables(i)%parent
-    end function char_table_parent
+    end function character_table_parent
 
-    !> Set the parent char-table of CHAR_TABLE to PARENT.
+    !> Set the parent char-table of CHARACTER_TABLE to PARENT.
     !> PARENT must be either the null handle or another char-table.
     !> Port of chartab.c:Fset_char_table_parent and chartab.c:set_char_table_parent.
-    subroutine set_char_table_parent(char_table, parent, status)
-        type(handle_type), intent(in) :: char_table, parent
+    subroutine set_character_table_parent(character_table, parent, status)
+        type(handle_type), intent(in) :: character_table, parent
         type(status_type), intent(out) :: status
         integer(int64) :: i, j
-        type(handle_type) :: temp
+        type(handle_type) :: temporary
 
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
 
         if (parent%index /= 0) then
-            call check_char_table(parent, j, status)
+            call check_character_table(parent, j, status)
             if (.not. status%ok()) return
-            temp = parent
+            temporary = parent
 
-            do while (registry%is_live(temp))
-                if (temp%index == char_table%index .and. temp%generation == char_table%generation) then
-                    call set_error(status, FM_GENERIC_ERROR, "Attempt to make a chartable be its own parent")
+            do while (registry%is_live(temporary))
+                if (temporary%index == character_table%index .and. temporary%generation == character_table%generation) then
+                    call set_error(status, GENERIC_ERROR_CODE, "Attempt to make a chartable be its own parent")
                     return
                 end if
 
-                temp = tables(temp%index)%parent
+                temporary = tables(temporary%index)%parent
             end do
         end if
 
         tables(i)%parent = parent
-    end subroutine set_char_table_parent
+    end subroutine set_character_table_parent
 
-    !> Return the value of CHAR_TABLE's extra-slot number N.  Port of
+    !> Return the value of CHARACTER_TABLE's extra-slot number N.  Port of
     !> chartab.c:Fchar_table_extra_slot (N counts from 0).
-    integer(int64) function char_table_extra_slot(char_table, n, status) result(value)
-        type(handle_type), intent(in) :: char_table
+    integer(int64) function character_table_extra_slot(character_table, n, status) result(value)
+        type(handle_type), intent(in) :: character_table
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
         value = NO_VALUE
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
 
         if (n < 0 .or. n >= size(tables(i)%extras)) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, "char_table_extra_slot")
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "character_table_extra_slot")
             return
         end if
 
         value = tables(i)%extras(n + 1)
-    end function char_table_extra_slot
+    end function character_table_extra_slot
 
-    !> Set CHAR_TABLE's extra-slot number N to VALUE.  Port of
+    !> Set CHARACTER_TABLE's extra-slot number N to VALUE.  Port of
     !> chartab.c:Fset_char_table_extra_slot (N counts from 0).
-    subroutine set_char_table_extra_slot(char_table, n, value, status)
-        type(handle_type), intent(in) :: char_table
+    subroutine set_character_table_extra_slot(character_table, n, value, status)
+        type(handle_type), intent(in) :: character_table
         integer, intent(in) :: n
         integer(int64), intent(in) :: value
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
 
         if (n < 0 .or. n >= size(tables(i)%extras)) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, "set_char_table_extra_slot")
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "set_character_table_extra_slot")
             return
         end if
 
         tables(i)%extras(n + 1) = value
         tables(i)%extra_tables(n + 1) = null_handle()
-    end subroutine set_char_table_extra_slot
+    end subroutine set_character_table_extra_slot
 
-    !> Return the char-table in CHAR_TABLE's extra-slot number N, or the
+    !> Return the char-table in CHARACTER_TABLE's extra-slot number N, or the
     !> null handle when it holds none.  Port of
     !> chartab.c:Fchar_table_extra_slot for a slot holding a char-table.
-    function char_table_extra_table(char_table, n, status) result(value)
-        type(handle_type), intent(in) :: char_table
+    function character_table_extra_table(character_table, n, status) result(value)
+        type(handle_type), intent(in) :: character_table
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
         type(handle_type) :: value
         integer(int64) :: i
 
         value = null_handle()
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
 
         if (n < 0 .or. n >= size(tables(i)%extras)) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, "char_table_extra_slot")
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "character_table_extra_slot")
             return
         end if
 
         value = tables(i)%extra_tables(n + 1)
-    end function char_table_extra_table
+    end function character_table_extra_table
 
-    !> Set CHAR_TABLE's extra-slot number N to the char-table VALUE (the
+    !> Set CHARACTER_TABLE's extra-slot number N to the char-table VALUE (the
     !> null handle to empty it).  Port of
     !> chartab.c:Fset_char_table_extra_slot for a char-table value.
-    subroutine set_char_table_extra_table(char_table, n, value, status)
-        type(handle_type), intent(in) :: char_table
+    subroutine set_character_table_extra_table(character_table, n, value, status)
+        type(handle_type), intent(in) :: character_table
         integer, intent(in) :: n
         type(handle_type), intent(in) :: value
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
 
         if (n < 0 .or. n >= size(tables(i)%extras)) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, "set_char_table_extra_slot")
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "set_character_table_extra_slot")
             return
         end if
 
         tables(i)%extras(n + 1) = NO_VALUE
         tables(i)%extra_tables(n + 1) = value
-    end subroutine set_char_table_extra_table
+    end subroutine set_character_table_extra_table
 
     ! ------------------------------------------------------------------
     ! Lookup
@@ -580,359 +582,359 @@ contains
 
     !> The value for C in sub char-table K of table I, without the default
     !> value or the parent.  Port of chartab.c:sub_char_table_ref.
-    pure recursive integer(int64) function sub_char_table_ref(i, k, c) result(val)
+    pure recursive integer(int64) function sub_character_table_reference(i, k, c) result(value)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k, c
         integer :: s
 
-        call get_element(i, k, chartab_idx(c, tables(i)%pool(k)%depth, tables(i)%pool(k)%min_char), val, s)
-        if (s > 0) val = sub_char_table_ref(i, s, c)
-    end function sub_char_table_ref
+        call get_element(i, k, chartab_index(c, tables(i)%pool(k)%depth, tables(i)%pool(k)%minimum_character), value, s)
+        if (s > 0) value = sub_character_table_reference(i, s, c)
+    end function sub_character_table_reference
 
     !> The value for C in table I, without the default value or the
-    !> parent.  Not a port (char_table_ref's first part).
-    pure integer(int64) function own_ref(i, c) result(val)
+    !> parent.  Not a port (character_table_reference's first part).
+    pure integer(int64) function own_reference(i, c) result(value)
         integer(int64), intent(in) :: i
         integer, intent(in) :: c
         integer :: s
 
         if (c < 128) then
-            val = tables(i)%ascii
-            if (tables(i)%ascii_sub > 0) val = tables(i)%pool(tables(i)%ascii_sub)%contents(c + 1)
+            value = tables(i)%ascii
+            if (tables(i)%ascii_sub > 0) value = tables(i)%pool(tables(i)%ascii_sub)%contents(c + 1)
         else
-            call get_element(i, 0, chartab_idx(c, 0, 0), val, s)
-            if (s > 0) val = sub_char_table_ref(i, s, c)
+            call get_element(i, 0, chartab_index(c, 0, 0), value, s)
+            if (s > 0) value = sub_character_table_reference(i, s, c)
         end if
-    end function own_ref
+    end function own_reference
 
     !> The value for character C in char-table TABLE: its own, else the
     !> default value, else the parent's; `NO_VALUE' if none.  An invalid
     !> TABLE has no values.  Port of chartab.c:char_table_ref
-    !> (CHAR_TABLE_REF).
-    pure recursive integer(int64) function char_table_ref(table, c) result(val)
+    !> (CHARACTER_TABLE_REFERENCE).
+    pure recursive integer(int64) function character_table_reference(table, c) result(value)
         type(handle_type), intent(in) :: table
         integer, intent(in) :: c
         integer(int64) :: i
         type(status_type) :: status
 
-        val = NO_VALUE
-        call check_char_table(table, i, status)
+        value = NO_VALUE
+        call check_character_table(table, i, status)
         if (.not. status%ok()) return
-        if (c < 0 .or. c > MAX_CHAR) return
-        val = own_ref(i, c)
+        if (c < 0 .or. c > MAXIMUM_CHARACTER) return
+        value = own_reference(i, c)
 
-        if (val == NO_VALUE) then
-            val = tables(i)%defalt
-            if (val == NO_VALUE .and. registry%is_live(tables(i)%parent)) val = char_table_ref(tables(i)%parent, c)
+        if (value == NO_VALUE) then
+            value = tables(i)%defalt
+            if (value == NO_VALUE .and. registry%is_live(tables(i)%parent)) value = character_table_reference(tables(i)%parent, c)
         end if
-    end function char_table_ref
+    end function character_table_reference
 
     !> Element INDEX of sub char-table K of table I (the top level when K is
     !> 0) for C, with DEFALT for `NO_VALUE', shrinking FROM..TO as for
-    !> `char_table_ref_and_range'.  Port of chartab.c:char_table_ref_simple.
-    recursive integer(int64) function char_table_ref_simple(i, k, index, c, from, to, defalt) result(val)
+    !> `character_table_reference_and_range'.  Port of chartab.c:char_table_ref_simple.
+    recursive integer(int64) function character_table_reference_simple(i, k, index, c, from, to, defalt) result(value)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k, index, c
         integer, intent(inout) :: from, to
         integer(int64), intent(in) :: defalt
         integer :: s
 
-        call get_element(i, k, index, val, s)
+        call get_element(i, k, index, value, s)
 
         if (s > 0) then
-            val = sub_char_table_ref_and_range(i, s, c, from, to, defalt)
-        else if (val == NO_VALUE) then
-            val = defalt
+            value = sub_character_table_reference_and_range(i, s, c, from, to, defalt)
+        else if (value == NO_VALUE) then
+            value = defalt
         end if
-    end function char_table_ref_simple
+    end function character_table_reference_simple
 
     !> Port of chartab.c:sub_char_table_ref_and_range.
-    recursive integer(int64) function sub_char_table_ref_and_range(i, k, c, from, to, defalt) result(val)
+    recursive integer(int64) function sub_character_table_reference_and_range(i, k, c, from, to, defalt) result(value)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k, c
         integer, intent(inout) :: from, to
         integer(int64), intent(in) :: defalt
-        integer :: depth, min_char, index, cidx, cc
-        integer(int64) :: this_val
+        integer :: depth, minimum_character, index, cidx, cc
+        integer(int64) :: this_value
 
         depth = tables(i)%pool(k)%depth
-        min_char = tables(i)%pool(k)%min_char
-        cidx = chartab_idx(c, depth, min_char)
-        val = char_table_ref_simple(i, k, cidx, c, from, to, defalt)
+        minimum_character = tables(i)%pool(k)%minimum_character
+        cidx = chartab_index(c, depth, minimum_character)
+        value = character_table_reference_simple(i, k, cidx, c, from, to, defalt)
         index = cidx
 
-        do while (index > 0 .and. from < min_char + index*chartab_chars(depth))
-            cc = min_char + index*chartab_chars(depth) - 1
+        do while (index > 0 .and. from < minimum_character + index*chartab_characters(depth))
+            cc = minimum_character + index*chartab_characters(depth) - 1
             index = index - 1
-            this_val = char_table_ref_simple(i, k, index, cc, from, to, defalt)
+            this_value = character_table_reference_simple(i, k, index, cc, from, to, defalt)
 
-            if (this_val /= val) then
+            if (this_value /= value) then
                 from = cc + 1
                 exit
             end if
         end do
 
         do
-            cc = (cidx + 1)*chartab_chars(depth)
-            if (cc >= chartab_chars(depth - 1)) exit
-            cc = cc + min_char
+            cc = (cidx + 1)*chartab_characters(depth)
+            if (cc >= chartab_characters(depth - 1)) exit
+            cc = cc + minimum_character
             if (cc > to) exit
             cidx = cidx + 1
-            this_val = char_table_ref_simple(i, k, cidx, cc, from, to, defalt)
+            this_value = character_table_reference_simple(i, k, cidx, cc, from, to, defalt)
 
-            if (this_val /= val) then
+            if (this_value /= value) then
                 to = cc - 1
                 exit
             end if
         end do
-    end function sub_char_table_ref_and_range
+    end function sub_character_table_reference_and_range
 
     !> Return the value for C in char-table TABLE.  Shrink the range FROM
     !> and TO to cover characters (containing C) that have the same value
     !> as C.  It is not assured that the values of (FROM - 1) and (TO +
     !> 1) are different from that of C.  A negative FROM is 0, a negative
-    !> TO `MAX_CHAR'.  The parent is not consulted.  Port of
+    !> TO `MAXIMUM_CHARACTER'.  The parent is not consulted.  Port of
     !> chartab.c:char_table_ref_and_range.
-    integer(int64) function char_table_ref_and_range(table, c, from, to) result(val)
+    integer(int64) function character_table_reference_and_range(table, c, from, to) result(value)
         type(handle_type), intent(in) :: table
         integer, intent(in) :: c
         integer, intent(inout) :: from, to
-        integer(int64) :: i, this_val, defalt
+        integer(int64) :: i, this_value, defalt
         integer :: cidx, index, cc
         type(status_type) :: status
 
-        val = NO_VALUE
-        call check_char_table(table, i, status)
+        value = NO_VALUE
+        call check_character_table(table, i, status)
         if (.not. status%ok()) return
         if (from < 0) from = 0
-        if (to < 0) to = MAX_CHAR
+        if (to < 0) to = MAXIMUM_CHARACTER
         defalt = tables(i)%defalt
-        cidx = chartab_idx(c, 0, 0)
-        val = char_table_ref_simple(i, 0, cidx, c, from, to, defalt)
+        cidx = chartab_index(c, 0, 0)
+        value = character_table_reference_simple(i, 0, cidx, c, from, to, defalt)
         index = cidx
 
-        do while (from < index*chartab_chars(0))
-            cc = index*chartab_chars(0) - 1
+        do while (from < index*chartab_characters(0))
+            cc = index*chartab_characters(0) - 1
             index = index - 1
-            this_val = char_table_ref_simple(i, 0, index, cc, from, to, defalt)
+            this_value = character_table_reference_simple(i, 0, index, cc, from, to, defalt)
 
-            if (this_val /= val) then
+            if (this_value /= value) then
                 from = cc + 1
                 exit
             end if
         end do
 
-        do while (to >= (cidx + 1)*chartab_chars(0))
+        do while (to >= (cidx + 1)*chartab_characters(0))
             cidx = cidx + 1
-            cc = cidx*chartab_chars(0)
-            this_val = char_table_ref_simple(i, 0, cidx, cc, from, to, defalt)
+            cc = cidx*chartab_characters(0)
+            this_value = character_table_reference_simple(i, 0, cidx, cc, from, to, defalt)
 
-            if (this_val /= val) then
+            if (this_value /= value) then
                 to = cc - 1
                 exit
             end if
         end do
-    end function char_table_ref_and_range
+    end function character_table_reference_and_range
 
     ! ------------------------------------------------------------------
     ! Setting
     ! ------------------------------------------------------------------
 
     !> Port of chartab.c:sub_char_table_set.
-    recursive subroutine sub_char_table_set(i, k, c, val)
+    recursive subroutine sub_character_table_set(i, k, c, value)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k, c
-        integer(int64), intent(in) :: val
-        integer :: depth, min_char, index, s
+        integer(int64), intent(in) :: value
+        integer :: depth, minimum_character, index, s
         integer(int64) :: old
 
         depth = tables(i)%pool(k)%depth
-        min_char = tables(i)%pool(k)%min_char
-        index = chartab_idx(c, depth, min_char)
+        minimum_character = tables(i)%pool(k)%minimum_character
+        index = chartab_index(c, depth, minimum_character)
 
         if (depth == 3) then
-            call set_element(i, k, index, val)
+            call set_element(i, k, index, value)
         else
             call get_element(i, k, index, old, s)
 
             if (s == 0) then
-                s = make_sub_char_table(i, depth + 1, min_char + index*chartab_chars(depth), old)
+                s = make_sub_character_table(i, depth + 1, minimum_character + index*chartab_characters(depth), old)
                 tables(i)%pool(k)%sub(index + 1) = s
             end if
 
-            call sub_char_table_set(i, s, c, val)
+            call sub_character_table_set(i, s, c, value)
         end if
-    end subroutine sub_char_table_set
+    end subroutine sub_character_table_set
 
-    !> Set the value for character C in char-table TABLE to VAL.  Port of
-    !> chartab.c:char_table_set (CHAR_TABLE_SET).
-    subroutine char_table_set(table, c, val, status)
+    !> Set the value for character C in char-table TABLE to VALUE.  Port of
+    !> chartab.c:char_table_set (CHARACTER_TABLE_SET).
+    subroutine character_table_set(table, c, value, status)
         type(handle_type), intent(in) :: table
         integer, intent(in) :: c
-        integer(int64), intent(in) :: val
+        integer(int64), intent(in) :: value
         type(status_type), intent(out) :: status
         integer(int64) :: i, old
         integer :: index, s
 
-        call check_char_table(table, i, status)
+        call check_character_table(table, i, status)
         if (.not. status%ok()) return
 
-        if (c < 0 .or. c > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (c < 0 .or. c > MAXIMUM_CHARACTER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
         if (c < 128 .and. tables(i)%ascii_sub > 0) then
-            call set_element(i, tables(i)%ascii_sub, c, val)
+            call set_element(i, tables(i)%ascii_sub, c, value)
         else
-            index = chartab_idx(c, 0, 0)
+            index = chartab_index(c, 0, 0)
             call get_element(i, 0, index, old, s)
 
             if (s == 0) then
-                s = make_sub_char_table(i, 1, index*chartab_chars(0), old)
+                s = make_sub_character_table(i, 1, index*chartab_characters(0), old)
                 tables(i)%sub(index) = s
             end if
 
-            call sub_char_table_set(i, s, c, val)
-            if (c < 128) call set_char_table_ascii(i)
+            call sub_character_table_set(i, s, c, value)
+            if (c < 128) call set_character_table_ascii(i)
         end if
-    end subroutine char_table_set
+    end subroutine character_table_set
 
     !> Port of chartab.c:sub_char_table_set_range.
-    recursive subroutine sub_char_table_set_range(i, k, from, to, val)
+    recursive subroutine sub_character_table_set_range(i, k, from, to, value)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k, from, to
-        integer(int64), intent(in) :: val
-        integer :: depth, min_char, chars_in_block, index, c, lim, s, start
+        integer(int64), intent(in) :: value
+        integer :: depth, minimum_character, characters_in_block, index, c, limit, s, start
         integer(int64) :: old
 
         depth = tables(i)%pool(k)%depth
-        min_char = tables(i)%pool(k)%min_char
-        chars_in_block = chartab_chars(depth)
-        lim = chartab_size(depth)
-        start = max(from, min_char)
-        index = chartab_idx(start, depth, min_char)
-        c = min_char + chars_in_block*index
+        minimum_character = tables(i)%pool(k)%minimum_character
+        characters_in_block = chartab_characters(depth)
+        limit = chartab_size(depth)
+        start = max(from, minimum_character)
+        index = chartab_index(start, depth, minimum_character)
+        c = minimum_character + characters_in_block*index
 
-        do while (index < lim)
+        do while (index < limit)
             if (c > to) exit
 
-            if (start <= c .and. c + chars_in_block - 1 <= to) then
-                call set_element(i, k, index, val)
+            if (start <= c .and. c + characters_in_block - 1 <= to) then
+                call set_element(i, k, index, value)
             else
                 call get_element(i, k, index, old, s)
 
                 if (s == 0) then
-                    s = make_sub_char_table(i, depth + 1, c, old)
+                    s = make_sub_character_table(i, depth + 1, c, old)
                     tables(i)%pool(k)%sub(index + 1) = s
                 end if
 
-                call sub_char_table_set_range(i, s, start, to, val)
+                call sub_character_table_set_range(i, s, start, to, value)
             end if
 
             index = index + 1
-            c = c + chars_in_block
+            c = c + characters_in_block
         end do
-    end subroutine sub_char_table_set_range
+    end subroutine sub_character_table_set_range
 
     !> Set the value for the characters FROM to TO in char-table TABLE to
-    !> VAL.  A reversed range sets nothing.  Port of
+    !> VALUE.  A reversed range sets nothing.  Port of
     !> chartab.c:char_table_set_range.
-    subroutine char_table_set_range(table, from, to, val, status)
+    subroutine character_table_set_range(table, from, to, value, status)
         type(handle_type), intent(in) :: table
         integer, intent(in) :: from, to
-        integer(int64), intent(in) :: val
+        integer(int64), intent(in) :: value
         type(status_type), intent(out) :: status
         integer(int64) :: i, old
-        integer :: index, lim, c, s
+        integer :: index, limit, c, s
 
         if (from == to) then
-            call char_table_set(table, from, val, status)
+            call character_table_set(table, from, value, status)
             return
         end if
 
-        call check_char_table(table, i, status)
+        call check_character_table(table, i, status)
         if (.not. status%ok()) return
 
-        if (from < 0 .or. from > MAX_CHAR .or. to < 0 .or. to > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (from < 0 .or. from > MAXIMUM_CHARACTER .or. to < 0 .or. to > MAXIMUM_CHARACTER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
-        lim = chartab_idx(to, 0, 0)
-        index = chartab_idx(from, 0, 0)
-        c = index*chartab_chars(0)
+        limit = chartab_index(to, 0, 0)
+        index = chartab_index(from, 0, 0)
+        c = index*chartab_characters(0)
 
-        do while (index <= lim)
+        do while (index <= limit)
             if (c > to) exit
 
-            if (from <= c .and. c + chartab_chars(0) - 1 <= to) then
-                call set_element(i, 0, index, val)
+            if (from <= c .and. c + chartab_characters(0) - 1 <= to) then
+                call set_element(i, 0, index, value)
             else
                 call get_element(i, 0, index, old, s)
 
                 if (s == 0) then
-                    s = make_sub_char_table(i, 1, index*chartab_chars(0), old)
+                    s = make_sub_character_table(i, 1, index*chartab_characters(0), old)
                     tables(i)%sub(index) = s
                 end if
 
-                call sub_char_table_set_range(i, s, from, to, val)
+                call sub_character_table_set_range(i, s, from, to, value)
             end if
 
             index = index + 1
-            c = c + chartab_chars(0)
+            c = c + chartab_characters(0)
         end do
 
-        if (from < 128) call set_char_table_ascii(i)
-    end subroutine char_table_set_range
+        if (from < 128) call set_character_table_ascii(i)
+    end subroutine character_table_set_range
 
-    !> Return the value in CHAR_TABLE for a range of characters RANGE.
+    !> Return the value in CHARACTER_TABLE for a range of characters RANGE.
     !> RANGE should be absent (for the default value),
     !> FROM and TO (for characters in the range), or FROM alone (a character code).
     !> If RANGE is FROM..TO, the function returns the value for FROM.
     !> Port of chartab.c:Fchar_table_range.
-    integer(int64) function char_table_range(char_table, status, from, to) result(val)
-        type(handle_type), intent(in) :: char_table
+    integer(int64) function character_table_range(character_table, status, from, to) result(value)
+        type(handle_type), intent(in) :: character_table
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: from, to
         integer(int64) :: i
         integer :: f, t
 
-        val = NO_VALUE
-        call check_char_table(char_table, i, status)
+        value = NO_VALUE
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
 
         if (.not. present(from)) then
-            val = tables(i)%defalt
+            value = tables(i)%defalt
             return
         end if
 
-        if (from < 0 .or. from > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (from < 0 .or. from > MAXIMUM_CHARACTER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
         if (.not. present(to)) then
-            val = char_table_ref(char_table, from)
+            value = character_table_reference(character_table, from)
             return
         end if
 
-        if (to < 0 .or. to > MAX_CHAR) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (to < 0 .or. to > MAXIMUM_CHARACTER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
         f = from
         t = to
-        val = char_table_ref_and_range(char_table, from, f, t)
-    end function char_table_range
+        value = character_table_reference_and_range(character_table, from, f, t)
+    end function character_table_range
 
-    !> Set the value in CHAR_TABLE for a range of characters RANGE to VALUE.
+    !> Set the value in CHARACTER_TABLE for a range of characters RANGE to VALUE.
     !> RANGE should be ALL true (for all characters), absent (for the default value),
     !> FROM and TO (for characters in the range),
     !> or FROM alone (a character code).  Port of chartab.c:Fset_char_table_range.
-    subroutine set_char_table_range(char_table, value, status, from, to, all)
-        type(handle_type), intent(in) :: char_table
+    subroutine set_character_table_range(character_table, value, status, from, to, all)
+        type(handle_type), intent(in) :: character_table
         integer(int64), intent(in) :: value
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: from, to
@@ -941,7 +943,7 @@ contains
         integer :: j
         logical :: every
 
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
         every = .false.
         if (present(all)) every = all
@@ -956,23 +958,23 @@ contains
         else if (.not. present(from)) then
             tables(i)%defalt = value
         else if (.not. present(to)) then
-            call char_table_set(char_table, from, value, status)
+            call character_table_set(character_table, from, value, status)
         else
-            call char_table_set_range(char_table, from, to, value, status)
+            call character_table_set_range(character_table, from, to, value, status)
         end if
-    end subroutine set_char_table_range
+    end subroutine set_character_table_range
 
     ! ------------------------------------------------------------------
     ! Optimizing
     ! ------------------------------------------------------------------
 
     !> Optimize sub char-table K of table I: when all its elements are the
-    !> same value, return true with that value in ELT.  Port of
+    !> same value, return true with that value in ELEMENT.  Port of
     !> chartab.c:optimize_sub_char_table (values compare by ==).
-    recursive logical function optimize_sub_char_table(i, k, elt) result(optimizable)
+    recursive logical function optimize_sub_character_table(i, k, element) result(optimizable)
         integer(int64), intent(in) :: i
         integer, intent(in) :: k
-        integer(int64), intent(out) :: elt
+        integer(int64), intent(out) :: element
         integer(int64) :: this
         integer :: j, s
 
@@ -982,43 +984,43 @@ contains
             call get_element(i, k, j, this, s)
 
             if (s > 0) then
-                if (optimize_sub_char_table(i, s, this)) call set_element(i, k, j, this)
+                if (optimize_sub_character_table(i, s, this)) call set_element(i, k, j, this)
                 call get_element(i, k, j, this, s)
             end if
 
             if (j == 0) then
-                elt = this
+                element = this
                 optimizable = s == 0
             else if (optimizable) then
                 optimizable = s == 0
-                if (optimizable) optimizable = this == elt
+                if (optimizable) optimizable = this == element
             end if
         end do
-    end function optimize_sub_char_table
+    end function optimize_sub_character_table
 
-    !> Optimize CHAR_TABLE: merge sub char-tables whose entries are all
+    !> Optimize CHARACTER_TABLE: merge sub char-tables whose entries are all
     !> equal.  Port of chartab.c:Foptimize_char_table (no TEST: the values
     !> are integers, equal when ==).
-    subroutine optimize_char_table(char_table, status)
-        type(handle_type), intent(in) :: char_table
+    subroutine optimize_character_table(character_table, status)
+        type(handle_type), intent(in) :: character_table
         type(status_type), intent(out) :: status
-        integer(int64) :: i, elt, this
+        integer(int64) :: i, element, this
         integer :: j, s
 
-        call check_char_table(char_table, i, status)
+        call check_character_table(character_table, i, status)
         if (.not. status%ok()) return
 
         do j = 0, chartab_size(0) - 1
             call get_element(i, 0, j, this, s)
 
             if (s > 0) then
-                if (optimize_sub_char_table(i, s, elt)) call set_element(i, 0, j, elt)
+                if (optimize_sub_character_table(i, s, element)) call set_element(i, 0, j, element)
             end if
         end do
 
         ! Reset the `ascii' cache, in case it got optimized away.
-        call set_char_table_ascii(i)
-    end subroutine optimize_char_table
+        call set_character_table_ascii(i)
+    end subroutine optimize_character_table
 
     ! ------------------------------------------------------------------
     ! Mapping
@@ -1026,21 +1028,21 @@ contains
 
     !> Map PROCESS over sub char-table K of table I (the top level when K is
     !> 0), calling it for each character or group of characters that
-    !> share a value.  RFROM..RTO is the range of target characters, VAL
+    !> share a value.  RFROM..RTO is the range of target characters, VALUE
     !> the value of RFROM in the table.
     !>
-    !> VAL becomes the value of the last character covered by the table
+    !> VALUE becomes the value of the last character covered by the table
     !> (not the value inherited from the parent), and RFROM the minimum
     !> character C where C and all the following characters in the table
     !> have the same value.  Port of chartab.c:map_sub_char_table.
-    recursive subroutine map_sub_char_table(operation, arg, i, k, val, rfrom, rto)
-        procedure(char_table_map_procedure) :: operation
-        type(handle_type), intent(in) :: arg
+    recursive subroutine map_sub_character_table(operation, argument, i, k, value, rfrom, rto)
+        procedure(map_character_table_procedure) :: operation
+        type(handle_type), intent(in) :: argument
         integer(int64), intent(in) :: i
         integer, intent(in) :: k
-        integer(int64), intent(inout) :: val
+        integer(int64), intent(inout) :: value
         integer, intent(inout) :: rfrom, rto
-        integer :: depth, min_char, last_char, chars_in_block, from, to, index, c, nextc, s
+        integer :: depth, minimum_character, last_character, characters_in_block, from, to, index, c, nextc, s
         integer(int64) :: this, p
         logical :: different_value
         type(status_type) :: status
@@ -1050,51 +1052,51 @@ contains
 
         if (k > 0) then
             depth = tables(i)%pool(k)%depth
-            min_char = tables(i)%pool(k)%min_char
-            last_char = min_char + chartab_chars(depth - 1) - 1
+            minimum_character = tables(i)%pool(k)%minimum_character
+            last_character = minimum_character + chartab_characters(depth - 1) - 1
         else
             depth = 0
-            min_char = 0
-            last_char = MAX_CHAR
+            minimum_character = 0
+            last_character = MAXIMUM_CHARACTER
         end if
 
-        chars_in_block = chartab_chars(depth)
-        if (to < last_char) last_char = to
+        characters_in_block = chartab_characters(depth)
+        if (to < last_character) last_character = to
         ! Set INDEX to the index of the first element to check.
         index = 0
-        if (from > min_char) index = (from - min_char)/chars_in_block
-        c = min_char + chars_in_block*index
+        if (from > minimum_character) index = (from - minimum_character)/characters_in_block
+        c = minimum_character + characters_in_block*index
 
-        do while (c <= last_char)
+        do while (c <= last_character)
             call get_element(i, k, index, this, s)
-            nextc = c + chars_in_block
+            nextc = c + characters_in_block
 
             if (s > 0) then
                 if (to >= nextc) rto = nextc - 1
-                call map_sub_char_table(operation, arg, i, s, val, rfrom, rto)
+                call map_sub_character_table(operation, argument, i, s, value, rfrom, rto)
             else
                 if (this == NO_VALUE) this = tables(i)%defalt
 
-                if (val /= this) then
+                if (value /= this) then
                     different_value = .true.
 
-                    if (val == NO_VALUE .and. registry%is_live(tables(i)%parent)) then
-                        call check_char_table(tables(i)%parent, p, status)
+                    if (value == NO_VALUE .and. registry%is_live(tables(i)%parent)) then
+                        call check_character_table(tables(i)%parent, p, status)
                         ! The value of FROM in the parent without checking
                         ! the parent of the parent.
-                        val = own_ref(p, from)
-                        if (val == NO_VALUE) val = tables(p)%defalt
+                        value = own_reference(p, from)
+                        if (value == NO_VALUE) value = tables(p)%defalt
                         rto = c - 1
-                        call map_sub_char_table(operation, arg, p, 0, val, rfrom, rto)
-                        if (val == this) different_value = .false.
+                        call map_sub_character_table(operation, argument, p, 0, value, rfrom, rto)
+                        if (value == this) different_value = .false.
                     end if
 
-                    if (val /= NO_VALUE .and. different_value) then
+                    if (value /= NO_VALUE .and. different_value) then
                         rto = c - 1
-                        call operation(arg, rfrom, rto, val)
+                        call operation(argument, rfrom, rto, value)
                     end if
 
-                    val = this
+                    value = this
                     from = c
                     rfrom = c
                 end if
@@ -1102,49 +1104,49 @@ contains
 
             rto = to
             index = index + 1
-            c = c + chars_in_block
+            c = c + characters_in_block
         end do
-    end subroutine map_sub_char_table
+    end subroutine map_sub_character_table
 
-    !> Call OPERATION for each character in TABLE that has a value: with ARG,
+    !> Call OPERATION for each character in TABLE that has a value: with ARGUMENT,
     !> the characters FROM..TO (FROM = TO for one character) of a run that
-    !> shares a value, and that value (what `char_table_range' returns for
+    !> shares a value, and that value (what `character_table_range' returns for
     !> the run).  Runs follow each other in character order, and where
     !> TABLE has no value its parents are consulted.  Port of
-    !> chartab.c:map_char_table, which `Fmap_char_table' calls with ARG
+    !> chartab.c:map_char_table, which `Fmap_char_table' calls with ARGUMENT
     !> TABLE (chartab.c:Fmap_char_table).
-    recursive subroutine map_char_table(operation, table, status, arg)
-        procedure(char_table_map_procedure) :: operation
+    recursive subroutine map_character_table(operation, table, status, argument)
+        procedure(map_character_table_procedure) :: operation
         type(handle_type), intent(in) :: table
         type(status_type), intent(out) :: status
-        type(handle_type), intent(in), optional :: arg
+        type(handle_type), intent(in), optional :: argument
         type(handle_type) :: a, parent
-        integer(int64) :: i, val
+        integer(int64) :: i, value
         integer :: rfrom, rto
 
-        call check_char_table(table, i, status)
+        call check_character_table(table, i, status)
         if (.not. status%ok()) return
         a = table
-        if (present(arg)) a = arg
+        if (present(argument)) a = argument
         rfrom = 0
-        rto = MAX_CHAR
-        val = tables(i)%ascii
-        if (tables(i)%ascii_sub > 0) val = tables(i)%pool(tables(i)%ascii_sub)%contents(1)
-        call map_sub_char_table(operation, a, i, 0, val, rfrom, rto)
+        rto = MAXIMUM_CHARACTER
+        value = tables(i)%ascii
+        if (tables(i)%ascii_sub > 0) value = tables(i)%pool(tables(i)%ascii_sub)%contents(1)
+        call map_sub_character_table(operation, a, i, 0, value, rfrom, rto)
 
-        ! If VAL is unset and TABLE has a parent, we must consult the parent
+        ! If VALUE is unset and TABLE has a parent, we must consult the parent
         ! recursively.
-        do while (val == NO_VALUE .and. registry%is_live(tables(i)%parent))
+        do while (value == NO_VALUE .and. registry%is_live(tables(i)%parent))
             parent = tables(i)%parent
-            call check_char_table(parent, i, status)
+            call check_character_table(parent, i, status)
             ! The value of FROM in the parent without checking the parent
             ! of the parent.
-            val = own_ref(i, rfrom)
-            if (val == NO_VALUE) val = tables(i)%defalt
-            call map_sub_char_table(operation, a, i, 0, val, rfrom, rto)
+            value = own_reference(i, rfrom)
+            if (value == NO_VALUE) value = tables(i)%defalt
+            call map_sub_character_table(operation, a, i, 0, value, rfrom, rto)
         end do
 
         status = status_type()
-        if (val /= NO_VALUE) call operation(a, rfrom, rto, val)
-    end subroutine map_char_table
+        if (value /= NO_VALUE) call operation(a, rfrom, rto, value)
+    end subroutine map_character_table
 end module character_table_mod

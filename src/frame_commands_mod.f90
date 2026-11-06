@@ -21,7 +21,7 @@
 
 !> Several frames on one terminal.  The terminal shows one frame at a
 !> time, the selected one (its top frame); selecting another frame hands
-!> it the terminal's state (frame_type's `tty') and redraws the screen.
+!> it the terminal's state (frame_type's `terminal') and redraws the screen.
 !> Each frame has its own windows, its own minibuffer window and its
 !> own buffer lists.  A submodule of frame_mod, so that frame_mod stays
 !> below the display modules it needs (display_update_mod, display_engine_mod,
@@ -33,20 +33,20 @@
 !> listed in docs/status/frame_mod.md.
 submodule(frame_mod) frame_commands_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list
     use buffer_mod, only: buffers, current_buffer, resolve_buffer, exchange_frame_buffers, is_buffer_live
     use window_mod, only: windows, window_leaves, select_window, set_window_buffer_internal, other_buffer, &
                           delete_window_object, unshow_buffer, set_window_point, window_point, is_window_live
     use display_update_mod, only: adjust_frame_glyphs, adjust_frame_size
-    use display_engine_mod, only: init_frame_windows
+    use display_engine_mod, only: initialize_frame_windows
     use face_realization_mod, only: recompute_basic_faces
     use minibuffer_reading_mod, only: minibuf_level, nth_minibuffer, read_string, completion_list_table
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE
     implicit none(type, external)
 
 contains
@@ -76,10 +76,10 @@ contains
         ! its top frame holds.
         top => get_frame(top_frame)
         if (.not. associated(top)) top => selected_frame
-        f%tty = top%tty
+        f%terminal = top%terminal
         f%column_width = selected_frame%column_width
         f%line_height = selected_frame%line_height
-        f%smallest_char_width = selected_frame%smallest_char_width
+        f%smallest_character_width = selected_frame%smallest_character_width
         f%smallest_font_height = selected_frame%smallest_font_height
         call register_frame(f)
         f%name = get_next_frame_name()
@@ -97,7 +97,7 @@ contains
         ! The `tab-bar-lines' parameter of `default_frame'.
         f%tab_bar_lines = default_frame%tab_bar_lines
         call adjust_frame_glyphs(f)
-        call init_frame_windows(f)
+        call initialize_frame_windows(f)
         call set_window_buffer_internal(f%root_window, buffer, .false.)
         f%buffers = [buffer]
         allocate (f%buried_buffers(0))
@@ -151,7 +151,7 @@ contains
         ! for the window that was selected).
         if (is_window_live(sf%selected_window)) then
             call resolve_buffer(windows(sf%selected_window%index)%buffer, bi, st)
-            if (st%ok()) call set_window_point(windows(sf%selected_window%index), buffers(bi)%pt, st)
+            if (st%ok()) call set_window_point(windows(sf%selected_window%index), buffers(bi)%point, st)
         end if
 
         ! FRAME becomes its terminal's top frame: it takes the terminal's
@@ -159,9 +159,9 @@ contains
         ! frames of a terminal have its size), and it is redrawn.
         top => get_frame(top_frame)
         if (.not. associated(top)) top => sf
-        if (.not. associated(top, f)) f%tty = top%tty
+        if (.not. associated(top, f)) f%terminal = top%terminal
         top_frame = f%handle
-        call adjust_frame_size(f, frame_cols(f)*f%column_width, frame_lines(f)*f%line_height)
+        call adjust_frame_size(f, frame_columns(f)*f%column_width, frame_lines(f)*f%line_height)
         call adjust_frame_glyphs(f)
         f%needs_redraw = .true.
         f%visible = .true.
@@ -334,9 +334,9 @@ contains
 
         if (.not. has_other_frames(f)) then
             if (forced) then
-                call set_error(status, FM_GENERIC_ERROR, "Attempt to delete the only frame")
+                call set_error(status, GENERIC_ERROR_CODE, "Attempt to delete the only frame")
             else
-                call set_error(status, FM_GENERIC_ERROR, "Attempt to delete the sole visible or iconified frame")
+                call set_error(status, GENERIC_ERROR_CODE, "Attempt to delete the sole visible or iconified frame")
             end if
 
             return
@@ -353,7 +353,7 @@ contains
 
             ! The terminal shows the selected frame instead.
             if (same_handle(f%handle, top_frame)) then
-                selected_frame%tty = f%tty
+                selected_frame%terminal = f%terminal
                 selected_frame%needs_redraw = .true.
                 top_frame = selected_frame%handle
             end if
@@ -406,13 +406,13 @@ contains
         integer, intent(in) :: n
 
         ! (A window-system frame's tab bar, frame.c:gui_set_tab_bar_lines, waits
-        ! for the GUI.)
-        if (associated(f%rif)) return
+        ! for the GRAPHICAL_USER_INTERFACE.)
+        if (associated(f%redisplay_interface)) return
         if (n == f%tab_bar_lines) return
         f%tab_bar_lines = n
         ! change_frame_size with the frame's size: the windows move below
         ! the tab bar, or up.
-        call adjust_frame_size(f, frame_cols(f)*f%column_width, frame_lines(f)*f%line_height)
+        call adjust_frame_size(f, frame_columns(f)*f%column_width, frame_lines(f)*f%line_height)
     end subroutine set_tab_bar_lines
 
     !> Delete the windows of frame F, which is being deleted: each window
@@ -454,22 +454,22 @@ contains
     !> Make a new frame, on the same terminal as the selected frame.
     !> If the terminal is a text-only terminal, this also selects the
     !> new frame.  Port of frame.el:make-frame-command.
-    subroutine cmd_make_frame_command(status)
+    subroutine execute_make_frame_command(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: frame
 
         call make_frame(frame, status)
         if (.not. status%ok()) return
         call select_frame(frame, status)
-    end subroutine cmd_make_frame_command
+    end subroutine execute_make_frame_command
 
     !> Select the ARGth visible frame on current display, and raise it.
     !> All frames are arranged in a cyclic order.  This command selects
-    !> the frame ARG steps away from the selected frame in that order.  A
-    !> negative ARG moves in the opposite order.  It does not select a
+    !> the frame ARGUMENT steps away from the selected frame in that order.  A
+    !> negative ARGUMENT moves in the opposite order.  It does not select a
     !> minibuffer-only frame.  Port of frame.el:other-frame.
-    recursive module subroutine other_frame(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive module subroutine other_frame(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(handle_type) :: frame
         integer(int64) :: k
@@ -477,11 +477,11 @@ contains
         call ensure_frame_windows()
         frame = selected_frame%handle
 
-        do k = 1, arg
+        do k = 1, argument
             frame = next_frame(frame)
         end do
 
-        do k = 1, -arg
+        do k = 1, -argument
             frame = previous_frame(frame)
         end do
 
@@ -490,22 +490,22 @@ contains
 
     !> The command form of `other_frame'.  Port of frame.el:other-frame
     !> (the command).
-    subroutine cmd_other_frame(status)
+    subroutine execute_other_frame(status)
         type(status_type), intent(out) :: status
 
-        call other_frame(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_other_frame
+        call other_frame(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_other_frame
 
     !> Delete FRAME, eliminating it from use.
     !> FRAME must be a live frame and defaults to the selected one.
     !> Normally, you may not delete a frame if all other frames are
     !> invisible, but if the second optional argument FORCE is true,
     !> you may do so.  Port of frame.c:Fdelete_frame (the command).
-    subroutine cmd_delete_frame(status)
+    subroutine execute_delete_frame(status)
         type(status_type), intent(out) :: status
 
         call delete_frame(status)
-    end subroutine cmd_delete_frame
+    end subroutine execute_delete_frame
 
     !> Delete all frames on FRAME's terminal, except FRAME.
     !> If FRAME uses another frame's minibuffer, the minibuffer frame is
@@ -530,7 +530,7 @@ contains
         if (present(frame)) keep = frame
 
         if (.not. is_frame_live(keep)) then
-            call set_error(status, FM_GENERIC_ERROR, "Not a live frame")
+            call set_error(status, GENERIC_ERROR_CODE, "Not a live frame")
             return
         end if
 
@@ -550,11 +550,11 @@ contains
 
     !> The command form of `delete_other_frames'.  Port of
     !> frame.el:delete-other-frames (the command).
-    subroutine cmd_delete_other_frames(status)
+    subroutine execute_delete_other_frames(status)
         type(status_type), intent(out) :: status
 
-        call delete_other_frames(status, iconify=current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_delete_other_frames
+        call delete_other_frames(status, iconify=current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_delete_other_frames
 
     !> Select the frame whose name is NAME and raise it.
     !> Frames on the current terminal are checked first.
@@ -571,7 +571,7 @@ contains
         frame = find_frame(name)
 
         if (frame%index == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no frame named `"//name//"'")
+            call set_error(status, GENERIC_ERROR_CODE, "There is no frame named `"//name//"'")
             return
         end if
 
@@ -582,7 +582,7 @@ contains
     !> completion, the selected frame's by default.  Port of
     !> frame.el:select-frame-by-name (the command) with
     !> frame.el:make-frame-names-alist and frame.el:frame-list-1.
-    subroutine cmd_select_frame_by_name(status)
+    subroutine execute_select_frame_by_name(status)
         type(status_type), intent(out) :: status
         type(value_type), allocatable :: names(:)
         character(len=:), allocatable :: input, default
@@ -606,7 +606,7 @@ contains
         if (.not. status%ok()) return
         if (len(input) == 0) input = default
         call select_frame_by_name(input, status)
-    end subroutine cmd_select_frame_by_name
+    end subroutine execute_select_frame_by_name
 
     !> Set the name of the selected frame to NAME.
     !> When called interactively, prompt for the name of the frame.
@@ -624,7 +624,7 @@ contains
 
     !> The command form of `set_frame_name'.  Port of
     !> frame.el:set-frame-name (the command).
-    subroutine cmd_set_frame_name(status)
+    subroutine execute_set_frame_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: name, default
 
@@ -633,7 +633,7 @@ contains
         call read_string("Frame name (default "//default//"): ", name, status, default=default)
         if (.not. status%ok()) return
         call set_frame_name(name, status)
-    end subroutine cmd_set_frame_name
+    end subroutine execute_set_frame_name
 
     ! ------------------------------------------------------------------
     ! Window Divider mode
@@ -684,15 +684,15 @@ contains
     end subroutine window_divider_mode_apply
 
     !> Register the frame commands.  Not a port.
-    module subroutine init_frame_commands()
-        commands%make_frame_command%execute => cmd_make_frame_command
-        commands%other_frame%execute => cmd_other_frame
-        commands%delete_frame%execute => cmd_delete_frame
-        commands%delete_other_frames%execute => cmd_delete_other_frames
-        commands%select_frame_by_name%execute => cmd_select_frame_by_name
-        commands%set_frame_name%execute => cmd_set_frame_name
+    module subroutine initialize_frame_commands()
+        commands%make_frame_command%execute => execute_make_frame_command
+        commands%other_frame%execute => execute_other_frame
+        commands%delete_frame%execute => execute_delete_frame
+        commands%delete_other_frames%execute => execute_delete_other_frames
+        commands%select_frame_by_name%execute => execute_select_frame_by_name
+        commands%set_frame_name%execute => execute_set_frame_name
         call minor_modes%window_divider_mode%define("window_divider_mode", global=.true., &
                                                     hook=window_divider_mode_hook, body=window_divider_mode_body)
         commands%window_divider_mode%execute => window_divider_mode
-    end subroutine init_frame_commands
+    end subroutine initialize_frame_commands
 end submodule frame_commands_mod

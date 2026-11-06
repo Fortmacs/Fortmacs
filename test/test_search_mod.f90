@@ -24,16 +24,16 @@
 module test_search_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, format_message, FM_SEARCH_FAILED, FM_GENERIC_ERROR, &
-                         FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, format_error, format_message, SEARCH_FAILED_CODE, GENERIC_ERROR_CODE, &
+                         ARGUMENTS_OUT_OF_RANGE_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point, narrow_to_region, widen
+    use editing_functions_mod, only: goto_character, point, narrow_to_region, widen
     use search_mod, only: search_forward, search_backward, match_beginning, match_end, case_fold_search, &
-                          SEARCH_NOERROR, SEARCH_MOVE, looking_at, replace_match, re_search_forward, string_match, &
-                          set_match_data, running_asynch_code, restore_search_regs, fast_string_match, fast_looking_at
-    use editing_functions_mod, only: buffer_string, point_min, point_max
+                          SEARCH_NOERROR, SEARCH_MOVE, looking_at, replace_match, regular_expression_search_forward, string_match, &
+                          set_match_data, running_asynchronous_code, restore_search_regs, fast_string_match, fast_looking_at
+    use editing_functions_mod, only: buffer_string, point_minimum, point_maximum
     use buffer_mod, only: erase_buffer
     implicit none(type, external)
     private
@@ -61,7 +61,7 @@ contains
                     new_unittest("replace-match-string", test_replace_match_string), &
                     new_unittest("replace-match-registers", test_replace_match_registers), &
                     new_unittest("replace-match-trailing-backslash", test_replace_match_backslash), &
-                    new_unittest("search-asynch-match-data", test_asynch_match_data), &
+                    new_unittest("search-asynch-match-data", test_asynchronous_match_data), &
                     new_unittest("search-fast-match", test_fast_match) &
                     ]
     end subroutine collect_search_mod
@@ -74,7 +74,7 @@ contains
         call get_or_make_buffer("search-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         case_fold_search = .true.
     end subroutine enter
 
@@ -90,37 +90,37 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st, mst
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call enter("foo bar foo baz", h)
-        call search_forward("foo", pos, st)
-        call check(error, st%ok() .and. pos == 4 .and. point() == 4)
+        call search_forward("foo", position, st)
+        call check(error, st%ok() .and. position == 4 .and. point() == 4)
         if (allocated(error)) return
         call check(error, match_beginning(0, mst) == 1 .and. match_end(0, mst) == 4, "match data")
         if (allocated(error)) return
-        call search_forward("foo", pos, st)
-        call check(error, pos == 12 .and. match_beginning(0, mst) == 9, "again")
+        call search_forward("foo", position, st)
+        call check(error, position == 12 .and. match_beginning(0, mst) == 9, "again")
         if (allocated(error)) return
-        call search_forward("foo", pos, st)
-        call check(error, st%code == FM_SEARCH_FAILED .and. point() == 12, "fails")
+        call search_forward("foo", position, st)
+        call check(error, st%code == SEARCH_FAILED_CODE .and. point() == 12, "fails")
         if (allocated(error)) return
         call check(error, format_error(st) == 'Search failed: "foo"', format_error(st))
         if (allocated(error)) return
         ! The data print as with prin1.
-        call search_forward('q"\', pos, st)
+        call search_forward('q"\', position, st)
         call check(error, format_error(st) == 'Search failed: "q""\"', format_error(st))
         if (allocated(error)) return
         ! COUNT; the empty string matches at point.
-        call goto_char(1_int64)
-        call search_forward("o", pos, st, count=3_int64)
-        call check(error, pos == 11, "count")
+        call goto_character(1_int64)
+        call search_forward("o", position, st, count=3_int64)
+        call check(error, position == 11, "count")
         if (allocated(error)) return
-        call search_forward("", pos, st)
-        call check(error, pos == 11 .and. match_beginning(0, mst) == 11, "empty")
+        call search_forward("", position, st)
+        call check(error, position == 11 .and. match_beginning(0, mst) == 11, "empty")
         if (allocated(error)) return
         ! A negative count searches backward.
-        call search_forward("ba", pos, st, count=-1_int64)
-        call check(error, pos == 5, "negative count")
+        call search_forward("ba", position, st, count=-1_int64)
+        call check(error, position == 5, "negative count")
         call leave(h)
     end subroutine test_forward
 
@@ -128,23 +128,23 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st, mst
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call enter("foo bar foo baz", h)
-        call goto_char(16_int64)
-        call search_backward("foo", pos, st)
-        call check(error, st%ok() .and. pos == 9 .and. match_end(0, mst) == 12)
+        call goto_character(16_int64)
+        call search_backward("foo", position, st)
+        call check(error, st%ok() .and. position == 9 .and. match_end(0, mst) == 12)
         if (allocated(error)) return
-        call search_backward("foo", pos, st)
-        call check(error, pos == 1, "again")
+        call search_backward("foo", position, st)
+        call check(error, position == 1, "again")
         if (allocated(error)) return
-        call search_backward("foo", pos, st)
-        call check(error, st%code == FM_SEARCH_FAILED .and. point() == 1, "fails")
+        call search_backward("foo", position, st)
+        call check(error, st%code == SEARCH_FAILED_CODE .and. point() == 1, "fails")
         if (allocated(error)) return
         ! A match must end before the starting point.
-        call goto_char(11_int64)
-        call search_backward("foo", pos, st)
-        call check(error, pos == 1, "ends before point")
+        call goto_character(11_int64)
+        call search_backward("foo", position, st)
+        call check(error, position == 1, "ends before point")
         call leave(h)
     end subroutine test_backward
 
@@ -152,19 +152,19 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call enter("Foo FOO foo", h)
-        call search_forward("foo", pos, st)
-        call check(error, pos == 4, "folding")
+        call search_forward("foo", position, st)
+        call check(error, position == 4, "folding")
         if (allocated(error)) return
-        call search_forward("FOO", pos, st)
-        call check(error, pos == 8, "upper-case pattern folds too")
+        call search_forward("FOO", position, st)
+        call check(error, position == 8, "upper-case pattern folds too")
         if (allocated(error)) return
         case_fold_search = .false.
-        call goto_char(1_int64)
-        call search_forward("foo", pos, st)
-        call check(error, pos == 12, "case-sensitive")
+        call goto_character(1_int64)
+        call search_forward("foo", position, st)
+        call check(error, position == 12, "case-sensitive")
         call leave(h)
     end subroutine test_case_fold
 
@@ -172,31 +172,31 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call enter("abc abc abc", h)
         ! The match must end by BOUND.
-        call search_forward("abc", pos, st, bound=2_int64, noerror=SEARCH_NOERROR)
-        call check(error, st%ok() .and. pos == 0 .and. point() == 1, "noerror t")
+        call search_forward("abc", position, st, bound=2_int64, noerror=SEARCH_NOERROR)
+        call check(error, st%ok() .and. position == 0 .and. point() == 1, "noerror t")
         if (allocated(error)) return
-        call search_forward("abc", pos, st, bound=4_int64)
-        call check(error, pos == 4, "exactly at bound")
+        call search_forward("abc", position, st, bound=4_int64)
+        call check(error, position == 4, "exactly at bound")
         if (allocated(error)) return
-        call search_forward("abc", pos, st, bound=10_int64, noerror=SEARCH_MOVE)
-        call check(error, st%ok() .and. pos == 8, "found within bound")
+        call search_forward("abc", position, st, bound=10_int64, noerror=SEARCH_MOVE)
+        call check(error, st%ok() .and. position == 8, "found within bound")
         if (allocated(error)) return
-        call search_forward("x", pos, st, bound=10_int64, noerror=SEARCH_MOVE)
-        call check(error, pos == 0 .and. point() == 10, "noerror moves to bound")
+        call search_forward("x", position, st, bound=10_int64, noerror=SEARCH_MOVE)
+        call check(error, position == 0 .and. point() == 10, "noerror moves to bound")
         if (allocated(error)) return
-        call search_forward("abc", pos, st, bound=2_int64)
+        call search_forward("abc", position, st, bound=2_int64)
         call check(error,.not. st%ok() .and. format_error(st) == "Invalid search bound (wrong side of point)", &
                    format_error(st))
         if (allocated(error)) return
         ! Narrowing limits the search.
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call narrow_to_region(1_int64, 6_int64, st)
-        call search_forward("abc", pos, st, count=2_int64, noerror=SEARCH_NOERROR)
-        call check(error, pos == 0, "narrowed")
+        call search_forward("abc", position, st, count=2_int64, noerror=SEARCH_NOERROR)
+        call check(error, position == 0, "narrowed")
         call widen()
         call leave(h)
     end subroutine test_bound
@@ -205,18 +205,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st, mst
-        integer(int64) :: pos
+        integer(int64) :: position
 
         ! "Σίσυφος ΣΟΦΟΣ" with final sigmas: σ, ς and Σ all match.
         call enter("Σίσυφος ΣΟΦΟΣ", h)
-        call search_forward("σοφος", pos, st)
-        call check(error, st%ok() .and. match_beginning(0, mst) == 9 .and. pos == 14, "Greek")
+        call search_forward("σοφος", position, st)
+        call check(error, st%ok() .and. match_beginning(0, mst) == 9 .and. position == 14, "Greek")
         if (allocated(error)) return
-        call search_backward("ΟΣ", pos, st)
-        call check(error, pos == 12, "backward over multibyte")
+        call search_backward("ΟΣ", position, st)
+        call check(error, position == 12, "backward over multibyte")
         if (allocated(error)) return
-        call search_backward("φος", pos, st)
-        call check(error, pos == 5, "lower-case final sigma")
+        call search_backward("φος", position, st)
+        call check(error, position == 5, "lower-case final sigma")
         call leave(h)
     end subroutine test_multibyte
 
@@ -249,7 +249,7 @@ contains
             call erase_buffer(st)
             call insert("hello ", st)
             call insert(trim(pres(k))//trim(posts(k))//" world", st)
-            call goto_char(7_int64)
+            call goto_character(7_int64)
             call check(error, looking_at("\(\)"//trim(pres(k))//"\(\)\(\(\)\)\(\)"//trim(posts(k))//"\(\)", &
                                          st), "looking_at")
             if (allocated(error)) exit
@@ -279,18 +279,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call enter("key = value; x = y", h)
 
         body: block
-            call re_search_forward("\(\w+\) = \(\w+\)", pos, st)
+            call regular_expression_search_forward("\(\w+\) = \(\w+\)", position, st)
             call replace_match("\2 := \1 (\&)", st)
             call check(error, st%ok() .and. buffer_string() == "value := key (key = value); x = y", buffer_string())
             if (allocated(error)) exit body
             call check(error, point() == 27 .and. mb(0) == 1 .and. me(0) == 27, "point and data")
             if (allocated(error)) exit body
-            call re_search_forward("x", pos, st)
+            call regular_expression_search_forward("x", position, st)
             call replace_match("a\\b", st)
             call check(error, buffer_string() == "value := key (key = value); a\b = y", buffer_string())
             if (allocated(error)) exit body
@@ -309,28 +309,28 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call enter("FOO Foo Bar foo X", h)
 
         body: block
-            call search_forward("FOO", pos, st)
+            call search_forward("FOO", position, st)
             call replace_match("new text", st)
             call check(error, buffer_string() == "NEW TEXT Foo Bar foo X", "all caps: "//buffer_string())
             if (allocated(error)) exit body
-            call search_forward("Foo Bar", pos, st)
+            call search_forward("Foo Bar", position, st)
             call replace_match("new text", st)
             call check(error, buffer_string() == "NEW TEXT New Text foo X", "capitalized: "//buffer_string())
             if (allocated(error)) exit body
-            call search_forward("foo", pos, st)
+            call search_forward("foo", position, st)
             call replace_match("new text", st)
             call check(error, buffer_string() == "NEW TEXT New Text new text X", "lower: "//buffer_string())
             if (allocated(error)) exit body
-            call search_forward("X", pos, st)
+            call search_forward("X", position, st)
             call replace_match("yz", st)
             call check(error, buffer_string() == "NEW TEXT New Text new text YZ", "single capital: "//buffer_string())
             if (allocated(error)) exit body
-            call search_forward("YZ", pos, st, count=-1_int64)
+            call search_forward("YZ", position, st, count=-1_int64)
             call replace_match("ab", st, fixedcase=.true.)
             call check(error, buffer_string() == "NEW TEXT New Text new text ab", "fixedcase: "//buffer_string())
         end block body
@@ -370,11 +370,12 @@ contains
         call check(error, st%ok() .and. r == "[]c", "unset \N is empty: "//r)
         if (allocated(error)) return
         call replace_match("x", st, string="abc", subexp=5, result=r)
-        call check(error, st%code == FM_GENERIC_ERROR .and. &
+        call check(error, st%code == GENERIC_ERROR_CODE .and. &
                    format_error(st) == "replace_match subexpression does not exist: 5", format_error(st))
         if (allocated(error)) return
         call replace_match("x", st, string="abc", subexp=10000, result=r)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. index(format_error(st), "Args out of range: 10000, 0, ") == 1, &
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE .and. index(format_error(st), &
+                                                                             "Args out of range: 10000, 0, ") == 1, &
                    format_error(st))
         if (allocated(error)) return
         ! set-match-data with fewer elements keeps the registers.
@@ -395,23 +396,23 @@ contains
 
         i = string_match("b", "abc", st)
         call replace_match("x\", st, string="abc", result=r)
-        call check(error, st%code == FM_GENERIC_ERROR .and. &
+        call check(error, st%code == GENERIC_ERROR_CODE .and. &
                    format_error(st) == format_message("Invalid use of `\' in replacement text"), format_error(st))
         if (allocated(error)) return
         call enter("abc", h)
         i = string_match(groups10, "abcdefghij", st)
         found = looking_at("\(a\)", st)
         call replace_match("x\", st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. buffer_string() == "abc", "buffer: "//format_error(st))
+        call check(error, st%code == GENERIC_ERROR_CODE .and. buffer_string() == "abc", "buffer: "//format_error(st))
         if (allocated(error)) return
         call replace_match("[\9]", st)
         call check(error, st%ok() .and. buffer_string() == "[]bc", "unset \9 in buffer: "//buffer_string())
         call leave(h)
     end subroutine test_replace_match_backslash
 
-    !> A search while a process filter runs (`running_asynch_code') saves
+    !> A search while a process filter runs (`running_asynchronous_code') saves
     !> the match data, which `restore_search_regs' brings back.
-    subroutine test_asynch_match_data(error)
+    subroutine test_asynchronous_match_data(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         integer(int64) :: index
@@ -419,14 +420,14 @@ contains
         index = string_match("b+", "abbc", st)
         call check(error, match_beginning(0, st) == 2 .and. match_end(0, st) == 4)
         if (allocated(error)) return
-        running_asynch_code = .true.
+        running_asynchronous_code = .true.
         index = string_match("c", "abbc", st)
         call check(error, match_beginning(0, st) == 4)
         if (allocated(error)) return
         call restore_search_regs()
-        running_asynch_code = .false.
+        running_asynchronous_code = .false.
         call check(error, match_beginning(0, st) == 2 .and. match_end(0, st) == 4)
-    end subroutine test_asynch_match_data
+    end subroutine test_asynchronous_match_data
 
     !> `fast_string_match' and `fast_looking_at' leave the match data alone.
     subroutine test_fast_match(error)

@@ -24,7 +24,7 @@
 !> rectangle as data (upstream's list of strings) is an array of
 !> `string_type' (one line each); `last_cut_rectangle' holds the last one killed.
 !> `apply_on_rectangle' runs a `rectangle_line_action_type' (upstream's
-!> FUNCTION and its ARGS) on each line.
+!> FUNCTION and its ARGUMENTS) on each line.
 !>
 !> The commands are on C-x r (bindings_mod): C-x r k, C-x r M-w, C-x r y,
 !> C-x r d, C-x r o, C-x r c, C-x r t and C-x r N.
@@ -53,11 +53,11 @@ module rectangle_mod
     use execute_interactively_mod, only: PREFIX_NONE
     use value_mod, only: vtag, V_NULL, V_STRING, value_type
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, condition_matches, FM_GENERIC_ERROR, &
-                         FM_BUFFER_READ_ONLY, FM_TEXT_READ_ONLY, FM_WRONG_TYPE_ARGUMENT, FM_END_OF_BUFFER, &
-                         FM_BEGINNING_OF_BUFFER
+    use error_mod, only: status_type, set_error, format_message, condition_matches, GENERIC_ERROR_CODE, &
+                         BUFFER_READ_ONLY_CODE, TEXT_READ_ONLY_CODE, WRONG_TYPE_ARGUMENT_CODE, END_OF_BUFFER_CODE, &
+                         BEGINNING_OF_BUFFER_CODE
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements, make_window_ref
+    use value_mod, only: value_type, list_length, list_element, xstring, make_list, list, list_elements, make_window_reference
     use data_mod, only: history_setting_type, forward_setting
     use hooks_mod, only: hook_type
     use modes_mod, only: minor_modes
@@ -68,11 +68,11 @@ module rectangle_mod
     use display_update_mod, only: ding
     use keyboard_mod, only: last_command
     use keymap_mod, only: define_key, key_parse
-    use buffer_mod, only: current_buffer, buffer_chars_modified_tick
-    use character_mod, only: multibyte_chars_in_text
-    use editing_functions_mod, only: region_beginning_function, region_end_function, region_position_procedure, is_eol, &
+    use buffer_mod, only: current_buffer, buffer_characters_modified_tick
+    use character_mod, only: multibyte_characters_in_text
+    use editing_functions_mod, only: region_beginning_function, region_end_function, region_position_procedure, is_end_of_line, &
                                      mark_position
-    use editing_commands_mod, only: forward_char
+    use editing_commands_mod, only: forward_character
     use simple_mod, only: region_extract_function, region_insert_function, region_extract_procedure, region_insert_procedure, &
                           REGION_EXTRACT_COPY, REGION_EXTRACT_BOUNDS, paste_undo_function, undo_start, undo_more, &
                           pending_undo_entries, define_paste_handler_function, deactivate_mark_hook, is_region_active, &
@@ -81,21 +81,21 @@ module rectangle_mod
                                   highlight_region_procedure, unhighlight_region_procedure
     use data_mod, only: symbol_value
     use buffer_mod, only: buffers, current, barf_if_buffer_read_only, deactivate_mark_variable, undo_entry_type, UE_POINT
-    use marker_mod, only: copy_marker_at, destroy_marker, marker_position, char_to_byte
+    use marker_mod, only: copy_marker_at, destroy_marker, marker_position, character_to_byte
     use undo_mod, only: append_undo_entry
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, line_beginning_position, line_end_position, is_bol, buffer_substring, &
-                                     delete_region, delete_and_extract_region, region_beginning, region_end, char_after, &
-                                     interactive_region, char_before, styled_format, format_arguments_type
+    use editing_functions_mod, only: point, goto_character, line_beginning_position, line_end_position, is_beginning_of_line, &
+                                     buffer_substring, delete_region, delete_and_extract_region, region_beginning, region_end, &
+                                     character_after, interactive_region, character_before, styled_format, format_arguments_type
     use editing_commands_mod, only: forward_line
     use indent_mod, only: current_column, move_to_column, indent_to, indent_tabs_mode
     use syntax_mod, only: skip_syntax_forward
     use display_engine_mod, only: message
     use simple_mod, only: push_mark, insert_for_paste, cut_read_only_ok, indicate_copied_region, count_lines, &
-                          line_number_at_pos
+                          line_number_at_position
     use minibuffer_reading_mod, only: read_string
     use basic_subprograms_mod, only: read_number
-    use execute_interactively_mod, only: current_prefix_arg, this_command, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, this_command, prefix_numeric_value
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
@@ -104,21 +104,21 @@ module rectangle_mod
               delete_rectangle, delete_extract_rectangle, extract_rectangle, extract_rectangle_bounds, &
               cut_rectangle, copy_rectangle, paste_rectangle, insert_rectangle, open_rectangle, &
               delete_whitespace_rectangle, string_rectangle, string_insert_rectangle, clear_rectangle, &
-              rectangle_number_lines, spaces_string, init_rect
-    public :: rectangle_mark_mode, rectangle_exchange_point_and_mark, rectangle_right_char, rectangle_left_char, &
-              rectangle_forward_char, rectangle_backward_char, rectangle_next_line, rectangle_previous_line, &
-              rectangle_pos_cols
+              rectangle_number_lines, spaces_string, initialize_rectangle
+    public :: rectangle_mark_mode, rectangle_exchange_point_and_mark, rectangle_right_character, rectangle_left_character, &
+              rectangle_forward_character, rectangle_backward_character, rectangle_next_line, rectangle_previous_line, &
+              rectangle_position_columns
 
     !> Rectangle for `paste_rectangle' to insert.  Unallocated (or empty)
     !> for none.  Port of rect.el kill-rectangle.
     type(string_type), allocatable, public :: last_cut_rectangle(:)
 
-    !> A corner's crutch: the column COL to use for position POS where
-    !> point can't be (in the middle of a TAB, or past the EOL), of a
-    !> buffer or window OWNER (rect.el's crutch, two values POS and COL).
+    !> A corner's crutch: the column COLUMN to use for position POSITION where
+    !> point can't be (in the middle of a TAB, or past the END_OF_LINE), of a
+    !> buffer or window OWNER (rect.el's crutch, two values POSITION and COLUMN).
     type :: crutch_type
         type(handle_type) :: owner
-        integer(int64) :: pos = 0, col = 0
+        integer(int64) :: position = 0, column = 0
     end type crutch_type
 
     !> The mark's crutches by buffer (rect.el rectangle--mark-crutches,
@@ -131,7 +131,7 @@ module rectangle_mod
     !> its overlays.
     type :: rectangle_highlight_type
         type(handle_type) :: window
-        integer(int64) :: tick = -1, start = 0, end = 0, pt = 0
+        integer(int64) :: tick = -1, start = 0, end = 0, point = 0
         integer(int64) :: crutches(6) = 0
         type(handle_type), allocatable :: overlays(:)
     end type rectangle_highlight_type
@@ -143,11 +143,11 @@ module rectangle_mod
     !> The functions Rectangle-Mark mode goes around (add-function
     !> :around and advice-add), and whether `region_beginning' and
     !> `region_end' are advised yet.
-    procedure(region_position_procedure), pointer :: orig_region_beginning => null(), orig_region_end => null()
-    procedure(region_extract_procedure), pointer :: orig_region_extract => null()
-    procedure(region_insert_procedure), pointer :: orig_region_insert => null()
-    procedure(highlight_region_procedure), pointer :: orig_highlight => null()
-    procedure(unhighlight_region_procedure), pointer :: orig_unhighlight => null()
+    procedure(region_position_procedure), pointer :: original_region_beginning => null(), original_region_end => null()
+    procedure(region_extract_procedure), pointer :: original_region_extract => null()
+    procedure(region_insert_procedure), pointer :: original_region_insert => null()
+    procedure(highlight_region_procedure), pointer :: original_highlight => null()
+    procedure(unhighlight_region_procedure), pointer :: original_unhighlight => null()
     logical :: advised = .false.
 
     !> Keymap used while marking a rectangular region.  Port of rect.el
@@ -158,7 +158,7 @@ module rectangle_mod
     type(hook_type), target, public :: rectangle_mark_mode_hook = hook_type(name="rectangle_mark_mode_hook")
 
     !> What `apply_on_rectangle' does on each line of a rectangle:
-    !> upstream's FUNCTION with its extra ARGS, here an extension of this
+    !> upstream's FUNCTION with its extra ARGUMENTS, here an extension of this
     !> type holding the arguments, with its `line' procedure.
     type, abstract, public :: rectangle_line_action_type
     contains
@@ -256,7 +256,7 @@ contains
 
     !> Call ACTION's `line' for each line of rectangle with corners at
     !> START, END.  It is called with two arguments: the start and end
-    !> columns of the rectangle (the extra ARGS are ACTION's components).
+    !> columns of the rectangle (the extra ARGUMENTS are ACTION's components).
     !> Point is at the beginning of line when it is called.
     !> The final point after the last operation is returned in
     !> FINAL_POINT.  Point is restored afterwards, also on an error.
@@ -268,24 +268,24 @@ contains
         integer(int64), intent(out), optional :: final_point
         type(handle_type) :: saved, endpt
         type(status_type) :: st
-        integer(int64) :: startcol, endcol, col, startpt, endpos, final, pos
+        integer(int64) :: startcol, endcol, column, startpt, endpos, final, position
 
         call copy_marker_at(point(), saved, .false., st)
-        call rectangle_pos_cols(start, end, startcol, endcol)
-        call goto_char(start)
+        call rectangle_position_columns(start, end, startcol, endcol)
+        call goto_character(start)
         startpt = line_beginning_position()
-        call goto_char(end)
+        call goto_character(end)
         call copy_marker_at(line_end_position(), endpt, .false., st)
 
         ! Ensure the start column is the left one.
         if (endcol < startcol) then
-            col = startcol
+            column = startcol
             startcol = endcol
-            endcol = col
+            endcol = column
         end if
 
         ! Start looping over lines.
-        call goto_char(startpt)
+        call goto_character(startpt)
         final = point()
 
         do
@@ -293,14 +293,14 @@ contains
             if (.not. status%ok()) exit
             final = point()
             if (forward_line(1_int64) /= 0) exit
-            if (.not. is_bol()) exit
+            if (.not. is_beginning_of_line()) exit
             call marker_position(endpt, endpos, st)
             if (point() > endpos) exit
         end do
 
         call destroy_marker(endpt, st)
-        call marker_position(saved, pos, st)
-        call goto_char(pos)
+        call marker_position(saved, position, st)
+        call goto_character(position)
         call destroy_marker(saved, st)
         if (present(final_point)) final_point = final
     end subroutine apply_on_rectangle
@@ -314,23 +314,23 @@ contains
         integer(int64) :: saved
 
         saved = point()
-        call goto_char(position)
+        call goto_character(position)
         column = current_column()
-        line = line_number_at_pos()
-        call goto_char(saved)
+        line = line_number_at_position()
+        call goto_character(saved)
     end subroutine rectangle_position_as_coordinates
 
     !> Return true if two rectangles intersect.
-    !> POS1 and POS2 specify the positions of the upper-left corners of
+    !> POSITION1 and POSITION2 specify the positions of the upper-left corners of
     !> the first and second rectangles as arrays of the form [COLUMN, LINE].
     !> SIZE1 and SIZE2 specify the dimensions of the first and second
     !> rectangles, as arrays of the form [WIDTH, HEIGHT].  Port of
     !> rect.el:rectangle-intersect-p.
-    pure logical function is_rectangle_intersect(pos1, size1, pos2, size2)
-        integer(int64), intent(in) :: pos1(2), size1(2), pos2(2), size2(2)
+    pure logical function is_rectangle_intersect(position1, size1, position2, size2)
+        integer(int64), intent(in) :: position1(2), size1(2), position2(2), size2(2)
 
-        is_rectangle_intersect = .not. (pos1(1) + size1(1) <= pos2(1) .or. pos2(1) + size2(1) <= pos1(1) .or. &
-                                        pos1(2) + size1(2) <= pos2(2) .or. pos2(2) + size2(2) <= pos1(2))
+        is_rectangle_intersect = .not. (position1(1) + size1(1) <= position2(1) .or. position2(1) + size2(1) <= position1(1) .or. &
+                                        position1(2) + size1(2) <= position2(2) .or. position2(2) + size2(2) <= position1(2))
     end function is_rectangle_intersect
 
     !> Return the dimensions of the rectangle with corners at START and END.
@@ -342,10 +342,10 @@ contains
         integer(int64) :: saved, startcol, endcol
 
         saved = point()
-        height = 1 + abs(line_number_at_pos(end) - line_number_at_pos(start))
-        call rectangle_pos_cols(start, end, startcol, endcol)
+        height = 1 + abs(line_number_at_position(end) - line_number_at_position(start))
+        call rectangle_position_columns(start, end, startcol, endcol)
         width = abs(endcol - startcol)
-        call goto_char(saved)
+        call goto_character(saved)
     end subroutine rectangle_dimensions
 
     !> (move-to-column COLUMN (if FILL t 'coerce)): the column reached.
@@ -363,7 +363,7 @@ contains
         integer(int64), intent(in) :: startcol, endcol
         logical, intent(in) :: fill
         type(status_type), intent(out) :: status
-        integer(int64) :: from, col
+        integer(int64) :: from, column
 
         ! We use >= here, not =, for characters that use more than one
         ! column on display, when STARTCOL is in the middle of such a
@@ -371,7 +371,7 @@ contains
         if (move_to_column_fill(startcol, fill, status) >= startcol) then
             if (.not. status%ok()) return
             from = point()
-            call move_to_column(endcol, col, status=status, coerce=.true.)
+            call move_to_column(endcol, column, status=status, coerce=.true.)
             if (.not. status%ok()) return
             call delete_region(from, point(), status)
         end if
@@ -392,7 +392,7 @@ contains
         class(delete_extract_line_action_type), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
-        integer(int64) :: pt, col
+        integer(int64) :: point_value, column
         character(len=:), allocatable :: text
 
         if (move_to_column_fill(startcol, self%fill, status) < startcol) then
@@ -400,11 +400,11 @@ contains
             call append_string(self%lines, spaces_string(endcol - startcol))
         else
             if (.not. status%ok()) return
-            pt = point()
-            call move_to_column(endcol, col, force=.true., status=status)
+            point_value = point()
+            call move_to_column(endcol, column, force=.true., status=status)
             if (.not. status%ok()) return
             ! (filter-buffer-substring pt (point) t)
-            call delete_and_extract_region(pt, point(), text, status)
+            call delete_and_extract_region(point_value, point(), text, status)
             if (.not. status%ok()) return
             call append_string(self%lines, text)
         end if
@@ -417,17 +417,17 @@ contains
         class(extract_line_action_type), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
-        integer(int64) :: start, end, begextra, endextra, col, pos, tail, k, width, tabcol
+        integer(int64) :: start, end, begextra, endextra, column, position, tail, k, width, tabcol
         integer(int32) :: c
         logical :: found
         character(len=:), allocatable :: line
 
-        call move_to_column(startcol, col)
+        call move_to_column(startcol, column)
         start = point()
-        begextra = col - startcol
-        call move_to_column(endcol, col)
+        begextra = column - startcol
+        call move_to_column(endcol, column)
         end = point()
-        endextra = endcol - col
+        endextra = endcol - column
         call buffer_substring(start, end, line, status)
         if (.not. status%ok()) return
 
@@ -437,21 +437,21 @@ contains
         end if
 
         if (endextra < 0) endextra = 0
-        call goto_char(start)
+        call goto_character(start)
 
         ! (while (search-forward "\t" end t) ...): each TAB becomes as many
         ! spaces as columns it takes.
-        do pos = start, end - 1
-            call char_after(c, found, pos)
+        do position = start, end - 1
+            call character_after(c, found, position)
             if (.not. found) exit
             if (c /= 9) cycle
-            call goto_char(pos)
+            call goto_character(position)
             tabcol = current_column()
-            call goto_char(pos + 1)
+            call goto_character(position + 1)
             width = current_column() - tabcol
             ! The TAB is the byte before the TAIL bytes that follow it up
             ! to END (the text after it is still as in the buffer).
-            tail = char_to_byte(end) - char_to_byte(pos + 1)
+            tail = character_to_byte(end) - character_to_byte(position + 1)
             k = len(line, kind=int64) - tail
             line = line(1:k - 1)//spaces_string(width)//line(k + 1:)
         end do
@@ -466,12 +466,12 @@ contains
         class(bounds_line_action_type), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
-        integer(int64) :: col, from
+        integer(int64) :: column, from
 
         status = status_type()
-        call move_to_column(startcol, col)
+        call move_to_column(startcol, column)
         from = point()
-        call move_to_column(endcol, col)
+        call move_to_column(endcol, column)
         if (.not. allocated(self%starts)) allocate (self%starts(0), self%ends(0))
         self%starts = [self%starts, from]
         self%ends = [self%ends, point()]
@@ -573,26 +573,26 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: fill
-        type(string_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rectangle(:)
         type(status_type) :: st
         logical :: saved
 
         ! (let (indent-tabs-mode) ...)
         saved = indent_tabs_mode%value
         indent_tabs_mode%value = .false.
-        call delete_extract_rectangle(start, end, rect, status, fill)
+        call delete_extract_rectangle(start, end, rectangle, status, fill)
         indent_tabs_mode%value = saved
 
         if (status%ok()) then
-            call move_alloc(rect, last_cut_rectangle)
+            call move_alloc(rectangle, last_cut_rectangle)
             return
         end if
 
-        if (.not. (condition_matches(status%code, FM_BUFFER_READ_ONLY) .or. &
-                   condition_matches(status%code, FM_TEXT_READ_ONLY))) return
+        if (.not. (condition_matches(status%code, BUFFER_READ_ONLY_CODE) .or. &
+                   condition_matches(status%code, TEXT_READ_ONLY_CODE))) return
         deactivate_mark_variable = .true.
-        call extract_rectangle(start, end, rect, st)
-        call move_alloc(rect, last_cut_rectangle)
+        call extract_rectangle(start, end, rectangle, st)
+        call move_alloc(rectangle, last_cut_rectangle)
 
         if (cut_read_only_ok) then
             status = status_type()
@@ -601,7 +601,7 @@ contains
         end if
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call set_error(status, FM_TEXT_READ_ONLY, "#<buffer "//buffers(current)%name//">")
+        if (status%ok()) call set_error(status, TEXT_READ_ONLY_CODE, "#<buffer "//buffers(current)%name//">")
     end subroutine cut_rectangle
 
     !> Copy the region-rectangle and save it as the last cut one.
@@ -610,10 +610,10 @@ contains
     recursive subroutine copy_rectangle(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        type(string_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rectangle(:)
 
-        call extract_rectangle(start, end, rect, status)
-        call move_alloc(rect, last_cut_rectangle)
+        call extract_rectangle(start, end, rectangle, status)
+        call move_alloc(rectangle, last_cut_rectangle)
         deactivate_mark_variable = .true.
     end subroutine copy_rectangle
 
@@ -621,15 +621,15 @@ contains
     !> Port of rect.el:yank-rectangle.
     recursive subroutine paste_rectangle(status)
         type(status_type), intent(out) :: status
-        type(string_type), allocatable :: rect(:)
+        type(string_type), allocatable :: rectangle(:)
 
         if (allocated(last_cut_rectangle)) then
-            rect = last_cut_rectangle
+            rectangle = last_cut_rectangle
         else
-            allocate (rect(0))
+            allocate (rectangle(0))
         end if
 
-        call insert_rectangle(rect, status)
+        call insert_rectangle(rectangle, status)
     end subroutine paste_rectangle
 
     !> Insert text of RECTANGLE with upper left corner at point.
@@ -642,7 +642,7 @@ contains
     recursive subroutine insert_rectangle(rectangle, status)
         type(string_type), intent(in) :: rectangle(:)
         type(status_type), intent(out) :: status
-        integer(int64) :: insertcolumn, col, shortage
+        integer(int64) :: insertcolumn, column, shortage
         integer :: k
 
         status = status_type()
@@ -653,12 +653,12 @@ contains
             if (k > 1) then
                 shortage = forward_line(1_int64)
 
-                if (.not. is_bol()) then
+                if (.not. is_beginning_of_line()) then
                     call insert(char(10), status)
                     if (.not. status%ok()) return
                 end if
 
-                call move_to_column(insertcolumn, col, force=.true., status=status)
+                call move_to_column(insertcolumn, column, force=.true., status=status)
                 if (.not. status%ok()) return
             end if
 
@@ -689,7 +689,7 @@ contains
 
         if (present(fill)) action%fill = fill
         call apply_on_rectangle(action, start, end, status)
-        if (status%ok()) call goto_char(start)
+        if (status%ok()) call goto_character(start)
     end subroutine open_rectangle
 
     !> Port of rect.el:open-rectangle-line.
@@ -697,11 +697,11 @@ contains
         class(open_line_action_type), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
-        integer(int64) :: col
+        integer(int64) :: column
 
         if (move_to_column_fill(startcol, self%fill, status) == startcol) then
             if (.not. status%ok()) return
-            if (self%fill .or. point() /= line_end_position()) col = indent_to(endcol, status)
+            if (self%fill .or. point() /= line_end_position()) column = indent_to(endcol, status)
         end if
     end subroutine open_line
 
@@ -746,9 +746,9 @@ contains
         class(string_line_action_type), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
-        integer(int64) :: col
+        integer(int64) :: column
 
-        call move_to_column(startcol, col, force=.true., status=status)
+        call move_to_column(startcol, column, force=.true., status=status)
         if (.not. status%ok()) return
 
         if (self%delete) then
@@ -784,7 +784,7 @@ contains
         action%string = string
         action%delete = .true.
         call apply_on_rectangle(action, start, end, status, final)
-        if (status%ok()) call goto_char(final)
+        if (status%ok()) call goto_character(final)
     end subroutine string_rectangle
 
     !> Insert STRING on each line of region-rectangle, shifting text right.
@@ -825,28 +825,28 @@ contains
         class(clear_line_action_type), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
-        integer(int64) :: pt, col, here, eolcol, ecol
+        integer(int64) :: point_value, column, here, eolcol, ecol
 
-        pt = line_end_position()
+        point_value = line_end_position()
 
         if (move_to_column_fill(startcol, self%fill, status) == startcol) then
             if (.not. status%ok()) return
             ! (save-excursion (goto-char pt) (current-column))
             here = point()
-            call goto_char(pt)
+            call goto_character(point_value)
             eolcol = current_column()
-            call goto_char(here)
+            call goto_character(here)
 
             if (.not. self%fill .and. eolcol <= endcol) then
-                call delete_region(point(), pt, status)
+                call delete_region(point(), point_value, status)
             else
-                pt = point()
-                call move_to_column(endcol, col, force=.true., status=status)
+                point_value = point()
+                call move_to_column(endcol, column, force=.true., status=status)
                 if (.not. status%ok()) return
                 ecol = current_column()
-                call delete_region(pt, point(), status)
+                call delete_region(point_value, point(), status)
                 if (.not. status%ok()) return
-                col = indent_to(ecol, status)
+                column = indent_to(ecol, status)
             end if
         end if
     end subroutine clear_line
@@ -856,11 +856,11 @@ contains
         class(number_line_action_type), intent(inout) :: self
         integer(int64), intent(in) :: startcol, endcol
         type(status_type), intent(out) :: status
-        integer(int64) :: col
+        integer(int64) :: column
         character(len=:), allocatable :: text
         type(format_arguments_type) :: arguments
 
-        call move_to_column(startcol, col, force=.true., status=status)
+        call move_to_column(startcol, column, force=.true., status=status)
         if (.not. status%ok()) return
         call arguments%append(self%counter)
         call styled_format(self%format, arguments, .false., text, status)
@@ -907,51 +907,51 @@ contains
 
     ! ------------------------------------------------------------------
     ! Crutches to let rectangle's corners be where point can't be
-    ! (e.g. in the middle of a TAB, or past the EOL).
+    ! (e.g. in the middle of a TAB, or past the END_OF_LINE).
     ! ------------------------------------------------------------------
 
     !> The crutch of OWNER in CRUTCHES: whether it has one, and its
     !> position and column.  Not a port.
-    subroutine get_crutch(crutches, owner, found, pos, col)
+    subroutine get_crutch(crutches, owner, found, position, column)
         type(crutch_type), allocatable, intent(in) :: crutches(:)
         type(handle_type), intent(in) :: owner
         logical, intent(out) :: found
-        integer(int64), intent(out) :: pos, col
+        integer(int64), intent(out) :: position, column
         integer :: k
 
         found = .false.
-        pos = 0
-        col = 0
+        position = 0
+        column = 0
         if (.not. allocated(crutches)) return
 
         do k = 1, size(crutches)
             if (same_owner(crutches(k)%owner, owner)) then
                 found = .true.
-                pos = crutches(k)%pos
-                col = crutches(k)%col
+                position = crutches(k)%position
+                column = crutches(k)%column
                 return
             end if
         end do
     end subroutine get_crutch
 
-    !> Give OWNER the crutch with POS and COL in CRUTCHES.  Not a port.
-    subroutine set_crutch(crutches, owner, pos, col)
+    !> Give OWNER the crutch with POSITION and COLUMN in CRUTCHES.  Not a port.
+    subroutine set_crutch(crutches, owner, position, column)
         type(crutch_type), allocatable, intent(inout) :: crutches(:)
         type(handle_type), intent(in) :: owner
-        integer(int64), intent(in) :: pos, col
+        integer(int64), intent(in) :: position, column
         integer :: k
 
         if (.not. allocated(crutches)) allocate (crutches(0))
 
         do k = 1, size(crutches)
             if (same_owner(crutches(k)%owner, owner)) then
-                crutches(k)%pos = pos
-                crutches(k)%col = col
+                crutches(k)%position = position
+                crutches(k)%column = column
                 return
             end if
         end do
 
-        crutches = [crutches, crutch_type(owner, pos, col)]
+        crutches = [crutches, crutch_type(owner, position, column)]
     end subroutine set_crutch
 
     !> Remove OWNER's crutch from CRUTCHES (clearing it).  Not a port.
@@ -985,18 +985,18 @@ contains
     !> WINDOW (default the selected window): their own, or a crutch's.
     !> A crutch that is for neither is dropped.  Port of
     !> rect.el:rectangle--pos-cols.
-    subroutine rectangle_pos_cols(start, end, startcol, endcol, window)
+    subroutine rectangle_position_columns(start, end, startcol, endcol, window)
         integer(int64), intent(in) :: start, end
         integer(int64), intent(out) :: startcol, endcol
         type(handle_type), intent(in), optional :: window
         type(handle_type) :: w, b
-        integer(int64) :: opoint, cwp, cwc, mp, mc, sc, ec
+        integer(int64) :: original_point, cwp, cwc, mp, mc, sc, ec
         logical :: has_p, has_m
 
         ! At this stage, we don't know which of start/end is point/mark :-(
         ! And in case start=end, it might still be that point and mark have
         ! different crutches!
-        opoint = point()
+        original_point = point()
         w = selected_window()
         if (present(window)) w = window
         b = current_buffer()
@@ -1010,7 +1010,7 @@ contains
                 ec = mc
             else
                 if (has_m) call clear_crutch(mark_crutches, b)
-                call goto_char(end)
+                call goto_character(end)
                 ec = current_column()
             end if
 
@@ -1020,7 +1020,7 @@ contains
                 startcol = mc
             else
                 if (has_m) call clear_crutch(mark_crutches, b)
-                call goto_char(start)
+                call goto_character(start)
                 startcol = current_column()
             end if
 
@@ -1030,23 +1030,23 @@ contains
 
             if (has_m .and. start == mp) then
                 sc = mc
-                call goto_char(end)
+                call goto_character(end)
                 ec = current_column()
                 call order(sc, ec)
             else if (has_m .and. end == mp) then
-                call goto_char(start)
+                call goto_character(start)
                 startcol = current_column()
                 endcol = mc
             else
                 if (has_m) call clear_crutch(mark_crutches, b)
-                call goto_char(start)
+                call goto_character(start)
                 startcol = current_column()
-                call goto_char(end)
+                call goto_character(end)
                 endcol = current_column()
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
 
     contains
 
@@ -1061,20 +1061,20 @@ contains
                 endcol = c2
             end if
         end subroutine order
-    end subroutine rectangle_pos_cols
+    end subroutine rectangle_position_columns
 
-    !> Move to column COL on the current line, and if it can't be reached
-    !> exactly (past the EOL, or in the middle of a character), give point
+    !> Move to column COLUMN on the current line, and if it can't be reached
+    !> exactly (past the END_OF_LINE, or in the middle of a character), give point
     !> (POINT_KIND) or the mark a crutch for it.  Port of
     !> rect.el:rectangle--col-pos.
-    recursive subroutine rectangle_col_pos(col, point_kind)
-        integer(int64), intent(in) :: col
+    recursive subroutine rectangle_column_position(column, point_kind)
+        integer(int64), intent(in) :: column
         logical, intent(in) :: point_kind
         integer(int64) :: c
 
-        call move_to_column(col, c)
+        call move_to_column(column, c)
 
-        if (c == col .and. .not. is_eol()) then
+        if (c == column .and. .not. is_end_of_line()) then
             if (point_kind) then
                 call clear_crutch(point_crutches, selected_window())
             else
@@ -1085,28 +1085,28 @@ contains
             ! the position where rectangle--highlight-for-redisplay will
             ! add the overlay (so that the cursor can be drawn at the right
             ! place).
-            if (c > col) call goto_char(point() - 1)
+            if (c > column) call goto_character(point() - 1)
 
             if (point_kind) then
-                call set_crutch(point_crutches, selected_window(), point(), col)
+                call set_crutch(point_crutches, selected_window(), point(), column)
             else
-                call set_crutch(mark_crutches, current_buffer(), point(), col)
+                call set_crutch(mark_crutches, current_buffer(), point(), column)
             end if
         end if
-    end subroutine rectangle_col_pos
+    end subroutine rectangle_column_position
 
-    !> The column of POS, which is point: its crutch's, or its own.  Port of
+    !> The column of POSITION, which is point: its crutch's, or its own.  Port of
     !> rect.el:rectangle--point-col.
-    integer(int64) function rectangle_point_col(pos) result(col)
-        integer(int64), intent(in) :: pos
+    integer(int64) function rectangle_point_column(position) result(column)
+        integer(int64), intent(in) :: position
         integer(int64) :: pp
         logical :: found
 
-        call get_crutch(point_crutches, selected_window(), found, pp, col)
-        if (found .and. pos == pp) return
-        call goto_char(pos)
-        col = current_column()
-    end function rectangle_point_col
+        call get_crutch(point_crutches, selected_window(), found, pp, column)
+        if (found .and. position == pp) return
+        call goto_character(position)
+        column = current_column()
+    end function rectangle_point_column
 
     !> The crutches of the mark and point, for comparing (the value of
     !> rect.el:rectangle--crutches).  Port of rect.el:rectangle--crutches.
@@ -1160,8 +1160,8 @@ contains
         ! (advice-add 'region-beginning ...) and region-end: installed
         ! once, as they check the mode.
         if (.not. advised) then
-            orig_region_beginning => region_beginning_function
-            orig_region_end => region_end_function
+            original_region_beginning => region_beginning_function
+            original_region_end => region_end_function
             region_beginning_function => rectangle_region_beginning
             region_end_function => rectangle_region_end
             advised = .true.
@@ -1186,17 +1186,17 @@ contains
 
     !> Like `exchange_point_and_mark' but cycles through the rectangle's
     !> corners.  Port of rect.el:rectangle-exchange-point-and-mark.
-    recursive subroutine rectangle_exchange_point_and_mark(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine rectangle_exchange_point_and_mark(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
-        integer(int64) :: p, m, startcol, endcol, cp, cm
+        integer(int64) :: p, m, startcol, endcol, cp, cursor_motion
         logical :: repeat
 
         status = status_type()
 
-        if (arg) then
+        if (argument) then
             this_command => commands%exchange_point_and_mark
-            call exchange_point_and_mark(arg, status)
+            call exchange_point_and_mark(argument, status)
             return
         end if
 
@@ -1205,49 +1205,49 @@ contains
         m = mark_position()
 
         if (m == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer or type(marker_type)")
             return
         end if
 
         if (p < m) then
-            call rectangle_pos_cols(p, m, startcol, endcol)
+            call rectangle_position_columns(p, m, startcol, endcol)
             cp = startcol
-            cm = endcol
+            cursor_motion = endcol
         else
-            call rectangle_pos_cols(m, p, startcol, endcol)
+            call rectangle_position_columns(m, p, startcol, endcol)
             cp = endcol
-            cm = startcol
+            cursor_motion = startcol
         end if
 
         if (repeat) this_command => commands%exchange_point_and_mark
         call rectangle_reset_crutches()
-        call goto_char(p)
+        call goto_character(p)
 
         if (repeat) then
-            call rectangle_col_pos(cm, .false.)
+            call rectangle_column_position(cursor_motion, .false.)
         else
-            call rectangle_col_pos(cp, .false.)
+            call rectangle_column_position(cp, .false.)
         end if
 
         call set_mark(point())
-        call goto_char(m)
+        call goto_character(m)
 
         if (repeat) then
-            call rectangle_col_pos(cp, .true.)
+            call rectangle_column_position(cp, .true.)
         else
-            call rectangle_col_pos(cm, .true.)
+            call rectangle_column_position(cursor_motion, .true.)
         end if
     end subroutine rectangle_exchange_point_and_mark
 
-    !> Move N times by one character with forward_char in DIRECTION (1 for
+    !> Move N times by one character with forward_character in DIRECTION (1 for
     !> right/forward, -1 for left/backward), stepping into wide chars and
-    !> past the EOL through the point crutch.  Port of
+    !> past the END_OF_LINE through the point crutch.  Port of
     !> rect.el:rectangle--*-char.
-    recursive subroutine rectangle_star_char(direction, n_in, status)
+    recursive subroutine rectangle_star_character(direction, n_in, status)
         integer, intent(in) :: direction
         integer(int64), intent(in) :: n_in
         type(status_type), intent(out) :: status
-        integer(int64) :: n, col, step, bol, eol, curcol, nextcol, diff, curdiff, opoint
+        integer(int64) :: n, column, step, beginning_of_line, end_of_line, curcol, nextcol, diff, curdiff, original_point
         type(status_type) :: st
         integer :: d
 
@@ -1260,65 +1260,65 @@ contains
             n = -n
         end if
 
-        col = rectangle_point_col(point())
+        column = rectangle_point_column(point())
         step = 1
 
         do while (n > 0)
-            bol = line_beginning_position()
-            eol = line_end_position()
+            beginning_of_line = line_beginning_position()
+            end_of_line = line_end_position()
             curcol = current_column()
             ! (save-excursion (funcall cmd step) ...)
-            opoint = point()
-            call forward_char(st, d*step)
+            original_point = point()
+            call forward_character(st, d*step)
 
             if (.not. st%ok()) then
-                if (condition_matches(st%code, FM_END_OF_BUFFER)) then
-                    nextcol = col + (1 + n)
-                else if (condition_matches(st%code, FM_BEGINNING_OF_BUFFER)) then
+                if (condition_matches(st%code, END_OF_BUFFER_CODE)) then
+                    nextcol = column + (1 + n)
+                else if (condition_matches(st%code, BEGINNING_OF_BUFFER_CODE)) then
                     nextcol = curcol - 1
                 else
-                    call goto_char(opoint)
+                    call goto_character(original_point)
                     status = st
                     return
                 end if
-            else if (bol > point()) then
+            else if (beginning_of_line > point()) then
                 nextcol = curcol - 1
-            else if (eol < point()) then
-                nextcol = col + (1 + n)
+            else if (end_of_line < point()) then
+                nextcol = column + (1 + n)
             else
                 nextcol = current_column()
             end if
 
-            call goto_char(opoint)
-            diff = abs(nextcol - col)
+            call goto_character(original_point)
+            diff = abs(nextcol - column)
 
-            if (nextcol < curcol .and. curcol < col) then
-                curdiff = col - curcol
+            if (nextcol < curcol .and. curcol < column) then
+                curdiff = column - curcol
 
                 if (curdiff <= n) then
                     n = n - curdiff
-                    col = curcol
+                    column = curcol
                 else
-                    col = col - n
+                    column = column - n
                     n = 0
                 end if
             else if (nextcol < 0) then
-                ! Bumping into BOL!
+                ! Bumping into BEGINNING_OF_LINE!
                 call ding()
                 n = 0
-                col = 0
+                column = 0
             else if (nextcol == curcol) then
-                call forward_char(status, int(d, int64))
+                call forward_character(status, int(d, int64))
                 if (.not. status%ok()) return
             else
                 if (diff <= n) then
                     n = n - diff
-                    col = nextcol
+                    column = nextcol
                 else
-                    if (col < nextcol) then
-                        col = col + n
+                    if (column < nextcol) then
+                        column = column + n
                     else
-                        col = col - n
+                        column = column - n
                     end if
 
                     n = 0
@@ -1328,69 +1328,69 @@ contains
             step = step + 1
         end do
 
-        call rectangle_col_pos(col, .true.)
-    end subroutine rectangle_star_char
+        call rectangle_column_position(column, .true.)
+    end subroutine rectangle_star_character
 
-    !> Like `right_char' but steps into wide chars and moves past EOL.
+    !> Like `right_character' but steps into wide chars and moves past END_OF_LINE.
     !> Port of rect.el:rectangle-right-char.
-    recursive subroutine rectangle_right_char(n, status)
+    recursive subroutine rectangle_right_character(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
-        call rectangle_star_char(1, n, status)
-    end subroutine rectangle_right_char
+        call rectangle_star_character(1, n, status)
+    end subroutine rectangle_right_character
 
-    !> Like `left_char' but steps into wide chars and moves past EOL.
+    !> Like `left_character' but steps into wide chars and moves past END_OF_LINE.
     !> Port of rect.el:rectangle-left-char.
-    recursive subroutine rectangle_left_char(n, status)
+    recursive subroutine rectangle_left_character(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
-        call rectangle_star_char(-1, n, status)
-    end subroutine rectangle_left_char
+        call rectangle_star_character(-1, n, status)
+    end subroutine rectangle_left_character
 
-    !> Like `forward_char' but steps into wide chars and moves past EOL.
+    !> Like `forward_character' but steps into wide chars and moves past END_OF_LINE.
     !> Port of rect.el:rectangle-forward-char.
-    recursive subroutine rectangle_forward_char(n, status)
+    recursive subroutine rectangle_forward_character(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
-        call rectangle_star_char(1, n, status)
-    end subroutine rectangle_forward_char
+        call rectangle_star_character(1, n, status)
+    end subroutine rectangle_forward_character
 
-    !> Like `backward_char' but steps into wide chars and moves past EOL.
+    !> Like `backward_character' but steps into wide chars and moves past END_OF_LINE.
     !> Port of rect.el:rectangle-backward-char.
-    recursive subroutine rectangle_backward_char(n, status)
+    recursive subroutine rectangle_backward_character(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
 
-        call rectangle_star_char(-1, n, status)
-    end subroutine rectangle_backward_char
+        call rectangle_star_character(-1, n, status)
+    end subroutine rectangle_backward_character
 
-    !> Like `next_line' but steps into wide chars and moves past EOL.
+    !> Like `next_line' but steps into wide chars and moves past END_OF_LINE.
     !> Ignores `line_move_visual'.  Port of rect.el:rectangle-next-line.
     recursive subroutine rectangle_next_line(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-        integer(int64) :: col, shortage
+        integer(int64) :: column, shortage
 
         status = status_type()
-        col = rectangle_point_col(point())
+        column = rectangle_point_column(point())
         shortage = forward_line(n)
-        call rectangle_col_pos(col, .true.)
+        call rectangle_column_position(column, .true.)
     end subroutine rectangle_next_line
 
-    !> Like `previous_line' but steps into wide chars and moves past EOL.
+    !> Like `previous_line' but steps into wide chars and moves past END_OF_LINE.
     !> Ignores `line_move_visual'.  Port of rect.el:rectangle-previous-line.
     recursive subroutine rectangle_previous_line(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
-        integer(int64) :: col, shortage
+        integer(int64) :: column, shortage
 
         status = status_type()
-        col = rectangle_point_col(point())
+        column = rectangle_point_column(point())
         shortage = forward_line(-n)
-        call rectangle_col_pos(col, .true.)
+        call rectangle_column_position(column, .true.)
     end subroutine rectangle_previous_line
 
     !> The corners of the rectangular region in order, and their columns.
@@ -1398,68 +1398,68 @@ contains
     subroutine region_corners(start, end, startcol, endcol, status)
         integer(int64), intent(out) :: start, end, startcol, endcol
         type(status_type), intent(out) :: status
-        integer(int64) :: pt, mk
+        integer(int64) :: point_value, mk
 
         status = status_type()
         start = 0
         end = 0
         startcol = 0
         endcol = 0
-        pt = point()
+        point_value = point()
         mk = mark_position()
 
         if (mk == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer or type(marker_type)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer or type(marker_type)")
             return
         end if
 
-        start = min(pt, mk)
-        end = max(pt, mk)
-        call rectangle_pos_cols(start, end, startcol, endcol)
+        start = min(point_value, mk)
+        end = max(point_value, mk)
+        call rectangle_position_columns(start, end, startcol, endcol)
     end subroutine region_corners
 
     !> Like `region_beginning' but supports rectangular regions.  Port of
     !> rect.el:rectangle--region-beginning.
-    recursive subroutine rectangle_region_beginning(pos, status)
-        integer(int64), intent(out) :: pos
+    recursive subroutine rectangle_region_beginning(position, status)
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
-        integer(int64) :: start, end, startcol, endcol, opoint, c
+        integer(int64) :: start, end, startcol, endcol, original_point, c
 
         if (.not. minor_modes%rectangle_mark_mode%enabled()) then
-            call orig_region_beginning(pos, status)
+            call original_region_beginning(position, status)
             return
         end if
 
-        pos = 0
-        opoint = point()
+        position = 0
+        original_point = point()
         call region_corners(start, end, startcol, endcol, status)
         if (.not. status%ok()) return
-        call goto_char(start)
+        call goto_character(start)
         call move_to_column(min(startcol, endcol), c)
-        pos = point()
-        call goto_char(opoint)
+        position = point()
+        call goto_character(original_point)
     end subroutine rectangle_region_beginning
 
     !> Like `region_end' but supports rectangular regions.  Port of
     !> rect.el:rectangle--region-end.
-    recursive subroutine rectangle_region_end(pos, status)
-        integer(int64), intent(out) :: pos
+    recursive subroutine rectangle_region_end(position, status)
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
-        integer(int64) :: start, end, startcol, endcol, opoint, c
+        integer(int64) :: start, end, startcol, endcol, original_point, c
 
         if (.not. minor_modes%rectangle_mark_mode%enabled()) then
-            call orig_region_end(pos, status)
+            call original_region_end(position, status)
             return
         end if
 
-        pos = 0
-        opoint = point()
+        position = 0
+        original_point = point()
         call region_corners(start, end, startcol, endcol, status)
         if (.not. status%ok()) return
-        call goto_char(end)
+        call goto_character(end)
         call move_to_column(max(startcol, endcol), c)
-        pos = point()
-        call goto_char(opoint)
+        position = point()
+        call goto_character(original_point)
     end subroutine rectangle_region_end
 
     !> The region's beginning and end as the primitives give them
@@ -1469,8 +1469,8 @@ contains
         type(status_type), intent(out) :: status
 
         end = 0
-        call orig_region_beginning(beginning, status)
-        if (status%ok()) call orig_region_end(end, status)
+        call original_region_beginning(beginning, status)
+        if (status%ok()) call original_region_end(end, status)
     end subroutine plain_region
 
     !> `region_extract_function' in Rectangle-Mark mode: the rectangle's
@@ -1482,14 +1482,14 @@ contains
         integer(int64), allocatable, intent(out) :: starts(:), ends(:)
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: lines(:)
-        type(value_type) :: strs
-        type(value_type), allocatable :: elems(:)
+        type(value_type) :: strings
+        type(value_type), allocatable :: elements(:)
         character(len=:), allocatable :: text
         integer(int64) :: beginning, end, nchars
         integer :: k
 
         if (.not. minor_modes%rectangle_mark_mode%enabled()) then
-            call orig_region_extract(method, string, starts, ends, status)
+            call original_region_extract(method, string, starts, ends, status)
             return
         end if
 
@@ -1512,11 +1512,11 @@ contains
         if (.not. status%ok()) return
         ! (A `delete-only' extraction is a deletion too: its value is not
         ! used.)
-        allocate (elems(size(lines)))
+        allocate (elements(size(lines)))
         text = ""
 
         do k = 1, size(lines)
-            elems(k) = value_type(text=lines(k)%text)
+            elements(k) = value_type(text=lines(k)%text)
             if (k > 1) text = text//achar(10)
             text = text//lines(k)%text
         end do
@@ -1529,12 +1529,12 @@ contains
         end if
 
         if (size(lines) == 0) return
-        strs = make_list(elems)
+        strings = make_list(elements)
         string = value_type(text=text)
-        call multibyte_chars_in_text(text, nchars, status)
+        call multibyte_characters_in_text(text, nchars, status)
         if (.not. status%ok()) return
         call string_put_text_property(0_int64, nchars, value_type(name="paste_handler"), &
-                                      list(value_type(name="rectangle_insert_for_paste_internal"), strs, value_type(.true.)), &
+                                      list(value_type(name="rectangle_insert_for_paste_internal"), strings, value_type(.true.)), &
                                       string, status)
     end subroutine rectangle_extract_region
 
@@ -1545,33 +1545,33 @@ contains
         type(status_type), intent(out) :: status
 
         if (.not. minor_modes%rectangle_mark_mode%enabled()) then
-            call orig_region_insert(lines, status)
+            call original_region_insert(lines, status)
             return
         end if
 
         call insert_rectangle(rectangle_of(lines), status)
     end subroutine rectangle_insert_region
 
-    !> The strings of the list STRS as a rectangle.  Not a port.
-    function rectangle_of(strs) result(rect)
-        type(value_type), intent(in) :: strs
-        type(string_type), allocatable :: rect(:)
-        type(value_type), allocatable :: elems(:)
+    !> The strings of the list STRINGS as a rectangle.  Not a port.
+    function rectangle_of(strings) result(rectangle)
+        type(value_type), intent(in) :: strings
+        type(string_type), allocatable :: rectangle(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        call list_elements(strs, elems)
-        allocate (rect(size(elems)))
+        call list_elements(strings, elements)
+        allocate (rectangle(size(elements)))
 
-        do k = 1, size(elems)
-            rect(k)%text = xstring(elems(k))
+        do k = 1, size(elements)
+            rectangle(k)%text = xstring(elements(k))
         end do
     end function rectangle_of
 
-    !> The paste handler of a cut rectangle: insert the strings STRS as
+    !> The paste handler of a cut rectangle: insert the strings STRINGS as
     !> a rectangle, `paste_previous' undoing that.  Port of
     !> rect.el:rectangle--insert-for-yank.
-    recursive subroutine rectangle_insert_for_paste(strs, status)
-        type(value_type), intent(in) :: strs
+    recursive subroutine rectangle_insert_for_paste(strings, status)
+        type(value_type), intent(in) :: strings
         type(status_type), intent(out) :: status
         type(undo_entry_type) :: entry
 
@@ -1586,7 +1586,7 @@ contains
             undo_at_start = buffers(current)%undo_count
         end if
 
-        call insert_rectangle(rectangle_of(strs), status)
+        call insert_rectangle(rectangle_of(strings), status)
         paste_undo_function => rectangle_paste_undo
     end subroutine rectangle_insert_for_paste
 
@@ -1640,7 +1640,7 @@ contains
             grown(j)%tick = highlights(j)%tick
             grown(j)%start = highlights(j)%start
             grown(j)%end = highlights(j)%end
-            grown(j)%pt = highlights(j)%pt
+            grown(j)%point = highlights(j)%point
             grown(j)%crutches = highlights(j)%crutches
         end do
 
@@ -1671,7 +1671,7 @@ contains
                 kept(j)%tick = from%tick
                 kept(j)%start = from%start
                 kept(j)%end = from%end
-                kept(j)%pt = from%pt
+                kept(j)%point = from%point
                 kept(j)%crutches = from%crutches
             end associate
         end do
@@ -1681,40 +1681,40 @@ contains
 
     !> `redisplay_highlight_region_function' in Rectangle-Mark mode:
     !> highlight the rectangle with an overlay for each line within the
-    !> window's height of point (padding past the EOL, or into a TAB, with
+    !> window's height of point (padding past the END_OF_LINE, or into a TAB, with
     !> before- and after-strings).  Port of
     !> rect.el:rectangle--highlight-for-redisplay
     !> (`rectangle_indicate_zero_width_rectangle' is Deferred).
-    subroutine rectangle_highlight_for_redisplay(start, end, window, rb, regexp)
+    subroutine rectangle_highlight_for_redisplay(start, end, window, rb, regular_expression)
         integer(int64), intent(in) :: start, end
         type(handle_type), intent(in) :: window
-        integer(int64), intent(out) :: rb, regexp
+        integer(int64), intent(out) :: rb, regular_expression
         type(handle_type), allocatable :: old(:), nrol(:)
         type(handle_type) :: ol
         type(value_type) :: string
         type(status_type) :: st
-        integer(int64) :: pt, tick, startcol, endcol, leftcol, rightcol, height, start_pt, end_pt, mleft, &
+        integer(int64) :: point_value, tick, startcol, endcol, leftcol, rightcol, height, start_point, end_point, mleft, &
                           left, mright, right, shortage, nchars
         integer(int64) :: state(6)
         integer :: k, used
 
         if (.not. minor_modes%rectangle_mark_mode%enabled()) then
             call delete_highlight(window)
-            call orig_highlight(start, end, window, rb, regexp)
+            call original_highlight(start, end, window, rb, regular_expression)
             return
         end if
 
         rb = 0
-        regexp = 0
-        call orig_unhighlight(window)
-        call buffer_chars_modified_tick(current_buffer(), tick, st)
-        pt = point()
+        regular_expression = 0
+        call original_unhighlight(window)
+        call buffer_characters_modified_tick(current_buffer(), tick, st)
+        point_value = point()
         state = rectangle_crutches(window)
         k = highlight_of(window)
 
         if (k > 0) then
             if (highlights(k)%tick == tick .and. highlights(k)%start == start .and. highlights(k)%end == end .and. &
-                all(highlights(k)%crutches == state) .and. highlights(k)%pt == pt) return
+                all(highlights(k)%crutches == state) .and. highlights(k)%point == point_value) return
             old = highlights(k)%overlays
         else
             allocate (old(0))
@@ -1722,19 +1722,19 @@ contains
 
         allocate (nrol(0))
         used = 0
-        call rectangle_pos_cols(start, end, startcol, endcol, window)
+        call rectangle_position_columns(start, end, startcol, endcol, window)
         leftcol = min(startcol, endcol)
         rightcol = max(startcol, endcol)
         ! We don't know what lines will actually be displayed, so add
         ! highlight overlays on lines within the window height from point.
         height = windows(window%index)%total_lines
         shortage = forward_line(-height)
-        start_pt = max(start, point())
-        call goto_char(pt)
+        start_point = max(start, point())
+        call goto_character(point_value)
         shortage = forward_line(height)
-        end_pt = min(end, point())
-        call goto_char(start_pt)
-        call goto_char(line_beginning_position())
+        end_point = min(end, point())
+        call goto_character(start_point)
+        call goto_character(line_beginning_position())
 
         do
             call move_to_column(leftcol, mleft)
@@ -1753,31 +1753,31 @@ contains
                 call move_overlay(ol, left, right, st, current_buffer())
             else
                 call make_overlay(ol, left, right, st)
-                call overlay_put(ol, "window", make_window_ref(window), st)
+                call overlay_put(ol, "window", make_window_reference(window), st)
                 call overlay_put(ol, "face", value_type(name="region"), st)
             end if
 
             ! `move-to-column' may stop before the column (if bumping into
-            ! EOL) or overshoot it a little, when column is in the middle
+            ! END_OF_LINE) or overshoot it a little, when column is in the middle
             ! of a char.
             if (mleft < leftcol) then
-                ! `leftcol' is past EOL.
+                ! `leftcol' is past END_OF_LINE.
                 call overlay_put(ol, "before_string", space_to(leftcol), st)
                 mright = max(mright, leftcol)
             else if (mleft > leftcol .and. tab_before(left)) then
                 ! `leftcol' is in the middle of a char.
                 left = left - 1
                 call move_overlay(ol, left, right, st)
-                call goto_char(left)
+                call goto_character(left)
                 call overlay_put(ol, "before_string", space_to(leftcol), st)
             else if (vtag(overlay_get(ol, "before_string")) /= V_NULL) then
                 call overlay_put(ol, "before_string", value_type(), st)
             end if
 
             if (mright < rightcol) then
-                ! `rightcol' is past EOL.
+                ! `rightcol' is past END_OF_LINE.
                 string = space_to(rightcol)
-                call string_chars(string, nchars)
+                call string_characters(string, nchars)
                 call string_put_text_property(0_int64, nchars, value_type(name="face"), value_type(name="region"), string, st)
                 ! If cursor happens to be here, draw it at the right place.
                 call place_cursor(leftcol, left, string, window)
@@ -1790,9 +1790,9 @@ contains
                 if (rightcol == leftcol) then
                     call overlay_put(ol, "after_string", value_type(), st)
                 else
-                    call goto_char(right)
+                    call goto_character(right)
                     string = space_to(rightcol)
-                    call string_chars(string, nchars)
+                    call string_characters(string, nchars)
                     call string_put_text_property(0_int64, nchars, value_type(name="face"), value_type(name="region"), string, st)
                     if (left == right) call place_cursor(leftcol, left, string, window)
                     call overlay_put(ol, "after_string", string, st)
@@ -1803,15 +1803,15 @@ contains
 
             nrol = [nrol, ol]
             if (forward_line(1_int64) /= 0) exit
-            if (.not. is_bol()) exit
-            if (point() > end_pt) exit
+            if (.not. is_beginning_of_line()) exit
+            if (point() > end_point) exit
         end do
 
         do k = used + 1, size(old)
             call destroy_overlay(old(k))
         end do
 
-        call goto_char(pt)
+        call goto_character(point_value)
         k = highlight_of(window)
 
         if (k == 0) then
@@ -1823,28 +1823,28 @@ contains
         highlights(k)%start = start
         highlights(k)%end = end
         highlights(k)%crutches = rectangle_crutches(window)
-        highlights(k)%pt = pt
+        highlights(k)%point = point_value
         call move_alloc(nrol, highlights(k)%overlays)
 
     contains
 
-        !> Whether the character before POS is a TAB.
-        logical function tab_before(pos)
-            integer(int64), intent(in) :: pos
+        !> Whether the character before POSITION is a TAB.
+        logical function tab_before(position)
+            integer(int64), intent(in) :: position
             integer(int32) :: c
             logical :: found
 
-            call char_before(c, found, pos)
+            call character_before(c, found, position)
             tab_before = found .and. c == 9
         end function tab_before
 
-        subroutine string_chars(s, n)
+        subroutine string_characters(s, n)
             type(value_type), intent(in) :: s
             integer(int64), intent(out) :: n
             type(status_type) :: cst
 
-            call multibyte_chars_in_text(xstring(s), n, cst)
-        end subroutine string_chars
+            call multibyte_characters_in_text(xstring(s), n, cst)
+        end subroutine string_characters
     end subroutine rectangle_highlight_for_redisplay
 
     !> `redisplay_unhighlight_region_function' in Rectangle-Mark mode:
@@ -1854,23 +1854,23 @@ contains
         type(handle_type), intent(in) :: window
 
         if (highlight_of(window) == 0) then
-            call orig_unhighlight(window)
+            call original_unhighlight(window)
             return
         end if
 
         call delete_highlight(window)
     end subroutine rectangle_unhighlight_for_redisplay
 
-    !> A space up to column COL.  Port of rect.el:rectangle--space-to.
-    function space_to(col) result(v)
-        integer(int64), intent(in) :: col
+    !> A space up to column COLUMN.  Port of rect.el:rectangle--space-to.
+    function space_to(column) result(v)
+        integer(int64), intent(in) :: column
         type(value_type) :: v
         type(status_type) :: st
 
         v = value_type(text=" ")
         call string_put_text_property(0_int64, 1_int64, value_type(name="display"), list(value_type(name="space"), &
                                                                                          value_type(name=":align-to"), &
-                                                                                         value_type(col)), v, st)
+                                                                                         value_type(column)), v, st)
     end function space_to
 
     !> Put the cursor on the first character of STRING if point's crutch is
@@ -1897,10 +1897,10 @@ contains
     !> The value of the prefix argument as the FILL of a "P" spec.
     !> Not a port.
     logical function prefix_fill()
-        prefix_fill = current_prefix_arg%kind /= PREFIX_NONE
+        prefix_fill = current_prefix_argument%kind /= PREFIX_NONE
     end function prefix_fill
 
-    recursive subroutine cmd_delete_rectangle(status)
+    recursive subroutine execute_delete_rectangle(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end
 
@@ -1908,19 +1908,19 @@ contains
         if (.not. status%ok()) return
         call interactive_region(start, end, status)
         if (status%ok()) call delete_rectangle(start, end, status, prefix_fill())
-    end subroutine cmd_delete_rectangle
+    end subroutine execute_delete_rectangle
 
-    recursive subroutine cmd_cut_rectangle(status)
+    recursive subroutine execute_cut_rectangle(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end
 
         call interactive_region(start, end, status)
         if (status%ok()) call cut_rectangle(start, end, status, prefix_fill())
-    end subroutine cmd_cut_rectangle
+    end subroutine execute_cut_rectangle
 
     !> Copy the region-rectangle and save it as the last cut one.
     !> Port of rect.el:copy-rectangle-as-kill.
-    recursive subroutine cmd_copy_rectangle(status)
+    recursive subroutine execute_copy_rectangle(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end
 
@@ -1935,16 +1935,16 @@ contains
             ! (length (car nil)) is 0.
             call indicate_copied_region(0_int64)
         end if
-    end subroutine cmd_copy_rectangle
+    end subroutine execute_copy_rectangle
 
-    recursive subroutine cmd_paste_rectangle(status)
+    recursive subroutine execute_paste_rectangle(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
         if (status%ok()) call paste_rectangle(status)
-    end subroutine cmd_paste_rectangle
+    end subroutine execute_paste_rectangle
 
-    recursive subroutine cmd_open_rectangle(status)
+    recursive subroutine execute_open_rectangle(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end
 
@@ -1952,9 +1952,9 @@ contains
         if (.not. status%ok()) return
         call interactive_region(start, end, status)
         if (status%ok()) call open_rectangle(start, end, status, prefix_fill())
-    end subroutine cmd_open_rectangle
+    end subroutine execute_open_rectangle
 
-    recursive subroutine cmd_delete_whitespace_rectangle(status)
+    recursive subroutine execute_delete_whitespace_rectangle(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end
 
@@ -1962,9 +1962,9 @@ contains
         if (.not. status%ok()) return
         call interactive_region(start, end, status)
         if (status%ok()) call delete_whitespace_rectangle(start, end, status, prefix_fill())
-    end subroutine cmd_delete_whitespace_rectangle
+    end subroutine execute_delete_whitespace_rectangle
 
-    recursive subroutine cmd_clear_rectangle(status)
+    recursive subroutine execute_clear_rectangle(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end
 
@@ -1972,20 +1972,20 @@ contains
         if (.not. status%ok()) return
         call interactive_region(start, end, status)
         if (status%ok()) call clear_rectangle(start, end, status, prefix_fill())
-    end subroutine cmd_clear_rectangle
+    end subroutine execute_clear_rectangle
 
     !> The newest element of `string_rectangle_history', or "" (the
     !> (the first element of `string_rectangle_history', or "") of the prompts).  Not a port.
     function history_head() result(head)
         character(len=:), allocatable :: head
-        type(value_type) :: hist, first
+        type(value_type) :: history, first
         type(status_type) :: st
 
         head = ""
-        call symbol_value(value_type(name="string_rectangle_history"), hist, st)
+        call symbol_value(value_type(name="string_rectangle_history"), history, st)
         if (.not. st%ok()) return
-        if (list_length(hist) == 0) return
-        first = list_elt(hist, 1_int64)
+        if (list_length(history) == 0) return
+        first = list_element(history, 1_int64)
         if (vtag(first) == V_STRING) head = xstring(first)
     end function history_head
 
@@ -2028,7 +2028,7 @@ contains
     !>
     !> Called from a program, takes three args; START, END and STRING.
     !> Port of rect.el:string-rectangle (the preview is deferred).
-    recursive subroutine cmd_string_rectangle(status)
+    recursive subroutine execute_string_rectangle(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end
         character(len=:), allocatable :: string
@@ -2040,9 +2040,9 @@ contains
         if (.not. status%ok()) return
         call read_rectangle_string("String rectangle", string, status)
         if (status%ok()) call string_rectangle(start, end, string, status)
-    end subroutine cmd_string_rectangle
+    end subroutine execute_string_rectangle
 
-    recursive subroutine cmd_string_insert_rectangle(status)
+    recursive subroutine execute_string_insert_rectangle(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end
         character(len=:), allocatable :: string
@@ -2054,9 +2054,9 @@ contains
         if (.not. status%ok()) return
         call read_rectangle_string("String insert rectangle", string, status)
         if (status%ok()) call string_insert_rectangle(start, end, string, status)
-    end subroutine cmd_string_insert_rectangle
+    end subroutine execute_string_insert_rectangle
 
-    recursive subroutine cmd_rectangle_number_lines(status)
+    recursive subroutine execute_rectangle_number_lines(status)
         type(status_type), intent(out) :: status
         integer(int64) :: start, end, start_at
         character(len=:), allocatable :: format
@@ -2065,7 +2065,7 @@ contains
         if (status%ok()) call region_end(end, status)
         if (.not. status%ok()) return
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call rectangle_number_lines(start, end, 1_int64, status)
             return
         end if
@@ -2074,75 +2074,75 @@ contains
         if (.not. status%ok()) return
         call read_string("Format string: ", format, status, initial_input=default_line_number_format(start, end, start_at))
         if (status%ok()) call rectangle_number_lines(start, end, start_at, status, format)
-    end subroutine cmd_rectangle_number_lines
+    end subroutine execute_rectangle_number_lines
 
-    recursive subroutine cmd_rectangle_exchange_point_and_mark(status)
+    recursive subroutine execute_rectangle_exchange_point_and_mark(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_exchange_point_and_mark(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_rectangle_exchange_point_and_mark
+        call rectangle_exchange_point_and_mark(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_rectangle_exchange_point_and_mark
 
-    recursive subroutine cmd_rectangle_right_char(status)
+    recursive subroutine execute_rectangle_right_character(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_right_char(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rectangle_right_char
+        call rectangle_right_character(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_rectangle_right_character
 
-    recursive subroutine cmd_rectangle_left_char(status)
+    recursive subroutine execute_rectangle_left_character(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_left_char(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rectangle_left_char
+        call rectangle_left_character(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_rectangle_left_character
 
-    recursive subroutine cmd_rectangle_forward_char(status)
+    recursive subroutine execute_rectangle_forward_character(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_forward_char(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rectangle_forward_char
+        call rectangle_forward_character(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_rectangle_forward_character
 
-    recursive subroutine cmd_rectangle_backward_char(status)
+    recursive subroutine execute_rectangle_backward_character(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_backward_char(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rectangle_backward_char
+        call rectangle_backward_character(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_rectangle_backward_character
 
-    recursive subroutine cmd_rectangle_next_line(status)
+    recursive subroutine execute_rectangle_next_line(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_next_line(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rectangle_next_line
+        call rectangle_next_line(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_rectangle_next_line
 
-    recursive subroutine cmd_rectangle_previous_line(status)
+    recursive subroutine execute_rectangle_previous_line(status)
         type(status_type), intent(out) :: status
 
-        call rectangle_previous_line(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_rectangle_previous_line
+        call rectangle_previous_line(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_rectangle_previous_line
 
-    !> Bind KEYS to command CMD in `rectangle_mark_mode_map'.  Not a port.
-    subroutine bind(keys, cmd)
-        character(len=*), intent(in) :: keys, cmd
+    !> Bind KEYS to command COMMAND in `rectangle_mark_mode_map'.  Not a port.
+    subroutine bind(keys, command)
+        character(len=*), intent(in) :: keys, command
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
 
         call key_parse(keys, key, status)
-        call define_key(rectangle_mark_mode_map, key, value_type(name=cmd), status)
+        call define_key(rectangle_mark_mode_map, key, value_type(name=command), status)
     end subroutine bind
 
-    !> Bind [remap FROM] to command CMD in `rectangle_mark_mode_map'.
+    !> Bind [remap FROM] to command COMMAND in `rectangle_mark_mode_map'.
     !> Not a port.
-    subroutine bind_remap(from, cmd)
-        character(len=*), intent(in) :: from, cmd
+    subroutine bind_remap(from, command)
+        character(len=*), intent(in) :: from, command
         type(value_type), allocatable :: key(:)
         type(status_type) :: status
 
         call list_elements(list(value_type(name="remap"), value_type(name=from)), key)
-        call define_key(rectangle_mark_mode_map, key, value_type(name=cmd), status)
+        call define_key(rectangle_mark_mode_map, key, value_type(name=command), status)
     end subroutine bind_remap
 
     !> Register the commands, `string_rectangle_history', Rectangle-Mark
     !> mode with its keymap, and the rectangular region's functions
     !> around the region's (rect.el's add-function calls).  Not a port.
-    subroutine init_rect()
+    subroutine initialize_rectangle()
         call forward_setting(string_rectangle_history)
         call minor_modes%rectangle_mark_mode%define("rectangle_mark_mode", hook=rectangle_mark_mode_hook, &
                                                     keymap=.true., body=rectangle_mark_mode_body)
@@ -2150,42 +2150,42 @@ contains
         call bind("C-o", "open_rectangle")
         call bind("C-t", "string_rectangle")
         call bind_remap("exchange_point_and_mark", "rectangle_exchange_point_and_mark")
-        call bind_remap("right_char", "rectangle_right_char")
-        call bind_remap("left_char", "rectangle_left_char")
-        call bind_remap("forward_char", "rectangle_forward_char")
-        call bind_remap("backward_char", "rectangle_backward_char")
+        call bind_remap("right_character", "rectangle_right_character")
+        call bind_remap("left_character", "rectangle_left_character")
+        call bind_remap("forward_character", "rectangle_forward_character")
+        call bind_remap("backward_character", "rectangle_backward_character")
         call bind_remap("next_line", "rectangle_next_line")
         call bind_remap("previous_line", "rectangle_previous_line")
         commands%rectangle_mark_mode%execute => rectangle_mark_mode
-        commands%rectangle_exchange_point_and_mark%execute => cmd_rectangle_exchange_point_and_mark
-        commands%rectangle_right_char%execute => cmd_rectangle_right_char
-        commands%rectangle_left_char%execute => cmd_rectangle_left_char
-        commands%rectangle_forward_char%execute => cmd_rectangle_forward_char
-        commands%rectangle_backward_char%execute => cmd_rectangle_backward_char
-        commands%rectangle_next_line%execute => cmd_rectangle_next_line
-        commands%rectangle_previous_line%execute => cmd_rectangle_previous_line
+        commands%rectangle_exchange_point_and_mark%execute => execute_rectangle_exchange_point_and_mark
+        commands%rectangle_right_character%execute => execute_rectangle_right_character
+        commands%rectangle_left_character%execute => execute_rectangle_left_character
+        commands%rectangle_forward_character%execute => execute_rectangle_forward_character
+        commands%rectangle_backward_character%execute => execute_rectangle_backward_character
+        commands%rectangle_next_line%execute => execute_rectangle_next_line
+        commands%rectangle_previous_line%execute => execute_rectangle_previous_line
 
-        if (.not. associated(orig_region_extract)) then
-            orig_highlight => redisplay_highlight_region_function
+        if (.not. associated(original_region_extract)) then
+            original_highlight => redisplay_highlight_region_function
             redisplay_highlight_region_function => rectangle_highlight_for_redisplay
-            orig_unhighlight => redisplay_unhighlight_region_function
+            original_unhighlight => redisplay_unhighlight_region_function
             redisplay_unhighlight_region_function => rectangle_unhighlight_for_redisplay
-            orig_region_extract => region_extract_function
+            original_region_extract => region_extract_function
             region_extract_function => rectangle_extract_region
-            orig_region_insert => region_insert_function
+            original_region_insert => region_insert_function
             region_insert_function => rectangle_insert_region
         end if
 
         call define_paste_handler_function("rectangle_insert_for_paste_internal", rectangle_insert_for_paste)
-        commands%delete_rectangle%execute => cmd_delete_rectangle
-        commands%cut_rectangle%execute => cmd_cut_rectangle
-        commands%copy_rectangle%execute => cmd_copy_rectangle
-        commands%paste_rectangle%execute => cmd_paste_rectangle
-        commands%open_rectangle%execute => cmd_open_rectangle
-        commands%delete_whitespace_rectangle%execute => cmd_delete_whitespace_rectangle
-        commands%string_rectangle%execute => cmd_string_rectangle
-        commands%string_insert_rectangle%execute => cmd_string_insert_rectangle
-        commands%clear_rectangle%execute => cmd_clear_rectangle
-        commands%rectangle_number_lines%execute => cmd_rectangle_number_lines
-    end subroutine init_rect
+        commands%delete_rectangle%execute => execute_delete_rectangle
+        commands%cut_rectangle%execute => execute_cut_rectangle
+        commands%copy_rectangle%execute => execute_copy_rectangle
+        commands%paste_rectangle%execute => execute_paste_rectangle
+        commands%open_rectangle%execute => execute_open_rectangle
+        commands%delete_whitespace_rectangle%execute => execute_delete_whitespace_rectangle
+        commands%string_rectangle%execute => execute_string_rectangle
+        commands%string_insert_rectangle%execute => execute_string_insert_rectangle
+        commands%clear_rectangle%execute => execute_clear_rectangle
+        commands%rectangle_number_lines%execute => execute_rectangle_number_lines
+    end subroutine initialize_rectangle
 end module rectangle_mod

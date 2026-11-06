@@ -99,7 +99,7 @@ the mouse on the tab bar (`tab-bar-map`, `tab-bar-mouse-down-1`, `tab-bar-mouse-
 the GUI tab bar and the icons' images (`tab-bar-button-margin`, `tab-bar-button-relief`),
 the menu bar's button (`tab-bar-format-menu-bar`, `tab-bar-menu-bar`, `tab-bar-menu-bar-button`),
 `tab-bar-format-align-right` and `tab-bar-format-global` (`global-mode-string` is not ported),
-the window state of a tab (`ws`) and what needs it: `tab-bar-move-tab-to-frame`, `tab-bar-detach-tab` (C-x t ^ f) with its alias `tab-detach`, `tab-bar-split-tab`, `tab-bar-merge-tabs`, `tab-bar-get-buffer-tab`, `frameset-filter-tabs`, `frameset-session-filter-tabs`,
+the window state of a tab (`whitespace`) and what needs it: `tab-bar-move-tab-to-frame`, `tab-bar-detach-tab` (C-x t ^ f) with its alias `tab-detach`, `tab-bar-split-tab`, `tab-bar-merge-tabs`, `tab-bar-get-buffer-tab`, `frameset-filter-tabs`, `frameset-session-filter-tabs`,
 `display-buffer-in-tab` and `display-buffer-in-new-tab` as `display-buffer` actions with their alist entries (`reusable-frames`, `ignore-current-tab`, `tab-name`, `tab-group`),
 `other-tab-prefix` (C-x t t) and `project-other-tab-command` (C-x t p) (display-buffer-override-next-command is not ported),
 C-x w ^ t (`window-prefix-map` is not ported),

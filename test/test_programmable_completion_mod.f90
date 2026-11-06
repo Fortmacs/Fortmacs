@@ -17,7 +17,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Own tests: upstream's pcomplete-tests.el tests `pcomplete_from_help',
+!> Own tests: upstream's pcomplete-tests.el tests `programmable_completion_from_help',
 !> which is not ported.  Parsing arguments, completing with a command's
 !> completion function and with the default one (file names).
 module test_programmable_completion_mod
@@ -30,14 +30,16 @@ module test_programmable_completion_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string
-    use bindings_mod, only: init_bindings
-    use files_mod, only: create_temp_file
-    use file_input_output_mod, only: init_fileio, write_region, create_directory_internal, delete_file_internal, &
+    use bindings_mod, only: initialize_bindings
+    use files_mod, only: create_temporary_file
+    use file_input_output_mod, only: initialize_fileio, write_region, create_directory_internal, delete_file_internal, &
                                      delete_directory_internal
     use minibuffer_reading_tables_mod, only: completion_table_type, completion_list_table
     use minibuffer_mod, only: completion_at_point, completion_at_point_functions
-    use programmable_completion_mod, only: pcomplete_parse_buffer_arguments, pcomplete_completions_at_point, pcomplete_here, &
-                                           pcomplete_command_functions, pcomplete_arg, pcomplete_parse_arguments
+    use programmable_completion_mod, only: programmable_completion_parse_buffer_arguments, &
+                                           programmable_completion_completions_at_point, programmable_completion_here, &
+                                           programmable_completion_command_functions, programmable_completion_argument, &
+                                           programmable_completion_parse_arguments
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -57,42 +59,42 @@ contains
                     ]
     end subroutine collect_programmable_completion_mod
 
-    !> A new buffer NAME in DIR, current, with
-    !> `pcomplete_completions_at_point' as its completion function.
-    subroutine pcomplete_buffer(name, dir, h)
-        character(len=*), intent(in) :: name, dir
+    !> A new buffer NAME in DIRECTORY, current, with
+    !> `programmable_completion_completions_at_point' as its completion function.
+    subroutine programmable_completion_buffer(name, directory, h)
+        character(len=*), intent(in) :: name, directory
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
         call show_alone()
-        call completion_at_point_functions%prepend(pcomplete_completions_at_point, local=.true.)
-    end subroutine pcomplete_buffer
+        call completion_at_point_functions%prepend(programmable_completion_completions_at_point, local=.true.)
+    end subroutine programmable_completion_buffer
 
     subroutine test_parse_buffer_arguments(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         integer(int64), allocatable :: begins(:)
 
-        call pcomplete_buffer(" pcomplete-parse", "/tmp/", h)
+        call programmable_completion_buffer(" pcomplete-parse", "/tmp/", h)
         call insert("ls  -l"//achar(9)//"dir", st)
-        call pcomplete_parse_buffer_arguments(args, begins)
-        call check(error, size(args) == 3, "three arguments")
+        call programmable_completion_parse_buffer_arguments(arguments, begins)
+        call check(error, size(arguments) == 3, "three arguments")
 
         if (.not. allocated(error)) then
-            call check(error, args(1)%text//"|"//args(2)%text//"|"//args(3)%text, "ls|-l|dir")
+            call check(error, arguments(1)%text//"|"//arguments(2)%text//"|"//arguments(3)%text, "ls|-l|dir")
         end if
 
         if (.not. allocated(error)) call check(error, begins(2) == 5 .and. begins(3) == 8, "where they begin")
 
         if (.not. allocated(error)) then
-            call check(error, pcomplete_parse_arguments(.false.), "parsed")
-            if (.not. allocated(error)) call check(error, pcomplete_arg(), "ls")
+            call check(error, programmable_completion_parse_arguments(.false.), "parsed")
+            if (.not. allocated(error)) call check(error, programmable_completion_argument(), "ls")
         end if
 
         call close_buffer(h, st)
@@ -104,7 +106,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (pcomplete_here(fruits)) continue
+        if (programmable_completion_here(fruits)) continue
     end subroutine complete_fruit
 
     recursive subroutine fruits(table, found)
@@ -122,8 +124,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call pcomplete_buffer(" pcomplete-command", "/tmp/", h)
-        call pcomplete_command_functions%append("fruit", complete_fruit)
+        call programmable_completion_buffer(" pcomplete-command", "/tmp/", h)
+        call programmable_completion_command_functions%append("fruit", complete_fruit)
         call insert("fruit ban", st)
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))
@@ -135,19 +137,19 @@ contains
     !> complete as file names.
     subroutine test_default_entries(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, tmp
+        type(handle_type) :: h, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        call init_fileio()
-        call create_temp_file("pcomplete", dir, st)
-        call delete_file_internal(dir, st)
-        call create_directory_internal(dir, st)
-        call get_or_make_buffer(" pcomplete-tmp", tmp, st)
-        call set_buffer(tmp, st)
-        call write_region(dir//"/notes.txt", .false., st)
-        call close_buffer(tmp, st)
-        call pcomplete_buffer(" pcomplete-entries", dir//"/", h)
+        call initialize_fileio()
+        call create_temporary_file("pcomplete", directory, st)
+        call delete_file_internal(directory, st)
+        call create_directory_internal(directory, st)
+        call get_or_make_buffer(" pcomplete-tmp", temporary, st)
+        call set_buffer(temporary, st)
+        call write_region(directory//"/notes.txt", .false., st)
+        call close_buffer(temporary, st)
+        call programmable_completion_buffer(" pcomplete-entries", directory//"/", h)
         call insert("cat no", st)
         call completion_at_point(st)
         call check(error, st%ok(), format_error(st))
@@ -161,7 +163,7 @@ contains
         end if
 
         call close_buffer(h, st)
-        call delete_file_internal(dir//"/notes.txt", st)
-        call delete_directory_internal(dir, st)
+        call delete_file_internal(directory//"/notes.txt", st)
+        call delete_directory_internal(directory, st)
     end subroutine test_default_entries
 end module test_programmable_completion_mod

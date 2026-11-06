@@ -81,7 +81,7 @@ grep -q "switched from generation 1 to 2" "$out" || fail "switch message"
 
 # A broken init file: the compiler's errors are shown, no generation is
 # made and generation 2 stays current.
-printf 'module user_config\n' >"$init"
+printf 'module user_configuration\n' >"$init"
 if "$fm" --recompile >"$out" 2>&1; then fail "--recompile of a broken init file succeeded"; fi
 grep -q "Compiling $init failed" "$out" || fail "no failure message"
 grep -q "Error:" "$out" || fail "no compiler errors shown"

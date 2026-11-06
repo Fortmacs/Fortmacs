@@ -37,7 +37,7 @@ contains
     recursive module subroutine calendar_cursor_to_nearest_date(date, status)
         type(calendar_date_type), intent(out) :: date
         type(status_type), intent(out) :: status
-        integer :: col, k, e, last, right
+        integer :: column, k, e, last, right
         integer(int64) :: reached, shortage, found
         logical :: on_date, backward
         type(status_type) :: st
@@ -45,15 +45,15 @@ contains
         call calendar_cursor_to_date(date, status)
         if (.not. status%ok()) return
         if (date%month /= 0) return
-        col = int(current_column())
+        column = int(current_column())
         k = calendar_local_index()
         e = 0
         if (allocated(locals(k)%month_edges)) e = findloc(locals(k)%month_edges%segment, calendar_column_to_segment(), dim=1)
 
-        if (count_lines(point_min(), point()) < calendar_first_date_row) then
-            call goto_char(point_min())
+        if (count_lines(point_minimum(), point()) < calendar_first_date_row) then
+            call goto_character(point_minimum())
             shortage = forward_line(int(calendar_first_date_row - 1, int64))
-            call move_to_column(int(col, int64), reached)
+            call move_to_column(int(column, int64), reached)
         end if
 
         ! The date positions are fixed and computable, but searching
@@ -71,29 +71,29 @@ contains
 
             if (.not. backward) then
                 if (e == 0) then
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number_or_marker_p, no month edges")
+                    call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "number_or_marker_p, no month edges")
                     return
                 end if
 
                 last = locals(k)%month_edges(e)%last
                 right = locals(k)%month_edges(e)%right
-                backward = col > last .and. col < right
+                backward = column > last .and. column < right
             end if
 
             if (backward) then
                 do
-                    call re_search_backward("[0-9]", found, st, noerror=1)
+                    call regular_expression_search_backward("[0-9]", found, st, noerror=1)
                     if (found == 0) exit
                     if (has_calendar_date_property(point())) exit
                 end do
             else
                 do
-                    call re_search_forward("[0-9]", found, st, noerror=1)
+                    call regular_expression_search_forward("[0-9]", found, st, noerror=1)
                     if (found == 0) exit
                     if (has_calendar_date_property(point() - 1)) exit
                 end do
 
-                if (point() > point_min()) call goto_char(point() - 1)
+                if (point() > point_minimum()) call goto_character(point() - 1)
             end if
         end if
 
@@ -106,7 +106,7 @@ contains
         integer(int64) :: reached, shortage
 
         k = calendar_local_index()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         line = calendar_first_date_row - 1 &
                + (date%day - 1 + modulo(calendar_day_of_week(calendar_date_type(date%month, 1, date%year)) &
                                         - calendar_week_start_day, 7))/7
@@ -137,16 +137,16 @@ contains
 
     ! Regenerate the calendar with MONTH, YEAR at the left or right edge.
     ! This function is mainly used when MONTH, YEAR is invisible.  The new
-    ! month is placed at the right edge if ARG is positive, and the left edge
+    ! month is placed at the right edge if ARGUMENT is positive, and the left edge
     ! otherwise.  Port of cal-move.el:calendar--show-month-at-edge.
-    recursive subroutine show_month_at_edge(month, year, arg, status)
-        integer, intent(in) :: month, year, arg
+    recursive subroutine show_month_at_edge(month, year, argument, status)
+        integer, intent(in) :: month, year, argument
         type(status_type), intent(out) :: status
         integer :: m1, y1, m2, y2, offset
 
         call calendar_get_month_range(m1, y1, m2, y2)
 
-        if (arg > 0) then
+        if (argument > 0) then
             offset = calendar_interval(m2, y2, month, year)
         else
             offset = calendar_interval(m1, y1, month, year)
@@ -156,8 +156,8 @@ contains
         call calendar_generate_window(status, m1, y1)
     end subroutine show_month_at_edge
 
-    recursive module subroutine calendar_forward_month(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_forward_month(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: cursor_date, new_cursor_date
         integer :: month, year
@@ -168,12 +168,12 @@ contains
         if (.not. status%ok()) return
         month = cursor_date%month
         year = cursor_date%year
-        call calendar_increment_month(month, year, arg)
+        call calendar_increment_month(month, year, argument)
         ! Put the new month on the screen, if needed, and go to the new date.
         new_cursor_date = calendar_date_type(month, min(calendar_last_day_of_month(month, year), cursor_date%day), year)
 
         if (.not. is_calendar_date_visible(new_cursor_date)) then
-            call show_month_at_edge(month, year, arg, status)
+            call show_month_at_edge(month, year, argument, status)
             if (.not. status%ok()) return
         end if
 
@@ -181,29 +181,29 @@ contains
         call calendar_move_hook%execute(status)
     end subroutine calendar_forward_month
 
-    recursive module subroutine calendar_forward_year(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_forward_year(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_forward_month(12*arg, status)
+        call calendar_forward_month(12*argument, status)
     end subroutine calendar_forward_year
 
-    recursive module subroutine calendar_backward_month(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_backward_month(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_forward_month(-arg, status)
+        call calendar_forward_month(-argument, status)
     end subroutine calendar_backward_month
 
-    recursive module subroutine calendar_backward_year(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_backward_year(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_forward_month(-12*arg, status)
+        call calendar_forward_month(-12*argument, status)
     end subroutine calendar_backward_year
 
-    recursive module subroutine calendar_scroll_left(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_scroll_left(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: old_date, today, date
         integer :: month, year, offset
@@ -211,14 +211,14 @@ contains
         call calendar_cursor_to_nearest_date(old_date, status)
         if (.not. status%ok()) return
 
-        if (arg /= 0) then
+        if (argument /= 0) then
             call calendar_cursor_to_date(old_date, status)
             if (.not. status%ok()) return
             today = calendar_current_date()
             month = calendar_displayed_month()
             year = calendar_displayed_year()
             offset = calendar_interval(month, year, old_date%month, old_date%year)
-            call calendar_increment_month(month, year, arg)
+            call calendar_increment_month(month, year, argument)
             call calendar_generate_window(status, month, year)
             if (.not. status%ok()) return
 
@@ -237,25 +237,25 @@ contains
         call calendar_move_hook%execute(status)
     end subroutine calendar_scroll_left
 
-    recursive module subroutine calendar_scroll_right(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_scroll_right(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_scroll_left(-arg, status)
+        call calendar_scroll_left(-argument, status)
     end subroutine calendar_scroll_right
 
-    recursive module subroutine calendar_scroll_calendar_left(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_scroll_calendar_left(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_scroll_left(calendar_total_months_local()*arg, status)
+        call calendar_scroll_left(calendar_total_months_local()*argument, status)
     end subroutine calendar_scroll_calendar_left
 
-    recursive module subroutine calendar_scroll_calendar_right(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_scroll_calendar_right(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_scroll_left(-calendar_total_months_local()*arg, status)
+        call calendar_scroll_left(-calendar_total_months_local()*argument, status)
     end subroutine calendar_scroll_calendar_right
 
     recursive module subroutine calendar_recenter(status)
@@ -304,14 +304,14 @@ contains
         call calendar_scroll_left(calendar_interval(m1, y1, cursor_date%month, cursor_date%year), status)
     end subroutine calendar_recenter
 
-    recursive module subroutine calendar_forward_day(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_forward_day(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: cursor_date, new_cursor_date
         integer :: n
 
         status = status_type()
-        n = arg
+        n = argument
 
         if (n /= 0) then
             call calendar_cursor_to_date(cursor_date, status)
@@ -340,29 +340,29 @@ contains
         call calendar_move_hook%execute(status)
     end subroutine calendar_forward_day
 
-    recursive module subroutine calendar_backward_day(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_backward_day(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_forward_day(-arg, status)
+        call calendar_forward_day(-argument, status)
     end subroutine calendar_backward_day
 
-    recursive module subroutine calendar_forward_week(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_forward_week(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_forward_day(7*arg, status)
+        call calendar_forward_day(7*argument, status)
     end subroutine calendar_forward_week
 
-    recursive module subroutine calendar_backward_week(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_backward_week(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_forward_day(-7*arg, status)
+        call calendar_forward_day(-7*argument, status)
     end subroutine calendar_backward_week
 
-    recursive module subroutine calendar_beginning_of_week(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_beginning_of_week(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
         integer :: day
@@ -374,14 +374,14 @@ contains
         day = calendar_day_of_week(date)
 
         if (day == calendar_week_start_day) then
-            call calendar_backward_day(7*arg, status)
+            call calendar_backward_day(7*argument, status)
         else
-            call calendar_backward_day(modulo(day - calendar_week_start_day, 7) + 7*(arg - 1), status)
+            call calendar_backward_day(modulo(day - calendar_week_start_day, 7) + 7*(argument - 1), status)
         end if
     end subroutine calendar_beginning_of_week
 
-    recursive module subroutine calendar_end_of_week(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_end_of_week(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
         integer :: day
@@ -393,14 +393,14 @@ contains
         day = calendar_day_of_week(date)
 
         if (day == modulo(calendar_week_start_day - 1, 7)) then
-            call calendar_forward_day(7*arg, status)
+            call calendar_forward_day(7*argument, status)
         else
-            call calendar_forward_day(6 - modulo(day - calendar_week_start_day, 7) + 7*(arg - 1), status)
+            call calendar_forward_day(6 - modulo(day - calendar_week_start_day, 7) + 7*(argument - 1), status)
         end if
     end subroutine calendar_end_of_week
 
-    recursive module subroutine calendar_beginning_of_month(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_beginning_of_month(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
 
@@ -410,15 +410,15 @@ contains
         if (.not. status%ok()) return
 
         if (date%day == 1) then
-            call calendar_backward_month(arg, status)
+            call calendar_backward_month(argument, status)
         else
             call calendar_cursor_to_visible_date(calendar_date_type(date%month, 1, date%year))
-            call calendar_backward_month(arg - 1, status)
+            call calendar_backward_month(argument - 1, status)
         end if
     end subroutine calendar_beginning_of_month
 
-    recursive module subroutine calendar_end_of_month(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_end_of_month(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date, last_day
         integer :: month, year, n
@@ -429,7 +429,7 @@ contains
         if (.not. status%ok()) return
         month = date%month
         year = date%year
-        n = arg
+        n = argument
 
         if (date%day /= calendar_last_day_of_month(month, year)) then
             call calendar_cursor_to_visible_date(calendar_date_type(month, calendar_last_day_of_month(month, year), year))
@@ -448,8 +448,8 @@ contains
         call calendar_move_hook%execute(status)
     end subroutine calendar_end_of_month
 
-    recursive module subroutine calendar_beginning_of_year(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_beginning_of_year(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date, jan_first
         type(hook_type) :: saved_hook
@@ -466,12 +466,12 @@ contains
         call calendar_move_hook%clear()
 
         if (date%day == 1 .and. date%month == 1) then
-            call calendar_backward_month(12*arg, status)
-        else if (arg == 1 .and. is_calendar_date_visible(jan_first)) then
+            call calendar_backward_month(12*argument, status)
+        else if (argument == 1 .and. is_calendar_date_visible(jan_first)) then
             call calendar_cursor_to_visible_date(jan_first)
         else
-            year = year - (arg - 1)
-            call show_month_at_edge(1, year, -arg, status)
+            year = year - (argument - 1)
+            call show_month_at_edge(1, year, -argument, status)
             if (status%ok()) call calendar_cursor_to_visible_date(calendar_date_type(1, 1, year))
         end if
 
@@ -480,8 +480,8 @@ contains
         call calendar_move_hook%execute(status)
     end subroutine calendar_beginning_of_year
 
-    recursive module subroutine calendar_end_of_year(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_end_of_year(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date, dec_31
         type(hook_type) :: saved_hook
@@ -498,12 +498,12 @@ contains
         call calendar_move_hook%clear()
 
         if (date%day == 31 .and. date%month == 12) then
-            call calendar_forward_month(12*arg, status)
-        else if (arg == 1 .and. is_calendar_date_visible(dec_31)) then
+            call calendar_forward_month(12*argument, status)
+        else if (argument == 1 .and. is_calendar_date_visible(dec_31)) then
             call calendar_cursor_to_visible_date(dec_31)
         else
-            year = year + (arg - 1)
-            call show_month_at_edge(12, year, arg, status)
+            year = year + (argument - 1)
+            call show_month_at_edge(12, year, argument, status)
             if (status%ok()) call calendar_cursor_to_visible_date(calendar_date_type(12, 31, year))
         end if
 
@@ -547,8 +547,8 @@ contains
         call calendar_print_day_of_year(status)
     end subroutine calendar_goto_day_of_year
 
-    recursive module subroutine calendar_show_more_months(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_show_more_months(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: cursor_date
         integer :: avail, k, m1, y1, m2, y2, offset
@@ -557,9 +557,9 @@ contains
         status = status_type()
         k = calendar_local_index()
 
-        if (arg > 0) then
+        if (argument > 0) then
             if (locals(k)%total_months >= 12) then
-                call set_error(status, FM_GENERIC_ERROR, "The calendar shows at most 12 months.")
+                call set_error(status, GENERIC_ERROR_CODE, "The calendar shows at most 12 months.")
                 return
             end if
 
@@ -569,13 +569,13 @@ contains
             if (avail < 1) then
                 call message("No space left to display more months.")
             else
-                locals(k)%total_months = locals(k)%total_months + min(avail, arg)
+                locals(k)%total_months = locals(k)%total_months + min(avail, argument)
                 call calendar_recompute_layout_variables()
                 call calendar_redraw(status)
             end if
-        else if (arg < 0) then
+        else if (argument < 0) then
             if (locals(k)%total_months <= 3) then
-                call set_error(status, FM_GENERIC_ERROR, "The calendar shows at least 3 months.")
+                call set_error(status, GENERIC_ERROR_CODE, "The calendar shows at least 3 months.")
                 return
             end if
 
@@ -584,7 +584,7 @@ contains
             call calendar_cursor_to_date(cursor_date, status, .true.)
             if (.not. status%ok()) return
             k = calendar_local_index()
-            locals(k)%total_months = max(3, locals(k)%total_months + arg)
+            locals(k)%total_months = max(3, locals(k)%total_months + argument)
             call calendar_recompute_layout_variables()
             call calendar_get_month_range(m1, y1, m2, y2)
             offset = calendar_interval(m1, y1, cursor_date%month, cursor_date%year) - locals(k)%total_months
@@ -601,11 +601,11 @@ contains
         end if
     end subroutine calendar_show_more_months
 
-    recursive module subroutine calendar_show_fewer_months(arg, status)
-        integer, intent(in) :: arg
+    recursive module subroutine calendar_show_fewer_months(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call calendar_show_more_months(-arg, status)
+        call calendar_show_more_months(-argument, status)
     end subroutine calendar_show_fewer_months
 
     ! ------------------------------------------------------------------
@@ -614,148 +614,148 @@ contains
 
     ! The numeric prefix argument.  Not a port.
     integer function prefix_count()
-        prefix_count = int(prefix_numeric_value(current_prefix_arg))
+        prefix_count = int(prefix_numeric_value(current_prefix_argument))
     end function prefix_count
 
     ! The command `calendar_forward_month'.  Not a port.
-    recursive subroutine cmd_calendar_forward_month(status)
+    recursive subroutine execute_calendar_forward_month(status)
         type(status_type), intent(out) :: status
 
         call calendar_forward_month(prefix_count(), status)
-    end subroutine cmd_calendar_forward_month
+    end subroutine execute_calendar_forward_month
 
     ! The command `calendar_forward_year'.  Not a port.
-    recursive subroutine cmd_calendar_forward_year(status)
+    recursive subroutine execute_calendar_forward_year(status)
         type(status_type), intent(out) :: status
 
         call calendar_forward_year(prefix_count(), status)
-    end subroutine cmd_calendar_forward_year
+    end subroutine execute_calendar_forward_year
 
     ! The command `calendar_backward_month'.  Not a port.
-    recursive subroutine cmd_calendar_backward_month(status)
+    recursive subroutine execute_calendar_backward_month(status)
         type(status_type), intent(out) :: status
 
         call calendar_backward_month(prefix_count(), status)
-    end subroutine cmd_calendar_backward_month
+    end subroutine execute_calendar_backward_month
 
     ! The command `calendar_backward_year'.  Not a port.
-    recursive subroutine cmd_calendar_backward_year(status)
+    recursive subroutine execute_calendar_backward_year(status)
         type(status_type), intent(out) :: status
 
         call calendar_backward_year(prefix_count(), status)
-    end subroutine cmd_calendar_backward_year
+    end subroutine execute_calendar_backward_year
 
     ! The command `calendar_scroll_left'.  Not a port.
-    recursive subroutine cmd_calendar_scroll_left(status)
+    recursive subroutine execute_calendar_scroll_left(status)
         type(status_type), intent(out) :: status
 
         call calendar_scroll_left(prefix_count(), status)
-    end subroutine cmd_calendar_scroll_left
+    end subroutine execute_calendar_scroll_left
 
     ! The command `calendar_scroll_right'.  Not a port.
-    recursive subroutine cmd_calendar_scroll_right(status)
+    recursive subroutine execute_calendar_scroll_right(status)
         type(status_type), intent(out) :: status
 
         call calendar_scroll_right(prefix_count(), status)
-    end subroutine cmd_calendar_scroll_right
+    end subroutine execute_calendar_scroll_right
 
     ! The command `calendar_scroll_calendar_left'.  Not a port.
-    recursive subroutine cmd_calendar_scroll_calendar_left(status)
+    recursive subroutine execute_calendar_scroll_calendar_left(status)
         type(status_type), intent(out) :: status
 
         call calendar_scroll_calendar_left(prefix_count(), status)
-    end subroutine cmd_calendar_scroll_calendar_left
+    end subroutine execute_calendar_scroll_calendar_left
 
     ! The command `calendar_scroll_calendar_right'.  Not a port.
-    recursive subroutine cmd_calendar_scroll_calendar_right(status)
+    recursive subroutine execute_calendar_scroll_calendar_right(status)
         type(status_type), intent(out) :: status
 
         call calendar_scroll_calendar_right(prefix_count(), status)
-    end subroutine cmd_calendar_scroll_calendar_right
+    end subroutine execute_calendar_scroll_calendar_right
 
     ! The command `calendar_forward_day'.  Not a port.
-    recursive subroutine cmd_calendar_forward_day(status)
+    recursive subroutine execute_calendar_forward_day(status)
         type(status_type), intent(out) :: status
 
         call calendar_forward_day(prefix_count(), status)
-    end subroutine cmd_calendar_forward_day
+    end subroutine execute_calendar_forward_day
 
     ! The command `calendar_backward_day'.  Not a port.
-    recursive subroutine cmd_calendar_backward_day(status)
+    recursive subroutine execute_calendar_backward_day(status)
         type(status_type), intent(out) :: status
 
         call calendar_backward_day(prefix_count(), status)
-    end subroutine cmd_calendar_backward_day
+    end subroutine execute_calendar_backward_day
 
     ! The command `calendar_forward_week'.  Not a port.
-    recursive subroutine cmd_calendar_forward_week(status)
+    recursive subroutine execute_calendar_forward_week(status)
         type(status_type), intent(out) :: status
 
         call calendar_forward_week(prefix_count(), status)
-    end subroutine cmd_calendar_forward_week
+    end subroutine execute_calendar_forward_week
 
     ! The command `calendar_backward_week'.  Not a port.
-    recursive subroutine cmd_calendar_backward_week(status)
+    recursive subroutine execute_calendar_backward_week(status)
         type(status_type), intent(out) :: status
 
         call calendar_backward_week(prefix_count(), status)
-    end subroutine cmd_calendar_backward_week
+    end subroutine execute_calendar_backward_week
 
     ! The command `calendar_beginning_of_week'.  Not a port.
-    recursive subroutine cmd_calendar_beginning_of_week(status)
+    recursive subroutine execute_calendar_beginning_of_week(status)
         type(status_type), intent(out) :: status
 
         call calendar_beginning_of_week(prefix_count(), status)
-    end subroutine cmd_calendar_beginning_of_week
+    end subroutine execute_calendar_beginning_of_week
 
     ! The command `calendar_end_of_week'.  Not a port.
-    recursive subroutine cmd_calendar_end_of_week(status)
+    recursive subroutine execute_calendar_end_of_week(status)
         type(status_type), intent(out) :: status
 
         call calendar_end_of_week(prefix_count(), status)
-    end subroutine cmd_calendar_end_of_week
+    end subroutine execute_calendar_end_of_week
 
     ! The command `calendar_beginning_of_month'.  Not a port.
-    recursive subroutine cmd_calendar_beginning_of_month(status)
+    recursive subroutine execute_calendar_beginning_of_month(status)
         type(status_type), intent(out) :: status
 
         call calendar_beginning_of_month(prefix_count(), status)
-    end subroutine cmd_calendar_beginning_of_month
+    end subroutine execute_calendar_beginning_of_month
 
     ! The command `calendar_end_of_month'.  Not a port.
-    recursive subroutine cmd_calendar_end_of_month(status)
+    recursive subroutine execute_calendar_end_of_month(status)
         type(status_type), intent(out) :: status
 
         call calendar_end_of_month(prefix_count(), status)
-    end subroutine cmd_calendar_end_of_month
+    end subroutine execute_calendar_end_of_month
 
     ! The command `calendar_beginning_of_year'.  Not a port.
-    recursive subroutine cmd_calendar_beginning_of_year(status)
+    recursive subroutine execute_calendar_beginning_of_year(status)
         type(status_type), intent(out) :: status
 
         call calendar_beginning_of_year(prefix_count(), status)
-    end subroutine cmd_calendar_beginning_of_year
+    end subroutine execute_calendar_beginning_of_year
 
     ! The command `calendar_end_of_year'.  Not a port.
-    recursive subroutine cmd_calendar_end_of_year(status)
+    recursive subroutine execute_calendar_end_of_year(status)
         type(status_type), intent(out) :: status
 
         call calendar_end_of_year(prefix_count(), status)
-    end subroutine cmd_calendar_end_of_year
+    end subroutine execute_calendar_end_of_year
 
     ! The command `calendar_goto_date': reads the date.  Not a port.
-    recursive subroutine cmd_calendar_goto_date(status)
+    recursive subroutine execute_calendar_goto_date(status)
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
 
         call calendar_read_date(date, status)
         if (.not. status%ok()) return
         call calendar_goto_date(date, status)
-    end subroutine cmd_calendar_goto_date
+    end subroutine execute_calendar_goto_date
 
     ! The command `calendar_goto_day_of_year': reads the year and the day
     ! number.  Not a port.
-    recursive subroutine cmd_calendar_goto_day_of_year(status)
+    recursive subroutine execute_calendar_goto_day_of_year(status)
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: today
         integer :: year, day, last
@@ -784,46 +784,46 @@ contains
 
             is_day_number = 1 <= abs(x) .and. abs(x) <= last
         end function is_day_number
-    end subroutine cmd_calendar_goto_day_of_year
+    end subroutine execute_calendar_goto_day_of_year
 
     ! The command `calendar_show_more_months'.  Not a port.
-    recursive subroutine cmd_calendar_show_more_months(status)
+    recursive subroutine execute_calendar_show_more_months(status)
         type(status_type), intent(out) :: status
 
         call calendar_show_more_months(prefix_count(), status)
-    end subroutine cmd_calendar_show_more_months
+    end subroutine execute_calendar_show_more_months
 
     ! The command `calendar_show_fewer_months'.  Not a port.
-    recursive subroutine cmd_calendar_show_fewer_months(status)
+    recursive subroutine execute_calendar_show_fewer_months(status)
         type(status_type), intent(out) :: status
 
         call calendar_show_fewer_months(prefix_count(), status)
-    end subroutine cmd_calendar_show_fewer_months
+    end subroutine execute_calendar_show_fewer_months
 
-    module subroutine init_cal_move()
+    module subroutine initialize_calendar_movement()
         commands%calendar_goto_today%execute => calendar_goto_today
-        commands%calendar_forward_month%execute => cmd_calendar_forward_month
-        commands%calendar_forward_year%execute => cmd_calendar_forward_year
-        commands%calendar_backward_month%execute => cmd_calendar_backward_month
-        commands%calendar_backward_year%execute => cmd_calendar_backward_year
-        commands%calendar_scroll_left%execute => cmd_calendar_scroll_left
-        commands%calendar_scroll_right%execute => cmd_calendar_scroll_right
-        commands%calendar_scroll_calendar_left%execute => cmd_calendar_scroll_calendar_left
-        commands%calendar_scroll_calendar_right%execute => cmd_calendar_scroll_calendar_right
+        commands%calendar_forward_month%execute => execute_calendar_forward_month
+        commands%calendar_forward_year%execute => execute_calendar_forward_year
+        commands%calendar_backward_month%execute => execute_calendar_backward_month
+        commands%calendar_backward_year%execute => execute_calendar_backward_year
+        commands%calendar_scroll_left%execute => execute_calendar_scroll_left
+        commands%calendar_scroll_right%execute => execute_calendar_scroll_right
+        commands%calendar_scroll_calendar_left%execute => execute_calendar_scroll_calendar_left
+        commands%calendar_scroll_calendar_right%execute => execute_calendar_scroll_calendar_right
         commands%calendar_recenter%execute => calendar_recenter
-        commands%calendar_forward_day%execute => cmd_calendar_forward_day
-        commands%calendar_backward_day%execute => cmd_calendar_backward_day
-        commands%calendar_forward_week%execute => cmd_calendar_forward_week
-        commands%calendar_backward_week%execute => cmd_calendar_backward_week
-        commands%calendar_beginning_of_week%execute => cmd_calendar_beginning_of_week
-        commands%calendar_end_of_week%execute => cmd_calendar_end_of_week
-        commands%calendar_beginning_of_month%execute => cmd_calendar_beginning_of_month
-        commands%calendar_end_of_month%execute => cmd_calendar_end_of_month
-        commands%calendar_beginning_of_year%execute => cmd_calendar_beginning_of_year
-        commands%calendar_end_of_year%execute => cmd_calendar_end_of_year
-        commands%calendar_goto_date%execute => cmd_calendar_goto_date
-        commands%calendar_goto_day_of_year%execute => cmd_calendar_goto_day_of_year
-        commands%calendar_show_more_months%execute => cmd_calendar_show_more_months
-        commands%calendar_show_fewer_months%execute => cmd_calendar_show_fewer_months
-    end subroutine init_cal_move
+        commands%calendar_forward_day%execute => execute_calendar_forward_day
+        commands%calendar_backward_day%execute => execute_calendar_backward_day
+        commands%calendar_forward_week%execute => execute_calendar_forward_week
+        commands%calendar_backward_week%execute => execute_calendar_backward_week
+        commands%calendar_beginning_of_week%execute => execute_calendar_beginning_of_week
+        commands%calendar_end_of_week%execute => execute_calendar_end_of_week
+        commands%calendar_beginning_of_month%execute => execute_calendar_beginning_of_month
+        commands%calendar_end_of_month%execute => execute_calendar_end_of_month
+        commands%calendar_beginning_of_year%execute => execute_calendar_beginning_of_year
+        commands%calendar_end_of_year%execute => execute_calendar_end_of_year
+        commands%calendar_goto_date%execute => execute_calendar_goto_date
+        commands%calendar_goto_day_of_year%execute => execute_calendar_goto_day_of_year
+        commands%calendar_show_more_months%execute => execute_calendar_show_more_months
+        commands%calendar_show_fewer_months%execute => execute_calendar_show_fewer_months
+    end subroutine initialize_calendar_movement
 end submodule calendar_movement_mod

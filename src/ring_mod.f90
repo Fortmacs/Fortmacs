@@ -33,16 +33,16 @@
 !> `ring_next', `ring_previous', `ring_elements', `ring_insert+extend',
 !> `ring_remove+insert+extend', `ring_convert_sequence_to_ring'.
 module ring_mod
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
-    !> A ring: HEAD is the index (0-based) of the oldest item in VEC,
+    !> A ring: HEAD is the index (0-based) of the oldest item in VECTOR,
     !> LENGTH the number of items.  Port of ring.el's (HEAD LENGTH . VECTOR).
     type, public :: ring_type
         integer :: head = 0, length = 0
-        type(string_type), allocatable :: vec(:)
+        type(string_type), allocatable :: vector(:)
     contains
         !> Make the ring empty, able to contain SIZE elements.
         procedure :: make => ring_make
@@ -60,7 +60,7 @@ module ring_mod
         !> Remove an item (the oldest, or the one indexed).
         procedure :: remove => ring_remove
         !> The element at INDEX (0 the newest).
-        procedure :: ref => ring_ref
+        procedure :: reference => ring_reference
         !> The index of ITEM in the ring, or -1.
         procedure :: member => ring_member
         !> Increase the size of the ring by X.
@@ -81,8 +81,8 @@ contains
 
         self%head = 0
         self%length = 0
-        if (allocated(self%vec)) deallocate (self%vec)
-        allocate (self%vec(0:max(size, 0) - 1))
+        if (allocated(self%vector)) deallocate (self%vector)
+        allocate (self%vector(0:max(size, 0) - 1))
     end subroutine ring_make
 
     !> Return INDEX+1, with wraparound.  Port of ring.el:ring-plus1.
@@ -139,7 +139,7 @@ contains
         class(ring_type), intent(in) :: self
 
         ring_size = 0
-        if (allocated(self%vec)) ring_size = size(self%vec)
+        if (allocated(self%vector)) ring_size = size(self%vector)
     end function ring_size
 
     !> Add to RING the item ITEM, at the front, as the oldest item.
@@ -153,7 +153,7 @@ contains
         if (veclen == 0) return
         self%length = min(veclen, self%length + 1)
         self%head = ring_minus1(self%head, veclen)
-        self%vec(self%head)%text = item
+        self%vector(self%head)%text = item
     end subroutine ring_insert_at_beginning
 
     !> Insert onto ring RING the item ITEM, as the newest (last) item.
@@ -167,7 +167,7 @@ contains
         veclen = self%size()
         ! (A ring of size 0 holds nothing; upstream divides by zero.)
         if (veclen == 0) return
-        self%vec(modulo(self%head + self%length, veclen))%text = item
+        self%vector(modulo(self%head + self%length, veclen))%text = item
 
         if (self%length == veclen) then
             self%head = ring_plus1(self%head, veclen)
@@ -187,7 +187,7 @@ contains
         integer :: veclen, tl, k
 
         if (self%empty_p()) then
-            call set_error(status, FM_GENERIC_ERROR, "Ring empty")
+            call set_error(status, GENERIC_ERROR_CODE, "Ring empty")
             return
         end if
 
@@ -203,20 +203,20 @@ contains
         k = ring_index(k, self%head, self%length, veclen)
 
         if (present(item)) then
-            if (allocated(self%vec(k)%text)) item = self%vec(k)%text
+            if (allocated(self%vector(k)%text)) item = self%vector(k)%text
         end if
 
         do while (k /= tl)
-            if (allocated(self%vec(ring_plus1(k, veclen))%text)) then
-                self%vec(k)%text = self%vec(ring_plus1(k, veclen))%text
-            else if (allocated(self%vec(k)%text)) then
-                deallocate (self%vec(k)%text)
+            if (allocated(self%vector(ring_plus1(k, veclen))%text)) then
+                self%vector(k)%text = self%vector(ring_plus1(k, veclen))%text
+            else if (allocated(self%vector(k)%text)) then
+                deallocate (self%vector(k)%text)
             end if
 
             k = ring_plus1(k, veclen)
         end do
 
-        if (allocated(self%vec(tl)%text)) deallocate (self%vec(tl)%text)
+        if (allocated(self%vector(tl)%text)) deallocate (self%vector(tl)%text)
         self%length = self%length - 1
     end subroutine ring_remove
 
@@ -226,7 +226,7 @@ contains
     !> INDEX need not be <= the ring length; the appropriate modulo
     !> operation will be performed.  Port of ring.el:ring-ref (an unallocated item
     !> is "").
-    subroutine ring_ref(self, index, item, status)
+    subroutine ring_reference(self, index, item, status)
         class(ring_type), intent(in) :: self
         integer, intent(in) :: index
         character(len=:), allocatable, intent(out) :: item
@@ -234,19 +234,19 @@ contains
         integer :: k
 
         if (self%empty_p()) then
-            call set_error(status, FM_GENERIC_ERROR, "Accessing an empty ring")
+            call set_error(status, GENERIC_ERROR_CODE, "Accessing an empty ring")
             item = ""
             return
         end if
 
         k = ring_index(index, self%head, self%length, self%size())
 
-        if (allocated(self%vec(k)%text)) then
-            item = self%vec(k)%text
+        if (allocated(self%vector(k)%text)) then
+            item = self%vector(k)%text
         else
             item = ""
         end if
-    end subroutine ring_ref
+    end subroutine ring_reference
 
     !> Return index of ITEM if on RING, else -1.
     !> Comparison is done via `equal'.  The index is 0-based.  Port of
@@ -259,9 +259,9 @@ contains
         do ind = 0, self%length - 1
             k = ring_index(ind, self%head, self%length, self%size())
 
-            if (allocated(self%vec(k)%text)) then
-                if (len(self%vec(k)%text) == len(item)) then
-                    if (self%vec(k)%text == item) return
+            if (allocated(self%vector(k)%text)) then
+                if (len(self%vector(k)%text) == len(item)) then
+                    if (self%vector(k)%text == item) return
                 end if
             end if
         end do
@@ -283,14 +283,14 @@ contains
     subroutine ring_resize(self, size)
         class(ring_type), intent(inout) :: self
         integer, intent(in) :: size
-        type(string_type), allocatable :: new_vec(:)
+        type(string_type), allocatable :: new_items(:)
         integer :: copy_length, copy_hd, old_size, j, k
 
-        allocate (new_vec(0:max(size, 0) - 1))
+        allocate (new_items(0:max(size, 0) - 1))
 
         if (self%length == 0) then
             self%length = 0
-            call move_alloc(new_vec, self%vec)
+            call move_alloc(new_items, self%vector)
             return
         end if
 
@@ -302,10 +302,10 @@ contains
         ! out in the right order.
         do j = 0, copy_length - 1
             k = modulo(copy_hd + j, old_size)
-            if (allocated(self%vec(k)%text)) call move_alloc(self%vec(k)%text, new_vec(j)%text)
+            if (allocated(self%vector(k)%text)) call move_alloc(self%vector(k)%text, new_items(j)%text)
         end do
 
-        call move_alloc(new_vec, self%vec)
+        call move_alloc(new_items, self%vector)
         self%length = copy_length
         self%head = 0
     end subroutine ring_resize

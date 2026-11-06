@@ -35,13 +35,14 @@ module test_fill_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, fill_column, auto_fill_function
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string, delete_region, pos_bol, pos_eol
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_string, delete_region, &
+                                     position_beginning_of_line, position_end_of_line
     use editing_commands_mod, only: forward_line, beginning_of_line, self_insert_command
     use search_mod, only: search_forward
-    use simple_mod, only: fill_prefix, deactivate_mark, init_simple
+    use simple_mod, only: fill_prefix, deactivate_mark, initialize_simple
     use modes_mod, only: minor_modes
     use paragraphs_mod, only: sentence_end_double_space
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use fill_mod, only: fill_paragraph, fill_region, fill_region_as_paragraph, fill_separate_heterogeneous_words_with_space, &
                         fill_nobreak_functions, is_fill_polish_nobreak, set_fill_prefix, fill_context_prefix, &
                         DEFAULT_JUSTIFICATION_FULL, DEFAULT_JUSTIFICATION_RIGHT, DEFAULT_JUSTIFICATION_CENTER
@@ -73,12 +74,12 @@ contains
 
     !> A fresh buffer with the default variables (as a temporary buffer
     !> has its buffer-local values).
-    subroutine temp_buffer(text, h)
+    subroutine temporary_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *fill-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -90,7 +91,7 @@ contains
         if (allocated(fill_prefix%value)) deallocate (fill_prefix%value)
         if (allocated(fill_nobreak_functions)) deallocate (fill_nobreak_functions)
         auto_fill_function%value => null()
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine leave(h)
         type(handle_type), intent(in) :: h
@@ -110,13 +111,13 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("Abc d efg (h ijk).", h)
+        call temporary_buffer("Abc d efg (h ijk).", h)
         fill_column = 8
         call fill_paragraph(st)
         call check(error, buffer_string(), "Abc d"//LF//"efg (h"//LF//"ijk).")
         call leave(h)
         if (allocated(error)) return
-        call temp_buffer("Abc d efg (h ijk).", h)
+        call temporary_buffer("Abc d efg (h ijk).", h)
         fill_column = 8
         allocate (fill_nobreak_functions(1))
         fill_nobreak_functions(1)%fn => is_fill_polish_nobreak
@@ -129,18 +130,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos, beginning, end
+        integer(int64) :: position, beginning, end
 
-        call temp_buffer("aaa =   baaaaaaaa aaaaaaaaaa aaaaaaaaaa"//LF, h)
-        call goto_char(point_min())
-        call search_forward("b", pos, st)
-        pos = point()
-        beginning = pos_bol()
-        end = pos_eol()
-        fill_prefix = repeat(" ", int(pos - beginning))
+        call temporary_buffer("aaa =   baaaaaaaa aaaaaaaaaa aaaaaaaaaa"//LF, h)
+        call goto_character(point_minimum())
+        call search_forward("b", position, st)
+        position = point()
+        beginning = position_beginning_of_line()
+        end = position_end_of_line()
+        fill_prefix = repeat(" ", int(position - beginning))
         ! `fill_column' is too small to accommodate the current line
         fill_column = end - beginning - 10
-        call fill_region_as_paragraph(beginning, end, st, squeeze_after=pos)
+        call fill_region_as_paragraph(beginning, end, st, squeeze_after=position)
         call check(error, buffer_string(), "aaa =   baaaaaaaa aaaaaaaaaa"//LF//"         aaaaaaaaaa"//LF)
         call leave(h)
     end subroutine test_breakable
@@ -150,18 +151,18 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_simple()
-        call temp_buffer("", h)
+        call initialize_simple()
+        call temporary_buffer("", h)
         call minor_modes%auto_fill_mode%enable(st)
         call insert("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eius.", st)
         call self_insert_command(1_int64, 32_int64, st)
         call check(error, buffer_string(), "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eius. ")
         call leave(h)
         if (allocated(error)) return
-        call temp_buffer("", h)
+        call temporary_buffer("", h)
         call minor_modes%auto_fill_mode%enable(st)
         call insert("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eius.Foo", st)
-        call goto_char(point() - 3)
+        call goto_character(point() - 3)
         call self_insert_command(1_int64, 32_int64, st)
         call check(error, buffer_string(), "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do"//LF// &
                    "eius. Foo")
@@ -175,34 +176,34 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("aaa bbb ccc ddd eee fff", h)
+        call temporary_buffer("aaa bbb ccc ddd eee fff", h)
         fill_column = 10
         call fill_paragraph(st, DEFAULT_JUSTIFICATION_FULL)
         call check(error, buffer_string(), "aaa    bbb"//LF//"ccc    ddd"//LF//"eee fff")
         call leave(h)
         if (allocated(error)) return
-        call temp_buffer("aaa bbb ccc", h)
+        call temporary_buffer("aaa bbb ccc", h)
         fill_column = 11
         call fill_paragraph(st, DEFAULT_JUSTIFICATION_RIGHT)
         call check(error, buffer_string(), "aaa bbb ccc")
         call leave(h)
         if (allocated(error)) return
-        call temp_buffer("aaa bbb", h)
+        call temporary_buffer("aaa bbb", h)
         fill_column = 15
         call fill_paragraph(st, DEFAULT_JUSTIFICATION_RIGHT)
         ! (indent-tabs-mode is t)
         call check(error, buffer_string(), achar(9)//"aaa bbb")
         call leave(h)
         if (allocated(error)) return
-        call temp_buffer("aaa bbb", h)
+        call temporary_buffer("aaa bbb", h)
         fill_column = 15
         call fill_paragraph(st, DEFAULT_JUSTIFICATION_CENTER)
         call check(error, buffer_string(), "    aaa bbb")
         call leave(h)
         if (allocated(error)) return
         ! A fill prefix set from the line is reinserted on each line.
-        call temp_buffer(";; one two three four five six", h)
-        call goto_char(4_int64)
+        call temporary_buffer(";; one two three four five six", h)
+        call goto_character(4_int64)
         call set_fill_prefix(.false.)
         call check(error, fill_prefix%value, ";; ")
         if (allocated(error)) return
@@ -212,7 +213,7 @@ contains
         call leave(h)
         if (allocated(error)) return
         ! Adaptive fill: the prefix comes from the first two lines.
-        call temp_buffer("  > one two three"//LF//"  > four five six", h)
+        call temporary_buffer("  > one two three"//LF//"  > four five six", h)
         fill_column = 15
         call fill_paragraph(st)
         call check(error, buffer_string(), "  > one two"//LF//"  > three four"//LF//"  > five six")
@@ -253,8 +254,8 @@ contains
     subroutine execute_erts_file(error, file)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: file
-        character(len=:), allocatable :: data, line, code, name, before, after, point_char
-        integer :: u, ios, pos, state, nl, ran
+        character(len=:), allocatable :: data, line, code, name, before, after, point_character
+        integer :: u, ios, position, state, newline, ran
         integer(int64) :: fsize
 
         open (newunit=u, file=file, access="stream", form="unformatted", status="old", action="read", iostat=ios)
@@ -268,23 +269,23 @@ contains
         if (allocated(error)) return
         code = ""
         name = ""
-        point_char = ""
+        point_character = ""
         before = ""
         after = ""
         ! 0: headers, 1: in Code, 2: before text, 3: after text.
         state = 0
         ran = 0
-        pos = 1
+        position = 1
 
-        do while (pos <= len(data))
-            nl = index(data(pos:), LF)
+        do while (position <= len(data))
+            newline = index(data(position:), LF)
 
-            if (nl == 0) then
-                line = data(pos:)
-                pos = len(data) + 1
+            if (newline == 0) then
+                line = data(position:)
+                position = len(data) + 1
             else
-                line = data(pos:pos + nl - 2)
-                pos = pos + nl
+                line = data(position:position + newline - 2)
+                position = position + newline
             end if
 
             select case (state)
@@ -301,7 +302,7 @@ contains
                 if (line == "=-=-=") then
                     state = 0
                     ! The texts end with a newline (ert-test--erts-test).
-                    call execute_erts_test(error, name, code, point_char, before, after)
+                    call execute_erts_test(error, name, code, point_character, before, after)
                     if (allocated(error)) return
                     ran = ran + 1
                 else
@@ -326,7 +327,7 @@ contains
             if (index(line, "Name: ") == 1) then
                 name = line(7:)
             else if (index(line, "Point-Char: ") == 1) then
-                point_char = line(13:)
+                point_character = line(13:)
             else if (line == "Code:") then
                 code = ""
                 state = 1
@@ -343,9 +344,9 @@ contains
     ! fill-column, sentence-end-double-space and
     ! fill-separate-heterogeneous-words-with-space; the fill call) and
     ! compare the result with AFTER.
-    subroutine execute_erts_test(error, name, code, point_char, before, after)
+    subroutine execute_erts_test(error, name, code, point_character, before, after)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), intent(in) :: name, code, point_char, before, after
+        character(len=*), intent(in) :: name, code, point_character, before, after
         type(handle_type) :: h
         type(status_type) :: st
         integer(int64) :: start, end, shortage
@@ -354,16 +355,16 @@ contains
 
         ! The semantic-linefeed functions are not ported.
         if (index(code, "semlf") > 0) return
-        call temp_buffer("", h)
+        call temporary_buffer("", h)
         at = 0
-        if (len(point_char) > 0) at = index(before, point_char)
+        if (len(point_character) > 0) at = index(before, point_character)
 
         if (at > 0) then
-            call insert(before(1:at - 1)//before(at + len(point_char):), st)
-            call goto_char(int(at, int64))
+            call insert(before(1:at - 1)//before(at + len(point_character):), st)
+            call goto_character(int(at, int64))
         else
             call insert(before, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
         end if
 
         if (index(code, "(setq-local fill-column 35)") > 0) fill_column%value = 35
@@ -375,13 +376,13 @@ contains
         end if
 
         if (index(code, "(point-min) (point-max)") > 0) then
-            call fill_region_as_paragraph(point_min(), point_max(), st)
+            call fill_region_as_paragraph(point_minimum(), point_maximum(), st)
         else if (index(code, "(fill-paragraph)") > 0) then
             call fill_paragraph(st)
         else
             ! FROM is point, TO the start of the last line.
             start = point()
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             shortage = forward_line(-1_int64)
             call beginning_of_line()
             end = point()
@@ -395,9 +396,9 @@ contains
 
         expected = after
 
-        if (len(point_char) > 0) then
-            at = index(after, point_char)
-            if (at > 0) expected = after(1:at - 1)//after(at + len(point_char):)
+        if (len(point_character) > 0) then
+            at = index(after, point_character)
+            if (at > 0) expected = after(1:at - 1)//after(at + len(point_character):)
         end if
 
         got = buffer_string()
@@ -418,9 +419,9 @@ contains
         call get_or_make_buffer("*fill-prefix-length*", h, st)
         call set_buffer(h, st)
         call insert(achar(9)//"abc"//LF//achar(9)//"def"//LF, st)
-        call init_bindings()
+        call initialize_bindings()
         fill_column = 5_int64
-        call fill_context_prefix(point_min(), point_max(), prefix, found)
+        call fill_context_prefix(point_minimum(), point_maximum(), prefix, found)
         fill_column = 70_int64
         call check(error, found .and. prefix == achar(9), "["//prefix//"]")
         call close_buffer(h, st)

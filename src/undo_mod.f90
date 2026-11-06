@@ -42,8 +42,8 @@ module undo_mod
     use handle_mod, only: handle_type, has_handle
     use buffer_mod, only: buffers, current, buffer_handle, is_buffer_live, resolve_buffer, set_buffer, &
                           undo_entry_type, UE_BOUNDARY, UE_INSERTION, UE_DELETION, UE_POINT, &
-                          UE_FIRST_CHANGE, buffer_visited_file_modtime, buf_bytes
-    use marker_mod, only: char_to_byte
+                          UE_FIRST_CHANGE, buffer_visited_file_modtime, buffer_bytes
+    use marker_mod, only: character_to_byte
     use error_mod, only: status_type
     implicit none(type, external)
     private
@@ -188,7 +188,7 @@ contains
         entry%kind = UE_DELETION
         entry%text = string
 
-        if (buffers(current)%pt == beginning + nchars) then
+        if (buffers(current)%point == beginning + nchars) then
             entry%beginning = -beginning
         else
             entry%beginning = beginning
@@ -204,7 +204,8 @@ contains
     subroutine record_change(beginning, length)
         integer(int64), intent(in) :: beginning, length
 
-        call record_delete(beginning, buf_bytes(buffers(current), char_to_byte(beginning), char_to_byte(beginning + length)), &
+        call record_delete(beginning, buffer_bytes(buffers(current), character_to_byte(beginning), &
+                                                   character_to_byte(beginning + length)), &
                            length)
         call record_insert(beginning, length)
     end subroutine record_change
@@ -232,7 +233,7 @@ contains
         if (.not. buffers(current)%undo_enabled) return
         if (undo_last_kind() /= UE_BOUNDARY) call append_undo_entry(entry)
         last_boundary_cause = CAUSE_EXPLICIT
-        point_before_last_command_or_undo = buffers(current)%pt
+        point_before_last_command_or_undo = buffers(current)%point
         buffer_before_last_command_or_undo = buffers(current)%serial
     end subroutine undo_boundary
 
@@ -327,7 +328,7 @@ contains
     !> Amalgamate undo if necessary.
     !> This function can be called before an amalgamating command.  It
     !> removes the previous `undo_boundary' if a series of such calls
-    !> have been made.  `self_insert_command' and `delete_char' are the
+    !> have been made.  `self_insert_command' and `delete_character' are the
     !> most common amalgamating commands.  SAME_COMMAND says whether
     !> this-command is last-command.  Port of simple.el:undo-auto-amalgamate.
     subroutine undo_auto_amalgamate(same_command)

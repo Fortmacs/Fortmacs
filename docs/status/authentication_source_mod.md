@@ -1,6 +1,6 @@
-# auth_source_mod
+# authentication_source_mod
 
-- Module: auth_source_mod
+- Module: authentication_source_mod
 - Upstream: auth-source.el
 - State: partial
 

@@ -25,17 +25,17 @@
 module test_marker_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_GENERIC_ERROR, FM_INVALID_HANDLE
+    use error_mod, only: status_type, GENERIC_ERROR_CODE, INVALID_HANDLE_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, &
-                          set_buffer, current_buffer, is_buffer_live, buf_bytes, &
-                          temp_set_point_both, erase_buffer
-    use marker_mod, only: byte_to_char, char_to_byte, copy_marker, copy_marker_at, count_markers, &
+                          set_buffer, current_buffer, is_buffer_live, buffer_bytes, &
+                          temporary_set_point_both, erase_buffer
+    use marker_mod, only: byte_to_character, character_to_byte, copy_marker, copy_marker_at, count_markers, &
                           destroy_marker, make_marker, marker_buffer, marker_byte_position, &
                           marker_insertion_type, marker_last_position, marker_position, set_marker, &
                           set_marker_insertion_type, set_marker_to
-    use insert_delete_mod, only: insert, insert_before_markers, del_range
-    use value_mod, only: make_marker_ref
+    use insert_delete_mod, only: insert, insert_before_markers, delete_range
+    use value_mod, only: make_marker_reference
     use print_mod, only: readable_text
     implicit none(type, external)
     private
@@ -84,19 +84,19 @@ contains
         call close_buffer(h, st)
     end subroutine leave
 
-    subroutine goto(pos)
-        integer(int64), intent(in) :: pos
+    subroutine goto(position)
+        integer(int64), intent(in) :: position
 
-        call temp_set_point_both(buffers(current), pos, char_to_byte(pos))
+        call temporary_set_point_both(buffers(current), position, character_to_byte(position))
     end subroutine goto
 
-    integer(int64) function pos_of(m)
+    integer(int64) function position_of(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, pos_of, st)
-        if (.not. st%ok()) pos_of = -1
-    end function pos_of
+        call marker_position(m, position_of, st)
+        if (.not. st%ok()) position_of = -1
+    end function position_of
 
     integer(int64) function byte_of(m)
         type(handle_type), intent(in) :: m
@@ -117,7 +117,7 @@ contains
         call check(error, st%ok() .and. b%index == 0, "fresh marker has a buffer")
         if (allocated(error)) return
         call marker_position(m, p, st)
-        call check(error, st%code, FM_GENERIC_ERROR)
+        call check(error, st%code, GENERIC_ERROR_CODE)
         if (allocated(error)) return
         call check(error, st%detail, "Marker does not point anywhere")
         call destroy_marker(m, st)
@@ -132,16 +132,16 @@ contains
         call insert("a"//euro//"b", st)
         call make_marker(m)
         call set_marker(m, 3_int64, st)
-        call check(error, pos_of(m) == 3 .and. byte_of(m) == 5, "position 3")
+        call check(error, position_of(m) == 3 .and. byte_of(m) == 5, "position 3")
         if (allocated(error)) return
         call marker_buffer(m, b, st)
         call check(error, b%index == h%index .and. b%generation == h%generation, "buffer")
         if (allocated(error)) return
         call set_marker(m, 100_int64, st)
-        call check(error, pos_of(m) == 4 .and. byte_of(m) == 6, "clipped to Z")
+        call check(error, position_of(m) == 4 .and. byte_of(m) == 6, "clipped to Z")
         if (allocated(error)) return
         call set_marker(m, -3_int64, st)
-        call check(error, pos_of(m) == 1 .and. byte_of(m) == 1, "clipped to BEGINNING")
+        call check(error, position_of(m) == 1 .and. byte_of(m) == 1, "clipped to BEGINNING")
         if (allocated(error)) return
         call check(error, count_markers(current), 1_int64)
         call destroy_marker(m, st)
@@ -150,26 +150,26 @@ contains
 
     subroutine test_insert(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: h, old, before, at_nil, at_t, after
+        type(handle_type) :: h, old, before, at_false, at_t, after
         type(status_type) :: st
 
         call enter("tm-ins", h, old)
         call insert("abcd", st)
         call copy_marker_at(2_int64, before, .false., st)
-        call copy_marker_at(3_int64, at_nil, .false., st)
+        call copy_marker_at(3_int64, at_false, .false., st)
         call copy_marker_at(3_int64, at_t, .true., st)
         call copy_marker_at(4_int64, after, .false., st)
         call goto(3_int64)
         call insert(euro//"x", st)        ! 2 chars, 4 bytes at 3
-        call check(error, pos_of(before), 2_int64)
+        call check(error, position_of(before), 2_int64)
         if (allocated(error)) return
-        call check(error, pos_of(at_nil), 3_int64)
+        call check(error, position_of(at_false), 3_int64)
         if (allocated(error)) return
-        call check(error, pos_of(at_t) == 5 .and. byte_of(at_t) == 7, "type-t marker")
+        call check(error, position_of(at_t) == 5 .and. byte_of(at_t) == 7, "type-t marker")
         if (allocated(error)) return
-        call check(error, pos_of(after) == 6 .and. byte_of(after) == 8, "later marker")
+        call check(error, position_of(after) == 6 .and. byte_of(after) == 8, "later marker")
         call destroy_marker(before, st)
-        call destroy_marker(at_nil, st)
+        call destroy_marker(at_false, st)
         call destroy_marker(at_t, st)
         call destroy_marker(after, st)
         call leave(h, old)
@@ -185,7 +185,7 @@ contains
         call copy_marker_at(2_int64, m, .false., st)
         call goto(2_int64)
         call insert_before_markers("XY", st)
-        call check(error, pos_of(m), 4_int64)
+        call check(error, position_of(m), 4_int64)
         call destroy_marker(m, st)
         call leave(h, old)
     end subroutine test_insert_before_markers
@@ -200,12 +200,12 @@ contains
         call copy_marker_at(2_int64, at_from, .false., st)
         call copy_marker_at(4_int64, inside, .false., st)
         call copy_marker_at(6_int64, after, .false., st)
-        call del_range(2_int64, 5_int64, st)  ! delete b € c
-        call check(error, pos_of(at_from) == 2 .and. byte_of(at_from) == 2, "at from")
+        call delete_range(2_int64, 5_int64, st)  ! delete b € c
+        call check(error, position_of(at_from) == 2 .and. byte_of(at_from) == 2, "at from")
         if (allocated(error)) return
-        call check(error, pos_of(inside) == 2 .and. byte_of(inside) == 2, "inside")
+        call check(error, position_of(inside) == 2 .and. byte_of(inside) == 2, "inside")
         if (allocated(error)) return
-        call check(error, pos_of(after) == 3 .and. byte_of(after) == 3, "after")
+        call check(error, position_of(after) == 3 .and. byte_of(after) == 3, "after")
         call destroy_marker(at_from, st)
         call destroy_marker(inside, st)
         call destroy_marker(after, st)
@@ -222,7 +222,7 @@ contains
         call insert("hello", st)
         call copy_marker_at(4_int64, m, .false., st)
         call copy_marker(m, c, .true., st)
-        call check(error, pos_of(c), 4_int64)
+        call check(error, position_of(c), 4_int64)
         if (allocated(error)) return
         call marker_insertion_type(c, itype, st)
         call check(error, itype, "copy lost insertion type")
@@ -233,7 +233,7 @@ contains
         if (allocated(error)) return
         call make_marker(nowhere)
         call copy_marker(nowhere, cn, .false., st)
-        call check(error, pos_of(cn), -1_int64)
+        call check(error, position_of(cn), -1_int64)
         call destroy_marker(m, st)
         call destroy_marker(c, st)
         call destroy_marker(nowhere, st)
@@ -250,13 +250,13 @@ contains
         call enter("tm-print", h, old)
         call insert("hello", st)
         call copy_marker_at(4_int64, m, .false., st)
-        call check(error, readable_text(make_marker_ref(m)), "#<marker at 4 in tm-print>")
+        call check(error, readable_text(make_marker_reference(m)), "#<marker at 4 in tm-print>")
         if (allocated(error)) return
         call set_marker_insertion_type(m, .true., st)
-        call check(error, readable_text(make_marker_ref(m)), "#<marker (moves after insertion) at 4 in tm-print>")
+        call check(error, readable_text(make_marker_reference(m)), "#<marker (moves after insertion) at 4 in tm-print>")
         if (allocated(error)) return
         call make_marker(nowhere)
-        call check(error, readable_text(make_marker_ref(nowhere)), "#<marker in no buffer>")
+        call check(error, readable_text(make_marker_reference(nowhere)), "#<marker in no buffer>")
         call destroy_marker(m, st)
         call destroy_marker(nowhere, st)
         call leave(h, old)
@@ -279,11 +279,11 @@ contains
         call insert("abcdefgh", st)
         call make_marker(m2)
         call set_marker_to(m2, m1, st)                    ! into the current (ASCII) buffer
-        call check(error, pos_of(m2) == 4 .and. byte_of(m2) == 4, "byte position copied across buffers")
+        call check(error, position_of(m2) == 4 .and. byte_of(m2) == 4, "byte position copied across buffers")
         if (allocated(error)) return
         ! Same buffer: positions are copied directly.
         call set_marker_to(m2, m1, st, mb)
-        call check(error, pos_of(m2) == 4 .and. byte_of(m2) == 10, "same-buffer copy")
+        call check(error, position_of(m2) == 4 .and. byte_of(m2) == 10, "same-buffer copy")
         call destroy_marker(m1, st)
         call destroy_marker(m2, st)
         call leave(ascii, old2)
@@ -303,7 +303,7 @@ contains
         call marker_buffer(m, b, st)
         call check(error, st%ok() .and. b%index == 0, "marker still in closed buffer")
         if (allocated(error)) return
-        call check(error, pos_of(m), -1_int64)
+        call check(error, position_of(m), -1_int64)
         if (allocated(error)) return
         call marker_last_position(m, last, st)
         call check(error, last, 3_int64)
@@ -326,9 +326,9 @@ contains
         call check(error, count_markers(current), 1_int64)
         if (allocated(error)) return
         call marker_position(a, p, st)
-        call check(error, st%code, FM_INVALID_HANDLE)
+        call check(error, st%code, INVALID_HANDLE_CODE)
         if (allocated(error)) return
-        call check(error, pos_of(b), 2_int64)
+        call check(error, position_of(b), 2_int64)
         call destroy_marker(b, st)
         call check(error, count_markers(current), 0_int64)
         call leave(h, old)
@@ -355,9 +355,9 @@ contains
 
         do c = 395, 405
             ! odd chars are euros (3 bytes), even chars are 'a'
-            call check(error, char_to_byte(c), 1 + 4*((c - 1)/2) + 3*mod(c - 1, 2_int64))
+            call check(error, character_to_byte(c), 1 + 4*((c - 1)/2) + 3*mod(c - 1, 2_int64))
             if (allocated(error)) return
-            call check(error, byte_to_char(char_to_byte(c)), c)
+            call check(error, byte_to_character(character_to_byte(c)), c)
             if (allocated(error)) return
         end do
 
@@ -376,9 +376,9 @@ contains
         call erase_buffer(st)
         call check(error, st%ok(), "erase failed")
         if (allocated(error)) return
-        call check(error, buf_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte), "")
+        call check(error, buffer_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte), "")
         if (allocated(error)) return
-        call check(error, pos_of(m) == 1 .and. buffers(current)%pt == 1, "positions after erase")
+        call check(error, position_of(m) == 1 .and. buffers(current)%point == 1, "positions after erase")
         call destroy_marker(m, st)
         call leave(h, old)
     end subroutine test_erase

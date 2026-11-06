@@ -27,20 +27,20 @@
 !> the command loop.  Every test kills its buffers.
 module test_electric_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_max, buffer_string
-    use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input
-    use execute_interactively_mod, only: prefix_arg
+    use editing_functions_mod, only: point, point_maximum, buffer_string
+    use keyboard_mod, only: keyboard_store_bytes, command_loop, discard_input
+    use execute_interactively_mod, only: prefix_argument
     use editing_commands_mod, only: post_self_insert_hook
     use simple_mod, only: fundamental_mode
-    use electric_mod, only: electric_indent_inhibit, electric_indent_chars
+    use electric_mod, only: electric_indent_inhibit, electric_indent_characters
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use test_support_mod, only: show_alone
     implicit none(type, external)
     private
@@ -63,7 +63,7 @@ contains
                     new_unittest("electric-indent-off", test_off), &
                     new_unittest("electric-newline-and-maybe-indent", test_c_j), &
                     new_unittest("electric-indent-local-mode", test_local_mode), &
-                    new_unittest("electric-indent-chars", test_chars), &
+                    new_unittest("electric-indent-chars", test_characters), &
                     new_unittest("electric-indent-inhibit-buffer-local", test_inhibit_local) &
                     ]
     end subroutine collect_electric_mod
@@ -76,9 +76,9 @@ contains
         character(len=*), intent(in), optional :: name
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
 
         if (present(name)) then
             call get_or_make_buffer(name, h, st)
@@ -97,7 +97,7 @@ contains
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call kbd_store_bytes(text)
+        call keyboard_store_bytes(text)
         call command_loop(st)
     end subroutine keys
 
@@ -129,7 +129,7 @@ contains
     subroutine test_default_on(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call check(error, minor_modes%electric_indent_mode%enabled() .and. &
                    .not. minor_modes%electric_pair_mode%enabled(), "Electric Indent on, Electric Pair off")
     end subroutine test_default_on
@@ -145,7 +145,7 @@ contains
         call keys(achar(13))
         call check(error, buffer_string(), "  foo"//achar(10)//"  ")
         if (allocated(error)) return
-        call check(error, point() == point_max(), "at the end")
+        call check(error, point() == point_maximum(), "at the end")
         call close_buffer(h, st)
     end subroutine test_newline
 
@@ -210,8 +210,8 @@ contains
         call close_buffer(b, st)
     end subroutine test_local_mode
 
-    !> Only `electric_indent_chars' reindent.
-    subroutine test_chars(error)
+    !> Only `electric_indent_characters' reindent.
+    subroutine test_characters(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -220,12 +220,12 @@ contains
         call keys("}")
         call check(error, buffer_string(), "  foo"//achar(10)//"x}")
         if (allocated(error)) return
-        electric_indent_chars = [10, iachar("}")]
+        electric_indent_characters = [10, iachar("}")]
         call keys("}")
         call check(error, buffer_string(), "  foo"//achar(10)//"  x}}")
-        electric_indent_chars = [10]
+        electric_indent_characters = [10]
         call close_buffer(h, st)
-    end subroutine test_chars
+    end subroutine test_characters
 
     !> `electric_indent_inhibit' is buffer-local.
     subroutine test_inhibit_local(error)

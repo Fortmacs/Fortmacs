@@ -23,18 +23,18 @@ module test_view_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer, &
                           get_file_buffer, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, goto_char
-    use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop, last_message
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, &
-                                     is_file_directory
+    use editing_functions_mod, only: point, point_minimum, goto_character
+    use keyboard_mod, only: discard_input, keyboard_store_bytes, command_loop, last_message
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, write_region, &
+                                     create_directory_internal, is_file_directory
     use files_mod, only: delete_directory, view_read_only
-    use simple_mod, only: line_number_at_pos
+    use simple_mod, only: line_number_at_position
     use window_mod, only: windows, window_start
     use frame_mod, only: selected_window
     use view_mod, only: view_buffer, view_file, view_mode_enabled
@@ -43,7 +43,7 @@ module test_view_mod
 
     public :: collect_view_mod
 
-    character(len=*), parameter :: subdir = "build/test-view"
+    character(len=*), parameter :: subdirectory = "build/test-view"
 
     character, parameter :: CR = achar(13)
 
@@ -63,10 +63,10 @@ contains
                     ]
     end subroutine collect_view_mod
 
-    function tdir() result(dir)
-        character(len=:), allocatable :: dir
+    function tdir() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
     end function tdir
 
     !> A buffer "lines" of 100 numbered lines, current and shown alone,
@@ -78,8 +78,8 @@ contains
         character(len=12) :: line
         integer :: k
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call discard_input()
         view_read_only = .false.
         call get_or_make_buffer("*scratch*", scratch, st)
@@ -94,7 +94,7 @@ contains
             call insert(trim(line)//achar(10), st)
         end do
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call create_directory_internal(tdir(), st)
     end subroutine setup
@@ -117,7 +117,7 @@ contains
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call kbd_store_bytes(text)
+        call keyboard_store_bytes(text)
         call command_loop(st)
     end subroutine keys
 
@@ -161,7 +161,7 @@ contains
             call check(error, window_start(windows(w%index)) > 1, "scrolled")
             if (allocated(error)) exit body
             call keys("5g")
-            call check(error, line_number_at_pos() == 5_int64, "line 5")
+            call check(error, line_number_at_position() == 5_int64, "line 5")
             if (allocated(error)) exit body
             call keys("=")
             call check(error, last_message, "Line 5")
@@ -184,10 +184,10 @@ contains
         body: block
             call view_buffer(buffer, st)
             call keys("/line 4."//CR)
-            call check(error, line_number_at_pos() == 40_int64, "line 40")
+            call check(error, line_number_at_position() == 40_int64, "line 40")
             if (allocated(error)) exit body
             call keys("n")
-            call check(error, line_number_at_pos() == 41_int64, "line 41")
+            call check(error, line_number_at_position() == 41_int64, "line 41")
             if (allocated(error)) exit body
             call keys("/nothing"//CR)
             call check(error, last_message, "Can't find occurrence 1 of nothing")

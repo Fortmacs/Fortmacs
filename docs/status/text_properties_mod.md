@@ -29,13 +29,13 @@ starting over when a before-change function changed the intervals,
 `previous-char-property-change`,
 `next-single-char-property-change` and `previous-single-char-property-change` with overlays,
 get_property_and_range (intervals.c),
-TEXT_PROP_MEANS_INVISIBLE (xdisp.c:invisible_prop),
+TEXT_PROPERTY_MEANS_INVISIBLE (xdisp.c:invisible_prop),
 the text properties of strings (`text-properties-at`, `get-text-property`, `add-text-properties`, `put-text-property`, `next-single-property-change` with a string OBJECT; `propertize`; `substring` and `concat` keeping them; CHECK_STRING_OR_BUFFER),
 `add-face-text-property` (in the buffer),
 `text_property_list`,
 `add_text_properties_from_list`,
 `extend_property_ranges` and `copy_text_properties` (buffers; the elements are `text_property_range_type` records),
-`inhibit-point-motion-hooks` and intervals.c's point motion (`set_point`, `set_point_both`: `intangible` text and the `point-left`/`point-entered` functions; `move_if_not_intangible`, `temp_set_point`);
+`inhibit-point-motion-hooks` and intervals.c's point motion (`set_point`, `set_point_both`: `intangible` text and the `point-left`/`point-entered` functions; `move_if_not_intangible`, `temporary_set_point`);
 property functions are symbols naming hooks_mod's `property_function_type`
 
 ## Deferred
@@ -46,7 +46,7 @@ undo records,
 LIMIT t,
 `add-face-text-property` on strings,
 `text-property-default-nonsticky` as a (buffer-local) variable (its table needs dotted pairs; the standard value is built in),
-SET_PT in the primitives other than `goto-char` (they keep `temp_set_point_both`, the same while `inhibit-point-motion-hooks` is t, its default; 42c, 42f);
+SET_PT in the primitives other than `goto-char` (they keep `temporary_set_point_both`, the same while `inhibit-point-motion-hooks` is t, its default; 42c, 42f);
 Not applicable: `interval_of` (an index into the run array),
 `syms_of_textprop` (symbol and variable definitions),
 the scanner's doc-line artifact `returns`;

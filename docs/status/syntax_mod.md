@@ -7,7 +7,7 @@
 ## Ported
 
 syntax classes and raw descriptors (code with flags, matching character),
-syntax tables as registry objects with parents (`standard-syntax-table` from `init_syntax_once` plus characters_mod, `make-syntax-table`, `copy-syntax-table`, `set-syntax-table` with `bset_syntax_table`, `syntax-table`, `syntax-table-p`, `check_syntax_table`, `SET_RAW_SYNTAX_ENTRY(_RANGE)`, the buffer's table),
+syntax tables as registry objects with parents (`standard-syntax-table` from `initialize_syntax_once` plus characters_mod, `make-syntax-table`, `copy-syntax-table`, `set-syntax-table` with `bset_syntax_table`, `syntax-table`, `syntax-table-p`, `check_syntax_table`, `SET_RAW_SYNTAX_ENTRY(_RANGE)`, the buffer's table),
 `char-syntax` (raw bytes in unibyte buffers),
 `internal-describe-syntax-value` (the text it inserts; `SYNTAX_FLAGS_COMMENT_STYLEB`, `SYNTAX_FLAGS_COMMENT_STYLEC`),
 `SYNTAX_MATCH`,
@@ -25,8 +25,8 @@ word boundaries between scripts (`char-script-table`) with characters.el's `word
 `skip-chars-backward` (ranges, `^`, quoting, character classes; in the submodule syntax_skip_mod),
 `skip-syntax-forward`,
 `skip-syntax-backward`,
-`backward-prefix-chars` (with `char_quoted`);
-comments and expressions in the submodule syntax_scan_mod: `forward-comment` (`forw_comment`, `back_comment` with its lossage path through `find_subprogram_start`, `prev_char_comend_first`),
+`backward-prefix-chars` (with `character_quoted`);
+comments and expressions in the submodule syntax_scan_mod: `forward-comment` (`forw_comment`, `back_comment` with its lossage path through `find_subprogram_start`, `previous_character_comend_first`),
 `scan-lists`,
 `scan-sexps` (`scan_groups`, `syntax_multibyte`; the `scan-error` error with its data),
 `parse-partial-sexp` (`scan_expressions_forward`, `in_2char_comment_start`, `internalize_parse_state`; the state as `parse_state_type`, TARGETDEPTH, STOPBEFORE, OLDSTATE, COMMENTSTOP nil/t/`syntax-table`),
@@ -39,7 +39,7 @@ generic comment and string fences,
 `comment-end-can-be-escaped` (buffer-local when set),
 `multibyte-syntax-as-symbol`,
 `open-paren-in-column-0-is-defun-start`,
-`comment-use-syntax-ppss` (through `syntax_ppss`, which is syntax_propertize_mod's cached `syntax-ppss`),
+`comment-use-syntax-ppss` (through `syntax_parser_state`, which is syntax_propertize_mod's cached `syntax-ppss`),
 `syntax-table` text properties (`parse-sexp-lookup-properties`, `syntax-propertize--done`, both buffer-local when set; raw descriptors and syntax tables as values) in the comment and expression scanners,
 `scan_words`,
 `skip-syntax-*` and `backward-prefix-chars`,

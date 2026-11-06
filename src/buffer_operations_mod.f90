@@ -22,8 +22,8 @@
 !> Part of buffer_mod.  A submodule can use marker_mod and insert_delete_mod even
 !> though both use buffer_mod, which a module cannot.
 submodule(buffer_mod) buffer_operations_mod
-    use marker_mod, only: unchain_all_markers, clear_charpos_cache, destroy_marker
-    use insert_delete_mod, only: del_range
+    use marker_mod, only: unchain_all_markers, clear_character_position_cache, destroy_marker
+    use insert_delete_mod, only: delete_range
     use interval_tree_mod, only: delete_all_overlays
     use hooks_mod, only: buffer_list_update_hook
     use data_mod, only: buffer_local_value
@@ -84,7 +84,7 @@ contains
         call delete_all_overlays(h)
         ! Unchain all markers of this buffer and leave them pointing nowhere.
         call unchain_all_markers(i)
-        call clear_charpos_cache(i)
+        call clear_character_position_cache(i)
         ! The mark and the mark ring belong to the buffer (upstream they are
         ! left to GC).
         if (buffers(i)%mark%index /= 0) call destroy_marker(buffers(i)%mark, ignore)
@@ -127,13 +127,13 @@ contains
 
         ! Fwiden (editfns.c), inline until editing_functions_mod exists.
         associate (b => buffers(current))
-            b%begv = BEGINNING
-            b%begv_byte = BEGINNING_BYTE
-            b%zv = b%text%z
-            b%zv_byte = b%text%z_byte
+            b%beginning_of_accessible_portion = BEGINNING
+            b%beginning_of_accessible_portion_byte = BEGINNING_BYTE
+            b%end_of_accessible_portion = b%text%z
+            b%end_of_accessible_portion_byte = b%text%z_byte
         end associate
 
-        call del_range(BEGINNING, buffers(current)%text%z, status)
+        call delete_range(BEGINNING, buffers(current)%text%z, status)
     end subroutine erase_buffer
 
     !> Drop `h' from the live-buffer list.  Lives here, its only user:
@@ -184,17 +184,17 @@ contains
         end do
     end function find_buffer
 
-    module subroutine init_buffer_commands()
-        commands%buffer_enable_undo%execute => cmd_buffer_enable_undo
-    end subroutine init_buffer_commands
+    module subroutine initialize_buffer_commands()
+        commands%buffer_enable_undo%execute => execute_buffer_enable_undo
+    end subroutine initialize_buffer_commands
 
     !> Start keeping undo information for buffer BUFFER.
     !> An absent argument means do this for the current buffer.
     !> Port of buffer.c:Fbuffer_enable_undo (the command: interactive "",
     !> the current buffer).
-    subroutine cmd_buffer_enable_undo(status)
+    subroutine execute_buffer_enable_undo(status)
         type(status_type), intent(out) :: status
 
         call buffer_enable_undo(status)
-    end subroutine cmd_buffer_enable_undo
+    end subroutine execute_buffer_enable_undo
 end submodule buffer_operations_mod

@@ -36,25 +36,25 @@ module minibuffer_reading_mod
                                              COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST, COMPLETE_BOUNDARIES, TABLE_LIST, &
                                              TABLE_OBARRAY, TABLE_FUNCTION, TABLE_QUOTING, completion_quote_procedure
     use, intrinsic :: iso_fortran_env, only: int64, int32
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use hooks_mod, only: hook_type
-    use value_mod, only: value_type, list, make_list, list_elements, list_length, list_elt, xfixnum, make_symbol_ref, &
+    use value_mod, only: value_type, list, make_list, list_elements, list_length, list_element, xfixnum, make_symbol_reference, &
                          xstring, xsymbol, symbols, nsymbols, V_ARRAY, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use names_mod, only: intern_soft
     use utility_functions_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring
-    use search_mod, only: string_match, match_end, regexp_quote
+    use search_mod, only: string_match, match_end, regular_expression_quote
     use data_mod, only: set, symbol_value, clear_all_local_variables, logical_setting_type, history_setting_type, find_history
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, &
                           erase_buffer, resolve_buffer, inhibit_read_only, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: field_end, buffer_substring, goto_char
+    use editing_functions_mod, only: field_end, buffer_substring, goto_character
     use text_properties_mod, only: add_text_properties, get_text_property
     use keymap_mod, only: make_sparse_keymap, use_local_map, is_keymap_live
     use keyboard_mod, only: recursive_edit_1, throw_exit, throw_exit_string, command_loop_level, last_message, &
                             minibuf_level, barf_if_interaction_inhibited, safe_execute_hooks
     use search_mod, only: fast_string_match
-    use frame_mod, only: selected_frame, frame_selected_window_ref, minibuffer_window_ref
+    use frame_mod, only: selected_frame, frame_selected_window_reference, minibuffer_window_reference
     use window_mod, only: window_type, set_window_buffer, window_configuration_type, current_window_configuration, &
                           set_window_configuration, destroy_window_configuration, minibuffer_scroll_window
     use basic_subprograms_mod, only: add_to_history
@@ -64,9 +64,9 @@ module minibuffer_reading_mod
 
     public :: minibuf_level
     public :: minibuffer_depth, minibuffer_prompt, is_minibuffer_at_depth, is_live_minibuffer, nth_minibuffer, &
-              execute_exit_minibuf_hook, set_initial_minibuffer_mode, match_regexps, assoc_string
+              execute_exit_minibuf_hook, set_initial_minibuffer_mode, match_regular_expressions, assoc_string
     public :: read_from_minibuffer, read_string, minibuffer_prompt_end, minibuffer_contents, &
-              is_minibuffer, abort_minibuffers, init_minibuf, is_minibuffer_innermost_command_loop, &
+              is_minibuffer, abort_minibuffers, initialize_minibuf, is_minibuffer_innermost_command_loop, &
               is_innermost_minibuffer, minibuffer_depth_of, minibuffer_setup_procedure
     public :: quoting_table_call, complete_with_action, completion_table_subvert, completion_table_with_test
     public :: try_completion, all_completions, is_exact_completion, completion_list_table, &
@@ -116,9 +116,9 @@ module minibuffer_reading_mod
     !> input characters.  This variable should never be set globally.
     !>
     !> This variable also overrides the default character that
-    !> `read_passwd' uses to hide passwords.  Port of minibuf.c
+    !> `read_password' uses to hide passwords.  Port of minibuf.c
     !> read-hide-char (-1 for none).
-    integer(int32), public :: read_hide_char = -1
+    integer(int32), public :: read_hide_character = -1
 
     !> Normal hook run just after entry to minibuffer.  Port of minibuf.c
     !> minibuffer-setup-hook (the function of `minibuffer_with_setup_hook'
@@ -141,7 +141,7 @@ module minibuffer_reading_mod
     !> variable should only be set, then restored, around calls to
     !> basic completion functions like `try_completion' and `all_completions'.
     !> Port of minibuf.c completion-regexp-list (unallocated when unset).
-    character(len=:), allocatable, public :: completion_regexps(:)
+    character(len=:), allocatable, public :: completion_regular_expressions(:)
 
     !> minibuf.c:minibuf_prompt, the prompt of the active minibuffer
     !> (unallocated for none).
@@ -194,10 +194,10 @@ contains
     !> and bindings.el, i.e. minibuffer_mod and bindings_mod).  Port of
     !> minibuf.c:init_minibuf_once (upstream makes the map in
     !> keymap.c:syms_of_keymap).
-    subroutine init_minibuf()
+    subroutine initialize_minibuf()
         if (.not. is_keymap_live(minibuffer_local_map)) call make_sparse_keymap(minibuffer_local_map)
         minibuf_level = 0
-    end subroutine init_minibuf
+    end subroutine initialize_minibuf
 
     !> The minibuffer for depth `depth', " *Minibuf-DEPTH*", made if
     !> needed.  Port of minibuf.c:get_minibuffer.
@@ -207,7 +207,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type), allocatable :: grown(:)
         integer, allocatable :: grown_levels(:)
-        character(len=20) :: num
+        character(len=20) :: number
         integer(int64) :: i
 
         if (.not. allocated(minibuffers)) allocate (minibuffers(4))
@@ -234,8 +234,8 @@ contains
             return
         end if
 
-        write (num, "(i0)") depth
-        call get_or_make_buffer(" *Minibuf-"//trim(num)//"*", buffer, status)
+        write (number, "(i0)") depth
+        call get_or_make_buffer(" *Minibuf-"//trim(number)//"*", buffer, status)
         if (.not. status%ok()) return
         minibuffers(depth + 1) = buffer
     end subroutine get_minibuffer
@@ -322,17 +322,17 @@ contains
 
     !> Where the prompt ends in the current minibuffer (point-min if the
     !> current buffer is not one).  Port of minibuf.c:Fminibuffer_prompt_end.
-    integer(int64) function minibuffer_prompt_end() result(pos)
+    integer(int64) function minibuffer_prompt_end() result(position)
         type(value_type) :: field
         type(status_type) :: status
 
-        pos = buffers(current)%begv
+        position = buffers(current)%beginning_of_accessible_portion
         if (.not. is_minibuffer()) return
-        pos = field_end(buffers(current)%begv, .false.)
+        position = field_end(buffers(current)%beginning_of_accessible_portion, .false.)
 
-        if (pos == buffers(current)%zv) then
-            call get_text_property(buffers(current)%begv, value_type(name="field"), field, status)
-            if (.not. allocated(field%a)) pos = buffers(current)%begv
+        if (position == buffers(current)%end_of_accessible_portion) then
+            call get_text_property(buffers(current)%beginning_of_accessible_portion, value_type(name="field"), field, status)
+            if (.not. allocated(field%a)) position = buffers(current)%beginning_of_accessible_portion
         end if
     end function minibuffer_prompt_end
 
@@ -342,7 +342,7 @@ contains
         character(len=:), allocatable :: text
         type(status_type) :: status
 
-        call buffer_substring(minibuffer_prompt_end(), buffers(current)%zv, text, status)
+        call buffer_substring(minibuffer_prompt_end(), buffers(current)%end_of_accessible_portion, text, status)
     end function minibuffer_contents
 
     !> Read a string in the minibuffer with `prompt', starting with
@@ -372,19 +372,19 @@ contains
         !> POSITION); default 0.
         integer, intent(in), optional :: history_position
         type(handle_type) :: calling_buffer, minibuffer, old_mini_buffer, saved_calling
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(window_type), pointer :: sw, mw
         type(status_type) :: st, edit_status
         type(value_type) :: saved_inhibit
         type(history_setting_type), pointer :: history_list
-        character(len=:), allocatable :: ambient_dir, saved_histvar, histvar, saved_before, histstring
+        character(len=:), allocatable :: ambient_directory, saved_histvar, histvar, saved_before, histstring
         type(string_type), allocatable :: saved_default(:)
         character(len=:), allocatable :: saved_prompt
         logical :: had_prompt
         integer(int64) :: saved_goal
         integer :: saved_histpos
         logical :: had_default, had_before, has_histstring
-        logical :: changed, old_selected, has_dir
+        logical :: changed, old_selected, has_directory
         procedure(minibuffer_setup_procedure), pointer :: setup
 
         result = ""
@@ -394,12 +394,12 @@ contains
 
         if (.not. enable_recursive_minibuffers .and. minibuf_level > 0) then
             if (selected_frame%minibuffer_selected) then
-                call set_error(status, FM_USER_ERROR, "Command attempted to use minibuffer while in minibuffer")
+                call set_error(status, USER_ERROR_CODE, "Command attempted to use minibuffer while in minibuffer")
             else
                 ! If we're in another window, cancel the minibuffer that's
                 ! active.
                 call throw_exit_string("Command attempted to use minibuffer while in minibuffer")
-                call set_error(status, FM_GENERIC_ERROR, "Command attempted to use minibuffer while in minibuffer")
+                call set_error(status, GENERIC_ERROR_CODE, "Command attempted to use minibuffer while in minibuffer")
             end if
 
             return
@@ -408,8 +408,8 @@ contains
         histvar = "minibuffer_history"
         if (present(history)) histvar = history
         calling_buffer = current_buffer()
-        has_dir = allocated(buffers(current)%directory)
-        if (has_dir) ambient_dir = buffers(current)%directory
+        has_directory = allocated(buffers(current)%directory)
+        if (has_directory) ambient_directory = buffers(current)%directory
         call get_minibuffer(minibuf_level + 1, minibuffer, status)
         if (.not. status%ok()) return
         minibuf_level = minibuf_level + 1
@@ -450,10 +450,10 @@ contains
         ! keeps no history).
         if (histvar /= "t") history_list => find_history(histvar, create=.true.)
         old_selected = selected_frame%minibuffer_selected
-        sw => frame_selected_window_ref()
-        mw => minibuffer_window_ref()
+        sw => frame_selected_window_reference()
+        mw => minibuffer_window_reference()
         old_mini_buffer = mw%buffer
-        if (read_minibuffer_restore_windows) call current_window_configuration(config)
+        if (read_minibuffer_restore_windows) call current_window_configuration(configuration)
         minibuffer_scroll_window = selected_frame%selected_window
         call set_buffer(minibuffer, status)
 
@@ -466,7 +466,7 @@ contains
         ! set_minibuffer_mode
         call clear_all_local_variables()
         ! The minibuffer works in the caller's directory.
-        if (has_dir) buffers(current)%directory = ambient_dir
+        if (has_directory) buffers(current)%directory = ambient_directory
         call set_window_buffer(selected_frame%minibuffer_window, minibuffer, st)
         selected_frame%minibuffer_selected = .true.
         mw%hscroll = 0
@@ -483,13 +483,13 @@ contains
             ! front-sticky, rear-nonsticky and field, then
             ! minibuffer-prompt-properties (by default read-only t and the
             ! face minibuffer_prompt, added after any faces of the prompt).
-            call add_text_properties(1_int64, buffers(current)%pt, &
+            call add_text_properties(1_int64, buffers(current)%point, &
                                      list(value_type(name="front_sticky"), value_type(.true.), value_type(name="rear_nonsticky"), &
                                           value_type(.true.), &
                                           value_type(name="field"), value_type(.true.), value_type(name="read_only"), &
                                           value_type(.true.)), changed, st)
-            call add_text_properties(1_int64, buffers(current)%pt, list(value_type(name="face"), &
-                                                                        value_type(name="minibuffer_prompt")), &
+            call add_text_properties(1_int64, buffers(current)%point, list(value_type(name="face"), &
+                                                                           value_type(name="minibuffer_prompt")), &
                                      changed, st)
         end if
 
@@ -502,10 +502,10 @@ contains
                 ! Convert to distance from end of input.
                 if (position < 1) then
                     ! A number too small means the beginning of the string.
-                    call goto_char(buffers(current)%pt - count_characters(initial_input))
+                    call goto_character(buffers(current)%point - count_characters(initial_input))
                 else
-                    call goto_char(buffers(current)%pt + max(position - 1 - count_characters(initial_input), &
-                                                             -count_characters(initial_input)))
+                    call goto_character(buffers(current)%point + max(position - 1 - count_characters(initial_input), &
+                                                                     -count_characters(initial_input)))
                 end if
             end if
         end if
@@ -561,12 +561,12 @@ contains
         selected_frame%minibuffer_selected = old_selected
         ! (Windows may have been made meanwhile: fetch them again.)
         ! minibuf.c:minibuffer_unwind (one frame)
-        mw => minibuffer_window_ref()
+        mw => minibuffer_window_reference()
         mw%buffer = old_mini_buffer
 
         if (read_minibuffer_restore_windows) then
-            call set_window_configuration(config)
-            call destroy_window_configuration(config)
+            call set_window_configuration(configuration)
+            call destroy_window_configuration(configuration)
         end if
 
         call set_buffer(calling_buffer, st)
@@ -677,23 +677,23 @@ contains
         if (is_buffer_live(saved)) call set_buffer(saved, st)
     end subroutine set_initial_minibuffer_mode
 
-    !> Whether STRING matches all the regexps of `completion_regexps',
+    !> Whether STRING matches all the regexps of `completion_regular_expressions',
     !> folding case when IGNORE_CASE ("Stack overflow in regexp matcher"
     !> is an error).  Port of minibuf.c:match_regexps.
-    recursive logical function match_regexps(string, ignore_case, status) result(match)
+    recursive logical function match_regular_expressions(string, ignore_case, status) result(match)
         character(len=*), intent(in) :: string
         logical, intent(in) :: ignore_case
         type(status_type), intent(out) :: status
         integer :: k
 
         match = .true.
-        if (.not. allocated(completion_regexps)) return
+        if (.not. allocated(completion_regular_expressions)) return
 
-        do k = 1, size(completion_regexps)
-            match = fast_string_match(trim(completion_regexps(k)), string, ignore_case, status) > 0
+        do k = 1, size(completion_regular_expressions)
+            match = fast_string_match(trim(completion_regular_expressions(k)), string, ignore_case, status) > 0
             if (.not. status%ok() .or. .not. match) return
         end do
-    end function match_regexps
+    end function match_regular_expressions
 
     !> Like `assoc' but specifically for strings (and names).
     !>
@@ -707,26 +707,26 @@ contains
     !> single string, rather than two values whose first is a string.
     !> Port of minibuf.c:Fassoc_string (KEY as a string; a name is
     !> given by its name).
-    function assoc_string(key, list_value, case_fold) result(elt)
+    function assoc_string(key, list_value, case_fold) result(element)
         character(len=*), intent(in) :: key
         type(value_type), intent(in) :: list_value
         logical, intent(in), optional :: case_fold
-        type(value_type) :: elt
-        type(value_type), allocatable :: elts(:)
+        type(value_type) :: element
+        type(value_type), allocatable :: elements(:)
         type(value_type) :: thiscar
         character(len=:), allocatable :: s
         logical :: fold
         integer :: k
 
-        elt = value_type()
+        element = value_type()
         fold = .false.
         if (present(case_fold)) fold = case_fold
         if (vtag(list_value) /= V_ARRAY) return
-        call list_elements(list_value, elts)
+        call list_elements(list_value, elements)
 
-        do k = 1, size(elts)
-            thiscar = elts(k)
-            if (vtag(elts(k)) == V_ARRAY) thiscar = list_elt(elts(k), 1_int64)
+        do k = 1, size(elements)
+            thiscar = elements(k)
+            if (vtag(elements(k)) == V_ARRAY) thiscar = list_element(elements(k), 1_int64)
 
             if ((vtag(thiscar) == V_NAME .or. vtag(thiscar) == V_NULL)) then
                 s = symbols(xsymbol(thiscar))%name
@@ -737,7 +737,7 @@ contains
             end if
 
             if (compare_strings(s, key, fold) == COMPARE_EQUAL) then
-                elt = elts(k)
+                element = elements(k)
                 return
             end if
         end do
@@ -775,25 +775,25 @@ contains
             end subroutine ask
         end interface
         integer :: depth
-        character(len=20) :: num
+        character(len=20) :: number
         logical :: answer
 
         status = status_type()
         depth = minibuffer_depth_of()
 
         if (depth == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Not in a minibuffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not in a minibuffer")
             return
         end if
 
         if (.not. is_minibuffer_innermost_command_loop()) then
-            call set_error(status, FM_GENERIC_ERROR, "Not in most nested command loop")
+            call set_error(status, GENERIC_ERROR_CODE, "Not in most nested command loop")
             return
         end if
 
         if (depth < minibuf_level) then
-            write (num, "(i0)") minibuf_level - depth + 1
-            call ask("Abort "//trim(num)//" minibuffer levels? ", answer, status)
+            write (number, "(i0)") minibuf_level - depth + 1
+            call ask("Abort "//trim(number)//" minibuffer levels? ", answer, status)
             if (.not. status%ok()) return
             ! Due to the above check, the current minibuffer is in the
             ! most nested command loop, which means that we don't have to
@@ -811,13 +811,13 @@ contains
     ! Completion primitives
     ! ------------------------------------------------------------------
 
-    !> The elements of a non-function table: `elts' (the list elements or
+    !> The elements of a non-function table: `elements' (the list elements or
     !> names, given to the test) and the string each one completes
     !> to (`names'; `ok' is false for elements that are not strings or
     !> names).  Not a port.
-    subroutine table_elements(table, elts, names, ok)
+    subroutine table_elements(table, elements, names, ok)
         type(completion_table_type), intent(in) :: table
-        type(value_type), allocatable, intent(out) :: elts(:)
+        type(value_type), allocatable, intent(out) :: elements(:)
         type(string_type), allocatable, intent(out) :: names(:)
         logical, allocatable, intent(out) :: ok(:)
         type(value_type), allocatable :: parts(:)
@@ -825,10 +825,10 @@ contains
         integer(int64) :: k
 
         if (table%kind == TABLE_OBARRAY) then
-            allocate (elts(nsymbols), names(nsymbols), ok(nsymbols))
+            allocate (elements(nsymbols), names(nsymbols), ok(nsymbols))
 
             do k = 1, nsymbols
-                elts(k) = make_symbol_ref(k)
+                elements(k) = make_symbol_reference(k)
                 names(k)%text = symbols(k)%name
                 ok(k) = .true.
             end do
@@ -836,15 +836,15 @@ contains
             return
         end if
 
-        call list_elements(table%list, elts)
-        allocate (names(size(elts)), ok(size(elts)))
+        call list_elements(table%list, elements)
+        allocate (names(size(elements)), ok(size(elements)))
 
-        do k = 1, size(elts, kind=int64)
+        do k = 1, size(elements, kind=int64)
             ! A table element: its car is the completion.
-            eltstring = elts(k)
+            eltstring = elements(k)
 
-            if (vtag(elts(k)) == V_ARRAY) then
-                call list_elements(elts(k), parts)
+            if (vtag(elements(k)) == V_ARRAY) then
+                call list_elements(elements(k), parts)
                 eltstring = value_type()
                 if (size(parts) > 0) eltstring = parts(1)
             end if
@@ -914,7 +914,7 @@ contains
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         character(len=:), allocatable :: bestmatch, old_bestmatch, eltstring
@@ -933,20 +933,20 @@ contains
             return
         end if
 
-        call table_elements(collection, elts, names, ok)
+        call table_elements(collection, elements, names, ok)
         has_best = .false.
         bestmatchsize = 0
         matchcount = 0
         nstring = count_characters(string)
 
-        do k = 1, size(elts, kind=int64)
+        do k = 1, size(elements, kind=int64)
             ! Is this element a possible completion?
             if (.not. ok(k)) cycle
             eltstring = names(k)%text
             if (.not. prefix_matches(string, eltstring)) cycle
 
             ! Ignore this element if it fails to match all the regexps.
-            if (.not. match_regexps(eltstring, completion_ignore_case%value, status)) then
+            if (.not. match_regular_expressions(eltstring, completion_ignore_case%value, status)) then
                 if (.not. status%ok()) return
                 cycle
             end if
@@ -954,7 +954,7 @@ contains
             ! Ignore this element if there is a test and the
             ! test doesn't like it.
             if (present(test)) then
-                if (.not. test(elts(k))) cycle
+                if (.not. test(elements(k))) cycle
             end if
 
             neltstring = count_characters(eltstring)
@@ -1049,7 +1049,7 @@ contains
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
-        type(value_type), allocatable :: elts(:), matches(:)
+        type(value_type), allocatable :: elements(:), matches(:)
         type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         integer(int64) :: k, n
@@ -1064,17 +1064,17 @@ contains
             return
         end if
 
-        call table_elements(collection, elts, names, ok)
-        allocate (matches(size(elts)))
+        call table_elements(collection, elements, names, ok)
+        allocate (matches(size(elements)))
         n = 0
 
-        do k = 1, size(elts, kind=int64)
+        do k = 1, size(elements, kind=int64)
             ! Is this element a possible completion?
             if (.not. ok(k)) cycle
             if (.not. prefix_matches(string, names(k)%text)) cycle
 
             ! Ignore this element if it fails to match all the regexps.
-            if (.not. match_regexps(names(k)%text, completion_ignore_case%value, status)) then
+            if (.not. match_regular_expressions(names(k)%text, completion_ignore_case%value, status)) then
                 if (.not. status%ok()) return
                 cycle
             end if
@@ -1082,7 +1082,7 @@ contains
             ! Ignore this element if there is a test and the
             ! test doesn't like it.
             if (present(test)) then
-                if (.not. test(elts(k))) cycle
+                if (.not. test(elements(k))) cycle
             end if
 
             ! Ok => put it on the list.
@@ -1105,7 +1105,7 @@ contains
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: collection
         procedure(completion_test_procedure), optional :: test
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(string_type), allocatable :: names(:)
         logical, allocatable :: ok(:)
         type(value_type) :: tem, result
@@ -1127,12 +1127,12 @@ contains
             id = intern_soft(string)
 
             if (id /= 0) then
-                tem = make_symbol_ref(id)
+                tem = make_symbol_reference(id)
             else if (completion_ignore_case%value) then
                 do k = 1, nsymbols
                     if (compare_strings(string, symbols(k)%name, .true.) == COMPARE_EQUAL) then
                         id = k
-                        tem = make_symbol_ref(k)
+                        tem = make_symbol_reference(k)
                         exit
                     end if
                 end do
@@ -1141,15 +1141,15 @@ contains
             if (id == 0) return
         case default
             ! assoc-string
-            call table_elements(collection, elts, names, ok)
+            call table_elements(collection, elements, names, ok)
             id = 0
 
-            do k = 1, size(elts, kind=int64)
+            do k = 1, size(elements, kind=int64)
                 if (.not. ok(k)) cycle
 
                 if (compare_strings(string, names(k)%text, completion_ignore_case%value) == COMPARE_EQUAL) then
                     id = k
-                    tem = elts(k)
+                    tem = elements(k)
                     exit
                 end if
             end do
@@ -1158,7 +1158,7 @@ contains
         end select
 
         ! Reject this element if it fails to match all the regexps.
-        if (.not. match_regexps(string, completion_ignore_case%value, status)) return
+        if (.not. match_regular_expressions(string, completion_ignore_case%value, status)) return
         ! Finally, check the test.
         valid = .true.
         if (present(test)) valid = test(tem)
@@ -1282,8 +1282,8 @@ contains
         bend = count_characters(suffix)
         call inner%fn(string, COMPLETE_BOUNDARIES, boundaries, status, test, suffix)
         if (.not. status%ok() .or. list_length(boundaries) /= 2) return
-        if (vtag(list_elt(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_elt(boundaries, 1_int64))
-        if (vtag(list_elt(boundaries, 2_int64)) == V_INTEGER) bend = xfixnum(list_elt(boundaries, 2_int64))
+        if (vtag(list_element(boundaries, 1_int64)) == V_INTEGER) bstart = xfixnum(list_element(boundaries, 1_int64))
+        if (vtag(list_element(boundaries, 2_int64)) == V_INTEGER) bend = xfixnum(list_element(boundaries, 2_int64))
     end subroutine inner_boundaries
 
     ! The longest common prefix of S1 and S2
@@ -1359,7 +1359,7 @@ contains
         type(value_type), intent(in) :: completions
         integer(int64), intent(in) :: boundary
         type(value_type), intent(out) :: result
-        type(value_type), allocatable :: elems(:), quoted(:)
+        type(value_type), allocatable :: elements(:), quoted(:)
         type(value_type) :: tried
         type(completion_table_type) :: prefix_table
         procedure(completion_quote_procedure), pointer :: qfun, qfun2
@@ -1370,13 +1370,13 @@ contains
         result = value_type()
         n = list_length(completions)
         if (n == 0) return
-        call list_elements(completions, elems)
+        call list_elements(completions, elements)
         ! (try-completion "" (cons (substring ustring boundary) completions))
         allocate (quoted(n + 1))
         quoted(1) = value_type(text=substring(ustring, boundary))
 
         do k = 1, n
-            quoted(k + 1) = elems(k)
+            quoted(k + 1) = elements(k)
         end do
 
         prefix_table = completion_list_table(make_list(quoted))
@@ -1401,7 +1401,7 @@ contains
         allocate (quoted(n))
 
         do k = 1, n
-            completion = xstring(elems(k))
+            completion = xstring(elements(k))
             new = substring(completion, count_characters(prefix))
             call qfun(new, qnew)
             qp = qprefix
@@ -1478,8 +1478,8 @@ contains
         procedure(completion_test_procedure), optional :: test
         character(len=*), intent(in), optional :: suffix
         type(value_type) :: res
-        type(value_type), allocatable :: elts(:), kept(:)
-        character(len=:), allocatable :: subverted, regexp, c
+        type(value_type), allocatable :: elements(:), kept(:)
+        character(len=:), allocatable :: subverted, regular_expression, c
         integer(int64) :: beginning, bstart, bend, n, k
         logical :: has_string
 
@@ -1498,10 +1498,10 @@ contains
             beginning = 0
 
             if (list_length(res) == 2) then
-                if (vtag(list_elt(res, 1_int64)) == V_INTEGER) beginning = xfixnum(list_elt(res, 1_int64))
+                if (vtag(list_element(res, 1_int64)) == V_INTEGER) beginning = xfixnum(list_element(res, 1_int64))
                 result = list(value_type(min(count_characters(string), &
                                              max(count_characters(s1), beginning + count_characters(s1) - count_characters(s2)))), &
-                              list_elt(res, 2_int64))
+                              list_element(res, 2_int64))
             else
                 result = list(value_type(min(count_characters(string), &
                                              max(count_characters(s1), beginning + count_characters(s1) - count_characters(s2)))), &
@@ -1523,15 +1523,15 @@ contains
             if (bstart >= count_characters(s2)) then
                 result = res
             else
-                regexp = "\`"//regexp_quote(substring(s2, bstart))
-                call list_elements(res, elts)
-                allocate (kept(size(elts)))
+                regular_expression = "\`"//regular_expression_quote(substring(s2, bstart))
+                call list_elements(res, elements)
+                allocate (kept(size(elements)))
                 n = 0
 
-                do k = 1, size(elts)
-                    c = xstring(elts(k))
+                do k = 1, size(elements)
+                    c = xstring(elements(k))
 
-                    if (string_match(regexp, c, status) > 0) then
+                    if (string_match(regular_expression, c, status) > 0) then
                         n = n + 1
                         kept(n) = value_type(text=substring(c, match_end(0, status) - 1))
                     end if
@@ -1603,13 +1603,13 @@ contains
     end subroutine completion_table_with_test
 
     ! Both tests of `completion_table_with_test'.  Not a port.
-    recursive logical function both_tests(elt)
-        type(value_type), intent(in) :: elt
+    recursive logical function both_tests(element)
+        type(value_type), intent(in) :: element
         procedure(completion_test_procedure), pointer :: p2
 
         p2 => and_test2
-        both_tests = and_test1(elt)
-        if (both_tests) both_tests = p2(elt)
+        both_tests = and_test1(element)
+        if (both_tests) both_tests = p2(element)
     end function both_tests
 
     ! Whether PREFIX is a prefix of STRING, ignoring case if IGNORE_CASE

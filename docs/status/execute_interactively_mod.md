@@ -14,7 +14,7 @@ command registry (Fortran procedures under symbols, standing in for function cel
 `is_command`,
 `prefix-numeric-value`,
 `current-prefix-arg`,
-`prefix-arg` (`type(prefix_arg_type)`, A7; `this-command` and `current-minibuffer-command` are `type(command_type)` pointers);
+`prefix-arg` (`type(prefix_argument_type)`, A7; `this-command` and `current-minibuffer-command` are `type(command_type)` pointers);
 callint.c `check_mark` (the `r` code gives point and the mark as they are, after its checks)
 
 ## Deferred

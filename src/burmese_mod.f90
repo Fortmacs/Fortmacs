@@ -33,7 +33,7 @@ contains
     module subroutine define_burmese_language_environments()
         call define_language_environment("Burmese", &
                                          has_documentation=.true., &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Burmese (မ္ရန္‌မာ)"//achar(9)// &
                                          "မင္‍ဂလာပာ", &
                                          coding_systems=[character(len=40) :: "utf-8"], &

@@ -7,18 +7,18 @@
 ## Ported
 
 encoding table,
-`char_string`,
+`character_string`,
 `multibyte_length`,
-`string_char_and_length`,
-`raw_prev_char_len`,
+`string_character_and_length`,
+`raw_previous_character_length`,
 raw-byte (eight-bit) conversions,
-`multibyte_chars_in_text`,
-`parse_str_as_multibyte`,
-`str_as_multibyte`,
+`multibyte_characters_in_text`,
+`parse_string_as_multibyte`,
+`string_as_multibyte`,
 `count_size_as_multibyte`,
-`str_to_multibyte`,
-`str_as_unibyte`,
-`char_resolve_modifier_mask`,
+`string_to_multibyte`,
+`string_as_unibyte`,
+`character_resolve_modifier_mask`,
 small tests,
 `is_alphabetic`,
 `is_alphanumeric`,
@@ -29,7 +29,7 @@ small tests,
 
 ## Deferred
 
-`chars_in_text` (needs current buffer → buffer_mod);
+`characters_in_text` (needs current buffer → buffer_mod);
 `char_width`/`string-width` (display phase);
 `translate_char`;
 Lisp-level DEFUNs

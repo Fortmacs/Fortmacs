@@ -20,24 +20,24 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Conf mode: `conf_mode' (which guesses one of the sub-modes from the
-!> buffer's contents) and its sub-modes `conf_unix_mode',
-!> `conf_windows_mode', `conf_javaprop_mode', `conf_space_mode',
-!> `conf_colon_mode', `conf_ppd_mode', `conf_xdefaults_mode',
-!> `conf_toml_mode', `conf_desktop_mode' and `conf_npmrc_mode', with
-!> `conf_align_assignments' (C-c C-a), `conf_quote_normal' (C-c C-q) and
-!> `conf_space_keywords' (C-c C-s), and files.el's `conf_mode_maybe'.
+!> Conf mode: `configuration_mode' (which guesses one of the sub-modes from the
+!> buffer's contents) and its sub-modes `configuration_unix_mode',
+!> `configuration_windows_mode', `configuration_javaprop_mode', `configuration_space_mode',
+!> `configuration_colon_mode', `configuration_ppd_mode', `configuration_xdefaults_mode',
+!> `configuration_toml_mode', `configuration_desktop_mode' and `configuration_npmrc_mode', with
+!> `configuration_align_assignments' (C-c C-a), `configuration_quote_normal' (C-c C-q) and
+!> `configuration_space_keywords' (C-c C-s), and files.el's `configuration_mode_maybe'.
 !>
-!> The keyword lists (`conf_font_lock_keywords' and the others) are
-!> arrays of `font_lock_keyword_type'.  `conf_assignment_sign' is a string
-!> (unallocated for none).  `conf_space_keywords_by_file' holds
-!> `conf_space_keywords_entry_type' entries.
+!> The keyword lists (`configuration_font_lock_keywords' and the others) are
+!> arrays of `font_lock_keyword_type'.  `configuration_assignment_sign' is a string
+!> (unallocated for none).  `configuration_space_keywords_by_file' holds
+!> `configuration_space_keywords_entry_type' entries.
 !>
-!> Deferred: Outline mode's variables (`outline_regexp',
-!> `outline_heading_end_regexp', `outline_level' with
-!> `conf_outline_level'), the Conf menu, `text_conversion_style', the modes' abbrev tables, file-local
+!> Deferred: Outline mode's variables (`outline_regular_expression',
+!> `outline_heading_end_regular_expression', `outline_level' with
+!> `configuration_outline_level'), the Conf menu, `text_conversion_style', the modes' abbrev tables, file-local
 !> variables (`hack_local_variables_hook', so a file's own
-!> `conf_space_keywords'), and XML mode in `conf_mode_maybe' (files that
+!> `configuration_space_keywords'), and XML mode in `configuration_mode_maybe' (files that
 !> start like XML keep their mode).
 module configuration_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
@@ -46,7 +46,7 @@ module configuration_mode_mod
     use handle_mod, only: handle_type
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use buffer_mod, only: buffers, current
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
@@ -54,155 +54,162 @@ module configuration_mode_mod
     use basic_subprograms_mod, only: delaying_mode_hooks, delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
     use syntax_mod, only: make_syntax_table, copy_syntax_table, modify_syntax_entry, syntax_table, set_syntax_table, &
                           is_syntax_table_live, parse_expression_ignore_comments, forward_comment, scan_groups
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_eob, is_eol, char_after, char_before, &
-                                     delete_region, narrow_to_region, widen, region_beginning, region_end, line_end_position
-    use editing_commands_mod, only: forward_line, forward_char, end_of_line
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_end_of_buffer, is_end_of_line, &
+                                     character_after, character_before, delete_region, narrow_to_region, widen, region_beginning, &
+                                     region_end, line_end_position
+    use editing_commands_mod, only: forward_line, forward_character, end_of_line
     use insert_delete_mod, only: insert
     use indent_mod, only: current_column, indent_to
-    use search_mod, only: looking_at, re_search_forward, search_forward, string_match, match_beginning, match_end, &
-                          set_match_data, regexp_quote, SEARCH_NOERROR
+    use search_mod, only: looking_at, regular_expression_search_forward, search_forward, string_match, match_beginning, match_end, &
+                          set_match_data, regular_expression_quote, SEARCH_NOERROR
     use simple_mod, only: is_use_region
     use minibuffer_reading_mod, only: read_string
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_mode_enabled, FONT_LOCK_OVERRIDE_PREPEND
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_flush, font_lock_refresh_defaults
     use newcomment_mod, only: comment_start, comment_start_skip, comment_beginning
-    use index_menu_mod, only: imenu_patterns, imenu_pattern_type
+    use index_menu_mod, only: index_menu_patterns, index_menu_pattern_type
     implicit none(type, external)
     private
 
-    public :: init_conf_mode, conf_mode, conf_unix_mode, conf_windows_mode, conf_javaprop_mode, conf_space_mode, &
-              conf_colon_mode, conf_ppd_mode, conf_xdefaults_mode, conf_toml_mode, conf_desktop_mode, conf_npmrc_mode, &
-              conf_mode_maybe, conf_align_assignments, conf_quote_normal, conf_space_keywords_command, &
-              conf_mode_initialize, conf_toml_recognize_section, conf_space_keywords_entry_type
+    public :: initialize_configuration_mode, configuration_mode, configuration_unix_mode, configuration_windows_mode, &
+              configuration_javaprop_mode, configuration_space_mode, &
+              configuration_colon_mode, configuration_ppd_mode, configuration_xdefaults_mode, configuration_toml_mode, &
+              configuration_desktop_mode, configuration_npmrc_mode, &
+              configuration_mode_maybe, configuration_align_assignments, configuration_quote_normal, &
+              configuration_space_keywords_command, &
+              configuration_mode_initialize, configuration_toml_recognize_section, configuration_space_keywords_entry_type
 
-    !> Align assignments to this column by default with \[conf_align_assignments].
+    !> Align assignments to this column by default with \[configuration_align_assignments].
     !> If this number is negative, the `=' comes before the whitespace.  Use 0 to
-    !> not align (only setting space according to `conf_assignment_space').
+    !> not align (only setting space according to `configuration_assignment_space').
     !> Port of conf-mode.el conf-assignment-column.
-    type(integer_setting_type), target, public :: conf_assignment_column = &
-                                                  integer_setting_type(name="conf_assignment_column", value=24)
+    type(integer_setting_type), target, public :: configuration_assignment_column = &
+                                                  integer_setting_type(name="configuration_assignment_column", value=24)
 
-    !> Value for `conf_assignment_column' in Java properties buffers.
+    !> Value for `configuration_assignment_column' in Java properties buffers.
     !> Port of conf-mode.el conf-javaprop-assignment-column.
-    type(integer_setting_type), target, public :: conf_javaprop_assignment_column = &
-                                                  integer_setting_type(name="conf_javaprop_assignment_column", value=32)
+    type(integer_setting_type), target, public :: configuration_javaprop_assignment_column = &
+                                                  integer_setting_type(name="configuration_javaprop_assignment_column", value=32)
 
-    !> Value for `conf_assignment_column' in Java properties buffers.
+    !> Value for `configuration_assignment_column' in Java properties buffers.
     !> Port of conf-mode.el conf-colon-assignment-column.
-    type(integer_setting_type), target, public :: conf_colon_assignment_column = &
-                                                  integer_setting_type(name="conf_colon_assignment_column", value=-24)
+    type(integer_setting_type), target, public :: configuration_colon_assignment_column = &
+                                                  integer_setting_type(name="configuration_colon_assignment_column", value=-24)
 
     !> Put at least one space around assignments when aligning.
     !> Port of conf-mode.el conf-assignment-space.
-    type(logical_setting_type), target, public :: conf_assignment_space = &
-                                                  logical_setting_type(name="conf_assignment_space", value=.true.)
+    type(logical_setting_type), target, public :: configuration_assignment_space = &
+                                                  logical_setting_type(name="configuration_assignment_space", value=.true.)
 
-    !> Value for `conf_assignment_space' in colon style Conf mode buffers.
+    !> Value for `configuration_assignment_space' in colon style Conf mode buffers.
     !> Port of conf-mode.el conf-colon-assignment-space.
-    type(logical_setting_type), target, public :: conf_colon_assignment_space = &
-                                                  logical_setting_type(name="conf_colon_assignment_space", value=.false.)
+    type(logical_setting_type), target, public :: configuration_colon_assignment_space = &
+                                                  logical_setting_type(name="configuration_colon_assignment_space", value=.false.)
 
-    !> Local keymap for `conf_mode' buffers.  Port of conf-mode.el
+    !> Local keymap for `configuration_mode' buffers.  Port of conf-mode.el
     !> conf-mode-map.
-    type(handle_type), public :: conf_mode_map
+    type(handle_type), public :: configuration_mode_map
 
-    !> Syntax table in use in Windows style `conf_mode' buffers.  Port of
+    !> Syntax table in use in Windows style `configuration_mode' buffers.  Port of
     !> conf-mode.el conf-mode-syntax-table.
-    type(handle_type), public :: conf_mode_syntax_table
-    !> Syntax table in use in Unix style `conf_mode' buffers.  Port of
+    type(handle_type), public :: configuration_mode_syntax_table
+    !> Syntax table in use in Unix style `configuration_mode' buffers.  Port of
     !> conf-mode.el conf-unix-mode-syntax-table.
-    type(handle_type), public :: conf_unix_mode_syntax_table
-    !> Syntax table in use in npmrc `conf_mode' buffers.  Port of
+    type(handle_type), public :: configuration_unix_mode_syntax_table
+    !> Syntax table in use in npmrc `configuration_mode' buffers.  Port of
     !> conf-mode.el conf-npmrc-mode-syntax-table.
-    type(handle_type), public :: conf_npmrc_mode_syntax_table
+    type(handle_type), public :: configuration_npmrc_mode_syntax_table
     !> Syntax table in use in Java properties buffers.  Port of
     !> conf-mode.el conf-javaprop-mode-syntax-table (obsolete).
-    type(handle_type), public :: conf_javaprop_mode_syntax_table
-    !> Syntax table in use in PPD `conf_mode' buffers.  Port of
+    type(handle_type), public :: configuration_javaprop_mode_syntax_table
+    !> Syntax table in use in PPD `configuration_mode' buffers.  Port of
     !> conf-mode.el conf-ppd-mode-syntax-table.
-    type(handle_type), public :: conf_ppd_mode_syntax_table
-    !> Syntax table in use in Xdefaults style `conf_mode' buffers.  Port of
+    type(handle_type), public :: configuration_ppd_mode_syntax_table
+    !> Syntax table in use in Xdefaults style `configuration_mode' buffers.  Port of
     !> conf-mode.el conf-xdefaults-mode-syntax-table.
-    type(handle_type), public :: conf_xdefaults_mode_syntax_table
-    !> Syntax table in use in TOML style `conf_mode' buffers.  Port of
+    type(handle_type), public :: configuration_xdefaults_mode_syntax_table
+    !> Syntax table in use in TOML style `configuration_mode' buffers.  Port of
     !> conf-mode.el conf-toml-mode-syntax-table.
-    type(handle_type), public :: conf_toml_mode_syntax_table
+    type(handle_type), public :: configuration_toml_mode_syntax_table
 
     !> Keywords to highlight in Conf mode.  Port of conf-mode.el
     !> conf-font-lock-keywords.
-    type(font_lock_keyword_type), allocatable, public :: conf_font_lock_keywords(:)
+    type(font_lock_keyword_type), allocatable, public :: configuration_font_lock_keywords(:)
     !> Keywords to highlight in Conf Java Properties mode.  Port of
     !> conf-mode.el conf-javaprop-font-lock-keywords.
-    type(font_lock_keyword_type), allocatable, public :: conf_javaprop_font_lock_keywords(:)
+    type(font_lock_keyword_type), allocatable, public :: configuration_javaprop_font_lock_keywords(:)
     !> Keywords to highlight in Conf Space mode, before the one made from
-    !> `conf_space_keywords' (var val).  Port of conf-mode.el
+    !> `configuration_space_keywords' (var val).  Port of conf-mode.el
     !> conf-space-font-lock-keywords.
-    type(font_lock_keyword_type), allocatable, public :: conf_space_font_lock_keywords(:)
+    type(font_lock_keyword_type), allocatable, public :: configuration_space_font_lock_keywords(:)
     !> Keywords to highlight in Conf Colon mode.  Port of conf-mode.el
     !> conf-colon-font-lock-keywords.
-    type(font_lock_keyword_type), allocatable, public :: conf_colon_font_lock_keywords(:)
+    type(font_lock_keyword_type), allocatable, public :: configuration_colon_font_lock_keywords(:)
     !> Keywords to highlight in Conf TOML mode.  Port of conf-mode.el
     !> conf-toml-font-lock-keywords.
-    type(font_lock_keyword_type), allocatable, public :: conf_toml_font_lock_keywords(:)
+    type(font_lock_keyword_type), allocatable, public :: configuration_toml_font_lock_keywords(:)
     !> Keywords to highlight in Conf Desktop mode.  Port of conf-mode.el
     !> conf-desktop-font-lock-keywords.
-    type(font_lock_keyword_type), allocatable, public :: conf_desktop_font_lock_keywords(:)
+    type(font_lock_keyword_type), allocatable, public :: configuration_desktop_font_lock_keywords(:)
 
-    !> An entry of `conf_space_keywords_by_file': files whose name matches
-    !> REGEXP get KEYWORDS as `conf_space_keywords'.
-    type :: conf_space_keywords_entry_type
-        character(len=:), allocatable :: regexp, keywords
-    end type conf_space_keywords_entry_type
+    !> An entry of `configuration_space_keywords_by_file': files whose name matches
+    !> REGULAR_EXPRESSION get KEYWORDS as `configuration_space_keywords'.
+    type :: configuration_space_keywords_entry_type
+        character(len=:), allocatable :: regular_expression, keywords
+    end type configuration_space_keywords_entry_type
 
-    !> File-name-based settings for the variable `conf_space_keywords'.
+    !> File-name-based settings for the variable `configuration_space_keywords'.
     !> Port of conf-mode.el conf-space-keywords-alist.
-    type(conf_space_keywords_entry_type), allocatable, public :: conf_space_keywords_by_file(:)
+    type(configuration_space_keywords_entry_type), allocatable, public :: configuration_space_keywords_by_file(:)
 
     !> Regexps for functions that may come before a space assignment.
     !> This allows constructs such as
     !> keyword var value
     !> This variable is best set in the file local variables, or through
-    !> `conf_space_keywords_by_file'.  Port of conf-mode.el
+    !> `configuration_space_keywords_by_file'.  Port of conf-mode.el
     !> conf-space-keywords.
-    type(string_setting_type), target, public :: conf_space_keywords = string_setting_type(name="conf_space_keywords")
+    type(string_setting_type), target, public :: configuration_space_keywords = string_setting_type( &
+                                                 name="configuration_space_keywords")
 
     !> Sign used for assignments (char or string).  Port of conf-mode.el
     !> conf-assignment-sign (unallocated for none).
-    type(string_setting_type), target, public :: conf_assignment_sign = string_setting_type(name="conf_assignment_sign")
+    type(string_setting_type), target, public :: configuration_assignment_sign = string_setting_type( &
+                                                 name="configuration_assignment_sign")
 
     !> Regexp to recognize assignments.
     !> It is anchored after the first expression on a line.  There must be a
     !> grouping for the assignment sign, including leading and trailing
     !> whitespace.  Port of conf-mode.el conf-assignment-regexp.
-    type(string_setting_type), target, public :: conf_assignment_regexp = string_setting_type(name="conf_assignment_regexp")
+    type(string_setting_type), target, public :: configuration_assignment_regular_expression = string_setting_type( &
+                                                 name="configuration_assignment_regular_expression")
 
-    !> Hook run at the end of `conf_mode'.
-    type(hook_type), target, public :: conf_mode_hook = hook_type(name="conf_mode_hook")
-    !> Hook run at the end of `conf_unix_mode'.
-    type(hook_type), target, public :: conf_unix_mode_hook = hook_type(name="conf_unix_mode_hook")
-    !> Hook run at the end of `conf_windows_mode'.
-    type(hook_type), target, public :: conf_windows_mode_hook = hook_type(name="conf_windows_mode_hook")
-    !> Hook run at the end of `conf_javaprop_mode'.
-    type(hook_type), target, public :: conf_javaprop_mode_hook = hook_type(name="conf_javaprop_mode_hook")
-    !> Hook run at the end of `conf_space_mode'.
-    type(hook_type), target, public :: conf_space_mode_hook = hook_type(name="conf_space_mode_hook")
-    !> Hook run at the end of `conf_colon_mode'.
-    type(hook_type), target, public :: conf_colon_mode_hook = hook_type(name="conf_colon_mode_hook")
-    !> Hook run at the end of `conf_ppd_mode'.
-    type(hook_type), target, public :: conf_ppd_mode_hook = hook_type(name="conf_ppd_mode_hook")
-    !> Hook run at the end of `conf_xdefaults_mode'.
-    type(hook_type), target, public :: conf_xdefaults_mode_hook = hook_type(name="conf_xdefaults_mode_hook")
-    !> Hook run at the end of `conf_toml_mode'.
-    type(hook_type), target, public :: conf_toml_mode_hook = hook_type(name="conf_toml_mode_hook")
-    !> Hook run at the end of `conf_desktop_mode'.
-    type(hook_type), target, public :: conf_desktop_mode_hook = hook_type(name="conf_desktop_mode_hook")
-    !> Hook run at the end of `conf_npmrc_mode'.
-    type(hook_type), target, public :: conf_npmrc_mode_hook = hook_type(name="conf_npmrc_mode_hook")
+    !> Hook run at the end of `configuration_mode'.
+    type(hook_type), target, public :: configuration_mode_hook = hook_type(name="configuration_mode_hook")
+    !> Hook run at the end of `configuration_unix_mode'.
+    type(hook_type), target, public :: configuration_unix_mode_hook = hook_type(name="configuration_unix_mode_hook")
+    !> Hook run at the end of `configuration_windows_mode'.
+    type(hook_type), target, public :: configuration_windows_mode_hook = hook_type(name="configuration_windows_mode_hook")
+    !> Hook run at the end of `configuration_javaprop_mode'.
+    type(hook_type), target, public :: configuration_javaprop_mode_hook = hook_type(name="configuration_javaprop_mode_hook")
+    !> Hook run at the end of `configuration_space_mode'.
+    type(hook_type), target, public :: configuration_space_mode_hook = hook_type(name="configuration_space_mode_hook")
+    !> Hook run at the end of `configuration_colon_mode'.
+    type(hook_type), target, public :: configuration_colon_mode_hook = hook_type(name="configuration_colon_mode_hook")
+    !> Hook run at the end of `configuration_ppd_mode'.
+    type(hook_type), target, public :: configuration_ppd_mode_hook = hook_type(name="configuration_ppd_mode_hook")
+    !> Hook run at the end of `configuration_xdefaults_mode'.
+    type(hook_type), target, public :: configuration_xdefaults_mode_hook = hook_type(name="configuration_xdefaults_mode_hook")
+    !> Hook run at the end of `configuration_toml_mode'.
+    type(hook_type), target, public :: configuration_toml_mode_hook = hook_type(name="configuration_toml_mode_hook")
+    !> Hook run at the end of `configuration_desktop_mode'.
+    type(hook_type), target, public :: configuration_desktop_mode_hook = hook_type(name="configuration_desktop_mode_hook")
+    !> Hook run at the end of `configuration_npmrc_mode'.
+    type(hook_type), target, public :: configuration_npmrc_mode_hook = hook_type(name="configuration_npmrc_mode_hook")
 
-    !> Whether `conf_mode' is running its guessed sub-mode (so it doesn't
+    !> Whether `configuration_mode' is running its guessed sub-mode (so it doesn't
     !> guess again).  Port of conf-mode.el conf-mode--recursing.
-    logical :: conf_mode_recursing = .false.
+    logical :: configuration_mode_recursing = .false.
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
@@ -214,87 +221,103 @@ contains
 
     !> Define the Conf modes, their keymap, syntax tables and keywords (as
     !> loading conf-mode.el does).  Not a port.
-    subroutine init_conf_mode()
+    subroutine initialize_configuration_mode()
         type(status_type) :: st
 
-        if (is_syntax_table_live(conf_mode_syntax_table)) return
-        call forward_setting(conf_assignment_column)
-        call forward_setting(conf_javaprop_assignment_column)
-        call forward_setting(conf_colon_assignment_column)
-        call forward_setting(conf_assignment_space)
-        call forward_setting(conf_colon_assignment_space)
-        call forward_setting(conf_space_keywords)
-        call forward_setting(conf_assignment_sign)
-        call forward_setting(conf_assignment_regexp)
-        if (.not. allocated(conf_assignment_sign%value)) conf_assignment_sign = "="
-        if (.not. allocated(conf_assignment_regexp%value)) conf_assignment_regexp = ".+?\([ "//TAB//"]*=[ "//TAB//"]*\)"
-        call init_syntax_tables()
-        call init_keywords()
-        call init_space_keywords_table()
-        call major_modes%conf_mode%define("conf_mode", "Conf[?]", conf_mode, conf_mode_hook, &
-                                          syntax_table=conf_mode_syntax_table)
-        conf_mode_map = major_modes%conf_mode%map
-        call major_modes%conf_unix_mode%define("conf_unix_mode", "Conf[Unix]", conf_unix_mode, conf_unix_mode_hook, &
-                                               parent=major_modes%conf_mode, syntax_table=conf_unix_mode_syntax_table)
-        call major_modes%conf_windows_mode%define("conf_windows_mode", "Conf[WinIni]", conf_windows_mode, &
-                                                  conf_windows_mode_hook, parent=major_modes%conf_mode)
-        call major_modes%conf_javaprop_mode%define("conf_javaprop_mode", "Conf[JavaProp]", conf_javaprop_mode, &
-                                                   conf_javaprop_mode_hook, parent=major_modes%conf_mode, &
-                                                   syntax_table=conf_javaprop_mode_syntax_table)
-        call major_modes%conf_space_mode%define("conf_space_mode", "Conf[Space]", conf_space_mode, conf_space_mode_hook, &
-                                                parent=major_modes%conf_unix_mode)
-        call major_modes%conf_colon_mode%define("conf_colon_mode", "Conf[Colon]", conf_colon_mode, conf_colon_mode_hook, &
-                                                parent=major_modes%conf_unix_mode)
-        call major_modes%conf_ppd_mode%define("conf_ppd_mode", "Conf[PPD]", conf_ppd_mode, conf_ppd_mode_hook, &
-                                              parent=major_modes%conf_colon_mode, syntax_table=conf_ppd_mode_syntax_table)
-        call major_modes%conf_xdefaults_mode%define("conf_xdefaults_mode", "Conf[Xdefaults]", conf_xdefaults_mode, &
-                                                    conf_xdefaults_mode_hook, parent=major_modes%conf_colon_mode, &
-                                                    syntax_table=conf_xdefaults_mode_syntax_table)
-        call major_modes%conf_toml_mode%define("conf_toml_mode", "Conf[TOML]", conf_toml_mode, conf_toml_mode_hook, &
-                                               parent=major_modes%conf_mode, syntax_table=conf_toml_mode_syntax_table)
-        call major_modes%conf_desktop_mode%define("conf_desktop_mode", "Conf[Desktop]", conf_desktop_mode, &
-                                                  conf_desktop_mode_hook, parent=major_modes%conf_unix_mode)
-        call major_modes%conf_npmrc_mode%define("conf_npmrc_mode", "Conf[npmrc]", conf_npmrc_mode, conf_npmrc_mode_hook, &
-                                                parent=major_modes%conf_mode, syntax_table=conf_npmrc_mode_syntax_table)
-        call keymap_set(conf_mode_map, "C-c C-u", "conf_unix_mode", st)
-        call keymap_set(conf_mode_map, "C-c C-w", "conf_windows_mode", st)
-        call keymap_set(conf_mode_map, "C-c C-j", "conf_javaprop_mode", st)
-        call keymap_set(conf_mode_map, "C-c C-s", "conf_space_keywords", st)
-        call keymap_set(conf_mode_map, "C-c SPC", "conf_space_keywords", st)
-        call keymap_set(conf_mode_map, "C-c C-c", "conf_colon_mode", st)
-        call keymap_set(conf_mode_map, "C-c :", "conf_colon_mode", st)
-        call keymap_set(conf_mode_map, "C-c C-x", "conf_xdefaults_mode", st)
-        call keymap_set(conf_mode_map, "C-c C-p", "conf_ppd_mode", st)
-        call keymap_set(conf_mode_map, "C-c C-q", "conf_quote_normal", st)
-        call keymap_set(conf_mode_map, "C-c """, "conf_quote_normal", st)
-        call keymap_set(conf_mode_map, "C-c '", "conf_quote_normal", st)
-        call keymap_set(conf_mode_map, "C-c C-a", "conf_align_assignments", st)
-        commands%conf_mode%execute => conf_mode
-        commands%conf_unix_mode%execute => conf_unix_mode
-        commands%conf_windows_mode%execute => conf_windows_mode
-        commands%conf_javaprop_mode%execute => conf_javaprop_mode
-        commands%conf_space_mode%execute => conf_space_mode
-        commands%conf_colon_mode%execute => conf_colon_mode
-        commands%conf_ppd_mode%execute => conf_ppd_mode
-        commands%conf_xdefaults_mode%execute => conf_xdefaults_mode
-        commands%conf_toml_mode%execute => conf_toml_mode
-        commands%conf_desktop_mode%execute => conf_desktop_mode
-        commands%conf_npmrc_mode%execute => conf_npmrc_mode
-        commands%conf_space_keywords%execute => cmd_conf_space_keywords
-        commands%conf_align_assignments%execute => cmd_conf_align_assignments
-        commands%conf_quote_normal%execute => cmd_conf_quote_normal
-        commands%conf_mode_maybe%execute => conf_mode_maybe
-        commands%conf_mode_maybe%is_command = .false.
-    end subroutine init_conf_mode
+        if (is_syntax_table_live(configuration_mode_syntax_table)) return
+        call forward_setting(configuration_assignment_column)
+        call forward_setting(configuration_javaprop_assignment_column)
+        call forward_setting(configuration_colon_assignment_column)
+        call forward_setting(configuration_assignment_space)
+        call forward_setting(configuration_colon_assignment_space)
+        call forward_setting(configuration_space_keywords)
+        call forward_setting(configuration_assignment_sign)
+        call forward_setting(configuration_assignment_regular_expression)
+        if (.not. allocated(configuration_assignment_sign%value)) configuration_assignment_sign = "="
+        if (.not. allocated(configuration_assignment_regular_expression%value)) configuration_assignment_regular_expression = &
+            ".+?\([ "//TAB//"]*=[ "//TAB//"]*\)"
+        call initialize_syntax_tables()
+        call initialize_keywords()
+        call initialize_space_keywords_table()
+        call major_modes%configuration_mode%define("configuration_mode", "Conf[?]", configuration_mode, configuration_mode_hook, &
+                                                   syntax_table=configuration_mode_syntax_table)
+        configuration_mode_map = major_modes%configuration_mode%map
+        call major_modes%configuration_unix_mode%define("configuration_unix_mode", "Conf[Unix]", configuration_unix_mode, &
+                                                        configuration_unix_mode_hook, &
+                                                        parent=major_modes%configuration_mode, &
+                                                        syntax_table=configuration_unix_mode_syntax_table)
+        call major_modes%configuration_windows_mode%define("configuration_windows_mode", "Conf[WinIni]", &
+                                                           configuration_windows_mode, &
+                                                           configuration_windows_mode_hook, parent=major_modes%configuration_mode)
+        call major_modes%configuration_javaprop_mode%define("configuration_javaprop_mode", "Conf[JavaProp]", &
+                                                            configuration_javaprop_mode, &
+                                                          configuration_javaprop_mode_hook, parent=major_modes%configuration_mode, &
+                                                            syntax_table=configuration_javaprop_mode_syntax_table)
+        call major_modes%configuration_space_mode%define("configuration_space_mode", "Conf[Space]", configuration_space_mode, &
+                                                         configuration_space_mode_hook, &
+                                                         parent=major_modes%configuration_unix_mode)
+        call major_modes%configuration_colon_mode%define("configuration_colon_mode", "Conf[Colon]", configuration_colon_mode, &
+                                                         configuration_colon_mode_hook, &
+                                                         parent=major_modes%configuration_unix_mode)
+        call major_modes%configuration_ppd_mode%define("configuration_ppd_mode", "Conf[PPD]", configuration_ppd_mode, &
+                                                       configuration_ppd_mode_hook, &
+                                                       parent=major_modes%configuration_colon_mode, &
+                                                       syntax_table=configuration_ppd_mode_syntax_table)
+        call major_modes%configuration_xdefaults_mode%define("configuration_xdefaults_mode", "Conf[Xdefaults]", &
+                                                             configuration_xdefaults_mode, &
+                                                             configuration_xdefaults_mode_hook, &
+                                                             parent=major_modes%configuration_colon_mode, &
+                                                             syntax_table=configuration_xdefaults_mode_syntax_table)
+        call major_modes%configuration_toml_mode%define("configuration_toml_mode", "Conf[TOML]", configuration_toml_mode, &
+                                                        configuration_toml_mode_hook, &
+                                                        parent=major_modes%configuration_mode, &
+                                                        syntax_table=configuration_toml_mode_syntax_table)
+        call major_modes%configuration_desktop_mode%define("configuration_desktop_mode", "Conf[Desktop]", &
+                                                           configuration_desktop_mode, &
+                                                        configuration_desktop_mode_hook, parent=major_modes%configuration_unix_mode)
+        call major_modes%configuration_npmrc_mode%define("configuration_npmrc_mode", "Conf[npmrc]", configuration_npmrc_mode, &
+                                                         configuration_npmrc_mode_hook, &
+                                                         parent=major_modes%configuration_mode, &
+                                                         syntax_table=configuration_npmrc_mode_syntax_table)
+        call keymap_set(configuration_mode_map, "C-c C-u", "configuration_unix_mode", st)
+        call keymap_set(configuration_mode_map, "C-c C-w", "configuration_windows_mode", st)
+        call keymap_set(configuration_mode_map, "C-c C-j", "configuration_javaprop_mode", st)
+        call keymap_set(configuration_mode_map, "C-c C-s", "configuration_space_keywords", st)
+        call keymap_set(configuration_mode_map, "C-c SPC", "configuration_space_keywords", st)
+        call keymap_set(configuration_mode_map, "C-c C-c", "configuration_colon_mode", st)
+        call keymap_set(configuration_mode_map, "C-c :", "configuration_colon_mode", st)
+        call keymap_set(configuration_mode_map, "C-c C-x", "configuration_xdefaults_mode", st)
+        call keymap_set(configuration_mode_map, "C-c C-p", "configuration_ppd_mode", st)
+        call keymap_set(configuration_mode_map, "C-c C-q", "configuration_quote_normal", st)
+        call keymap_set(configuration_mode_map, "C-c """, "configuration_quote_normal", st)
+        call keymap_set(configuration_mode_map, "C-c '", "configuration_quote_normal", st)
+        call keymap_set(configuration_mode_map, "C-c C-a", "configuration_align_assignments", st)
+        commands%configuration_mode%execute => configuration_mode
+        commands%configuration_unix_mode%execute => configuration_unix_mode
+        commands%configuration_windows_mode%execute => configuration_windows_mode
+        commands%configuration_javaprop_mode%execute => configuration_javaprop_mode
+        commands%configuration_space_mode%execute => configuration_space_mode
+        commands%configuration_colon_mode%execute => configuration_colon_mode
+        commands%configuration_ppd_mode%execute => configuration_ppd_mode
+        commands%configuration_xdefaults_mode%execute => configuration_xdefaults_mode
+        commands%configuration_toml_mode%execute => configuration_toml_mode
+        commands%configuration_desktop_mode%execute => configuration_desktop_mode
+        commands%configuration_npmrc_mode%execute => configuration_npmrc_mode
+        commands%configuration_space_keywords%execute => execute_configuration_space_keywords
+        commands%configuration_align_assignments%execute => execute_configuration_align_assignments
+        commands%configuration_quote_normal%execute => execute_configuration_quote_normal
+        commands%configuration_mode_maybe%execute => configuration_mode_maybe
+        commands%configuration_mode_maybe%is_command = .false.
+    end subroutine initialize_configuration_mode
 
     ! Make the syntax tables of the Conf modes.  Port of the values of
     ! conf-mode.el's conf-*-mode-syntax-table variables.
-    subroutine init_syntax_tables()
+    subroutine initialize_syntax_tables()
         type(status_type) :: st
         type(handle_type) :: t
 
-        call make_syntax_table(conf_mode_syntax_table, st)
-        t = conf_mode_syntax_table
+        call make_syntax_table(configuration_mode_syntax_table, st)
+        t = configuration_mode_syntax_table
         call modify_syntax_entry(iachar("="), iachar("="), ".", st, t)
         call modify_syntax_entry(iachar("_"), iachar("_"), "_", st, t)
         call modify_syntax_entry(iachar("-"), iachar("-"), "_", st, t)
@@ -303,37 +326,37 @@ contains
         call modify_syntax_entry(iachar(";"), iachar(";"), "<", st, t)
         call modify_syntax_entry(10, 10, ">", st, t)
         call modify_syntax_entry(13, 13, ">", st, t)
-        call make_syntax_table(conf_unix_mode_syntax_table, st, conf_mode_syntax_table)
-        t = conf_unix_mode_syntax_table
+        call make_syntax_table(configuration_unix_mode_syntax_table, st, configuration_mode_syntax_table)
+        t = configuration_unix_mode_syntax_table
         call modify_syntax_entry(iachar("#"), iachar("#"), "<", st, t)
         ! override
         call modify_syntax_entry(iachar(";"), iachar(";"), ".", st, t)
-        call make_syntax_table(conf_npmrc_mode_syntax_table, st, conf_mode_syntax_table)
-        t = conf_npmrc_mode_syntax_table
+        call make_syntax_table(configuration_npmrc_mode_syntax_table, st, configuration_mode_syntax_table)
+        t = configuration_npmrc_mode_syntax_table
         call modify_syntax_entry(iachar(";"), iachar(";"), "<", st, t)
         call modify_syntax_entry(iachar("#"), iachar("#"), "<", st, t)
-        call make_syntax_table(conf_javaprop_mode_syntax_table, st, conf_unix_mode_syntax_table)
-        call make_syntax_table(conf_ppd_mode_syntax_table, st, conf_mode_syntax_table)
-        t = conf_ppd_mode_syntax_table
+        call make_syntax_table(configuration_javaprop_mode_syntax_table, st, configuration_unix_mode_syntax_table)
+        call make_syntax_table(configuration_ppd_mode_syntax_table, st, configuration_mode_syntax_table)
+        t = configuration_ppd_mode_syntax_table
         call modify_syntax_entry(iachar("*"), iachar("*"), ". 1", st, t)
         call modify_syntax_entry(iachar("%"), iachar("%"), ". 2", st, t)
         ! override
         call modify_syntax_entry(iachar("'"), iachar("'"), ".", st, t)
         call modify_syntax_entry(iachar(";"), iachar(";"), ".", st, t)
-        call make_syntax_table(conf_xdefaults_mode_syntax_table, st, conf_mode_syntax_table)
-        t = conf_xdefaults_mode_syntax_table
+        call make_syntax_table(configuration_xdefaults_mode_syntax_table, st, configuration_mode_syntax_table)
+        t = configuration_xdefaults_mode_syntax_table
         call modify_syntax_entry(iachar("!"), iachar("!"), "<", st, t)
         ! override
         call modify_syntax_entry(iachar(";"), iachar(";"), ".", st, t)
-        call make_syntax_table(conf_toml_mode_syntax_table, st, conf_mode_syntax_table)
-        t = conf_toml_mode_syntax_table
+        call make_syntax_table(configuration_toml_mode_syntax_table, st, configuration_mode_syntax_table)
+        t = configuration_toml_mode_syntax_table
         call modify_syntax_entry(iachar('"'), iachar('"'), """", st, t)
         call modify_syntax_entry(iachar("'"), iachar("'"), """", st, t)
         call modify_syntax_entry(iachar("\"), iachar("\"), "\", st, t)
         call modify_syntax_entry(iachar("#"), iachar("#"), "<", st, t)
         ! override
         call modify_syntax_entry(iachar(";"), iachar(";"), ".", st, t)
-    end subroutine init_syntax_tables
+    end subroutine initialize_syntax_tables
 
     !> A highlight of subexpression N in FACE (LAX: it need not match).
     !> Not a port.
@@ -358,25 +381,25 @@ contains
 
     ! Set the font-lock keywords of the Conf modes.  Port of the values of
     ! conf-mode.el's conf-*-font-lock-keywords variables.
-    subroutine init_keywords()
+    subroutine initialize_keywords()
         character(len=*), parameter :: SECTION = "^[ "//TAB//"]*\[\(.+\)\]"
         type(font_lock_highlight_type) :: h1(1), h2(2), h7(7)
 
-        allocate (conf_font_lock_keywords(3))
+        allocate (configuration_font_lock_keywords(3))
         ! [section] (do this first because it may look like a parameter)
         h1(1) = hl(1, "font_lock_type_face")
-        conf_font_lock_keywords(1) = font_lock_keyword(SECTION, highlights=h1)
+        configuration_font_lock_keywords(1) = font_lock_keyword(SECTION, highlights=h1)
         ! var=val or var[index]=val
         h2(1) = hl(1, "font_lock_variable_name_face")
         h2(2) = hl(2, "font_lock_constant_face", lax=.true.)
-        conf_font_lock_keywords(2) = font_lock_keyword("^[ "//TAB//"]*\(.+?\)\(?:\[\(.*?\)\]\)?[ "//TAB//"]*=", &
-                                                       highlights=h2)
+        configuration_font_lock_keywords(2) = font_lock_keyword("^[ "//TAB//"]*\(.+?\)\(?:\[\(.*?\)\]\)?[ "//TAB//"]*=", &
+                                                                highlights=h2)
         ! section { ... } (do this last because some assign ...{...)
         h1(1) = hl(1, "font_lock_type_face", prepend=.true.)
-        conf_font_lock_keywords(3) = font_lock_keyword("^[ "//TAB//"]*\([^#=:"//LF//"]+?\)[ "//TAB//LF//"]*{[^{}]*?$", &
-                                                       highlights=h1)
+        configuration_font_lock_keywords(3) = font_lock_keyword("^[ "//TAB//"]*\([^#=:"//LF//"]+?\)[ "//TAB//LF//"]*{[^{}]*?$", &
+                                                                highlights=h1)
         ! var=val
-        allocate (conf_javaprop_font_lock_keywords(1))
+        allocate (configuration_javaprop_font_lock_keywords(1))
         h7(1) = hl(1, "font_lock_variable_name_face")
         h7(2) = hl(2, "font_lock_constant_face", lax=.true.)
         h7(3) = hl(3, "font_lock_variable_name_face", lax=.true.)
@@ -384,48 +407,48 @@ contains
         h7(5) = hl(5, "font_lock_variable_name_face", lax=.true.)
         h7(6) = hl(6, "font_lock_constant_face", lax=.true.)
         h7(7) = hl(7, "font_lock_variable_name_face", lax=.true.)
-        conf_javaprop_font_lock_keywords(1) = font_lock_keyword("^[ "//TAB//"]*\(.+?\)\(?:\.\([0-9]+\)\(?:\.\(.+?\)" &
-                                                                //"\(?:\.\([0-9]+\)\(?:\.\(.+?\)\(?:\.\([0-9]+\)" &
-                                                                //"\(\..+?\)?\)?\)?\)?\)?\)?\([:= "//TAB//"]\|$\)", &
-                                                                highlights=h7)
-        allocate (conf_space_font_lock_keywords(2))
+        configuration_javaprop_font_lock_keywords(1) = font_lock_keyword("^[ "//TAB//"]*\(.+?\)\(?:\.\([0-9]+\)\(?:\.\(.+?\)" &
+                                                                         //"\(?:\.\([0-9]+\)\(?:\.\(.+?\)\(?:\.\([0-9]+\)" &
+                                                                         //"\(\..+?\)?\)?\)?\)?\)?\)?\([:= "//TAB//"]\|$\)", &
+                                                                         highlights=h7)
+        allocate (configuration_space_font_lock_keywords(2))
         ! [section] (do this first because it may look like a parameter)
         h1(1) = hl(1, "font_lock_type_face")
-        conf_space_font_lock_keywords(1) = font_lock_keyword(SECTION, highlights=h1)
+        configuration_space_font_lock_keywords(1) = font_lock_keyword(SECTION, highlights=h1)
         ! section { ... } (do this first because it looks like a parameter)
-        conf_space_font_lock_keywords(2) = font_lock_keyword("^[ "//TAB//"]*\(.+?\)[ "//TAB//LF//"]*{[^{}]*?$", &
-                                                             highlights=h1)
-        allocate (conf_colon_font_lock_keywords(3))
+        configuration_space_font_lock_keywords(2) = font_lock_keyword("^[ "//TAB//"]*\(.+?\)[ "//TAB//LF//"]*{[^{}]*?$", &
+                                                                      highlights=h1)
+        allocate (configuration_colon_font_lock_keywords(3))
         ! [section] (do this first because it may look like a parameter)
-        conf_colon_font_lock_keywords(1) = font_lock_keyword(SECTION, highlights=h1)
+        configuration_colon_font_lock_keywords(1) = font_lock_keyword(SECTION, highlights=h1)
         ! var: val
         h1(1) = hl(1, "font_lock_variable_name_face")
-        conf_colon_font_lock_keywords(2) = font_lock_keyword("^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*:", highlights=h1)
+        configuration_colon_font_lock_keywords(2) = font_lock_keyword("^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*:", highlights=h1)
         ! section { ... } (do this last because some assign ...{...)
         h1(1) = hl(1, "font_lock_type_face", prepend=.true.)
-        conf_colon_font_lock_keywords(3) = font_lock_keyword("^[ "//TAB//"]*\([^:"//LF//"]+\)[ "//TAB//LF//"]*{[^{}]*?$", &
-                                                             highlights=h1)
-        allocate (conf_toml_font_lock_keywords(3))
+        configuration_colon_font_lock_keywords(3) = font_lock_keyword("^[ "//TAB//"]*\([^:"//LF//"]+\)[ "//TAB//LF//"]*{[^{}]*?$", &
+                                                                      highlights=h1)
+        allocate (configuration_toml_font_lock_keywords(3))
         ! [section] (do this first because it may look like a parameter)
         h1(1) = hl(0, "font_lock_type_face", prepend=.true.)
-        conf_toml_font_lock_keywords(1) = font_lock_keyword(matcher=conf_toml_recognize_section, highlights=h1)
+        configuration_toml_font_lock_keywords(1) = font_lock_keyword(matcher=configuration_toml_recognize_section, highlights=h1)
         ! var=val or var[index]=val
-        conf_toml_font_lock_keywords(2) = font_lock_keyword("^\s-*\(.+?\)\(?:\[\(.*?\)\]\)?\s-*=", highlights=h2)
+        configuration_toml_font_lock_keywords(2) = font_lock_keyword("^\s-*\(.+?\)\(?:\[\(.*?\)\]\)?\s-*=", highlights=h2)
         ! Must be lower-case according to the TOML spec.
         h1(1) = hl(0, "font_lock_keyword_face")
-        conf_toml_font_lock_keywords(3) = font_lock_keyword("\_<false\|true\_>", highlights=h1)
-        allocate (conf_desktop_font_lock_keywords(5))
-        conf_desktop_font_lock_keywords(1:3) = conf_font_lock_keywords(1:3)
+        configuration_toml_font_lock_keywords(3) = font_lock_keyword("\_<false\|true\_>", highlights=h1)
+        allocate (configuration_desktop_font_lock_keywords(5))
+        configuration_desktop_font_lock_keywords(1:3) = configuration_font_lock_keywords(1:3)
         h1(1) = hl(0, "font_lock_constant_face")
-        conf_desktop_font_lock_keywords(4) = font_lock_keyword("\_<false\|true\_>", highlights=h1)
-        conf_desktop_font_lock_keywords(5) = font_lock_keyword("\_<%[uUfFick%]\_>", highlights=h1)
-    end subroutine init_keywords
+        configuration_desktop_font_lock_keywords(4) = font_lock_keyword("\_<false\|true\_>", highlights=h1)
+        configuration_desktop_font_lock_keywords(5) = font_lock_keyword("\_<%[uUfFick%]\_>", highlights=h1)
+    end subroutine initialize_keywords
 
-    ! Set `conf_space_keywords_by_file'.  Port of the value of conf-mode.el's
+    ! Set `configuration_space_keywords_by_file'.  Port of the value of conf-mode.el's
     ! conf-space-keywords-alist.
-    subroutine init_space_keywords_table()
-        if (allocated(conf_space_keywords_by_file)) return
-        allocate (conf_space_keywords_by_file(9))
+    subroutine initialize_space_keywords_table()
+        if (allocated(configuration_space_keywords_by_file)) return
+        allocate (configuration_space_keywords_by_file(9))
         call set_entry(1, "\`/etc/gpm/", "key\|name\|foreground\|background\|border\|head")
         call set_entry(2, "\`/etc/magic\'", "[^ "//TAB//"]+[ "//TAB//"]+\(?:[bl]?e?\(?:short\|long\)\|byte\|string\)[^ " &
                        //TAB//"]*")
@@ -439,14 +462,14 @@ contains
 
     contains
 
-        subroutine set_entry(k, regexp, keywords)
+        subroutine set_entry(k, regular_expression, keywords)
             integer, intent(in) :: k
-            character(len=*), intent(in) :: regexp, keywords
+            character(len=*), intent(in) :: regular_expression, keywords
 
-            conf_space_keywords_by_file(k)%regexp = regexp
-            conf_space_keywords_by_file(k)%keywords = keywords
+            configuration_space_keywords_by_file(k)%regular_expression = regular_expression
+            configuration_space_keywords_by_file(k)%keywords = keywords
         end subroutine set_entry
-    end subroutine init_space_keywords_table
+    end subroutine initialize_space_keywords_table
 
     ! ------------------------------------------------------------------
     ! Commands
@@ -455,27 +478,28 @@ contains
     !> Align the assignments in the buffer or active region.
     !> In Transient Mark mode, if the mark is active, operate on the
     !> contents of the region.  Otherwise, operate on the whole buffer.
-    !> Port of conf-mode.el:conf-align-assignments (ARG absent for no prefix).
-    subroutine conf_align_assignments(status, arg)
+    !> Port of conf-mode.el:conf-align-assignments (ARGUMENT absent for no prefix).
+    subroutine configuration_align_assignments(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
-        integer(int64) :: column, opoint, cs, b, e, col, shortage, zv_from_end, begv
+        integer(int64), intent(in), optional :: argument
+        integer(int64) :: column, original_point, cs, b, e, column_number, shortage, end_of_accessible_portion_from_end, &
+                          beginning_of_accessible_portion
         logical :: narrowed, moved
         type(status_type) :: st
         integer :: c
 
         status = status_type()
 
-        if (present(arg)) then
-            column = arg
+        if (present(argument)) then
+            column = argument
         else
-            column = conf_assignment_column%value
+            column = configuration_assignment_column%value
         end if
 
-        opoint = point()
+        original_point = point()
         ! (save-restriction)
-        begv = buffers(current)%begv
-        zv_from_end = buffers(current)%text%z - buffers(current)%zv
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
         narrowed = .false.
 
         if (is_use_region()) then
@@ -487,59 +511,59 @@ contains
             narrowed = .true.
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             ! go before comment if within
             cs = comment_beginning()
-            if (cs > 0) call goto_char(cs)
+            if (cs > 0) call goto_character(cs)
 
             do
                 moved = forward_comment(9_int64)
                 if (.not. moved) exit
             end do
 
-            if (.not. is_eob()) then
-                if (looking_at(conf_assignment_regexp%value, st)) then
+            if (.not. is_end_of_buffer()) then
+                if (looking_at(configuration_assignment_regular_expression%value, st)) then
                     b = match_beginning(1, st)
                     e = match_end(1, st)
-                    call goto_char(b)
+                    call goto_character(b)
                     call delete_region(point(), e, status)
                     if (.not. status%ok()) exit
 
-                    if (allocated(conf_assignment_sign%value)) then
+                    if (allocated(configuration_assignment_sign%value)) then
                         if (column >= 0) then
-                            col = indent_to(column, status)
+                            column_number = indent_to(column, status)
                             if (.not. status%ok()) exit
-                            c = before_char()
-                            if (conf_assignment_space%value .and. c /= 32 .and. c /= 9) call insert(" ", status)
+                            c = before_character()
+                            if (configuration_assignment_space%value .and. c /= 32 .and. c /= 9) call insert(" ", status)
 
-                            if (conf_assignment_space%value .and. .not. is_eol()) then
-                                call insert(conf_assignment_sign%value//" ", status)
+                            if (configuration_assignment_space%value .and. .not. is_end_of_line()) then
+                                call insert(configuration_assignment_sign%value//" ", status)
                             else
-                                call insert(conf_assignment_sign%value, status)
+                                call insert(configuration_assignment_sign%value, status)
                             end if
                         else
-                            if (conf_assignment_space%value) then
-                                call insert(" "//conf_assignment_sign%value, status)
+                            if (configuration_assignment_space%value) then
+                                call insert(" "//configuration_assignment_sign%value, status)
                             else
-                                call insert(conf_assignment_sign%value, status)
+                                call insert(configuration_assignment_sign%value, status)
                             end if
 
-                            if (status%ok() .and. .not. is_eol()) then
-                                col = indent_to(-column, status)
+                            if (status%ok() .and. .not. is_end_of_line()) then
+                                column_number = indent_to(-column, status)
 
                                 if (status%ok()) then
-                                    c = before_char()
-                                    if (conf_assignment_space%value .and. c /= 32 .and. c /= 9) call insert(" ", status)
+                                    c = before_character()
+                                    if (configuration_assignment_space%value .and. c /= 32 .and. c /= 9) call insert(" ", status)
                                 end if
                             end if
                         end if
-                    else if (.not. is_eol()) then
+                    else if (.not. is_end_of_line()) then
                         if (current_column() >= abs(column)) then
                             call insert(" ", status)
                         else
-                            col = indent_to(abs(column), status)
+                            column_number = indent_to(abs(column), status)
                         end if
                     end if
 
@@ -553,116 +577,116 @@ contains
         ! (end of save-restriction and save-excursion)
         if (narrowed) then
             call widen()
-            call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+            call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
         end if
 
-        call goto_char(min(max(opoint, point_min()), point_max()))
-    end subroutine conf_align_assignments
+        call goto_character(min(max(original_point, point_minimum()), point_maximum()))
+    end subroutine configuration_align_assignments
 
     !> The character before point, -1 if none.  Not a port.
-    integer function before_char()
+    integer function before_character()
         integer(int32) :: c
         logical :: found
 
-        call char_before(c, found)
-        before_char = -1
-        if (found) before_char = c
-    end function before_char
+        call character_before(c, found)
+        before_character = -1
+        if (found) before_character = c
+    end function before_character
 
     !> The character after point, -1 if none.  Not a port.
-    integer function after_char()
+    integer function after_character()
         integer(int32) :: c
         logical :: found
 
-        call char_after(c, found)
-        after_char = -1
-        if (found) after_char = c
-    end function after_char
+        call character_after(c, found)
+        after_character = -1
+        if (found) after_character = c
+    end function after_character
 
     !> Align the assignments in the buffer or active region.
     !> In Transient Mark mode, if the mark is active, operate on the
     !> contents of the region.  Otherwise, operate on the whole buffer.
     !> Port of conf-mode.el:conf-align-assignments (the command).
-    subroutine cmd_conf_align_assignments(status)
+    subroutine execute_configuration_align_assignments(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
-            call conf_align_assignments(status)
+        if (current_prefix_argument%kind == PREFIX_NONE) then
+            call configuration_align_assignments(status)
         else
-            call conf_align_assignments(status, prefix_numeric_value(current_prefix_arg))
+            call configuration_align_assignments(status, prefix_numeric_value(current_prefix_argument))
         end if
-    end subroutine cmd_conf_align_assignments
+    end subroutine execute_configuration_align_assignments
 
     !> Set the syntax of \=' and " to punctuation.
-    !> With prefix ARG, only do it for \=' if 1, or only for " if 2.
+    !> With prefix ARGUMENT, only do it for \=' if 1, or only for " if 2.
     !> This only affects the current buffer.  Some conf files use quotes
     !> to delimit strings, while others allow quotes as simple parts of
     !> the assigned value.  In those files font locking will be wrong,
     !> and you can correct it with this command.  (Some files even do
     !> both, i.e. quotes delimit strings, except when they are
     !> unbalanced, but hey...)  Port of conf-mode.el:conf-quote-normal
-    !> (ARG absent for no prefix).
-    subroutine conf_quote_normal(status, arg)
+    !> (ARGUMENT absent for no prefix).
+    subroutine configuration_quote_normal(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         type(handle_type) :: table
 
         call copy_syntax_table(table, status, syntax_table())
         if (.not. status%ok()) return
 
-        if (.not. present(arg)) then
+        if (.not. present(argument)) then
             call modify_syntax_entry(iachar("'"), iachar("'"), ".", status, table)
             call modify_syntax_entry(iachar('"'), iachar('"'), ".", status, table)
         else
-            if (arg == 1) call modify_syntax_entry(iachar("'"), iachar("'"), ".", status, table)
-            if (arg == 2) call modify_syntax_entry(iachar('"'), iachar('"'), ".", status, table)
+            if (argument == 1) call modify_syntax_entry(iachar("'"), iachar("'"), ".", status, table)
+            if (argument == 2) call modify_syntax_entry(iachar('"'), iachar('"'), ".", status, table)
         end if
 
         call set_syntax_table(table, status)
         if (.not. status%ok()) return
         call font_lock_flush(status)
-    end subroutine conf_quote_normal
+    end subroutine configuration_quote_normal
 
     !> Set the syntax of \=' and " to punctuation (the command).  Port of
     !> conf-mode.el:conf-quote-normal.
-    subroutine cmd_conf_quote_normal(status)
+    subroutine execute_configuration_quote_normal(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
-            call conf_quote_normal(status)
+        if (current_prefix_argument%kind == PREFIX_NONE) then
+            call configuration_quote_normal(status)
         else
-            call conf_quote_normal(status, prefix_numeric_value(current_prefix_arg))
+            call configuration_quote_normal(status, prefix_numeric_value(current_prefix_argument))
         end if
-    end subroutine cmd_conf_quote_normal
+    end subroutine execute_configuration_quote_normal
 
-    !> Try to guess sub-mode of `conf_mode' based on buffer content, and
+    !> Try to guess sub-mode of `configuration_mode' based on buffer content, and
     !> run it.  Port of conf-mode.el:conf--guess-mode.
-    recursive subroutine conf_guess_mode(status)
+    recursive subroutine configuration_guess_mode(status)
         type(status_type), intent(out) :: status
-        integer :: unix, win, equal, colon, space, jp, c
-        integer(int64) :: opoint, moved, shortage, e
+        integer :: unix, window, equal, colon, space, jp, c
+        integer(int64) :: original_point, moved, shortage, e
         type(status_type) :: st
 
         unix = 0
-        win = 0
+        window = 0
         equal = 0
         colon = 0
         space = 0
         jp = 0
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             moved = skip_blanks()
-            c = after_char()
+            c = after_character()
 
             if (c == iachar("#")) then
                 unix = unix + 1
             else if (c == iachar(";")) then
-                win = win + 1
+                window = window + 1
             else if (c == iachar("[")) then
                 continue ! nop
-            else if (is_eol()) then
+            else if (is_end_of_line()) then
                 continue ! nop
             else if (c == iachar("}")) then
                 continue ! nop
@@ -670,7 +694,7 @@ contains
                 ! recognize at most double spaces within names
                 e = match_end(0, st)
 
-                if (before_char_at(e) == iachar("=")) then
+                if (before_character_at(e) == iachar("=")) then
                     equal = equal + 1
                 else
                     colon = colon + 1
@@ -686,39 +710,39 @@ contains
             shortage = forward_line(1_int64)
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
 
-        if (jp > max(unix, win, 3)) then
-            call conf_javaprop_mode(status)
+        if (jp > max(unix, window, 3)) then
+            call configuration_javaprop_mode(status)
         else if (colon > max(equal, space)) then
-            call conf_colon_mode(status)
+            call configuration_colon_mode(status)
         else if (space > max(equal, colon)) then
-            call conf_space_mode(status)
-        else if (win > unix) then
-            call conf_windows_mode(status)
+            call configuration_space_mode(status)
+        else if (window > unix) then
+            call configuration_windows_mode(status)
         else
-            call conf_unix_mode(status)
+            call configuration_unix_mode(status)
         end if
-    end subroutine conf_guess_mode
+    end subroutine configuration_guess_mode
 
     !> (skip-chars-forward " \t\f") Not a port.
     integer(int64) function skip_blanks() result(moved)
-        use syntax_mod, only: skip_chars_forward
+        use syntax_mod, only: skip_characters_forward
         type(status_type) :: st
 
-        moved = skip_chars_forward(" "//TAB//achar(12), st)
+        moved = skip_characters_forward(" "//TAB//achar(12), st)
     end function skip_blanks
 
-    !> The character before POS, -1 if none.  Not a port.
-    integer function before_char_at(pos)
-        integer(int64), intent(in) :: pos
+    !> The character before POSITION, -1 if none.  Not a port.
+    integer function before_character_at(position)
+        integer(int64), intent(in) :: position
         integer(int32) :: c
         logical :: found
 
-        call char_before(c, found, pos)
-        before_char_at = -1
-        if (found) before_char_at = c
-    end function before_char_at
+        call character_before(c, found, position)
+        before_character_at = -1
+        if (found) before_character_at = c
+    end function before_character_at
 
     !> Mode for Unix and Windows Conf files and Java properties.
     !> Most conf files know only three kinds of constructs: parameter
@@ -728,8 +752,8 @@ contains
     !> details for some of the most widespread variants.
     !>
     !> This mode sets up font locking, outline, imenu and it provides
-    !> alignment support through `conf_align_assignments'.  If strings
-    !> come out wrong, try `conf_quote_normal'.
+    !> alignment support through `configuration_align_assignments'.  If strings
+    !> come out wrong, try `configuration_quote_normal'.
     !>
     !> Some files allow continuation lines, either with a backslash at
     !> the end of line, or by indenting the next line (further).  These
@@ -740,86 +764,88 @@ contains
     !> quite right.  Patches that clearly identify some special case,
     !> without breaking the general ones, are welcome.
     !>
-    !> If instead you start this mode with the generic `conf_mode'
+    !> If instead you start this mode with the generic `configuration_mode'
     !> command, it will parse the buffer.  It will generally well
     !> identify the first four cases listed below.  If the buffer
     !> doesn't have enough contents to decide, this is identical to
-    !> `conf_windows_mode' on Windows, elsewhere to `conf_unix_mode'.
-    !> See also `conf_space_mode', `conf_colon_mode', `conf_javaprop_mode',
-    !> `conf_ppd_mode' and `conf_xdefaults_mode'.
+    !> `configuration_windows_mode' on Windows, elsewhere to `configuration_unix_mode'.
+    !> See also `configuration_space_mode', `configuration_colon_mode', `configuration_javaprop_mode',
+    !> `configuration_ppd_mode' and `configuration_xdefaults_mode'.
     !>
-    !> \{conf_mode_map}
+    !> \{configuration_mode_map}
     !>
     !> Port of conf-mode.el:conf-mode (with its advice: called directly, it
     !> runs the guessed sub-mode).
-    recursive subroutine conf_mode(status)
+    recursive subroutine configuration_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_pattern_type), allocatable :: patterns(:)
+        type(index_menu_pattern_type), allocatable :: patterns(:)
         logical :: saved, recursing
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
 
         ! Redirect to one of the submodes when called directly.  The file
         ! may have "mode: conf" in the local variable block, in which case
         ! we'll be called recursively infinitely.  Inhibit that.
-        if (.not. (delaying_mode_hooks() .or. conf_mode_recursing)) then
-            recursing = conf_mode_recursing
-            conf_mode_recursing = .true.
-            call conf_guess_mode(status)
-            conf_mode_recursing = recursing
+        if (.not. (delaying_mode_hooks() .or. configuration_mode_recursing)) then
+            recursing = configuration_mode_recursing
+            configuration_mode_recursing = .true.
+            call configuration_guess_mode(status)
+            configuration_mode_recursing = recursing
             return
         end if
 
-        call major_modes%conf_mode%begin(saved, status)
+        call major_modes%configuration_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call font_lock_defaults%set_local(keywords=conf_font_lock_keywords, case_fold=.true.)
+        call font_lock_defaults%set_local(keywords=configuration_font_lock_keywords, case_fold=.true.)
         ! Let newcomment.el decide this for itself.
         call parse_expression_ignore_comments%set_local(.true.)
         allocate (patterns(3))
-        patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*=", &
-                                         subexpression=1)
+        patterns(1) = index_menu_pattern_type(menu_title="Parameters", regular_expression="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*=", &
+                                              subexpression=1)
         ! [section]
-        patterns(2) = imenu_pattern_type(menu_title="", regexp="^[ "//TAB//"]*\[[ "//TAB//"]*\(.+\)[ "//TAB//"]*\]", &
-                                         subexpression=1)
+        patterns(2) = index_menu_pattern_type(menu_title="", &
+                                              regular_expression="^[ "//TAB//"]*\[[ "//TAB//"]*\(.+\)[ "//TAB//"]*\]", &
+                                              subexpression=1)
         ! section { ... }
-        patterns(3) = imenu_pattern_type(menu_title="", regexp="^[ "//TAB//"]*\([^=:{} "//TAB//LF//"][^=:{}"//LF// &
-                                         "]+\)[ "//TAB//LF//"]*{", subexpression=1)
-        call imenu_patterns%set_local(patterns)
-        call major_modes%conf_mode%end(saved, status)
-    end subroutine conf_mode
+        patterns(3) = index_menu_pattern_type(menu_title="", &
+                                              regular_expression="^[ "//TAB//"]*\([^=:{} "//TAB//LF//"][^=:{}"//LF// &
+                                              "]+\)[ "//TAB//LF//"]*{", subexpression=1)
+        call index_menu_patterns%set_local(patterns)
+        call major_modes%configuration_mode%end(saved, status)
+    end subroutine configuration_mode
 
-    !> Initializations for sub-modes of `conf_mode'.
+    !> Initializations for sub-modes of `configuration_mode'.
     !> COMMENT initializes `comment_start' and `comment_start_skip'.
     !> The optional arg FONT_LOCK is the value for FONT_LOCK_KEYWORDS.
     !> Port of conf-mode.el:conf-mode-initialize.
-    subroutine conf_mode_initialize(comment, font_lock)
+    subroutine configuration_mode_initialize(comment, font_lock)
         character(len=*), intent(in) :: comment
         type(font_lock_keyword_type), intent(in), optional :: font_lock(:)
 
         call comment_start%set_local(comment)
-        call comment_start_skip%set_local(regexp_quote(comment)//"+\s *")
+        call comment_start_skip%set_local(regular_expression_quote(comment)//"+\s *")
         if (present(font_lock)) call font_lock_defaults%set_local(keywords=font_lock, case_fold=.true.)
-    end subroutine conf_mode_initialize
+    end subroutine configuration_mode_initialize
 
     !> Conf Mode starter for Unix style Conf files.
-    !> Comments start with `#'.  For details see `conf_mode'.  Port of
+    !> Comments start with `#'.  For details see `configuration_mode'.  Port of
     !> conf-mode.el:conf-unix-mode.
-    recursive subroutine conf_unix_mode(status)
+    recursive subroutine configuration_unix_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_unix_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_unix_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("#")
-        call major_modes%conf_unix_mode%end(saved, status)
-    end subroutine conf_unix_mode
+        call configuration_mode_initialize("#")
+        call major_modes%configuration_unix_mode%end(saved, status)
+    end subroutine configuration_unix_mode
 
     !> Conf Mode starter for Windows style Conf files.
     !> Comments start with `;'.
-    !> For details see `conf_mode'.  Example:
+    !> For details see `configuration_mode'.  Example:
     !>
-    !> ; Conf mode font-locks this right on Windows and with \[conf_windows_mode]
+    !> ; Conf mode font-locks this right on Windows and with \[configuration_windows_mode]
     !>
     !> [ExtShellFolderViews]
     !> Default={5984FFE0-28D4-11CF-AE66-08002B2E1262}
@@ -829,21 +855,21 @@ contains
     !> PersistMoniker=file://Folder.htt
     !>
     !> Port of conf-mode.el:conf-windows-mode.
-    recursive subroutine conf_windows_mode(status)
+    recursive subroutine configuration_windows_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_windows_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_windows_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize(";")
-        call major_modes%conf_windows_mode%end(saved, status)
-    end subroutine conf_windows_mode
+        call configuration_mode_initialize(";")
+        call major_modes%configuration_windows_mode%end(saved, status)
+    end subroutine configuration_windows_mode
 
     !> Conf Mode starter for Java properties files.
     !> Comments start with `#'.  Example:
     !>
-    !> # Conf mode font-locks this right with \[conf_javaprop_mode] (Java properties)
+    !> # Conf mode font-locks this right with \[configuration_javaprop_mode] (Java properties)
     !>
     !> name:value
     !> name=value
@@ -853,35 +879,35 @@ contains
     !> x.2.y.1.z.2.zz =
     !>
     !> Port of conf-mode.el:conf-javaprop-mode.
-    recursive subroutine conf_javaprop_mode(status)
+    recursive subroutine configuration_javaprop_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_pattern_type), allocatable :: patterns(:)
+        type(index_menu_pattern_type), allocatable :: patterns(:)
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_javaprop_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_javaprop_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("#", conf_javaprop_font_lock_keywords)
-        call conf_assignment_column%set_local(conf_javaprop_assignment_column%value)
-        call conf_assignment_regexp%set_local(".+?\([ "//TAB//"]*[=: "//TAB//"][ "//TAB//"]*\|$\)")
+        call configuration_mode_initialize("#", configuration_javaprop_font_lock_keywords)
+        call configuration_assignment_column%set_local(configuration_javaprop_assignment_column%value)
+        call configuration_assignment_regular_expression%set_local(".+?\([ "//TAB//"]*[=: "//TAB//"][ "//TAB//"]*\|$\)")
         allocate (patterns(1))
-        patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[=: "//TAB//"]", &
-                                         subexpression=1)
-        call imenu_patterns%set_local(patterns)
-        call major_modes%conf_javaprop_mode%end(saved, status)
-    end subroutine conf_javaprop_mode
+        patterns(1) = index_menu_pattern_type(menu_title="Parameters", regular_expression="^[ "//TAB//"]*\(.+?\)[=: "//TAB//"]", &
+                                              subexpression=1)
+        call index_menu_patterns%set_local(patterns)
+        call major_modes%configuration_javaprop_mode%end(saved, status)
+    end subroutine configuration_javaprop_mode
 
     !> Conf Mode starter for space separated conf files.
     !> "Assignments" are with ` '.  Keywords before the parameters are
-    !> recognized according to the variable `conf_space_keywords_by_file'.
+    !> recognized according to the variable `configuration_space_keywords_by_file'.
     !> Alternatively, you can specify a value for the file local variable
-    !> `conf_space_keywords'.
-    !> Use the function `conf_space_keywords' if you want to specify keywords
+    !> `configuration_space_keywords'.
+    !> Use the function `configuration_space_keywords' if you want to specify keywords
     !> in an interactive fashion instead.
     !>
-    !> For details see `conf_mode'.  Example:
+    !> For details see `configuration_mode'.  Example:
     !>
-    !> # Conf mode font-locks this right with \[conf_space_mode] (space separated)
+    !> # Conf mode font-locks this right with \[configuration_space_mode] (space separated)
     !>
     !> image/jpeg                      jpeg jpg jpe
     !> image/png                       png
@@ -894,103 +920,105 @@ contains
     !> add /dev/mixer          desktop
     !>
     !> Port of conf-mode.el:conf-space-mode.
-    recursive subroutine conf_space_mode(status)
+    recursive subroutine configuration_space_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
         integer :: k
         type(status_type) :: st
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_space_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_space_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("#", conf_space_font_lock_keywords)
-        call conf_assignment_sign%make_local()
-        call conf_assignment_sign%clear()
+        call configuration_mode_initialize("#", configuration_space_font_lock_keywords)
+        call configuration_assignment_sign%make_local()
+        call configuration_assignment_sign%clear()
 
         if (allocated(buffers(current)%filename)) then
             ! We set conf-space-keywords directly, but a value which is
             ! in the local variables list or interactively specified
             ! (see the function conf-space-keywords) takes precedence.
-            call conf_space_keywords%make_local()
-            call conf_space_keywords%clear()
+            call configuration_space_keywords%make_local()
+            call configuration_space_keywords%clear()
 
-            do k = 1, size(conf_space_keywords_by_file)
-                if (string_match(conf_space_keywords_by_file(k)%regexp, buffers(current)%filename, st) > 0) then
-                    call conf_space_keywords%set_local(conf_space_keywords_by_file(k)%keywords)
+            do k = 1, size(configuration_space_keywords_by_file)
+                if (string_match(configuration_space_keywords_by_file(k)%regular_expression, buffers(current)%filename, &
+                                 st) > 0) then
+                    call configuration_space_keywords%set_local(configuration_space_keywords_by_file(k)%keywords)
                     exit
                 end if
             end do
         end if
 
-        call conf_space_mode_internal(status)
+        call configuration_space_mode_internal(status)
         if (.not. status%ok()) return
-        call major_modes%conf_space_mode%end(saved, status)
-    end subroutine conf_space_mode
+        call major_modes%configuration_space_mode%end(saved, status)
+    end subroutine configuration_space_mode
 
     !> Enter Conf Space mode using regexp KEYWORDS to match the keywords.
-    !> See `conf_space_mode'.  Port of conf-mode.el:conf-space-keywords.
-    recursive subroutine conf_space_keywords_command(keywords, status)
+    !> See `configuration_space_mode'.  Port of conf-mode.el:conf-space-keywords.
+    recursive subroutine configuration_space_keywords_command(keywords, status)
         character(len=*), intent(in) :: keywords
         type(status_type), intent(out) :: status
         logical :: saved
 
         call delay_mode_hooks_begin(saved)
-        call conf_space_mode(status)
+        call configuration_space_mode(status)
         call delay_mode_hooks_end(saved)
         if (.not. status%ok()) return
 
         if (len(keywords) == 0) then
-            call conf_space_keywords%make_local()
-            call conf_space_keywords%clear()
+            call configuration_space_keywords%make_local()
+            call configuration_space_keywords%clear()
         else
-            call conf_space_keywords%set_local(keywords)
+            call configuration_space_keywords%set_local(keywords)
         end if
 
-        call conf_space_mode_internal(status)
+        call configuration_space_mode_internal(status)
         if (.not. status%ok()) return
         call execute_mode_hooks(status)
-    end subroutine conf_space_keywords_command
+    end subroutine configuration_space_keywords_command
 
     !> Enter Conf Space mode using regexp KEYWORDS to match the keywords
-    !> (the command `conf_space_keywords').  Port of
+    !> (the command `configuration_space_keywords').  Port of
     !> conf-mode.el:conf-space-keywords.
-    recursive subroutine cmd_conf_space_keywords(status)
+    recursive subroutine execute_configuration_space_keywords(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: keywords
 
         call read_string("Conf Space keyword regexp: ", keywords, status)
         if (.not. status%ok()) return
-        call conf_space_keywords_command(keywords, status)
-    end subroutine cmd_conf_space_keywords
+        call configuration_space_keywords_command(keywords, status)
+    end subroutine execute_configuration_space_keywords
 
-    !> Recompute what depends on `conf_space_keywords': the assignment
+    !> Recompute what depends on `configuration_space_keywords': the assignment
     !> regexp and the font-lock keywords.  Port of
     !> conf-mode.el:conf-space-mode-internal.
-    subroutine conf_space_mode_internal(status)
+    subroutine configuration_space_mode_internal(status)
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type), allocatable :: keywords(:)
         type(font_lock_highlight_type) :: h1(1), h2(2)
-        type(imenu_pattern_type), allocatable :: old(:), patterns(:)
+        type(index_menu_pattern_type), allocatable :: old(:), patterns(:)
         integer :: n, k
 
         status = status_type()
 
-        if (allocated(conf_space_keywords%value)) then
-            call conf_assignment_regexp%set_local("\(?:"//conf_space_keywords%value//"\)[ "//TAB//"]+.+?\([ "//TAB// &
-                                                  "]+\|$\)")
+        if (allocated(configuration_space_keywords%value)) then
+            call configuration_assignment_regular_expression%set_local("\(?:"//configuration_space_keywords%value//"\)[ "//TAB &
+                                                                       //"]+.+?\([ "//TAB// &
+                                                                       "]+\|$\)")
         else
-            call conf_assignment_regexp%set_local(".+?\([ "//TAB//"]+\|$\)")
+            call configuration_assignment_regular_expression%set_local(".+?\([ "//TAB//"]+\|$\)")
         end if
 
         ! The keywords' (eval ...) entry, var val.
-        n = size(conf_space_font_lock_keywords)
+        n = size(configuration_space_font_lock_keywords)
         allocate (keywords(n + 1))
-        keywords(1:n) = conf_space_font_lock_keywords
+        keywords(1:n) = configuration_space_font_lock_keywords
 
-        if (allocated(conf_space_keywords%value)) then
+        if (allocated(configuration_space_keywords%value)) then
             h2(1) = hl(1, "font_lock_keyword_face")
             h2(2) = hl(2, "font_lock_variable_name_face")
-            keywords(n + 1) = font_lock_keyword("^[ "//TAB//"]*\("//conf_space_keywords%value//"\)[ "//TAB// &
+            keywords(n + 1) = font_lock_keyword("^[ "//TAB//"]*\("//configuration_space_keywords%value//"\)[ "//TAB// &
                                                 "]+\([^"//achar(0)//"- ]+\)", highlights=h2)
         else
             h1(1) = hl(1, "font_lock_variable_name_face")
@@ -1002,7 +1030,7 @@ contains
         ! conf-assignment-regexp.
         if (font_lock_mode_enabled()) call font_lock_refresh_defaults(status)
         ! Get rid of any existing Parameters element.
-        old = imenu_patterns%current()
+        old = index_menu_patterns%current()
         allocate (patterns(size(old) + 1))
         n = 1
 
@@ -1013,23 +1041,23 @@ contains
         end do
 
         ! Add a new one based on conf-space-keywords.
-        if (allocated(conf_space_keywords%value)) then
-            patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(?:"// &
-                                             conf_space_keywords%value//"\)[ "//TAB//"]+\([^ "//TAB//LF// &
-                                             "]+\)\(?:[ "//TAB//"]\|$\)", subexpression=1)
+        if (allocated(configuration_space_keywords%value)) then
+            patterns(1) = index_menu_pattern_type(menu_title="Parameters", regular_expression="^[ "//TAB//"]*\(?:"// &
+                                                  configuration_space_keywords%value//"\)[ "//TAB//"]+\([^ "//TAB//LF// &
+                                                  "]+\)\(?:[ "//TAB//"]\|$\)", subexpression=1)
         else
-            patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\([^ "//TAB//LF// &
-                                             "[]+\)\(?:[ "//TAB//"]\|$\)", subexpression=1)
+            patterns(1) = index_menu_pattern_type(menu_title="Parameters", regular_expression="^[ "//TAB//"]*\([^ "//TAB//LF// &
+                                                  "[]+\)\(?:[ "//TAB//"]\|$\)", subexpression=1)
         end if
 
-        call imenu_patterns%set_local(patterns(1:n))
+        call index_menu_patterns%set_local(patterns(1:n))
 
     contains
 
         ! The index of the first element of MATCHERS titled "Parameters", 0
         ! if none.
         integer function parameters_index(patterns) result(i)
-            type(imenu_pattern_type), intent(in) :: patterns(:)
+            type(index_menu_pattern_type), intent(in) :: patterns(:)
 
             do i = 1, size(patterns)
                 if (patterns(i)%menu_title == "Parameters") return
@@ -1037,109 +1065,109 @@ contains
 
             i = 0
         end function parameters_index
-    end subroutine conf_space_mode_internal
+    end subroutine configuration_space_mode_internal
 
     !> Conf Mode starter for Colon files.
     !> "Assignments" are with `:'.
-    !> For details see `conf_mode'.  Example:
+    !> For details see `configuration_mode'.  Example:
     !>
-    !> # Conf mode font-locks this right with \[conf_colon_mode] (colon)
+    !> # Conf mode font-locks this right with \[configuration_colon_mode] (colon)
     !>
     !> <Multi_key> <exclam> <exclam>           : "\241"        exclamdown
     !> <Multi_key> <c> <slash>                 : "\242"        cent
     !>
     !> Port of conf-mode.el:conf-colon-mode.
-    recursive subroutine conf_colon_mode(status)
+    recursive subroutine configuration_colon_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_pattern_type), allocatable :: old(:)
-        type(imenu_pattern_type), allocatable :: patterns(:)
+        type(index_menu_pattern_type), allocatable :: old(:)
+        type(index_menu_pattern_type), allocatable :: patterns(:)
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_colon_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_colon_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("#", conf_colon_font_lock_keywords)
-        call conf_assignment_space%set_local(conf_colon_assignment_space%value)
-        call conf_assignment_column%set_local(conf_colon_assignment_column%value)
-        call conf_assignment_sign%set_local(":")
-        call conf_assignment_regexp%set_local(".+?\([ "//TAB//"]*:[ "//TAB//"]*\)")
-        old = imenu_patterns%current()
+        call configuration_mode_initialize("#", configuration_colon_font_lock_keywords)
+        call configuration_assignment_space%set_local(configuration_colon_assignment_space%value)
+        call configuration_assignment_column%set_local(configuration_colon_assignment_column%value)
+        call configuration_assignment_sign%set_local(":")
+        call configuration_assignment_regular_expression%set_local(".+?\([ "//TAB//"]*:[ "//TAB//"]*\)")
+        old = index_menu_patterns%current()
         allocate (patterns(max(1, size(old))))
-        patterns(1) = imenu_pattern_type(menu_title="Parameters", regexp="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*:", &
-                                         subexpression=1)
+        patterns(1) = index_menu_pattern_type(menu_title="Parameters", regular_expression="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*:", &
+                                              subexpression=1)
         if (size(old) > 1) patterns(2:) = old(2:)
-        call imenu_patterns%set_local(patterns)
-        call major_modes%conf_colon_mode%end(saved, status)
-    end subroutine conf_colon_mode
+        call index_menu_patterns%set_local(patterns)
+        call major_modes%configuration_colon_mode%end(saved, status)
+    end subroutine configuration_colon_mode
 
     !> Conf Mode starter for Adobe/CUPS PPD files.
     !> Comments start with `*%' and "assignments" are with `:'.
-    !> For details see `conf_mode'.  Example:
+    !> For details see `configuration_mode'.  Example:
     !>
-    !> *% Conf mode font-locks this right with \[conf_ppd_mode] (PPD)
+    !> *% Conf mode font-locks this right with \[configuration_ppd_mode] (PPD)
     !>
     !> *DefaultTransfer: Null
     !> *Transfer Null.Inverse: "{ 1 exch sub }"
     !>
     !> Port of conf-mode.el:conf-ppd-mode.
-    recursive subroutine conf_ppd_mode(status)
+    recursive subroutine configuration_ppd_mode(status)
         type(status_type), intent(out) :: status
-        type(imenu_pattern_type), allocatable :: patterns(:)
+        type(index_menu_pattern_type), allocatable :: patterns(:)
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_ppd_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_ppd_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("*%")
+        call configuration_mode_initialize("*%")
         ! no sections, they match within PostScript code
-        patterns = imenu_patterns%current()
-        if (size(patterns) > 1) call imenu_patterns%set_local(patterns(1:1))
-        call major_modes%conf_ppd_mode%end(saved, status)
-    end subroutine conf_ppd_mode
+        patterns = index_menu_patterns%current()
+        if (size(patterns) > 1) call index_menu_patterns%set_local(patterns(1:1))
+        call major_modes%configuration_ppd_mode%end(saved, status)
+    end subroutine configuration_ppd_mode
 
     !> Conf Mode starter for Xdefaults files.
     !> Comments start with `!' and "assignments" are with `:'.
-    !> For details see `conf_mode'.  Example:
+    !> For details see `configuration_mode'.  Example:
     !>
-    !> ! Conf mode font-locks this right with \[conf_xdefaults_mode] (.Xdefaults)
+    !> ! Conf mode font-locks this right with \[configuration_xdefaults_mode] (.Xdefaults)
     !>
     !> *background:                    gray99
     !> *foreground:                    black
     !>
     !> Port of conf-mode.el:conf-xdefaults-mode.
-    recursive subroutine conf_xdefaults_mode(status)
+    recursive subroutine configuration_xdefaults_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_xdefaults_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_xdefaults_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("!")
-        call major_modes%conf_xdefaults_mode%end(saved, status)
-    end subroutine conf_xdefaults_mode
+        call configuration_mode_initialize("!")
+        call major_modes%configuration_xdefaults_mode%end(saved, status)
+    end subroutine configuration_xdefaults_mode
 
-    !> Font-lock helper function for `conf_toml_mode'.
+    !> Font-lock helper function for `configuration_toml_mode'.
     !> Handles recognizing TOML section names, like [section],
     !> [[section]], or [something."else".section].  Port of
     !> conf-mode.el:conf-toml-recognize-section.
-    subroutine conf_toml_recognize_section(limit, found, status)
+    subroutine configuration_toml_recognize_section(limit, found, status)
         integer(int64), intent(in) :: limit
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
-        integer(int64) :: start, end, pos, f
+        integer(int64) :: start, end, position, f
         type(status_type) :: st
 
         status = status_type()
         found = .false.
         ! Skip any number of "[" to handle things like [[section]].
-        call re_search_forward("^\s-*\[+", f, st, bound=limit, noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward("^\s-*\[+", f, st, bound=limit, noerror=SEARCH_NOERROR)
         if (.not. st%ok() .or. f <= 0) return
         start = point()
-        call forward_char(st, -1_int64)
-        pos = scan_groups(point(), 1_int64, 0_int64, st)
+        call forward_character(st, -1_int64)
+        position = scan_groups(point(), 1_int64, 0_int64, st)
 
-        if (st%ok() .and. pos > 0) then
-            call goto_char(pos)
+        if (st%ok() .and. position > 0) then
+            call goto_character(position)
             end = min(limit, point() - 1)
         else
             call end_of_line(1_int64)
@@ -1149,48 +1177,48 @@ contains
         ! If there is a comma in the text, then we assume this is
         ! an array and not a section.  (This could be refined to
         ! look only for unquoted commas if necessary.)
-        pos = point()
-        call goto_char(start)
+        position = point()
+        call goto_character(start)
         call search_forward(",", f, st, bound=end, noerror=SEARCH_NOERROR)
-        call goto_char(pos)
+        call goto_character(position)
 
         if (f <= 0) then
             call set_match_data([start, end])
             found = .true.
         end if
-    end subroutine conf_toml_recognize_section
+    end subroutine configuration_toml_recognize_section
 
     !> Conf Mode starter for TOML files.
     !> Comments start with `#' and "assignments" are with `='.
-    !> For details see `conf_mode'.  Example:
+    !> For details see `configuration_mode'.  Example:
     !>
-    !> # Conf mode font-locks this right with \[conf_toml_mode]
+    !> # Conf mode font-locks this right with \[configuration_toml_mode]
     !>
     !> [entry]
     !> value = "some string"
     !>
     !> Port of conf-mode.el:conf-toml-mode.
-    recursive subroutine conf_toml_mode(status)
+    recursive subroutine configuration_toml_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_toml_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_toml_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("#")
+        call configuration_mode_initialize("#")
         ! Booleans are "always lowercase", so we must *not* use case
         ! folding.  Therefore, we can't set it using `conf-mode-initialize'.
-        call font_lock_defaults%set_local(keywords=conf_toml_font_lock_keywords, case_fold=.false.)
-        call conf_assignment_column%set_local(0)
-        call conf_assignment_sign%set_local("=")
-        call major_modes%conf_toml_mode%end(saved, status)
-    end subroutine conf_toml_mode
+        call font_lock_defaults%set_local(keywords=configuration_toml_font_lock_keywords, case_fold=.false.)
+        call configuration_assignment_column%set_local(0)
+        call configuration_assignment_sign%set_local("=")
+        call major_modes%configuration_toml_mode%end(saved, status)
+    end subroutine configuration_toml_mode
 
     !> Conf Mode started for freedesktop.org Desktop files.
     !> Comments start with `#' and "assignments" are with `='.
-    !> For details see `conf_mode'.
+    !> For details see `configuration_mode'.
     !>
-    !> # Conf mode font-locks this correctly with \[conf_desktop_mode]
+    !> # Conf mode font-locks this correctly with \[configuration_desktop_mode]
     !>         [Desktop Entry]
     !>         Name=GNU Image Manipulation Program
     !>         Name[oc]=Editor d'imatge GIMP
@@ -1198,52 +1226,52 @@ contains
     !>         Terminal=false
     !>
     !> Port of conf-mode.el:conf-desktop-mode.
-    recursive subroutine conf_desktop_mode(status)
+    recursive subroutine configuration_desktop_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_desktop_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_desktop_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("#", conf_desktop_font_lock_keywords)
-        call conf_quote_normal(status)
+        call configuration_mode_initialize("#", configuration_desktop_font_lock_keywords)
+        call configuration_quote_normal(status)
         if (.not. status%ok()) return
-        call major_modes%conf_desktop_mode%end(saved, status)
-    end subroutine conf_desktop_mode
+        call major_modes%configuration_desktop_mode%end(saved, status)
+    end subroutine configuration_desktop_mode
 
     !> Conf Mode starter for .npmrc files.
-    !> Comments start with `#' and `;'. For details see `conf_mode'.
+    !> Comments start with `#' and `;'. For details see `configuration_mode'.
     !> Port of conf-mode.el:conf-npmrc-mode.
-    recursive subroutine conf_npmrc_mode(status)
+    recursive subroutine configuration_npmrc_mode(status)
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(conf_mode_syntax_table)) call init_conf_mode()
-        call major_modes%conf_npmrc_mode%begin(saved, status)
+        if (.not. is_syntax_table_live(configuration_mode_syntax_table)) call initialize_configuration_mode()
+        call major_modes%configuration_npmrc_mode%begin(saved, status)
         if (.not. status%ok()) return
-        call conf_mode_initialize("#")
-        call major_modes%conf_npmrc_mode%end(saved, status)
-    end subroutine conf_npmrc_mode
+        call configuration_mode_initialize("#")
+        call major_modes%configuration_npmrc_mode%end(saved, status)
+    end subroutine configuration_npmrc_mode
 
     !> Select Conf mode or XML mode according to start of file.  Port of
     !> files.el:conf-mode-maybe (XML mode is deferred: such files keep
     !> their mode).
-    recursive subroutine conf_mode_maybe(status)
+    recursive subroutine configuration_mode_maybe(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, begv, zv_from_end
+        integer(int64) :: original_point, beginning_of_accessible_portion, end_of_accessible_portion_from_end
         logical :: xml
         type(status_type) :: st
 
         status = status_type()
-        opoint = point()
-        begv = buffers(current)%begv
-        zv_from_end = buffers(current)%text%z - buffers(current)%zv
+        original_point = point()
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         xml = looking_at("<\?xml \|<!-- \|<!DOCTYPE ", st)
-        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
-        call goto_char(opoint)
+        call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
+        call goto_character(original_point)
         if (xml) return
-        call conf_mode(status)
-    end subroutine conf_mode_maybe
+        call configuration_mode(status)
+    end subroutine configuration_mode_maybe
 end module configuration_mode_mod

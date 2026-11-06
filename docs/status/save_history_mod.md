@@ -7,7 +7,7 @@
 ## Ported
 
 `savehist-mode` (global; loads the file the first time, keeping and merging the current histories with `savehist--merge`; turned off again if the file can't be read),
-`savehist-save` (the minibuffer histories with `savehist-minibuffer-history-variables`, empty ones left out, elements that can't be written left out, `savehist-additional-variables` with MAX-SIZE as `savehist_variable_type` records, `savehist-ignored-variables`, `savehist-save-hook`, reloading a file another session changed, no write when autosaving unchanged text, the directory made, `savehist-file-modes`),
+`savehist-save` (the minibuffer histories with `savehist-minibuffer-history-variables`, empty ones left out, elements that can't be written left out, `savehist-additional-variables` with MAX-SIZE as `save_history_variable_type` records, `savehist-ignored-variables`, `savehist-save-hook`, reloading a file another session changed, no write when autosaving unchanged text, the directory made, `savehist-file-modes`),
 `savehist-autosave` on a timer (`savehist-autosave-interval`) and `kill-emacs-hook`,
 `savehist-minibuffer-hook` on `minibuffer-setup-hook`,
 `savehist-printable`,

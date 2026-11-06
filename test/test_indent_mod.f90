@@ -24,27 +24,27 @@
 !> tests that run without a display).
 module test_indent_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, FM_END_OF_BUFFER, FM_BEGINNING_OF_BUFFER
+    use error_mod, only: status_type, END_OF_BUFFER_CODE, BEGINNING_OF_BUFFER_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point
-    use frame_mod, only: selected_frame, frame_selected_window_ref
+    use editing_functions_mod, only: goto_character, point
+    use frame_mod, only: selected_frame, frame_selected_window_reference
     use window_mod, only: window_type
     use indent_mod, only: current_column, move_to_column, vertical_motion, screen_column, indent_to, &
                           current_indentation, indent_tabs_mode, indent_line_to, indent_relative, &
                           indent_next_tab_stop, indent_accumulate_tab_stops, tab_stops, indent_rigidly, &
                           indent_region
     use simple_mod, only: back_to_indentation, fill_prefix
-    use editing_functions_mod, only: buffer_string, point_max
+    use editing_functions_mod, only: buffer_string, point_maximum
     use keymap_mod, only: key_parse
     use simple_mod, only: line_move, goal_column, line_move_visual
     use keyboard_mod, only: unread_command_events, discard_input, command_loop, last_command
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use keyboard_mod, only: last_message
     use data_mod, only: clear_local_variable
     use buffer_mod, only: buffers, current
@@ -55,7 +55,7 @@ module test_indent_mod
 
     public :: collect_indent_mod
 
-    character(len=*), parameter :: nl = achar(10)
+    character(len=*), parameter :: newline = achar(10)
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
 
@@ -81,7 +81,7 @@ contains
                     new_unittest("indent-for-tab-noindent-fallback", test_noindent_fallback), &
                     new_unittest("indent-region-progress", test_indent_region_progress), &
                     new_unittest("current-indentation-unibyte-nbsp", test_indentation_unibyte), &
-                    new_unittest("current-column-display-properties", test_column_display_props), &
+                    new_unittest("current-column-display-properties", test_column_display_properties), &
                     new_unittest("vertical-motion-invisible", test_vertical_motion_invisible), &
                     new_unittest("indent-tests-move-to-column-invis-1tab", test_move_to_column_invis_1tab), &
                     new_unittest("indent-tests-move-to-column-invis-2tabs", test_move_to_column_invis_2tabs), &
@@ -90,9 +90,9 @@ contains
     end subroutine collect_indent_mod
 
     !> A fresh buffer holding `text`, point at 1, in a window `cols` wide.
-    subroutine enter(text, cols, h)
+    subroutine enter(text, columns, h)
         character(len=*), intent(in) :: text
-        integer, intent(in) :: cols
+        integer, intent(in) :: columns
         type(handle_type), intent(out) :: h
         type(status_type) :: st
         type(window_type), pointer :: sw
@@ -102,12 +102,12 @@ contains
         call show_alone()
         call erase_buffer(st)
         call insert(text, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         ! A fresh goal column: the last command wasn't a line move.
         last_command => null()
         selected_frame%minibuffer_selected = .false.
-        sw => frame_selected_window_ref()
-        sw%total_cols = cols
+        sw => frame_selected_window_reference()
+        sw%total_columns = columns
         sw%divider = .false.
     end subroutine enter
 
@@ -117,8 +117,8 @@ contains
         type(window_type), pointer :: sw
 
         call close_buffer(h, st)
-        sw => frame_selected_window_ref()
-        sw%total_cols = 0
+        sw => frame_selected_window_reference()
+        sw%total_columns = 0
     end subroutine leave
 
     subroutine test_current_column(error)
@@ -130,16 +130,16 @@ contains
                    achar(228)//achar(184)//achar(173)//"y", 80, h)
         call check(error, current_column() == 0)
         if (allocated(error)) return
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call check(error, current_column() == 8, "tab to column 8")
         if (allocated(error)) return
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call check(error, current_column() == 11, "^A is two columns")
         if (allocated(error)) return
-        call goto_char(8_int64)
+        call goto_character(8_int64)
         call check(error, current_column() == 14, "é and x")
         if (allocated(error)) return
-        call goto_char(9_int64)
+        call goto_character(9_int64)
         call check(error, current_column() == 16, "a wide character is two columns")
         call leave(h)
     end subroutine test_current_column
@@ -149,7 +149,7 @@ contains
         type(handle_type) :: h
         integer(int64) :: reached
 
-        call enter("ab"//achar(9)//"cd"//nl//"next", 80, h)
+        call enter("ab"//achar(9)//"cd"//newline//"next", 80, h)
         call move_to_column(1_int64, reached)
         call check(error, point() == 2 .and. reached == 1)
         if (allocated(error)) return
@@ -168,7 +168,7 @@ contains
         type(handle_type) :: h
         integer(int64) :: moved
 
-        call enter("one"//nl//"two"//nl//"three", 80, h)
+        call enter("one"//newline//"two"//newline//"three", 80, h)
         call vertical_motion(1_int64, moved)
         call check(error, moved == 1 .and. point() == 5)
         if (allocated(error)) return
@@ -187,8 +187,8 @@ contains
         integer(int64) :: moved
 
         ! An 11-column window shows 10 characters per row.
-        call enter("abcdefghijklmnopqrstuvwxy"//nl//"z", 11, h)
-        call goto_char(4_int64)
+        call enter("abcdefghijklmnopqrstuvwxy"//newline//"z", 11, h)
+        call goto_character(4_int64)
         call vertical_motion(1_int64, moved, 3)
         call check(error, moved == 1 .and. point() == 14, "row 2, column 3")
         if (allocated(error)) return
@@ -201,7 +201,7 @@ contains
         call check(error, moved == 1 .and. point() == 28, "next line")
         if (allocated(error)) return
         ! Back up into the continued row's end: the last character on it.
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call vertical_motion(1_int64, moved, 20)
         call check(error, point() == 20, "end of a continued row")
         call leave(h)
@@ -214,10 +214,10 @@ contains
         type(status_type) :: st
         type(value_type) :: keys(2)
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        call enter("first line"//nl//"ab"//nl//"third line", 80, h)
-        call goto_char(7_int64)
+        call enter("first line"//newline//"ab"//newline//"third line", 80, h)
+        call goto_character(7_int64)
         keys(1) = value_type(14_int64)
         keys(2) = value_type(14_int64)
         call unread_command_events(keys)
@@ -238,12 +238,12 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call enter("one"//nl//"two", 80, h)
+        call enter("one"//newline//"two", 80, h)
         call line_move(-1_int64, st)
-        call check(error, st%code == FM_BEGINNING_OF_BUFFER)
+        call check(error, st%code == BEGINNING_OF_BUFFER_CODE)
         if (allocated(error)) return
         call line_move(5_int64, st)
-        call check(error, st%code == FM_END_OF_BUFFER)
+        call check(error, st%code == END_OF_BUFFER_CODE)
         if (allocated(error)) return
         call line_move(5_int64, st, noerror=.true.)
         call check(error, st%ok())
@@ -257,8 +257,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call enter("abcdefghijklmnopqrstuvwxy"//nl//"z1234"//nl//"q", 11, h)
-        call goto_char(3_int64)
+        call enter("abcdefghijklmnopqrstuvwxy"//newline//"z1234"//newline//"q", 11, h)
+        call goto_character(3_int64)
         line_move_visual = .false.
 
         body: block
@@ -280,31 +280,31 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: col
+        integer(int64) :: column
 
         call enter("ab", 80, h)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         indent_tabs_mode = .true.
-        col = indent_to(19_int64, st)
-        call check(error, col == 19 .and. buffer_string() == "a"//TAB//TAB//"   b", buffer_string())
+        column = indent_to(19_int64, st)
+        call check(error, column == 19 .and. buffer_string() == "a"//TAB//TAB//"   b", buffer_string())
         if (allocated(error)) return
         indent_tabs_mode = .false.
-        call goto_char(point_max())
-        col = indent_to(19_int64, st, 2_int64)
-        call check(error, col == 22 .and. buffer_string() == "a"//TAB//TAB//"   b  ")
+        call goto_character(point_maximum())
+        column = indent_to(19_int64, st, 2_int64)
+        call check(error, column == 22 .and. buffer_string() == "a"//TAB//TAB//"   b  ")
         indent_tabs_mode = .true.
         call leave(h)
         if (allocated(error)) return
         call enter("  "//TAB//"x", 80, h)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call check(error, current_indentation() == 8)
         if (allocated(error)) return
         ! FORCE splits a tab and pads short lines.
-        call move_to_column(4_int64, col, .true., st)
-        call check(error, col == 4 .and. point() == 5 .and. buffer_string() == "    "//TAB//"x", buffer_string())
+        call move_to_column(4_int64, column, .true., st)
+        call check(error, column == 4 .and. point() == 5 .and. buffer_string() == "    "//TAB//"x", buffer_string())
         if (allocated(error)) return
-        call move_to_column(12_int64, col, .true., st)
-        call check(error, col == 12 .and. buffer_string() == "    "//TAB//"x   ", buffer_string())
+        call move_to_column(12_int64, column, .true., st)
+        call check(error, column == 12 .and. buffer_string() == "    "//TAB//"x   ", buffer_string())
         call leave(h)
     end subroutine test_indent_to
 
@@ -316,7 +316,7 @@ contains
 
         call enter("    foo  bar"//LF//"x", 80, h)
         indent_tabs_mode = .false.
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call indent_line_to(6_int64, st)
         call check(error, buffer_string() == "    foo  bar"//LF//"      x" .and. point() == 20, buffer_string())
         if (allocated(error)) return
@@ -347,8 +347,8 @@ contains
         call check(error, all(indent_accumulate_tab_stops(22_int64) == [int(4, int64), 10_int64, 16_int64, 22_int64]), "accumulate")
         deallocate (tab_stops)
         if (allocated(error)) return
-        call goto_char(1_int64)
-        call goto_char(8_int64)
+        call goto_character(1_int64)
+        call goto_character(8_int64)
         call back_to_indentation()
         call check(error, point() == 5, "back_to_indentation")
         indent_tabs_mode = .true.
@@ -364,17 +364,17 @@ contains
 
         call enter("a"//LF//"  b"//LF//LF//"c"//LF, 80, h)
         indent_tabs_mode = .false.
-        call indent_rigidly(1_int64, point_max(), 2_int64, st)
+        call indent_rigidly(1_int64, point_maximum(), 2_int64, st)
         call check(error, buffer_string() == "  a"//LF//"    b"//LF//LF//"  c"//LF, buffer_string())
         if (allocated(error)) return
-        call indent_rigidly(1_int64, point_max(), -3_int64, st)
+        call indent_rigidly(1_int64, point_maximum(), -3_int64, st)
         call check(error, buffer_string() == "a"//LF//" b"//LF//LF//"c"//LF, buffer_string())
         if (allocated(error)) return
-        call indent_region(1_int64, point_max(), st, 3_int64)
+        call indent_region(1_int64, point_maximum(), st, 3_int64)
         call check(error, buffer_string() == "   a"//LF//"   b"//LF//LF//"   c"//LF, buffer_string())
         if (allocated(error)) return
         fill_prefix = "> "
-        call indent_region(1_int64, point_max(), st)
+        call indent_region(1_int64, point_maximum(), st)
         call check(error, buffer_string() == "> "//"   a"//LF//"> "//"   b"//LF//LF//"> "//"   c"//LF, buffer_string())
         deallocate (fill_prefix%value)
         if (allocated(error)) return
@@ -382,7 +382,7 @@ contains
         ! nonblank line.
         call leave(h)
         call enter("  a"//LF//"b"//LF//"    c"//LF//"d"//LF, 80, h)
-        call indent_region(5_int64, point_max(), st)
+        call indent_region(5_int64, point_maximum(), st)
         call check(error, buffer_string() == "  a"//LF//"  b"//LF//"  c"//LF//"  d"//LF, buffer_string())
         indent_tabs_mode = .true.
         call leave(h)
@@ -397,10 +397,10 @@ contains
         type(status_type) :: st
         character(len=20) :: point_text
 
-        call init_bindings()
+        call initialize_bindings()
         call enter("    a"//LF//"b", 80, h)
         indent_tabs_mode = .false.
-        call goto_char(7_int64)
+        call goto_character(7_int64)
         call key_parse("TAB", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -439,7 +439,7 @@ contains
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call enter("a"//LF//"b", 80, h)
         indent_tabs_mode = .false.
         call key_parse("C-SPC M-> C-x TAB", evs, st)
@@ -491,9 +491,9 @@ contains
 
         call enter("    a"//LF//"b", 80, h)
         indent_tabs_mode = .false.
-        call goto_char(7_int64)
+        call goto_character(7_int64)
         call indent_line_function%set_local(cannot_indent)
-        call indent_for_tab_command(prefix_arg_type(), st)
+        call indent_for_tab_command(prefix_argument_type(), st)
         call clear_local_variable(value_type(name="indent_line_function"), st)
         call check(error, buffer_string(), "    a"//LF//"    b")
         indent_tabs_mode = .true.
@@ -508,7 +508,7 @@ contains
 
         call enter("a"//LF//"b"//LF, 80, h)
         last_message = ""
-        call indent_region_line_by_line(1_int64, point_max(), st)
+        call indent_region_line_by_line(1_int64, point_maximum(), st)
         call check(error, last_message, "Indenting region...done")
         call leave(h)
     end subroutine test_indent_region_progress
@@ -522,7 +522,7 @@ contains
         call enter("", 80, h)
         buffers(current)%multibyte = .false.
         call insert(" "//achar(160)//"x", st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call check(error, current_indentation(), 2_int64)
         buffers(current)%multibyte = .true.
         call leave(h)
@@ -531,10 +531,10 @@ contains
     !> current-column and move-to-column skip invisible text (not text
     !> shown as an ellipsis) and count display strings and spaces, as GNU
     !> Emacs does.
-    subroutine test_column_display_props(error)
+    subroutine test_column_display_properties(error)
         use text_properties_mod, only: put_text_property
         use value_mod, only: list, value_type
-        use basic_subprograms_mod, only: add_to_invisibility_spec
+        use basic_subprograms_mod, only: add_to_invisibility_specification
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -544,22 +544,22 @@ contains
         call set_buffer(h, st)
         call insert("abcdef", st)
         call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(.true.), st)
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call check(error, current_column() == 2, "invisible")
         if (allocated(error)) return
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call move_to_column(2_int64, reached)
         call check(error, point() == 6 .and. reached == 2, "move-to-column")
         if (allocated(error)) return
-        call add_to_invisibility_spec("foo", ellipsis=.true.)
+        call add_to_invisibility_specification("foo", ellipsis=.true.)
         call put_text_property(2_int64, 5_int64, value_type(name="invisible"), value_type(name="foo"), st)
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call check(error, current_column() == 5, "ellipsis")
         if (allocated(error)) return
         call erase_buffer(st)
         call insert("abcdef", st)
         call put_text_property(3_int64, 5_int64, value_type(name="display"), value_type(text="XY"), st)
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call check(error, current_column() == 5, "display string")
         if (allocated(error)) return
         call erase_buffer(st)
@@ -567,10 +567,10 @@ contains
         call put_text_property(3_int64, 4_int64, value_type(name="display"), list(value_type(name="space"), &
                                                                                   value_type(name=":align-to"), &
                                                                                   value_type(10_int64)), st)
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call check(error, current_column() == 11, "space")
         call close_buffer(h, st)
-    end subroutine test_column_display_props
+    end subroutine test_column_display_properties
 
     !> C-n moves by visible lines: a line made invisible is skipped.
     subroutine test_vertical_motion_invisible(error)
@@ -587,7 +587,7 @@ contains
         call insert("one"//achar(10)//"two"//achar(10)//"three", st)
         ! "two\n" is invisible.
         call put_text_property(5_int64, 9_int64, value_type(name="invisible"), value_type(.true.), st)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call vertical_motion(1_int64, moved, 1)
         call check(error, moved == 1 .and. point() == 10, "to three")
         if (allocated(error)) return
@@ -620,7 +620,7 @@ contains
             call put_text_property(starts(k), ends(k), value_type(name="invisible"), value_type(.true.), st)
         end do
 
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call move_to_column(column, reached, force=.true.)
         call buffer_substring(1_int64, to, got, st)
         call close_buffer(h, st)

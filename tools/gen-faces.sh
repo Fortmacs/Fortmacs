@@ -115,7 +115,10 @@ cat <<'EOF'
     !> One component per face, pointing at the face.
     type :: face_table_type
 EOF
-awk '{ printf "        type(named_face_type), pointer :: %s => %s\n", $3, $2 }' "$tmp.faces"
+# (A declaration longer than 132 columns continues after the `=>`.)
+awk '{ l = sprintf("        type(named_face_type), pointer :: %s => %s", $3, $2)
+       if (length(l) > 132) printf "        type(named_face_type), pointer :: %s => &\n            %s\n", $3, $2
+       else print l }' "$tmp.faces"
 cat <<'EOF'
     end type face_table_type
 

@@ -24,8 +24,8 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The bidi class of every code point up to U+10FFFF as sorted runs
-!> from `bidi_starts` to `bidi_ends` (inclusive) of class `bidi_codes`
-!> (dispextern.h bidi_type_t: 1 L, 2 R, 3 EN, ... 23 ON); the mirrored
+!> from `bidirectional_starts` to `bidirectional_ends` (inclusive) of class `bidirectional_codes`
+!> (dispextern.h bidirectional_type_t: 1 L, 2 R, 3 EN, ... 23 ON); the mirrored
 !> characters, `mirror_from` to `mirror_to`, sorted; the opening and
 !> the closing paired brackets, sorted.  Used by bidirectional_mod.
 module unicode_bidirectional_mod
@@ -33,16 +33,17 @@ module unicode_bidirectional_mod
     implicit none(type, external)
     private
 
-    public :: bidi_runs, bidi_starts, bidi_ends, bidi_codes, mirror_count, mirror_from, mirror_to, &
+    public :: bidirectional_runs, bidirectional_starts, bidirectional_ends, bidirectional_codes, mirror_count, mirror_from, &
+              mirror_to, &
               open_bracket_count, open_brackets, close_bracket_count, close_brackets
 
     !> The numbers of runs of one bidi class, of mirrored characters and of
     !> opening and closing brackets.
-    integer, parameter :: bidi_runs = 1239, mirror_count = 428, open_bracket_count = 64, &
+    integer, parameter :: bidirectional_runs = 1239, mirror_count = 428, open_bracket_count = 64, &
                           close_bracket_count = 64
 
     !> The first characters of the runs of one bidi class.
-    integer(int32), parameter :: bidi_starts(bidi_runs) = [ &
+    integer(int32), parameter :: bidirectional_starts(bidirectional_runs) = [ &
                                  0, 9, 10, 11, 12, 13, 14, 28, 31, 32, &
                                  33, 35, 38, 43, 44, 45, 46, 48, 58, 59, &
                                  65, 91, 97, 123, 127, 133, 134, 160, 161, 162, &
@@ -170,7 +171,7 @@ module unicode_bidirectional_mod
                                  ]
 
     !> The last characters of the runs of one bidi class.
-    integer(int32), parameter :: bidi_ends(bidi_runs) = [ &
+    integer(int32), parameter :: bidirectional_ends(bidirectional_runs) = [ &
                                  8, 9, 10, 11, 12, 13, 27, 30, 31, 32, &
                                  34, 37, 42, 43, 44, 45, 47, 57, 58, 64, &
                                  90, 96, 122, 126, 132, 133, 159, 160, 161, 165, &
@@ -298,7 +299,7 @@ module unicode_bidirectional_mod
                                  ]
 
     !> The bidi class of each run.
-    integer(int32), parameter :: bidi_codes(bidi_runs) = [ &
+    integer(int32), parameter :: bidirectional_codes(bidirectional_runs) = [ &
                                  5, 21, 6, 21, 22, 6, 5, 6, 21, 22, &
                                  23, 18, 23, 17, 19, 17, 19, 3, 19, 23, &
                                  1, 23, 1, 23, 5, 6, 5, 19, 23, 18, &

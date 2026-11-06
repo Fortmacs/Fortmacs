@@ -39,7 +39,7 @@
 #                integer_of, funcall, funcall_noargs, apply, put, get,
 #                plist_get, plist_put, plist_member, intern, intern_soft,
 #                setq_local, boundp, fboundp, makunbound, keywordp,
-#                defvar_nil, prin1_to_string, prin1_string, cons_repr,
+#                defvar_false, prin1_to_string, prin1_string, cons_repr,
 #                cons_arg).
 #   predicate    a procedure named like a Lisp predicate: ending in `_p'
 #                (region_active_p), or in `p' after a type word
@@ -70,8 +70,8 @@
 #                (A7): this_command, last_command, real_this_command,
 #                real_last_command, last_repeatable_command and
 #                current_minibuffer_command are `type(command_type),
-#                pointer'; prefix_arg, current_prefix_arg and
-#                last_prefix_arg are `type(prefix_arg_type)'.
+#                pointer'; prefix_argument, current_prefix_argument and
+#                last_prefix_argument are `type(prefix_argument_type)'.
 #   abbreviation a name with the part `proc' or `procs' (R2-Q10): spell
 #                out process, or name the procedure for its job.
 #   interface    an abstract interface whose name does not end in
@@ -115,8 +115,8 @@
 #                string_to_number, int_text, string_trim, version_less,
 #                version_less_or_equal (or version_le, is_version_le,
 #                is_version_less, is_version_less_or_equal,
-#                version_to_numbers), char_text or list_delq outside the
-#                module that holds the one port (utility_functions_mod, files_dir_mod,
+#                version_to_numbers), character_text or list_delq outside the
+#                module that holds the one port (utility_functions_mod, files_directory_mod,
 #                data_mod, none, none, basic_subprograms_mod: its version_type with the
 #                operators < <= == /= >= >, editing_functions_mod for char_to_string,
 #                none (pack)): a private copy of a Lisp function (R6-45).
@@ -454,7 +454,7 @@ BEGIN {
     n = split("nil nilp t_value sym consp cons car cdr car_safe cdr_safe nth nthcdr memq member length " \
               "fixnump make_fixnum xfixnum xstring xsymbol xhandle is_integer integer_of funcall " \
               "funcall_noargs apply put get plist_get plist_put plist_member intern intern_soft setq_local " \
-              "boundp fboundp makunbound keywordp defvar_nil prin1_to_string prin1_string cons_repr cons_arg", w, " ")
+              "boundp fboundp makunbound keywordp defvar_false prin1_to_string prin1_string cons_repr cons_arg", w, " ")
     for (i = 1; i <= n; i++) lisp[w[i]] = 1
     # Words that, with `p' added, name a Lisp type or position predicate.
     n = split("buffer marker string window frame process timer charset symbol keymap list cons fixnum " \
@@ -464,13 +464,13 @@ BEGIN {
               "hash_table record subr", w, " ")
     for (i = 1; i <= n; i++) typeword[w[i]] = 1
     n = split("this_command last_command real_this_command real_last_command last_repeatable_command " \
-              "current_minibuffer_command prefix_arg current_prefix_arg last_prefix_arg", w, " ")
+              "current_minibuffer_command prefix_argument current_prefix_argument last_prefix_argument", w, " ")
     for (i = 1; i <= n; i++) cmdstate[w[i]] = 1
     n = split("int8 int16 int32 int64 real32 real64 real128 c_int c_long c_char", w, " ")
     for (i = 1; i <= n; i++) kinds[w[i]] = 1
     # The Lisp functions with one port, and its file (none for the last two).
     helper["is_string_less"] = "utility_functions_mod.f90"
-    helper["is_string_prefix"] = "files_dir_mod.f90"
+    helper["is_string_prefix"] = "files_directory_mod.f90"
     helper["string_to_number"] = "data_mod.f90"
     helper["int_text"] = ""
     helper["string_trim"] = ""
@@ -481,7 +481,7 @@ BEGIN {
     helper["is_version_less"] = "basic_subprograms_mod.f90"
     helper["is_version_less_or_equal"] = "basic_subprograms_mod.f90"
     helper["version_to_numbers"] = "basic_subprograms_mod.f90"
-    helper["char_text"] = "editing_functions_mod.f90"
+    helper["character_text"] = "editing_functions_mod.f90"
     helper["list_delq"] = ""
     if (baseline != "") {
         while ((getline l <baseline) > 0) {

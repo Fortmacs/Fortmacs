@@ -32,7 +32,7 @@
 !> function keys or other non-character events.
 module read_y_or_n_each_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_QUIT
+    use error_mod, only: status_type, set_error, QUIT_CODE
     use value_mod, only: value_type, command_type
     use handle_mod, only: handle_type
     use data_mod, only: choice_setting_type
@@ -149,7 +149,7 @@ module read_y_or_n_each_mod
     !> help" (cmd-help).  Made on first use.
     type(handle_type), public :: ynp_remap
     !> The commands cmd-char and cmd-help of `ynp_remap'.
-    type(command_type), target, public :: cmd_char, cmd_help
+    type(command_type), target, public :: command_character, command_help
     !> The keys cmd-char recorded (unallocated for none).
     type(value_type), allocatable, public :: chars(:)
 
@@ -166,5 +166,5 @@ module read_y_or_n_each_mod
     type(handle_type), public :: short_answer_map
     !> The anonymous commands `read_answer_select' and
     !> `read_answer_reject' of `short_answer_map'.
-    type(command_type), target, public :: cmd_answer_select, cmd_answer_reject
+    type(command_type), target, public :: command_answer_select, command_answer_reject
 end module read_y_or_n_each_mod

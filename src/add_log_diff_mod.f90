@@ -30,14 +30,14 @@ submodule(add_log_mod) add_log_diff_mod
 contains
 
     module procedure get_diff_source_buffer
-    type(diff_source_location_type) :: loc
+    type(diff_source_location_type) :: location
     type(status_type) :: st
 
     ! (car (ignore-errors (diff-find-source-location)))
-    call diff_find_source_location(loc, st)
+    call diff_find_source_location(location, st)
 
     if (st%ok()) then
-        buffer = loc%buffer
+        buffer = location%buffer
     else
         buffer = handle_type()
     end if

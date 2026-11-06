@@ -1,13 +1,13 @@
 # terminal_output_mod
 
 - Module: terminal_output_mod
-- Upstream: term.c (+ sysdep.c `reset_all_sys_modes`, `init_all_sys_modes`, dispnew.c `no-redraw-on-reenter`)
+- Upstream: term.c (+ sysdep.c `reset_all_system_modes`, `initialize_all_system_modes`, dispnew.c `no-redraw-on-reenter`)
 - State: partial
 
 ## Ported
 
-`init_tty` (capabilities, `is_tty_capable`, colors incl. 24-bit, size, raw mode),
-`delete_tty`,
+`initialize_terminal` (capabilities, `is_terminal_capable`, colors incl. 24-bit, size, raw mode),
+`delete_terminal`,
 `term_get_fkeys` (terminfo keys into input-decode-map),
 `calculate_costs` (motion part),
 bell,
@@ -28,13 +28,13 @@ step 42d: `tty-display-color-p`,
 `tty-type` (`tty_type_name`),
 `controlling-tty-p` (the tty is named /dev/tty, as upstream's initial terminal),
 `tty-no-underline`;
-step 42e: sysdep.c's `reset_all_sys_modes` and `init_all_sys_modes` (here, not in system_dependent_mod: they need the terminal and the frame, and system_dependent_mod is below both) with the terminal part of `reset_sys_modes` (the last line cleared, full-screen mode left) and of `init_sys_modes` (full-screen mode entered, the frame marked for redraw, `needs_redraw`, unless `redraw_after_suspend` is false; one terminal, the selected frame's),
-dispnew.c's `no-redraw-on-reenter` as `redraw_after_suspend` (named positively, its value inverted; here because init_all_sys_modes reads it and display_update_mod is above terminal_output_mod);
+step 42e: sysdep.c's `reset_all_system_modes` and `initialize_all_system_modes` (here, not in system_dependent_mod: they need the terminal and the frame, and system_dependent_mod is below both) with the terminal part of `reset_system_modes` (the last line cleared, full-screen mode left) and of `initialize_system_modes` (full-screen mode entered, the frame marked for redraw, `needs_redraw`, unless `redraw_after_suspend` is false; one terminal, the selected frame's),
+dispnew.c's `no-redraw-on-reenter` as `redraw_after_suspend` (named positively, its value inverted; here because initialize_all_system_modes reads it and display_update_mod is above terminal_output_mod);
 cited: `term_get_fkeys_1`,
 `append_glyph` and `tty_append_glyph` (display_engine_mod's glyph production),
 `maybe_fatal`,
 `fatal`,
-`vfatal` (init_tty's error goes back to main, which prints it and exits)
+`vfatal` (initialize_terminal's error goes back to main, which prints it and exits)
 
 ## Deferred
 
@@ -45,7 +45,7 @@ color-mode switching,
 char/line ins-del cost tables,
 tty-mode strings,
 DOS/Windows/Android;
-`tty-erase-char` (set by init_sys_modes);
+`tty-erase-char` (set by initialize_system_modes);
 after step 42d: suspending the terminal and its output buffer (with sysdep.c, 42e) (`Fsuspend_tty`, `Fresume_tty`, `Ftty__output_buffer_size`, `Ftty__set_output_buffer_size`, `dissociate_if_controlling_tty`);
 the screen's size in pixels (TIOCGWINSZ, with sysdep.c, 42e) (`Ftty_display_pixel_width`, `Ftty_display_pixel_height`, `tty_display_dimension`);
 several terminals and terminal frames,

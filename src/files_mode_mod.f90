@@ -23,18 +23,19 @@
 !> because the modes use files_mod's dependencies.
 submodule(files_mod) files_mode_mod
     use character_mod, only: downcase_ascii
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use data_mod, only: clear_all_local_variables
     use basic_subprograms_mod, only: delaying_mode_hooks, change_major_mode_after_body_hook, after_change_major_mode_hook
-    use execute_interactively_mod, only: find_command, current_prefix_arg, command_type
+    use execute_interactively_mod, only: find_command, current_prefix_argument, command_type
+    use modes_mod, only: mode_name_of_upstream
     use search_mod, only: string_match, case_fold_search, match_beginning, match_end, looking_at
-    use editing_functions_mod, only: point_min, point_max, buffer_substring, point, goto_char
+    use editing_functions_mod, only: point_minimum, point_maximum, buffer_substring, point, goto_character
     implicit none(type, external)
 
     !> An entry of auto-mode-alist.
     type :: auto_mode_type
-        character(len=:), allocatable :: regexp, mode
-        !> An entry with REGEXP, MODE and stripping: remove the match from the name and
+        character(len=:), allocatable :: regular_expression, mode
+        !> An entry with REGULAR_EXPRESSION, MODE and stripping: remove the match from the name and
         !> keep looking (MODE may be empty).
         logical :: strip = .false.
     end type auto_mode_type
@@ -43,26 +44,32 @@ submodule(files_mod) files_mode_mod
     type(auto_mode_type), allocatable :: auto_modes(:)
     integer :: auto_mode_count = 0
 
-    !> `interpreter_modes' (the records with REGEXP and MODE) for the modes that exist so
+    !> `interpreter_modes' (the records with REGULAR_EXPRESSION and MODE) for the modes that exist so
     !> far, in files.el's order.
-    character(len=*), parameter :: interpreter_regexps(21) = [character(len=24) :: "python[0-9.]*", "rhino", "gjs", &
+    character(len=*), parameter :: interpreter_regular_expressions(21) = [character(len=24) :: "python[0-9.]*", "rhino", "gjs", &
                                                                        "nodejs", "node", "[acjkwz]sh", "r?bash2?", "dash", "mksh", &
                                                                   "\(dt\|pd\|w\)ksh", "es", "i?tcsh", "oash", "rc", "rpm", "sh5?", &
                                                                                                "tail", "more", "less", "pg", "make"]
-    character(len=*), parameter :: interpreter_modes(21) = [character(len=19) :: "python_mode", "js_mode", "js_mode", &
-                                                                 "js_mode", "js_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
-                                                                 "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", "sh_mode", &
-                                                                    "sh_mode", "text_mode", "text_mode", "text_mode", "text_mode", &
-                                                                                                              "makefile_gmake_mode"]
+    character(len=*), parameter :: interpreter_modes(21) = [character(len=22) :: "python_mode", "javascript_mode", &
+                                                                                                                "javascript_mode", &
+                                                                        "javascript_mode", "javascript_mode", "shell_script_mode", &
+                                                                                         "shell_script_mode", "shell_script_mode", &
+                                                                                                              "shell_script_mode", &
+                                                                    "shell_script_mode", "shell_script_mode", "shell_script_mode", &
+                                                                                         "shell_script_mode", "shell_script_mode", &
+                                                                                                              "shell_script_mode", &
+                                                                       "shell_script_mode", "text_mode", "text_mode", "text_mode", &
+                                                                                                                      "text_mode", &
+                                                                                                           "makefile_gnu_make_mode"]
 
     !> How much of the buffer the -*- line is looked for in.
-    integer(int64), parameter :: SPEC_LIMIT = 4096
+    integer(int64), parameter :: SPECIFICATION_LIMIT = 4096
 
 contains
 
     !> Append an entry at the end of auto-mode-alist.  Not a port.
-    subroutine append_auto_mode(regexp, mode, strip)
-        character(len=*), intent(in) :: regexp, mode
+    subroutine append_auto_mode(regular_expression, mode, strip)
+        character(len=*), intent(in) :: regular_expression, mode
         logical, intent(in), optional :: strip
         type(auto_mode_type), allocatable :: grown(:)
 
@@ -75,7 +82,7 @@ contains
         end if
 
         auto_mode_count = auto_mode_count + 1
-        auto_modes(auto_mode_count)%regexp = regexp
+        auto_modes(auto_mode_count)%regular_expression = regular_expression
         auto_modes(auto_mode_count)%mode = mode
         auto_modes(auto_mode_count)%strip = .false.
         if (present(strip)) auto_modes(auto_mode_count)%strip = strip
@@ -84,7 +91,7 @@ contains
     !> The default auto-mode-alist: files.el's entries for the modes
     !> that exist so far (in its order).
     !> Port of the auto-mode-alist defvar of files.el (in part).
-    subroutine init_auto_modes()
+    subroutine initialize_auto_modes()
         if (allocated(auto_modes)) return
         ! (The autoloaded add-to-list entries of python.el and css-mode.el come
         ! first.)
@@ -96,24 +103,24 @@ contains
         call append_auto_mode("Makeppfile\(?:\.mk\)?\'", "makefile_makepp_mode")
         call append_auto_mode("\.makepp\'", "makefile_makepp_mode")
         ! Might be any make, give GNU the host advantage
-        call append_auto_mode("\.mk\'", "makefile_gmake_mode")
-        call append_auto_mode("\.make\'", "makefile_gmake_mode")
-        call append_auto_mode("[Mm]akefile\'", "makefile_gmake_mode")
+        call append_auto_mode("\.mk\'", "makefile_gnu_make_mode")
+        call append_auto_mode("\.make\'", "makefile_gnu_make_mode")
+        call append_auto_mode("[Mm]akefile\'", "makefile_gnu_make_mode")
         call append_auto_mode("\.am\'", "makefile_automake_mode")
         call append_auto_mode("\.css\'", "css_mode")
-        call append_auto_mode("\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\'", "sh_mode")
-        call append_auto_mode("\.bash\'", "sh_mode")
+        call append_auto_mode("\.[ckz]?sh\'\|\.shar\'\|/\.z?profile\'", "shell_script_mode")
+        call append_auto_mode("\.bash\'", "shell_script_mode")
         ! Bash builtin 'fc' creates a temp file named "bash-fc.XXXXXX"
         ! to edit shell commands from its history list.
-        call append_auto_mode("/bash-fc\.[0-9A-Za-z]\{6\}\'", "sh_mode")
+        call append_auto_mode("/bash-fc\.[0-9A-Za-z]\{6\}\'", "shell_script_mode")
         ! A login sh first attempts to read /etc/profile.
-        call append_auto_mode("\`/etc/profile\'", "sh_mode")
-        call append_auto_mode("/PKGBUILD\'", "sh_mode")
+        call append_auto_mode("\`/etc/profile\'", "shell_script_mode")
+        call append_auto_mode("/PKGBUILD\'", "shell_script_mode")
         call append_auto_mode("\(/\|\`\)\.\(bash_\(profile\|history\|log\(in\|out\)\)\|z?log\(in\|out\)\)\'", &
-                              "sh_mode")
-        call append_auto_mode("\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\'", "sh_mode")
-        call append_auto_mode("\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\'", "sh_mode")
-        call append_auto_mode("\.m?spec\'", "sh_mode")
+                              "shell_script_mode")
+        call append_auto_mode("\(/\|\`\)\.\(shrc\|zshrc\|m?kshrc\|bashrc\|t?cshrc\|esrc\)\'", "shell_script_mode")
+        call append_auto_mode("\(/\|\`\)\.\([kz]shenv\|xinitrc\|startxrc\|xsession\)\'", "shell_script_mode")
+        call append_auto_mode("\.m?spec\'", "shell_script_mode")
         call append_auto_mode("\.article\'", "text_mode")
         call append_auto_mode("\.letter\'", "text_mode")
         ! The Fortran standard does not say anything about file extensions.
@@ -130,62 +137,62 @@ contains
         call append_auto_mode("\.js[mx]?\'", "javascript_mode")
         ! https://en.wikipedia.org/wiki/.har
         call append_auto_mode("\.har\'", "javascript_mode")
-        call append_auto_mode("\.json\'", "js_json_mode")
+        call append_auto_mode("\.json\'", "javascript_json_mode")
         call append_auto_mode("/crontab\.X*[0-9]+\'", "shell_script_mode")
         call append_auto_mode("\.docbook\'", "sgml_mode")
         call append_auto_mode("/config\.\(?:bat\|log\)\'", "fundamental_mode")
         ! Windows candidates may be opened case sensitively on Unix
-        call append_auto_mode("\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\'", "conf_mode")
-        call append_auto_mode("\.la\'", "conf_unix_mode")
-        call append_auto_mode("\.ppd\'", "conf_ppd_mode")
-        call append_auto_mode("java.+\.conf\'", "conf_javaprop_mode")
-        call append_auto_mode("\.properties\(?:\.[a-zA-Z0-9._-]+\)?\'", "conf_javaprop_mode")
-        call append_auto_mode("\.toml\'", "conf_toml_mode")
-        call append_auto_mode("\.desktop\'", "conf_desktop_mode")
+        call append_auto_mode("\.\(?:[iI][nN][iI]\|[lL][sS][tT]\|[rR][eE][gG]\|[sS][yY][sS]\)\'", "configuration_mode")
+        call append_auto_mode("\.la\'", "configuration_unix_mode")
+        call append_auto_mode("\.ppd\'", "configuration_ppd_mode")
+        call append_auto_mode("java.+\.conf\'", "configuration_javaprop_mode")
+        call append_auto_mode("\.properties\(?:\.[a-zA-Z0-9._-]+\)?\'", "configuration_javaprop_mode")
+        call append_auto_mode("\.toml\'", "configuration_toml_mode")
+        call append_auto_mode("\.desktop\'", "configuration_desktop_mode")
         ! Dot is excluded from npmrc, because global configs may lack it,
         ! e.g. in /etc/npmrc files.
-        call append_auto_mode("npmrc\'", "conf_npmrc_mode")
-        call append_auto_mode("/\.redshift\.conf\'", "conf_windows_mode")
+        call append_auto_mode("npmrc\'", "configuration_npmrc_mode")
+        call append_auto_mode("/\.redshift\.conf\'", "configuration_windows_mode")
         call append_auto_mode("\`/etc/\(?:DIR_COLORS\|ethers\|.?fstab\|.*hosts\|lesskey\|login\.?de\(?:fs\|vperm\)\|" &
                               //"magic\|mtab\|pam\.d/.*\|permissions\(?:\.d/.+\)?\|protocols\|rpc\|services\)\'", &
-                              "conf_space_mode")
+                              "configuration_space_mode")
         call append_auto_mode("\`/etc/\(?:acpid?/.+\|aliases\(?:\.d/.+\)?\|default/.+\|group-?\|hosts\..+\|inittab\|" &
-                              //"ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\'", "conf_mode")
+                              //"ksysguarddrc\|opera6rc\|passwd-?\|shadow-?\|sysconfig/.+\)\'", "configuration_mode")
         ! either user's dot-files or under /etc or some such
-        call append_auto_mode("/\.?\(?:gitconfig\|gnokiirc\|hgrc\|kde.*rc\|mime\.types\|wgetrc\)\'", "conf_mode")
-        call append_auto_mode("/\.mailmap\'", "conf_unix_mode")
+        call append_auto_mode("/\.?\(?:gitconfig\|gnokiirc\|hgrc\|kde.*rc\|mime\.types\|wgetrc\)\'", "configuration_mode")
+        call append_auto_mode("/\.mailmap\'", "configuration_unix_mode")
         ! alas not all ~/.*rc files are like this
         call append_auto_mode("/\.\(?:asound\|enigma\|fetchmail\|gltron\|gtk\|hxplayer\|mairix\|mbsync\|msmtp\|net\|" &
                               //"neverball\|nvidia-settings-\|offlineimap\|qt/.+\|realplayer\|reportbug\|rtorrent\.\|" &
-                              //"screen\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\'", "conf_mode")
+                              //"screen\|scummvm\|sversion\|sylpheed/.+\|xmp\)rc\'", "configuration_mode")
         call append_auto_mode("/\.\(?:gdbtkinit\|grip\|mpdconf\|notmuch-config\|orbital/.+txt\|rhosts\|" &
-                              //"tuxracer/options\)\'", "conf_mode")
-        call append_auto_mode("/\.?X\(?:default\|resource\|re\)s\>", "conf_xdefaults_mode")
-        call append_auto_mode("/X11.+app-defaults/\|\.ad\'", "conf_xdefaults_mode")
-        call append_auto_mode("/X11.+locale/.+/Compose\'", "conf_colon_mode")
+                              //"tuxracer/options\)\'", "configuration_mode")
+        call append_auto_mode("/\.?X\(?:default\|resource\|re\)s\>", "configuration_xdefaults_mode")
+        call append_auto_mode("/X11.+app-defaults/\|\.ad\'", "configuration_xdefaults_mode")
+        call append_auto_mode("/X11.+locale/.+/Compose\'", "configuration_colon_mode")
         ! this contains everything twice, with space and with colon :-(
-        call append_auto_mode("/X11.+locale/compose\.dir\'", "conf_javaprop_mode")
+        call append_auto_mode("/X11.+locale/compose\.dir\'", "configuration_javaprop_mode")
         ! Get rid of any trailing .n.m and try again.
         ! This is for files saved by cvs-merge that look like .#<file>.<rev>
-        ! or .#<file>.<rev>-<rev> or VC's <file>.~<rev>~.
+        ! or .#<file>.<rev>-<rev> or VERSION_CONTROL's <file>.~<rev>~.
         call append_auto_mode("\.~?[0-9]+\.[0-9][-.0-9]*~?\'", "", strip=.true.)
         call append_auto_mode("\.\(?:orig\|in\|[bB][aA][kK]\)\'", "", strip=.true.)
         ! This should come after "in" stripping (e.g. config.h.in).
         ! *.cf, *.cfg, *.conf, *.config[.local|.de_DE.UTF8|...], */config
-        call append_auto_mode("[/.]c\(?:on\)?f\(?:i?g\)?\(?:\.[a-zA-Z0-9._-]+\)?\'", "conf_mode_maybe")
-    end subroutine init_auto_modes
+        call append_auto_mode("[/.]c\(?:on\)?f\(?:i?g\)?\(?:\.[a-zA-Z0-9._-]+\)?\'", "configuration_mode_maybe")
+    end subroutine initialize_auto_modes
 
     module procedure prepend_auto_mode
     type(auto_mode_type), allocatable :: grown(:)
     integer :: i
 
-    call init_auto_modes()
+    call initialize_auto_modes()
 
     do i = 1, auto_mode_count
-        if (auto_modes(i)%regexp == regexp .and. auto_modes(i)%mode == mode) return
+        if (auto_modes(i)%regular_expression == regular_expression .and. auto_modes(i)%mode == mode) return
     end do
 
-    call append_auto_mode(regexp, mode)
+    call append_auto_mode(regular_expression, mode)
     ! Move it to the front.
     allocate (grown(auto_mode_count))
     grown(1) = auto_modes(auto_mode_count)
@@ -232,21 +239,21 @@ contains
         end if
     end function strip
 
-    module procedure auto_mode_spec
-    character(len=:), allocatable :: line, rest, spec, lower, value
-    integer :: a, nl, i, j, k
+    module procedure auto_mode_specification
+    character(len=:), allocatable :: line, rest, specification, lower, value
+    integer :: a, newline, i, j, k
     logical :: skip
 
     mode = ""
     ! (skip-chars-forward " \t\n")
     a = verify(text, " "//char(9)//char(10))
     if (a == 0) return
-    nl = index(text(a:), char(10))
+    newline = index(text(a:), char(10))
 
-    if (nl == 0) then
+    if (newline == 0) then
         line = text(a:)
     else
-        line = text(a:a + nl - 2)
+        line = text(a:a + newline - 2)
     end if
 
     ! If the file begins with "#!" or '\" (file-auto-mode-skip), look in
@@ -256,10 +263,10 @@ contains
     if (len(line) >= 3) skip = skip .or. line(1:3) == "'\"""
     i = index(line, "-*-")
 
-    if (i == 0 .and. skip .and. nl > 0) then
-        line = text(a + nl:)
-        nl = index(line, char(10))
-        if (nl > 0) line = line(1:nl - 1)
+    if (i == 0 .and. skip .and. newline > 0) then
+        line = text(a + newline:)
+        newline = index(line, char(10))
+        if (newline > 0) line = line(1:newline - 1)
         i = index(line, "-*-")
     end if
 
@@ -267,16 +274,16 @@ contains
     rest = line(i + 3:)
     j = index(rest, "-*-")
     if (j == 0) return
-    spec = strip(rest(1:j - 1))
+    specification = strip(rest(1:j - 1))
 
-    if (index(spec, ":") == 0) then
+    if (index(specification, ":") == 0) then
         ! Simple -*-MODE-*- case.
-        if (len(spec) > 0) mode = underscores(downcase_ascii(spec))//"_mode"
+        if (len(specification) > 0) mode = fortran_mode(underscores(downcase_ascii(specification))//"_mode")
         return
     end if
 
     ! The first `mode:' entry: at the start or after [ \t;].
-    lower = downcase_ascii(spec)
+    lower = downcase_ascii(specification)
     k = 0
 
     if (len(lower) >= 5) then
@@ -293,12 +300,23 @@ contains
     end if
 
     if (k == 0) return
-    value = spec(k + 5:)
+    value = specification(k + 5:)
     j = index(value, ";")
     if (j > 0) value = value(1:j - 1)
     value = strip(value)
-    if (len(value) > 0) mode = underscores(downcase_ascii(value))//"_mode"
-    end procedure auto_mode_spec
+    if (len(value) > 0) mode = fortran_mode(underscores(downcase_ascii(value))//"_mode")
+    end procedure auto_mode_specification
+
+    !> MODE, the name of a mode as a file gives it: itself if it is a mode
+    !> (a command), else the Fortran name of the mode upstream names so
+    !> (modes_mod's table: a file written for Emacs).  Not a port.
+    function fortran_mode(mode) result(name)
+        character(len=*), intent(in) :: mode
+        character(len=:), allocatable :: name
+
+        name = mode
+        if (.not. associated(find_command(mode))) name = mode_name_of_upstream(mode)
+    end function fortran_mode
 
     !> S with hyphens turned into underscores: a mode named in a file, as
     !> Emacs names it, as Fortmacs names it.  Not a port.
@@ -321,7 +339,7 @@ contains
         logical, intent(in) :: keep_mode_if_same
         type(status_type), intent(out) :: status
         type(command_type), pointer :: fn
-        type(prefix_arg_type) :: saved
+        type(prefix_argument_type) :: saved
 
         status = status_type()
         done = .false.
@@ -333,7 +351,7 @@ contains
             end if
         end if
 
-        fn => find_command(mode)
+        fn => find_command(fortran_mode(mode))
 
         if (.not. associated(fn)) then
             call message(format_message("Ignoring unknown mode `"//mode//"'"))
@@ -342,15 +360,15 @@ contains
 
         ! The mode function is called with no prefix argument
         ! (eval.c:funcall_nil).
-        saved = current_prefix_arg
-        current_prefix_arg = prefix_arg_type()
+        saved = current_prefix_argument
+        current_prefix_argument = prefix_argument_type()
         call fn%execute(status)
-        current_prefix_arg = saved
+        current_prefix_argument = saved
         done = status%ok()
     end function set_auto_mode_0
 
     !> The mode for the interpreter the first line names (as
-    !> `auto_mode_interpreter_regexp' finds it) in `interpreter_modes',
+    !> `auto_mode_interpreter_regular_expression' finds it) in `interpreter_modes',
     !> or "".  Part of files.el:set-auto-mode.
     !> Port of part of files.el:set-auto-mode.
     recursive subroutine interpreter_mode(mode, status)
@@ -363,18 +381,18 @@ contains
 
         mode = ""
         here = point()
-        if (.not. allocated(auto_mode_interpreter_regexp)) call init_auto_mode_interpreter_regexp()
-        call goto_char(point_min())
-        found = looking_at(auto_mode_interpreter_regexp, status)
+        if (.not. allocated(auto_mode_interpreter_regular_expression)) call initialize_auto_mode_interpreter_regular_expression()
+        call goto_character(point_minimum())
+        found = looking_at(auto_mode_interpreter_regular_expression, status)
         if (found) call buffer_substring(match_beginning(2, status), match_end(2, status), interp, status)
-        call goto_char(here)
+        call goto_character(here)
         if (.not. status%ok() .or. .not. found) return
         ! Map interpreter name to a mode, signaling we're done at the
         ! same time.
         name = file_name_nondirectory(interp)
 
-        do i = 1, size(interpreter_regexps)
-            index = string_match("\`"//trim(interpreter_regexps(i))//"\'", name, status, inhibit_modify=.true.)
+        do i = 1, size(interpreter_regular_expressions)
+            index = string_match("\`"//trim(interpreter_regular_expressions(i))//"\'", name, status, inhibit_modify=.true.)
             if (.not. status%ok()) return
 
             if (index > 0) then
@@ -385,7 +403,7 @@ contains
     end subroutine interpreter_mode
 
     !> The mode of the first auto-mode-alist entry matching NAME, or "".
-    !> A (REGEXP MODE t) entry removes the match from the name and the
+    !> A (REGULAR_EXPRESSION MODE t) entry removes the match from the name and the
     !> search goes on; its MODE is run if a later entry matches too.
     !> Port of files.el:set-auto-mode--find-matching-alist-entry.
     recursive subroutine find_matching_entry(name, mode, status)
@@ -406,7 +424,7 @@ contains
             if (i == 0) exit
 
             if (len(mode) > 0) then
-                ! We had already found a mode but in a (REGEXP MODE t)
+                ! We had already found a mode but in a (REGULAR_EXPRESSION MODE t)
                 ! entry, so we still have to run MODE.  Let's do it now.
                 done = set_auto_mode_0(mode, .true., status)
                 if (.not. status%ok()) return
@@ -414,7 +432,7 @@ contains
 
             mode = auto_modes(i)%mode
             if (.not. auto_modes(i)%strip) exit
-            ! It's a (REGEXP MODE t): Keep looking but remember the MODE.
+            ! It's a (REGULAR_EXPRESSION MODE t): Keep looking but remember the MODE.
             rest = rest(1:mb - 1)
         end do
     end subroutine find_matching_entry
@@ -438,7 +456,7 @@ contains
             case_fold_search = pass == 2
 
             do i = 1, auto_mode_count
-                mb = string_match(auto_modes(i)%regexp, name, st, inhibit_modify=.true.)
+                mb = string_match(auto_modes(i)%regular_expression, name, st, inhibit_modify=.true.)
 
                 if (mb > 0) then
                     found = i
@@ -461,9 +479,9 @@ contains
     keep = .false.
     if (present(keep_mode_if_same)) keep = keep_mode_if_same
     ! Look for -*-MODENAME-*- or -*- ... mode: MODENAME; ... -*-
-    call buffer_substring(point_min(), min(point_max(), point_min() + SPEC_LIMIT), text, status)
+    call buffer_substring(point_minimum(), min(point_maximum(), point_minimum() + SPECIFICATION_LIMIT), text, status)
     if (.not. status%ok()) return
-    mode = auto_mode_spec(text)
+    mode = auto_mode_specification(text)
 
     if (len(mode) > 0) then
         if (set_auto_mode_0(mode, keep, status)) return
@@ -483,7 +501,7 @@ contains
     end if
 
     ! Next compare the filename against the entries in auto-mode-alist.
-    call init_auto_modes()
+    call initialize_auto_modes()
     if (.not. allocated(buffers(current)%filename)) return
     name = file_name_sans_versions(buffers(current)%filename)
     call find_matching_entry(name, mode, status)

@@ -30,7 +30,7 @@ module test_tab_bar_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use keyboard_mod, only: last_message, pre_command_hook, unread_command_events, command_loop, last_command
     use keymap_mod, only: key_parse
     use value_mod, only: value_type
@@ -38,7 +38,7 @@ module test_tab_bar_mod
     use commands_mod, only: commands
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer
     use frame_mod, only: selected_frame, ensure_frame_windows, delete_other_frames, set_tab_bar_lines, default_frame
-    use window_mod, only: windows, resize_window_tree, set_window_buffer, same_handle, init_window_display, &
+    use window_mod, only: windows, resize_window_tree, set_window_buffer, same_handle, initialize_window_display, &
                           window_leaves, split_window, delete_other_windows, window_configuration_change_hook
     use display_engine_mod, only: tab_bar_run_type
     use tab_bar_mod, only: make_tab, close_tab, close_other_tabs, undo_close_tab, rename_tab, select_tab, &
@@ -58,7 +58,7 @@ contains
 
         testsuite = [ &
                     new_unittest("tab-bar-tests-close-other-tabs-default", test_close_other_tabs_default), &
-                    new_unittest("tab-bar-tests-close-other-tabs-with-arg", test_close_other_tabs_with_arg), &
+                    new_unittest("tab-bar-tests-close-other-tabs-with-arg", test_close_other_tabs_with_argument), &
                     new_unittest("tab-bar-new-select", test_new_select), &
                     new_unittest("tab-bar-line", test_tab_bar_line), &
                     new_unittest("tab-bar-duplicate-tab", test_duplicate), &
@@ -74,12 +74,12 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call ensure_frame_windows()
         call delete_other_frames(st)
-        call init_window_display()
-        selected_frame%tty%wcm%cm_rows = 24
-        selected_frame%tty%wcm%cm_cols = 80
+        call initialize_window_display()
+        selected_frame%terminal%wcm%cursor_motion_rows = 24
+        selected_frame%terminal%wcm%cursor_motion_columns = 80
         call delete_other_windows(selected_frame%selected_window, st)
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         call resize_window_tree(selected_frame%minibuffer_window, 23, 0, 1, 80, 80)
@@ -137,9 +137,9 @@ contains
         if (k > 0) name = selected_frame%parameters%tabs(k)%name
     end function current_name
 
-    !> tab-bar-tests-close-other-tabs with ARG (0 for nil).
-    subroutine close_other_tabs_with(arg, error)
-        integer, intent(in) :: arg
+    !> tab-bar-tests-close-other-tabs with ARGUMENT (0 for nil).
+    subroutine close_other_tabs_with(argument, error)
+        integer, intent(in) :: argument
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=8) :: expected
@@ -155,12 +155,12 @@ contains
         call check(error, current_name() == "3", "current 3")
         if (allocated(error)) return
 
-        if (arg == 0) then
+        if (argument == 0) then
             call close_other_tabs(st)
             expected = "3"
         else
-            call close_other_tabs(st, arg)
-            write (expected, "(i0)") max(1, min(arg, 3))
+            call close_other_tabs(st, argument)
+            write (expected, "(i0)") max(1, min(argument, 3))
         end if
 
         call check(error, current_name() == trim(expected), "kept tab "//trim(expected))
@@ -188,7 +188,7 @@ contains
         call leave(h)
     end subroutine test_close_other_tabs_default
 
-    subroutine test_close_other_tabs_with_arg(error)
+    subroutine test_close_other_tabs_with_argument(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         integer :: i
@@ -201,7 +201,7 @@ contains
         end do
 
         call leave(h)
-    end subroutine test_close_other_tabs_with_arg
+    end subroutine test_close_other_tabs_with_argument
 
     !> A new tab keeps the current buffer; selecting tabs restores their
     !> windows; an automatic name follows the buffer, a given one stays.
@@ -346,7 +346,7 @@ contains
             call check(error, st%ok() .and. size(after) == 2 .and. size(selected_frame%parameters%tabs) == 2, "two windows")
             if (allocated(error)) exit checks
             call check(error,.not. any(same_handle(after(1), before)) .and. &
-                       windows(after(1)%index)%total_cols == windows(before(1)%index)%total_cols .and. &
+                       windows(after(1)%index)%total_columns == windows(before(1)%index)%total_columns .and. &
                        same_handle(windows(after(2)%index)%buffer, h), "new windows, same layout")
             if (allocated(error)) exit checks
             call select_tab(st, 1)

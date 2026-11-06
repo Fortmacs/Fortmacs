@@ -87,21 +87,21 @@ contains
     !> in effect and the mark is active, by acting on the region instead
     !> of their usual default part of the buffer's text.  Port of
     !> simple.el:transient-mark-mode.
-    subroutine cmd_transient_mark_mode(status)
+    subroutine execute_transient_mark_mode(status)
         type(status_type), intent(out) :: status
 
         call minor_modes%transient_mark_mode%command(status)
-    end subroutine cmd_transient_mark_mode
+    end subroutine execute_transient_mark_mode
 
     !> Toggle whether indentation can insert TAB characters.  Port of
     !> simple.el:indent-tabs-mode.
-    subroutine cmd_indent_tabs_mode(status)
+    subroutine execute_indent_tabs_mode(status)
         type(status_type), intent(out) :: status
 
         call minor_modes%indent_tabs_mode%command(status)
-    end subroutine cmd_indent_tabs_mode
+    end subroutine execute_indent_tabs_mode
 
-    module procedure init_simple_modes
+    module procedure initialize_simple_modes
     type(status_type) :: st
     integer :: d
     character(len=1) :: digit
@@ -115,7 +115,7 @@ contains
     ! can name it as their parent.
     call major_modes%fundamental_mode%define("fundamental_mode", "Fundamental", fundamental_mode)
     call major_modes%special_mode%define("special_mode", "Special", special_mode, special_mode_hook, &
-                                         abbrev_table=special_mode_abbrev_table)
+                                         abbreviation_table=special_mode_abbreviation_table)
     special_mode_map = major_modes%special_mode%map
     major_modes%special_mode%special = .true.
     call major_modes%messages_buffer_mode%define("messages_buffer_mode", "Messages", messages_buffer_mode, &
@@ -128,10 +128,10 @@ contains
     message_log_hook => message_log_echo
     call minor_modes%transient_mark_mode%define("transient_mark_mode", global=.true., &
                                                 variable="transient_mark_mode", hook=transient_mark_mode_hook)
-    commands%transient_mark_mode%execute => cmd_transient_mark_mode
+    commands%transient_mark_mode%execute => execute_transient_mark_mode
     call minor_modes%indent_tabs_mode%define("indent_tabs_mode", variable="indent_tabs_mode", &
                                              hook=indent_tabs_mode_hook)
-    commands%indent_tabs_mode%execute => cmd_indent_tabs_mode
+    commands%indent_tabs_mode%execute => execute_indent_tabs_mode
     ! special-mode-map: (suppress-keymap map) and the viewing keys.
     map = major_modes%special_mode%map
     ! subr.el:suppress-keymap: (define-key map [remap self-insert-command] #'undefined).
@@ -150,5 +150,5 @@ contains
         write (digit, "(i1)") d
         call keymap_set(map, digit, "digit_argument", st)
     end do
-    end procedure init_simple_modes
+    end procedure initialize_simple_modes
 end submodule simple_modes_mod

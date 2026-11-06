@@ -28,12 +28,12 @@
 module test_mail_extract_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR
+    use error_mod, only: status_type, format_error, WRONG_TYPE_ARGUMENT_CODE, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, same_handle
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: narrow_to_region, point_max
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: narrow_to_region, point_maximum
+    use bindings_mod, only: initialize_bindings
     use mail_extract_mod, only: extract_mail_address_components, what_domain, mail_address_components_type, &
                                 mail_extr_guess_middle_initial, mail_extr_mangle_uucp, &
                                 mail_extract_at_sign_binds_tighter_than_exclamation_mark, mail_extr_ignore_single_names, &
@@ -66,7 +66,7 @@ contains
     end subroutine collect_mail_extract_mod
 
     ! The components as text: NAME|ADDRESS for each, joined by ";",
-    ! NIL for an unallocated one (and "NIL|NIL" for none at all without
+    ! FALSE for an unallocated one (and "FALSE|FALSE" for none at all without
     ! ALL, upstream's nil).
     function shown(components, all) result(text)
         type(mail_address_components_type), intent(in) :: components(:)
@@ -121,7 +121,7 @@ contains
     subroutine test_extract(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call check_address(error, "foo@example.org", "NIL|foo@example.org")
         call check_address(error, "J. Random Hacker <foo@example.org>", "J. Random Hacker|foo@example.org")
         call check_address(error, """J. Random Hacker"" <foo@example.org>", "J. Random Hacker|foo@example.org")
@@ -133,7 +133,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call init_bindings()
+        call initialize_bindings()
         call what_domain("cu", st, text)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -149,7 +149,7 @@ contains
     subroutine test_cases(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call check_address(error, "foo@example.org", "NIL|foo@example.org")
         call check_address(error, "foo@example.org", "NIL|foo@example.org", all=.true.)
         call check_address(error, "J. Random Hacker <foo@example.org>", "J. Random Hacker|foo@example.org")
@@ -304,11 +304,11 @@ contains
         call check_address(error, "山田 太郎 (x) <y@x.jp>", "山田 太郎|y@x.jp")
         ! A regexp that matches: no change (category j, which the default
         ! "\cj" needs, is Deferred in characters_mod).
-        mail_extr_disable_voodoo%regexp = "Prof"
+        mail_extr_disable_voodoo%regular_expression = "Prof"
         call check_address(error, "Prof. Jane Doe (x) <jd@x.edu>", "Prof. Jane Doe (x)|jd@x.edu")
-        mail_extr_disable_voodoo%regexp = "Nomatch"
+        mail_extr_disable_voodoo%regular_expression = "Nomatch"
         call check_address(error, "Prof. Jane Doe (x) <jd@x.edu>", "Jane Doe|jd@x.edu")
-        mail_extr_disable_voodoo%regexp = "\cj"
+        mail_extr_disable_voodoo%regular_expression = "\cj"
     end subroutine test_cases
 
     ! The accessible part of a buffer is the address; the current buffer
@@ -319,12 +319,12 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *mail-extract-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert("To: Jane Doe <jd@x.org>", st)
-        call narrow_to_region(5_int64, point_max(), st)
+        call narrow_to_region(5_int64, point_maximum(), st)
         call extract_mail_address_components(h, components, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -338,7 +338,7 @@ contains
     subroutine test_folded(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call check_address(error, "John"//LF//TAB//"Smith <js@x.org>, Ann"//LF//" Lee <al@x.org>", &
                            "John Smith|js@x.org;Ann Lee|al@x.org", all=.true.)
     end subroutine test_folded
@@ -350,17 +350,17 @@ contains
         type(mail_address_components_type), allocatable :: components(:)
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call extract_mail_address_components("x>,@y", components, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "wanted a wrong_type_argument error: "//format_error(st))
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "wanted a wrong_type_argument error: "//format_error(st))
     end subroutine test_error
 
     subroutine test_unknown_domain(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call what_domain("nosuch", st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. format_error(st) == "No such domain", format_error(st))
+        call check(error, st%code == GENERIC_ERROR_CODE .and. format_error(st) == "No such domain", format_error(st))
     end subroutine test_unknown_domain
 end module test_mail_extract_mod

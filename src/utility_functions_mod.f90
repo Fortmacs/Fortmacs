@@ -24,12 +24,12 @@
 !> default is `eq' (data_mod:value_eq), as upstream.
 module utility_functions_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE, ARGUMENTS_OUT_OF_RANGE_CODE, GENERIC_ERROR_CODE
     use print_mod, only: fortran_string
-    use character_mod, only: multibyte_chars_in_text, string_char_and_length, bytes_by_char_head, is_char_byte8, &
-                             char_to_byte8
+    use character_mod, only: multibyte_characters_in_text, string_character_and_length, bytes_by_character_head, &
+                             is_character_byte8, character_to_byte8
     use case_table_mod, only: upcase
-    use value_mod, only: atom_type, list, list_elements, list_elt, list_length, list_tail, &
+    use value_mod, only: atom_type, list, list_elements, list_element, list_length, list_tail, &
                          make_list, symbols, v_buffer, V_INTEGER, v_keymap, V_ARRAY, v_marker, V_NULL, &
                          v_string, V_NAME, v_syntax_table, v_window, value_type, vtag, xsymbol, string_intervals, &
                          set_string_intervals
@@ -70,7 +70,7 @@ module utility_functions_mod
     integer(int64), parameter :: COMPARE_EQUAL = 0
     public :: plist_get, plist_put, plist_member, get, put
     public :: read_yes_or_no
-    public :: string_search, string_distance, string_char_to_byte, string_byte_to_char, substring_no_properties
+    public :: string_search, string_distance, string_character_to_byte, string_byte_to_character, substring_no_properties
     public :: is_string_equal, is_string_collate_less, is_string_collate_equal, clear_string
     public :: value_equal_including_properties
     public :: base64_encode_string, base64url_encode_string, base64_decode_string
@@ -80,7 +80,7 @@ module utility_functions_mod
     public :: base64_encode_1, base64_decode_1
     ! Public for submodule utility_functions_hash_mod, likewise.
     public :: validate_subarray
-    public :: buffer_line_statistics, random, load_average, locale_info, init_fns
+    public :: buffer_line_statistics, random, load_average, locale_info, initialize_functions
     public :: md5, secure_hash, secure_hash_algorithms, buffer_hash, hash_random_bytes
 
     !> The largest integer `random' gives (lisp.h:MOST_POSITIVE_FIXNUM on a
@@ -91,11 +91,11 @@ module utility_functions_mod
     !> The length of a base64-encoded line (fns.c:MIME_LINE_LENGTH).
     integer, parameter :: MIME_LINE_LENGTH = 76
     !> The base64 alphabets, standard and URL (fns.c:base64_value_to_char).
-    character(len=64), parameter :: BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-    character(len=64), parameter :: BASE64URL_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    character(len=64), parameter :: BASE64_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+    character(len=64), parameter :: BASE64URL_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
 
     !> Whether the random numbers have been seeded (upstream seeds them at
-    !> startup, emacs.c's init_random).
+    !> startup, emacs.c's initialize_random).
     logical :: random_initialized = .false.
 
     !> Return a pseudo-random integer.
@@ -108,7 +108,7 @@ module utility_functions_mod
     !> See Info node `(elisp)Random Numbers' for more details.
     !>
     !> `random()', `random(limit, status)' (a LIMIT that is not positive
-    !> is an `args_out_of_range' error condition), `random(seed)' and
+    !> is an `arguments_out_of_range' error condition), `random(seed)' and
     !> `random(reseed)'; the last two return a random integer after
     !> seeding.  Port of fns.c:Frandom (no integers beyond int64).
     interface random
@@ -147,11 +147,11 @@ module utility_functions_mod
     !> `LOCALE_INFO_MONTHS', returning a 12-element array of month names (locale items MON_n);
     !>
     !> `LOCALE_INFO_PAPER', returning an array of 2 integers (WIDTH HEIGHT) for the default
-    !>   paper size, both measured in millimeters (locale items _NL_PAPER_WIDTH,
-    !>   _NL_PAPER_HEIGHT).
+    !>   paper size, both measured in millimeters (locale items _NEWLINE_PAPER_WIDTH,
+    !>   _NEWLINE_PAPER_HEIGHT).
     !>
     !> If the system can't provide such information through a call to
-    !> `nl_langinfo', or if ITEM isn't from the list above, the result is
+    !> `newline_langinfo', or if ITEM isn't from the list above, the result is
     !> unallocated.
     !>
     !> See also Info node `(libc)Locales'.
@@ -392,9 +392,9 @@ module utility_functions_mod
 
         !> Register the base64 region commands.  Port of fns.c:syms_of_fns
         !> (the commands).  (In submodule utility_functions_buffer_mod.)
-        module subroutine init_fns()
+        module subroutine initialize_functions()
             implicit none(type, external)
-        end subroutine init_fns
+        end subroutine initialize_functions
 
         !> Return a list of all the supported `secure_hash' algorithms.
         !> Port of fns.c:Fsecure_hash_algorithms.  (In submodule
@@ -517,7 +517,7 @@ contains
                 eq = x%h%index == y%h%index .and. x%h%generation == y%h%generation
             else
                 eq = markers(ix)%buffer == markers(iy)%buffer .and. &
-                     (markers(ix)%buffer == 0 .or. markers(ix)%charpos == markers(iy)%charpos)
+                     (markers(ix)%buffer == 0 .or. markers(ix)%character_position == markers(iy)%character_position)
             end if
         case default
             ! Nothing to do for other values.
@@ -564,8 +564,8 @@ contains
         pb = 1
 
         do while (pa <= len(sa, kind=int64) .and. pb <= len(sb, kind=int64))
-            call string_char_and_length(sa, pa, ca, na)
-            call string_char_and_length(sb, pb, cb, nb)
+            call string_character_and_length(sa, pa, ca, na)
+            call string_character_and_length(sb, pb, cb, nb)
 
             if (ca /= cb) then
                 is_string_less = ca < cb
@@ -633,8 +633,8 @@ contains
         type(status_type) :: st
 
         r = COMPARE_EQUAL
-        call string_chars(str1, c1)
-        call string_chars(str2, c2)
+        call string_characters(str1, c1)
+        call string_characters(str2, c2)
         fold = .false.
         if (present(ignore_case)) fold = ignore_case
         ! For backward compatibility, silently bring too-large positive end
@@ -724,7 +724,7 @@ contains
         ito = t
 
         if (.not. ok) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(string)//", "//trim(from_text)//", "//trim(to_text))
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, fortran_string(string)//", "//trim(from_text)//", "//trim(to_text))
         end if
     end subroutine validate_subarray
 
@@ -788,27 +788,27 @@ contains
     end function substring
 
     !> The characters of UTF-8 string `s'.  Not a port.
-    pure subroutine string_chars(s, chars)
+    pure subroutine string_characters(s, chars)
         character(len=*), intent(in) :: s
         integer(int32), allocatable, intent(out) :: chars(:)
-        integer(int32), allocatable :: tmp(:)
+        integer(int32), allocatable :: temporary(:)
         integer(int64) :: i
         integer(int32) :: c, clen
         integer :: n
 
-        allocate (tmp(len(s)))
+        allocate (temporary(len(s)))
         n = 0
         i = 1
 
         do while (i <= len(s, kind=int64))
-            call string_char_and_length(s, i, c, clen)
+            call string_character_and_length(s, i, c, clen)
             n = n + 1
-            tmp(n) = c
+            temporary(n) = c
             i = i + clen
         end do
 
-        chars = tmp(1:n)
-    end subroutine string_chars
+        chars = temporary(1:n)
+    end subroutine string_characters
 
     !> Port of fns.c:Fstring_greaterp.
     logical function is_string_greater(a, b)
@@ -829,102 +829,102 @@ contains
         end if
     end function matches
 
-    !> Value of `prop' in property list `plist', or nil.  Degenerate
+    !> Value of `property' in property list `plist', or nil.  Degenerate
     !> plists (odd length) are tolerated.  Port of fns.c:Fplist_get.
-    function plist_get(plist, prop, test) result(v)
-        type(value_type), intent(in) :: plist, prop
+    function plist_get(plist, property, test) result(v)
+        type(value_type), intent(in) :: plist, property
         procedure(value_test_procedure), optional :: test
         type(value_type) :: v
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer(int64) :: k
 
-        call list_elements(plist, elems)
+        call list_elements(plist, elements)
 
-        do k = 1, size(elems, kind=int64) - 1, 2
-            if (matches(elems(k), prop, test)) then
-                v = elems(k + 1)
+        do k = 1, size(elements, kind=int64) - 1, 2
+            if (matches(elements(k), property, test)) then
+                v = elements(k + 1)
                 return
             end if
         end do
     end function plist_get
 
-    !> Set `prop' to `val' in `plist', adding the pair at the end if absent.
+    !> Set `property' to `value' in `plist', adding the pair at the end if absent.
     !> An odd-length plist is a wrong-type-argument (plistp), as upstream.
     !> Port of fns.c:Fplist_put.
-    subroutine plist_put(plist, prop, val, status, test)
+    subroutine plist_put(plist, property, value, status, test)
         type(value_type), intent(inout) :: plist
-        type(value_type), intent(in) :: prop, val
+        type(value_type), intent(in) :: property, value
         type(status_type), intent(out) :: status
         procedure(value_test_procedure), optional :: test
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer(int64) :: k, n
 
         if ((vtag(plist) /= V_ARRAY .and. vtag(plist) /= V_NULL)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected array")
             return
         end if
 
-        call list_elements(plist, elems)
-        n = size(elems, kind=int64)
+        call list_elements(plist, elements)
+        n = size(elements, kind=int64)
 
         do k = 1, n - 1, 2
-            if (matches(elems(k), prop, test)) then
-                elems(k + 1) = val
-                plist = make_list(elems)
+            if (matches(elements(k), property, test)) then
+                elements(k + 1) = value
+                plist = make_list(elements)
                 return
             end if
         end do
 
         if (mod(n, 2_int64) /= 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected array")
             return
         end if
 
-        elems = [elems, prop, val]
-        plist = make_list(elems)
+        elements = [elements, property, value]
+        plist = make_list(elements)
     end subroutine plist_put
 
-    !> The tail of `plist' starting at `prop', or nil.
+    !> The tail of `plist' starting at `property', or nil.
     !> Port of fns.c:Fplist_member.
-    function plist_member(plist, prop, test) result(tail)
-        type(value_type), intent(in) :: plist, prop
+    function plist_member(plist, property, test) result(tail)
+        type(value_type), intent(in) :: plist, property
         procedure(value_test_procedure), optional :: test
         type(value_type) :: tail
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer(int64) :: k
 
-        call list_elements(plist, elems)
+        call list_elements(plist, elements)
 
-        do k = 1, size(elems, kind=int64), 2
-            if (matches(elems(k), prop, test)) then
+        do k = 1, size(elements, kind=int64), 2
+            if (matches(elements(k), property, test)) then
                 tail = list_tail(plist, k - 1)
                 return
             end if
         end do
     end function plist_member
 
-    !> Property `prop' of `symbol'.  Port of fns.c:Fget (without
+    !> Property `property' of `symbol'.  Port of fns.c:Fget (without
     !> `overriding_plist_environment').
-    subroutine get(symbol, prop, v, status)
-        type(value_type), intent(in) :: symbol, prop
+    subroutine get(symbol, property, v, status)
+        type(value_type), intent(in) :: symbol, property
         type(value_type), intent(out) :: v
         type(status_type), intent(out) :: status
 
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
-        v = plist_get(symbols(xsymbol(symbol))%plist, prop)
+        v = plist_get(symbols(xsymbol(symbol))%plist, property)
     end subroutine get
 
-    !> Set property `prop' of `symbol' to `val'.  Port of fns.c:Fput.
-    subroutine put(symbol, prop, val, status)
-        type(value_type), intent(in) :: symbol, prop, val
+    !> Set property `property' of `symbol' to `value'.  Port of fns.c:Fput.
+    subroutine put(symbol, property, value, status)
+        type(value_type), intent(in) :: symbol, property, value
         type(status_type), intent(out) :: status
 
         call check_symbol(symbol, status)
         if (.not. status%ok()) return
         call ensure_obarray()
-        call plist_put(symbols(xsymbol(symbol))%plist, prop, val, status)
+        call plist_put(symbols(xsymbol(symbol))%plist, property, value, status)
     end subroutine put
 
     ! ------------------------------------------------------------------
@@ -932,52 +932,52 @@ contains
     ! ------------------------------------------------------------------
 
     !> The byte offset (counting from 0) in the multibyte text STRING of
-    !> its character CHAR_INDEX (counting from 0); the length of STRING
-    !> for CHAR_INDEX at or past its end.  Port of
+    !> its character CHARACTER_INDEX (counting from 0); the length of STRING
+    !> for CHARACTER_INDEX at or past its end.  Port of
     !> fns.c:string_char_to_byte (without the cache of the last string).
-    pure integer(int64) function string_char_to_byte(string, char_index) result(byte_index)
+    pure integer(int64) function string_character_to_byte(string, character_index) result(byte_index)
         character(len=*), intent(in) :: string
-        integer(int64), intent(in) :: char_index
+        integer(int64), intent(in) :: character_index
         integer(int64) :: n
 
         byte_index = 0
         n = 0
 
-        do while (n < char_index .and. byte_index < len(string, kind=int64))
-            byte_index = byte_index + bytes_by_char_head(ichar(string(byte_index + 1:byte_index + 1), kind=int32))
+        do while (n < character_index .and. byte_index < len(string, kind=int64))
+            byte_index = byte_index + bytes_by_character_head(ichar(string(byte_index + 1:byte_index + 1), kind=int32))
             n = n + 1
         end do
 
         byte_index = min(byte_index, len(string, kind=int64))
-    end function string_char_to_byte
+    end function string_character_to_byte
 
     !> The character index (counting from 0) in the multibyte text STRING
     !> of the character at byte offset BYTE_INDEX (counting from 0).
     !> Port of fns.c:string_byte_to_char (without the cache of the last string).
-    pure integer(int64) function string_byte_to_char(string, byte_index) result(char_index)
+    pure integer(int64) function string_byte_to_character(string, byte_index) result(character_index)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: byte_index
 
-        char_index = count_characters(string(1:min(byte_index, len(string, kind=int64))))
-    end function string_byte_to_char
+        character_index = count_characters(string(1:min(byte_index, len(string, kind=int64))))
+    end function string_byte_to_character
 
     !> Search for the string NEEDLE in the string HAYSTACK.
     !> The return value is the position of the first occurrence of NEEDLE in
     !> HAYSTACK, or -1 if no match was found.
     !>
-    !> The optional START_POS argument says where to start searching in
+    !> The optional START_POSITION argument says where to start searching in
     !> HAYSTACK and defaults to zero (start at the beginning).
     !> It must be between zero and the length of HAYSTACK, inclusive.
     !>
     !> Case is always significant and text properties are ignored.
     !>
-    !> A START_POS out of range is an `args_out_of_range' error condition
+    !> A START_POSITION out of range is an `arguments_out_of_range' error condition
     !> in STATUS (with STATUS absent the caller guarantees it; the value is
     !> then -1).  Port of fns.c:Fstring_search (both strings multibyte, as
     !> character strings always are here).
-    integer(int64) function string_search(needle, haystack, start_pos, status) result(position)
+    integer(int64) function string_search(needle, haystack, start_position, status) result(position)
         character(len=*), intent(in) :: needle, haystack
-        integer(int64), intent(in), optional :: start_pos
+        integer(int64), intent(in), optional :: start_position
         type(status_type), intent(out), optional :: status
         integer(int64) :: start, start_byte
         integer :: k
@@ -987,16 +987,16 @@ contains
         start = 0
         start_byte = 0
 
-        if (present(start_pos)) then
-            start = start_pos
+        if (present(start_position)) then
+            start = start_position
 
             if (start < 0 .or. start > count_characters(haystack)) then
                 write (digits, "(i0)") start
-                if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(digits))
+                if (present(status)) call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(digits))
                 return
             end if
 
-            start_byte = string_char_to_byte(haystack, start)
+            start_byte = string_character_to_byte(haystack, start)
         end if
 
         ! If NEEDLE is longer than (the remaining length of) haystack, then
@@ -1006,7 +1006,7 @@ contains
         ! boundaries, so a byte search finds the characters.
         k = index(haystack(start_byte + 1:), needle)
         if (k == 0) return
-        position = string_byte_to_char(haystack, start_byte + k - 1)
+        position = string_byte_to_character(haystack, start_byte + k - 1)
     end function string_search
 
     !> Return Levenshtein distance between STRING1 and STRING2.
@@ -1031,8 +1031,8 @@ contains
             c1 = [(ichar(string1(x:x), kind=int32), x=1, len(string1, kind=int64))]
             c2 = [(ichar(string2(x:x), kind=int32), x=1, len(string2, kind=int64))]
         else
-            call string_chars(string1, c1)
-            call string_chars(string2, c2)
+            call string_characters(string1, c1)
+            call string_characters(string2, c2)
         end if
 
         len1 = size(c1, kind=int64)
@@ -1081,7 +1081,7 @@ contains
     !> With one argument, just copy STRING without its properties.
     !>
     !> A STRING that is not a string is a `wrong_type_argument' error
-    !> condition, and a range outside it `args_out_of_range', in STATUS
+    !> condition, and a range outside it `arguments_out_of_range', in STATUS
     !> (with STATUS absent the caller guarantees them; the value is then
     !> empty).  Port of fns.c:Fsubstring_no_properties.
     function substring_no_properties(string, from, to, status) result(text)
@@ -1089,23 +1089,23 @@ contains
         integer(int64), intent(in), optional :: from, to
         type(status_type), intent(out), optional :: status
         character(len=:), allocatable :: text
-        integer(int64) :: from_char, to_char, from_byte, to_byte
+        integer(int64) :: from_character, to_character, from_byte, to_byte
         logical :: ok
         type(status_type) :: st
 
         text = ""
 
         if (vtag(string) /= V_STRING) then
-            if (present(status)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
+            if (present(status)) call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected character(len=*)")
             return
         end if
 
         associate (s => string%a(1)%s)
-            call validate_subarray(s, count_characters(s), from_char, to_char, ok, st, from, to)
+            call validate_subarray(s, count_characters(s), from_character, to_character, ok, st, from, to)
             if (present(status)) status = st
             if (.not. ok) return
-            from_byte = string_char_to_byte(s, from_char)
-            to_byte = string_char_to_byte(s, to_char)
+            from_byte = string_character_to_byte(s, from_character)
+            to_byte = string_character_to_byte(s, to_character)
             text = s(from_byte + 1:to_byte)
         end associate
     end function substring_no_properties
@@ -1123,7 +1123,7 @@ contains
         type(value_type) :: no_plists(0)
 
         if (vtag(string) /= V_STRING) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected character(len=*)")
             return
         end if
 
@@ -1203,15 +1203,15 @@ contains
 
         if (present(locale)) then
             if (len(locale) > 0 .and. locale /= "C" .and. locale /= "POSIX") then
-                call set_error(status, FM_GENERIC_ERROR, "Invalid locale "//locale//": No such file or directory")
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid locale "//locale//": No such file or directory")
                 return
             end if
         end if
 
         fold = .false.
         if (present(ignore_case)) fold = ignore_case
-        call string_chars(s1, c1)
-        call string_chars(s2, c2)
+        call string_characters(s1, c1)
+        call string_characters(s2, c2)
 
         if (fold) then
             where (c1 >= iachar("A") .and. c1 <= iachar("Z")) c1 = c1 + 32
@@ -1388,7 +1388,7 @@ contains
         if (.not. ok) then
             ! The encoding wasn't possible.
             encoded = ""
-            if (present(status)) call set_error(status, FM_GENERIC_ERROR, "Multibyte character in data for base64 encoding")
+            if (present(status)) call set_error(status, GENERIC_ERROR_CODE, "Multibyte character in data for base64 encoding")
         end if
     end function base64_encode_string_1
 
@@ -1408,7 +1408,7 @@ contains
         integer(int32) :: c, value
         integer :: counter
 
-        alphabet = merge(BASE64URL_CHARS, BASE64_CHARS, base64url)
+        alphabet = merge(BASE64URL_CHARACTERS, BASE64_CHARACTERS, base64url)
         length = len(from, kind=int64)
         ! We need to allocate enough room for encoding the text.
         ! We need 33 1/3% more space, plus a newline every 76
@@ -1477,10 +1477,10 @@ contains
             integer(int32) :: bytes
 
             if (multibyte) then
-                call string_char_and_length(from, i, byte, bytes)
+                call string_character_and_length(from, i, byte, bytes)
 
-                if (is_char_byte8(byte)) then
-                    byte = char_to_byte8(byte)
+                if (is_character_byte8(byte)) then
+                    byte = character_to_byte8(byte)
                 else if (byte >= 128) then
                     ok = .false.
                 end if
@@ -1516,7 +1516,7 @@ contains
         logical, intent(in), optional :: base64url, ignore_invalid
         type(status_type), intent(out), optional :: status
         character(len=:), allocatable :: decoded
-        integer(int64) :: decoded_chars
+        integer(int64) :: decoded_characters
         logical :: url, ignore, ok
 
         url = .false.
@@ -1524,11 +1524,11 @@ contains
         ignore = .false.
         if (present(ignore_invalid)) ignore = ignore_invalid
         ! The decoded result should be unibyte.
-        call base64_decode_1(string, url, .false., ignore, decoded, decoded_chars, ok)
+        call base64_decode_1(string, url, .false., ignore, decoded, decoded_characters, ok)
 
         if (.not. ok) then
             decoded = ""
-            if (present(status)) call set_error(status, FM_GENERIC_ERROR, "Invalid base64 data")
+            if (present(status)) call set_error(status, GENERIC_ERROR_CODE, "Invalid base64 data")
         end if
     end function base64_decode_string
 
@@ -1643,7 +1643,7 @@ contains
             case (char(9), char(10), char(12), char(13), " ")
                 v = -1
             case default
-                v = index(merge(BASE64URL_CHARS, BASE64_CHARS, base64url), c)
+                v = index(merge(BASE64URL_CHARACTERS, BASE64_CHARACTERS, base64url), c)
             end select
         end subroutine next_value
 
@@ -1755,7 +1755,7 @@ contains
     end function random_integer
 
     !> Return a random integer in the interval [0, LIMIT).  A LIMIT that is
-    !> not positive is an `args_out_of_range' error condition in STATUS
+    !> not positive is an `arguments_out_of_range' error condition in STATUS
     !> (with STATUS absent the caller guarantees it; the value is then 0).
     !> Port of fns.c:Frandom (a positive integer LIMIT).
     integer(int64) function random_below(limit, status) result(r)
@@ -1767,7 +1767,7 @@ contains
 
         if (limit <= 0) then
             write (digits, "(i0)") limit
-            if (present(status)) call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(digits))
+            if (present(status)) call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(digits))
             return
         end if
 
@@ -1799,7 +1799,7 @@ contains
     integer(int64) function random_reseeded(reseed) result(r)
         logical, intent(in) :: reseed
 
-        if (reseed) call init_random()
+        if (reseed) call initialize_random()
         r = random_integer()
     end function random_reseeded
 
@@ -1827,7 +1827,7 @@ contains
     integer(int64) function get_random() result(r)
         real(real64) :: halves(2)
 
-        if (.not. random_initialized) call init_random()
+        if (.not. random_initialized) call initialize_random()
         call random_number(halves)
         r = ior(ishft(int(halves(1)*2.0_real64**31, int64), 31), int(halves(2)*2.0_real64**31, int64))
     end function get_random
@@ -1835,10 +1835,10 @@ contains
     !> Seed the random numbers from the system's entropy pool (the
     !> intrinsic `random_seed' with no argument asks the operating system,
     !> as getrandom does).  Port of sysdep.c:init_random.
-    subroutine init_random()
+    subroutine initialize_random()
         call random_seed()
         random_initialized = .true.
-    end subroutine init_random
+    end subroutine initialize_random
 
     !> Seed the random numbers from the bytes of SEED, folded into one
     !> 32-bit value as upstream folds them into its seed.  Port of
@@ -1847,19 +1847,19 @@ contains
     subroutine seed_random(seed)
         character(len=*), intent(in) :: seed
         integer, allocatable :: seeds(:)
-        integer(int64) :: arg, x
+        integer(int64) :: argument, x
         integer :: i, n
 
-        arg = 0
+        argument = 0
 
         do i = 1, len(seed)
-            arg = ieor(arg, ishft(int(ichar(seed(i:i)), int64), 8*mod(i - 1, 4)))
+            argument = ieor(argument, ishft(int(ichar(seed(i:i)), int64), 8*mod(i - 1, 4)))
         end do
 
         ! Spread the value over the seed with a Lehmer generator (MINSTD).
         call random_seed(size=n)
         allocate (seeds(n))
-        x = mod(arg, 2147483646_int64) + 1
+        x = mod(argument, 2147483646_int64) + 1
 
         do i = 1, n
             x = mod(x*48271_int64, 2147483647_int64)
@@ -1898,7 +1898,7 @@ contains
 
         if (n < 0) then
             allocate (loads(0))
-            call set_error(status, FM_GENERIC_ERROR, "load_average not implemented for this operating system")
+            call set_error(status, GENERIC_ERROR_CODE, "load_average not implemented for this operating system")
             return
         end if
 

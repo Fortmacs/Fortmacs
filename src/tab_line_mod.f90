@@ -30,19 +30,19 @@
 !> docs/status/tab_line_mod.md.
 module tab_line_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, make_keymap_ref, command_type, vtag, xsymbol, symbols, V_NAME
+    use value_mod, only: value_type, make_keymap_reference, command_type, vtag, xsymbol, symbols, V_NAME
     use data_mod, only: choice_setting_type, logical_setting_type, forward_setting
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, prefix_arg_text, find_command, &
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, prefix_argument_text, find_command, &
                                          PREFIX_NUMBER, PREFIX_NONE
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
     use derived_mod, only: major_mode_type, major_mode_named, is_derived_mode
     use hooks_mod, only: hook_type
     use basic_subprograms_mod, only: after_change_major_mode_hook
-    use character_mod, only: string_char_and_length
-    use faces_mod, only: named_face_type, display_when, face_attrs, face_attributes_type, face_box, &
+    use character_mod, only: string_character_and_length
+    use faces_mod, only: named_face_type, display_when, face_attributes, face_attributes_type, face_box, &
                          FACE_BOX_RELEASED_BUTTON, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, FACE_BACKGROUND_DARK
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, destroy_keymap, keymap_set, set_repeat_map, key_parse, &
                           define_key, lookup_key
@@ -51,13 +51,13 @@ module tab_line_mod
                           force_mode_line_update
     use utility_functions_mod, only: count_characters, is_string_less_text
     use multilingual_environment_utilities_mod, only: truncate_string_to_width
-    use coding_mod, only: is_char_encodable, terminal_coding_system
+    use coding_mod, only: is_character_encodable, terminal_coding_system
     use search_mod, only: string_match
     use minibuffer_reading_mod, only: is_minibuffer
     use frame_mod, only: selected_frame, selected_window
-    use window_mod, only: windows, window_text_cols, switch_to_buffer, bury_buffer, previous_buffer, next_buffer, &
-                          switch_to_prev_buffer, switch_to_next_buffer, select_window, destroy_previous_buffer, same_handle, &
-                          same_window, is_window_live, prev_buffer_type, tab_line_hscroll_type, BK_NONE
+    use window_mod, only: windows, window_text_columns, switch_to_buffer, bury_buffer, previous_buffer, next_buffer, &
+                          switch_to_previous_buffer, switch_to_next_buffer, select_window, destroy_previous_buffer, same_handle, &
+                          same_window, is_window_live, previous_buffer_type, tab_line_hscroll_type, BK_NONE
     use display_engine_mod, only: message, glyph_columns, is_mode_line_window_selected
     use project_mod, only: project_type, get_current_project
     implicit none(type, external)
@@ -361,7 +361,7 @@ module tab_line_mod
     !> Effective when `tab_line_tab_name_function' is customized
     !> to `get_tab_line_tab_name_truncated_buffer'.  Port of tab-line.el
     !> tab-line-tab-name-truncated-max.
-    integer, public :: tab_line_tab_name_truncated_max = 20
+    integer, public :: tab_line_tab_name_truncated_maximum = 20
 
     !> Function to get a list of tabs to display in the tab line.
     !> This procedure gives the tabs to show: buffers whose names will be
@@ -511,7 +511,7 @@ module tab_line_mod
     !> List of major modes for which the tab-line display is not enabled.
     !> Buffers under any of these major modes will not show the tab line in
     !> their windows, even if `global_tab_line_mode' is enabled
-    !> (`call tab_line_exclude_modes%append(major_modes%dired_mode)').
+    !> (`call tab_line_exclude_modes%append(major_modes%directory_editor_mode)').
     !> Port of tab-line.el tab-line-exclude-modes.
     type(tab_line_exclude_modes_type), public :: tab_line_exclude_modes
 
@@ -537,7 +537,7 @@ module tab_line_mod
     type(handle_type), public :: tab_line_switch_repeat_map
 
     ! The global C-x map, whose keys `tab_line_define_keys' changes.
-    type(handle_type) :: ctl_x_map
+    type(handle_type) :: control_x_map
 
     ! Whether `tab_line_mode' was set explicitly in the current buffer
     ! (define-globalized-minor-mode's tab-line-mode-set-explicitly, a
@@ -808,7 +808,7 @@ contains
     end subroutine get_tab_line_tab_name_buffer
 
     !> Generate tab name from BUFFER, truncating it as needed.
-    !> Truncate it to the length specified by `tab_line_tab_name_truncated_max'.
+    !> Truncate it to the length specified by `tab_line_tab_name_truncated_maximum'.
     !> If truncated, append the default ellipsis.  Port of
     !> tab-line.el:tab-line-tab-name-truncated-buffer (with
     !> `tab-line-tab-name-ellipsis' t, the default ellipsis).
@@ -820,10 +820,10 @@ contains
 
         tab_name = name_of(buffer)
 
-        if (count_characters(tab_name) < tab_line_tab_name_truncated_max) then
+        if (count_characters(tab_name) < tab_line_tab_name_truncated_maximum) then
             name = tab_name
         else
-            name = truncate_string_to_width(tab_name, tab_line_tab_name_truncated_max, default_ellipsis=.true.)
+            name = truncate_string_to_width(tab_name, tab_line_tab_name_truncated_maximum, default_ellipsis=.true.)
         end if
 
         if (size(tabs) < 0) name = ""
@@ -908,9 +908,9 @@ contains
         allocate (all(0))
         call append_unique(all, current_buffer())
 
-        if (allocated(windows(window%index)%prev_buffers)) then
-            do k = 1, size(windows(window%index)%prev_buffers)
-                call append_unique(all, windows(window%index)%prev_buffers(k)%buffer)
+        if (allocated(windows(window%index)%previous_buffers)) then
+            do k = 1, size(windows(window%index)%previous_buffers)
+                call append_unique(all, windows(window%index)%previous_buffers(k)%buffer)
             end do
         end if
 
@@ -1307,18 +1307,18 @@ contains
     end subroutine remove_excluded_tab_line_buffers
 
     !> The window buffers of WINDOW: those it showed before, the buffer
-    !> it shows and those it showed after (`switch_to_prev_buffer'), live
+    !> it shows and those it showed after (`switch_to_previous_buffer'), live
     !> and once each.  Not a port.
     subroutine window_buffers(window, list)
         type(handle_type), intent(in) :: window
         type(handle_type), allocatable, intent(out) :: list(:)
-        type(handle_type), allocatable :: next(:), prev(:)
+        type(handle_type), allocatable :: next(:), previous(:)
         type(handle_type) :: buffer
         integer :: k
 
         buffer = windows(window%index)%buffer
         allocate (next(0))
-        allocate (prev(0))
+        allocate (previous(0))
 
         if (allocated(windows(window%index)%next_buffers)) then
             do k = 1, size(windows(window%index)%next_buffers)
@@ -1328,18 +1328,18 @@ contains
             end do
         end if
 
-        if (allocated(windows(window%index)%prev_buffers)) then
-            do k = 1, size(windows(window%index)%prev_buffers)
-                associate (b => windows(window%index)%prev_buffers(k)%buffer)
+        if (allocated(windows(window%index)%previous_buffers)) then
+            do k = 1, size(windows(window%index)%previous_buffers)
+                associate (b => windows(window%index)%previous_buffers(k)%buffer)
                     ! Remove next-buffers from prev-buffers.
                     if (.not. same_handle(b, buffer) .and. is_buffer_live(b) .and. .not. has_buffer(next, b)) then
-                        prev = [prev, b]
+                        previous = [previous, b]
                     end if
                 end associate
             end do
         end if
 
-        list = [prev(size(prev):1:-1), buffer, next]
+        list = [previous(size(previous):1:-1), buffer, next]
     end subroutine window_buffers
 
     !> Return a list of tabs that should be displayed in the tab line.
@@ -1624,7 +1624,7 @@ contains
 
         if (allocated(tab_line_separator)) then
             separator = tab_line_separator
-        else if (associated(selected_frame%rif)) then
+        else if (associated(selected_frame%redisplay_interface)) then
             separator = " "
         else
             separator = "|"
@@ -1736,7 +1736,7 @@ contains
 
                 associate (text => strings(k)%segments(s)%text)
                     do while (i <= len(text, kind=int64))
-                        call string_char_and_length(text, i, c, clen)
+                        call string_character_and_length(text, i, c, clen)
                         i = i + clen
                         copies = 1
                         if (owner /= 0 .and. c == iachar("%")) copies = 2
@@ -1823,7 +1823,7 @@ contains
         integer, allocatable :: widths(:), owners(:)
         integer :: width, selected, k, p
 
-        width = window_text_cols(windows(window%index))
+        width = window_text_columns(windows(window%index))
         call string_characters(strings, 1, size(strings), widths, owners)
         ! Continuation means tab-line doesn't fit completely, thus scroll
         ! arrows are needed for scrolling.
@@ -2034,7 +2034,7 @@ contains
     !> is a bullet where the terminal can show it).  Port of tab-line.el's
     !> define-icon of tab-line-new, tab-line-close, tab-line-close-modified,
     !> tab-line-left and tab-line-right with icons.el:icon-string (the
-    !> images wait for the GUI).
+    !> images wait for the GRAPHICAL_USER_INTERFACE).
     subroutine load_tab_line_buttons()
         if (.not. allocated(tab_line_new_button)) tab_line_new_button = " + "
         if (.not. allocated(tab_line_close_button)) tab_line_close_button = " x"
@@ -2044,7 +2044,7 @@ contains
         if (.not. allocated(tab_line_close_modified_button)) then
             ! mule.el:char-displayable-p of the bullet on a terminal: its
             ! coding system can encode it.
-            if (is_char_encodable(int(z'2022'), terminal_coding_system())) then
+            if (is_character_encodable(int(z'2022'), terminal_coding_system())) then
                 tab_line_close_modified_button = " "//char(226)//char(128)//char(162)
             else
                 tab_line_close_modified_button = " *"
@@ -2056,11 +2056,11 @@ contains
     ! Scrolling, switching and moving tabs
     ! ------------------------------------------------------------------
 
-    !> Scroll the tab line of WINDOW (absent: the selected window) ARG
+    !> Scroll the tab line of WINDOW (absent: the selected window) ARGUMENT
     !> positions to the right (to the left when negative).  Port of
     !> tab-line.el:tab-line-hscroll.
-    recursive subroutine scroll_tab_line(arg, window)
-        integer, intent(in) :: arg
+    recursive subroutine scroll_tab_line(argument, window)
+        integer, intent(in) :: argument
         type(handle_type), intent(in), optional :: window
         type(tab_line_tab_type), allocatable :: tabs(:)
         type(handle_type) :: w
@@ -2074,34 +2074,34 @@ contains
 
         call window_tabs(w, tabs)
         first = max(0, first_tab(windows(w%index)%tab_line%hscroll))
-        windows(w%index)%tab_line%hscroll = tab_line_hscroll_type(tab=max(0, min(first + arg, size(tabs) - 1)))
+        windows(w%index)%tab_line%hscroll = tab_line_hscroll_type(tab=max(0, min(first + argument, size(tabs) - 1)))
         if (present(window)) call force_mode_line_update(.true.)
     end subroutine scroll_tab_line
 
-    !> Scroll the tab line ARG positions to the right or left
-    !> (prefix argument ARG, which must be a number when given: a
+    !> Scroll the tab line ARGUMENT positions to the right or left
+    !> (prefix argument ARGUMENT, which must be a number when given: a
     !> `wrong_type_argument' error condition occurs otherwise).  Not a port.
     recursive subroutine scroll_tab_line_by_prefix(direction, status)
         integer, intent(in) :: direction
         type(status_type), intent(out) :: status
-        integer :: arg
+        integer :: argument
 
         status = status_type()
-        arg = 1
+        argument = 1
 
-        if (current_prefix_arg%kind == PREFIX_NUMBER) then
-            arg = int(current_prefix_arg%value)
-        else if (current_prefix_arg%kind /= PREFIX_NONE) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number_or_marker_p, "//prefix_arg_text(current_prefix_arg))
+        if (current_prefix_argument%kind == PREFIX_NUMBER) then
+            argument = int(current_prefix_argument%value)
+        else if (current_prefix_argument%kind /= PREFIX_NONE) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "number_or_marker_p, "//prefix_argument_text(current_prefix_argument))
             return
         end if
 
-        call scroll_tab_line(direction*arg, selected_window())
+        call scroll_tab_line(direction*argument, selected_window())
         call force_mode_line_update(.false.)
     end subroutine scroll_tab_line_by_prefix
 
-    !> Scroll the tab line ARG positions to the right.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Scroll the tab line ARGUMENT positions to the right.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Port of tab-line.el:tab-line-hscroll-right (the command, from the
     !> keyboard: the selected window).
     recursive subroutine execute_scroll_tab_line_right(status)
@@ -2110,8 +2110,8 @@ contains
         call scroll_tab_line_by_prefix(1, status)
     end subroutine execute_scroll_tab_line_right
 
-    !> Scroll the tab line ARG positions to the left.
-    !> Interactively, ARG is the prefix numeric argument and defaults to 1.
+    !> Scroll the tab line ARGUMENT positions to the left.
+    !> Interactively, ARGUMENT is the prefix numeric argument and defaults to 1.
     !> Port of tab-line.el:tab-line-hscroll-left (the command, from the
     !> keyboard: the selected window).
     recursive subroutine execute_scroll_tab_line_left(status)
@@ -2127,7 +2127,7 @@ contains
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: window
-        type(handle_type), allocatable :: next(:), prev(:)
+        type(handle_type), allocatable :: next(:), previous(:)
         type(handle_type) :: w, b, saved
         type(status_type) :: st
         integer :: k, n
@@ -2143,7 +2143,7 @@ contains
         if (associated(tab_line_tabs_function, get_tab_line_tabs_window_buffers)) then
             b = windows(w%index)%buffer
             allocate (next(0))
-            allocate (prev(0))
+            allocate (previous(0))
 
             if (allocated(windows(w%index)%next_buffers)) then
                 do k = 1, size(windows(w%index)%next_buffers)
@@ -2151,10 +2151,10 @@ contains
                 end do
             end if
 
-            if (allocated(windows(w%index)%prev_buffers)) then
-                do k = 1, size(windows(w%index)%prev_buffers)
-                    associate (p => windows(w%index)%prev_buffers(k)%buffer)
-                        if (.not. same_handle(p, b) .and. .not. has_buffer(next, p)) prev = [prev, p]
+            if (allocated(windows(w%index)%previous_buffers)) then
+                do k = 1, size(windows(w%index)%previous_buffers)
+                    associate (p => windows(w%index)%previous_buffers(k)%buffer)
+                        if (.not. same_handle(p, b) .and. .not. has_buffer(next, p)) previous = [previous, p]
                     end associate
                 end do
             end if
@@ -2170,10 +2170,10 @@ contains
                 return
             end if
 
-            n = buffer_position(prev, buffer)
+            n = buffer_position(previous, buffer)
 
             do k = 1, n
-                b = switch_to_prev_buffer(w, BK_NONE, status)
+                b = switch_to_previous_buffer(w, BK_NONE, status)
                 if (.not. status%ok()) return
             end do
         else
@@ -2188,21 +2188,21 @@ contains
     !> Switch to the ARGth previous (or with NEXT next) tab's buffer.
     !> Port of tab-line.el:tab-line-switch-to-prev-tab and
     !> tab-line.el:tab-line-switch-to-next-tab (their common part).
-    recursive subroutine switch_tab(next, arg, status)
+    recursive subroutine switch_tab(next, argument, status)
         logical, intent(in) :: next
-        integer(int64), intent(in) :: arg
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(tab_line_tab_type), allocatable :: tabs(:)
         type(handle_type), allocatable :: list(:)
-        integer(int64) :: old_pos, new_pos, n
+        integer(int64) :: old_position, new_position, n
 
         status = status_type()
 
         if (associated(tab_line_tabs_function, get_tab_line_tabs_window_buffers)) then
             if (next) then
-                call next_buffer(status, arg, .true.)
+                call next_buffer(status, argument, .true.)
             else
-                call previous_buffer(status, arg, .true.)
+                call previous_buffer(status, argument, .true.)
             end if
 
             return
@@ -2211,25 +2211,25 @@ contains
         call window_tabs(selected_window(), tabs)
         list = tab_buffers(tabs)
         n = size(list)
-        old_pos = buffer_position(list, current_buffer())
-        if (old_pos == 0) return
+        old_position = buffer_position(list, current_buffer())
+        if (old_position == 0) return
 
         if (next) then
-            new_pos = old_pos - 1 + arg
+            new_position = old_position - 1 + argument
         else
-            new_pos = old_pos - 1 - arg
+            new_position = old_position - 1 - argument
         end if
 
         if (tab_line_switch_cycling) then
-            new_pos = modulo(new_pos, n)
+            new_position = modulo(new_position, n)
         else if (next) then
-            new_pos = min(new_pos, n - 1)
+            new_position = min(new_position, n - 1)
         else
-            new_pos = max(new_pos, 0_int64)
+            new_position = max(new_position, 0_int64)
         end if
 
-        if (new_pos < 0 .or. new_pos >= n) return
-        call switch_to_buffer(name_of(list(new_pos + 1)), status)
+        if (new_position < 0 .or. new_position >= n) return
+        call switch_to_buffer(name_of(list(new_position + 1)), status)
     end subroutine switch_tab
 
     !> Switch to the ARGth previous tab's buffer.
@@ -2242,13 +2242,13 @@ contains
     !> is possible when `tab_line_switch_cycling' is true.  Port of
     !> tab-line.el:tab-line-switch-to-prev-tab (from the keyboard: the
     !> selected window).
-    recursive subroutine switch_to_tab_line_previous_tab(status, arg)
+    recursive subroutine switch_to_tab_line_previous_tab(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         integer(int64) :: n
 
         n = 1
-        if (present(arg)) n = arg
+        if (present(argument)) n = argument
         call switch_tab(.false., n, status)
     end subroutine switch_to_tab_line_previous_tab
 
@@ -2262,13 +2262,13 @@ contains
     !> is possible when `tab_line_switch_cycling' is true.  Port of
     !> tab-line.el:tab-line-switch-to-next-tab (from the keyboard: the
     !> selected window).
-    recursive subroutine switch_to_tab_line_next_tab(status, arg)
+    recursive subroutine switch_to_tab_line_next_tab(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         integer(int64) :: n
 
         n = 1
-        if (present(arg)) n = arg
+        if (present(argument)) n = argument
         call switch_tab(.true., n, status)
     end subroutine switch_to_tab_line_next_tab
 
@@ -2277,7 +2277,7 @@ contains
     recursive subroutine execute_switch_to_tab_line_previous_tab(status)
         type(status_type), intent(out) :: status
 
-        call switch_to_tab_line_previous_tab(status, prefix_numeric_value(current_prefix_arg))
+        call switch_to_tab_line_previous_tab(status, prefix_numeric_value(current_prefix_argument))
     end subroutine execute_switch_to_tab_line_previous_tab
 
     !> Switch to the next ARGth tab's buffer (the command).  Port of
@@ -2285,23 +2285,23 @@ contains
     recursive subroutine execute_switch_to_tab_line_next_tab(status)
         type(status_type), intent(out) :: status
 
-        call switch_to_tab_line_next_tab(status, prefix_numeric_value(current_prefix_arg))
+        call switch_to_tab_line_next_tab(status, prefix_numeric_value(current_prefix_argument))
     end subroutine execute_switch_to_tab_line_next_tab
 
     !> Move a tab to a different position on the tab line.
-    !> ARG specifies the number of positions to move:
-    !> - When positive, move the current tab ARG positions to the right.
-    !> - When negative, move the current tab -ARG positions to the left.
-    !> - When absent, act as if ARG is 1, moving one position to the right.
+    !> ARGUMENT specifies the number of positions to move:
+    !> - When positive, move the current tab ARGUMENT positions to the right.
+    !> - When negative, move the current tab -ARGUMENT positions to the left.
+    !> - When absent, act as if ARGUMENT is 1, moving one position to the right.
     !> It can be used only when `tab_line_tabs_function' is
     !> customized to `get_tab_line_tabs_fixed_window_buffers'.  Port of
     !> tab-line.el:tab-line-move-tab-forward.
-    subroutine move_tab_line_tab_forward(status, arg)
+    subroutine move_tab_line_tab_forward(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
         type(handle_type), allocatable :: list(:), others(:)
         type(handle_type) :: window, buffer
-        integer(int64) :: pos, n, new_pos
+        integer(int64) :: position, n, new_position
         integer :: k
 
         status = status_type()
@@ -2315,26 +2315,26 @@ contains
         end if
 
         buffer = current_buffer()
-        pos = buffer_position(list, buffer)
+        position = buffer_position(list, buffer)
         n = size(list)
 
-        if (pos == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "number_or_marker_p, .false.")
+        if (position == 0) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "number_or_marker_p, .false.")
             return
         end if
 
-        if (present(arg)) then
-            new_pos = pos - 1 + arg
+        if (present(argument)) then
+            new_position = position - 1 + argument
         else
-            new_pos = pos
+            new_position = position
         end if
 
         if (n <= 1) return
 
         if (tab_line_switch_cycling) then
-            new_pos = modulo(new_pos, n)
+            new_position = modulo(new_position, n)
         else
-            new_pos = max(0_int64, min(new_pos, n - 1))
+            new_position = max(0_int64, min(new_position, n - 1))
         end if
 
         allocate (others(0))
@@ -2343,45 +2343,45 @@ contains
             if (.not. same_handle(list(k), buffer)) others = [others, list(k)]
         end do
 
-        new_pos = min(new_pos, int(size(others), int64))
-        windows(window%index)%tab_line%buffers = [others(1:new_pos), buffer, others(new_pos + 1:)]
+        new_position = min(new_position, int(size(others), int64))
+        windows(window%index)%tab_line%buffers = [others(1:new_position), buffer, others(new_position + 1:)]
         call forget_cache(window)
         call force_mode_line_update(.false.)
     end subroutine move_tab_line_tab_forward
 
     !> Move a tab to a different position on the tab line.
-    !> ARG specifies the number of positions to move:
-    !> - When positive, move the current tab ARG positions to the left.
-    !> - When negative, move the current tab -ARG positions to the right.
-    !> - When absent, act as if ARG is 1, moving one position to the left.
+    !> ARGUMENT specifies the number of positions to move:
+    !> - When positive, move the current tab ARGUMENT positions to the left.
+    !> - When negative, move the current tab -ARGUMENT positions to the right.
+    !> - When absent, act as if ARGUMENT is 1, moving one position to the left.
     !> It can be used only when `tab_line_tabs_function' is
     !> customized to `get_tab_line_tabs_fixed_window_buffers'.  Port of
     !> tab-line.el:tab-line-move-tab-backward.
-    subroutine move_tab_line_tab_backward(status, arg)
+    subroutine move_tab_line_tab_backward(status, argument)
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: arg
+        integer(int64), intent(in), optional :: argument
 
-        if (present(arg)) then
-            call move_tab_line_tab_forward(status, -arg)
+        if (present(argument)) then
+            call move_tab_line_tab_forward(status, -argument)
         else
             call move_tab_line_tab_forward(status, -1_int64)
         end if
     end subroutine move_tab_line_tab_backward
 
-    !> Move the current tab ARG positions to the right (the command).
+    !> Move the current tab ARGUMENT positions to the right (the command).
     !> Port of tab-line.el:tab-line-move-tab-forward (the command).
     subroutine execute_move_tab_line_tab_forward(status)
         type(status_type), intent(out) :: status
 
-        call move_tab_line_tab_forward(status, prefix_numeric_value(current_prefix_arg))
+        call move_tab_line_tab_forward(status, prefix_numeric_value(current_prefix_argument))
     end subroutine execute_move_tab_line_tab_forward
 
-    !> Move the current tab ARG positions to the left (the command).
+    !> Move the current tab ARGUMENT positions to the left (the command).
     !> Port of tab-line.el:tab-line-move-tab-backward (the command).
     subroutine execute_move_tab_line_tab_backward(status)
         type(status_type), intent(out) :: status
 
-        call move_tab_line_tab_backward(status, prefix_numeric_value(current_prefix_arg))
+        call move_tab_line_tab_backward(status, prefix_numeric_value(current_prefix_argument))
     end subroutine execute_move_tab_line_tab_backward
 
     ! ------------------------------------------------------------------
@@ -2424,7 +2424,7 @@ contains
                 call bury_buffer(status)
             else if (buffer%index /= 0) then
                 window = selected_window()
-                call remove_prev_buffer(window, buffer)
+                call remove_previous_buffer(window, buffer)
                 call remove_next_buffer(window, buffer)
             end if
         end if
@@ -2432,24 +2432,24 @@ contains
 
     !> Remove BUFFER from the previous buffers of WINDOW,
     !> freeing their markers.  Not a port.
-    subroutine remove_prev_buffer(window, buffer)
+    subroutine remove_previous_buffer(window, buffer)
         type(handle_type), intent(in) :: window, buffer
-        type(prev_buffer_type), allocatable :: kept(:)
+        type(previous_buffer_type), allocatable :: kept(:)
         integer :: k
 
-        if (.not. allocated(windows(window%index)%prev_buffers)) return
+        if (.not. allocated(windows(window%index)%previous_buffers)) return
         allocate (kept(0))
 
-        do k = 1, size(windows(window%index)%prev_buffers)
-            if (same_handle(windows(window%index)%prev_buffers(k)%buffer, buffer)) then
-                call destroy_previous_buffer(windows(window%index)%prev_buffers(k))
+        do k = 1, size(windows(window%index)%previous_buffers)
+            if (same_handle(windows(window%index)%previous_buffers(k)%buffer, buffer)) then
+                call destroy_previous_buffer(windows(window%index)%previous_buffers(k))
             else
-                kept = [kept, windows(window%index)%prev_buffers(k)]
+                kept = [kept, windows(window%index)%previous_buffers(k)]
             end if
         end do
 
-        call move_alloc(kept, windows(window%index)%prev_buffers)
-    end subroutine remove_prev_buffer
+        call move_alloc(kept, windows(window%index)%previous_buffers)
+    end subroutine remove_previous_buffer
 
     !> Remove BUFFER from the next buffers of WINDOW.  Not a port.
     subroutine remove_next_buffer(window, buffer)
@@ -2534,7 +2534,7 @@ contains
 
     !> The command KEY is bound to in the C-x map; null for none.
     !> Not a port.
-    function ctl_x_binding(key) result(command)
+    function control_x_binding(key) result(command)
         character(len=*), intent(in) :: key
         type(command_type), pointer :: command
         type(value_type), allocatable :: events(:)
@@ -2542,26 +2542,26 @@ contains
         type(status_type) :: status
 
         command => null()
-        if (.not. is_keymap_live(ctl_x_map)) return
+        if (.not. is_keymap_live(control_x_map)) return
         call key_parse(key, events, status)
         if (.not. status%ok()) return
-        call lookup_key(make_keymap_ref(ctl_x_map), events, binding, status)
+        call lookup_key(make_keymap_reference(control_x_map), events, binding, status)
         if (.not. status%ok()) return
         if (vtag(binding) /= V_NAME) return
         command => find_command(trim(symbols(xsymbol(binding))%name))
-    end function ctl_x_binding
+    end function control_x_binding
 
     !> Remove the binding of KEY in the C-x map (no binding).
     !> Not a port.
-    subroutine unset_ctl_x_key(key)
+    subroutine unset_control_x_key(key)
         character(len=*), intent(in) :: key
         type(value_type), allocatable :: events(:)
         type(status_type) :: status
 
         call key_parse(key, events, status)
         if (.not. status%ok()) return
-        call define_key(ctl_x_map, events, value_type(), status)
-    end subroutine unset_ctl_x_key
+        call define_key(control_x_map, events, value_type(), status)
+    end subroutine unset_control_x_key
 
     !> Install key bindings to switch between tabs if so configured.
     !> Port of tab-line.el:tab-line--define-keys.
@@ -2570,28 +2570,28 @@ contains
 
         if (.not. tab_line_define_keys) return
 
-        if (associated(ctl_x_binding("<left>"), commands%previous_buffer)) then
-            call keymap_set(ctl_x_map, "<left>", "switch_to_tab_line_previous_tab", status)
+        if (associated(control_x_binding("<left>"), commands%previous_buffer)) then
+            call keymap_set(control_x_map, "<left>", "switch_to_tab_line_previous_tab", status)
         end if
 
-        if (associated(ctl_x_binding("C-<left>"), commands%previous_buffer)) then
-            call keymap_set(ctl_x_map, "C-<left>", "switch_to_tab_line_previous_tab", status)
+        if (associated(control_x_binding("C-<left>"), commands%previous_buffer)) then
+            call keymap_set(control_x_map, "C-<left>", "switch_to_tab_line_previous_tab", status)
         end if
 
-        if (.not. associated(ctl_x_binding("M-<left>"))) then
-            call keymap_set(ctl_x_map, "M-<left>", "move_tab_line_tab_backward", status)
+        if (.not. associated(control_x_binding("M-<left>"))) then
+            call keymap_set(control_x_map, "M-<left>", "move_tab_line_tab_backward", status)
         end if
 
-        if (associated(ctl_x_binding("<right>"), commands%next_buffer)) then
-            call keymap_set(ctl_x_map, "<right>", "switch_to_tab_line_next_tab", status)
+        if (associated(control_x_binding("<right>"), commands%next_buffer)) then
+            call keymap_set(control_x_map, "<right>", "switch_to_tab_line_next_tab", status)
         end if
 
-        if (associated(ctl_x_binding("C-<right>"), commands%next_buffer)) then
-            call keymap_set(ctl_x_map, "C-<right>", "switch_to_tab_line_next_tab", status)
+        if (associated(control_x_binding("C-<right>"), commands%next_buffer)) then
+            call keymap_set(control_x_map, "C-<right>", "switch_to_tab_line_next_tab", status)
         end if
 
-        if (.not. associated(ctl_x_binding("M-<right>"))) then
-            call keymap_set(ctl_x_map, "M-<right>", "move_tab_line_tab_forward", status)
+        if (.not. associated(control_x_binding("M-<right>"))) then
+            call keymap_set(control_x_map, "M-<right>", "move_tab_line_tab_forward", status)
         end if
     end subroutine define_tab_line_keys
 
@@ -2602,25 +2602,25 @@ contains
 
         if (.not. tab_line_define_keys) return
 
-        if (associated(ctl_x_binding("<left>"), commands%switch_to_tab_line_previous_tab)) then
-            call keymap_set(ctl_x_map, "<left>", "previous_buffer", status)
+        if (associated(control_x_binding("<left>"), commands%switch_to_tab_line_previous_tab)) then
+            call keymap_set(control_x_map, "<left>", "previous_buffer", status)
         end if
 
-        if (associated(ctl_x_binding("C-<left>"), commands%switch_to_tab_line_previous_tab)) then
-            call keymap_set(ctl_x_map, "C-<left>", "previous_buffer", status)
+        if (associated(control_x_binding("C-<left>"), commands%switch_to_tab_line_previous_tab)) then
+            call keymap_set(control_x_map, "C-<left>", "previous_buffer", status)
         end if
 
-        if (associated(ctl_x_binding("M-<left>"), commands%move_tab_line_tab_backward)) call unset_ctl_x_key("M-<left>")
+        if (associated(control_x_binding("M-<left>"), commands%move_tab_line_tab_backward)) call unset_control_x_key("M-<left>")
 
-        if (associated(ctl_x_binding("<right>"), commands%switch_to_tab_line_next_tab)) then
-            call keymap_set(ctl_x_map, "<right>", "next_buffer", status)
+        if (associated(control_x_binding("<right>"), commands%switch_to_tab_line_next_tab)) then
+            call keymap_set(control_x_map, "<right>", "next_buffer", status)
         end if
 
-        if (associated(ctl_x_binding("C-<right>"), commands%switch_to_tab_line_next_tab)) then
-            call keymap_set(ctl_x_map, "C-<right>", "next_buffer", status)
+        if (associated(control_x_binding("C-<right>"), commands%switch_to_tab_line_next_tab)) then
+            call keymap_set(control_x_map, "C-<right>", "next_buffer", status)
         end if
 
-        if (associated(ctl_x_binding("M-<right>"), commands%move_tab_line_tab_forward)) call unset_ctl_x_key("M-<right>")
+        if (associated(control_x_binding("M-<right>"), commands%move_tab_line_tab_forward)) call unset_control_x_key("M-<right>")
     end subroutine undefine_tab_line_keys
 
     ! ------------------------------------------------------------------
@@ -2726,7 +2726,7 @@ contains
     !> Specifically, Tab-Line mode is enabled in all buffers where
     !> `turn_on_tab_line_mode' would do it.
     !>
-    !> With prefix ARG, enable Global Tab-Line mode if ARG is positive;
+    !> With prefix ARGUMENT, enable Global Tab-Line mode if ARGUMENT is positive;
     !> otherwise, disable it.
     !>
     !> See `tab_line_mode' for more information on Tab-Line mode.
@@ -2824,70 +2824,70 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define the tab line's faces, modes, commands and keymaps, as loading
-    !> tab-line.el does; CTL_X_MAP is the global C-x map, whose keys
+    !> tab-line.el does; CONTROL_X_MAP is the global C-x map, whose keys
     !> `global_tab_line_mode' changes.  Not a port.
-    subroutine initialize_tab_line(ctl_x_keymap)
-        type(handle_type), intent(in) :: ctl_x_keymap
+    subroutine initialize_tab_line(control_x_keymap)
+        type(handle_type), intent(in) :: control_x_keymap
         integer, parameter :: C = FACE_CLASS_COLOR, LIGHT = FACE_BACKGROUND_LIGHT, DARK = FACE_BACKGROUND_DARK
-        type(face_attributes_type) :: attrs
+        type(face_attributes_type) :: attributes
         type(status_type) :: st
 
-        ctl_x_map = ctl_x_keymap
+        control_x_map = control_x_keymap
         call tab_line_tab%define("tab_line_tab", "Tab line face for selected tab.")
-        call tab_line_tab%spec_entry(display_when(is_default=.true.), face_attrs(inherit="tab_line"))
-        attrs = face_attrs()
-        attrs%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
-        call tab_line_tab%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), attrs)
-        attrs = face_attrs(background="grey40", foreground="white")
-        attrs%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
-        call tab_line_tab%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), attrs)
-        call tab_line_tab%spec_entry(display_when(), face_attrs(inverse_video=.false.))
+        call tab_line_tab%specification_entry(display_when(is_default=.true.), face_attributes(inherit="tab_line"))
+        attributes = face_attributes()
+        attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
+        call tab_line_tab%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), attributes)
+        attributes = face_attributes(background="grey40", foreground="white")
+        attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
+        call tab_line_tab%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), attributes)
+        call tab_line_tab%specification_entry(display_when(), face_attributes(inverse_video=.false.))
         call tab_line_tab_inactive%define("tab_line_tab_inactive", "Tab line face for non-selected tab.")
-        call tab_line_tab_inactive%spec_entry(display_when(is_default=.true.), face_attrs(inherit="tab_line_tab"))
-        call tab_line_tab_inactive%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                                              face_attrs(background="grey75"))
-        call tab_line_tab_inactive%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                                              face_attrs(background="grey20"))
-        call tab_line_tab_inactive%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call tab_line_tab_inactive%specification_entry(display_when(is_default=.true.), face_attributes(inherit="tab_line_tab"))
+        call tab_line_tab_inactive%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                              face_attributes(background="grey75"))
+        call tab_line_tab_inactive%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                              face_attributes(background="grey20"))
+        call tab_line_tab_inactive%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call tab_line_tab_inactive_alternate%define("tab_line_tab_inactive_alternate", &
                                                     "Alternate face for inactive tab-line tabs."//achar(10)// &
                                                     "Applied to alternating tabs when option"//achar(10)// &
                                                     "`tab_line_tab_face_functions' includes procedure"//achar(10)// &
                                                     "`get_tab_line_tab_face_inactive_alternating'.")
-        call tab_line_tab_inactive_alternate%spec_entry(display_when(), &
-                                                        face_attrs(inherit="tab_line_tab_inactive", background="grey65"))
+        call tab_line_tab_inactive_alternate%specification_entry(display_when(), &
+                                                        face_attributes(inherit="tab_line_tab_inactive", background="grey65"))
         call tab_line_tab_special%define("tab_line_tab_special", "Face for special (i.e. non-file-backed) tabs."// &
                                          achar(10)//"Applied when option `tab_line_tab_face_functions' includes"// &
                                          achar(10)//"procedure `get_tab_line_tab_face_special'.")
-        call tab_line_tab_special%spec_entry(display_when(is_default=.true.), face_attrs(weight="bold"))
-        call tab_line_tab_special%spec_entry(display_when(), face_attrs(slant="italic", weight="normal"), &
-                                             supports=face_attrs(slant="italic"))
+        call tab_line_tab_special%specification_entry(display_when(is_default=.true.), face_attributes(weight="bold"))
+        call tab_line_tab_special%specification_entry(display_when(), face_attributes(slant="italic", weight="normal"), &
+                                             supports=face_attributes(slant="italic"))
         call tab_line_tab_modified%define("tab_line_tab_modified", "Face for modified tabs."//achar(10)// &
                                           "Applied when option `tab_line_tab_face_functions' includes"//achar(10)// &
                                           "procedure `get_tab_line_tab_face_modified'.")
-        call tab_line_tab_modified%spec_entry(display_when(), face_attrs(inherit="font_lock_doc_face"))
+        call tab_line_tab_modified%specification_entry(display_when(), face_attributes(inherit="font_lock_doc_face"))
         call tab_line_tab_group%define("tab_line_tab_group", "Face for group tabs."//achar(10)// &
                                        "Applied when option `tab_line_tab_face_functions' includes"//achar(10)// &
                                        "procedure `get_tab_line_tab_face_group'.")
-        call tab_line_tab_group%spec_entry(display_when(), face_attrs(inherit="tab_line", box=.false.))
+        call tab_line_tab_group%specification_entry(display_when(), face_attributes(inherit="tab_line", box=.false.))
         call tab_line_tab_current%define("tab_line_tab_current", &
                                          "Tab line face for tab with current buffer in selected window.")
-        call tab_line_tab_current%spec_entry(display_when(is_default=.true.), face_attrs(inherit="tab_line_tab"))
-        call tab_line_tab_current%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                                             face_attrs(background="grey85"))
-        call tab_line_tab_current%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                                             face_attrs(background="grey40"))
+        call tab_line_tab_current%specification_entry(display_when(is_default=.true.), face_attributes(inherit="tab_line_tab"))
+        call tab_line_tab_current%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                             face_attributes(background="grey85"))
+        call tab_line_tab_current%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                             face_attributes(background="grey40"))
         call tab_line_highlight%define("tab_line_highlight", "Tab line face for highlighting.")
-        attrs = face_attrs(background="grey85", foreground="black")
-        attrs%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
-        call tab_line_highlight%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), attrs)
-        attrs = face_attrs(background="grey40", foreground="white")
-        attrs%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
-        call tab_line_highlight%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), attrs)
-        call tab_line_highlight%spec_entry(display_when(), face_attrs(inverse_video=.false.))
+        attributes = face_attributes(background="grey85", foreground="black")
+        attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
+        call tab_line_highlight%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), attributes)
+        attributes = face_attributes(background="grey40", foreground="white")
+        attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
+        call tab_line_highlight%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), attributes)
+        call tab_line_highlight%specification_entry(display_when(), face_attributes(inverse_video=.false.))
         call tab_line_close_highlight%define("tab_line_close_highlight", &
                                              "Tab line face for highlighting of the close button.")
-        call tab_line_close_highlight%spec_entry(display_when(), face_attrs(foreground="red"))
+        call tab_line_close_highlight%specification_entry(display_when(), face_attributes(foreground="red"))
 
         ! The settings' procedures.
         if (.not. allocated(tab_line_tab_face_functions%entries)) then

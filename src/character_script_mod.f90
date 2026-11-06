@@ -25,13 +25,13 @@
 
 !> char-script-table: the characters with a script, as sorted runs
 !> (`script_starts` to `script_ends`, both inclusive) of script
-!> `script_names(script_ids(k))`.  Used by `char_script`.
+!> `script_names(script_ids(k))`.  Used by `character_script`.
 module character_script_mod
     use, intrinsic :: iso_fortran_env, only: int32
     implicit none(type, external)
     private
 
-    public :: script_runs, script_starts, script_ends, script_ids, script_count, script_names, char_script
+    public :: script_runs, script_starts, script_ends, script_ids, script_count, script_names, character_script
 
     !> The numbers of runs of characters of one script and of scripts.
     integer, parameter :: script_runs = 447, script_count = 198
@@ -248,27 +248,27 @@ module character_script_mod
 contains
 
     !> The script number of character `c` (an index into
-    !> `script_names`), or 0 if it has none.  CHAR_TABLE_REF
+    !> `script_names`), or 0 if it has none.  CHARACTER_TABLE_REFERENCE
     !> (Vchar_script_table, c).
-    pure integer function char_script(c)
+    pure integer function character_script(c)
         integer, intent(in) :: c
-        integer :: lo, hi, mid
+        integer :: lo, hi, middle
 
-        char_script = 0
+        character_script = 0
         lo = 1
         hi = script_runs
 
         do while (lo <= hi)
-            mid = (lo + hi)/2
+            middle = (lo + hi)/2
 
-            if (c < script_starts(mid)) then
-                hi = mid - 1
-            else if (c > script_ends(mid)) then
-                lo = mid + 1
+            if (c < script_starts(middle)) then
+                hi = middle - 1
+            else if (c > script_ends(middle)) then
+                lo = middle + 1
             else
-                char_script = script_ids(mid)
+                character_script = script_ids(middle)
                 return
             end if
         end do
-    end function char_script
+    end function character_script
 end module character_script_mod

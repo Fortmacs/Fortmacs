@@ -41,25 +41,25 @@
 module buffer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use value_mod, only: vtag, V_NULL
-    use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
-                         FM_BUFFER_READ_ONLY, FM_INVALID_HANDLE
+    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, &
+                         BUFFER_READ_ONLY_CODE, INVALID_HANDLE_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle, has_handle, same_handle
     use time_functions_mod, only: time_type
-    use value_mod, only: value_type, make_symbol_ref
+    use value_mod, only: value_type, make_symbol_reference
     use names_mod, only: intern
     use data_mod, only: symbol_value, integer_setting_type, logical_setting_type, function_setting_type, history_setting_type
     use intervals_mod, only: intervals_type, find_interval, textget
-    use character_mod, only: bytes_by_char_head, raw_prev_char_len, &
-                             string_char_and_length
+    use character_mod, only: bytes_by_character_head, raw_previous_character_length, &
+                             string_character_and_length
     implicit none(type, external)
     private
 
     !> buffer.h: BEGINNING, BEGINNING_BYTE.
     integer(int64), parameter, public :: BEGINNING = 1, BEGINNING_BYTE = 1
     !> buffer.h: extra gap to allocate when growing, and the minimum gap.
-    integer(int64), parameter, public :: GAP_BYTES_DFL = 2000, GAP_BYTES_MIN = 20
+    integer(int64), parameter, public :: GAP_BYTES_DFL = 2000, GAP_BYTES_MINIMUM = 20
     !> buffer.h:BUF_BYTES_MAX on a 64-bit host (MOST_POSITIVE_FIXNUM - 1).
-    integer(int64), parameter, public :: BUF_BYTES_MAX = 2_int64**61 - 2
+    integer(int64), parameter, public :: BUFFER_BYTES_MAXIMUM = 2_int64**61 - 2
 
     !> Port of buffer.h:struct buffer_text.  The anchor NUL bytes upstream
     !> keeps at GPT and Z (for C string searches) are not kept.
@@ -69,7 +69,7 @@ module buffer_mod
         integer(int64) :: gpt = BEGINNING, z = BEGINNING
         integer(int64) :: gpt_byte = BEGINNING_BYTE, z_byte = BEGINNING_BYTE
         integer(int64) :: gap_size = 0
-        integer(int64) :: modiff = 1, chars_modiff = 1, save_modiff = 1
+        integer(int64) :: modiff = 1, characters_modiff = 1, save_modiff = 1
         integer(int64) :: overlay_modiff = 1, compact = 1
         integer(int64) :: beginning_unchanged = 0, end_unchanged = 0
         integer(int64) :: unchanged_modified = 1, overlay_unchanged_modified = 1
@@ -183,19 +183,19 @@ module buffer_mod
     type, public :: buffer_type
         character(len=:), allocatable :: name, last_name
         type(buffer_text_type) :: text
-        integer(int64) :: pt = BEGINNING, pt_byte = BEGINNING_BYTE
-        integer(int64) :: begv = BEGINNING, begv_byte = BEGINNING_BYTE
-        integer(int64) :: zv = BEGINNING, zv_byte = BEGINNING_BYTE
+        integer(int64) :: point = BEGINNING, point_byte = BEGINNING_BYTE
+        integer(int64) :: beginning_of_accessible_portion = BEGINNING, beginning_of_accessible_portion_byte = BEGINNING_BYTE
+        integer(int64) :: end_of_accessible_portion = BEGINNING, end_of_accessible_portion_byte = BEGINNING_BYTE
         !> BVAR enable_multibyte_characters.
         logical :: multibyte = .true.
-        !> BVAR bidi_display_reordering (`bidi_display_reordering'): true
+        !> BVAR bidirectional_display_reordering (`bidirectional_display_reordering'): true
         !> means reorder bidirectional text for display in the visual order.
-        logical :: bidi_display_reordering = .true.
-        !> BVAR bidi_paragraph_direction (`bidi_paragraph_direction'): 0
+        logical :: bidirectional_display_reordering = .true.
+        !> BVAR bidirectional_paragraph_direction (`bidirectional_paragraph_direction'): 0
         !> to determine each paragraph's direction dynamically, 1
         !> (`left-to-right') or 2 (`right-to-left') to force it (bidirectional_mod
         !> L2R and R2L).
-        integer :: bidi_paragraph_direction = 0
+        integer :: bidirectional_paragraph_direction = 0
         !> BVAR read_only.
         logical :: read_only = .false.
         !> BVAR save_length (`buffer_saved_size'): the length of the buffer
@@ -237,15 +237,15 @@ module buffer_mod
         !> reverting; only when `read_only_mode_state_set' (bound locally).
         logical :: read_only_mode_state = .false., read_only_mode_state_set = .false.
         !> `backup_inhibited' (files.el): true means don't make a backup,
-        !> regardless of the other parameters.  Permanent-local; VC sets it
+        !> regardless of the other parameters.  Permanent-local; VERSION_CONTROL sets it
         !> for files under version control.
         logical :: backup_inhibited = .false.
-        !> `vc_mode' (vc-hooks.el): the version control status shown in the
+        !> `version_control_mode' (vc-hooks.el): the version control status shown in the
         !> mode line (" Git-main"); unallocated when the file is not under
         !> version control.  Permanent-local.
-        character(len=:), allocatable :: vc_mode
+        character(len=:), allocatable :: version_control_mode
         !> window.el's window--sides-shown: true if this buffer was shown
-        !> in a side window once; `switch_to_prev_buffer' and
+        !> in a side window once; `switch_to_previous_buffer' and
         !> `switch_to_next_buffer' then refrain from showing it within the
         !> main window area.  Buffer-local, cleared with the other local
         !> variables.
@@ -316,10 +316,10 @@ module buffer_mod
         !> BVAR mode_name (`mode_name'): the major mode's name for the mode
         !> line.
         character(len=:), allocatable :: mode_name
-        !> BVAR invisibility_spec (`buffer_invisibility_spec'): true for
-        !> t, else the list `invisibility_spec'.
-        logical :: invisibility_spec_t = .true.
-        type(invisibility_entry_type), allocatable :: invisibility_spec(:)
+        !> BVAR invisibility_specification (`buffer_invisibility_specification'): true for
+        !> t, else the list `invisibility_specification'.
+        logical :: invisibility_specification_t = .true.
+        type(invisibility_entry_type), allocatable :: invisibility_specification(:)
         !> The current input method for multilingual text.
         !> If unallocated, that means no input method is activated now.
         !> Port of mule-cmds.el current-input-method (permanently local,
@@ -426,7 +426,7 @@ module buffer_mod
 
     !> Function called (if not null) to perform auto-fill.
     !> It is called after self-inserting any character specified in
-    !> the `auto_fill_chars' table.
+    !> the `auto_fill_characters' table.
     !> NOTE: This variable is not a hook;
     !> its value may not be several functions.  Port of buffer.c
     !> auto-fill-function (null when unset; one global value).
@@ -523,9 +523,9 @@ module buffer_mod
         !> Define the commands of buffer.c.  Port of buffer.c:syms_of_buffer
         !> (its commands; its variables are typed settings).  (In
         !> buffer_operations_mod.)
-        module subroutine init_buffer_commands()
+        module subroutine initialize_buffer_commands()
             implicit none(type, external)
-        end subroutine init_buffer_commands
+        end subroutine initialize_buffer_commands
     end interface
 
     public :: resolve_buffer, is_buffer_live, current_buffer, buffer_handle, auto_fill_procedure, swap_locals_procedure, &
@@ -535,14 +535,14 @@ module buffer_mod
               frame_seen_buffers, frame_buried_buffers, bury_buffer_internal, frames_discard_buffer
     public :: set_buffer, close_buffer, erase_buffer
     public :: is_buffer_modified, restore_buffer_modified, &
-              buffer_modified_tick, buffer_chars_modified_tick
+              buffer_modified_tick, buffer_characters_modified_tick
     public :: barf_if_buffer_read_only, set_buffer_read_only, inhibit_read_only
-    public :: modiff_incr, buf_compute_unchanged
-    public :: buffer_byte_index, buf_fetch_byte, buf_fetch_char, &
-              buf_next_char_len, buf_prev_char_len, buf_bytes
-    public :: temp_set_point_both
+    public :: modiff_increment, buffer_compute_unchanged
+    public :: buffer_byte_index, buffer_fetch_byte, buffer_fetch_character, &
+              buffer_next_character_length, buffer_previous_character_length, buffer_bytes
+    public :: temporary_set_point_both
     public :: nsberror, buffer_enable_undo, set_buffer_modified, force_mode_line_update, buffer_file_name, &
-              set_buffer_if_live, execute_buffer_list_update_hook, find_buffer, init_buffer_commands
+              set_buffer_if_live, execute_buffer_list_update_hook, find_buffer, initialize_buffer_commands
     public :: buffer_serial_live, buffer_visited_file_modtime
 
 contains
@@ -703,7 +703,7 @@ contains
         if (h%index /= 0) return
 
         if (len(name) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Empty string for buffer name is not allowed")
+            call set_error(status, GENERIC_ERROR_CODE, "Empty string for buffer name is not allowed")
             return
         end if
 
@@ -724,7 +724,7 @@ contains
         allocate (character(len=buffers(i)%text%gap_size) :: buffers(i)%text%beginning, stat=astat)
 
         if (astat /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Memory exhausted")
+            call set_error(status, GENERIC_ERROR_CODE, "Memory exhausted")
             return
         end if
 
@@ -782,7 +782,7 @@ contains
         character(len=*), intent(in), optional :: ignore
         character(len=:), allocatable :: newname
         character(len=:), allocatable :: genbase
-        character(len=24) :: num
+        character(len=24) :: number
         integer(int64) :: count
         real :: r
         logical :: hidden
@@ -807,8 +807,8 @@ contains
         else
             ! Hidden buffers get a random suffix first, to find a free name fast.
             call random_number(r)
-            write (num, "(i0)") int(r*1000000)
-            genbase = name//"-"//trim(num)
+            write (number, "(i0)") int(r*1000000)
+            genbase = name//"-"//trim(number)
 
             if (name_free(genbase)) then
                 newname = genbase
@@ -819,8 +819,8 @@ contains
         count = 2
 
         do
-            write (num, "(i0)") count
-            newname = genbase//"<"//trim(num)//">"
+            write (number, "(i0)") count
+            newname = genbase//"<"//trim(number)//">"
 
             if (present(ignore)) then
                 if (same(newname, ignore)) return
@@ -877,12 +877,12 @@ contains
         character(len=:), allocatable :: oldname
 
         if (current == 0) then
-            call set_error(status, FM_INVALID_HANDLE)
+            call set_error(status, INVALID_HANDLE_CODE)
             return
         end if
 
         if (len(newname) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Empty string is invalid as a buffer name")
+            call set_error(status, GENERIC_ERROR_CODE, "Empty string is invalid as a buffer name")
             return
         end if
 
@@ -899,7 +899,7 @@ contains
             if (unique) then
                 actual = generate_new_buffer_name(newname, oldname)
             else
-                call set_error(status, FM_GENERIC_ERROR, format_message("Buffer name `")//newname//format_message("' is in use"))
+                call set_error(status, GENERIC_ERROR_CODE, format_message("Buffer name `")//newname//format_message("' is in use"))
                 return
             end if
         end if
@@ -1115,7 +1115,7 @@ contains
 
     !> Advance modification counter `a' logarithmically in `len'; `old'
     !> receives its previous value.  Port of lisp.h:modiff_incr.
-    pure subroutine modiff_incr(a, len, old)
+    pure subroutine modiff_increment(a, len, old)
         integer(int64), intent(inout) :: a
         integer(int64), intent(in) :: len
         integer(int64), intent(out), optional :: old
@@ -1128,10 +1128,10 @@ contains
             ! elogb (len) + 1, i.e. the bit length of len.
             a = a + (bit_size(len) - leadz(len))
         end if
-    end subroutine modiff_incr
+    end subroutine modiff_increment
 
     !> Port of buffer.h:BUF_COMPUTE_UNCHANGED.
-    pure subroutine buf_compute_unchanged(b, start, end)
+    pure subroutine buffer_compute_unchanged(b, start, end)
         type(buffer_type), intent(inout) :: b
         integer(int64), intent(in) :: start, end
 
@@ -1145,7 +1145,7 @@ contains
                 if (start - BEGINNING < t%beginning_unchanged) t%beginning_unchanged = start - BEGINNING
             end if
         end associate
-    end subroutine buf_compute_unchanged
+    end subroutine buffer_compute_unchanged
 
     !> Port of buffer.c:Fbuffer_modified_p (the `autosaved' state is not
     !> tracked yet).
@@ -1173,7 +1173,7 @@ contains
             if (.not. flag) then
                 t%save_modiff = t%modiff
             else if (t%save_modiff >= t%modiff) then
-                call modiff_incr(t%modiff, 1_int64, t%save_modiff)
+                call modiff_increment(t%modiff, 1_int64, t%save_modiff)
             end if
         end associate
     end subroutine restore_buffer_modified
@@ -1192,7 +1192,7 @@ contains
     end subroutine buffer_modified_tick
 
     !> Port of buffer.c:Fbuffer_chars_modified_tick.
-    subroutine buffer_chars_modified_tick(h, tick, status)
+    subroutine buffer_characters_modified_tick(h, tick, status)
         type(handle_type), intent(in) :: h
         integer(int64), intent(out) :: tick
         type(status_type), intent(out) :: status
@@ -1201,8 +1201,8 @@ contains
         tick = 0
         call resolve_buffer(h, i, status)
         if (.not. status%ok()) return
-        tick = buffers(i)%text%chars_modiff
-    end subroutine buffer_chars_modified_tick
+        tick = buffers(i)%text%characters_modiff
+    end subroutine buffer_characters_modified_tick
 
     !> Value of the variable `inhibit_read_only' (.false. when it has no value).
     !> Port of buffer.c:Vinhibit_read_only (global value only).
@@ -1210,7 +1210,7 @@ contains
         type(value_type) :: v
         type(status_type) :: st
 
-        call symbol_value(make_symbol_ref(intern("inhibit_read_only")), v, st)
+        call symbol_value(make_symbol_reference(intern("inhibit_read_only")), v, st)
     end function inhibit_read_only
 
     !> Fail with buffer-read-only if the current buffer is read-only,
@@ -1220,25 +1220,26 @@ contains
     subroutine barf_if_buffer_read_only(status, position)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: position
-        integer(int64) :: pos, k
-        type(value_type) :: props
+        integer(int64) :: position_value, k
+        type(value_type) :: properties
 
         if (current == 0) return
         if (.not. buffers(current)%read_only) return
         if (vtag(inhibit_read_only()) /= V_NULL) return
-        pos = buffers(current)%pt
-        if (present(position)) pos = position
+        position_value = buffers(current)%point
+        if (present(position)) position_value = position
 
         associate (b => buffers(current), iv => buffers(current)%text%intervals)
             ! Fget_text_property (POSITION, Qinhibit_read_only, Qnil)
-            if (iv%n > 0 .and. b%begv <= pos .and. pos < b%zv) then
-                k = find_interval(iv, pos)
-                props = iv%runs(k)%plist
-                if (vtag(textget(props, make_symbol_ref(intern("inhibit_read_only")))) /= V_NULL) return
+            if (iv%n > 0 .and. b%beginning_of_accessible_portion <= position_value &
+                .and. position_value < b%end_of_accessible_portion) then
+                k = find_interval(iv, position_value)
+                properties = iv%runs(k)%plist
+                if (vtag(textget(properties, make_symbol_reference(intern("inhibit_read_only")))) /= V_NULL) return
             end if
         end associate
 
-        call set_error(status, FM_BUFFER_READ_ONLY, buffers(current)%name)
+        call set_error(status, BUFFER_READ_ONLY_CODE, buffers(current)%name)
     end subroutine barf_if_buffer_read_only
 
     !> Set BVAR read_only of buffer `h' (the `buffer_read_only' variable).
@@ -1258,64 +1259,64 @@ contains
     ! Text access (buffer.h macros)
     ! ------------------------------------------------------------------
 
-    !> String index of byte position `bytepos'.
+    !> String index of byte position `byte_position'.
     !> Port of buffer.h:BUF_BYTE_ADDRESS.
-    pure integer(int64) function buffer_byte_index(b, bytepos)
+    pure integer(int64) function buffer_byte_index(b, byte_position)
         type(buffer_type), intent(in) :: b
-        integer(int64), intent(in) :: bytepos
+        integer(int64), intent(in) :: byte_position
 
-        buffer_byte_index = bytepos
-        if (bytepos >= b%text%gpt_byte) buffer_byte_index = bytepos + b%text%gap_size
+        buffer_byte_index = byte_position
+        if (byte_position >= b%text%gpt_byte) buffer_byte_index = byte_position + b%text%gap_size
     end function buffer_byte_index
 
-    !> Byte (0..255) at `bytepos'.  Port of buffer.h:BUF_FETCH_BYTE.
-    pure integer(int32) function buf_fetch_byte(b, bytepos)
+    !> Byte (0..255) at `byte_position'.  Port of buffer.h:BUF_FETCH_BYTE.
+    pure integer(int32) function buffer_fetch_byte(b, byte_position)
         type(buffer_type), intent(in) :: b
-        integer(int64), intent(in) :: bytepos
+        integer(int64), intent(in) :: byte_position
         integer(int64) :: k
 
-        k = buffer_byte_index(b, bytepos)
-        buf_fetch_byte = ichar(b%text%beginning(k:k), kind=int32)
-    end function buf_fetch_byte
+        k = buffer_byte_index(b, byte_position)
+        buffer_fetch_byte = ichar(b%text%beginning(k:k), kind=int32)
+    end function buffer_fetch_byte
 
-    !> Character at `bytepos'.  Port of buffer.h:BUF_FETCH_CHAR.
-    pure integer(int32) function buf_fetch_char(b, bytepos)
+    !> Character at `byte_position'.  Port of buffer.h:BUF_FETCH_CHAR.
+    pure integer(int32) function buffer_fetch_character(b, byte_position)
         type(buffer_type), intent(in) :: b
-        integer(int64), intent(in) :: bytepos
+        integer(int64), intent(in) :: byte_position
         integer(int32) :: n
 
         if (b%multibyte) then
-            call string_char_and_length(b%text%beginning, buffer_byte_index(b, bytepos), buf_fetch_char, n)
+            call string_character_and_length(b%text%beginning, buffer_byte_index(b, byte_position), buffer_fetch_character, n)
         else
-            buf_fetch_char = buf_fetch_byte(b, bytepos)
+            buffer_fetch_character = buffer_fetch_byte(b, byte_position)
         end if
-    end function buf_fetch_char
+    end function buffer_fetch_character
 
-    !> Byte length of the character at `bytepos'.
+    !> Byte length of the character at `byte_position'.
     !> Port of buffer.h:buf_next_char_len.
-    pure integer(int32) function buf_next_char_len(b, bytepos)
+    pure integer(int32) function buffer_next_character_length(b, byte_position)
         type(buffer_type), intent(in) :: b
-        integer(int64), intent(in) :: bytepos
+        integer(int64), intent(in) :: byte_position
 
-        buf_next_char_len = bytes_by_char_head(buf_fetch_byte(b, bytepos))
-    end function buf_next_char_len
+        buffer_next_character_length = bytes_by_character_head(buffer_fetch_byte(b, byte_position))
+    end function buffer_next_character_length
 
-    !> Byte length of the character before `bytepos'.
+    !> Byte length of the character before `byte_position'.
     !> Port of buffer.h:buf_prev_char_len.
-    pure integer(int32) function buf_prev_char_len(b, bytepos)
+    pure integer(int32) function buffer_previous_character_length(b, byte_position)
         type(buffer_type), intent(in) :: b
-        integer(int64), intent(in) :: bytepos
+        integer(int64), intent(in) :: byte_position
         integer(int64) :: k
 
-        k = bytepos
-        if (bytepos > b%text%gpt_byte) k = bytepos + b%text%gap_size
-        buf_prev_char_len = raw_prev_char_len(b%text%beginning, k)
-    end function buf_prev_char_len
+        k = byte_position
+        if (byte_position > b%text%gpt_byte) k = byte_position + b%text%gap_size
+        buffer_previous_character_length = raw_previous_character_length(b%text%beginning, k)
+    end function buffer_previous_character_length
 
     !> The bytes from `from_byte' up to (not including) `to_byte', joined
     !> across the gap.  Not a port; the byte-copy core of
     !> editfns.c:make_buffer_string_both.
-    pure function buf_bytes(b, from_byte, to_byte) result(s)
+    pure function buffer_bytes(b, from_byte, to_byte) result(s)
         type(buffer_type), intent(in) :: b
         integer(int64), intent(in) :: from_byte, to_byte
         character(len=:), allocatable :: s
@@ -1335,17 +1336,17 @@ contains
                 s = t%beginning(from_byte:g - 1)//t%beginning(g + t%gap_size:to_byte - 1 + t%gap_size)
             end if
         end associate
-    end function buf_bytes
+    end function buffer_bytes
 
     !> Set point of `b' without any text-property processing.
     !> Port of intervals.c:temp_set_point_both.
-    pure subroutine temp_set_point_both(b, charpos, bytepos)
+    pure subroutine temporary_set_point_both(b, character_position, byte_position)
         type(buffer_type), intent(inout) :: b
-        integer(int64), intent(in) :: charpos, bytepos
+        integer(int64), intent(in) :: character_position, byte_position
 
-        b%pt = charpos
-        b%pt_byte = bytepos
-    end subroutine temp_set_point_both
+        b%point = character_position
+        b%point_byte = byte_position
+    end subroutine temporary_set_point_both
 
     ! ------------------------------------------------------------------
     ! More of buffer.c
@@ -1359,9 +1360,9 @@ contains
         character(len=*), intent(in), optional :: name
 
         if (present(name)) then
-            call set_error(status, FM_GENERIC_ERROR, "No such buffer "//name)
+            call set_error(status, GENERIC_ERROR_CODE, "No such buffer "//name)
         else
-            call set_error(status, FM_GENERIC_ERROR, "Invalid buffer argument")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid buffer argument")
         end if
     end subroutine nsberror
 

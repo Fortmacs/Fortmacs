@@ -47,7 +47,7 @@ contains
                                          //"ts are)."//achar(10)//achar(10)//"The language na"//"me is spelled a" &
                                          //"s ""ꪁꪫꪱꪣ ꪼꪕ"", "//"and the" &
                                          //" script name is"//achar(10)//"spelled as ""ꪎꪳ ꪼꪕ"".", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="TaiViet (ꪁꪫꪱꪣ ꪼꪕ)"//achar(9)//achar(9) &
                                          //"ꪅꪰꪙꫂ ꪨꪮꫂ ꪁꪫꪱ / ꪅꪽ ꪨꪷ" &
                                          //" ꪁꪫꪱ", &

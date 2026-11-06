@@ -19,16 +19,17 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The cases of `vc_deduce_backend', `vc_deduce_fileset' and
-!> `vc_ensure_vc_buffer' for VC-Dir and Log View buffers: a submodule
+!> The cases of `version_control_deduce_backend', `version_control_deduce_fileset' and
+!> `version_control_ensure_version_control_buffer' for VC-Dir and Log View buffers: a submodule
 !> because version_control_directory_mod and log_view_mod use version_control_mod.
 submodule(version_control_mod) version_control_deduce_mod
-    use version_control_directory_mod, only: vc_dir_backend, vc_dir_deduce_fileset, vc_dir_current_file
-    use log_view_mod, only: log_view_vc_backend, log_view_vc_fileset
+    use version_control_directory_mod, only: version_control_directory_backend, version_control_directory_deduce_fileset, &
+                                             version_control_directory_current_file
+    use log_view_mod, only: log_view_version_control_backend, log_view_version_control_fileset
     use derived_mod, only: mode_p => is_derived_mode
     use buffer_mod, only: set_buffer
     use files_mod, only: find_file_noselect
-    use log_edit_mod, only: log_edit_vc_backend
+    use log_edit_mod, only: log_edit_version_control_backend
     implicit none(type, external)
 
 contains
@@ -36,22 +37,22 @@ contains
     module procedure mode_backend
     b = 0
 
-    if (mode_p("vc_dir_mode")) then
-        b = vc_dir_backend()
+    if (mode_p("version_control_directory_mode")) then
+        b = version_control_directory_backend()
     else if (mode_p("log_view_mode")) then
-        b = log_view_vc_backend()
+        b = log_view_version_control_backend()
     else if (mode_p("log_edit_mode")) then
-        b = log_edit_vc_backend()
+        b = log_edit_version_control_backend()
     end if
 
-    handled = mode_p("vc_dir_mode") .or. mode_p("log_view_mode") .or. mode_p("log_edit_mode")
+    handled = mode_p("version_control_directory_mode") .or. mode_p("log_view_mode") .or. mode_p("log_edit_mode")
     end procedure mode_backend
 
-    module procedure vc_dir_fileset
+    module procedure version_control_directory_fileset
     status = status_type()
-    handled = mode_p("vc_dir_mode")
-    if (handled) call vc_dir_deduce_fileset(fs, status, state_model_only_files)
-    end procedure vc_dir_fileset
+    handled = mode_p("version_control_directory_mode")
+    if (handled) call version_control_directory_deduce_fileset(fs, status, state_model_only_files)
+    end procedure version_control_directory_fileset
 
     module procedure log_view_fileset
     logical :: has
@@ -61,22 +62,22 @@ contains
     ! 'log-view-mode' stashes the backend and the fileset in the
     ! two special variables, so we use them to avoid any possible
     ! mistakes from a decision made here ad-hoc.
-    fs%backend = log_view_vc_backend()
-    call log_view_vc_fileset(fs%files, has)
+    fs%backend = log_view_version_control_backend()
+    call log_view_version_control_fileset(fs%files, has)
     end procedure log_view_fileset
 
-    module procedure vc_dir_ensure_buffer
+    module procedure version_control_directory_ensure_buffer
     character(len=:), allocatable :: file
     type(handle_type) :: buffer
     type(status_type) :: st
 
     status = status_type()
-    handled = mode_p("vc_dir_mode")
+    handled = mode_p("version_control_directory_mode")
     if (.not. handled) return
-    call vc_dir_current_file(file, status)
+    call version_control_directory_current_file(file, status)
     if (.not. status%ok()) return
     call find_file_noselect(file, buffer, status)
     if (.not. status%ok()) return
     call set_buffer(buffer, st)
-    end procedure vc_dir_ensure_buffer
+    end procedure version_control_directory_ensure_buffer
 end submodule version_control_deduce_mod

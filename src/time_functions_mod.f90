@@ -48,9 +48,9 @@
 module time_functions_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
-    use system_dependent_mod, only: fortmacs_clock_realtime, fortmacs_clock_process_cputime, sys_localtime, sys_mktime, &
-                                    sys_set_time_zone
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
+    use system_dependent_mod, only: fortmacs_clock_realtime, fortmacs_clock_process_cputime, system_localtime, system_mktime, &
+                                    system_set_time_zone
     implicit none(type, external)
     private
 
@@ -72,20 +72,20 @@ module time_functions_mod
         integer(int64) :: count_rate = 1
     end type time_type
 
-    !> `dst' of a decoded time: daylight saving time is in effect.
-    integer, parameter, public :: DECODED_TIME_DST_YES = 1
-    !> `dst' of a decoded time: daylight saving time is not in effect.
-    integer, parameter, public :: DECODED_TIME_DST_NO = 0
-    !> `dst' of a decoded time: daylight saving information is not
+    !> `daylight_saving_time' of a decoded time: daylight saving time is in effect.
+    integer, parameter, public :: DECODED_TIME_DAYLIGHT_SAVING_TIME_YES = 1
+    !> `daylight_saving_time' of a decoded time: daylight saving time is not in effect.
+    integer, parameter, public :: DECODED_TIME_DAYLIGHT_SAVING_TIME_NO = 0
+    !> `daylight_saving_time' of a decoded time: daylight saving information is not
     !> available (for `encode_time': guess it).
-    integer, parameter, public :: DECODED_TIME_DST_UNKNOWN = -1
+    integer, parameter, public :: DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN = -1
 
     !> A decoded time, as `decode_time' gives it and `encode_time' takes it
     !> (simple.el's decoded-time).  `second' is a nonnegative time value
     !> less than 60 (or 61 where the system has leap seconds), `minute'
     !> 0-59, `hour' 0-23, `day' 1-31, `month' 1-12, `year' the year number
-    !> (0 is 1 BC), `weekday' 0-6 with 0 for Sunday, `dst' one of the
-    !> DECODED_TIME_DST_ constants, and `zone' the UTC offset in seconds
+    !> (0 is 1 BC), `weekday' 0-6 with 0 for Sunday, `daylight_saving_time' one of the
+    !> DECODED_TIME_DAYLIGHT_SAVING_TIME_ constants, and `zone' the UTC offset in seconds
     !> east of Greenwich (unallocated: Fortmacs's local time).
     type, public :: decoded_time_type
         type(time_type) :: second
@@ -95,7 +95,7 @@ module time_functions_mod
         integer :: month = 1
         integer(int64) :: year = 1970
         integer :: weekday = 4
-        integer :: dst = DECODED_TIME_DST_UNKNOWN
+        integer :: daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN
         integer, allocatable :: zone
     end type decoded_time_type
 
@@ -138,7 +138,7 @@ module time_functions_mod
         integer(int64) :: seconds = 0
         integer :: nanoseconds = 0
         integer :: second = 0, minute = 0, hour = 0, day = 1, month = 0, year = 70, weekday = 4, &
-                   year_day = 0, dst = -1
+                   year_day = 0, daylight_saving_time = -1
         integer(int64) :: offset = 0
         character(len=:), allocatable :: abbreviation
     end type broken_down_time_type
@@ -169,24 +169,24 @@ contains
     !> 00:00:00, counted in nanoseconds (`count_rate' is
     !> TIMESPEC_COUNT_RATE).  Port of timefns.c:Fcurrent_time.
     type(time_type) function current_time() result(now)
-        integer(int64) :: sec
+        integer(int64) :: second
         integer(int32) :: nsec
 
-        call fortmacs_clock_realtime(sec, nsec)
-        now = time_type(sec, int(nsec, int64), TIMESPEC_COUNT_RATE)
+        call fortmacs_clock_realtime(second, nsec)
+        now = time_type(second, int(nsec, int64), TIMESPEC_COUNT_RATE)
     end function current_time
 
     !> Return the current CPU time along with its resolution: the
     !> processor time this process has used, with `count_rate' the C
-    !> library's CLOCKS_PER_SEC (1000000).  Port of
+    !> library's CLOCKS_PER_SECOND (1000000).  Port of
     !> timefns.c:Fcurrent_cpu_time (clock(3) reads the same clock).
     type(time_type) function current_cpu_time() result(used)
-        integer(int64), parameter :: CLOCKS_PER_SEC = 1000000_int64
-        integer(int64) :: sec
+        integer(int64), parameter :: CLOCKS_PER_SECOND = 1000000_int64
+        integer(int64) :: second
         integer(int32) :: nsec
 
-        call fortmacs_clock_process_cputime(sec, nsec)
-        used = time_type(sec, int(nsec, int64)/(TIMESPEC_COUNT_RATE/CLOCKS_PER_SEC), CLOCKS_PER_SEC)
+        call fortmacs_clock_process_cputime(second, nsec)
+        used = time_type(second, int(nsec, int64)/(TIMESPEC_COUNT_RATE/CLOCKS_PER_SECOND), CLOCKS_PER_SECOND)
     end function current_cpu_time
 
     ! ------------------------------------------------------------------
@@ -393,7 +393,7 @@ contains
         if (.not. present(count_rate)) return
 
         if (count_rate <= 0) then
-            if (present(status)) call set_error(status, FM_GENERIC_ERROR, "Invalid time frequency")
+            if (present(status)) call set_error(status, GENERIC_ERROR_CODE, "Invalid time frequency")
             return
         end if
 
@@ -421,12 +421,12 @@ contains
         converted = time_type()
 
         if (.not. ieee_is_finite(seconds)) then
-            if (present(status)) call set_error(status, FM_GENERIC_ERROR, "Invalid time specification")
+            if (present(status)) call set_error(status, GENERIC_ERROR_CODE, "Invalid time specification")
             return
         end if
 
         if (abs(seconds) >= 2.0_real64**63) then
-            if (present(status)) call set_error(status, FM_GENERIC_ERROR, "Specified time is not representable")
+            if (present(status)) call set_error(status, GENERIC_ERROR_CODE, "Specified time is not representable")
             return
         end if
 
@@ -531,9 +531,9 @@ contains
         saved%switched = .true.
 
         if (rule == TIME_ZONE_SYSTEM) then
-            call sys_set_time_zone()
+            call system_set_time_zone()
         else
-            call sys_set_time_zone(rule)
+            call system_set_time_zone(rule)
         end if
     end subroutine time_zone_begin
 
@@ -545,9 +545,9 @@ contains
         if (.not. saved%switched) return
 
         if (saved%had_rule) then
-            call sys_set_time_zone(saved%rule)
+            call system_set_time_zone(saved%rule)
         else
-            call sys_set_time_zone()
+            call system_set_time_zone()
         end if
     end subroutine time_zone_end
 
@@ -563,7 +563,7 @@ contains
         integer :: fields(9)
 
         call time_zone_begin(zone, saved)
-        call sys_localtime(time%seconds, fields, tm%offset, tm%abbreviation, ok)
+        call system_localtime(time%seconds, fields, tm%offset, tm%abbreviation, ok)
         call time_zone_end(saved)
         tm%seconds = time%seconds
         tm%nanoseconds = int((int(time%count, int128)*TIMESPEC_COUNT_RATE)/time%count_rate)
@@ -575,7 +575,7 @@ contains
         tm%year = fields(6)
         tm%weekday = fields(7)
         tm%year_day = fields(8)
-        tm%dst = fields(9)
+        tm%daylight_saving_time = fields(9)
     end subroutine localtime_in_zone
 
     ! An error condition: the time does not fit.  Port of
@@ -583,7 +583,7 @@ contains
     subroutine time_overflow(status)
         type(status_type), intent(out), optional :: status
 
-        if (present(status)) call set_error(status, FM_GENERIC_ERROR, "Specified time is not representable")
+        if (present(status)) call set_error(status, GENERIC_ERROR_CODE, "Specified time is not representable")
     end subroutine time_overflow
 
     !> Set the Fortmacs local time zone using TZ, a string specifying a time
@@ -603,11 +603,11 @@ contains
         character(len=*), intent(in), optional :: tz
 
         if (.not. present(tz)) then
-            call sys_set_time_zone()
+            call system_set_time_zone()
         else if (tz == TIME_ZONE_SYSTEM) then
-            call sys_set_time_zone()
+            call system_set_time_zone()
         else
-            call sys_set_time_zone(tz)
+            call system_set_time_zone(tz)
         end if
     end subroutine set_time_zone_rule
 
@@ -635,10 +635,10 @@ contains
     !> between 0 and 59.  HOUR is an integer between 0 and 23.  DAY is an
     !> integer between 1 and 31.  MONTH is an integer between 1 and 12.
     !> YEAR is the year number, an integer; 0 represents 1 BC.  WEEKDAY is
-    !> the day of week, an integer between 0 and 6, where 0 is Sunday.  DST
-    !> is DECODED_TIME_DST_YES if daylight saving time is in effect,
-    !> DECODED_TIME_DST_NO if it is not in effect, and
-    !> DECODED_TIME_DST_UNKNOWN if daylight saving information is not
+    !> the day of week, an integer between 0 and 6, where 0 is Sunday.  DAYLIGHT_SAVING_TIME
+    !> is DECODED_TIME_DAYLIGHT_SAVING_TIME_YES if daylight saving time is in effect,
+    !> DECODED_TIME_DAYLIGHT_SAVING_TIME_NO if it is not in effect, and
+    !> DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN if daylight saving information is not
     !> available.  ZONE is an integer indicating the UTC offset in seconds,
     !> i.e., the number of seconds east of Greenwich.
     !> Port of timefns.c:Fdecode_time (FORM t).
@@ -674,12 +674,12 @@ contains
         decoded%year = int(tm%year, int64) + 1900
         decoded%weekday = tm%weekday
 
-        if (tm%dst < 0) then
-            decoded%dst = DECODED_TIME_DST_UNKNOWN
-        else if (tm%dst == 0) then
-            decoded%dst = DECODED_TIME_DST_NO
+        if (tm%daylight_saving_time < 0) then
+            decoded%daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN
+        else if (tm%daylight_saving_time == 0) then
+            decoded%daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
         else
-            decoded%dst = DECODED_TIME_DST_YES
+            decoded%daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_YES
         end if
 
         allocate (decoded%zone, source=int(tm%offset))
@@ -694,16 +694,16 @@ contains
     !> zone as in `decode_time' (a TZ string, "UTC0" for Universal Time,
     !> TIME_ZONE_SYSTEM or a `time_zone_rule'), is used instead when
     !> present.  If the zone has daylight
-    !> saving transitions, DST is DECODED_TIME_DST_YES for daylight saving
-    !> time, DECODED_TIME_DST_NO for standard time, and
-    !> DECODED_TIME_DST_UNKNOWN to cause the daylight saving flag to be
+    !> saving transitions, DAYLIGHT_SAVING_TIME is DECODED_TIME_DAYLIGHT_SAVING_TIME_YES for daylight saving
+    !> time, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO for standard time, and
+    !> DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN to cause the daylight saving flag to be
     !> guessed.  A decoded_time_type made with only SECOND through YEAR
-    !> leaves DST unknown and the zone local.
+    !> leaves DAYLIGHT_SAVING_TIME unknown and the zone local.
     !>
     !> The range of supported years is at least 1970 to the near future.
     !> Out-of-range values for SECOND through MONTH are brought into range
     !> via date arithmetic.  This can be tricky especially when combined
-    !> with DST; see Info node `(elisp)Time Conversion' for details and
+    !> with DAYLIGHT_SAVING_TIME; see Info node `(elisp)Time Conversion' for details and
     !> caveats.  Port of timefns.c:Fencode_time (and check_tm_member).
     type(time_type) function encode_time(time, zone, status) result(encoded)
         type(decoded_time_type), intent(in) :: time
@@ -726,7 +726,8 @@ contains
                   int(time%year - 1900), -1, 0, -1]
 
         if (present(zone) .or. .not. allocated(time%zone)) then
-            if (time%dst /= DECODED_TIME_DST_UNKNOWN) fields(9) = merge(1, 0, time%dst == DECODED_TIME_DST_YES)
+            if (time%daylight_saving_time /= DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN) fields(9) = merge(1, 0, &
+                                                                 time%daylight_saving_time == DECODED_TIME_DAYLIGHT_SAVING_TIME_YES)
         end if
 
         if (present(zone)) then
@@ -737,7 +738,7 @@ contains
             call time_zone_begin(saved=saved)
         end if
 
-        call sys_mktime(fields, value, ok)
+        call system_mktime(fields, value, ok)
         call time_zone_end(saved)
 
         if (.not. ok) then
@@ -867,7 +868,7 @@ contains
         integer :: f, percent, pad, width, modifier, colons, hour12, subwidth, diff, hour_diff, minute_diff, &
                    second_diff, year, year_adjust, days, d, two_digit_year, digit_count, nanosecond_digits, n, j
         logical :: to_lower_case, to_upper_case, change_case, negative, done
-        character :: format_char
+        character :: format_character
 
         out = ""
         hour12 = tm%hour
@@ -941,11 +942,11 @@ contains
             end if
 
             ! % at the end of the format (or before a NUL) stands for itself.
-            format_char = achar(0)
-            if (f <= len(format)) format_char = format(f:f)
+            format_character = achar(0)
+            if (f <= len(format)) format_character = format(f:f)
             done = .true.
 
-            select case (format_char)
+            select case (format_character)
             case ("%")
                 if (f - 1 /= percent) then
                     f = f - 1
@@ -959,7 +960,7 @@ contains
                 else
                     if (change_case) call upper_case()
 
-                    if (format_char == "a") then
+                    if (format_character == "a") then
                         call add_cased(WEEKDAY_NAMES(tm%weekday) (1:3))
                     else
                         call add_cased(trim(WEEKDAY_NAMES(tm%weekday)))
@@ -970,7 +971,7 @@ contains
 
                 if (modifier == iachar("E")) then
                     call bad_format()
-                else if (format_char == "B") then
+                else if (format_character == "B") then
                     call add_cased(trim(MONTH_NAMES(tm%month)))
                 else
                     call add_cased(MONTH_NAMES(tm%month) (1:3))
@@ -1078,7 +1079,7 @@ contains
             case ("n")
                 out = out//new_line("a")
             case ("P", "p")
-                if (format_char == "P") to_lower_case = .true.
+                if (format_character == "P") to_lower_case = .true.
 
                 if (change_case) then
                     to_upper_case = .false.
@@ -1135,7 +1136,7 @@ contains
                         end if
                     end if
 
-                    select case (format_char)
+                    select case (format_character)
                     case ("g")
                         two_digit_year = mod(mod(tm%year, 100) + year_adjust, 100)
 
@@ -1184,7 +1185,7 @@ contains
                 ! :, ::, and ::: are valid only just before 'z'.
                 colons = 0
 
-                if (format_char == ":") then
+                if (format_character == ":") then
                     do while (f + colons <= len(format))
                         if (format(f + colons:f + colons) /= ":") exit
                         colons = colons + 1
@@ -1201,7 +1202,7 @@ contains
                     end if
                 end if
 
-                if (done .and. tm%dst >= 0) then
+                if (done .and. tm%daylight_saving_time >= 0) then
                     diff = int(tm%offset)
                     negative = diff < 0
 
@@ -1375,7 +1376,7 @@ contains
             character(len=:), allocatable :: number
             integer(int64) :: u
             integer :: mask, shortage, padding
-            character(len=1) :: sign_char
+            character(len=1) :: sign_character
 
             number = ""
             u = magnitude
@@ -1392,21 +1393,21 @@ contains
 
             if (pad == ZERO_PAD) pad = ALWAYS_ZERO_PAD
             if (width < 0) width = digits_wanted
-            sign_char = " "
-            if (always_sign) sign_char = "+"
-            if (is_negative) sign_char = "-"
+            sign_character = " "
+            if (always_sign) sign_character = "+"
+            if (is_negative) sign_character = "-"
             digit_count = len(number)
-            shortage = width - merge(1, 0, sign_char /= " ") - digit_count
+            shortage = width - merge(1, 0, sign_character /= " ") - digit_count
             padding = 0
             if (pad /= NO_PAD .and. shortage > 0) padding = shortage
 
-            if (sign_char /= " ") then
+            if (sign_character /= " ") then
                 if (pad == SPACE_PAD) then
                     out = out//repeat(" ", padding)
                     width = width - padding
                 end if
 
-                out = out//sign_char
+                out = out//sign_character
                 width = width - 1
             end if
 
@@ -1512,7 +1513,7 @@ contains
         type(time_type) :: t
         type(broken_down_time_type) :: tm
         character(len=16) :: buffer
-        integer :: offset, hour, min_sec, minute, second
+        integer :: offset, hour, minimum_second, minute, second
         logical :: ok
 
         if (present(status)) status = status_type()
@@ -1539,13 +1540,13 @@ contains
         if (len(found%name) == 0) then
             ! No local time zone name is available; use numeric zone instead.
             hour = abs(offset)/3600
-            min_sec = mod(abs(offset), 3600)
-            minute = min_sec/60
-            second = mod(min_sec, 60)
+            minimum_second = mod(abs(offset), 3600)
+            minute = minimum_second/60
+            second = mod(minimum_second, 60)
             write (buffer, "(i2.2)") hour
             found%name = merge("-", "+", offset < 0)//trim(buffer)
 
-            if (min_sec /= 0) then
+            if (minimum_second /= 0) then
                 write (buffer, "(i2.2)") minute
                 found%name = found%name//trim(buffer)
 

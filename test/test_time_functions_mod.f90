@@ -26,10 +26,11 @@ module test_time_functions_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
-    use time_functions_mod, only: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, DECODED_TIME_DST_NO, &
-                                  DECODED_TIME_DST_YES, current_time, current_cpu_time, time_add, time_subtract, is_time_less, &
-                                  is_time_equal, real, time_convert, decode_time, encode_time, format_time_string, &
-                                  current_time_string, current_time_zone, set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM
+    use time_functions_mod, only: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, &
+                                  DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, current_time, &
+                                  current_cpu_time, time_add, time_subtract, is_time_less, is_time_equal, real, time_convert, &
+                                  decode_time, encode_time, format_time_string, current_time_string, current_time_zone, &
+                                  set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM
     implicit none(type, external)
     private
 
@@ -57,7 +58,7 @@ contains
                     new_unittest("time-equal-p-nil-nil", test_equal_same), &
                     new_unittest("time-arith-tests", test_arith), &
                     new_unittest("time-rounding-tests", test_rounding), &
-                    new_unittest("encode-time-dst-numeric-zone", test_dst_numeric_zone), &
+                    new_unittest("encode-time-dst-numeric-zone", test_daylight_saving_time_numeric_zone), &
                     new_unittest("encode-time-alternate-apis", test_alternate_apis), &
                     new_unittest("float-time-precision", test_real_time_precision), &
                     new_unittest("time-convert-forms", test_convert_forms), &
@@ -88,7 +89,7 @@ contains
                    d%second%count_rate == expected%second%count_rate .and. d%second%seconds == expected%second%seconds &
                    .and. d%minute == expected%minute .and. d%hour == expected%hour .and. d%day == expected%day .and. &
                    d%month == expected%month .and. d%year == expected%year .and. d%weekday == expected%weekday .and. &
-                   d%dst == expected%dst .and. d%zone == expected%zone, "decoded "//zone)
+                   d%daylight_saving_time == expected%daylight_saving_time .and. d%zone == expected%zone, "decoded "//zone)
     end subroutine check_decode
 
     ! Check format-time-string and decode-time with various TZ settings.
@@ -97,7 +98,7 @@ contains
     subroutine test_format_with_zone(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: format = "%Y-%m-%d %H:%M:%S.%3N %z (%Z)"
-        type(time_type) :: looks(2), look, sec
+        type(time_type) :: looks(2), look, second
         type(decoded_time_type) :: expected
         integer :: k
 
@@ -108,13 +109,13 @@ contains
 
         do k = 1, size(looks)
             look = looks(k)
-            sec = time_add(time_convert(time_type(59), look%count_rate), &
-                           time_subtract(look, time_convert(time_type(look%seconds), look%count_rate)))
+            second = time_add(time_convert(time_type(59), look%count_rate), &
+                              time_subtract(look, time_convert(time_type(look%seconds), look%count_rate)))
             ! UTC.
             call check(error, format_time_string("%Y-%m-%d %H:%M:%S.%3N %z", look, "UTC0") == &
                        "1972-06-30 23:59:59.999 +0000", "UTC")
             if (allocated(error)) return
-            expected = decoded_time_type(sec, 59, 23, 30, 6, 1972_int64, 5, DECODED_TIME_DST_NO, 0)
+            expected = decoded_time_type(second, 59, 23, 30, 6, 1972_int64, 5, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, 0)
             call check_decode(error, look, "UTC0", expected)
             if (allocated(error)) return
             call check(error, format_time_string(format, look, "UTC0") == "1972-06-30 23:59:59.999 +0000 (UTC)", "UTC0")
@@ -123,14 +124,14 @@ contains
             call check(error, format_time_string(format, look, "IST-5:30") == "1972-07-01 05:29:59.999 +0530 (IST)", &
                        "IST-5:30")
             if (allocated(error)) return
-            expected = decoded_time_type(sec, 29, 5, 1, 7, 1972_int64, 6, DECODED_TIME_DST_NO, 19800)
+            expected = decoded_time_type(second, 29, 5, 1, 7, 1972_int64, 6, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, 19800)
             call check_decode(error, look, "IST-5:30", expected)
             if (allocated(error)) return
             ! Negative UTC offset, as an offset and an abbreviation.
             call check(error, format_time_string(format, look, time_zone_rule(-28800, "PST")) == &
                        "1972-06-30 15:59:59.999 -0800 (PST)", "(-28800 PST)")
             if (allocated(error)) return
-            expected = decoded_time_type(sec, 59, 15, 30, 6, 1972_int64, 5, DECODED_TIME_DST_NO, -28800)
+            expected = decoded_time_type(second, 59, 15, 30, 6, 1972_int64, 5, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, -28800)
             call check_decode(error, look, time_zone_rule(-28800, "PST"), expected)
             if (allocated(error)) return
             ! Negative UTC offset, as an integer.
@@ -198,60 +199,60 @@ contains
 
     subroutine test_padding_minimal(error)
         type(error_type), allocatable, intent(out) :: error
-        type(time_type) :: ref_time
+        type(time_type) :: reference_time
 
-        ref_time = utc_time(time_type(0, 123450, 1000000), 15, 2)
-        call check(error, format_time_string("%-:::z", ref_time, "FJT-12") == "+12", "%-:::z")
+        reference_time = utc_time(time_type(0, 123450, 1000000), 15, 2)
+        call check(error, format_time_string("%-:::z", reference_time, "FJT-12") == "+12", "%-:::z")
         if (allocated(error)) return
-        call check(error, format_time_string("%-N", ref_time, "UTC0") == "12345", "%-N")
+        call check(error, format_time_string("%-N", reference_time, "UTC0") == "12345", "%-N")
         if (allocated(error)) return
-        call check(error, format_time_string("%-6N", ref_time, "UTC0") == "12345", "%-6N")
+        call check(error, format_time_string("%-6N", reference_time, "UTC0") == "12345", "%-6N")
         if (allocated(error)) return
-        call check(error, format_time_string("%-m", ref_time, "UTC0") == "2", "%-m")
+        call check(error, format_time_string("%-m", reference_time, "UTC0") == "2", "%-m")
     end subroutine test_padding_minimal
 
     subroutine test_padding_retains(error)
         type(error_type), allocatable, intent(out) :: error
-        type(time_type) :: ref_time
+        type(time_type) :: reference_time
 
-        ref_time = utc_time(time_type(0, 3450, 1000000), 20, 10)
-        call check(error, format_time_string("%-z", ref_time, "IST-5:30") == "+530", "%-z")
+        reference_time = utc_time(time_type(0, 3450, 1000000), 20, 10)
+        call check(error, format_time_string("%-z", reference_time, "IST-5:30") == "+530", "%-z")
         if (allocated(error)) return
-        call check(error, format_time_string("%-4z", ref_time, "IST-5:30") == "+530", "%-4z")
+        call check(error, format_time_string("%-4z", reference_time, "IST-5:30") == "+530", "%-4z")
         if (allocated(error)) return
-        call check(error, format_time_string("%4z", ref_time, "IST-5:30") == "+530", "%4z")
+        call check(error, format_time_string("%4z", reference_time, "IST-5:30") == "+530", "%4z")
         if (allocated(error)) return
-        call check(error, format_time_string("%-N", ref_time, "UTC0") == "00345", "%-N")
+        call check(error, format_time_string("%-N", reference_time, "UTC0") == "00345", "%-N")
         if (allocated(error)) return
-        call check(error, format_time_string("%-3N", ref_time, "UTC0") == "003", "%-3N")
+        call check(error, format_time_string("%-3N", reference_time, "UTC0") == "003", "%-3N")
         if (allocated(error)) return
-        call check(error, format_time_string("%3N", ref_time, "UTC0") == "003", "%3N")
+        call check(error, format_time_string("%3N", reference_time, "UTC0") == "003", "%3N")
         if (allocated(error)) return
-        call check(error, format_time_string("%-m", ref_time, "UTC0") == "10", "%-m")
+        call check(error, format_time_string("%-m", reference_time, "UTC0") == "10", "%-m")
         if (allocated(error)) return
-        call check(error, format_time_string("%-1m", ref_time, "UTC0") == "10", "%-1m")
+        call check(error, format_time_string("%-1m", reference_time, "UTC0") == "10", "%-1m")
         if (allocated(error)) return
-        call check(error, format_time_string("%1m", ref_time, "UTC0") == "10", "%1m")
+        call check(error, format_time_string("%1m", reference_time, "UTC0") == "10", "%1m")
     end subroutine test_padding_retains
 
     subroutine test_padding_spaces(error)
         type(error_type), allocatable, intent(out) :: error
-        type(time_type) :: ref_time
+        type(time_type) :: reference_time
 
-        ref_time = utc_time(time_type(0, 123000, 1000000), 10, 12)
-        call check(error, format_time_string("%_7z", ref_time, "CHA-12:45") == "  +1245", "%_7z")
+        reference_time = utc_time(time_type(0, 123000, 1000000), 10, 12)
+        call check(error, format_time_string("%_7z", reference_time, "CHA-12:45") == "  +1245", "%_7z")
         if (allocated(error)) return
-        call check(error, format_time_string("%_6N", ref_time, "UTC0") == "123   ", "%_6N")
+        call check(error, format_time_string("%_6N", reference_time, "UTC0") == "123   ", "%_6N")
         if (allocated(error)) return
-        call check(error, format_time_string("%_9N", ref_time, "UTC0") == "123      ", "%_9N")
+        call check(error, format_time_string("%_9N", reference_time, "UTC0") == "123      ", "%_9N")
         if (allocated(error)) return
-        call check(error, format_time_string("%_12N", ref_time, "UTC0") == "123         ", "%_12N")
+        call check(error, format_time_string("%_12N", reference_time, "UTC0") == "123         ", "%_12N")
         if (allocated(error)) return
-        call check(error, format_time_string("%_m", ref_time, "UTC0") == "12", "%_m")
+        call check(error, format_time_string("%_m", reference_time, "UTC0") == "12", "%_m")
         if (allocated(error)) return
-        call check(error, format_time_string("%_2m", ref_time, "UTC0") == "12", "%_2m")
+        call check(error, format_time_string("%_2m", reference_time, "UTC0") == "12", "%_2m")
         if (allocated(error)) return
-        call check(error, format_time_string("%_3m", ref_time, "UTC0") == " 12", "%_3m")
+        call check(error, format_time_string("%_3m", reference_time, "UTC0") == " 12", "%_3m")
     end subroutine test_padding_spaces
 
     ! Fractional seconds have a fixed place on the left, and any padding
@@ -259,18 +260,18 @@ contains
     ! the right and are padded on the left.
     subroutine test_padding_zeros(error)
         type(error_type), allocatable, intent(out) :: error
-        type(time_type) :: ref_time
+        type(time_type) :: reference_time
 
-        ref_time = utc_time(time_type(0, 123000, 1000000), 10, 12)
-        call check(error, format_time_string("%3m", ref_time, "UTC0") == "012", "%3m")
+        reference_time = utc_time(time_type(0, 123000, 1000000), 10, 12)
+        call check(error, format_time_string("%3m", reference_time, "UTC0") == "012", "%3m")
         if (allocated(error)) return
-        call check(error, format_time_string("%7z", ref_time, "CHA-12:45") == "+001245", "%7z")
+        call check(error, format_time_string("%7z", reference_time, "CHA-12:45") == "+001245", "%7z")
         if (allocated(error)) return
-        call check(error, format_time_string("%12N", ref_time, "UTC0") == "123000000000", "%12N")
+        call check(error, format_time_string("%12N", reference_time, "UTC0") == "123000000000", "%12N")
         if (allocated(error)) return
-        call check(error, format_time_string("%9N", ref_time, "UTC0") == "123000000", "%9N")
+        call check(error, format_time_string("%9N", reference_time, "UTC0") == "123000000", "%9N")
         if (allocated(error)) return
-        call check(error, format_time_string("%6N", ref_time, "UTC0") == "123000", "%6N")
+        call check(error, format_time_string("%6N", reference_time, "UTC0") == "123000", "%6N")
     end subroutine test_padding_zeros
 
     ! (time-equal-p nil nil): the current time equals itself.
@@ -362,17 +363,18 @@ contains
     end subroutine test_rounding
 
     ! Check for Bug#35502.
-    subroutine test_dst_numeric_zone(error)
+    subroutine test_daylight_saving_time_numeric_zone(error)
         type(error_type), allocatable, intent(out) :: error
         type(time_type) :: t
         type(status_type) :: st
 
-        t = encode_time(decoded_time_type(time_type(29), 31, 17, 30, 4, 2019_int64, 2, DECODED_TIME_DST_YES, 7200), &
+        t = encode_time(decoded_time_type(time_type(29), 31, 17, 30, 4, 2019_int64, 2, DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, &
+                                          7200), &
                         status=st)
         call check(error, st%ok() .and. is_time_equal(t, time_type(23752_int64*65536 + 27217)))
-    end subroutine test_dst_numeric_zone
+    end subroutine test_daylight_saving_time_numeric_zone
 
-    ! A time with only SECOND through YEAR, and one with an unknown DST and
+    ! A time with only SECOND through YEAR, and one with an unknown DAYLIGHT_SAVING_TIME and
     ! Emacs local time spelled out.
     subroutine test_alternate_apis(error)
         type(error_type), allocatable, intent(out) :: error
@@ -380,7 +382,7 @@ contains
 
         time = decoded_time_type(second=time_type(30), minute=30, hour=12, day=15, month=6, year=1970)
         time_1 = time
-        time_1%dst = -1
+        time_1%daylight_saving_time = -1
         call check(error, is_time_equal(encode_time(time), encode_time(time_1)))
     end subroutine test_alternate_apis
 

@@ -31,17 +31,19 @@ module test_f90_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string, buffer_substring, line_end_position
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_string, buffer_substring, &
+                                     line_end_position
     use editing_commands_mod, only: forward_line, beginning_of_line
     use indent_mod, only: current_indentation, move_to_column, indent_rigidly
-    use syntax_mod, only: skip_chars_forward, char_syntax
+    use syntax_mod, only: skip_characters_forward, character_syntax
     use search_mod, only: string_match, match_beginning, match_end
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use fill_mod, only: fill_paragraph
-    use regular_expression_optimization_mod, only: regexp_opt, regexp_opt_charset, regexp_unmatchable
+    use regular_expression_optimization_mod, only: regular_expression_optimization, regular_expression_optimization_character_set, &
+                                                   regular_expression_unmatchable
     use f90_mod, only: f90_mode, f90_indent_region, f90_do_auto_fill, f90_indent_subprogram, f90_indent_line, &
                        f90_end_of_subprogram, f90_block_type, f90_smart_end, F90_SMART_END_NO_BLINK, &
-                       f90_keywords_regexp, f90_program_block_regexp
+                       f90_keywords_regular_expression, f90_program_block_regular_expression
     implicit none(type, external)
     private
 
@@ -73,7 +75,7 @@ contains
                     new_unittest("f90-test-bug25039", test_bug25039), &
                     new_unittest("f90-test-bug38415", test_bug38415), &
                     new_unittest("regexp-opt-longest-match", test_longest_match), &
-                    new_unittest("regexp-opt-charset", test_charset), &
+                    new_unittest("regexp-opt-charset", test_character_set), &
                     new_unittest("regexp-opt-groups", test_groups), &
                     new_unittest("f90-fill-comment", test_fill_comment) &
                     ]
@@ -84,7 +86,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *f90-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -120,7 +122,7 @@ contains
         character(len=:), allocatable :: s
         type(status_type) :: st
 
-        call buffer_substring(point(), min(point() + n, point_max()), s, st)
+        call buffer_substring(point(), min(point() + n, point_maximum()), s, st)
     end function ahead
 
     !> Test F90 indentation.  Port of f90-tests.el:f90-test-indent.
@@ -160,8 +162,8 @@ contains
 
         call f90_buffer(h)
         call ins(text)
-        call indent_rigidly(point_min(), point_max(), -999_int64, st)
-        call f90_indent_region(point_min(), point_max(), st)
+        call indent_rigidly(point_minimum(), point_maximum(), -999_int64, st)
+        call f90_indent_region(point_minimum(), point_maximum(), st)
         call check(error, st%ok(), "f90_indent_region failed")
         if (.not. allocated(error)) call check(error, buffer_string(), text)
         call leave(h)
@@ -172,15 +174,15 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: col, moved
+        integer(int64) :: column, moved
 
         call f90_buffer(h)
         call ins("a")
-        call move_to_column(68_int64, col, force=.true.)
+        call move_to_column(68_int64, column, force=.true.)
         call ins("(/ x /)")
         call f90_do_auto_fill(st)
         call beginning_of_line(1_int64)
-        moved = skip_chars_forward(" "//achar(9), st)
+        moved = skip_characters_forward(" "//achar(9), st)
         call check(error, ahead(3_int64), "&(/")
         call leave(h)
     end subroutine test_bug3730
@@ -221,7 +223,7 @@ contains
         type(handle_type) :: h
 
         call f90_buffer(h)
-        call check(error, char_syntax(iachar("%")), ".")
+        call check(error, character_syntax(iachar("%")), ".")
         call leave(h)
     end subroutine test_bug8820
 
@@ -275,7 +277,7 @@ contains
         call f90_buffer(h)
         call ins("program prog"//LF//"  integer :: i = &"//LF//"#ifdef foo"//LF//"       & 1"//LF//"#else"//LF// &
                  "       & 2"//LF//"#endif"//LF//LF//"  write(*,*) i"//LF//"end program prog")
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call fl(2_int64)
         call f90_indent_subprogram(st)
         call check(error, current_indentation() == 0, "indented")
@@ -293,9 +295,9 @@ contains
         ! '&' at the start of continuation lines, but it seems gfortran
         ! allows them to be absent (albeit with a warning).
         call ins("program prog"//LF//"  write (*,*), '&"//LF//"end program prog'"//LF//"end program prog")
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         b = f90_end_of_subprogram()
-        call check(error, point() == point_max(), "not at the end")
+        call check(error, point() == point_maximum(), "not at the end")
         call leave(h)
     end subroutine test_bug19809
 
@@ -381,7 +383,7 @@ contains
             call buffer_substring(point(), line_end_position(), s, st)
             call check(error, s, " function foo")
             if (allocated(error)) exit checks
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call ins(LF//"module subroutine bar(x)"//LF//"real :: x"//LF//"end")
             call f90_indent_line(st)
             call buffer_substring(point(), line_end_position(), s, st)
@@ -396,7 +398,7 @@ contains
     subroutine test_longest_match(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=3), parameter :: words(4) = [character(len=3) :: "a", "ab", "ac", "abc"]
-        character(len=3) :: perm(4)
+        character(len=3) :: permission(4)
         integer :: i, j, k, l
         integer(int64) :: index
         type(status_type) :: st
@@ -406,8 +408,8 @@ contains
                 do k = 1, 4
                     do l = 1, 4
                         if (i == j .or. i == k .or. i == l .or. j == k .or. j == l .or. k == l) cycle
-                        perm = [words(i), words(j), words(k), words(l)]
-                        index = string_match(regexp_opt(perm), "abcd", st)
+                        permission = [words(i), words(j), words(k), words(l)]
+                        index = string_match(regular_expression_optimization(permission), "abcd", st)
                         call check(error, index == 1 .and. match_end(0, st) == 4, "not the longest match")
                         if (allocated(error)) return
                     end do
@@ -417,45 +419,45 @@ contains
     end subroutine test_longest_match
 
     !> Port of regexp-opt-tests.el:regexp-opt-charset.
-    subroutine test_charset(error)
+    subroutine test_character_set(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, regexp_opt_charset([97, 98, 97]), "[ab]")
+        call check(error, regular_expression_optimization_character_set([97, 98, 97]), "[ab]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([68, 100, 66, 97, 98, 67, 55, 97, 99, 65]), "[7A-Da-d]")
+        call check(error, regular_expression_optimization_character_set([68, 100, 66, 97, 98, 67, 55, 97, 99, 65]), "[7A-Da-d]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([97]), "a")
+        call check(error, regular_expression_optimization_character_set([97]), "a")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([94]), "\^")
+        call check(error, regular_expression_optimization_character_set([94]), "\^")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([45]), "-")
+        call check(error, regular_expression_optimization_character_set([45]), "-")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([93]), "]")
+        call check(error, regular_expression_optimization_character_set([93]), "]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([94, 93]), "[]^]")
+        call check(error, regular_expression_optimization_character_set([94, 93]), "[]^]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([94, 45]), "[-^]")
+        call check(error, regular_expression_optimization_character_set([94, 45]), "[-^]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([45, 93]), "[]-]")
+        call check(error, regular_expression_optimization_character_set([45, 93]), "[]-]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([45, 93, 94]), "[]^-]")
+        call check(error, regular_expression_optimization_character_set([45, 93, 94]), "[]^-]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([94, 97]), "[a^]")
+        call check(error, regular_expression_optimization_character_set([94, 97]), "[a^]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([45, 97]), "[a-]")
+        call check(error, regular_expression_optimization_character_set([45, 97]), "[a-]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([93, 97]), "[]a]")
+        call check(error, regular_expression_optimization_character_set([93, 97]), "[]a]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([94, 93, 97]), "[]a^]")
+        call check(error, regular_expression_optimization_character_set([94, 93, 97]), "[]a^]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([94, 45, 97]), "[a^-]")
+        call check(error, regular_expression_optimization_character_set([94, 45, 97]), "[a^-]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([45, 93, 97]), "[]a-]")
+        call check(error, regular_expression_optimization_character_set([45, 93, 97]), "[]a-]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([45, 93, 94, 97]), "[]a^-]")
+        call check(error, regular_expression_optimization_character_set([45, 93, 94, 97]), "[]a^-]")
         if (allocated(error)) return
-        call check(error, regexp_opt_charset([integer(int32) ::]), regexp_unmatchable)
-    end subroutine test_charset
+        call check(error, regular_expression_optimization_character_set([integer(int32) ::]), regular_expression_unmatchable)
+    end subroutine test_character_set
 
     !> The groups regexp-opt makes for F90 mode's regexps.
     subroutine test_groups(error)
@@ -465,10 +467,10 @@ contains
         integer(int64) :: index
 
         call f90_buffer(h)
-        call check(error, f90_program_block_regexp, "\(function\|module\|program\|sub\(?:\(?:modul\|routin\)e\)\)")
+        call check(error, f90_program_block_regular_expression, "\(function\|module\|program\|sub\(?:\(?:modul\|routin\)e\)\)")
 
         if (.not. allocated(error)) then
-            index = string_match(f90_keywords_regexp, "x = error stop", st)
+            index = string_match(f90_keywords_regular_expression, "x = error stop", st)
             call check(error, index == 5, "keywords: error stop")
         end if
 
@@ -487,7 +489,7 @@ contains
         saved = fill_column%value
         fill_column = 20
         call ins("! aaaa bbbb cccc dddd eeee"//LF//"x = 1"//LF)
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call fill_paragraph(st)
         call check(error, buffer_string(), "! aaaa bbbb cccc"//LF//"! dddd eeee"//LF//"x = 1"//LF)
         fill_column = saved

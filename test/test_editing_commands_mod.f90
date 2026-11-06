@@ -23,22 +23,22 @@
 module test_editing_commands_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER
+    use error_mod, only: status_type, format_error, BEGINNING_OF_BUFFER_CODE, END_OF_BUFFER_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, close_buffer, set_buffer, &
                           current_buffer, is_buffer_live
     use insert_delete_mod, only: insert, move_gap_both
     use search_mod, only: find_newline, find_before_next_newline
-    use editing_functions_mod, only: point, goto_char, buffer_string, pos_bol, pos_eol, &
+    use editing_functions_mod, only: point, goto_character, buffer_string, position_beginning_of_line, position_end_of_line, &
                                      narrow_to_region
-    use editing_commands_mod, only: backward_char, beginning_of_line, delete_char, end_of_line, forward_char, &
+    use editing_commands_mod, only: backward_character, beginning_of_line, delete_character, end_of_line, forward_character, &
                                     forward_line, self_insert_command
     implicit none(type, external)
     private
 
     public :: collect_editing_commands_mod
 
-    character(len=*), parameter :: nl = achar(10)
+    character(len=*), parameter :: newline = achar(10)
     character(len=*), parameter :: euro = char(226)//char(130)//char(172)
     !> most-positive-fixnum on a 64-bit host.
     integer(int64), parameter :: most_positive_fixnum = 2_int64**61 - 1
@@ -54,13 +54,13 @@ contains
                     new_unittest("find-newline-forward", test_find_forward), &
                     new_unittest("find-newline-backward", test_find_backward), &
                     new_unittest("find-before-next-newline", test_before_next), &
-                    new_unittest("pos-bol-eol", test_bol_eol), &
-                    new_unittest("forward-backward-char", test_chars), &
+                    new_unittest("pos-bol-eol", test_beginning_of_line_end_of_line), &
+                    new_unittest("forward-backward-char", test_characters), &
                     new_unittest("forward-line", test_forward_line), &
                     new_unittest("self-insert-command-with-negative-argument", test_self_insert_negative), &
                     new_unittest("forward-line-with-bignum", test_bignum), &
-                    new_unittest("beginning-end-of-line", test_bol_cmds), &
-                    new_unittest("delete-char", test_delete_char) &
+                    new_unittest("beginning-end-of-line", test_beginning_of_line_commands), &
+                    new_unittest("delete-char", test_delete_character) &
                     ]
     end subroutine collect_editing_commands_mod
 
@@ -88,44 +88,44 @@ contains
 
         ! chars:  a  €  \n  b  b  \n  c
         ! pos:    1  2  3   4  5  6   7   (Z = 8)
-        call insert("a"//euro//nl//"bb"//nl//"c", st)
+        call insert("a"//euro//newline//"bb"//newline//"c", st)
         call move_gap_both(5_int64, 7_int64)
     end subroutine fill_lines
 
     subroutine test_find_forward(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
-        integer(int64) :: pos, counted, bytepos
+        integer(int64) :: position, counted, byte_position
 
         call enter("tc-ff", h, old)
         call fill_lines()
-        pos = find_newline(1_int64, count=1_int64, counted=counted, bytepos=bytepos)
-        call check(error, pos == 4 .and. counted == 1 .and. bytepos == 6, "first newline")
+        position = find_newline(1_int64, count=1_int64, counted=counted, byte_position=byte_position)
+        call check(error, position == 4 .and. counted == 1 .and. byte_position == 6, "first newline")
         if (allocated(error)) return
-        pos = find_newline(1_int64, count=2_int64, counted=counted)
-        call check(error, pos == 7 .and. counted == 2, "second newline (across the gap)")
+        position = find_newline(1_int64, count=2_int64, counted=counted)
+        call check(error, position == 7 .and. counted == 2, "second newline (across the gap)")
         if (allocated(error)) return
-        pos = find_newline(1_int64, count=5_int64, counted=counted)
-        call check(error, pos == 8 .and. counted == 2, "too few: stop at ZV")
+        position = find_newline(1_int64, count=5_int64, counted=counted)
+        call check(error, position == 8 .and. counted == 2, "too few: stop at ZV")
         call leave(h, old)
     end subroutine test_find_forward
 
     subroutine test_find_backward(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
-        integer(int64) :: pos, counted
+        integer(int64) :: position, counted
 
         call enter("tc-fb", h, old)
         call fill_lines()
         ! Backward results are positions *after* the newline found.
-        pos = find_newline(8_int64, count=-1_int64, counted=counted)
-        call check(error, pos == 7 .and. counted == -1, "last newline")
+        position = find_newline(8_int64, count=-1_int64, counted=counted)
+        call check(error, position == 7 .and. counted == -1, "last newline")
         if (allocated(error)) return
-        pos = find_newline(8_int64, count=-2_int64, counted=counted)
-        call check(error, pos == 4 .and. counted == -2, "first newline")
+        position = find_newline(8_int64, count=-2_int64, counted=counted)
+        call check(error, position == 4 .and. counted == -2, "first newline")
         if (allocated(error)) return
-        pos = find_newline(8_int64, count=-3_int64, counted=counted)
-        call check(error, pos == 1 .and. counted == -2, "too few: stop at BEGV")
+        position = find_newline(8_int64, count=-3_int64, counted=counted)
+        call check(error, position == 1 .and. counted == -2, "too few: stop at BEGV")
         call leave(h, old)
     end subroutine test_find_backward
 
@@ -141,49 +141,49 @@ contains
         call leave(h, old)
     end subroutine test_before_next
 
-    subroutine test_bol_eol(error)
+    subroutine test_beginning_of_line_end_of_line(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
 
         call enter("tc-bol", h, old)
         call fill_lines()
-        call goto_char(5_int64)
-        call check(error, pos_bol() == 4 .and. pos_eol() == 6, "line 2")
+        call goto_character(5_int64)
+        call check(error, position_beginning_of_line() == 4 .and. position_end_of_line() == 6, "line 2")
         if (allocated(error)) return
-        call check(error, pos_bol(2_int64) == 7 .and. pos_eol(2_int64) == 8, "next line")
+        call check(error, position_beginning_of_line(2_int64) == 7 .and. position_end_of_line(2_int64) == 8, "next line")
         if (allocated(error)) return
-        call check(error, pos_bol(0_int64) == 1 .and. pos_eol(0_int64) == 3, "previous line")
+        call check(error, position_beginning_of_line(0_int64) == 1 .and. position_end_of_line(0_int64) == 3, "previous line")
         if (allocated(error)) return
         call check(error, point(), 5_int64)   ! point untouched
         if (allocated(error)) return
         ! Narrowing bounds the scan.
         call narrow_to_region(5_int64, 8_int64, st)
-        call goto_char(5_int64)
-        call check(error, pos_bol(), 5_int64)
+        call goto_character(5_int64)
+        call check(error, position_beginning_of_line(), 5_int64)
         call leave(h, old)
-    end subroutine test_bol_eol
+    end subroutine test_beginning_of_line_end_of_line
 
-    subroutine test_chars(error)
+    subroutine test_characters(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
 
         call enter("tc-chars", h, old)
         call insert("abc", st)
-        call backward_char(st, 2_int64)
+        call backward_character(st, 2_int64)
         call check(error, st%ok() .and. point() == 2, "backward 2")
         if (allocated(error)) return
-        call forward_char(st)
+        call forward_character(st)
         call check(error, point(), 3_int64)
         if (allocated(error)) return
-        call forward_char(st, 5_int64)
-        call check(error, st%code == FM_END_OF_BUFFER .and. point() == 4, "end_of_buffer")
+        call forward_character(st, 5_int64)
+        call check(error, st%code == END_OF_BUFFER_CODE .and. point() == 4, "end_of_buffer")
         if (allocated(error)) return
-        call backward_char(st, 10_int64)
-        call check(error, st%code == FM_BEGINNING_OF_BUFFER .and. point() == 1, "beginning_of_buffer")
+        call backward_character(st, 10_int64)
+        call check(error, st%code == BEGINNING_OF_BUFFER_CODE .and. point() == 1, "beginning_of_buffer")
         call leave(h, old)
-    end subroutine test_chars
+    end subroutine test_characters
 
     subroutine test_forward_line(error)
         type(error_type), allocatable, intent(out) :: error
@@ -191,7 +191,7 @@ contains
 
         call enter("tc-fl", h, old)
         call fill_lines()
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call check(error, forward_line(), 0_int64)
         if (allocated(error)) return
         call check(error, point(), 4_int64)
@@ -230,20 +230,20 @@ contains
         type(status_type) :: st
 
         call enter("tc-bignum", h, old)
-        call insert("x"//nl, st)
+        call insert("x"//newline, st)
         call check(error, forward_line(most_negative_fixnum - 1), most_negative_fixnum)
         if (allocated(error)) return
         call check(error, forward_line(most_positive_fixnum + 2), most_positive_fixnum + 1)
         call leave(h, old)
     end subroutine test_bignum
 
-    subroutine test_bol_cmds(error)
+    subroutine test_beginning_of_line_commands(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
 
         call enter("tc-bolcmd", h, old)
         call fill_lines()
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call end_of_line()
         call check(error, point(), 6_int64)
         if (allocated(error)) return
@@ -253,27 +253,27 @@ contains
         call end_of_line(2_int64)
         call check(error, point(), 8_int64)
         call leave(h, old)
-    end subroutine test_bol_cmds
+    end subroutine test_beginning_of_line_commands
 
-    subroutine test_delete_char(error)
+    subroutine test_delete_character(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
 
         call enter("tc-del", h, old)
         call insert("abcdef", st)
-        call goto_char(3_int64)
-        call delete_char(2_int64, st)
+        call goto_character(3_int64)
+        call delete_character(2_int64, st)
         call check(error, buffer_string(), "abef")
         if (allocated(error)) return
-        call delete_char(-1_int64, st)
+        call delete_character(-1_int64, st)
         call check(error, buffer_string(), "aef")
         if (allocated(error)) return
-        call delete_char(10_int64, st)
-        call check(error, st%code == FM_END_OF_BUFFER .and. buffer_string() == "aef", "end_of_buffer")
+        call delete_character(10_int64, st)
+        call check(error, st%code == END_OF_BUFFER_CODE .and. buffer_string() == "aef", "end_of_buffer")
         if (allocated(error)) return
-        call delete_char(-10_int64, st)
-        call check(error, st%code, FM_BEGINNING_OF_BUFFER)
+        call delete_character(-10_int64, st)
+        call check(error, st%code, BEGINNING_OF_BUFFER_CODE)
         call leave(h, old)
-    end subroutine test_delete_char
+    end subroutine test_delete_character
 end module test_editing_commands_mod

@@ -24,7 +24,7 @@ module sample
     end type command_type
 
     !> The command loop's state as values, and as its types (A7).
-    type(value_type) :: this_command, current_prefix_arg
+    type(value_type) :: this_command, current_prefix_argument
     type(command_type), pointer :: last_command => null()
 
     !> Another type may have a component `interactive'.
