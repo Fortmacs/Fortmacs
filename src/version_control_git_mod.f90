@@ -1641,7 +1641,7 @@ contains
                                        VERSION_CONTROL_LOG_VIEW_SHORT, VERSION_CONTROL_LOG_VIEW_LOG_OUTGOING, &
                                        VERSION_CONTROL_LOG_VIEW_LOG_INCOMING, VERSION_CONTROL_LOG_VIEW_MERGEBASE
         use log_view_mod, only: set_log_view_file_regular_expression, set_log_view_message_regular_expression, &
-                                set_log_view_per_file_logs, set_log_view_expanded_log_entry_function, &
+                                set_log_view_per_file_logs, log_view_expanded_log_entry_function, &
                                 set_log_view_font_lock_keywords
         type(status_type), intent(out) :: status
         type(font_lock_keyword_type), allocatable :: keywords(:)
@@ -1683,7 +1683,7 @@ contains
         end if
 
         ! (setq truncate-lines t): `truncate_lines' is not ported.
-        if (expand) call set_log_view_expanded_log_entry_function(version_control_git_expanded_log_entry)
+        if (expand) call log_view_expanded_log_entry_function%set_local(version_control_git_expanded_log_entry)
 
         if (short) then
             allocate (keywords(1))

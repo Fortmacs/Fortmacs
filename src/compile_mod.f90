@@ -2509,8 +2509,8 @@ contains
             call set_buffer(mbuf, st)
             ! Obey the compilation_error_screen_columns of the target
             ! buffer if its major mode set it buffer-locally.
-            if (compilation_error_screen_columns%local_p()) screen = compilation_error_screen_columns%value
-            if (compilation_first_column%local_p()) first = compilation_first_column%value
+            if (compilation_error_screen_columns%is_local()) screen = compilation_error_screen_columns%value
+            if (compilation_first_column%is_local()) first = compilation_first_column%value
             original_point = point()
             beginning_of_accessible_portion = point_minimum()
             end_of_accessible_portion = point_maximum()
@@ -3426,8 +3426,8 @@ contains
         first = first_column
         ! Obey the compilation-error-screen-columns of the target buffer if
         ! its major mode set it buffer-locally.
-        if (compilation_error_screen_columns%local_p()) screen = compilation_error_screen_columns%value
-        if (compilation_first_column%local_p()) first = compilation_first_column%value
+        if (compilation_error_screen_columns%is_local()) screen = compilation_error_screen_columns%value
+        if (compilation_first_column%is_local()) first = compilation_first_column%value
         last = 1
         original_point = point()
         beginning_of_accessible_portion = point_minimum()

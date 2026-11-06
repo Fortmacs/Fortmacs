@@ -62,7 +62,7 @@ module newcomment_mod
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use keyboard_mod, only: last_command, this_command
     use buffer_mod, only: buffers, current, current_buffer, get_or_make_buffer, set_buffer, close_buffer, &
-                          generate_new_buffer_name, barf_if_buffer_read_only, fill_column, buffer_serial_live
+                          generate_new_buffer_name, barf_if_buffer_read_only, fill_column
     use insert_delete_mod, only: insert, insert_before_markers
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use editing_functions_mod, only: interactive_region, point, point_minimum, point_maximum, goto_character, &
@@ -86,11 +86,12 @@ module newcomment_mod
     use simple_mod, only: newline, delete_horizontal_space, cut_region, is_use_region, back_to_indentation, &
                           comment_line_break_function, fill_prefix, simple_count_lines => count_lines
     use data_mod, only: choice_setting_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
     public :: initialize_newcomment, comment_indent_type, comment_indent_procedure, comment_region_procedure, &
-              comment_quote_nested_procedure, comment_indent_function_type
+              comment_quote_nested_procedure
     public :: comment_normalize_variables, comment_string_strip, comment_string_reverse, comment_search_forward, &
               comment_search_backward, comment_beginning, comment_forward, comment_enter_backward, &
               comment_indent_default, comment_choose_indent, comment_indent, comment_set_column, comment_cut, &
@@ -153,27 +154,27 @@ module newcomment_mod
         end subroutine comment_quote_nested_procedure
     end interface
 
-    !> One buffer's `comment_indent_function'.
-    type :: indent_entry_type
-        integer(int64) :: serial = 0
-        procedure(comment_indent_procedure), pointer, nopass :: fn => null()
-    end type indent_entry_type
+    !> One buffer's own value of
+    !> `comment_indent_function'.
+    type :: comment_indent_entry_type
+        procedure(comment_indent_procedure), pointer, nopass :: procedure => null()
+    end type comment_indent_entry_type
 
-    !> The type of `comment_indent_function': a default function and
-    !> buffers' own (`set_local').
-    type :: comment_indent_function_type
-        procedure(comment_indent_procedure), pointer, nopass :: value => null()
-        type(indent_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `comment_indent_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: comment_indent_setting_type
+        procedure(comment_indent_procedure), pointer, nopass :: procedure => null()
+        type(comment_indent_entry_type), allocatable :: locals(:)
     contains
-        !> Make FN the current buffer's function (set_local).
-        procedure :: set_local => indent_function_set_local
-        !> The current buffer's function.
-        procedure :: current => current_indent_function
-        !> Whether the current buffer has its own function.
-        procedure :: local_p => is_indent_function_local
-        !> Make the current buffer use the default function again.
-        procedure :: clear_local => indent_function_clear_local
-    end type comment_indent_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_comment_indent_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_comment_indent_current
+        procedure :: append_local_entry => append_comment_indent_entry
+        procedure :: clear_local_entry => clear_comment_indent_entry
+    end type comment_indent_setting_type
 
     !> True if syntax-tables can be used instead of regexps.
     !> Can also be `undecided' which means that a somewhat expensive test will
@@ -224,7 +225,7 @@ module newcomment_mod
     !> If none is returned, indentation is delegated to
     !> `indent_according_to_mode'.  Port of newcomment.el
     !> comment-indent-function (`set_local' gives a buffer its own).
-    type(comment_indent_function_type), public :: comment_indent_function
+    type(comment_indent_setting_type), public :: comment_indent_function
 
     !> Function to insert a comment when a line doesn't contain one.
     !> The function has no args.
@@ -429,7 +430,7 @@ contains
         if (.not. allocated(comment_end%value)) comment_end = ""
         if (.not. allocated(comment_padding%value)) comment_padding = " "
         call append_locals_clearer(clear_newcomment_locals)
-        if (.not. associated(comment_indent_function%value)) comment_indent_function%value => comment_indent_default
+        if (.not. associated(comment_indent_function%procedure)) comment_indent_function%procedure => comment_indent_default
         if (.not. associated(comment_region_function)) comment_region_function => comment_region_default
         if (.not. associated(uncomment_region_function)) uncomment_region_function => uncomment_region_default
         if (.not. associated(comment_quote_nested_function)) comment_quote_nested_function => comment_quote_nested_default
@@ -446,75 +447,49 @@ contains
         commands%comment_line%execute => execute_comment_line
     end subroutine initialize_newcomment
 
-    ! ------------------------------------------------------------------
-    ! The buffer-local comment-indent-function.
-    ! Make FN the current buffer's local function.  Not a port.
-    subroutine indent_function_set_local(self, fn)
-        class(comment_indent_function_type), intent(inout) :: self
-        procedure(comment_indent_procedure) :: fn
-        type(indent_entry_type) :: entry
-        integer :: i
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `comment_indent_function'.  Not a port.
+    subroutine set_comment_indent_local(self, local_procedure)
+        class(comment_indent_setting_type), intent(inout) :: self
+        procedure(comment_indent_procedure), optional :: local_procedure
+        integer :: k
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_comment_indent_local
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    !> The current buffer's value of
+    !> `comment_indent_function':
+    !> its own, else the global one.  Not a port.
+    function get_comment_indent_current(self) result(current_procedure)
+        class(comment_indent_setting_type), intent(in) :: self
+        procedure(comment_indent_procedure), pointer :: current_procedure
+        integer :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_comment_indent_current
 
-        self%entries(i)%fn => fn
-    end subroutine indent_function_set_local
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_comment_indent_entry(self)
+        class(comment_indent_setting_type), intent(inout) :: self
+        type(comment_indent_entry_type) :: entry
 
-    ! The function in effect in the current buffer: its local one, else
-    ! the default.  Not a port.
-    function current_indent_function(self) result(fn)
-        class(comment_indent_function_type), intent(in) :: self
-        procedure(comment_indent_procedure), pointer :: fn
-        integer :: i
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_comment_indent_entry
 
-        fn => self%value
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_comment_indent_entry(self, k)
+        class(comment_indent_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-        if (i > 0) then
-            if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-        end if
-    end function current_indent_function
-
-    ! Whether the current buffer has a local function.  Not a port.
-    logical function is_indent_function_local(self) result(local)
-        class(comment_indent_function_type), intent(in) :: self
-        integer :: i
-
-        local = .false.
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-        if (i > 0) local = associated(self%entries(i)%fn)
-    end function is_indent_function_local
-
-    ! Forget the current buffer's local function.  Not a port.
-    subroutine indent_function_clear_local(self)
-        class(comment_indent_function_type), intent(inout) :: self
-        integer :: i
-
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-
-        if (i > 0) then
-            self%entries(i)%serial = 0
-            self%entries(i)%fn => null()
-        end if
-    end subroutine indent_function_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_comment_indent_entry
 
     !> kill-all-local-variables: forget the current buffer's
     !> `comment_indent_function'.  Not a port.
@@ -1590,7 +1565,7 @@ contains
         call goto_character(begpos)
         ! Compute desired indent.
         original_point = point()
-        fn => comment_indent_function%current()
+        fn => comment_indent_function%get_current()
         call fn(indent, st)
         call goto_character(original_point)
         ! If `indent' is nil and there's code before the comment, we can't
@@ -3143,8 +3118,8 @@ contains
         own_line = is_beginning_of_line()
         call goto_character(original_point)
         saved_column = comment_column%value
-        saved_fn => comment_indent_function%current()
-        had_local = comment_indent_function%local_p()
+        saved_fn => comment_indent_function%get_current()
+        had_local = comment_indent_function%is_local()
         saved_start = cstart()
         saved_end = cend()
         has_continue = allocated(comment_continue%value)

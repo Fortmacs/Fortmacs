@@ -96,7 +96,7 @@ module sgml_mode_mod
     use skeleton_mod, only: skeleton_element_type, skeleton_state, skeleton_text, skeleton_literal, skeleton_delete, &
                             skeleton_prompt, skeleton_interactor, skeleton_for_each, skeleton_action, skeleton_value, &
                             skeleton_command, skeleton_read, skeleton_transform, skeleton_transformation_procedure, &
-                            skeleton_transformation_function_set_local, skeleton_further_elements_set_local, &
+                            skeleton_transformation_function, skeleton_further_elements, &
                             skeleton_end_newline, skeleton_end_hook, SKELETON_NEWLINE, SKELETON_POINT, SKELETON_STRING, &
                             SKELETON_INDENT, SKELETON_END, SKELETON_RESUME, SKELETON_V2, SKELETON_IF_NOT_MOVED, &
                             SKELETON_NO_INTERACTOR
@@ -2840,7 +2840,7 @@ contains
                                               regular_expression="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
                                               q//"\)\("//SGML_NAME_REGULAR_EXPRESSION//"\)\1", subexpression=2)
         call index_menu_patterns%set_local(patterns)
-        call skeleton_further_elements_set_local(sgml_further_elements)
+        call skeleton_further_elements%set_local(sgml_further_elements)
         call skeleton_end_newline%set_local(.false.)
         call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
         call skeleton_end_hook%clear()
@@ -2848,9 +2848,9 @@ contains
 
         if (.not. sgml_xml_mode%value) then
             if (associated(sgml_transformation_function)) then
-                call skeleton_transformation_function_set_local(sgml_transformation_function)
+                call skeleton_transformation_function%set_local(sgml_transformation_function)
             else
-                call skeleton_transformation_function_set_local()
+                call skeleton_transformation_function%set_local()
             end if
         end if
     end subroutine setup

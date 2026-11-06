@@ -1,0 +1,5 @@
+# Branch setting-objects (panel 14).  The type-bound predicate of a
+# setting, whether the current buffer has its own value (upstream's
+# local-variable-p), is is_local: upstream's _p is is_* (CLAUDE.md,
+# rule-decided).
+name	local_p	is_local

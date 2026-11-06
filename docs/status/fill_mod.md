@@ -31,7 +31,8 @@ Polish and single-char tests,
 `unjustify-region`,
 `fill-paragraph-function` (buffer-local; `fill-minibuffer-function` in the minibuffer),
 `fill-paragraph-handle-comment`,
-`fill-comment-paragraph` (fill_comment_mod) and the comment steps of `fill-paragraph` (comment lines kept apart from code, bug#80449)
+`fill-comment-paragraph` (fill_comment_mod) and the comment steps of `fill-paragraph` (comment lines kept apart from code, bug#80449),
+`fill-paragraph-function` and `adaptive-fill-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

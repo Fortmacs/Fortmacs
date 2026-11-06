@@ -1281,7 +1281,7 @@ contains
         if (.not. status%ok()) return
         call makefile_rule_action_regular_expression%set_local(makefile_makepp_rule_action_regular_expression)
         call set_font_lock_defaults(makefile_makepp_font_lock_keywords)
-        old = index_menu_patterns%current()
+        old = index_menu_patterns%get_current()
         allocate (patterns(size(old) + 1))
         patterns(1) = index_menu_pattern_type(menu_title="Functions", regular_expression="^[ "//TAB//"]*\(?:make\)?sub[ "//TAB// &
                                               "]+\([A-Za-z0-9_]+\)", subexpression=1)

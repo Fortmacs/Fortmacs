@@ -330,7 +330,7 @@ contains
 
         checks: block
             call shell_set_shell("bash", st)
-            call shell_builtins%current(b)
+            call shell_builtins%get_current(b)
             call check(error, b(1)%text, ".")
             if (allocated(error)) exit checks
             call check(error, b(size(b))%text, "wait")
@@ -339,7 +339,7 @@ contains
             if (allocated(error)) exit checks
             ! dash has no entry: ash, then sh.
             call shell_set_shell("dash", st)
-            call shell_builtins%current(b)
+            call shell_builtins%get_current(b)
             call check(error, b(1)%text, "hash")
             if (allocated(error)) exit checks
             call check(error,.not. any_is(b, "command"), "no command in dash")
@@ -677,7 +677,7 @@ contains
             deallocate (setting_errors)
         end block checks
 
-        if (shell_indent_for_fi%local_p()) call shell_indent_for_fi%clear_local()
+        if (shell_indent_for_fi%is_local()) call shell_indent_for_fi%clear_local()
         shell_indent_for_fi = saved
         shell_basic_offset = saved_offset
         if (is_buffer_live(other)) call close_buffer(other, st)

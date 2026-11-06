@@ -24,7 +24,8 @@ the indentation engine (`smie-indent-basic`, `smie-rules-function` with :after, 
 `smie-auto-fill` around `normal-auto-fill-function`,
 `smie-setup` (:forward-token, :backward-token),
 `smie--next-indent-change`,
-smie-config (`smie-config` as an array of `simple_minded_indentation_engine_configuration_rule_type` records with the mode's rules installed from `after_change_major_mode_hook` for the modes the major mode derives from, `smie-config-local`, the advice in the one place `simple_minded_indentation_engine_rules_function` is called, `smie-config--get-trace`, `smie-config-show-indent`, `smie-config-set-indent`, `smie-config--guess-value`, `smie-config-guess` with `smie-config--guess` and `-guess-1`, `smie-config-save`; rules and answers shown as Fortran: `SIMPLE_MINDED_INDENTATION_ENGINE_AFTER "then" -> 4`)
+smie-config (`smie-config` as an array of `simple_minded_indentation_engine_configuration_rule_type` records with the mode's rules installed from `after_change_major_mode_hook` for the modes the major mode derives from, `smie-config-local`, the advice in the one place `simple_minded_indentation_engine_rules_function` is called, `smie-config--get-trace`, `smie-config-show-indent`, `smie-config-set-indent`, `smie-config--guess-value`, `smie-config-guess` with `smie-config--guess` and `-guess-1`, `smie-config-save`; rules and answers shown as Fortran: `SIMPLE_MINDED_INDENTATION_ENGINE_AFTER "then" -> 4`),
+`smie--hanging-eolp-function` as a buffer-local procedure setting (`simple_minded_indentation_engine_hanging_line_test_function`: `%set_local` advises it in a buffer)
 
 ## Deferred
 

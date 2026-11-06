@@ -12,13 +12,13 @@ Electric Indent Local mode,
 `electric-indent-can-reindent-p` with `electric-indent-functions-without-reindent`,
 `electric-indent-inhibit` (buffer-local),
 `electric-indent-just-newline`,
-`electric-newline-and-maybe-indent` (C-j)
+`electric-newline-and-maybe-indent` (C-j),
+buffer-local `electric-indent-chars` (a setting object: `=` sets the global value, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 
 `electric-indent-functions`,
 `electric-indent-actions`,
-buffer-local `electric-indent-chars`,
 Electric Layout mode,
 Electric Quote mode,
 `Electric-command-loop`,
