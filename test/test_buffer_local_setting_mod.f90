@@ -27,6 +27,7 @@
 !> `next_error_function'.  Not a port.
 module test_buffer_local_setting_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use faces_mod, only: initialize_faces
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
@@ -352,6 +353,9 @@ contains
         type(string_type), allocatable :: files(:), got(:)
         type(font_lock_keyword_type), allocatable :: keywords(:)
 
+        ! The standard faces first, as at startup: Log View defines faces too,
+        ! and test_faces_mod checks that faces.el's come first.
+        call initialize_faces()
         call initialize_log_view()
         call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
         call set_buffer(b1, st)
