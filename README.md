@@ -115,10 +115,11 @@ names, help and internals are Fortran-first.
 - **The same keys and mode line.** Keys and the text the mode line shows
   are unchanged; mode-line formats are written in Fortran, never with
   Emacs's %-constructs.
-- **One word per meaning.** Emacs's names grew over forty years, so the
-  same idea is spelled several ways; since everything is being rewritten
-  anyway, Fortmacs unifies the wording. PORTING.md, "One word per
-  meaning", has the full list.
+- **Names that read like plain English.** A name says what you want done,
+  verb first, in everyday words, with one word for each idea: `close_buffer`,
+  `cut_region`, `execute_with_timer`. Emacs's names grew over forty years,
+  so the same idea is spelled several ways; Fortmacs picks one. PORTING.md,
+  "One word per meaning", has the full list.
   - Running anything is `execute`:
     - `call_interactively`→`execute_interactively` <!-- fortran-names: keep -->
     - `run_mode_hooks`→`execute_mode_hooks` <!-- fortran-names: keep -->

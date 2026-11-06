@@ -1,0 +1,1 @@
+2026-11-06 — README: "One word per meaning" becomes "Names that read like plain English": a name says what you want done, verb first, in everyday words, with one word for each idea (`readme-plain-english`, owner).
