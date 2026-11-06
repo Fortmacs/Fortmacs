@@ -284,7 +284,9 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `tab-bar-mode`/`tab-line-mode`: 44a terminal frames and C-x 5 —
        done; 44b tab-bar.el on terminal frames (the tab bar line, tabs,
        C-x t, tab history; see docs/status/tab_bar_mod.md) — done; 44c
-       tab-line.el.
+       tab-line.el on terminal frames (the tab line of each window,
+       Global Tab-Line mode, switching, moving and closing tabs, grouping;
+       see docs/status/tab_line_mod.md) — done.
    45. Windows, the rest: `winner-mode`, `windmove`, `follow-mode`,
        `window-divider` and side windows.
    46. Calendar and diary, in parts: 46a the calendar core (calendar.el

@@ -124,6 +124,7 @@ module bindings_mod
     use save_history_mod, only: initialize_save_history
     use winner_mod, only: initialize_winner
     use tab_bar_mod, only: initialize_tab_bar
+    use tab_line_mod, only: initialize_tab_line
     use window_move_mod, only: initialize_windmove
     use saveplace_mod, only: initialize_saveplace
     use recent_files_mod, only: initialize_recent_files
@@ -782,6 +783,7 @@ contains
         key(1) = value_type(int(iachar("t"), int64))
         call define_key(control_x_map, key, make_keymap_reference(tab_prefix_map), status)
         call initialize_tab_bar(tab_prefix_map)
+        call initialize_tab_line(control_x_map)
         call initialize_version_control_hooks(control_x_map)
         ! (After version_control_hooks: `grep_find_ignored_directories' defaults to
         ! `version_control_directory_exclusions'.)

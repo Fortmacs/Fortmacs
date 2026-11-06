@@ -1,0 +1,74 @@
+# fortran-names.d/2026-11-05-step44c-tab-line -- the names step 44c (tab-line.el)
+# gives Lisp-derived terms, by existing rules and precedents (decided and
+# reported): commands and functions verb first (R6-17, R6-40), the long
+# names verb, package, rest after step 44b (decision 48 Q1:
+# tab-line-close-tab -> close_tab_line_tab as tab-bar-close-tab ->
+# close_tab_bar_tab), prev spelled out (no abbreviations), the hscroll
+# commands from what they do (tab-line-hscroll-left -> scroll_tab_line_left,
+# R6-40), predicates is_* (tab-line-tab-modified-p ->
+# is_tab_line_tab_modified), and functions that give a value get_ (after
+# tab-bar-tab-name-current -> get_tab_name_current).  A new name that holds
+# the old one has a keep entry, as have the options named after the
+# commands' words (tab_line_close_tab_function and its constants).
+# tab-line-format, tab-line-tabs-buffer-groups and
+# tab-line-mode-set-explicitly have no entry: each also names a variable
+# that keeps its name (the buffer's tab_line_format, the option
+# tab_line_tabs_buffer_groups); tab-line-hscroll neither: it also names
+# the window parameter (window_tab_line_type%hscroll).
+#
+# Copyright (C) 2026 The Fortmacs authors
+#
+# This file is part of Fortmacs, under the GNU GPL version 3 or later.
+name	tab_line_switch_to_prev_tab	switch_to_tab_line_previous_tab
+name	tab_line_switch_to_next_tab	switch_to_tab_line_next_tab
+name	tab_line_move_tab_forward	move_tab_line_tab_forward
+name	tab_line_move_tab_backward	move_tab_line_tab_backward
+name	tab_line_close_tab	close_tab_line_tab
+name	tab_line_close_other_tabs	close_tab_line_other_tabs
+name	tab_line_hscroll_right	scroll_tab_line_right
+name	tab_line_hscroll_left	scroll_tab_line_left
+name	tab_line_select_tab_buffer	select_tab_line_tab_buffer
+name	tab_line_tab_name_format_default	format_tab_line_tab_name_default
+name	tab_line_tab_modified_p	is_tab_line_tab_modified
+name	tab_line_tabs_buffer_group_sort_by_name	is_tab_line_buffer_name_less
+name	tab_line_tabs_non_excluded	remove_excluded_tab_line_buffers
+name	tab_line_force_update	force_tab_line_update
+name	global_tab_line_mode_enable_in_buffer	enable_tab_line_mode_in_buffer
+name	tab_line_tabs_window_buffers	get_tab_line_tabs_window_buffers
+name	tab_line_tabs_fixed_window_buffers	get_tab_line_tabs_fixed_window_buffers
+name	tab_line_tabs_mode_buffers	get_tab_line_tabs_mode_buffers
+name	tab_line_tabs_buffer_list	get_tab_line_tabs_buffer_list
+name	tab_line_tab_name_buffer	get_tab_line_tab_name_buffer
+name	tab_line_tab_name_truncated_buffer	get_tab_line_tab_name_truncated_buffer
+name	tab_line_format_template	make_tab_line_format_template
+name	tab_line_tab_face_special	get_tab_line_tab_face_special
+name	tab_line_tab_face_modified	get_tab_line_tab_face_modified
+name	tab_line_tab_face_inactive_alternating	get_tab_line_tab_face_inactive_alternating
+name	tab_line_tab_face_group	get_tab_line_tab_face_group
+name	tab_line_tabs_buffer_group_by_mode	get_tab_line_tabs_buffer_group_by_mode
+name	tab_line_tabs_buffer_group_by_project	get_tab_line_tabs_buffer_group_by_project
+name	tab_line_tabs_buffer_group_name	get_tab_line_tabs_buffer_group_name
+# The new names that hold the old ones.
+keep	get_tab_line_tabs_window_buffers
+keep	get_tab_line_tabs_fixed_window_buffers
+keep	get_tab_line_tabs_mode_buffers
+keep	get_tab_line_tabs_buffer_list
+keep	get_tab_line_tab_name_buffer
+keep	get_tab_line_tab_name_truncated_buffer
+keep	make_tab_line_format_template
+keep	get_tab_line_tab_face_special
+keep	get_tab_line_tab_face_modified
+keep	get_tab_line_tab_face_inactive_alternating
+keep	get_tab_line_tab_face_group
+keep	get_tab_line_tabs_buffer_group_by_mode
+keep	get_tab_line_tabs_buffer_group_by_project
+keep	get_tab_line_tabs_buffer_group_name
+# Options and their values named for the option, not for the commands
+# and functions whose words they hold.
+keep	tab_line_close_tab_function
+keep	tab_line_close_tab_function_choice_setting_type
+keep	tab_line_close_tab_procedure
+keep	TAB_LINE_CLOSE_TAB_FUNCTION_BURY_BUFFER
+keep	TAB_LINE_CLOSE_TAB_FUNCTION_CLOSE_BUFFER
+keep	tab_line_tabs_buffer_list_function
+keep	tab_line_tabs_window_buffers_filter_function

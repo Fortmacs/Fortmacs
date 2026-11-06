@@ -108,27 +108,51 @@ module buffer_mod
     end type invisibility_entry_type
 
     !> A part of a header line: TEXT in FACE (empty for the header line's
-    !> own face), starting at column ALIGN_TO of the window's text area if
-    !> ALIGN_TO is not negative (as a `(space :align-to ALIGN_TO)' display
-    !> spec before it would).
+    !> own face) merged above the faces EXTRA_FACES, the first above the
+    !> others (upstream a list of faces; unallocated for none), starting
+    !> at column ALIGN_TO of the window's text area if ALIGN_TO is not
+    !> negative (as a `(space :align-to ALIGN_TO)' display spec before it
+    !> would).
     type, public :: header_line_segment_type
         character(len=:), allocatable :: text
         character(len=:), allocatable :: face
+        character(len=40), allocatable :: extra_faces(:)
         integer :: align_to = -1
     end type header_line_segment_type
 
-    !> A header line: its segments in order.  A buffer shows no header line
-    !> while SEGMENTS is unallocated; `add' starts one.
-    !> (The %-constructs, `:eval' and the other mode-line-format elements
-    !> are Deferred, as for the mode line.)
+    abstract interface
+        !> What a header line or tab line whose format is a procedure shows
+        !> in WINDOW, whose buffer is current (upstream an `(:eval FORM)'
+        !> element): SEGMENTS (none, an empty line, while unallocated).
+        !> Not a port.
+        recursive subroutine header_line_format_procedure(window, segments)
+            import :: handle_type, header_line_segment_type
+            implicit none(type, external)
+            type(handle_type), intent(in) :: window
+            type(header_line_segment_type), allocatable, intent(out) :: segments(:)
+        end subroutine header_line_format_procedure
+    end interface
+
+    public :: header_line_format_procedure
+
+    !> A header line: its segments in order, or the procedure that gives
+    !> them at each redisplay (`procedure', upstream `(:eval FORM)',
+    !> decision 44 Q8).  A buffer shows no header line while SEGMENTS is
+    !> unallocated and PROCEDURE null; `append' starts one.  (The
+    !> %-constructs and the other mode-line-format elements are Deferred,
+    !> as for the mode line; the procedure is read for the header line and
+    !> the tab line.)
     type, public :: header_line_format_type
         type(header_line_segment_type), allocatable :: segments(:)
+        procedure(header_line_format_procedure), pointer, nopass :: procedure => null()
     contains
         !> Append a segment: TEXT, in FACE if present, at column ALIGN_TO
         !> if present.
         procedure :: append => header_line_append
         !> No header line.
         procedure :: clear => header_line_clear
+        !> Whether it is set: it has segments or a procedure.
+        procedure :: is_set => is_header_line_set
     end type header_line_format_type
 
     abstract interface
@@ -272,6 +296,11 @@ module buffer_mod
         !> shown at the top of each window that displays the buffer (see
         !> `header_line_format_type').
         type(header_line_format_type) :: header_line_format
+        !> BVAR tab_line_format (`tab_line_format'): the tab line, shown at
+        !> the top of each window that displays the buffer, above the header
+        !> line (see `header_line_format_type'; `tab_line_mode' sets its
+        !> procedure).
+        type(header_line_format_type) :: tab_line_format
         !> `mode_line_buffer_identification': the buffer's own identification
         !> in the mode line, as segments in which "%b" stands for the buffer
         !> name and "%%" for "%" (the ALIGN_TO of a segment is ignored).
@@ -557,7 +586,16 @@ contains
         class(header_line_format_type), intent(inout) :: self
 
         if (allocated(self%segments)) deallocate (self%segments)
+        self%procedure => null()
     end subroutine header_line_clear
+
+    !> Whether header line SELF is set: it shows a line.
+    !> Not a port.
+    logical function is_header_line_set(self) result(set)
+        class(header_line_format_type), intent(in) :: self
+
+        set = allocated(self%segments) .or. associated(self%procedure)
+    end function is_header_line_set
 
     ! ------------------------------------------------------------------
     ! Registry

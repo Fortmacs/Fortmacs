@@ -1371,32 +1371,52 @@ contains
     !> In selected window switch to ARGth previous buffer.
     !> Call `switch_to_previous_buffer' unless the selected window is the
     !> minibuffer window or is dedicated to its buffer.  Port of
-    !> window.el:previous-buffer (`switch_to_previous_buffer_skip' unset).
+    !> window.el:previous-buffer (the command; `switch_to_previous_buffer_skip'
+    !> unset).
     subroutine execute_previous_buffer(status)
         type(status_type), intent(out) :: status
 
-        call previous_or_next_buffer(.true., status)
+        call previous_buffer(status, prefix_numeric_value(current_prefix_argument), .true.)
     end subroutine execute_previous_buffer
 
     !> In selected window switch to ARGth next buffer.
     !> Call `switch_to_next_buffer' unless the selected window is the
     !> minibuffer window or is dedicated to its buffer.  Port of
-    !> window.el:next-buffer.
+    !> window.el:next-buffer (the command).
     subroutine execute_next_buffer(status)
         type(status_type), intent(out) :: status
 
-        call previous_or_next_buffer(.false., status)
+        call next_buffer(status, prefix_numeric_value(current_prefix_argument), .true.)
     end subroutine execute_next_buffer
 
-    !> The common part of `previous_buffer' and `next_buffer' (called
-    !> interactively; the exception for keyboard macros is deferred).
-    !> Port of window.el:previous-buffer and window.el:next-buffer (their
-    !> common part).
-    subroutine previous_or_next_buffer(previous, status)
+    module subroutine previous_buffer(status, argument, interactive)
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: argument
+        logical, intent(in), optional :: interactive
+
+        call previous_or_next_buffer(.true., status, argument, interactive)
+    end subroutine previous_buffer
+
+    module subroutine next_buffer(status, argument, interactive)
+        type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: argument
+        logical, intent(in), optional :: interactive
+
+        call previous_or_next_buffer(.false., status, argument, interactive)
+    end subroutine next_buffer
+
+    !> The common part of `previous_buffer' and `next_buffer' (the
+    !> exception for keyboard macros is deferred).  Port of
+    !> window.el:previous-buffer and window.el:next-buffer (their common
+    !> part).
+    subroutine previous_or_next_buffer(previous, status, argument, interactive)
         logical, intent(in) :: previous
         type(status_type), intent(out) :: status
+        integer(int64), intent(in), optional :: argument
+        logical, intent(in), optional :: interactive
         type(handle_type) :: sw, b
-        integer(int64) :: argument, k
+        integer(int64) :: n, k
+        logical :: complain
 
         status = status_type()
         sw = selected_window()
@@ -1411,15 +1431,18 @@ contains
             return
         end if
 
-        ! (interactive "p"): dotimes does nothing for ARGUMENT <= 0.
-        argument = prefix_numeric_value(current_prefix_argument)
+        ! No switch for ARGUMENT <= 0.
+        n = 1
+        if (present(argument)) n = argument
+        complain = .false.
+        if (present(interactive)) complain = interactive
 
-        do k = 1, argument
+        do k = 1, n
             if (previous) then
                 b = switch_to_previous_buffer(sw, BK_NONE, status)
                 if (.not. status%ok()) return
 
-                if (b%index == 0) then
+                if (b%index == 0 .and. complain) then
                     call set_error(status, USER_ERROR_CODE, "No previous buffer")
                     return
                 end if
@@ -1427,7 +1450,7 @@ contains
                 b = switch_to_next_buffer(sw, status)
                 if (.not. status%ok()) return
 
-                if (b%index == 0) then
+                if (b%index == 0 .and. complain) then
                     call set_error(status, USER_ERROR_CODE, "No next buffer")
                     return
                 end if
