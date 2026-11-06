@@ -42,13 +42,14 @@ module test_message_mod
     use startup_mod, only: user_mail_address
     use simple_mod, only: mail_user_agent, compose_mail
     use mail_extract_mod, only: mail_address_components_type
+    use rfc2047_mod, only: fold_rfc2047_field
     use send_mail_mod, only: send_mail_function, send_mail_with_sendmail, sendmail_program
     use message_mod, only: message_user_agent, message_signature, message_auto_save_directory, &
                            message_user_fully_qualified_domain_name, message_from_style, get_message_all_recipients, &
                            replace_message_header, get_message_field_value, make_message_from, make_message_id, &
                            send_message_and_exit, send_message, sort_message_headers, generate_message_headers, &
                            message_required_mail_headers, message_header_type, set_message_reply_headers, &
-                           message_reply_headers_type, fold_message_field, encode_message_body, &
+                           message_reply_headers_type, encode_message_body, &
                            MESSAGE_FROM_STYLE_ANGLES, MESSAGE_FROM_STYLE_PARENTHESES, MESSAGE_FROM_STYLE_SIMPLE, &
                            position_message_on_field, narrow_to_message_headers, message_syntax_checks
     implicit none(type, external)
@@ -73,6 +74,7 @@ contains
                     new_unittest("message-send-fcc", test_fcc), &
                     new_unittest("message-send-method-header", test_method_header), &
                     new_unittest("message-send-non-ascii-body", test_non_ascii), &
+                    new_unittest("message-send-non-ascii-subject", test_non_ascii_subject), &
                     new_unittest("message-syntax-checks", test_syntax_checks), &
                     new_unittest("message-make-from", test_make_from), &
                     new_unittest("message-make-message-id", test_message_id), &
@@ -354,6 +356,26 @@ contains
         call leave(output)
     end subroutine test_non_ascii
 
+    subroutine test_non_ascii_subject(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(status_type) :: st
+        character(len=:), allocatable :: output, text
+
+        call set_up(output)
+        call compose_mail(st, to="joe@x", subject="Grüße")
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        call goto_character(point_maximum())
+        call insert("Hello"//LF, st)
+        call send_message(st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
+        text = file_text(output)
+        ! The header is RFC 2047 encoded (rfc2047-encode-message-header).
+        call check(error, index(text, LF//"Subject: =?") > 0 .and. index(text, "Grüße") == 0, text)
+        call leave(output)
+    end subroutine test_non_ascii_subject
+
     subroutine test_syntax_checks(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
@@ -477,7 +499,7 @@ contains
         call set_up()
         words = repeat("word ", 20)
         call test_buffer("Keywords: "//words(:len(words) - 1)//LF//SEPARATOR//LF)
-        call fold_message_field(e, st)
+        call fold_rfc2047_field(e, st)
         call check(error, st%ok(), format_error(st))
         ! Broken after the last whitespace that keeps the line within 76.
         if (.not. allocated(error)) call check_string(error, buffer_string(), "Keywords: "//repeat("word ", 12)//"word"//LF// &
