@@ -2699,13 +2699,16 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
   call header%append("Bookmark Name", "bold")         ! a label in a face
   buffers(current)%header_line_format = header
   ```
-  - The %-constructs, `:eval` and the other mode-line-format elements
-    are Deferred, as for the mode line, which is still built by fixed
-    code.
+  - The other mode-line-format elements are Deferred, as for the mode
+    line, which is still built by fixed code.  When they are ported they
+    are written in Fortran, never with Emacs's %-constructs (`%b`, `%*`,
+    `%l`) or `:eval` (owner, 2026-11-06); the mode line still shows the
+    same text.  Their Fortran form is decided when that step comes.
   - A buffer's `mode_line_buffer_identification` (step 34a, for Info's
     "*info* (fortmacs) Node") is a `header_line_format_type` too: its
     segments replace the buffer name padded to 12 columns in the mode
-    line, "%b" standing for the buffer name and "%%" for "%".
+    line.  Its "%b" (the buffer name) and "%%" ("%") are converted to
+    the Fortran form in the same step.
 
 - **The manuals (2026-10-29, chosen with the user).** The Info manuals
   of Fortmacs (step 34d) are made from upstream's Texinfo sources by an
