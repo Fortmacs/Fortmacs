@@ -898,7 +898,7 @@ contains
         if (.not. status%ok()) return
 
         if (current_prefix_argument%kind == PREFIX_NONE) then
-            call set_transient_map(indent_rigidly_map, .true., rigidly_exit, "Type %k to indent region interactively")
+            call set_transient_map(indent_rigidly_map, .true., rigidly_exit, "Type ", " to indent region interactively")
         else
             call indent_rigidly(b, e, prefix_numeric_value(current_prefix_argument), status)
         end if

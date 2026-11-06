@@ -31,7 +31,7 @@
 !> docs/status/tab_bar_mod.md.
 module tab_bar_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, command_type, vtag, xfixnum, V_INTEGER, make_keymap_reference
     use data_mod, only: choice_setting_type
@@ -1921,7 +1921,7 @@ contains
         selected_frame%parameters%tabs(to_index) = to_tab
 
         if (.not. minor_modes%tab_bar_mode%enabled()) then
-            call tab_message(format_message("Selected tab '")//to_name//format_message("'"))
+            call tab_message(substitute_quotes("Selected tab '")//to_name//substitute_quotes("'"))
         end if
     end subroutine select_tab
 
@@ -2667,7 +2667,7 @@ contains
         selected_frame%parameters%tabs(k)%explicit_name = len(name) > 0
 
         if (.not. minor_modes%tab_bar_mode%enabled()) then
-            call tab_message(format_message("Renamed tab to '")//new_name//format_message("'"))
+            call tab_message(substitute_quotes("Renamed tab to '")//new_name//substitute_quotes("'"))
         end if
     end subroutine rename_tab
 
@@ -2807,7 +2807,7 @@ contains
         if (.not. status%ok()) return
 
         if (.not. minor_modes%tab_bar_mode%enabled()) then
-            call tab_message(format_message("Set tab group to '")//group_name//format_message("'"))
+            call tab_message(substitute_quotes("Set tab group to '")//group_name//substitute_quotes("'"))
         end if
     end subroutine change_tab_group
 

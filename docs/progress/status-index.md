@@ -94,6 +94,7 @@
 | [hooks_mod](../status/hooks_mod.md) | eval.c (hooks), subr.el (`add-hook`, `remove-hook`) | partial |
 | [ibuffer_mod](../status/ibuffer_mod.md) | ibuffer.el, ibuf-ext.el | partial |
 | [ibuffer_types_mod](../status/ibuffer_types_mod.md) | ibuf-macs.el | partial |
+| [ietf_drums_mod](../status/ietf_drums_mod.md) | mail/ietf-drums.el (in part: what parsing MIME parameters needs; mail/mail-parse.el's aliases mail-header-remove-comments and mail-header-remove-whitespace collapse to these names) | partial |
 | [incremental_search_mod](../status/incremental_search_mod.md) | isearch.el | partial |
 | [indent_mod](../status/indent_mod.md) | indent.c, indent.el | partial |
 | [index_menu_mod](../status/index_menu_mod.md) | imenu.el | partial |
@@ -153,9 +154,11 @@
 | [repeat_mod](../status/repeat_mod.md) | repeat.el | partial |
 | [replace_mod](../status/replace_mod.md) | replace.el (query replace part) | partial |
 | [rfc2047_mod](../status/rfc2047_mod.md) | mail/rfc2047.el (+ mail/mail-prsvr.el; mail/mail-parse.el's aliases of rfc2047.el functions collapse to these names) | partial |
+| [rfc2231_mod](../status/rfc2231_mod.md) | mail/rfc2231.el (in part: parsing; mail/mail-parse.el's aliases mail-header-parse-content-type, mail-header-parse-content-disposition and mail-content-type-get collapse to these names) | partial |
 | [ring_mod](../status/ring_mod.md) | emacs-lisp/ring.el | partial |
 | [rmail_edit_mod](../status/rmail_edit_mod.md) | mail/rmailedit.el | partial |
 | [rmail_keywords_mod](../status/rmail_keywords_mod.md) | mail/rmailkwd.el | done |
+| [rmail_mime_mod](../status/rmail_mime_mod.md) | mail/rmailmm.el | partial |
 | [rmail_mod](../status/rmail_mod.md) | mail/rmail.el | partial |
 | [rmail_output_mod](../status/rmail_output_mod.md) | mail/rmailout.el | partial |
 | [rmail_summary_mod](../status/rmail_summary_mod.md) | mail/rmailsum.el | partial |

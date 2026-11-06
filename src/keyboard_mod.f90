@@ -2000,21 +2000,22 @@ contains
     !> Optional arg ON_EXIT, if present, specifies a procedure that is
     !> called, with no arguments, after MAP is deactivated.
     !>
-    !> Optional arg MESSAGE, if present, requests display of an informative
-    !> message after activating the transient map: the %k specifier in the
-    !> string is replaced with the list of keys from the transient map.
+    !> Optional args MESSAGE_BEGINNING and MESSAGE_END, if present, request
+    !> display of an informative message after activating the transient
+    !> map: MESSAGE_BEGINNING, the list of keys from the transient map,
+    !> then MESSAGE_END (the text around the keys in upstream's MESSAGE).
     !> Upon deactivating the map, the displayed message will be cleared
     !> out.  Port of subr.el:set-transient-map (no KEEP-PRED function,
     !> TIMEOUT or nested transient maps); like upstream, the map is
     !> dropped from the pre-command hook.
-    subroutine set_transient_map(km, keep_test, on_exit, message)
+    subroutine set_transient_map(km, keep_test, on_exit, message_beginning, message_end)
         type(handle_type), intent(in) :: km
         logical, intent(in), optional :: keep_test
         procedure(transient_exit_procedure), optional :: on_exit
-        character(len=*), intent(in), optional :: message
+        character(len=*), intent(in), optional :: message_beginning, message_end
         type(value_type), allocatable :: events(:), key(:)
         character(len=:), allocatable :: keys
-        integer :: k, at
+        integer :: k
 
         ! internal-push-keymap: the old map stays active below.
         if (.not. transient_active) pushed_terminal_local_map = overriding_terminal_local_map
@@ -2025,7 +2026,7 @@ contains
         transient_on_exit => null()
         if (present(on_exit)) transient_on_exit => on_exit
         if (allocated(transient_message)) deallocate (transient_message)
-        if (.not. present(message)) return
+        if (.not. present(message_beginning)) return
         call keymap_events(km, events)
         keys = ""
 
@@ -2035,10 +2036,8 @@ contains
             keys = keys//key_description(key)
         end do
 
-        ! format-spec with %k.
-        transient_message = message
-        at = index(transient_message, "%k")
-        if (at > 0) transient_message = transient_message(1:at - 1)//keys//transient_message(at + 2:)
+        transient_message = message_beginning//keys
+        if (present(message_end)) transient_message = transient_message//message_end
         last_message = transient_message
     end subroutine set_transient_map
 

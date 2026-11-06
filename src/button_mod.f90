@@ -63,7 +63,7 @@
 !> Not applicable: a form as `help_echo' (no run-time Lisp).
 module button_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, vtag, xfixnum, xstring, xsymbol, xhandle, symbols, make_list, make_keymap_reference, &
                          V_INTEGER, V_STRING, V_NAME, V_KEYMAP
@@ -1541,9 +1541,9 @@ contains
         type(status_type), intent(out) :: status
 
         if (associated(kind)) then
-            call with_help_window(format_message("This button's type is `"//trim(kind%name)//"'."), status)
+            call with_help_window(substitute_quotes("This button's type is `"//trim(kind%name)//"'."), status)
         else
-            call with_help_window(format_message("This button's type is `none'."), status)
+            call with_help_window(substitute_quotes("This button's type is `none'."), status)
         end if
     end subroutine describe_kind
 

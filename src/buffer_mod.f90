@@ -41,7 +41,7 @@
 module buffer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use value_mod, only: vtag, V_NULL
-    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, &
+    use error_mod, only: substitute_quotes, status_type, set_error, GENERIC_ERROR_CODE, &
                          BUFFER_READ_ONLY_CODE, INVALID_HANDLE_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle, has_handle, same_handle
     use time_functions_mod, only: time_type
@@ -916,7 +916,8 @@ contains
             if (unique) then
                 actual = generate_new_buffer_name(newname, oldname)
             else
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Buffer name `")//newname//format_message("' is in use"))
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Buffer name `")//newname// &
+                               substitute_quotes("' is in use"))
                 return
             end if
         end if

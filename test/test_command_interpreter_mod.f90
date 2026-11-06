@@ -45,7 +45,7 @@ module test_command_interpreter_mod
                                        command_interpreter_insert_previous_argument, command_interpreter_input_autoexpand, &
                                        COMMAND_INTERPRETER_INPUT_AUTOEXPAND_INPUT, command_interpreter_within_quotes, &
                                        command_interpreter_password_prompt_regular_expression, command_interpreter_send_invisible, &
-                                       set_command_interpreter_password_function, command_interpreter_password_procedure
+                                       command_interpreter_password_function, command_interpreter_password_procedure
     use search_mod, only: string_match
     use string_type_mod, only: string_type
     implicit none(type, external)
@@ -434,7 +434,7 @@ contains
         if (allocated(error)) return
         call set_buffer(h, st)
         call show_alone()
-        call set_command_interpreter_password_function(password_function)
+        call command_interpreter_password_function%set_local(password_function)
         call discard_input()
         call type_text("non-nil"//achar(13))
         call command_interpreter_send_invisible(st, "Password: ")

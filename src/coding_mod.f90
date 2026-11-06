@@ -391,7 +391,7 @@ module coding_mod
     !> permanently local, as buffer.c makes it; its default is what
     !> prefer-coding-system gives it in a UTF-8 locale).
     type(string_setting_type), target, public :: buffer_file_coding_system = &
-                                                 string_setting_type(name="buffer_file_coding_system")
+                                                 string_setting_type(name="buffer_file_coding_system", permanent_local=.true.)
 
     ! Bytes 0x80..0x9F that may appear in Latin-1 text
     ! (mule-conf.el's latin-extra-code-table).

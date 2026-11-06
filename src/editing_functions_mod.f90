@@ -66,7 +66,7 @@ module editing_functions_mod
                                    previous_single_character_property_change, set_point_both, string_add_text_properties, &
                                    extend_property_ranges, text_property_range_type
     use print_mod, only: readable_text, float_to_string, sprintf_float
-    use error_mod, only: format_message
+    use error_mod, only: substitute_quotes
     implicit none(type, external)
     private
 
@@ -92,7 +92,7 @@ module editing_functions_mod
     public :: position_beginning_of_line, position_end_of_line, line_beginning_position, line_end_position
     public :: get_position_property, find_field, field_beginning, field_end, field_string, field_string_no_properties, &
               delete_field, constrain_to_field
-    public :: format_message, ngettext, format_text, styled_format
+    public :: substitute_quotes, ngettext, format_text
     public :: user_login_name, user_real_login_name, user_full_name, system_name, fortmacs_pid, group_name, group_real_gid
 
     !> The names editfns.c:init_editfns computes (Vuser_login_name,
@@ -235,9 +235,12 @@ module editing_functions_mod
         type(value_type) :: value
     end type format_argument_type
 
-    !> The arguments of `format_text', `styled_format' and display_engine_mod's
-    !> `message', added in order with `append': an integer, a real64, a
-    !> string or a value (a string with its text properties, a name, ...).
+    !> The arguments of `format_text', added in order with `append': an
+    !> integer, a real64, a string or a value (a string with its text
+    !> properties, a name, ...).  Only format strings the user gives at
+    !> run time use it (keyboard_macro_counter_format, the FORMAT of
+    !> rectangle_number_lines); text built from a format in the source is an
+    !> internal `write' (PORTING.md, "Text from a format").
     !>
     !>     type(format_arguments_type) :: arguments
     !>     call arguments%append(count)
@@ -256,7 +259,7 @@ module editing_functions_mod
         generic :: append => append_integer, append_default_integer, append_real, append_text, append_value
     end type format_arguments_type
 
-    !> What styled_format records of each %-sequence: where its output
+    !> What format_text_value records of each %-sequence: where its output
     !> starts and ends (character positions, 0-based) in the result, the
     !> byte (0-based) where it starts in the format string, and the
     !> string it produced if that has text properties.  Port of
@@ -266,16 +269,6 @@ module editing_functions_mod
         logical :: intervals = .false.
         type(value_type) :: argument
     end type format_specification_type
-
-    !> Format a string out of a format-string and arguments (see
-    !> `format_text'); with MESSAGE true, as `format-message' (grave accents
-    !> and apostrophes of the format string become curved quotes).
-    !> The specifics: a character format string gives the text alone, a
-    !> string value (with text properties) a string value.
-    !> Port of editfns.c:styled_format (the generic interface).
-    interface styled_format
-        module procedure styled_format_text, styled_format_value
-    end interface styled_format
 
     !> Format a string out of a format-string and arguments.
     !> The first argument is a format control string.
@@ -2610,7 +2603,7 @@ contains
 
             if (tolen /= nlen) then
                 call set_error(status, GENERIC_ERROR_CODE, &
-                               format_message("Characters in `substitute_character_in_region' have different byte-lengths"))
+                               substitute_quotes("Characters in `substitute_character_in_region' have different byte-lengths"))
                 return
             end if
         else
@@ -3230,53 +3223,28 @@ contains
     end subroutine append_format_argument
 
     !> `format_text' with a character format string: the text alone.
-    !> Port of editfns.c:Fformat.
+    !> Port of editfns.c:Fformat (editfns.c:styled_format).
     subroutine format_text_string(string, arguments, result, status)
         character(len=*), intent(in) :: string
         type(format_arguments_type), intent(in) :: arguments
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-
-        call styled_format_text(string, arguments, .false., result, status)
-    end subroutine format_text_string
-
-    !> `format_text' with a string value as format string: a string value with
-    !> the text properties of the format string and of the arguments.
-    !> Port of editfns.c:Fformat.
-    subroutine format_text_value(string, arguments, result, status)
-        type(value_type), intent(in) :: string
-        type(format_arguments_type), intent(in) :: arguments
-        type(value_type), intent(out) :: result
-        type(status_type), intent(out) :: status
-
-        call styled_format_value(string, arguments, .false., result, status)
-    end subroutine format_text_value
-
-    !> `styled_format' with a character format string: the text alone.
-    !> Port of editfns.c:styled_format.
-    subroutine styled_format_text(string, arguments, message, result, status)
-        character(len=*), intent(in) :: string
-        type(format_arguments_type), intent(in) :: arguments
-        logical, intent(in) :: message
-        character(len=:), allocatable, intent(out) :: result
-        type(status_type), intent(out) :: status
         type(value_type) :: v
 
         result = ""
-        call styled_format_value(value_type(text=string), arguments, message, v, status)
+        call format_text_value(value_type(text=string), arguments, v, status)
         if (status%ok()) result = xstring(v)
-    end subroutine styled_format_text
+    end subroutine format_text_string
 
-    !> Implement `format-message' if MESSAGE is true, `format_text' otherwise.
+    !> `format_text' with a string value as format string.
     !> STRING is a string value; RESULT is a string value with the text
     !> properties of STRING (moved to where their text went) and of the
     !> string arguments of %s and %S (extended over their padding on the
     !> right).  Text is multibyte (unibyte strings are deferred).
     !> Port of editfns.c:styled_format.
-    subroutine styled_format_value(string, arguments, message, result, status)
+    subroutine format_text_value(string, arguments, result, status)
         type(value_type), intent(in) :: string
         type(format_arguments_type), intent(in) :: arguments
-        logical, intent(in) :: message
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: specification, buffer, text
@@ -3317,23 +3285,16 @@ contains
             format0 = i
 
             if (specification(i:i) /= "%") then
-                if (message .and. (specification(i:i) == "`" .or. specification(i:i) == "'")) then
-                    ! The `curve' style of `text_quoting_style'.
-                    buffer = buffer//format_message(specification(i:i))
+                ! Copy a whole multibyte character.
+                i = i + 1
+
+                do while (i <= nformat)
+                    if (is_character_head(iachar(specification(i:i)))) exit
+                    discarded(i) = 2
                     i = i + 1
-                else
-                    ! Copy a whole multibyte character.
-                    i = i + 1
+                end do
 
-                    do while (i <= nformat)
-                        if (is_character_head(iachar(specification(i:i)))) exit
-                        discarded(i) = 2
-                        i = i + 1
-                    end do
-
-                    buffer = buffer//specification(format0:i - 1)
-                end if
-
+                buffer = buffer//specification(format0:i - 1)
                 nchars = nchars + 1
                 cycle
             end if
@@ -3573,7 +3534,7 @@ contains
                 if (info(i)%intervals) call add_argument_properties(info(i), result)
             end do
         end if
-    end subroutine styled_format_value
+    end subroutine format_text_value
 
     !> The output of a numeric %-sequence (CONVERSION one of c d e f g i
     !> o x X b B) for ARGUMENT, an integer or a real64, with its width, precision

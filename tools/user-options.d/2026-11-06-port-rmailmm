@@ -1,0 +1,5 @@
+# port-rmailmm: the user options of rmailmm.el.
+rmail_mime_media_type_handlers
+rmail_mime_attachment_directories
+rmail_mime_render_html_function
+rmail_mime_prefer_html

@@ -55,7 +55,7 @@ module display_update_mod
     use terminal_output_mod, only: terminal_cursor_to, terminal_write_glyphs, terminal_insert_glyphs, &
                                    terminal_delete_glyphs, terminal_clear_end_of_line, terminal_clear_frame, &
                                    terminal_update_end, terminal_ring_bell, calculate_costs
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use keyboard_mod, only: ring_bell, bitch_at_user, redisplay_hook, is_executing_keyboard_macro
     implicit none(type, external)
     private
@@ -476,7 +476,7 @@ contains
         status = status_type()
 
         if (associated(selected_frame%redisplay_interface)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Device 0 is not a termcap terminal device"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Device 0 is not a termcap terminal device"))
             return
         end if
 

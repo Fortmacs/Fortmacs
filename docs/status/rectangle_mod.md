@@ -36,7 +36,7 @@
 `rectangle--default-line-number-format`,
 `rectangle-number-lines` (C-x r N; with C-u, `read-number` and the format string),
 the prefix argument as FILL;
-editing_functions_mod's `styled_format` with the counter for the line numbers,
+editing_functions_mod's `format_text` with the counter for the line numbers (the run-time format string awaits the owner's decision, 2026-11-06),
 `rectangle-mark-mode` (C-x SPC) with `rectangle-mark-mode-map` (C-o, C-t, the remaps),
 the crutches (`rectangle--pos-cols`, `rectangle--col-pos`, `rectangle--point-col`, also used by `apply-on-rectangle`),
 `rectangle-exchange-point-and-mark`,

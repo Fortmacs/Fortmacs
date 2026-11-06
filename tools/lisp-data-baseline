@@ -16,7 +16,7 @@ src/ansi_color_mod.f90	set-by-name	2
 src/apropos_print_mod.f90	name-value	1
 src/authentication_source_mod.f90	name-value	3
 src/autorevert_mod.f90	get-by-name	1
-src/autorevert_mod.f90	name-value	7
+src/autorevert_mod.f90	name-value	3
 src/autorevert_mod.f90	set-by-name	2
 src/bindings_mod.f90	name-value	1
 src/bookmark_mod.f90	name-value	6
@@ -101,7 +101,7 @@ src/minibuffer_reading_mod.f90	set-by-name	4
 src/minibuffer_mod.f90	get-by-name	1
 src/minibuffer_mod.f90	name-value	6
 src/minibuffer_mod.f90	set-by-name	3
-src/multilingual_environment_mod.f90	name-value	4
+src/multilingual_environment_mod.f90	name-value	2
 src/multilingual_environment_utilities_mod.f90	name-value	1
 src/newcomment_mod.f90	name-value	6
 src/parenthesis_mod.f90	get-by-name	1

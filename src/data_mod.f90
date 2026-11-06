@@ -61,6 +61,10 @@ module data_mod
         character(len=64) :: name = ""
         !> Void (`makunbound'); cleared by any assignment.
         logical :: void = .false.
+        !> Kept when `clear_all_local_variables' kills the buffer's local
+        !> variables (upstream's `permanent-local' property, set in the
+        !> declaration as hooks do: `permanent_local=.true.').
+        logical :: permanent_local = .false.
     contains
         !> Make the current buffer use the default value again.  Port of
         !> data.c:Fkill_local_variable.

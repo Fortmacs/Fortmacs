@@ -34,7 +34,7 @@ module test_editing_functions_mod
     use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_positive_inf
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, ARGUMENTS_OUT_OF_RANGE_CODE, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, format_error, &
-                         format_message
+                         substitute_quotes
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, close_buffer, set_buffer, &
                           current_buffer, is_buffer_live, erase_buffer
@@ -84,7 +84,7 @@ module test_editing_functions_mod
     use editing_commands_mod, only: end_of_line, delete_character
     use character_table_mod, only: make_character_table, character_table_set, destroy_character_table
     use character_mod, only: MAXIMUM_CHARACTER, multibyte_characters_in_text
-    use editing_functions_mod, only: format_text, styled_format, format_arguments_type
+    use editing_functions_mod, only: format_text, format_arguments_type
     use text_properties_mod, only: propertize, joined => propertized_concat
     use intervals_mod, only: compare_string_intervals
     use error_mod, only: WRONG_NUMBER_OF_ARGUMENTS_CODE
@@ -156,7 +156,7 @@ contains
                     new_unittest("format-with-field", test_format_with_field), &
                     new_unittest("editfns-tests-styled-print", test_styled_print), &
                     new_unittest("format-conversions", test_format_conversions), &
-                    new_unittest("format-message", test_format_message) &
+                    new_unittest("substitute-quotes", test_substitute_quotes) &
                     ]
     end subroutine collect_editing_functions_mod
 
@@ -430,7 +430,8 @@ contains
         if (allocated(error)) return
         call substitute_character_in_region(1_int64, 6_int64, 97, 233, st)
         call check(error, st%code == GENERIC_ERROR_CODE .and. format_error(st) == &
-                   format_message("Characters in `substitute_character_in_region' have different byte-lengths"), format_error(st))
+                   substitute_quotes("Characters in `substitute_character_in_region' have different byte-lengths"), &
+                   format_error(st))
         if (allocated(error)) return
         call check(error, buffer_string(), "a b c")
         call leave(h, old)
@@ -1631,8 +1632,8 @@ contains
         ! Bug #38191
         xxx = format_arguments_type()
         call xxx%append("xxx")
-        call check_propertized(error, propertized(format_message("`foo' %s bar"), "face", value_type(name="bold")), xxx, &
-                               propertized(format_message("`foo' xxx bar"), "face", value_type(name="bold")), "curved quotes")
+        call check_propertized(error, propertized(substitute_quotes("`foo' %s bar"), "face", value_type(name="bold")), xxx, &
+                               propertized(substitute_quotes("`foo' xxx bar"), "face", value_type(name="bold")), "curved quotes")
         if (allocated(error)) return
         ! Bug #32404
         call foobar%append("foo")
@@ -1974,26 +1975,18 @@ contains
         call check_format_error(error, "%5", arguments, "Format string ends in middle of format specifier")
     end subroutine test_format_conversions
 
-    !> format-message curves the quotes of the format string (not those
-    !> of the arguments); `message' with arguments formats as
-    !> format-message.  Not a port.
-    subroutine test_format_message(error)
+    !> substitute_quotes curves the grave accents and apostrophes of its
+    !> string; `message' shows its text as it is (a quoted name is
+    !> concatenated after the literal parts are curved).  Not a port.
+    subroutine test_substitute_quotes(error)
         type(error_type), allocatable, intent(out) :: error
-        type(format_arguments_type) :: arguments
         character(len=:), allocatable :: text
-        type(status_type) :: st
 
-        call arguments%append("`x'")
-        call styled_format("`%s' 100%%", arguments, .true., text, st)
-        call check(error, st%ok() .and. text == format_message("`")//"`x'"//format_message("'")//" 100%", text)
+        call check(error, substitute_quotes("`x' 100%") == char(int(z'E2'))//char(int(z'80'))//char(int(z'98'))//"x"// &
+                   char(int(z'E2'))//char(int(z'80'))//char(int(z'99'))//" 100%", "curved")
         if (allocated(error)) return
-        arguments = format_arguments_type()
-        call arguments%append(3)
-        call message("%d files in `x'", arguments, st)
+        call message("3 files in "//substitute_quotes("`")//"`x'"//substitute_quotes("'"))
         call current_message(text)
-        call check(error, st%ok() .and. text == "3 files in "//format_message("`x'"), "message")
-        if (allocated(error)) return
-        call message("%d %d", arguments, st)
-        call check(error,.not. st%ok(), "not enough arguments")
-    end subroutine test_format_message
+        call check(error, text == "3 files in "//substitute_quotes("`")//"`x'"//substitute_quotes("'"), text)
+    end subroutine test_substitute_quotes
 end module test_editing_functions_mod

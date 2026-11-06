@@ -911,7 +911,7 @@ contains
 
         call fresh(h)
         call text_mode(st)
-        table => local_abbreviation_table()
+        table => local_abbreviation_table%get_current()
         call check(error, associated(table, text_mode_abbreviation_table), "text_mode_abbreviation_table")
         if (allocated(error)) return
         call check(error, abbreviation_table_name(text_mode_abbreviation_table), "text_mode_abbreviation_table")
@@ -922,7 +922,7 @@ contains
         call check(error, buffer_string(), "text only ")
         if (allocated(error)) return
         call fundamental_mode(st)
-        table => local_abbreviation_table()
+        table => local_abbreviation_table%get_current()
         call check(error, associated(table, fundamental_mode_abbreviation_table), "fundamental_mode_abbreviation_table")
         if (allocated(error)) return
         call erase_buffer(st)
@@ -931,7 +931,7 @@ contains
         if (allocated(error)) return
         ! Help mode's table inherits Special mode's.
         call help_mode(st)
-        table => local_abbreviation_table()
+        table => local_abbreviation_table%get_current()
         call check(error, associated(table, help_mode_abbreviation_table), "help_mode_abbreviation_table")
         if (allocated(error)) return
         call check(error, allocated(help_mode_abbreviation_table%parents), "parents")

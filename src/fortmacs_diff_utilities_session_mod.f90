@@ -23,7 +23,7 @@
 ! The procedures of fortmacs_diff_utilities_mod that use fortmacs_diff_window_mod and
 ! fortmacs_diff_diff_mod (which use fortmacs_diff_utilities_mod), with the commands.
 submodule(fortmacs_diff_utilities_mod) fortmacs_diff_utilities_session_mod
-    use error_mod, only: set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use error_mod, only: set_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: null_handle
     use value_mod, only: vtag, xfixnum, V_INTEGER
     use buffer_mod, only: buffers, current, get_or_make_buffer, buffer_list, is_buffer_modified
@@ -1486,7 +1486,7 @@ contains
             else if (is_buffer_live(fortmacs_diff_sessions(session_index)%diff_buffer)) then
                 buffer = fortmacs_diff_sessions(session_index)%diff_buffer
             else
-                call set_error(status, USER_ERROR_CODE, format_message("Output from `diff' not found"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("Output from `diff' not found"))
                 return
             end if
         case default

@@ -469,7 +469,7 @@ module fortmacs
                                 expand_region_abbreviations, define_global_abbreviation, define_mode_abbreviation, &
                                 abbreviation_name, abbreviation_expansion, abbreviation_insert, expand_abbreviation, &
                                 abbreviation_default_expand, unexpand_abbreviation, insert_abbreviation_table_description, &
-                                local_abbreviation_table, abbreviation_table_set_local
+                                local_abbreviation_table
     use text_mode_mod, only: text_mode_abbreviation_table
     use programming_mode_mod, only: programming_mode_abbreviation_table
     use simple_mod, only: special_mode_abbreviation_table
@@ -1078,7 +1078,7 @@ module fortmacs
               define_mode_abbreviation, &
               abbreviation_name, abbreviation_expansion, abbreviation_insert, expand_abbreviation, abbreviation_default_expand, &
               unexpand_abbreviation, &
-              insert_abbreviation_table_description, local_abbreviation_table, abbreviation_table_set_local, &
+              insert_abbreviation_table_description, local_abbreviation_table, &
               text_mode_abbreviation_table, &
               programming_mode_abbreviation_table, special_mode_abbreviation_table, help_mode_abbreviation_table, &
               save_some_buffers_procedure, &

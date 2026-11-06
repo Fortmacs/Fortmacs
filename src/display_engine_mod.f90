@@ -136,8 +136,7 @@ module display_engine_mod
     use bidirectional_mod, only: bidirectional_it_type, bidirectional_initialize_iterator, bidirectional_paragraph_initialize, &
                                  bidirectional_find_first_overridden, bidirectional_set_string, bidirectional_shelved_type, &
                                  bidirectional_shelve_cache, bidirectional_unshelve_cache, NEUTRAL_DIRECTORY, L2R, R2L
-    use editing_functions_mod, only: validate_region, reset_outermost_restrictions_begin, reset_outermost_restrictions_end, &
-                                     styled_format, format_arguments_type
+    use editing_functions_mod, only: validate_region, reset_outermost_restrictions_begin, reset_outermost_restrictions_end
     use error_mod, only: set_error, ARGUMENTS_OUT_OF_RANGE_CODE
     use search_mod, only: fast_looking_at, find_newline_no_quit
     implicit none(type, external)
@@ -4219,11 +4218,10 @@ contains
     !> The message also goes into the `*Messages*' buffer, if `message_log_maximum'
     !> allows.  (In keyboard macros, that's all it does.)
     !>
-    !> With ARGUMENTS, TEXT is a format control string, and ARGUMENTS are
-    !> data to be formatted under control of the string.  Percent sign (%),
-    !> grave accent (`) and apostrophe (') are then special in the format;
-    !> see `format_text' and `format_message' for details.  Without them, TEXT
-    !> is displayed as it is.
+    !> TEXT is displayed as it is: text built from a format is one
+    !> internal `write' (or a concatenation) before the call, and quotes
+    !> are curved with `substitute_quotes'; Emacs's format arguments are
+    !> not applicable (PORTING.md, "Text from a format").
     !>
     !> If TEXT is the empty string, the function clears any existing
     !> message; this lets the minibuffer contents show.  See also
@@ -4231,34 +4229,20 @@ contains
     !>
     !> While the minibuffer is active the text goes after the
     !> minibuffer's contents instead, enclosed in [...] unless it already
-    !> is, until the next input event.  STATUS reports an error of the
-    !> format (nothing is displayed then).  Port of editfns.c:Fmessage
+    !> is, until the next input event.  Port of editfns.c:Fmessage
     !> with xdisp.c:message3 (xdisp.c:message1 and xdisp.c:message3_frame:
     !> one frame; the C printf forms xdisp.c:message, xdisp.c:vmessage and
-    !> xdisp.c:message_with_string are the callers' format_message),
+    !> xdisp.c:message_with_string are the callers' write and substitute_quotes),
     !> xdisp.c:set_message and xdisp.c:clear_message calling minibuffer.el's
     !> set-minibuffer-message and clear-minibuffer-message
     !> (set-message-functions, clear-message-function); the message's text
     !> properties, batch mode and `inhibit_message' are deferred.
-    recursive subroutine message(text, arguments, status)
+    recursive subroutine message(text)
         character(len=*), intent(in) :: text
-        type(format_arguments_type), intent(in), optional :: arguments
-        type(status_type), intent(out), optional :: status
-        character(len=:), allocatable :: formatted
-        type(status_type) :: st
-
-        if (present(arguments) .and. len(text) > 0) then
-            call styled_format(text, arguments, .true., formatted, st)
-            if (present(status)) status = st
-            if (.not. st%ok()) return
-        else
-            formatted = text
-            if (present(status)) status = status_type()
-        end if
 
         call message_log_maybe_newline()
-        if (len(formatted) > 0) call message_dolog(formatted, .true.)
-        call message_nolog(formatted)
+        if (len(text) > 0) call message_dolog(text, .true.)
+        call message_nolog(text)
     end subroutine message
 
     !> Return the string currently displayed in the echo area, or unallocated if none.
@@ -4322,7 +4306,7 @@ contains
     !> (`messages_buffer_mode_function', if set), with undo disabled.
     !> Port of xdisp.c:message_dolog (with
     !> xdisp.c:add_to_log, xdisp.c:vadd_to_log and xdisp.c:format_nargs, the
-    !> callers formatting with format_message) (multibyte text; no redisplay
+    !> callers formatting with substitute_quotes) (multibyte text; no redisplay
     !> bookkeeping).
     recursive subroutine message_dolog(text, nlflag)
         character(len=*), intent(in) :: text

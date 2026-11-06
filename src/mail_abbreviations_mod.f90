@@ -64,7 +64,7 @@ module mail_abbreviations_mod
     use simple_mod, only: rfc822_goto_end_of_headers, next_line, end_of_buffer
     use abbreviation_mod, only: abbreviation_table_type, abbreviation_reference_type, abbreviation_mode, abbreviations_changed, &
                                 abbreviation_expand_function, abbreviation_expand_procedure, abbreviation_default_expand, &
-                                expand_abbreviation, local_abbreviation_table, abbreviation_table_set_local
+                                expand_abbreviation, local_abbreviation_table
     use modes_mod, only: minor_modes
     use keymap_mod, only: keymap_set
     use minibuffer_reading_mod, only: completion_ignore_case
@@ -875,8 +875,8 @@ contains
         if (in_header) then
             ! We are in a To: (or Cc:, or whatever) header or a minibuffer,
             ! and should use word-abbrevs to expand mail aliases.
-            saved_table => local_abbreviation_table()
-            call abbreviation_table_set_local(mail_abbreviations)
+            saved_table => local_abbreviation_table%get_current()
+            call local_abbreviation_table%set_local(mail_abbreviations)
             ! Before anything else, resolve aliases if they need it.
             if (aliases_need_to_be_resolved) call resolve_all_mail_aliases(status)
 
@@ -921,7 +921,7 @@ contains
                 end if
             end if
 
-            call abbreviation_table_set_local(saved_table)
+            call local_abbreviation_table%set_local(saved_table)
         else if (.not. mail_abbreviations_only .or. associated(this_command, commands%expand_abbreviation)) then
             ! We're not in a mail header where mail aliases should
             ! be expanded, then use the normal mail-mode abbrev table

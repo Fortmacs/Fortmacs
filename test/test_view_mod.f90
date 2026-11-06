@@ -271,6 +271,10 @@ contains
             if (allocated(error)) exit body
             call keys(achar(24)//achar(17))
             call check(error,.not. buffers(current)%read_only .and. .not. view_mode_enabled(), "editable")
+            if (allocated(error)) exit body
+            ! Leaving View mode with C-x C-q gives the buffer its own
+            ! `view_read_only', so that the next C-x C-q enters it again.
+            call check(error, view_read_only%is_local() .and. view_read_only%value, "view_read_only local")
         end block body
 
         call teardown(buffer)

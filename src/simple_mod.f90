@@ -38,7 +38,7 @@ module simple_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS, command_of
     use commands_mod, only: commands
-    use error_mod, only: format_message, status_type, set_error, condition_matches, GENERIC_ERROR_CODE, QUIT_CODE, &
+    use error_mod, only: substitute_quotes, status_type, set_error, condition_matches, GENERIC_ERROR_CODE, QUIT_CODE, &
                          USER_ERROR_CODE, BEGINNING_OF_BUFFER_CODE, END_OF_BUFFER_CODE, MARK_INACTIVE_CODE, &
                          BUFFER_READ_ONLY_CODE, TEXT_READ_ONLY_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
@@ -3082,7 +3082,8 @@ contains
         if (id /= 0) function = value_type(name=name)
 
         if (id == 0 .or. .not. is_command(function)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("`")//name//format_message("' is not a valid command name"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("`")//name// &
+                           substitute_quotes("' is not a valid command name"))
             return
         end if
 
@@ -5211,7 +5212,7 @@ contains
                     call delete_horizontal_space(.false., status)
                 end if
             case default
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Don't know how to handle action"))
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Don't know how to handle action"))
             end select
 
             if (.not. status%ok()) return
@@ -5443,7 +5444,7 @@ contains
         end if
 
         if (position1(2) > position2(1)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Don't have two things to transpose"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Don't have two things to transpose"))
             return
         end if
 

@@ -1,0 +1,1 @@
+2026-11-06 — README: the Lisp-term renames are in code style like the other renames (`defun`→`subprogram`), and the "(C-w, M-w and C-y stay)" aside is dropped, since the keys item already says keys stay; predicates are `is_*` or `has_*` (`diff_some_hunks_p`→`has_diff_hunks`) (`readme-terms-code`, owner).

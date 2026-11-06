@@ -61,7 +61,7 @@ module test_button_mod
     type(handle_type) :: help_window, help_object
     integer(int64) :: help_position = 0
 
-    !> The curved quotes of format_message.
+    !> The curved quotes of substitute_quotes.
     character(len=*), parameter :: LQ = char(226)//char(128)//char(152), RQ = char(226)//char(128)//char(153)
 
     !> Button types of the tests.

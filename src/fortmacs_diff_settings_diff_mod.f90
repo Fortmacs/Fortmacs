@@ -27,7 +27,7 @@
 !> use fortmacs_diff_diff_mod, which uses it.
 submodule(fortmacs_diff_settings_mod) fortmacs_diff_settings_diff_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, erase_buffer
     use editing_functions_mod, only: point, goto_character, point_minimum, buffer_string, buffer_size
@@ -70,7 +70,7 @@ contains
 
         if (matched) then
             call set_error(status, GENERIC_ERROR_CODE, &
-                           format_message("Options `-c', `-u', and `-i' are not allowed in `fortmacs_diff_diff_options'"))
+                           substitute_quotes("Options `-c', `-u', and `-i' are not allowed in `fortmacs_diff_diff_options'"))
             return
         end if
 
@@ -657,7 +657,7 @@ contains
 
         if (matched) then
             call set_error(status, GENERIC_ERROR_CODE, &
-                           format_message("Option `-i' is not allowed in `fortmacs_diff_diff3_options'"))
+                           substitute_quotes("Option `-i' is not allowed in `fortmacs_diff_diff3_options'"))
             return
         end if
 

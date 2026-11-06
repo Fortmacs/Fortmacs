@@ -32,7 +32,7 @@
 !> fortmacs_diff_multiple_mod.
 module fortmacs_diff_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           close_buffer, is_buffer_modified
@@ -271,11 +271,11 @@ contains
         status = status_type()
 
         if (.not. is_file_readable(file_in)) then
-            call set_error(status, USER_ERROR_CODE, format_message("File `")//file_in// &
-                           format_message("' does not exist or is not readable"))
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("File `")//file_in// &
+                           substitute_quotes("' does not exist or is not readable"))
             return
         else if (is_file_directory(file_in)) then
-            call set_error(status, USER_ERROR_CODE, format_message("File `")//file_in//format_message("' is a directory"))
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("File `")//file_in//substitute_quotes("' is a directory"))
             return
         end if
 

@@ -354,7 +354,7 @@ contains
         fn => find_command(fortran_mode(mode))
 
         if (.not. associated(fn)) then
-            call message(format_message("Ignoring unknown mode `"//mode//"'"))
+            call message(substitute_quotes("Ignoring unknown mode `"//mode//"'"))
             return
         end if
 

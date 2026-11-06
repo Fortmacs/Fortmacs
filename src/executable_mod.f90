@@ -29,7 +29,7 @@
 !> `data_directory').
 module executable_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, format_message, format_error, GENERIC_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, format_error, GENERIC_ERROR_CODE
     use buffer_mod, only: buffers, current, current_buffer
     use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_substring, widen, narrow_to_region
     use search_mod, only: looking_at, string_match, match_beginning, match_end, replace_match, match_data, set_match_data
@@ -235,7 +235,7 @@ contains
                     ! (save-match-data (save-window-excursion ...)): make
                     ! buffer visible before question.
                     saved = match_data()
-                    call read_y_or_n(format_message("Replace magic number by `#!")//argument//format_message("'? "), &
+                    call read_y_or_n(substitute_quotes("Replace magic number by `#!")//argument//substitute_quotes("'? "), &
                                      ok, status)
                     call set_match_data(saved)
 
@@ -247,12 +247,12 @@ contains
 
                 if (ok) then
                     call replace_match(argument, status, fixedcase=.true., literal=.true., subexp=1)
-                    call message(format_message("Magic number changed to `#!")//argument//format_message("'"))
+                    call message(substitute_quotes("Magic number changed to `#!")//argument//substitute_quotes("'"))
                 end if
             end if
         else
             call insert("#!"//argument//achar(10), status)
-            call message(format_message("Magic number changed to `#!")//argument//format_message("'"))
+            call message(substitute_quotes("Magic number changed to `#!")//argument//substitute_quotes("'"))
         end if
 
         call goto_character(here)
