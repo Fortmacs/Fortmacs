@@ -36,16 +36,19 @@ name	iso8601_valid_p	is_iso8601_valid
 name	date_leap_year_p	is_date_leap_year
 # An alist is a plural name (R2-Q8; rule-decided).
 name	rfc2047_header_encoding_alist	rfc2047_header_encodings
-name	rfc2047_charset_encoding_alist	rfc2047_charset_encodings
+name	rfc2047_charset_encoding_alist	rfc2047_character_set_encodings
 # mm-util.el: the package prefix mm spelled out as mime, the word for
 # what the file holds (no abbreviations, owner 2026-11-05; decided by
 # rule, open to challenge), and its alists plural.
-name	mm_charset_to_coding_system	mime_charset_to_coding_system
-name	mm_find_mime_charset_region	find_mime_charset_region
+name	mm_charset_to_coding_system	mime_character_set_to_coding_system
+name	mm_find_mime_charset_region	find_mime_character_set_region
 name	mm_coding_system_priorities	mime_coding_system_priorities
 name	mm_use_find_coding_systems_region	mime_use_find_coding_systems_region
-name	mm_charset_override_alist	mime_charset_overrides
-name	mm_charset_synonym_alist	mime_charset_synonyms
+name	mm_charset_override_alist	mime_character_set_overrides
+name	mm_charset_synonym_alist	mime_character_set_synonyms
 # rfc2047-encodable-p moves point, so it is a subroutine (R3-8), named as
 # check_region_skip is (coordinator, 2026-11-05).
 name	rfc2047_encodable_p	check_rfc2047_encodable
+# A decoded time's dst is daylight_saving_time here too, as in
+# time_functions_mod (spell-out-words), not the word rule's destination.
+name	dst	daylight_saving_time	src/iso8601_mod.f90 src/parse_time_mod.f90 src/time_date_mod.f90 test/test_time_date_mod.f90 test/test_time_support_mod.f90

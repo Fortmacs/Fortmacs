@@ -22,7 +22,7 @@
 !> root window is 23 lines by 80 columns.
 module test_window_sides_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type, prefix_arg
+    use execute_interactively_mod, only: prefix_argument_type, prefix_argument
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
@@ -31,9 +31,9 @@ module test_window_sides_mod
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, last_message, command_loop, discard_input
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char
+    use editing_functions_mod, only: goto_character
     use frame_mod, only: selected_frame, ensure_frame_windows
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use window_mod, only: windows, window_leaves, same_window, set_window_buffer, delete_window_tree, &
                           resize_window_tree, display_buffer, display_action_parameters_type, split_window, &
                           select_window, quit_window, window_main_window, window_with_side, is_window_live, &
@@ -56,7 +56,7 @@ contains
         testsuite = [ &
                     new_unittest("display-buffer-in-side-window", test_bottom), &
                     new_unittest("side-window-slots", test_slots), &
-                    new_unittest("window-sides-slots", test_max_slots), &
+                    new_unittest("window-sides-slots", test_maximum_slots), &
                     new_unittest("side-windows-on-two-sides", test_two_sides), &
                     new_unittest("window-sides-vertical", test_vertical), &
                     new_unittest("split-and-delete-with-side-windows", test_split_delete), &
@@ -72,8 +72,8 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
         selected_frame%minibuffer_selected = .false.
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
@@ -82,7 +82,7 @@ contains
         call get_or_make_buffer("side-main", h, st)
         call set_buffer(h, st)
         call insert("main", st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call set_window_buffer(selected_frame%selected_window, h, st)
     end subroutine enter_frame
 
@@ -154,7 +154,7 @@ contains
             call check(error, w%window_side == WINDOW_SIDE_BOTTOM .and. w%window_slot == 0 .and. &
                        w%dedicated == DEDICATED_SIDE, "its parameters")
             if (allocated(error)) return
-            call check(error, w%total_lines == 5 .and. w%top_line == 18 .and. w%total_cols == 80, "a fourth of 23 lines")
+            call check(error, w%total_lines == 5 .and. w%top_line == 18 .and. w%total_columns == 80, "a fourth of 23 lines")
             if (allocated(error)) return
         end associate
 
@@ -177,7 +177,7 @@ contains
     subroutine test_slots(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a, b, c, parent
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         type(status_type) :: st
 
         call enter_frame(h)
@@ -190,31 +190,32 @@ contains
                    windows(parent%index)%window_side == WINDOW_SIDE_BOTTOM .and. windows(parent%index)%horizontal, &
                    "one bottom side combination")
         if (allocated(error)) return
-        call check(error, windows(b%index)%left_col > windows(a%index)%left_col .and. &
+        call check(error, windows(b%index)%left_column > windows(a%index)%left_column .and. &
                    windows(b%index)%window_slot == 1 .and. windows(b%index)%window_side == WINDOW_SIDE_BOTTOM, &
                    "slot 1 to the right")
         if (allocated(error)) return
         call show_side("side-c", WINDOW_SIDE_BOTTOM, -1, c, st)
         call check(error, st%ok() .and. is_window_live(c), "a third side window")
         if (allocated(error)) return
-        ws = leaves()
-        call check(error, size(ws) == 4, "four windows")
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 4, "four windows")
         if (allocated(error)) return
-        call check(error, same_window(ws(2), c) .and. same_window(ws(3), a) .and. same_window(ws(4), b), &
+        call check(error, same_window(leaf_windows(2), c) .and. same_window(leaf_windows(3), a) .and. same_window(leaf_windows(4), &
+                                                                                                                  b), &
                    "slots -1, 0 and 1 from the left")
         if (allocated(error)) return
-        call check(error, windows(c%index)%left_col == 0 .and. &
-                   windows(c%index)%total_cols + windows(a%index)%total_cols + windows(b%index)%total_cols == 80, &
+        call check(error, windows(c%index)%left_column == 0 .and. &
+                   windows(c%index)%total_columns + windows(a%index)%total_columns + windows(b%index)%total_columns == 80, &
                    "they share the frame's width")
         if (allocated(error)) return
-        call check(error, windows(c%index)%total_cols >= 26 .and. windows(b%index)%total_cols >= 26, &
+        call check(error, windows(c%index)%total_columns >= 26 .and. windows(b%index)%total_columns >= 26, &
                    "about a third each")
         call leave_frame()
     end subroutine test_slots
 
     !> With `window_sides_slots' 1 on the bottom, a new slot reuses the
     !> window there and gives it the new slot.
-    subroutine test_max_slots(error)
+    subroutine test_maximum_slots(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a, b
         type(status_type) :: st
@@ -231,7 +232,7 @@ contains
         call check(error, st%ok() .and. size(leaves()) == 3 .and. windows(b%index)%window_side == WINDOW_SIDE_NONE, &
                    "no slot on top: another action shows it")
         call leave_frame()
-    end subroutine test_max_slots
+    end subroutine test_maximum_slots
 
     !> A left side window spans the main window's height, above the
     !> bottom side window (`window_sides_vertical' false); a right side
@@ -249,19 +250,19 @@ contains
         if (allocated(error)) return
 
         associate (l => windows(left%index), m => windows(main%index), b => windows(bottom%index))
-            call check(error, l%window_side == WINDOW_SIDE_LEFT .and. l%left_col == 0 .and. l%total_cols == 20 .and. &
-                       l%top_line == 0 .and. l%total_lines == m%total_lines .and. m%left_col == 20, &
+            call check(error, l%window_side == WINDOW_SIDE_LEFT .and. l%left_column == 0 .and. l%total_columns == 20 .and. &
+                       l%top_line == 0 .and. l%total_lines == m%total_lines .and. m%left_column == 20, &
                        "left of the main window, a fourth of 80 columns")
             if (allocated(error)) return
-            call check(error, b%total_cols == 80, "the bottom one spans the frame")
+            call check(error, b%total_columns == 80, "the bottom one spans the frame")
             if (allocated(error)) return
         end associate
 
         call show_side("side-c", WINDOW_SIDE_RIGHT, 0, right, st)
         call check(error, st%ok() .and. is_window_live(right), "a right side window")
         if (allocated(error)) return
-        call check(error, windows(right%index)%left_col + windows(right%index)%total_cols == 80 .and. &
-                   same_window(windows(right%index)%prev, main), "right of the main window")
+        call check(error, windows(right%index)%left_column + windows(right%index)%total_columns == 80 .and. &
+                   same_window(windows(right%index)%previous, main), "right of the main window")
         if (allocated(error)) return
         call check(error, same_window(window_main_window(), main), "still the main window")
         if (allocated(error)) return
@@ -283,8 +284,8 @@ contains
         call show_side("side-b", WINDOW_SIDE_BOTTOM, 0, bottom, st)
         call check(error, st%ok() .and. is_window_live(bottom), "two side windows")
         if (allocated(error)) return
-        call check(error, windows(left%index)%total_lines == 23 .and. windows(bottom%index)%left_col == 20 .and. &
-                   windows(bottom%index)%total_cols == 60, "the left side window is full height")
+        call check(error, windows(left%index)%total_lines == 23 .and. windows(bottom%index)%left_column == 20 .and. &
+                   windows(bottom%index)%total_columns == 60, "the left side window is full height")
         call leave_frame()
     end subroutine test_vertical
 
@@ -309,13 +310,13 @@ contains
         if (allocated(error)) return
         call execute_keys("C-x 2")
         parent = windows(main%index)%parent
-        call check(error, size(leaves()) == 3 .and. same_window(windows(side%index)%prev, parent) .and. &
+        call check(error, size(leaves()) == 3 .and. same_window(windows(side%index)%previous, parent) .and. &
                    .not. windows(parent%index)%horizontal, "the main window nested in a new parent")
         if (allocated(error)) return
         call check(error, same_window(window_main_window(), parent), "the main window is now internal")
         if (allocated(error)) return
         call split_window(selected_frame%root_window, 0, .false., .true., new, st)
-        call check(error, st%ok() .and. size(leaves()) == 4 .and. windows(side%index)%total_cols == 80 .and. &
+        call check(error, st%ok() .and. size(leaves()) == 4 .and. windows(side%index)%total_columns == 80 .and. &
                    windows(side%index)%total_lines == 5, "the root window splits the main window")
         if (allocated(error)) return
         call select_window(side, st)

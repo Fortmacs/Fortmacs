@@ -34,32 +34,33 @@
 module rfc2047_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, &
                           generate_new_buffer_name, barf_if_buffer_read_only
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, narrow_to_region, widen, char_after, &
-                                     char_before, is_eob, is_bol, delete_region, buffer_string, &
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, narrow_to_region, widen, &
+                                     character_after, character_before, is_end_of_buffer, is_beginning_of_line, delete_region, &
+                                     buffer_string, &
                                      buffer_substring_no_properties, line_beginning_position, line_end_position, &
                                      interactive_region, save_excursion_begin, save_excursion_end, &
                                      save_restriction_begin, save_restriction_end, excursion_type, restriction_type, &
-                                     subst_char_in_region
+                                     substitute_character_in_region
     use insert_delete_mod, only: insert
-    use editing_commands_mod, only: forward_char, forward_line, beginning_of_line, delete_char
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward, char_syntax, make_syntax_table, modify_syntax_entry, &
-                          set_syntax_table, syntax_table, standard_syntax_table
+    use editing_commands_mod, only: forward_character, forward_line, beginning_of_line, delete_character
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward, character_syntax, make_syntax_table, &
+                          modify_syntax_entry, set_syntax_table, syntax_table, standard_syntax_table
     use expression_motion_mod, only: forward_expression, forward_group
-    use search_mod, only: re_search_forward, re_search_backward, search_forward, looking_at, string_match, &
-                          match_beginning, match_end, replace_match, case_fold_search, string_chars, &
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, search_forward, looking_at, &
+                          string_match, match_beginning, match_end, replace_match, case_fold_search, string_characters, &
                           string_index_to_offset, SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: match_string
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use character_mod, only: MAX_CHAR
+    use character_mod, only: MAXIMUM_CHARACTER
     use coding_mod, only: is_coding_system, encode_coding_string, decode_coding_string, encode_coding_region, &
                           decode_coding_region, detect_coding_string, coding_system_list_entry_type
     use utility_functions_mod, only: base64_encode_string, base64_decode_string
     use quoted_printable_mod, only: decode_quoted_printable_string, encode_quoted_printable_region
-    use mime_utilities_mod, only: mime_charset_to_coding_system, find_mime_charset_region, mime_coding_system_priorities
+    use mime_utilities_mod, only: mime_character_set_to_coding_system, find_mime_character_set_region, mime_coding_system_priorities
     use display_engine_mod, only: message
     implicit none(type, external)
     private
@@ -67,8 +68,8 @@ module rfc2047_mod
     public :: encode_rfc2047_message_header, check_rfc2047_encodable, encode_rfc2047_region, encode_rfc2047_string, &
               narrow_to_rfc2047_field, rfc2047_field_value, fold_rfc2047_field, fold_rfc2047_region, &
               unfold_rfc2047_field, unfold_rfc2047_region, decode_rfc2047_region, decode_rfc2047_address_region, &
-              decode_rfc2047_string, decode_rfc2047_address_string, rfc2047_charset_to_coding_system, &
-              pad_rfc2047_base64, strip_rfc2047_backslashes_in_quoted_strings, init_rfc2047
+              decode_rfc2047_string, decode_rfc2047_address_string, rfc2047_character_set_to_coding_system, &
+              pad_rfc2047_base64, strip_rfc2047_backslashes_in_quoted_strings, initialize_rfc2047
 
     !> `method' of an `rfc2047_header_encoding_type': no encoding is done.
     integer, parameter, public :: RFC2047_HEADER_ENCODING_NONE = 0
@@ -117,52 +118,52 @@ module rfc2047_mod
     !> rfc2047-header-encoding-alist.
     type(rfc2047_header_encoding_type), allocatable, public :: rfc2047_header_encodings(:)
 
-    !> `encoding' of an `rfc2047_charset_encoding_type': binary (no)
+    !> `encoding' of an `rfc2047_character_set_encoding_type': binary (no)
     !> encoding.
-    integer, parameter, public :: RFC2047_CHARSET_ENCODING_NONE = 0
+    integer, parameter, public :: RFC2047_CHARACTER_SET_ENCODING_NONE = 0
     !> `encoding': quoted-printable, the Q encoding.
-    integer, parameter, public :: RFC2047_CHARSET_ENCODING_Q = 1
+    integer, parameter, public :: RFC2047_CHARACTER_SET_ENCODING_Q = 1
     !> `encoding': base64, the B encoding.
-    integer, parameter, public :: RFC2047_CHARSET_ENCODING_B = 2
+    integer, parameter, public :: RFC2047_CHARACTER_SET_ENCODING_B = 2
 
-    !> One entry of `rfc2047_charset_encodings': a MIME charset and its
-    !> RFC2047_CHARSET_ENCODING_ constant.
-    type, public :: rfc2047_charset_encoding_type
-        character(len=16) :: charset = ""
-        integer :: encoding = RFC2047_CHARSET_ENCODING_NONE
-    end type rfc2047_charset_encoding_type
+    !> One entry of `rfc2047_character_set_encodings': a MIME charset and its
+    !> RFC2047_CHARACTER_SET_ENCODING_ constant.
+    type, public :: rfc2047_character_set_encoding_type
+        character(len=16) :: character_set = ""
+        integer :: encoding = RFC2047_CHARACTER_SET_ENCODING_NONE
+    end type rfc2047_character_set_encoding_type
 
     !> MIME charsets and their RFC2047 encodings.  Valid encodings are
-    !> RFC2047_CHARSET_ENCODING_NONE, RFC2047_CHARSET_ENCODING_Q and
-    !> RFC2047_CHARSET_ENCODING_B.  These indicate binary (no) encoding,
+    !> RFC2047_CHARACTER_SET_ENCODING_NONE, RFC2047_CHARACTER_SET_ENCODING_Q and
+    !> RFC2047_CHARACTER_SET_ENCODING_B.  These indicate binary (no) encoding,
     !> quoted-printable and base64 respectively.  Port of rfc2047.el
     !> rfc2047-charset-encoding-alist.
-    type(rfc2047_charset_encoding_type), public :: rfc2047_charset_encodings(25) = [ &
-                                                   rfc2047_charset_encoding_type("us-ascii", RFC2047_CHARSET_ENCODING_NONE), &
-                                                   rfc2047_charset_encoding_type("iso-8859-1", RFC2047_CHARSET_ENCODING_Q), &
-                                                   rfc2047_charset_encoding_type("iso-8859-2", RFC2047_CHARSET_ENCODING_Q), &
-                                                   rfc2047_charset_encoding_type("iso-8859-3", RFC2047_CHARSET_ENCODING_Q), &
-                                                   rfc2047_charset_encoding_type("iso-8859-4", RFC2047_CHARSET_ENCODING_Q), &
-                                                   rfc2047_charset_encoding_type("iso-8859-5", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("koi8-r", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("iso-8859-7", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("iso-8859-8", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("iso-8859-9", RFC2047_CHARSET_ENCODING_Q), &
-                                                   rfc2047_charset_encoding_type("iso-8859-14", RFC2047_CHARSET_ENCODING_Q), &
-                                                   rfc2047_charset_encoding_type("iso-8859-15", RFC2047_CHARSET_ENCODING_Q), &
-                                                   rfc2047_charset_encoding_type("iso-2022-jp", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("iso-2022-kr", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("gb2312", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("gbk", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("gb18030", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("big5", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("cn-big5", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("cn-gb", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("cn-gb-2312", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("euc-kr", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("iso-2022-jp-2", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("iso-2022-int-1", RFC2047_CHARSET_ENCODING_B), &
-                                                   rfc2047_charset_encoding_type("viscii", RFC2047_CHARSET_ENCODING_Q)]
+    type(rfc2047_character_set_encoding_type), public :: &
+      rfc2047_character_set_encodings(25) = [rfc2047_character_set_encoding_type("us-ascii", RFC2047_CHARACTER_SET_ENCODING_NONE), &
+                                              rfc2047_character_set_encoding_type("iso-8859-1", RFC2047_CHARACTER_SET_ENCODING_Q), &
+                                              rfc2047_character_set_encoding_type("iso-8859-2", RFC2047_CHARACTER_SET_ENCODING_Q), &
+                                              rfc2047_character_set_encoding_type("iso-8859-3", RFC2047_CHARACTER_SET_ENCODING_Q), &
+                                              rfc2047_character_set_encoding_type("iso-8859-4", RFC2047_CHARACTER_SET_ENCODING_Q), &
+                                              rfc2047_character_set_encoding_type("iso-8859-5", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("koi8-r", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                              rfc2047_character_set_encoding_type("iso-8859-7", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                              rfc2047_character_set_encoding_type("iso-8859-8", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                              rfc2047_character_set_encoding_type("iso-8859-9", RFC2047_CHARACTER_SET_ENCODING_Q), &
+                                             rfc2047_character_set_encoding_type("iso-8859-14", RFC2047_CHARACTER_SET_ENCODING_Q), &
+                                             rfc2047_character_set_encoding_type("iso-8859-15", RFC2047_CHARACTER_SET_ENCODING_Q), &
+                                             rfc2047_character_set_encoding_type("iso-2022-jp", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                             rfc2047_character_set_encoding_type("iso-2022-kr", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("gb2312", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("gbk", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("gb18030", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("big5", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("cn-big5", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("cn-gb", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                              rfc2047_character_set_encoding_type("cn-gb-2312", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("euc-kr", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                           rfc2047_character_set_encoding_type("iso-2022-jp-2", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                          rfc2047_character_set_encoding_type("iso-2022-int-1", RFC2047_CHARACTER_SET_ENCODING_B), &
+                                               rfc2047_character_set_encoding_type("viscii", RFC2047_CHARACTER_SET_ENCODING_Q)]
 
     !> Whether encoded words should be encoded again.  Port of rfc2047.el
     !> rfc2047-encode-encoded-words.
@@ -188,7 +189,7 @@ module rfc2047_mod
     !> According to RFC 2047, it is 76.  If it is 0, encoded-words will not
     !> be folded.  Too small value may cause an error.  You should not
     !> change this value.  Port of rfc2047.el rfc2047-encode-max-chars.
-    integer, public :: rfc2047_encode_max_chars = 76
+    integer, public :: rfc2047_encode_maximum_characters = 76
 
     !> If true, quote decoded words containing special characters.  Port of
     !> rfc2047.el rfc2047-quote-decoded-words-containing-tspecials.
@@ -209,7 +210,7 @@ module rfc2047_mod
     !> back) by functions that wish to call mail-parse functions and let
     !> them know what the desired charset is to be.  Port of mail-prsvr.el
     !> mail-parse-charset.
-    character(len=:), allocatable, public :: mail_parse_charset
+    character(len=:), allocatable, public :: mail_parse_character_set
 
     !> Ignored charsets used by low-level libraries.  This variable should
     !> never be set.  Instead, it should be set (and set back) by functions
@@ -217,7 +218,7 @@ module rfc2047_mod
     !> desired charsets is to be ignored ("gnus-all" ignores all of them,
     !> "gnus-unknown" those Fortmacs cannot decode).  Port of mail-prsvr.el
     !> mail-parse-ignored-charsets.
-    character(len=24), allocatable, public :: mail_parse_ignored_charsets(:)
+    character(len=24), allocatable, public :: mail_parse_ignored_character_sets(:)
 
     character(len=*), parameter :: TAB = achar(9), LF = achar(10), CR = achar(13)
 
@@ -229,7 +230,7 @@ module rfc2047_mod
     ! its encoding ("B" or "Q", either case), its encoded text and the
     ! whole word.
     type :: encoded_word_type
-        character(len=:), allocatable :: charset, text, word
+        character(len=:), allocatable :: character_set, text, word
         character :: encoding = " "
     end type encoded_word_type
 
@@ -277,7 +278,7 @@ contains
     pure integer(int64) function text_length(text)
         character(len=*), intent(in) :: text
 
-        text_length = string_chars(text)
+        text_length = string_characters(text)
     end function text_length
 
     ! The characters FROM (inclusive) to TO (exclusive) of TEXT, counted
@@ -332,7 +333,7 @@ contains
         integer(int64), intent(in), optional :: position
         logical :: found
 
-        call char_after(after, found, position)
+        call character_after(after, found, position)
         if (.not. found) after = -1
     end function after
 
@@ -342,35 +343,35 @@ contains
         integer(int64), intent(in), optional :: position
         logical :: found
 
-        call char_before(before, found, position)
+        call character_before(before, found, position)
         if (.not. found) before = -1
     end function before
 
     ! Whether the mail parse charset asks the decoder to decode text by
     ! it: one is set, and it is neither us-ascii nor gnus-decoded.
     ! Not a port.
-    logical function is_parse_charset_decoding()
-        is_parse_charset_decoding = .false.
-        if (.not. allocated(mail_parse_charset)) return
-        if (len(mail_parse_charset) == 0) return
-        is_parse_charset_decoding = mail_parse_charset /= "us-ascii" .and. mail_parse_charset /= "gnus-decoded"
-    end function is_parse_charset_decoding
+    logical function is_parse_character_set_decoding()
+        is_parse_character_set_decoding = .false.
+        if (.not. allocated(mail_parse_character_set)) return
+        if (len(mail_parse_character_set) == 0) return
+        is_parse_character_set_decoding = mail_parse_character_set /= "us-ascii" .and. mail_parse_character_set /= "gnus-decoded"
+    end function is_parse_character_set_decoding
 
     ! The mail parse charset, "" if none.  Not a port.
-    function parse_charset() result(charset)
-        character(len=:), allocatable :: charset
+    function parse_character_set() result(character_set)
+        character(len=:), allocatable :: character_set
 
-        charset = ""
-        if (allocated(mail_parse_charset)) charset = mail_parse_charset
-    end function parse_charset
+        character_set = ""
+        if (allocated(mail_parse_character_set)) character_set = mail_parse_character_set
+    end function parse_character_set
 
-    ! Whether NAME is one of `mail_parse_ignored_charsets'.  Not a port.
-    logical function is_ignored_charset(name)
+    ! Whether NAME is one of `mail_parse_ignored_character_sets'.  Not a port.
+    logical function is_ignored_character_set(name)
         character(len=*), intent(in) :: name
 
-        is_ignored_charset = .false.
-        if (allocated(mail_parse_ignored_charsets)) is_ignored_charset = any(mail_parse_ignored_charsets == name)
-    end function is_ignored_charset
+        is_ignored_character_set = .false.
+        if (allocated(mail_parse_ignored_character_sets)) is_ignored_character_set = any(mail_parse_ignored_character_sets == name)
+    end function is_ignored_character_set
 
     ! Set the defaults of the variables upstream initializes when it loads
     ! rfc2047.el, if unallocated.  Port of the defcustom of rfc2047.el
@@ -408,7 +409,7 @@ contains
             call make_syntax_table(rfc2047_syntax_table, st)
             ! Every character gets the word syntax of ?a in the standard
             ! table.
-            call modify_syntax_entry(0, MAX_CHAR, "w", st, rfc2047_syntax_table)
+            call modify_syntax_entry(0, MAXIMUM_CHARACTER, "w", st, rfc2047_syntax_table)
             call modify_syntax_entry(iachar("\"), iachar("\"), "\", st, rfc2047_syntax_table)
             call modify_syntax_entry(iachar(""""), iachar(""""), """", st, rfc2047_syntax_table)
             call modify_syntax_entry(iachar("("), iachar("("), "(", st, rfc2047_syntax_table)
@@ -436,20 +437,20 @@ contains
         integer(int64) :: limit, n8bit, moved
 
         call save_excursion_begin(excursion)
-        limit = min(point_max(), 2000 + point_min())
+        limit = min(point_maximum(), 2000 + point_minimum())
         n8bit = 0
-        call goto_char(point_min())
-        moved = skip_chars_forward(SEVEN_BIT, st, limit)
+        call goto_character(point_minimum())
+        moved = skip_characters_forward(SEVEN_BIT, st, limit)
 
         do while (point() < limit)
             n8bit = n8bit + 1
-            call forward_char(st)
-            moved = skip_chars_forward(SEVEN_BIT, st, limit)
+            call forward_character(st)
+            moved = skip_characters_forward(SEVEN_BIT, st, limit)
         end do
 
         ! Don't base64, say, a short line with a single non-ASCII char when
         ! splitting parts by charset.
-        is_base64_preferred = .not. (6*n8bit < limit - point_min() .or. n8bit == 1)
+        is_base64_preferred = .not. (6*n8bit < limit - point_minimum() .or. n8bit == 1)
         call save_excursion_end(excursion)
     end function is_base64_preferred
 
@@ -463,17 +464,17 @@ contains
         call beginning_of_line()
         start = point()
         shortage = forward_line(1_int64)
-        call re_search_forward("^[^ "//LF//TAB//"]", found, status, noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward("^[^ "//LF//TAB//"]", found, status, noerror=SEARCH_NOERROR)
         if (.not. status%ok()) return
 
         if (found > 0) then
             end = line_beginning_position()
         else
-            end = point_max()
+            end = point_maximum()
         end if
 
         call narrow_to_region(start, end, status)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine narrow_to_rfc2047_field
 
     !> Return the value of the field at point.  Port of
@@ -491,8 +492,8 @@ contains
         call narrow_to_rfc2047_field(status)
 
         if (status%ok()) then
-            call re_search_forward(":[ "//TAB//LF//"]*", found, status, noerror=SEARCH_NOERROR)
-            if (status%ok()) call buffer_substring_no_properties(point(), point_max(), value, status)
+            call regular_expression_search_forward(":[ "//TAB//LF//"]*", found, status, noerror=SEARCH_NOERROR)
+            if (status%ok()) call buffer_substring_no_properties(point(), point_maximum(), value, status)
         end if
 
         call save_restriction_end(restriction)
@@ -514,8 +515,8 @@ contains
         call narrow_to_rfc2047_field(status)
 
         if (status%ok()) then
-            call fold_rfc2047_region(point_min(), point_max(), status)
-            end = point_max()
+            call fold_rfc2047_region(point_minimum(), point_maximum(), status)
+            end = point_maximum()
         end if
 
         call save_restriction_end(restriction)
@@ -529,7 +530,7 @@ contains
         type(status_type), intent(out) :: status
         type(restriction_type) :: restriction, inner
         type(excursion_type) :: excursion
-        integer(int64) :: break, qword_break, bol, moved, found
+        integer(int64) :: break, qword_break, line_start, moved, found
         integer(int32) :: c
         logical :: first, matched
 
@@ -538,35 +539,35 @@ contains
 
         body: block
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             break = 0
             qword_break = 0
             call save_restriction_begin(inner)
             call widen()
-            bol = line_beginning_position()
+            line_start = line_beginning_position()
             call save_restriction_end(inner)
             ! This function is either called with the Header: name in the
             ! region or not.  If it's not in the region, then we may already
             ! have a space.
-            first = bol == point()
+            first = line_start == point()
 
             if (.not. first) then
                 call save_restriction_begin(inner)
                 call widen()
                 call save_excursion_begin(excursion)
-                call re_search_backward("[ "//TAB//"]", found, status, bound=bol, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward("[ "//TAB//"]", found, status, bound=line_start, noerror=SEARCH_NOERROR)
                 first = found == 0
                 call save_excursion_end(excursion)
                 call save_restriction_end(inner)
                 if (.not. status%ok()) exit body
             end if
 
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 if (break > 0 .or. qword_break > 0) then
-                    if (point() - bol > 76) then
+                    if (point() - line_start > 76) then
                         ! We have a line longer than 76 characters, so break
                         ! the line.
-                        call break_line(break, qword_break, bol, status)
+                        call break_line(break, qword_break, line_start, status)
                         if (.not. status%ok()) exit body
                         break = 0
                         qword_break = 0
@@ -579,19 +580,19 @@ contains
 
                 if (c == 10) then
                     ! New line, so there's nothing to break.
-                    call forward_char(status)
-                    bol = point()
+                    call forward_character(status)
+                    line_start = point()
                     break = 0
                     qword_break = 0
-                    moved = skip_chars_forward(" "//TAB, status)
-                    if (.not. is_eob() .and. after() /= 10) call forward_char(status)
+                    moved = skip_characters_forward(" "//TAB, status)
+                    if (.not. is_end_of_buffer() .and. after() /= 10) call forward_character(status)
                 else if (c == 13) then
                     ! CR in CRLF; shouldn't really as this function shouldn't
                     ! be called after encoding for line transmission.
-                    call forward_char(status)
+                    call forward_character(status)
                 else if (c == 32 .or. c == 9) then
                     ! Whitespace -- possible break point.
-                    moved = skip_chars_forward(" "//TAB, status)
+                    moved = skip_characters_forward(" "//TAB, status)
 
                     ! Don't break just after the header name.
                     if (first) then
@@ -606,18 +607,18 @@ contains
 
                     if (.not. matched) then
                         if (c == iachar("=")) then
-                            call forward_char(status)
+                            call forward_character(status)
                         else
-                            moved = skip_chars_forward("^ "//TAB//LF//CR//"=", status)
+                            moved = skip_characters_forward("^ "//TAB//LF//CR//"=", status)
                         end if
                     else
                         ! Don't break at the start of the field.
                         if (point() /= b) qword_break = point()
-                        moved = skip_chars_forward("^ "//TAB//LF//CR, status)
+                        moved = skip_characters_forward("^ "//TAB//LF//CR, status)
                     end if
                 else
                     ! Look for the next LWSP (i.e., whitespace character).
-                    moved = skip_chars_forward("^ "//TAB//LF//CR, status)
+                    moved = skip_characters_forward("^ "//TAB//LF//CR, status)
                 end if
 
                 if (.not. status%ok()) exit body
@@ -626,28 +627,28 @@ contains
             if (break > 0 .or. qword_break > 0) then
                 ! Finally, after the loop, we have a line longer than 76
                 ! characters, so break the line.
-                if (point() - bol > 76) call break_line(break, qword_break, bol, status)
+                if (point() - line_start > 76) call break_line(break, qword_break, line_start, status)
             end if
         end block body
 
         call save_restriction_end(restriction)
     end subroutine fold_rfc2047_region
 
-    ! Break the line at BREAK (or QWORD_BREAK when BREAK is 0); BOL becomes
+    ! Break the line at BREAK (or QWORD_BREAK when BREAK is 0); BEGINNING_OF_LINE becomes
     ! the beginning of the new line.  Port of rfc2047.el:rfc2047--break-line.
-    subroutine break_line(break, qword_break, bol, status)
+    subroutine break_line(break, qword_break, line_start, status)
         integer(int64), intent(in) :: break, qword_break
-        integer(int64), intent(out) :: bol
+        integer(int64), intent(out) :: line_start
         type(status_type), intent(out) :: status
         integer(int64) :: moved
 
         if (break > 0) then
-            call goto_char(break)
+            call goto_character(break)
         else
-            call goto_char(qword_break)
+            call goto_character(qword_break)
         end if
 
-        moved = skip_chars_backward(" "//TAB, status)
+        moved = skip_characters_backward(" "//TAB, status)
 
         if (after() == 32 .or. after() == 9) then
             call insert(LF, status)
@@ -656,10 +657,10 @@ contains
         end if
 
         ! Return beginning-of-line.
-        bol = point() - 1
+        line_start = point() - 1
         ! Don't break before the first non-LWSP characters.
-        moved = skip_chars_forward(" "//TAB, status)
-        if (.not. is_eob()) call forward_char(status)
+        moved = skip_characters_forward(" "//TAB, status)
+        if (.not. is_end_of_buffer()) call forward_character(status)
     end subroutine break_line
 
     !> Unfold the current header field.  Port of
@@ -672,7 +673,7 @@ contains
         call save_excursion_begin(excursion)
         call save_restriction_begin(restriction)
         call narrow_to_rfc2047_field(status)
-        if (status%ok()) call unfold_rfc2047_region(point_min(), point_max(), status)
+        if (status%ok()) call unfold_rfc2047_region(point_minimum(), point_maximum(), status)
         call save_restriction_end(restriction)
         call save_excursion_end(excursion)
     end subroutine unfold_rfc2047_field
@@ -683,7 +684,7 @@ contains
         integer(int64), intent(in) :: b, e
         type(status_type), intent(out) :: status
         type(restriction_type) :: restriction, inner
-        integer(int64) :: bol, eol, shortage, moved
+        integer(int64) :: line_start, end_of_line, shortage, moved
         logical :: matched
 
         call save_restriction_begin(restriction)
@@ -691,28 +692,28 @@ contains
 
         body: block
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call save_restriction_begin(inner)
             call widen()
-            bol = line_beginning_position()
+            line_start = line_beginning_position()
             call save_restriction_end(inner)
-            eol = line_end_position()
+            end_of_line = line_end_position()
             shortage = forward_line(1_int64)
 
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 matched = looking_at("[ "//TAB//"]", status)
                 if (.not. status%ok()) exit body
 
-                if (matched .and. line_end_position() - bol < 76) then
-                    call goto_char(eol)
-                    moved = skip_chars_forward(CR//LF, status)
-                    call delete_region(eol, point(), status)
+                if (matched .and. line_end_position() - line_start < 76) then
+                    call goto_character(end_of_line)
+                    moved = skip_characters_forward(CR//LF, status)
+                    call delete_region(end_of_line, point(), status)
                     if (.not. status%ok()) exit body
                 else
-                    bol = line_beginning_position()
+                    line_start = line_beginning_position()
                 end if
 
-                eol = line_end_position()
+                end_of_line = line_end_position()
                 shortage = forward_line(1_int64)
             end do
         end block body
@@ -732,8 +733,8 @@ contains
         type(status_type), intent(out) :: status
         type(excursion_type) :: excursion
         type(restriction_type) :: restriction
-        type(rfc2047_header_encoding_type) :: elem
-        character(len=:), allocatable :: charsets(:), coding_system
+        type(rfc2047_header_encoding_type) :: element
+        character(len=:), allocatable :: character_sets(:), coding_system
         character(len=24), allocatable :: saved_priorities(:)
         integer(int64) :: found, inserted
         integer :: k, method, saved_type
@@ -741,10 +742,10 @@ contains
 
         call initialize_defaults()
         call save_excursion_begin(excursion)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         saved_fold = case_fold_search%value
 
-        fields: do while (.not. is_eob())
+        fields: do while (.not. is_end_of_buffer())
             call save_restriction_begin(restriction)
 
             field: block
@@ -752,7 +753,7 @@ contains
                 if (.not. status%ok()) exit field
                 method = RFC2047_HEADER_ENCODING_NONE
                 coding_system = ""
-                call find_mime_charset_region(point_min(), point_max(), charsets, status)
+                call find_mime_character_set_region(point_minimum(), point_maximum(), character_sets, status)
                 if (.not. status%ok()) exit field
                 ! M$ Outlook boycotts decoding of a header if it consists of
                 ! two or more encoded words and those charsets differ; it
@@ -761,14 +762,14 @@ contains
                 ! single one used for encoding the whole text in a header.
                 if (allocated(mime_coding_system_priorities)) saved_priorities = mime_coding_system_priorities
 
-                if (size(charsets) == 1) then
+                if (size(character_sets) == 1) then
                     if (allocated(mime_coding_system_priorities)) then
                         mime_coding_system_priorities = [character(len=24) :: &
-                                                         mime_charset_to_coding_system(trim(charsets(1))), &
+                                                         mime_character_set_to_coding_system(trim(character_sets(1))), &
                                                          mime_coding_system_priorities]
                     else
                         mime_coding_system_priorities = [character(len=24) :: &
-                                                         mime_charset_to_coding_system(trim(charsets(1)))]
+                                                         mime_character_set_to_coding_system(trim(character_sets(1)))]
                     end if
                 end if
 
@@ -777,18 +778,18 @@ contains
                 encodable = .false.
 
                 do k = 1, size(rfc2047_header_encodings)
-                    elem = rfc2047_header_encodings(k)
+                    element = rfc2047_header_encodings(k)
 
-                    if (elem%all_headers) then
+                    if (element%all_headers) then
                         matched_method = .true.
                     else
-                        matched_method = looking_at(trim(elem%header), status)
+                        matched_method = looking_at(trim(element%header), status)
                         if (.not. status%ok()) exit
                     end if
 
                     if (matched_method) then
-                        method = elem%method
-                        coding_system = trim(elem%coding_system)
+                        method = element%method
+                        coding_system = trim(element%coding_system)
                         exit
                     end if
                 end do
@@ -799,30 +800,30 @@ contains
                 ! posting charset, a field that needs no encoding is left
                 ! alone.)
                 if (status%ok() .and. encodable) then
-                    call re_search_forward("^[^:]+: *", found, status, noerror=SEARCH_NOERROR)
+                    call regular_expression_search_forward("^[^:]+: *", found, status, noerror=SEARCH_NOERROR)
 
                     if (status%ok()) then
                         select case (method)
                         case (RFC2047_HEADER_ENCODING_ADDRESS_MIME)
-                            call encode_rfc2047_region(point(), point_max(), status)
+                            call encode_rfc2047_region(point(), point_maximum(), status)
                         case (RFC2047_HEADER_ENCODING_MIME)
                             saved_type = rfc2047_encoding_type
                             rfc2047_encoding_type = RFC2047_ENCODING_TYPE_MIME
-                            call encode_rfc2047_region(point(), point_max(), status)
+                            call encode_rfc2047_region(point(), point_maximum(), status)
                             rfc2047_encoding_type = saved_type
                         case (RFC2047_HEADER_ENCODING_DEFAULT)
-                            if (len(parse_charset()) > 0) then
-                                call encode_coding_region(point(), point_max(), parse_charset(), inserted, status)
+                            if (len(parse_character_set()) > 0) then
+                                call encode_coding_region(point(), point_maximum(), parse_character_set(), inserted, status)
                             end if
                         case (RFC2047_HEADER_ENCODING_NONE)
                             ! We get this when Cc'ing messages to newsgroups
                             ! with 8-bit names.  The group name mail copy just
                             ! got unconditionally encoded.
-                            call encode_rfc2047_region(point(), point_max(), status)
+                            call encode_rfc2047_region(point(), point_maximum(), status)
                         case (RFC2047_HEADER_ENCODING_CODING_SYSTEM)
                             if (len(coding_system) > 0) then
                                 matched = is_coding_system(coding_system)
-                                if (matched) call encode_coding_region(point(), point_max(), coding_system, inserted, status)
+                                if (matched) call encode_coding_region(point(), point_maximum(), coding_system, inserted, status)
                             end if
                         case default
                             ! Hm.
@@ -830,7 +831,7 @@ contains
                     end if
                 end if
 
-                call goto_char(point_max())
+                call goto_character(point_maximum())
             end block field
 
             case_fold_search%value = saved_fold
@@ -855,22 +856,22 @@ contains
     subroutine check_rfc2047_encodable(encodable, status)
         logical, intent(out) :: encodable
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: charsets(:)
+        character(len=:), allocatable :: character_sets(:)
         integer(int64) :: found
 
         encodable = .false.
-        call find_mime_charset_region(point_min(), point_max(), charsets, status)
+        call find_mime_character_set_region(point_minimum(), point_maximum(), character_sets, status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (rfc2047_encode_encoded_words) then
-            call re_search_forward(encoded_word_regular_expression(), found, status, noerror=SEARCH_NOERROR)
-            call goto_char(point_min())
+            call regular_expression_search_forward(encoded_word_regular_expression(), found, status, noerror=SEARCH_NOERROR)
+            call goto_character(point_minimum())
             if (.not. status%ok()) return
             encodable = found > 0
         end if
 
-        if (.not. encodable) encodable = size(charsets) > 0
+        if (.not. encodable) encodable = size(character_sets) > 0
     end subroutine check_rfc2047_encodable
 
     !> Encode words in region B to E that need encoding.  By default, the
@@ -890,7 +891,7 @@ contains
         integer(int64) :: start, end, begin, moved, found, k
         integer :: saved_type
         character :: syntax
-        logical :: last_encoded, matched, has_end, folding, prev_char_ok
+        logical :: last_encoded, matched, has_end, folding, previous_character_ok
         type(status_type) :: st
 
         folding = .true.
@@ -919,11 +920,11 @@ contains
                 ! ASCII words, including `Re:' used in Subject headers, is
                 ! avoided for interoperability with non-MIME clients and for
                 ! making it easy to find keywords.
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 do
-                    moved = skip_chars_forward(" "//TAB//LF, status)
-                    if (is_eob()) exit
+                    moved = skip_characters_forward(" "//TAB//LF, status)
+                    if (is_end_of_buffer()) exit
                     start = point()
                     end = point()
 
@@ -931,36 +932,36 @@ contains
                         matched = looking_at("[ "//TAB//LF//"]*\([^ "//TAB//LF//"]+\)", status)
                         if (.not. matched) exit
                         end = match_end(0, st)
-                        call re_search_forward(encodable, found, status, bound=end, noerror=SEARCH_NOERROR)
+                        call regular_expression_search_forward(encodable, found, status, bound=end, noerror=SEARCH_NOERROR)
                         if (found == 0) exit
-                        call goto_char(end)
+                        call goto_character(end)
                     end do
 
                     if (point() > start) then
                         call encode_words(start, point(), status)
                         if (.not. status%ok()) exit body
                     else
-                        call goto_char(end)
+                        call goto_character(end)
                     end if
                 end do
             else
                 saved_table = syntax_table()
                 call set_syntax_table(encoding_syntax_table(), status)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 ! In case of unbalanced quotes.
                 tokens: block
                     ! Look for RFC 822 (or later) style: sequences of atoms,
                     ! quoted strings, specials, whitespace.  (Specials mustn't
                     ! be encoded.)
-                    do while (.not. is_eob())
+                    do while (.not. is_end_of_buffer())
                         ! Skip whitespace.
-                        moved = skip_chars_forward(" "//TAB//LF, status)
+                        moved = skip_characters_forward(" "//TAB//LF, status)
                         start = point()
                         ! eob
                         if (after() < 0) cycle
                         ! else token start
-                        syntax = char_syntax(after())
+                        syntax = character_syntax(after())
 
                         select case (syntax)
                         case ("""")
@@ -969,22 +970,22 @@ contains
                             if (.not. status%ok()) exit tokens
                             end = point()
                             ! Does it need encoding?
-                            call goto_char(start)
-                            call re_search_forward(encodable, found, status, bound=end, noerror=SEARCH_MOVE)
+                            call goto_character(start)
+                            call regular_expression_search_forward(encodable, found, status, bound=end, noerror=SEARCH_MOVE)
 
                             if (found > 0) then
                                 ! It needs encoding.  Strip the quotes first,
                                 ! since encoded words can't occur in quotes.
-                                call goto_char(end)
-                                call delete_char(-1_int64, status)
-                                call goto_char(start)
-                                call delete_char(1_int64, status)
+                                call goto_character(end)
+                                call delete_character(-1_int64, status)
+                                call goto_character(start)
+                                call delete_character(1_int64, status)
 
                                 if (last_encoded) then
                                     ! There was a preceding quoted word.  We
                                     ! need to include any separating whitespace
                                     ! in this word to avoid it getting lost.
-                                    moved = skip_chars_backward(" "//TAB, status)
+                                    moved = skip_characters_backward(" "//TAB, status)
                                     ! A space is needed between the encoded
                                     ! words.
                                     call insert(" ", status)
@@ -1004,10 +1005,10 @@ contains
                         case (".")
                             ! Skip other delimiters, but record that they've
                             ! potentially separated quoted words.
-                            call forward_char(status)
+                            call forward_character(status)
                             last_encoded = .false.
                         case (")")
-                            call set_error(status, FM_GENERIC_ERROR, "Unbalanced parentheses")
+                            call set_error(status, GENERIC_ERROR_CODE, "Unbalanced parentheses")
                             exit tokens
                         case ("(")
                             ! Look for the end of parentheses.
@@ -1019,24 +1020,24 @@ contains
                             call encode_rfc2047_region(start + 1, point() - 1, status)
                             rfc2047_encoding_type = saved_type
                             if (.not. status%ok()) exit tokens
-                            moved = skip_chars_forward(")", status)
+                            moved = skip_characters_forward(")", status)
                         case default
                             ! Normal token/whitespace sequence.  Find the end.
                             ! Skip one ASCII word, or encode continuous words
                             ! in which all those contain non-ASCII characters.
                             call normal_token(status)
                             if (.not. status%ok()) exit tokens
-                            moved = skip_chars_backward(" "//TAB//LF, status)
+                            moved = skip_characters_backward(" "//TAB//LF, status)
                             end = point()
-                            call goto_char(start)
-                            call re_search_forward(encodable, found, status, bound=end, noerror=SEARCH_MOVE)
+                            call goto_character(start)
+                            call regular_expression_search_forward(encodable, found, status, bound=end, noerror=SEARCH_MOVE)
 
                             if (found > 0) then
-                                prev_char_ok = before(start) == -1 .or. before(start) == 9 .or. before(start) == 32
+                                previous_character_ok = before(start) == -1 .or. before(start) == 9 .or. before(start) == 32
 
-                                if (.not. prev_char_ok) then
-                                    call goto_char(start)
-                                    moved = skip_chars_backward("^ "//TAB//LF, status)
+                                if (.not. previous_character_ok) then
+                                    call goto_character(start)
+                                    moved = skip_characters_backward("^ "//TAB//LF, status)
                                     matched = looking_at("\Sw+", status)
                                     if (matched) matched = match_end(0, st) == start
 
@@ -1045,7 +1046,7 @@ contains
                                         start = point()
                                     else
                                         ! Separate encodable text and delimiter.
-                                        call goto_char(start)
+                                        call goto_character(start)
                                         call insert(" ", status)
                                         start = start + 1
                                         end = end + 1
@@ -1067,14 +1068,14 @@ contains
                 call set_syntax_table(saved_table, st)
 
                 if (.not. status%ok()) then
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid data for rfc2047 encoding: "// &
+                    call set_error(status, GENERIC_ERROR_CODE, "Invalid data for rfc2047 encoding: "// &
                                    squeeze_whitespace(original_text))
                     exit body
                 end if
             end if
 
             if (folding) call fold_rfc2047_region(b, point(), status)
-            call goto_char(point_max())
+            call goto_character(point_maximum())
         end block body
 
         call save_restriction_end(restriction)
@@ -1093,7 +1094,7 @@ contains
             ! char.
             has_end = .false.
 
-            do while (.not. (has_end .or. is_eob()))
+            do while (.not. (has_end .or. is_end_of_buffer()))
                 matched = looking_at("["//achar(0)//"-"//achar(127)//"]+", status)
 
                 if (matched) then
@@ -1102,7 +1103,8 @@ contains
                     has_end = .true.
 
                     do
-                        call re_search_forward("[ "//TAB//LF//"]\|\Sw", found, status, bound=end, noerror=SEARCH_MOVE)
+                        call regular_expression_search_forward("[ "//TAB//LF//"]\|\Sw", found, status, bound=end, &
+                                                               noerror=SEARCH_MOVE)
 
                         if (found == 0) then
                             has_end = .false.
@@ -1110,23 +1112,23 @@ contains
                         end if
 
                         ! Skip backslash-quoted characters.
-                        if (char_syntax(before()) /= "\") exit
-                        call forward_char(status)
+                        if (character_syntax(before()) /= "\") exit
+                        call forward_character(status)
                     end do
 
                     if (has_end) then
                         end = match_beginning(0, st)
 
                         if (rfc2047_encode_encoded_words) then
-                            call goto_char(begin)
+                            call goto_character(begin)
                             call search_forward("=?", found, status, bound=end, noerror=SEARCH_MOVE)
 
                             if (found > 0) then
-                                call goto_char(match_beginning(0, st))
+                                call goto_character(match_beginning(0, st))
                                 has_end = .false.
                             end if
                         else
-                            call goto_char(end)
+                            call goto_character(end)
                         end if
                     end if
                 end if
@@ -1135,7 +1137,7 @@ contains
                 matched = looking_at(encodable, status)
                 if (.not. matched) cycle
                 begin = match_end(0, st)
-                call goto_char(begin)
+                call goto_character(begin)
 
                 do
                     matched = looking_at("[ "//TAB//LF//"]+\([^ "//TAB//LF//"]+\)", status)
@@ -1144,27 +1146,27 @@ contains
                     has_end = .true.
 
                     do
-                        call re_search_forward(encodable, found, status, bound=end, noerror=SEARCH_NOERROR)
+                        call regular_expression_search_forward(encodable, found, status, bound=end, noerror=SEARCH_NOERROR)
                         if (found == 0) exit
                     end do
 
                     if (.not. begin < point()) exit
-                    call goto_char(begin)
-                    call re_search_forward("\Sw", found, status, bound=end, noerror=SEARCH_NOERROR)
+                    call goto_character(begin)
+                    call regular_expression_search_forward("\Sw", found, status, bound=end, noerror=SEARCH_NOERROR)
 
                     if (found > 0) then
-                        call goto_char(match_beginning(0, st))
+                        call goto_character(match_beginning(0, st))
                         exit
                     end if
 
-                    call goto_char(end)
+                    call goto_character(end)
                 end do
 
                 matched = looking_at("[^ "//TAB//LF//"]+", status)
                 if (.not. matched) cycle
                 end = match_end(0, st)
                 has_end = .true.
-                call re_search_forward("\Sw+", found, status, bound=end, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("\Sw+", found, status, bound=end, noerror=SEARCH_NOERROR)
 
                 if (found > 0) then
                     ! There are special characters better to be encoded so
@@ -1175,13 +1177,13 @@ contains
                     if (matched) then
                         has_end = .false.
                     else
-                        call goto_char(match_end(0, st) - 1)
+                        call goto_character(match_end(0, st) - 1)
                         ! Separate encodable text and delimiter.
                         if (point() /= match_beginning(0, st)) call insert(" ", status)
                     end if
                 else
-                    call goto_char(end)
-                    moved = skip_chars_forward(" "//TAB//LF, status)
+                    call goto_character(end)
+                    moved = skip_characters_forward(" "//TAB//LF, status)
                     matched = looking_at("[^ "//TAB//LF//"]+", status)
 
                     if (matched) then
@@ -1193,7 +1195,7 @@ contains
                     if (matched) then
                         has_end = .false.
                     else
-                        call goto_char(end)
+                        call goto_character(end)
                     end if
                 end if
             end do
@@ -1236,7 +1238,7 @@ contains
 
         call temporary_buffer_begin(old, temporary, .true.)
         call insert(string, status)
-        if (status%ok()) call encode_rfc2047_region(point_min(), point_max(), status, dont_fold)
+        if (status%ok()) call encode_rfc2047_region(point_minimum(), point_maximum(), status, dont_fold)
         encoded = buffer_string()
         call temporary_buffer_end(old, temporary)
     end function encode_rfc2047_string
@@ -1249,26 +1251,26 @@ contains
         type(restriction_type) :: restriction
         type(handle_type) :: b_marker, e_marker
         type(status_type) :: st
-        character(len=:), allocatable :: charsets(:), charset, cs, text, tail, crest, eword, start, letter
+        character(len=:), allocatable :: character_sets(:), character_set, cs, text, tail, crest, eword, start, letter
         integer(int64) :: moved, delete_start, column
         integer :: k, encoding
 
-        call find_mime_charset_region(b, e, charsets, status)
+        call find_mime_character_set_region(b, e, character_sets, status)
         if (.not. status%ok()) return
 
-        if (size(charsets) > 1) then
+        if (size(character_sets) > 1) then
             call buffer_substring_no_properties(b, e, text, st)
-            call set_error(status, FM_GENERIC_ERROR, "Can't rfc2047-encode `"//text//"'")
+            call set_error(status, GENERIC_ERROR_CODE, "Can't rfc2047-encode `"//text//"'")
             return
         end if
 
-        if (size(charsets) == 1) then
-            charset = trim(charsets(1))
+        if (size(character_sets) == 1) then
+            character_set = trim(character_sets(1))
         else
-            charset = "us-ascii"
+            character_set = "us-ascii"
         end if
 
-        cs = mime_charset_to_coding_system(charset)
+        cs = mime_character_set_to_coding_system(character_set)
 
         if (.not. buffers(current)%multibyte .or. len(cs) == 0) then
             cs = ""
@@ -1281,50 +1283,50 @@ contains
         body: block
             call narrow_to_region(b, e, status)
             if (.not. status%ok()) exit body
-            encoding = RFC2047_CHARSET_ENCODING_NONE
-            k = findloc(rfc2047_charset_encodings%charset == charset, .true., dim=1)
-            if (k > 0) encoding = rfc2047_charset_encodings(k)%encoding
+            encoding = RFC2047_CHARACTER_SET_ENCODING_NONE
+            k = findloc(rfc2047_character_set_encodings%character_set == character_set, .true., dim=1)
+            if (k > 0) encoding = rfc2047_character_set_encodings(k)%encoding
 
             ! For the charsets that don't have a preferred encoding, choose
             ! the one that's shorter.
-            if (encoding == RFC2047_CHARSET_ENCODING_NONE) then
+            if (encoding == RFC2047_CHARACTER_SET_ENCODING_NONE) then
                 if (is_base64_preferred()) then
-                    encoding = RFC2047_CHARSET_ENCODING_B
+                    encoding = RFC2047_CHARACTER_SET_ENCODING_B
                 else
-                    encoding = RFC2047_CHARSET_ENCODING_Q
+                    encoding = RFC2047_CHARACTER_SET_ENCODING_Q
                 end if
             end if
 
             call widen()
-            call goto_char(e)
-            moved = skip_chars_forward("^ "//TAB//LF, status)
+            call goto_character(e)
+            moved = skip_characters_forward("^ "//TAB//LF, status)
             ! TAIL may contain a close parenthesis.
             call buffer_substring_no_properties(e, point(), tail, status)
             if (.not. status%ok()) exit body
-            call goto_char(b)
+            call goto_character(b)
             call copy_marker_at(b, b_marker, .false., st)
             call copy_marker_at(e, e_marker, .false., st)
             call fold_rfc2047_region(line_beginning_position(), position_of(b_marker), status)
             if (.not. status%ok()) exit body
-            call goto_char(position_of(b_marker))
-            moved = skip_chars_backward("^ "//TAB//LF, status)
+            call goto_character(position_of(b_marker))
+            moved = skip_characters_backward("^ "//TAB//LF, status)
             crest = " "
 
             ! CREST may contain whitespace and an open parenthesis.
-            if (skip_chars_backward(" "//TAB, status) /= 0) then
+            if (skip_characters_backward(" "//TAB, status) /= 0) then
                 call buffer_substring_no_properties(point(), position_of(b_marker), crest, status)
             end if
 
             call buffer_substring_no_properties(position_of(b_marker), position_of(e_marker), text, status)
             if (.not. status%ok()) exit body
 
-            if (encoding == RFC2047_CHARSET_ENCODING_B) then
+            if (encoding == RFC2047_CHARACTER_SET_ENCODING_B) then
                 letter = "B"
             else
                 letter = "Q"
             end if
 
-            start = "=?"//ascii_downcase(charset)//"?"//letter//"?"
+            start = "=?"//ascii_downcase(character_set)//"?"//letter//"?"
             column = position_of(b_marker) - line_beginning_position()
             eword = encode_1(column, without_newlines(text), cs, encoding, start, crest, tail, status)
             if (.not. status%ok()) exit body
@@ -1332,9 +1334,9 @@ contains
             if (eword(1:1) == LF) then
                 delete_start = point()
                 ! The line was folded before encoding.
-                if (is_bol()) delete_start = point() - 1
+                if (is_beginning_of_line()) delete_start = point() - 1
             else
-                call goto_char(position_of(b_marker))
+                call goto_character(position_of(b_marker))
                 delete_start = point()
             end if
 
@@ -1343,7 +1345,7 @@ contains
             if (status%ok()) call insert(eword, status)
             if (.not. status%ok()) exit body
 
-            if (len(tail) == 0 .and. .not. is_eob()) then
+            if (len(tail) == 0 .and. .not. is_end_of_buffer()) then
                 if (.not. looking_at("[ "//TAB//LF//")]", st)) call insert(" ", status)
             end if
         end block body
@@ -1381,9 +1383,9 @@ contains
     end function without_newlines
 
     ! The encoded words of STRING, starting at COLUMN, as START (the
-    ! "=?CHARSET?E?" prefix), the encoded text of STRING encoded by CS ("":
+    ! "=?CHARACTER_SET?E?" prefix), the encoded text of STRING encoded by CS ("":
     ! as it is) and "?=", broken into lines of at most
-    ! `rfc2047_encode_max_chars' that start with CREST, followed by TAIL;
+    ! `rfc2047_encode_maximum_characters' that start with CREST, followed by TAIL;
     ! EWORD is the text already encoded.  Port of
     ! rfc2047.el:rfc2047-encode-1.
     recursive function encode_1(column, string, cs, encoding, start, crest_in, tail_in, status, eword_in) result(eword)
@@ -1393,10 +1395,10 @@ contains
         type(status_type), intent(inout) :: status
         character(len=*), intent(in), optional :: eword_in
         character(len=:), allocatable :: eword
-        character(len=:), allocatable :: crest, tail, prev, next, done
+        character(len=:), allocatable :: crest, tail, previous, next, done
         type(status_type) :: st
         integer(int64) :: index, limit, length, newline, m
-        logical :: has_prev, has_eword
+        logical :: has_previous, has_eword
 
         eword = ""
         crest = crest_in
@@ -1407,9 +1409,9 @@ contains
 
         if (len(string) == 0) then
             eword = done
-        else if (rfc2047_encode_max_chars == 0) then
+        else if (rfc2047_encode_maximum_characters == 0) then
             eword = start//encoded_text(string)//"?="
-        else if (column >= rfc2047_encode_max_chars) then
+        else if (column >= rfc2047_encode_maximum_characters) then
             if (has_eword) then
                 if (string_match(LF//"[ "//TAB//"]+\'", done, st) > 0) then
                     ! Remove a superfluous empty line.
@@ -1426,36 +1428,36 @@ contains
         else
             index = 0
             limit = text_length(string) - 1
-            prev = ""
-            has_prev = .true.
+            previous = ""
+            has_previous = .true.
             next = ""
 
-            do while (has_prev .and. index <= limit)
+            do while (has_previous .and. index <= limit)
                 next = start//encoded_text(substring(string, 0_int64, index + 1))//"?="
                 if (.not. status%ok()) return
                 length = column + len(next, kind=int64)
 
-                if (length > rfc2047_encode_max_chars) then
-                    next = prev
-                    has_prev = .false.
+                if (length > rfc2047_encode_maximum_characters) then
+                    next = previous
+                    has_previous = .false.
                     cycle
                 end if
 
                 newline = int(scan(tail, LF), int64) - 1
                 if (newline < 0) newline = text_length(tail)
 
-                if (index < limit .or. length + newline <= rfc2047_encode_max_chars) then
-                    prev = next
+                if (index < limit .or. length + newline <= rfc2047_encode_maximum_characters) then
+                    previous = next
                     index = index + 1
                 else if (string_match("\`)+", tail, st) > 0) then
                     ! Break the line after the close parenthesis.
                     m = match_end(0, st) - 1
                     tail = substring(tail, 0_int64, m)//LF//" "//substring(tail, m)
-                    prev = next
+                    previous = next
                     index = index + 1
                 else
-                    next = prev
-                    has_prev = .false.
+                    next = previous
+                    has_previous = .false.
                 end if
             end do
 
@@ -1501,7 +1503,7 @@ contains
                 bytes = text
             end if
 
-            if (encoding == RFC2047_CHARSET_ENCODING_B) then
+            if (encoding == RFC2047_CHARACTER_SET_ENCODING_B) then
                 ! Base64-encode the header contained in TEXT.  Port of
                 ! rfc2047.el:rfc2047-b-encode-string.
                 encoded = base64_encode_string(bytes, no_line_break=.true., multibyte=len(cs) == 0, status=status)
@@ -1526,11 +1528,11 @@ contains
         call insert(bytes, status)
 
         if (status%ok()) then
-            call encode_quoted_printable_region(point_min(), point_max(), status, &
+            call encode_quoted_printable_region(point_minimum(), point_maximum(), status, &
                                                 class="-"//achar(8)//LF//achar(12)//" !#-'*+0-9A-Z\^`-~"//achar(127))
         end if
 
-        if (status%ok()) call subst_char_in_region(point_min(), point_max(), iachar(" "), iachar("_"), status)
+        if (status%ok()) call substitute_character_in_region(point_minimum(), point_maximum(), iachar(" "), iachar("_"), status)
         encoded = buffer_string()
         call temporary_buffer_end(old, temporary)
     end function quoted_printable_encoded
@@ -1549,7 +1551,7 @@ contains
         integer(int64) :: beginning, found, inner
 
         status = status_type()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         saved_table = syntax_table()
         call set_syntax_table(standard_syntax_table(), st)
 
@@ -1560,7 +1562,7 @@ contains
             ! backslash, but tests the character before point, which is
             ! the quote just found: every quote starts a string.)
             beginning = match_end(0, st)
-            call goto_char(match_beginning(0, st))
+            call goto_character(match_beginning(0, st))
 
             ! A string that does not end is left alone.
             quoted: block
@@ -1568,52 +1570,58 @@ contains
                 if (.not. st%ok()) exit quoted
                 call save_restriction_begin(restriction)
                 call narrow_to_region(beginning, point() - 1, st)
-                call goto_char(beginning)
+                call goto_character(beginning)
 
                 do while (st%ok())
                     call search_forward("\", inner, st, noerror=SEARCH_MOVE)
                     if (inner == 0) exit
-                    if (after() /= iachar("""")) call delete_char(-1_int64, st)
-                    if (st%ok()) call forward_char(st)
+                    if (after() /= iachar("""")) call delete_character(-1_int64, st)
+                    if (st%ok()) call forward_character(st)
                 end do
 
                 call save_restriction_end(restriction)
                 if (.not. st%ok()) exit quoted
-                call forward_char(st)
+                call forward_character(st)
             end block quoted
 
-            if (.not. st%ok()) call goto_char(beginning)
+            if (.not. st%ok()) call goto_character(beginning)
         end do
 
         call set_syntax_table(saved_table, st)
     end subroutine strip_rfc2047_backslashes_in_quoted_strings
 
-    !> Return the coding system corresponding to MIME CHARSET ("" if none),
-    !> "" if Fortmacs can't decode CHARSET.
+    !> Return the coding system corresponding to MIME CHARACTER_SET ("" if none),
+    !> "" if Fortmacs can't decode CHARACTER_SET.
     !>
-    !> If ALLOW_OVERRIDE is true, use `mime_charset_overrides' to map
+    !> If ALLOW_OVERRIDE is true, use `mime_character_set_overrides' to map
     !> undesired charset names to their replacement.  This should only be
     !> used for decoding, not for encoding.  Port of
     !> rfc2047.el:rfc2047-charset-to-coding-system.
-    function rfc2047_charset_to_coding_system(charset, allow_override) result(cs)
-        character(len=*), intent(in) :: charset
+    function rfc2047_character_set_to_coding_system(character_set, allow_override) result(cs)
+        character(len=*), intent(in) :: character_set
         logical, intent(in), optional :: allow_override
         character(len=:), allocatable :: cs
         character(len=:), allocatable :: name
 
-        name = ascii_downcase(charset)
-        if (len(name) == 0 .or. is_ignored_charset("gnus-all") .or. is_ignored_charset(name)) name = parse_charset()
-        cs = mime_charset_to_coding_system(name, allow_override)
+        name = ascii_downcase(character_set)
+
+        if (len(name) == 0 .or. is_ignored_character_set("gnus-all") .or. is_ignored_character_set(name)) then
+            name = parse_character_set()
+        end if
+
+        cs = mime_character_set_to_coding_system(name, allow_override)
 
         if (cs == "ascii") then
-            cs = mime_charset_to_coding_system(parse_charset())
+            cs = mime_character_set_to_coding_system(parse_character_set())
             if (len(cs) == 0) cs = "raw-text"
         else if (.not. is_known_coding_system(cs)) then
-            if (len(name) > 0 .and. is_ignored_charset("gnus-unknown")) cs = mime_charset_to_coding_system(parse_charset())
+            if (len(name) > 0 .and. is_ignored_character_set("gnus-unknown")) then
+                cs = mime_character_set_to_coding_system(parse_character_set())
+            end if
         end if
 
         if (cs == "ascii") cs = "raw-text"
-    end function rfc2047_charset_to_coding_system
+    end function rfc2047_character_set_to_coding_system
 
     ! Whether CS is a coding system (not "").  Not a port.
     logical function is_known_coding_system(cs)
@@ -1624,7 +1632,7 @@ contains
     end function is_known_coding_system
 
     ! Decode successive encoded-words in WORDS and return a decoded
-    ! string.  Each element of WORDS has a CHARSET, an ENCODING ("B" or
+    ! string.  Each element of WORDS has a CHARACTER_SET, an ENCODING ("B" or
     ! "Q", either case), the encoded text and the encoded word.  Port of
     ! rfc2047.el:rfc2047-decode-encoded-words.
     function decode_encoded_words(words) result(decoded)
@@ -1640,7 +1648,7 @@ contains
         n = 0
 
         do k = 1, size(words)
-            cs = rfc2047_charset_to_coding_system(words(k)%charset, .true.)
+            cs = rfc2047_character_set_to_coding_system(words(k)%character_set, .true.)
             ok = len(cs) > 0
 
             if (ok) then
@@ -1762,11 +1770,11 @@ contains
             end if
 
             b = start
-            call goto_char(b)
+            call goto_character(b)
 
             ! Look for the encoded-words.
             do
-                call re_search_forward(eword, found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(eword, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) exit body
                 if (found == 0) exit
                 e = match_beginning(1, st)
@@ -1782,7 +1790,7 @@ contains
                     n = n + 1
                     ! The charset, the encoding, the encoded text and the
                     ! encoded word.
-                    words(n)%charset = match_string(2)
+                    words(n)%character_set = match_string(2)
                     words(n)%encoding = achar(after(match_beginning(3, st)))
                     word = match_string(3)
                     words(n)%text = word(3:)
@@ -1792,7 +1800,7 @@ contains
 
                     if (matched) then
                         words_end = match_end(0, st)
-                        call goto_char(words_end)
+                        call goto_character(words_end)
                     end if
                 end do
 
@@ -1804,16 +1812,16 @@ contains
                 call tidy_decoded_words(e, status)
                 if (.not. status%ok()) exit body
 
-                if (buffers(current)%multibyte .and. is_parse_charset_decoding()) then
-                    call decode_coding_region(b, e, parse_charset(), inserted, status)
+                if (buffers(current)%multibyte .and. is_parse_character_set_decoding()) then
+                    call decode_coding_region(b, e, parse_character_set(), inserted, status)
                     if (.not. status%ok()) exit body
                 end if
 
                 b = point()
             end do
 
-            if (buffers(current)%multibyte .and. is_parse_charset_decoding()) then
-                call decode_coding_region(b, point_max(), parse_charset(), inserted, status)
+            if (buffers(current)%multibyte .and. is_parse_character_set_decoding()) then
+                call decode_coding_region(b, point_maximum(), parse_character_set(), inserted, status)
             end if
         end block body
 
@@ -1839,19 +1847,19 @@ contains
 
         body: block
             if (.not. status%ok()) exit body
-            call goto_char(e)
+            call goto_character(e)
 
             do
-                call re_search_forward("["//LF//CR//"]+", found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("["//LF//CR//"]+", found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) exit body
                 if (found == 0) exit
                 call replace_match(" ", status)
                 if (.not. status%ok()) exit body
             end do
 
-            end = point_max()
+            end = point_maximum()
             if (rfc2047_quote_decoded_words_containing_tspecials) call quote_decoded_words(e, end, status)
-            call goto_char(point_max())
+            call goto_character(point_maximum())
         end block body
 
         call save_restriction_end(restriction)
@@ -1878,7 +1886,7 @@ contains
         if (k == 0) return
 
         if (rfc2047_header_encodings(k)%all_headers) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*), got all headers")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected character(len=*), got all headers")
             return
         end if
 
@@ -1901,41 +1909,42 @@ contains
 
         call save_restriction_end(inner)
         if (.not. is_address .or. .not. status%ok()) return
-        call goto_char(e)
-        moved = skip_chars_forward(" "//TAB, st)
+        call goto_character(e)
+        moved = skip_characters_forward(" "//TAB, st)
         start = point()
         quoted = after() == iachar("""")
-        call goto_char(point_max())
-        moved = skip_chars_backward(" "//TAB, st, start)
+        call goto_character(point_maximum())
+        moved = skip_characters_backward(" "//TAB, st, start)
         if (quoted) quoted = point() > start + 1
         if (quoted) quoted = before() == iachar("""")
 
         if (quoted) then
-            call forward_char(st, -1_int64)
+            call forward_character(st, -1_int64)
             start = start + 1
         end if
 
         call copy_marker_at(point(), end_marker, .false., st)
-        call goto_char(start)
+        call goto_character(start)
 
         do
             call search_forward("""", found, st, bound=position_of(end_marker), noerror=SEARCH_NOERROR)
             if (found == 0) exit
-            call forward_char(st, -1_int64)
-            moved = skip_chars_backward("\\", st)
-            call goto_char(match_beginning(0, st))
+            call forward_character(st, -1_int64)
+            moved = skip_characters_backward("\\", st)
+            call goto_character(match_beginning(0, st))
             if (modulo(moved, 2_int64) == 0) call insert("\", status)
-            call forward_char(st)
+            call forward_character(st)
         end do
 
         if (.not. quoted) then
-            call goto_char(start)
-            call re_search_forward("["//TSPECIALS//"]", found, st, bound=position_of(end_marker), noerror=SEARCH_NOERROR)
+            call goto_character(start)
+            call regular_expression_search_forward("["//TSPECIALS//"]", found, st, bound=position_of(end_marker), &
+                                                   noerror=SEARCH_NOERROR)
 
             if (found > 0) then
-                call goto_char(start)
+                call goto_character(start)
                 call insert("""", status)
-                call goto_char(position_of(end_marker))
+                call goto_character(position_of(end_marker))
                 call insert("""", status)
             end if
         end if
@@ -1976,7 +1985,7 @@ contains
         if (index(string, "=?") > 0) then
             call temporary_buffer_begin(old, temporary, .true.)
             call insert(string, st)
-            if (st%ok()) call decode_rfc2047_region(point_min(), point_max(), st, address)
+            if (st%ok()) call decode_rfc2047_region(point_minimum(), point_maximum(), st, address)
             decoded = buffer_string()
             call temporary_buffer_end(old, temporary)
             if (present(status)) status = st
@@ -1993,14 +2002,14 @@ contains
             call temporary_buffer_end(old, temporary)
         end if
 
-        if (st%ok() .and. is_parse_charset_decoding()) then
+        if (st%ok() .and. is_parse_character_set_decoding()) then
             ! Bypass decoding if the string is purely ASCII.
             call detect_coding_string(decoded, names, .true., .true.)
 
             if (size(names) > 0) then
                 if (names(1)%name /= "undecided") then
                     plain = decoded
-                    call decode_coding_string(plain, parse_charset(), decoded, st, .true.)
+                    call decode_coding_string(plain, parse_character_set(), decoded, st, .true.)
                 end if
             end if
         end if
@@ -2049,24 +2058,24 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine cmd_encode_rfc2047_message_header(status)
+    recursive subroutine execute_encode_rfc2047_message_header(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
         if (status%ok()) call encode_rfc2047_message_header(status)
-    end subroutine cmd_encode_rfc2047_message_header
+    end subroutine execute_encode_rfc2047_message_header
 
-    recursive subroutine cmd_decode_rfc2047_region(status)
+    recursive subroutine execute_decode_rfc2047_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
         call interactive_region(b, e, status)
         if (status%ok()) call decode_rfc2047_region(b, e, status)
-    end subroutine cmd_decode_rfc2047_region
+    end subroutine execute_decode_rfc2047_region
 
     !> Register the RFC 2047 commands.  Not a port.
-    subroutine init_rfc2047()
-        commands%encode_rfc2047_message_header%execute => cmd_encode_rfc2047_message_header
-        commands%decode_rfc2047_region%execute => cmd_decode_rfc2047_region
-    end subroutine init_rfc2047
+    subroutine initialize_rfc2047()
+        commands%encode_rfc2047_message_header%execute => execute_encode_rfc2047_message_header
+        commands%decode_rfc2047_region%execute => execute_decode_rfc2047_region
+    end subroutine initialize_rfc2047
 end module rfc2047_mod

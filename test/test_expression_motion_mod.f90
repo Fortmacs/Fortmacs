@@ -24,26 +24,26 @@
 !> Ports test/lisp/emacs-lisp/lisp-tests.el's end-of-defun-twice,
 !> mark-defun-no-arg-region-inactive and the lisp-delete-pair-* tests
 !> (with a syntax table giving `;' comments in place of Emacs Lisp mode),
-!> plus own tests of `beginning_of_subprogram' with `subprogram_prompt_regexp',
+!> plus own tests of `beginning_of_subprogram' with `subprogram_prompt_regular_expression',
 !> `narrow_to_subprogram', `insert_parentheses', `raise_expression' and
-!> `check_parens'.
+!> `check_parentheses'.
 module test_expression_motion_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_USER_ERROR
+    use error_mod, only: status_type, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, erase_buffer, transient_mark_mode
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, mark_position, widen
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_string, mark_position, widen
     use keyboard_mod, only: last_command
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use syntax_mod, only: modify_syntax_entry, make_syntax_table, copy_syntax_table, set_syntax_table, destroy_syntax_table, &
                           standard_syntax_table, syntax_table
     use text_mode_mod, only: text_mode
     use simple_mod, only: deactivate_mark
     use expression_motion_mod, only: beginning_of_subprogram, end_of_subprogram, mark_subprogram, narrow_to_subprogram, &
                                      insert_parentheses, &
-                                     delete_pair, raise_expression, check_parens, subprogram_prompt_regexp
+                                     delete_pair, raise_expression, check_parentheses, subprogram_prompt_regular_expression
     implicit none(type, external)
     private
 
@@ -54,7 +54,7 @@ module test_expression_motion_mod
     !> Positions named by =!NAME= in a test buffer.
     type :: position_type
         character(len=16) :: name = ""
-        integer(int64) :: pos = 0
+        integer(int64) :: position = 0
     end type position_type
 
     type(position_type) :: positions(32)
@@ -69,7 +69,7 @@ contains
         testsuite = [ &
                     new_unittest("end-of-defun-twice", test_end_of_subprogram_twice), &
                     new_unittest("mark-defun-no-arg-region-inactive", test_mark_subprogram), &
-                    new_unittest("lisp-delete-pair-parens", test_delete_pair_parens), &
+                    new_unittest("lisp-delete-pair-parens", test_delete_pair_parentheses), &
                     new_unittest("lisp-delete-pair-quotation-marks", test_delete_pair_quotes), &
                     new_unittest("lisp-delete-pair-quotes-in-text-mode", test_delete_pair_text_mode), &
                     new_unittest("lisp-delete-pair-quotes-text-mode-syntax-table", test_delete_pair_text_syntax), &
@@ -77,17 +77,17 @@ contains
                     new_unittest("narrow-to-defun", test_narrow_to_subprogram), &
                     new_unittest("insert-parentheses", test_insert_parentheses), &
                     new_unittest("raise-sexp", test_raise_expression), &
-                    new_unittest("check-parens", test_check_parens) &
+                    new_unittest("check-parens", test_check_parentheses) &
                     ]
     end subroutine collect_expression_motion_mod
 
     !> A fresh buffer holding TEXT, point at its start.
-    subroutine temp_buffer(text)
+    subroutine temporary_buffer(text)
         character(len=*), intent(in) :: text
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *lisp-cmds-test*", buffer, st)
         call set_buffer(buffer, st)
         call widen()
@@ -95,9 +95,9 @@ contains
         buffers(current)%mark_active = .false.
         call erase_buffer(st)
         call insert(text, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         last_command => null()
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> elisp-tests-with-temp-buffer: TEXT without its =!NAME= words, whose
     !> positions `at' gives, in a buffer where `;' starts comments (TABLE,
@@ -125,11 +125,11 @@ contains
             plain = plain//rest(1:k - 1)
             npositions = npositions + 1
             positions(npositions)%name = rest(k + 2:k + e)
-            positions(npositions)%pos = len(plain) + 1
+            positions(npositions)%position = len(plain) + 1
             rest = rest(k + e + 2:)
         end do
 
-        call temp_buffer(plain)
+        call temporary_buffer(plain)
         call make_syntax_table(table, st)
         call modify_syntax_entry(iachar(";"), iachar(";"), "<", st, table)
         call modify_syntax_entry(10, 10, ">", st, table)
@@ -144,7 +144,7 @@ contains
         at = 0
 
         do k = 1, npositions
-            if (positions(k)%name == name) at = positions(k)%pos
+            if (positions(k)%name == name) at = positions(k)%position
         end do
     end function at
 
@@ -174,7 +174,7 @@ contains
 
         checks: block
             type(status_type) :: st
-            call goto_char(at("p1"))
+            call goto_character(at("p1"))
             call end_of_subprogram(2_int64, st)
             call check(error, point() == at("p2"), "end-of-defun 2 from p1")
         end block checks
@@ -185,16 +185,16 @@ contains
 
         subroutine eod2(text)
             character(len=*), intent(in) :: text
-            integer(int64) :: pt_eod2
+            integer(int64) :: point_eod2
             type(status_type) :: st
 
-            call temp_buffer(text)
+            call temporary_buffer(text)
             call end_of_subprogram(1_int64, st)
             call end_of_subprogram(1_int64, st)
-            pt_eod2 = point()
-            call goto_char(point_min())
+            point_eod2 = point()
+            call goto_character(point_minimum())
             call end_of_subprogram(2_int64, st)
-            call check(error, point() == pt_eod2, "end-of-defun twice /= end-of-defun 2")
+            call check(error, point() == point_eod2, "end-of-defun twice /= end-of-defun 2")
         end subroutine eod2
     end subroutine test_end_of_subprogram_twice
 
@@ -246,28 +246,28 @@ contains
 
             call deactivate_mark()
             last_command => null()
-            call goto_char(at(from))
+            call goto_character(at(from))
             call mark_subprogram(1_int64, st)
             call check(error, point() == at(before) .and. mark_position() == at(after), "mark-defun from "//from)
         end subroutine try
     end subroutine test_mark_subprogram
 
     !> Test \[delete_pair] with parens.
-    subroutine test_delete_pair_parens(error)
+    subroutine test_delete_pair_parentheses(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("(foo)")
+        call temporary_buffer("(foo)")
         call delete_pair(1_int64, st)
         call check(error, buffer_string(), "foo")
-    end subroutine test_delete_pair_parens
+    end subroutine test_delete_pair_parentheses
 
     !> Test \[delete_pair] with quotation marks.
     subroutine test_delete_pair_quotes(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("""foo""")
+        call temporary_buffer("""foo""")
         call delete_pair(1_int64, st)
         call check(error, buffer_string(), "foo")
     end subroutine test_delete_pair_quotes
@@ -277,10 +277,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call text_mode(st)
         call insert("""foo""", st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call delete_pair(1_int64, st)
         call check(error,.not. st%ok(), "delete-pair should fail")
     end subroutine test_delete_pair_text_mode
@@ -291,14 +291,14 @@ contains
         type(handle_type) :: table, old
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call text_mode(st)
         old = syntax_table()
         call copy_syntax_table(table, st, old)
         call modify_syntax_entry(iachar('"'), iachar('"'), "$", st, table)
         call set_syntax_table(table, st)
         call insert("""foo""", st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call delete_pair(1_int64, st)
         call check(error, buffer_string(), "foo")
         call set_syntax_table(old, st)
@@ -310,9 +310,9 @@ contains
         type(status_type) :: st
         logical :: found
 
-        call temp_buffer("f () {"//LF//"  a"//LF//"}"//LF//"function g {"//LF//"  b"//LF//"}"//LF)
-        call subprogram_prompt_regexp%set_local("^\(function[ "//achar(9)//"]+\)?[a-z]+[ ]*\(()\)?[ ]*")
-        call goto_char(point_max())
+        call temporary_buffer("f () {"//LF//"  a"//LF//"}"//LF//"function g {"//LF//"  b"//LF//"}"//LF)
+        call subprogram_prompt_regular_expression%set_local("^\(function[ "//achar(9)//"]+\)?[a-z]+[ ]*\(()\)?[ ]*")
+        call goto_character(point_maximum())
 
         checks: block
             call beginning_of_subprogram(1_int64, found, st)
@@ -321,20 +321,20 @@ contains
             call beginning_of_subprogram(1_int64, found, st)
             call check(error, found .and. point() == 1, "beginning of f")
             if (allocated(error)) exit checks
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call end_of_subprogram(1_int64, st)
             call check(error, point() == 14, "end of f")
         end block checks
 
-        call subprogram_prompt_regexp%clear_local()
+        call subprogram_prompt_regular_expression%clear_local()
     end subroutine test_subprogram_prompt
 
     subroutine test_narrow_to_subprogram(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("(a 1)"//LF//LF//"(b 2"//LF//" 3)"//LF//LF//"(c 4)"//LF)
-        call goto_char(10_int64)
+        call temporary_buffer("(a 1)"//LF//LF//"(b 2"//LF//" 3)"//LF//LF//"(c 4)"//LF)
+        call goto_character(10_int64)
         call narrow_to_subprogram(.false., st)
         call check(error, buffer_string(), "(b 2"//LF//" 3)"//LF)
         call widen()
@@ -344,7 +344,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("foo bar")
+        call temporary_buffer("foo bar")
 
         checks: block
             call insert_parentheses(st)
@@ -352,8 +352,8 @@ contains
             if (allocated(error)) exit checks
             call check(error, point() == 2, "point between the parens")
             if (allocated(error)) exit checks
-            call temp_buffer("a foo bar")
-            call goto_char(3_int64)
+            call temporary_buffer("a foo bar")
+            call goto_character(3_int64)
             call insert_parentheses(st, 2_int64)
             call check(error, buffer_string(), "a (foo bar)")
             if (allocated(error)) exit checks
@@ -365,27 +365,27 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("(let ((foo 2))"//LF//"  (progn"//LF//"    (setq foo 3)"//LF//"    (zot)"//LF//"    (+ foo 2)))")
-        call goto_char(index(buffer_string(), "(zot)", kind=int64))
+        call temporary_buffer("(let ((foo 2))"//LF//"  (progn"//LF//"    (setq foo 3)"//LF//"    (zot)"//LF//"    (+ foo 2)))")
+        call goto_character(index(buffer_string(), "(zot)", kind=int64))
         call raise_expression(1_int64, st)
         call check(error, buffer_string(), "(let ((foo 2))"//LF//"  (zot))")
     end subroutine test_raise_expression
 
-    subroutine test_check_parens(error)
+    subroutine test_check_parentheses(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("(a (b) c")
+        call temporary_buffer("(a (b) c")
 
         checks: block
-            call check_parens(st)
-            call check(error, st%code == FM_USER_ERROR .and. st%detail == "Unmatched bracket or quote", "error")
+            call check_parentheses(st)
+            call check(error, st%code == USER_ERROR_CODE .and. st%detail == "Unmatched bracket or quote", "error")
             if (allocated(error)) exit checks
             call check(error, point() == 1, "point at the unbalanced paren")
             if (allocated(error)) exit checks
-            call temp_buffer("(a (b) c)")
-            call check_parens(st)
+            call temporary_buffer("(a (b) c)")
+            call check_parentheses(st)
             call check(error, st%ok(), "balanced")
         end block checks
-    end subroutine test_check_parens
+    end subroutine test_check_parentheses
 end module test_expression_motion_mod

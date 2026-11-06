@@ -29,44 +29,42 @@ module test_bookmark_mod
     use test_support_mod, only: show_alone
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, list_length, list_elt, xstring
+    use value_mod, only: value_type, list_length, list_element, xstring
     use data_mod, only: set, symbol_value
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, close_buffer, get_or_make_buffer, &
                           generate_new_buffer_name, restore_buffer_modified, get_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point_min, point_max, point
-    use editing_commands_mod, only: forward_line, beginning_of_line, forward_char
-    use regular_expression_optimization_mod, only: regexp_unmatchable
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory, file_attributes
-    use system_dependent_mod, only: file_stat_type
-    use files_mod, only: create_temp_file, delete_file, find_file_noselect, abbreviate_file_name
-    use search_mod, only: string_match, looking_at, re_search_forward
+    use editing_functions_mod, only: buffer_string, goto_character, point_minimum, point_maximum, point
+    use editing_commands_mod, only: forward_line, beginning_of_line, forward_character
+    use regular_expression_optimization_mod, only: regular_expression_unmatchable
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, file_name_as_directory, file_attributes
+    use system_dependent_mod, only: file_status_type
+    use files_mod, only: create_temporary_file, delete_file, find_file_noselect, abbreviate_file_name
+    use search_mod, only: string_match, looking_at, regular_expression_search_forward
     use derived_mod, only: is_derived_mode
     use window_mod, only: switch_to_buffer, window_configuration_type, current_window_configuration, same_handle, &
                           set_window_configuration
     use basic_subprograms_mod, only: history_delete_duplicates
-    use bindings_mod, only: init_bindings
-    use bookmark_mod, only: bookmark_type, bookmarks, bookmark_default_file, bookmark_bookmarks_timestamp, &
-                            bookmark_save_flag, bookmark_use_annotations, &
-                            bookmark_make_record_function, bookmark_all_names, bookmark_get_bookmark, &
+    use bindings_mod, only: initialize_bindings
+    use bookmark_mod, only: bookmark_type, bookmarks, bookmark_default_file, bookmark_bookmarks_timestamp, bookmark_save_flag, &
+                            bookmark_use_annotations, bookmark_make_record_function, bookmark_all_names, bookmark_get_bookmark, &
                             bookmark_set_name, bookmark_get_filename, bookmark_set_filename, bookmark_get_position, &
-                            bookmark_set_position, bookmark_get_front_context_string, &
-                            bookmark_set_front_context_string, bookmark_get_rear_context_string, &
-                            bookmark_set_rear_context_string, bookmark_maybe_historicize_string, &
-                            bookmark_make_record, bookmark_make_record_default, bookmark_set, &
-                            bookmark_set_no_overwrite, bookmark_set_internal, bookmark_delete_line, &
-                            bookmark_default_annotation_text, bookmark_insert_annotation, bookmark_set_annotation, &
-                            bookmark_get_annotation, bookmark_edit_annotation, bookmark_edit_annotation_confirm, &
-                            bookmark_jump, bookmark_insert_location, bookmark_location, bookmark_rename, &
-                            bookmark_insert, bookmark_delete, bookmark_delete_all, bookmark_save, bookmark_load, &
-                            bookmark_maybe_rename, bookmark_store, BOOKMARK_SET_PUSH, bookmark_bmenu_buffer, &
-                            bookmark_bmenu_list, bookmark_bmenu_edit_annotation, bookmark_bmenu_toggle_filenames, &
-                            bookmark_bmenu_toggle_filenames_command, bookmark_bmenu_show_filenames, &
-                            bookmark_bmenu_hide_filenames, bookmark_bmenu_bookmark, bookmark_bmenu_mark, &
-                            bookmark_bmenu_any_marks, bookmark_bmenu_ensure_position, bookmark_bmenu_mark_all, &
-                            bookmark_bmenu_unmark, bookmark_bmenu_unmark_all, bookmark_bmenu_delete, &
-                            bookmark_bmenu_execute_deletions, bookmark_bmenu_delete_all, bookmark_bmenu_locate, &
-                            bookmark_bmenu_filter_bookmarks_by_regexp
+                            bookmark_set_position, bookmark_get_front_context_string, bookmark_set_front_context_string, &
+                            bookmark_get_rear_context_string, bookmark_set_rear_context_string, bookmark_maybe_historicize_string, &
+                            bookmark_make_record, bookmark_make_record_default, bookmark_set, bookmark_set_no_overwrite, &
+                            bookmark_set_internal, bookmark_delete_line, bookmark_default_annotation_text, &
+                            bookmark_insert_annotation, bookmark_set_annotation, bookmark_get_annotation, &
+                            bookmark_edit_annotation, bookmark_edit_annotation_confirm, bookmark_jump, bookmark_insert_location, &
+                            bookmark_location, bookmark_rename, bookmark_insert, bookmark_delete, bookmark_delete_all, &
+                            bookmark_save, bookmark_load, bookmark_maybe_rename, bookmark_store, BOOKMARK_SET_PUSH, &
+                            bookmark_bookmark_menu_buffer, bookmark_bookmark_menu_list, bookmark_bookmark_menu_edit_annotation, &
+                            bookmark_bookmark_menu_toggle_filenames, bookmark_bookmark_menu_toggle_filenames_command, &
+                            bookmark_bookmark_menu_show_filenames, bookmark_bookmark_menu_hide_filenames, &
+                            bookmark_bookmark_menu_bookmark, bookmark_bookmark_menu_mark, bookmark_bookmark_menu_any_marks, &
+                            bookmark_bookmark_menu_ensure_position, bookmark_bookmark_menu_mark_all, &
+                            bookmark_bookmark_menu_unmark, bookmark_bookmark_menu_unmark_all, bookmark_bookmark_menu_delete, &
+                            bookmark_bookmark_menu_execute_deletions, bookmark_bookmark_menu_delete_all, &
+                            bookmark_bookmark_menu_locate, bookmark_bookmark_menu_filter_bookmarks_by_regular_expression
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
@@ -109,24 +107,25 @@ contains
                     new_unittest("bookmark-tests-save/non-ascii-annotation", test_save_non_ascii_annotation), &
                     new_unittest("bookmark-tests-maybe-rename", test_maybe_rename), &
                     new_unittest("bookmark-tests-load", test_load), &
-                    new_unittest("bookmark-test-bmenu-edit-annotation/show-annotation", test_bmenu_edit_annotation), &
-                    new_unittest("bookmark-test-bmenu-send-edited-annotation", test_bmenu_send_edited_annotation), &
-                    new_unittest("bookmark-test-bmenu-send-edited-annotation/restore-focus", test_bmenu_restore_focus), &
-                    new_unittest("bookmark-test-bmenu-toggle-filenames", test_bmenu_toggle_filenames), &
-                    new_unittest("bookmark-test-bmenu-toggle-filenames/show", test_bmenu_toggle_filenames_show), &
-                    new_unittest("bookmark-test-bmenu-show-filenames", test_bmenu_show_filenames), &
-                    new_unittest("bookmark-test-bmenu-hide-filenames", test_bmenu_hide_filenames), &
-                    new_unittest("bookmark-test-bmenu-bookmark", test_bmenu_bookmark), &
-                    new_unittest("bookmark-test-bmenu-mark", test_bmenu_mark), &
-                    new_unittest("bookmark-test-bmenu-any-marks", test_bmenu_any_marks), &
-                    new_unittest("bookmark-test-bmenu-mark-all", test_bmenu_mark_all), &
-                    new_unittest("bookmark-test-bmenu-any-marks-list", test_bmenu_any_marks_list), &
-                    new_unittest("bookmark-test-bmenu-unmark", test_bmenu_unmark), &
-                    new_unittest("bookmark-test-bmenu-unmark-all", test_bmenu_unmark_all), &
-                    new_unittest("bookmark-test-bmenu-delete", test_bmenu_delete), &
-                    new_unittest("bookmark-test-bmenu-delete-all", test_bmenu_delete_all), &
-                    new_unittest("bookmark-test-bmenu-locate", test_bmenu_locate), &
-                    new_unittest("bookmark-test-bmenu-filter-alist-by-regexp", test_bmenu_filter_table_by_regexp) &
+                    new_unittest("bookmark-test-bmenu-edit-annotation/show-annotation", test_bookmark_menu_edit_annotation), &
+                    new_unittest("bookmark-test-bmenu-send-edited-annotation", test_bookmark_menu_send_edited_annotation), &
+                    new_unittest("bookmark-test-bmenu-send-edited-annotation/restore-focus", test_bookmark_menu_restore_focus), &
+                    new_unittest("bookmark-test-bmenu-toggle-filenames", test_bookmark_menu_toggle_filenames), &
+                    new_unittest("bookmark-test-bmenu-toggle-filenames/show", test_bookmark_menu_toggle_filenames_show), &
+                    new_unittest("bookmark-test-bmenu-show-filenames", test_bookmark_menu_show_filenames), &
+                    new_unittest("bookmark-test-bmenu-hide-filenames", test_bookmark_menu_hide_filenames), &
+                    new_unittest("bookmark-test-bmenu-bookmark", test_bookmark_menu_bookmark), &
+                    new_unittest("bookmark-test-bmenu-mark", test_bookmark_menu_mark), &
+                    new_unittest("bookmark-test-bmenu-any-marks", test_bookmark_menu_any_marks), &
+                    new_unittest("bookmark-test-bmenu-mark-all", test_bookmark_menu_mark_all), &
+                    new_unittest("bookmark-test-bmenu-any-marks-list", test_bookmark_menu_any_marks_list), &
+                    new_unittest("bookmark-test-bmenu-unmark", test_bookmark_menu_unmark), &
+                    new_unittest("bookmark-test-bmenu-unmark-all", test_bookmark_menu_unmark_all), &
+                    new_unittest("bookmark-test-bmenu-delete", test_bookmark_menu_delete), &
+                    new_unittest("bookmark-test-bmenu-delete-all", test_bookmark_menu_delete_all), &
+                    new_unittest("bookmark-test-bmenu-locate", test_bookmark_menu_locate), &
+                    new_unittest("bookmark-test-bmenu-filter-alist-by-regexp", &
+                                 test_bookmark_menu_filter_table_by_regular_expression) &
                     ]
     end subroutine collect_bookmark_mod
 
@@ -140,7 +139,7 @@ contains
         character(len=:), allocatable :: file
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("test/bookmark-resources", file, st, fortmacs_wd)
         file = file_name_as_directory(file)//name
     end function resource_file
@@ -177,14 +176,14 @@ contains
     !> saving off.
     subroutine use_default_file(file)
         character(len=*), intent(in) :: file
-        type(file_stat_type) :: stat
+        type(file_status_type) :: stat
         logical :: found
 
         bookmark_default_file = resource_file(file)
         call file_attributes(bookmark_default_file, stat, found)
         bookmark_bookmarks_timestamp%file = bookmark_default_file
         bookmark_bookmarks_timestamp%mtime_known = found
-        bookmark_bookmarks_timestamp%mtime_sec = stat%mtime_sec
+        bookmark_bookmarks_timestamp%mtime_second = stat%mtime_second
         bookmark_bookmarks_timestamp%mtime_nsec = stat%mtime_nsec
         bookmark_save_flag = .false.
         bookmark_use_annotations = .false.
@@ -197,7 +196,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call use_default_file("test.bmk")
         if (allocated(bookmarks)) deallocate (bookmarks)
         allocate (bookmarks(1))
@@ -214,7 +213,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call use_default_file("test-list.bmk")
         if (allocated(bookmarks)) deallocate (bookmarks)
         allocate (bookmarks(3))
@@ -389,18 +388,18 @@ contains
     subroutine test_getters_and_setters(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(bookmark_type) :: bmk
+        type(bookmark_type) :: bookmark
         type(status_type) :: st
 
         call with_bookmark_test(old)
         buffers(current)%filename = "test"
-        call bookmark_make_record(bmk, st)
+        call bookmark_make_record(bookmark, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         ! (The record is stored, so that the setters, which take a name,
         ! reach it.)
-        call bookmark_store(bmk%name, bmk, .true., st)
-        call bookmark_set_name(bmk%name, "foobar", st)
+        call bookmark_store(bookmark%name, bookmark, .true., st)
+        call bookmark_set_name(bookmark%name, "foobar", st)
         call check(error, bookmark_get_bookmark("foobar", st) == 1, "foobar")
         if (allocated(error)) return
         call bookmark_set_filename("foobar", "file/name", st)
@@ -424,7 +423,7 @@ contains
         type(status_type) :: st
         logical :: saved
 
-        call init_bindings()
+        call initialize_bindings()
         call set(value_type(name="bookmark_history"), value_type(), st)
         saved = history_delete_duplicates
         history_delete_duplicates = .true.
@@ -434,7 +433,7 @@ contains
         call symbol_value(value_type(name="bookmark_history"), history, st)
         call check(error, list_length(history) == 1, "one element")
         if (allocated(error)) return
-        call check(error, xstring(list_elt(history, 1_int64)), "foo")
+        call check(error, xstring(list_element(history, 1_int64)), "foo")
     end subroutine test_maybe_historicize_string
 
     !> The record made at position 3 of the example file.
@@ -457,7 +456,7 @@ contains
 
         call example_buffer(buffer)
         call set_buffer(buffer, st)
-        call goto_char(3_int64)
+        call goto_character(3_int64)
 
         do n = 1, 2
             ! calling twice gives same record
@@ -576,17 +575,17 @@ contains
         steps: block
             ! 1. bookmark-set
             ! Set first bookmark
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call bookmark_set(st, "foo")
             call check(error, table_is([bmk1]), "bmk1")
             if (allocated(error)) exit steps
             ! Replace that bookmark
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call bookmark_set(st, "foo")
             call check(error, table_is([bmk2]), "bmk2")
             if (allocated(error)) exit steps
             ! Push another bookmark with the same name
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             ! NO-OVERWRITE is t
             call bookmark_set(st, "foo", .true.)
             two(1) = bmk1
@@ -605,7 +604,7 @@ contains
             call check(error, table_is([bmk1]), "bmk1 again")
             if (allocated(error)) exit steps
             ! Push another bookmark with the same name
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             ! PUSH-BOOKMARK is t
             call bookmark_set_no_overwrite(st, "foo", .true.)
             two(1) = bmk2
@@ -624,13 +623,13 @@ contains
     subroutine test_set_use_annotations(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, buffer
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
         call with_bookmark_test(old)
         bookmark_use_annotations = .true.
         call show_alone()
-        call current_window_configuration(config)
+        call current_window_configuration(configuration)
         call example_buffer(buffer)
         call switch_to_buffer(buffers(buffer%index)%name, st)
 
@@ -649,7 +648,7 @@ contains
         end block steps
 
         bookmark_use_annotations = .false.
-        call set_window_configuration(config)
+        call set_window_configuration(configuration)
         call close_buffer(buffer, st)
         call set_buffer(old, st)
     end subroutine test_set_use_annotations
@@ -661,14 +660,14 @@ contains
 
         call with_bookmark_test(old)
         call insert("foobar"//achar(10), st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call bookmark_delete_line()
         call check(error, buffer_string(), achar(10))
         call done(old)
         if (allocated(error)) return
         call with_bookmark_test(old)
         call insert("foobar"//achar(10), st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! including newline
         call bookmark_delete_line(.true.)
         call check(error, buffer_string(), "")
@@ -679,7 +678,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call check(error, string_match("foo", bookmark_default_annotation_text("foo"), st) > 0, "foo")
     end subroutine test_default_annotation_text
 
@@ -709,28 +708,28 @@ contains
     subroutine test_edit_annotation(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
         call with_bookmark_test(old)
-        call current_window_configuration(config)
+        call current_window_configuration(configuration)
         call bookmark_edit_annotation("name", st)
         call insert("new text", st)
         call bookmark_edit_annotation_confirm(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, bookmark_get_annotation("name"), "new text")
-        call set_window_configuration(config)
+        call set_window_configuration(configuration)
         call done(old)
     end subroutine test_edit_annotation
 
     subroutine test_jump(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, buffer
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
         call with_bookmark_test(old)
-        call current_window_configuration(config)
+        call current_window_configuration(configuration)
         call example_buffer(buffer)
         call set_buffer(buffer, st)
         call bookmark_set(st, "test")
@@ -744,7 +743,7 @@ contains
             call check(error,.not. st%ok(), "should error")
         end if
 
-        call set_window_configuration(config)
+        call set_window_configuration(configuration)
         call close_buffer(buffer, st)
         call set_buffer(old, st)
         call done(old)
@@ -783,20 +782,20 @@ contains
 
     subroutine test_insert(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: old, buffer, temp
+        type(handle_type) :: old, buffer, temporary
         type(status_type) :: st
 
         call with_bookmark_test(old)
-        temp = current_buffer()
+        temporary = current_buffer()
         call example_buffer(buffer)
         call set_buffer(buffer, st)
         call bookmark_set(st, "test")
-        call set_buffer(temp, st)
+        call set_buffer(temporary, st)
         call bookmark_insert("test", st)
         call check(error, string_match("^This text file is used by bookmark-tests.el", buffer_string(), st) == 1, &
                    buffer_string())
         call close_buffer(buffer, st)
-        call set_buffer(temp, st)
+        call set_buffer(temporary, st)
         call done(old)
     end subroutine test_insert
 
@@ -835,7 +834,7 @@ contains
         integer :: k
 
         call with_bookmark_test(old)
-        call create_temp_file("bookmark-tests", file, st)
+        call create_temporary_file("bookmark-tests", file, st)
         bookmark_default_file = file
 
         select case (change)
@@ -859,7 +858,7 @@ contains
         if (.not. allocated(error)) then
             deallocate (bookmarks)
             allocate (bookmarks(0))
-            call bookmark_load(file, st, no_msg=.true.)
+            call bookmark_load(file, st, no_message=.true.)
             call check(error, st%ok(), format_error(st))
         end if
 
@@ -925,16 +924,16 @@ contains
             if (allocated(error)) exit steps
             deallocate (bookmarks)
             allocate (bookmarks(0))
-            call bookmark_load(resource_file("test.bmk"), st, no_msg=.true.)
+            call bookmark_load(resource_file("test.bmk"), st, no_message=.true.)
             call check(error, table_is(one), "loaded")
             if (allocated(error)) exit steps
             ! OVERWRITE is t
-            call bookmark_load(resource_file("test.bmk"), st, overwrite=.true., no_msg=.true.)
+            call bookmark_load(resource_file("test.bmk"), st, overwrite=.true., no_message=.true.)
             call check(error, table_is(one), "overwritten")
             if (allocated(error)) exit steps
             ! Append
             ! OVERWRITE is nil
-            call bookmark_load(resource_file("test.bmk"), st, no_msg=.true.)
+            call bookmark_load(resource_file("test.bmk"), st, no_message=.true.)
             two(1) = tests_bookmark()
             two(2) = tests_bookmark()
             two(2)%name = "name<2>"
@@ -950,9 +949,9 @@ contains
 
     !> (with-bookmark-bmenu-test): the bookmark list of the cached
     !> bookmark (of the list, with LIST), in "*Bookmark List - Testing*".
-    subroutine with_bmenu_test(old, config, list)
+    subroutine with_bookmark_menu_test(old, configuration, list)
         type(handle_type), intent(out) :: old
-        type(window_configuration_type), intent(out) :: config
+        type(window_configuration_type), intent(out) :: configuration
         logical, intent(in), optional :: list
         type(status_type) :: st
         logical :: l
@@ -966,184 +965,184 @@ contains
             call with_bookmark_test(old)
         end if
 
-        bookmark_bmenu_buffer = "*Bookmark List - Testing*"
-        call current_window_configuration(config)
-        call bookmark_bmenu_list(st)
-    end subroutine with_bmenu_test
+        bookmark_bookmark_menu_buffer = "*Bookmark List - Testing*"
+        call current_window_configuration(configuration)
+        call bookmark_bookmark_menu_list(st)
+    end subroutine with_bookmark_menu_test
 
-    subroutine bmenu_done(old, config)
+    subroutine bookmark_menu_done(old, configuration)
         type(handle_type), intent(in) :: old
-        type(window_configuration_type), intent(in) :: config
+        type(window_configuration_type), intent(in) :: configuration
         type(status_type) :: st
 
-        call set_window_configuration(config)
-        call close_buffer(get_buffer(bookmark_bmenu_buffer), st)
-        bookmark_bmenu_buffer = "*Bookmark List*"
+        call set_window_configuration(configuration)
+        call close_buffer(get_buffer(bookmark_bookmark_menu_buffer), st)
+        bookmark_bookmark_menu_buffer = "*Bookmark List*"
         call set_buffer(old, st)
         call done(old)
-    end subroutine bmenu_done
+    end subroutine bookmark_menu_done
 
-    !> Whether the text at point matches REGEXP.
-    logical function looking(regexp)
-        character(len=*), intent(in) :: regexp
+    !> Whether the text at point matches REGULAR_EXPRESSION.
+    logical function looking(regular_expression)
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
 
-        looking = looking_at(regexp, st)
+        looking = looking_at(regular_expression, st)
     end function looking
 
-    !> (re-search-forward REGEXP nil t) from point.
-    logical function search_regexp(regexp)
-        character(len=*), intent(in) :: regexp
+    !> (re-search-forward REGULAR_EXPRESSION nil t) from point.
+    logical function search_regular_expression(regular_expression)
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
         integer(int64) :: found
 
-        call re_search_forward(regexp, found, st, noerror=1)
-        search_regexp = found /= 0
-    end function search_regexp
+        call regular_expression_search_forward(regular_expression, found, st, noerror=1)
+        search_regular_expression = found /= 0
+    end function search_regular_expression
 
-    subroutine test_bmenu_edit_annotation(error)
+    subroutine test_bookmark_menu_edit_annotation(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call with_bmenu_test(old, config)
+        call with_bookmark_menu_test(old, configuration)
         call bookmark_set_annotation("name", "foo", st)
-        call bookmark_bmenu_edit_annotation(st)
+        call bookmark_bookmark_menu_edit_annotation(st)
         call check(error, string_match("foo", buffer_string(), st) > 0, buffer_string())
         call close_buffer(current_buffer(), st)
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_edit_annotation
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_edit_annotation
 
-    subroutine test_bmenu_send_edited_annotation(error)
+    subroutine test_bookmark_menu_send_edited_annotation(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_edit_annotation(st)
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_edit_annotation(st)
         call insert("foo", st)
         call bookmark_edit_annotation_confirm(st)
         call check(error, bookmark_get_annotation("name"), "foo")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_send_edited_annotation
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_send_edited_annotation
 
     !> Test for https://debbugs.gnu.org/20150 .
-    subroutine test_bmenu_restore_focus(error)
+    subroutine test_bookmark_menu_restore_focus(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call with_bmenu_test(old, config)
+        call with_bookmark_menu_test(old, configuration)
 
         steps: block
-            call bookmark_bmenu_edit_annotation(st)
+            call bookmark_bookmark_menu_edit_annotation(st)
             call insert("foo", st)
             call bookmark_edit_annotation_confirm(st)
-            call check(error, buffers(current)%name, bookmark_bmenu_buffer)
+            call check(error, buffers(current)%name, bookmark_bookmark_menu_buffer)
             if (allocated(error)) exit steps
             call beginning_of_line()
-            call forward_char(st, 4_int64)
+            call forward_character(st, 4_int64)
             call check(error, looking("name"), "at the name")
         end block steps
 
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_restore_focus
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_restore_focus
 
-    subroutine test_bmenu_toggle_filenames(error)
+    subroutine test_bookmark_menu_toggle_filenames(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call with_bmenu_test(old, config)
+        call with_bookmark_menu_test(old, configuration)
 
         steps: block
-            call check(error, search_regexp("/some/file"), "the file")
+            call check(error, search_regular_expression("/some/file"), "the file")
             if (allocated(error)) exit steps
-            call bookmark_bmenu_toggle_filenames_command(st)
-            call goto_char(point_min())
-            call check(error,.not. search_regexp("/some/file"), "no file")
+            call bookmark_bookmark_menu_toggle_filenames_command(st)
+            call goto_character(point_minimum())
+            call check(error,.not. search_regular_expression("/some/file"), "no file")
         end block steps
 
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_toggle_filenames
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_toggle_filenames
 
-    subroutine test_bmenu_toggle_filenames_show(error)
+    subroutine test_bookmark_menu_toggle_filenames_show(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_toggle_filenames_command(st, .true.)
-        call check(error, search_regexp("/some/file"), "the file")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_toggle_filenames_show
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_toggle_filenames_command(st, .true.)
+        call check(error, search_regular_expression("/some/file"), "the file")
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_toggle_filenames_show
 
-    subroutine test_bmenu_show_filenames(error)
+    subroutine test_bookmark_menu_show_filenames(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_show_filenames()
-        call check(error, search_regexp("/some/file"), "the file")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_show_filenames
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_show_filenames()
+        call check(error, search_regular_expression("/some/file"), "the file")
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_show_filenames
 
-    subroutine test_bmenu_hide_filenames(error)
+    subroutine test_bookmark_menu_hide_filenames(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_hide_filenames()
-        call goto_char(point_min())
-        call check(error,.not. search_regexp("/some/file"), "no file")
-        bookmark_bmenu_toggle_filenames = .true.
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_hide_filenames
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_hide_filenames()
+        call goto_character(point_minimum())
+        call check(error,.not. search_regular_expression("/some/file"), "no file")
+        bookmark_bookmark_menu_toggle_filenames = .true.
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_hide_filenames
 
-    subroutine test_bmenu_bookmark(error)
+    subroutine test_bookmark_menu_bookmark(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
 
-        call with_bmenu_test(old, config)
-        call check(error, bookmark_bmenu_bookmark(), "name")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_bookmark
+        call with_bookmark_menu_test(old, configuration)
+        call check(error, bookmark_bookmark_menu_bookmark(), "name")
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_bookmark
 
-    subroutine test_bmenu_mark(error)
+    subroutine test_bookmark_menu_mark(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         integer(int64) :: shortage
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_mark(st)
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_mark(st)
         shortage = forward_line(-1_int64)
         call beginning_of_line()
         call check(error, looking("^>"), "marked")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_mark
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_mark
 
-    subroutine test_bmenu_any_marks(error)
+    subroutine test_bookmark_menu_any_marks(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_mark(st)
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_mark(st)
         call beginning_of_line()
-        call check(error, bookmark_bmenu_any_marks(), "a mark")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_any_marks
+        call check(error, bookmark_bookmark_menu_any_marks(), "a mark")
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_any_marks
 
     !> Whether the three lines from point are tagged TAG and are the
     !> bookmarks of the list.
@@ -1154,13 +1153,13 @@ contains
         integer(int64) :: shortage
         integer :: k
 
-        call goto_char(point_min())
-        call bookmark_bmenu_ensure_position()
+        call goto_character(point_minimum())
+        call bookmark_bookmark_menu_ensure_position()
 
         do k = 1, 3
             call check(error, looking("^"//tags(k)), "tag "//tags(k))
             if (allocated(error)) return
-            call check(error, same_bookmark(bookmarks(bookmark_get_bookmark(bookmark_bmenu_bookmark(), st)), &
+            call check(error, same_bookmark(bookmarks(bookmark_get_bookmark(bookmark_bookmark_menu_bookmark(), st)), &
                                             list_bookmark(k)), "bookmark")
             if (allocated(error)) return
             shortage = forward_line(1_int64)
@@ -1181,167 +1180,167 @@ contains
         end select
     end function list_bookmark
 
-    subroutine test_bmenu_mark_all(error)
+    subroutine test_bookmark_menu_mark_all(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         integer(int64) :: here
 
-        call with_bmenu_test(old, config, .true.)
+        call with_bookmark_menu_test(old, configuration, .true.)
 
         steps: block
-            here = point_max()
+            here = point_maximum()
             ! Expect to not move the point
-            call goto_char(here)
-            call bookmark_bmenu_mark_all(st)
+            call goto_character(here)
+            call bookmark_bookmark_menu_mark_all(st)
             call check(error, point() == here, "point stays")
             if (allocated(error)) exit steps
             ! Verify that all bookmarks are marked
             call check_list_lines(error, [character(len=2) :: "> ", "> ", "> "])
         end block steps
 
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_mark_all
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_mark_all
 
-    subroutine test_bmenu_any_marks_list(error)
+    subroutine test_bookmark_menu_any_marks_list(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         integer(int64) :: shortage
 
-        call with_bmenu_test(old, config, .true.)
+        call with_bookmark_menu_test(old, configuration, .true.)
 
         steps: block
             ! Mark just the second item
-            call goto_char(point_min())
-            call bookmark_bmenu_ensure_position()
+            call goto_character(point_minimum())
+            call bookmark_bookmark_menu_ensure_position()
             shortage = forward_line(1_int64)
-            call bookmark_bmenu_mark(st)
+            call bookmark_bookmark_menu_mark(st)
             ! Verify that only the second item is marked
             call check_list_lines(error, [character(len=2) :: "  ", "> ", "  "])
             if (allocated(error)) exit steps
             ! There should be at least one mark
-            call check(error, bookmark_bmenu_any_marks(), "a mark")
+            call check(error, bookmark_bookmark_menu_any_marks(), "a mark")
         end block steps
 
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_any_marks_list
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_any_marks_list
 
-    subroutine test_bmenu_unmark(error)
+    subroutine test_bookmark_menu_unmark(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         integer(int64) :: shortage
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_mark(st)
-        call goto_char(point_min())
-        call bookmark_bmenu_unmark(st)
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_mark(st)
+        call goto_character(point_minimum())
+        call bookmark_bookmark_menu_unmark(st)
         shortage = forward_line(-1_int64)
         call beginning_of_line()
         call check(error, looking("^  "), "unmarked")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_unmark
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_unmark
 
-    subroutine test_bmenu_unmark_all(error)
+    subroutine test_bookmark_menu_unmark_all(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         integer(int64) :: here
 
-        call with_bmenu_test(old, config, .true.)
+        call with_bookmark_menu_test(old, configuration, .true.)
 
         steps: block
-            call bookmark_bmenu_mark_all(st)
-            here = point_max()
+            call bookmark_bookmark_menu_mark_all(st)
+            here = point_maximum()
             ! Expect to not move the point
-            call goto_char(here)
-            call bookmark_bmenu_unmark_all(st)
+            call goto_character(here)
+            call bookmark_bookmark_menu_unmark_all(st)
             call check(error, point() == here, "point stays")
             if (allocated(error)) exit steps
             ! Verify that all bookmarks are unmarked
             call check_list_lines(error, [character(len=2) :: "  ", "  ", "  "])
         end block steps
 
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_unmark_all
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_unmark_all
 
-    subroutine test_bmenu_delete(error)
+    subroutine test_bookmark_menu_delete(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_delete(st)
-        call bookmark_bmenu_execute_deletions(st)
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_delete(st)
+        call bookmark_bookmark_menu_execute_deletions(st)
         call check(error, size(bookmarks) == 0, "no bookmarks")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_delete
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_delete
 
-    subroutine test_bmenu_delete_all(error)
+    subroutine test_bookmark_menu_delete_all(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         integer(int64) :: here
 
-        call with_bmenu_test(old, config, .true.)
+        call with_bookmark_menu_test(old, configuration, .true.)
 
         steps: block
             ! Verify that unmarked bookmarks aren't deleted
-            call bookmark_bmenu_execute_deletions(st)
+            call bookmark_bookmark_menu_execute_deletions(st)
             call check(error, size(bookmarks) > 0, "bookmarks left")
             if (allocated(error)) exit steps
-            here = point_max()
+            here = point_maximum()
             ! Expect to not move the point
-            call goto_char(here)
-            call bookmark_bmenu_delete_all(st)
+            call goto_character(here)
+            call bookmark_bookmark_menu_delete_all(st)
             call check(error, point() == here, "point stays")
             if (allocated(error)) exit steps
             ! Verify that all bookmarks are marked for deletion
             call check_list_lines(error, [character(len=2) :: "D ", "D ", "D "])
             if (allocated(error)) exit steps
             ! Verify that all bookmarks are deleted
-            call bookmark_bmenu_execute_deletions(st)
+            call bookmark_bookmark_menu_execute_deletions(st)
             call check(error, size(bookmarks) == 0, "no bookmarks")
         end block steps
 
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_delete_all
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_delete_all
 
-    subroutine test_bmenu_locate(error)
+    subroutine test_bookmark_menu_locate(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, messages
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_locate(st)
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_locate(st)
         messages = get_buffer("*Messages*")
         call set_buffer(messages, st)
         text = buffer_string()
-        call set_buffer(get_buffer(bookmark_bmenu_buffer), st)
+        call set_buffer(get_buffer(bookmark_bookmark_menu_buffer), st)
         call check(error, len(text) >= 11, text)
         if (.not. allocated(error)) call check(error, text(len(text) - 10:), "/some/file"//achar(10))
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_locate
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_locate
 
-    subroutine test_bmenu_filter_table_by_regexp(error)
+    subroutine test_bookmark_menu_filter_table_by_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
-        call with_bmenu_test(old, config)
-        call bookmark_bmenu_filter_bookmarks_by_regexp(regexp_unmatchable, st)
-        call goto_char(point_min())
+        call with_bookmark_menu_test(old, configuration)
+        call bookmark_bookmark_menu_filter_bookmarks_by_regular_expression(regular_expression_unmatchable, st)
+        call goto_character(point_minimum())
         call check(error, looking("^$"), "empty")
-        call bmenu_done(old, config)
-    end subroutine test_bmenu_filter_table_by_regexp
+        call bookmark_menu_done(old, configuration)
+    end subroutine test_bookmark_menu_filter_table_by_regular_expression
 end module test_bookmark_mod

@@ -24,7 +24,7 @@
 
 module test_undo_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type, find_command
+    use execute_interactively_mod, only: prefix_argument_type, find_command
     use value_mod, only: value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
@@ -33,10 +33,10 @@ module test_undo_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, &
                           is_buffer_modified, restore_buffer_modified, current_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string, delete_region
-    use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_command, this_command
-    use execute_interactively_mod, only: prefix_arg, execute_interactively
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_string, delete_region
+    use keyboard_mod, only: keyboard_store_bytes, command_loop, discard_input, last_command, this_command
+    use execute_interactively_mod, only: prefix_argument, execute_interactively
+    use bindings_mod, only: initialize_bindings
     use undo_mod, only: undo_boundary
     use simple_mod, only: undo, undo_more, undo_only, undo_redo
     use file_input_output_mod, only: write_region, delete_file_internal
@@ -79,16 +79,16 @@ contains
 
     !> Run the commands in `cmds` as the command loop would, each followed
     !> by an undo boundary.  Port of simple-tests.el:simple-tests--exec.
-    subroutine exec(cmds)
-        character(len=*), intent(in) :: cmds(:)
+    subroutine exec(commands)
+        character(len=*), intent(in) :: commands(:)
         type(status_type) :: st
         integer :: k
 
-        do k = 1, size(cmds)
+        do k = 1, size(commands)
             last_command => this_command
-            this_command => find_command(trim(cmds(k)))
-            prefix_arg = prefix_arg_type()
-            call execute_interactively(value_type(name=trim(cmds(k))), st)
+            this_command => find_command(trim(commands(k)))
+            prefix_argument = prefix_argument_type()
+            call execute_interactively(value_type(name=trim(commands(k))), st)
             call undo_boundary()
         end do
     end subroutine exec
@@ -99,8 +99,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call undo(prefix_arg_type(), st)
-        if (st%ok()) call undo(prefix_arg_type(), st)
+        call undo(prefix_argument_type(), st)
+        if (st%ok()) call undo(prefix_argument_type(), st)
         call check(error, format_error(st), "No further undo information")
         if (allocated(error)) return
         call undo_boundary()
@@ -110,18 +110,18 @@ contains
         call undo_boundary()
         call insert("That", st)
         call undo_boundary()
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call undo_boundary()
         call insert("With ", st)
         call undo_boundary()
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call undo_boundary()
         call delete_region(6_int64, 10_int64, st)
         call undo_boundary()
         call check(error, buffer_string(), "With ")
         if (allocated(error)) return
         last_command => null()
-        call undo(prefix_arg_type(), st)
+        call undo(prefix_argument_type(), st)
         call check(error, buffer_string(), "With That")
         if (allocated(error)) return
         call undo_more(4_int64, st)
@@ -144,11 +144,11 @@ contains
         call undo_boundary()
         call delete_region(5_int64, 9_int64, st)
         call undo_boundary()
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call insert("Zero", st)
         call undo_boundary()
         last_command => null()
-        call undo(prefix_arg_type(), st)
+        call undo(prefix_argument_type(), st)
         before = buffer_string()
         call check(error, before, "One ")
         if (allocated(error)) return
@@ -158,7 +158,7 @@ contains
         ! A new undo series first undoes the undos (they have no boundary
         ! of their own here), then the change before them.
         last_command => null()
-        call undo(prefix_arg_type(), st)
+        call undo(prefix_argument_type(), st)
         call check(error, buffer_string(), before)
         call close_buffer(h, st)
     end subroutine test_undo2
@@ -176,7 +176,7 @@ contains
         call restore_buffer_modified(.false.)
         call insert("2", st)
         last_command => null()
-        call undo(prefix_arg_type(), st)
+        call undo(prefix_argument_type(), st)
         call is_buffer_modified(h, modified, st)
         call check(error,.not. modified, "unmodified")
         call close_buffer(h, st)
@@ -201,7 +201,7 @@ contains
         call restore_buffer_modified(.false.)
         call insert("2", st)
         last_command => null()
-        call undo(prefix_arg_type(), st)
+        call undo(prefix_argument_type(), st)
         call is_buffer_modified(buffer, modified, st)
         call check(error,.not. modified, "unmodified")
         call close_buffer(buffer, st)
@@ -217,7 +217,7 @@ contains
         integer :: k
 
         call fresh(h)
-        call init_bindings()
+        call initialize_bindings()
 
         do k = 1, size(letters)
             call insert(letters(k), st)
@@ -229,34 +229,34 @@ contains
         call exec([character(len=16) :: "undo", "undo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward_char", "undo"])
+        call exec([character(len=18) :: "backward_character", "undo"])
         call check(error, buffer_string(), "abcd")
         if (allocated(error)) return
         call exec([character(len=16) :: "undo"])
         call check(error, buffer_string(), "abcde")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward_char", "undo", "undo"])
+        call exec([character(len=18) :: "backward_character", "undo", "undo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward_char", "undo_redo"])
+        call exec([character(len=18) :: "backward_character", "undo_redo"])
         call check(error, buffer_string(), "abcd")
         if (allocated(error)) return
         call exec([character(len=16) :: "undo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward_char", "undo_redo", "undo_redo"])
+        call exec([character(len=18) :: "backward_character", "undo_redo", "undo_redo"])
         call check(error, buffer_string(), "abcde")
         if (allocated(error)) return
         call exec([character(len=16) :: "undo", "undo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward_char", "undo_only", "undo_only"])
+        call exec([character(len=18) :: "backward_character", "undo_only", "undo_only"])
         call check(error, buffer_string(), "a")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward_char", "undo_redo", "undo_redo"])
+        call exec([character(len=18) :: "backward_character", "undo_redo", "undo_redo"])
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call exec([character(len=16) :: "backward_char", "undo_redo", "undo_redo"])
+        call exec([character(len=18) :: "backward_character", "undo_redo", "undo_redo"])
         call check(error, buffer_string(), "abcde")
         call close_buffer(h, st)
     end subroutine test_simple_undo
@@ -271,12 +271,12 @@ contains
 
         call fresh(h)
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
         call insert("a"//achar(10)//"b"//achar(10)//"c"//achar(10), st)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         ! left, DEL (deletes "c"), left x3, DEL (deletes "a"), C-_
-        call kbd_store_bytes(achar(2)//achar(127)//achar(2)//achar(2)//achar(2)//achar(127)//achar(31))
+        call keyboard_store_bytes(achar(2)//achar(127)//achar(2)//achar(2)//achar(2)//achar(127)//achar(31))
         call command_loop(st)
         call check(error, point(), 2_int64)
         if (.not. allocated(error)) call check(error, buffer_string(), "a"//achar(10)//"b"//achar(10)//achar(10))
@@ -292,27 +292,27 @@ contains
 
         call fresh(h)
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
-        call kbd_store_bytes("abc"//achar(1)//"xyz"//achar(31))
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
+        call keyboard_store_bytes("abc"//achar(1)//"xyz"//achar(31))
         call command_loop(st)
         call check(error, buffer_string(), "abc")
         if (allocated(error)) return
-        call kbd_store_bytes(achar(31))
+        call keyboard_store_bytes(achar(31))
         call command_loop(st)
         call check(error, buffer_string(), "")
         if (allocated(error)) return
         ! A different command breaks the chain: C-f, then undo twice redoes.
         ! (C-f fails at the end of the buffer, which discards the input
         ! typed ahead.)
-        call kbd_store_bytes(achar(6))
+        call keyboard_store_bytes(achar(6))
         call command_loop(st)
-        call kbd_store_bytes(achar(31)//achar(31))
+        call keyboard_store_bytes(achar(31)//achar(31))
         call command_loop(st)
         call check(error, buffer_string(), "xyzabc")
         if (allocated(error)) return
         call erase_buffer(st)
-        call kbd_store_bytes("abcdefghijklmnopqrstuvwxy"//achar(31))
+        call keyboard_store_bytes("abcdefghijklmnopqrstuvwxy"//achar(31))
         call command_loop(st)
         call check(error, buffer_string(), "abcdefghijklmnopqrstu")
         call close_buffer(h, st)

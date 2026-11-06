@@ -43,7 +43,7 @@ submodule(simple_mod) simple_next_error_mod
     use data_mod, only: append_locals_clearer
     use window_mod, only: select_window
     use frame_mod, only: selected_frame
-    use error_mod, only: FM_VOID_FUNCTION
+    use error_mod, only: VOID_FUNCTION_CODE
     implicit none(type, external)
 
     !> A buffer's own next-error-function and next-error-buffer.
@@ -193,19 +193,19 @@ contains
 
         ! 6. Give up.
         buffer = null_handle()
-        call set_error(status, FM_GENERIC_ERROR, "No buffers contain error message locations")
+        call set_error(status, GENERIC_ERROR_CODE, "No buffers contain error message locations")
     end subroutine next_error_find_buffer
 
     module procedure next_error
-    type(handle_type) :: buffer, prev
+    type(handle_type) :: buffer, previous
     type(status_type) :: st
     character(len=:), allocatable :: what
-    integer(int64) :: arg
+    integer(int64) :: argument
     logical :: rst
     integer :: k
 
-    arg = 1
-    if (present(n)) arg = n
+    argument = 1
+    if (present(n)) argument = n
     rst = .false.
     if (present(reset)) rst = reset
     call next_error_find_buffer(buffer, status)
@@ -215,17 +215,17 @@ contains
     call set_buffer(buffer, status)
     if (.not. status%ok()) return
     k = entry_of(current)
-    call entries(k)%fn(arg, rst, status)
+    call entries(k)%fn(argument, rst, status)
     if (.not. status%ok()) return
-    prev = next_error_last_buffer
+    previous = next_error_last_buffer
     call next_error_found(st, buffer, current_buffer())
 
-    if (next_error_verbose%value .or. .not. same_buffer(prev, next_error_last_buffer)) then
+    if (next_error_verbose%value .or. .not. same_buffer(previous, next_error_last_buffer)) then
         if (rst) then
             what = "First"
-        else if (arg == 0) then
+        else if (argument == 0) then
             what = "Current"
-        else if (arg < 0) then
+        else if (argument < 0) then
             what = "Previous"
         else
             what = "Next"
@@ -236,7 +236,7 @@ contains
     end procedure next_error
 
     module procedure next_error_internal
-    type(handle_type) :: buffer, prev
+    type(handle_type) :: buffer, previous
     type(status_type) :: st
     integer :: k
 
@@ -246,16 +246,16 @@ contains
     k = entry_of(current)
 
     if (k == 0) then
-        call set_error(status, FM_VOID_FUNCTION, "null()")
+        call set_error(status, VOID_FUNCTION_CODE, "null()")
         return
     end if
 
     call entries(k)%fn(0_int64, .false., status)
     if (.not. status%ok()) return
-    prev = next_error_last_buffer
+    previous = next_error_last_buffer
     call next_error_found(st, buffer, current_buffer())
 
-    if (next_error_verbose%value .or. .not. same_buffer(prev, next_error_last_buffer)) then
+    if (next_error_verbose%value .or. .not. same_buffer(previous, next_error_last_buffer)) then
         call message("Current locus from "//buffers(next_error_last_buffer%index)%name)
     end if
     end procedure next_error_internal
@@ -294,15 +294,15 @@ contains
     !> form of simple.el:next-error.
     !>
     !> Visit next `next_error' message and corresponding source code.
-    recursive subroutine cmd_next_error(status)
+    recursive subroutine execute_next_error(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_RAW) then
+        if (current_prefix_argument%kind == PREFIX_RAW) then
             call next_error(status, 1_int64, .true.)
         else
-            call next_error(status, prefix_numeric_value(current_prefix_arg))
+            call next_error(status, prefix_numeric_value(current_prefix_argument))
         end if
-    end subroutine cmd_next_error
+    end subroutine execute_next_error
 
     !> Visit previous `next_error' message and corresponding source code.
     !>
@@ -316,7 +316,7 @@ contains
     recursive subroutine previous_error(status)
         type(status_type), intent(out) :: status
 
-        call next_error(status, -prefix_numeric_value(current_prefix_arg))
+        call next_error(status, -prefix_numeric_value(current_prefix_argument))
     end subroutine previous_error
 
     !> Restart at the first error.
@@ -327,7 +327,7 @@ contains
     recursive subroutine first_error(status)
         type(status_type), intent(out) :: status
 
-        call next_error(status, prefix_numeric_value(current_prefix_arg), .true.)
+        call next_error(status, prefix_numeric_value(current_prefix_argument), .true.)
     end subroutine first_error
 
     !> Move point to the next error in the `next_error' buffer and
@@ -338,7 +338,7 @@ contains
     recursive subroutine next_error_no_select(status)
         type(status_type), intent(out) :: status
 
-        call no_select(prefix_numeric_value(current_prefix_arg), status)
+        call no_select(prefix_numeric_value(current_prefix_argument), status)
     end subroutine next_error_no_select
 
     !> Move point to the previous error in the `next_error' buffer and
@@ -349,7 +349,7 @@ contains
     recursive subroutine previous_error_no_select(status)
         type(status_type), intent(out) :: status
 
-        call no_select(-prefix_numeric_value(current_prefix_arg), status)
+        call no_select(-prefix_numeric_value(current_prefix_argument), status)
     end subroutine previous_error_no_select
 
     !> next-error-no-select with N: next-error in save-selected-window.
@@ -365,12 +365,12 @@ contains
         call select_window(selected, st, norecord=.true.)
     end subroutine no_select
 
-    module procedure init_simple_next_error
+    module procedure initialize_simple_next_error
     call append_locals_clearer(clear_next_error_locals)
-    commands%next_error%execute => cmd_next_error
+    commands%next_error%execute => execute_next_error
     commands%previous_error%execute => previous_error
     commands%first_error%execute => first_error
     commands%next_error_no_select%execute => next_error_no_select
     commands%previous_error_no_select%execute => previous_error_no_select
-    end procedure init_simple_next_error
+    end procedure initialize_simple_next_error
 end submodule simple_next_error_mod

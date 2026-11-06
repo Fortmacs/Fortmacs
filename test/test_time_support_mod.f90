@@ -30,9 +30,9 @@ module test_time_support_mod
 contains
 
     !> The known components of TIME as "second=30 minute=47 hour=13
-    !> day=2 month=3 year=2008 dst=-1 zone=3600", in that order (and
-    !> weekday before dst); a second with a fraction is TICKS/COUNT_RATE,
-    !> and dst is always there.  Not a port.
+    !> day=2 month=3 year=2008 daylight_saving_time=-1 zone=3600", in that order (and
+    !> weekday before daylight_saving_time); a second with a fraction is TICKS/COUNT_RATE,
+    !> and daylight_saving_time is always there.  Not a port.
     function render_partial_decoded_time(time) result(text)
         type(partial_decoded_time_type), intent(in) :: time
         character(len=:), allocatable :: text
@@ -57,7 +57,7 @@ contains
         if (allocated(time%month)) call add("month=", int(time%month, int64))
         if (allocated(time%year)) call add("year=", time%year)
         if (allocated(time%weekday)) call add("weekday=", int(time%weekday, int64))
-        call add("dst=", int(time%dst, int64))
+        call add("daylight_saving_time=", int(time%daylight_saving_time, int64))
         if (allocated(time%zone)) call add("zone=", int(time%zone, int64))
         text = text(1:len(text) - 1)
 

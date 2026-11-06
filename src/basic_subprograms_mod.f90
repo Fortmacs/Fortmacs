@@ -23,15 +23,15 @@
 !> `add_to_history', and the match data helpers (`match_string',
 !> `string_matches', `is_looking_at', `looking_back').
 module basic_subprograms_mod
-    use error_mod, only: status_type, set_error, FM_QUIT, FM_INVALID_REGEXP, FM_VOID_VARIABLE, FM_GENERIC_ERROR
-    use execute_interactively_mod, only: prefix_arg_type
+    use error_mod, only: status_type, set_error, QUIT_CODE, FM_INVALID_REGULAR_EXPRESSION, VOID_VARIABLE_CODE, GENERIC_ERROR_CODE
+    use execute_interactively_mod, only: prefix_argument_type
     use time_functions_mod, only: current_time, real
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use value_mod, only: value_type, xfixnum, cons, list_length, list_elt, make_keymap_ref, xsymbol, symbols, command_type, &
-                         list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
+    use value_mod, only: value_type, xfixnum, cons, list_length, list_element, make_keymap_reference, xsymbol, symbols, &
+                         command_type, list_elements, make_list, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, V_ARRAY
     use data_mod, only: symbol_value, set, value_eq, history_setting_type, find_history, history_length, &
                         history_delete_duplicates, string_to_number
-    use character_mod, only: string_char_and_length
+    use character_mod, only: string_character_and_length
     use case_table_mod, only: downcase
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified, &
@@ -40,39 +40,40 @@ module basic_subprograms_mod
     use keyboard_mod, only: read_event, discard_input, this_command_keys
     use display_update_mod, only: ding
     use commands_mod, only: commands
-    use execute_interactively_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_argument
     use display_engine_mod, only: message, message_nolog, cursor_in_echo_area
     use keymap_mod, only: define_key, current_global_map, key_description, make_sparse_keymap, is_keymap_live, &
                           key_parse, lookup_key
     use handle_mod, only: handle_type
-    use search_mod, only: string_match, looking_at, re_search_backward, match_beginning, match_end, &
-                          re_search_forward, SEARCH_MOVE, regexp_quote, &
+    use search_mod, only: string_match, looking_at, regular_expression_search_backward, match_beginning, match_end, &
+                          regular_expression_search_forward, SEARCH_MOVE, regular_expression_quote, &
                           is_match_in_string, string_index_to_offset, SEARCH_NOERROR, match_data, &
                           set_match_data, match_data_translate, replace_match, case_fold_search
     use syntax_mod, only: skip_syntax_backward
-    use editing_functions_mod, only: buffer_substring, point, goto_char, point_min, point_max, narrow_to_region, widen
+    use editing_functions_mod, only: buffer_substring, point, goto_character, point_minimum, point_maximum, narrow_to_region, widen
     implicit none(type, external)
     private
 
     public :: read_key, read_y_or_n, query_replace_answer, add_to_history, history_length, history_delete_duplicates
-    public :: global_set_key, read_number, undefined, init_subr, defvar_nil, forward_identifier, find_tag_default, &
-              find_tag_default_as_regexp, find_tag_default_as_identifier_regexp
+    public :: global_set_key, read_number, undefined, initialize_basic_subprograms, defvar_false, forward_identifier, &
+              find_tag_default, &
+              find_tag_default_as_regular_expression, find_tag_default_as_identifier_regular_expression
     public :: make_progress_reporter, progress_reporter_update, progress_reporter_done
-    public :: replace_string_in_region, replace_regexp_in_region
-    public :: add_to_invisibility_spec, remove_from_invisibility_spec, bounds_of_identifier_at_point
-    public :: read_char_from_minibuffer, read_char_choice, shell_quote_argument
+    public :: replace_string_in_region, replace_regular_expression_in_region
+    public :: add_to_invisibility_specification, remove_from_invisibility_specification, bounds_of_identifier_at_point
+    public :: read_character_from_minibuffer, read_character_choice, shell_quote_argument
 
     !> A numerical progress reporter (`make_progress_reporter' with
-    !> MIN_VALUE and MAX_VALUE): the value at which to report next (the
+    !> MINIMUM_VALUE and MAXIMUM_VALUE): the value at which to report next (the
     !> first of upstream's two values) and the parameters vector.
     type, public :: progress_reporter_type
         real(real64) :: next_value = 0
         !> The time of the next echo area update, in seconds.
         real(real64) :: update_time = 0
-        integer(int64) :: min_value = 0, max_value = 0
+        integer(int64) :: minimum_value = 0, maximum_value = 0
         character(len=:), allocatable :: text
-        integer :: min_change = 1
-        real(real64) :: min_time = 0.2_real64
+        integer :: minimum_change = 1
+        real(real64) :: minimum_time = 0.2_real64
         !> A pulsing reporter (no MIN-VALUE and MAX-VALUE) and its indicator.
         logical :: pulsing = .false.
         integer :: pulse_index = 0
@@ -159,9 +160,9 @@ module basic_subprograms_mod
               ANSWER_DIFF, ANSWER_SCROLL_UP, ANSWER_EXIT_PREFIX, ANSWER_SCROLL_DOWN, ANSWER_SCROLL_OTHER_WINDOW, &
               ANSWER_SCROLL_OTHER_WINDOW_DOWN
 
-    !> query-replace-map (replace.el), made by `init_query_replace_map'.
+    !> query-replace-map (replace.el), made by `initialize_query_replace_map'.
     type(handle_type), public :: query_replace_map
-    public :: init_query_replace_map
+    public :: initialize_query_replace_map
 
     !> The keys of `query_replace_map' and their answers.  (Binding ESC
     !> would prohibit the M-v binding.  Instead, callers should check for
@@ -308,27 +309,27 @@ module basic_subprograms_mod
         !> Register subr.el's commands (and keyboard.c's
         !> abort-recursive-edit).  (In basic_subprograms_read_mod.)
         !> Read a character from the minibuffer, prompting for it with PROMPT.
-        !> Like `read_char', but uses the minibuffer to read and return a character.
+        !> Like `read_character', but uses the minibuffer to read and return a character.
         !> CHARS, if present, are the characters accepted; the function will
         !> ignore any input that is not one of CHARS.
         !> HISTORY, if present, names the history list variable to use for
         !> navigating in input history using \`M-p' and \`M-n', with \`RET' to
         !> select a character from history.
         !> If HELP_PROCEDURE is present (upstream's `help_form' bound around the
-        !> call), then pressing `help_char' displays it.  There is no need to
-        !> explicitly add `help_char' to CHARS; `help_char' is bound
+        !> call), then pressing `help_character' displays it.  There is no need to
+        !> explicitly add `help_character' to CHARS; `help_character' is bound
         !> automatically to `help_procedure_show'.  Port of
         !> subr.el:read-char-from-minibuffer (exiting after other
         !> insertions, its `post_command_hook', is deferred).  (In
         !> basic_subprograms_read_mod.)
-        recursive module subroutine read_char_from_minibuffer(prompt, c, status, chars, history, help_procedure)
+        recursive module subroutine read_character_from_minibuffer(prompt, c, status, chars, history, help_procedure)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer, intent(out) :: c
             type(status_type), intent(out) :: status
             integer, intent(in), optional :: chars(:)
             character(len=*), intent(in), optional :: history, help_procedure
-        end subroutine read_char_from_minibuffer
+        end subroutine read_character_from_minibuffer
 
         !> Read and return one of the characters in CHARS, prompting with PROMPT.
         !> CHARS should be an array of character codes.
@@ -337,14 +338,14 @@ module basic_subprograms_mod
         !> the expected characters.
         !>
         !> By default, this function uses the minibuffer to read the key
-        !> non-modally (see `read_char_from_minibuffer'), and the optional
+        !> non-modally (see `read_character_from_minibuffer'), and the optional
         !> argument INHIBIT_KEYBOARD_QUIT is ignored.  However, if
-        !> `read_char_choice_use_read_key' is true, the modal `read_key'
-        !> function is used instead (see read_char_choice_with_read_key),
+        !> `read_character_choice_use_read_key' is true, the modal `read_key'
+        !> function is used instead (see read_character_choice_with_read_key),
         !> and INHIBIT_KEYBOARD_QUIT is passed to it.  HELP_PROCEDURE is the text
-        !> `help_char' shows (upstream's `help_form').  Port of
+        !> `help_character' shows (upstream's `help_form').  Port of
         !> subr.el:read-char-choice.  (In basic_subprograms_read_mod.)
-        recursive module subroutine read_char_choice(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
+        recursive module subroutine read_character_choice(prompt, chars, c, status, inhibit_keyboard_quit, help_procedure)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer, intent(in) :: chars(:)
@@ -352,20 +353,20 @@ module basic_subprograms_mod
             type(status_type), intent(out) :: status
             logical, intent(in), optional :: inhibit_keyboard_quit
             character(len=*), intent(in), optional :: help_procedure
-        end subroutine read_char_choice
+        end subroutine read_character_choice
 
         !> Set up subr.el's commands.  Not a port: upstream defines them where
         !> subr.el is loaded.
-        module subroutine init_subr()
+        module subroutine initialize_basic_subprograms()
             implicit none(type, external)
-        end subroutine init_subr
+        end subroutine initialize_basic_subprograms
 
         !> Read from the minibuffer and return a numeric value, prompting with PROMPT.
         !> DEFAULT specifies a default value to return if the user just types RET.
         !> For historical reasons, the value of DEFAULT is always inserted into
         !> PROMPT, so it's recommended to use `format_text' instead of `format_prompt'
-        !> to generate PROMPT.  HIST specifies a history list variable.  See
-        !> `read_from_minibuffer' for details of the HIST argument.
+        !> to generate PROMPT.  HISTORY specifies a history list variable.  See
+        !> `read_from_minibuffer' for details of the HISTORY argument.
         !>
         !> DEFAULTS, in place of DEFAULT, is an array of defaults: the first
         !> is the default, all are offered by M-n; with NO_DEFAULT, the list
@@ -373,13 +374,13 @@ module basic_subprograms_mod
         !> by M-n).  Port of subr.el:read-number (the answer is read as
         !> upstream's reader reads an integer; floats are not ported).  (In
         !> basic_subprograms_read_mod.)
-        module subroutine read_number(prompt, n, status, default, hist, defaults, no_default)
+        module subroutine read_number(prompt, n, status, default, history, defaults, no_default)
             implicit none(type, external)
             character(len=*), intent(in) :: prompt
             integer(int64), intent(out) :: n
             type(status_type), intent(out) :: status
             integer(int64), intent(in), optional :: default
-            character(len=*), intent(in), optional :: hist
+            character(len=*), intent(in), optional :: history
             integer(int64), intent(in), optional :: defaults(:)
             logical, intent(in), optional :: no_default
         end subroutine read_number
@@ -534,7 +535,7 @@ contains
     !> STRING doesn't exist in the region).
     !>
     !> If START is absent, use the current point.  If END is absent, use
-    !> `point_max'.
+    !> `point_maximum'.
     !>
     !> Comparisons and replacements are done with fixed case.
     !> Port of subr.el:replace-string-in-region.
@@ -547,12 +548,12 @@ contains
         call replace_in_region(string, replacement, .false., matches, status, start, end)
     end subroutine replace_string_in_region
 
-    !> Replace REGEXP with REPLACEMENT in the region from START to END.
+    !> Replace REGULAR_EXPRESSION with REPLACEMENT in the region from START to END.
     !> The number of replaced occurrences is returned in MATCHES (0 if
-    !> REGEXP doesn't exist in the region).
+    !> REGULAR_EXPRESSION doesn't exist in the region).
     !>
     !> If START is absent, use the current point.  If END is absent, use
-    !> `point_max'.
+    !> `point_maximum'.
     !>
     !> Comparisons and replacements are done with fixed case.
     !>
@@ -564,31 +565,31 @@ contains
     !>   `\\' means insert one `\'.
     !>   `\?' is treated literally.
     !> Port of subr.el:replace-regexp-in-region.
-    recursive subroutine replace_regexp_in_region(regexp, replacement, matches, status, start, end)
-        character(len=*), intent(in) :: regexp, replacement
+    recursive subroutine replace_regular_expression_in_region(regular_expression, replacement, matches, status, start, end)
+        character(len=*), intent(in) :: regular_expression, replacement
         integer(int64), intent(out) :: matches
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
 
-        call replace_in_region(regexp, replacement, .true., matches, status, start, end)
-    end subroutine replace_regexp_in_region
+        call replace_in_region(regular_expression, replacement, .true., matches, status, start, end)
+    end subroutine replace_regular_expression_in_region
 
-    ! The body of `replace_string_in_region' (REGEXP_FLAG false) and
-    ! `replace_regexp_in_region'.
+    ! The body of `replace_string_in_region' (REGULAR_EXPRESSION_FLAG false) and
+    ! `replace_regular_expression_in_region'.
     ! Port of subr.el:replace-string-in-region and
     ! subr.el:replace-regexp-in-region, in part (their shared body).
-    recursive subroutine replace_in_region(pattern, replacement, regexp_flag, matches, status, start, end)
+    recursive subroutine replace_in_region(pattern, replacement, regular_expression_flag, matches, status, start, end)
         use marker_mod, only: copy_marker_at, marker_position, destroy_marker
         use buffer_mod, only: buffers, current
         use search_mod, only: case_fold_search, search_forward, replace_match
-        use error_mod, only: set_error, FM_GENERIC_ERROR
+        use error_mod, only: set_error, GENERIC_ERROR_CODE
         character(len=*), intent(in) :: pattern, replacement
-        logical, intent(in) :: regexp_flag
+        logical, intent(in) :: regular_expression_flag
         integer(int64), intent(out) :: matches
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start, end
-        type(handle_type) :: opoint, obeg, oend
-        integer(int64) :: s, e, found, pos
+        type(handle_type) :: original_point, obeg, oend
+        integer(int64) :: s, e, found, position
         logical :: narrowed, saved_fold
         type(status_type) :: st
 
@@ -599,47 +600,48 @@ contains
         if (present(start)) then
             s = start
 
-            if (s < point_min()) then
-                call set_error(status, FM_GENERIC_ERROR, "Start before start of buffer")
+            if (s < point_minimum()) then
+                call set_error(status, GENERIC_ERROR_CODE, "Start before start of buffer")
                 return
             end if
         end if
 
-        e = point_max()
+        e = point_maximum()
 
         if (present(end)) then
             e = end
 
-            if (e > point_max()) then
-                call set_error(status, FM_GENERIC_ERROR, "End after end of buffer")
+            if (e > point_maximum()) then
+                call set_error(status, GENERIC_ERROR_CODE, "End after end of buffer")
                 return
             end if
         end if
 
         ! (save-excursion (goto-char start) (save-restriction ...))
-        call copy_marker_at(point(), opoint, .false., st)
-        narrowed = buffers(current)%begv /= 1 .or. buffers(current)%zv /= buffers(current)%text%z
+        call copy_marker_at(point(), original_point, .false., st)
+        narrowed = buffers(current)%beginning_of_accessible_portion /= 1 .or. buffers(current)%end_of_accessible_portion &
+                   /= buffers(current)%text%z
 
         if (narrowed) then
-            call copy_marker_at(buffers(current)%begv, obeg, .false., st)
-            call copy_marker_at(buffers(current)%zv, oend, .true., st)
+            call copy_marker_at(buffers(current)%beginning_of_accessible_portion, obeg, .false., st)
+            call copy_marker_at(buffers(current)%end_of_accessible_portion, oend, .true., st)
         end if
 
-        call goto_char(s)
+        call goto_character(s)
         call narrow_to_region(s, e, st)
         saved_fold = case_fold_search%value
         case_fold_search%value = .false.
 
         do
-            if (regexp_flag) then
-                call re_search_forward(pattern, found, status, noerror=SEARCH_NOERROR)
+            if (regular_expression_flag) then
+                call regular_expression_search_forward(pattern, found, status, noerror=SEARCH_NOERROR)
             else
                 call search_forward(pattern, found, status, noerror=SEARCH_NOERROR)
             end if
 
             if (.not. status%ok() .or. found == 0) exit
 
-            if (regexp_flag) then
+            if (regular_expression_flag) then
                 call replace_match(replacement, status, fixedcase=.true.)
             else
                 call replace_match(replacement, status, fixedcase=.true., literal=.true.)
@@ -660,22 +662,22 @@ contains
             call destroy_marker(oend, st)
         end if
 
-        call marker_position(opoint, pos, st)
-        call goto_char(pos)
-        call destroy_marker(opoint, st)
+        call marker_position(original_point, position, st)
+        call goto_character(position)
+        call destroy_marker(original_point, st)
     end subroutine replace_in_region
 
-    !> Add ELEMENT to `buffer_invisibility_spec'.
-    !> See documentation for `buffer_invisibility_spec' for the kind of
+    !> Add ELEMENT to `buffer_invisibility_specification'.
+    !> See documentation for `buffer_invisibility_specification' for the kind of
     !> elements that can be added: the name ELEMENT, with ELLIPSIS when
     !> given.
     !>
-    !> If `buffer_invisibility_spec' isn't an array before calling this
-    !> function, `buffer_invisibility_spec' will afterwards be an array
+    !> If `buffer_invisibility_specification' isn't an array before calling this
+    !> function, `buffer_invisibility_specification' will afterwards be an array
     !> of the two entries .true. and ELEMENT.  This means that if text exists
     !> with invisibility values that aren't either .true. or ELEMENT, that
     !> text will become visible.  Port of subr.el:add-to-invisibility-spec.
-    subroutine add_to_invisibility_spec(element, ellipsis)
+    subroutine add_to_invisibility_specification(element, ellipsis)
         character(len=*), intent(in) :: element
         logical, intent(in), optional :: ellipsis
         type(invisibility_entry_type) :: e
@@ -683,14 +685,14 @@ contains
         if (current == 0) return
 
         associate (b => buffers(current))
-            if (b%invisibility_spec_t) then
-                b%invisibility_spec_t = .false.
-                if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
-                allocate (b%invisibility_spec(1))
-                b%invisibility_spec(1)%atom = value_type(.true.)
+            if (b%invisibility_specification_t) then
+                b%invisibility_specification_t = .false.
+                if (allocated(b%invisibility_specification)) deallocate (b%invisibility_specification)
+                allocate (b%invisibility_specification(1))
+                b%invisibility_specification(1)%atom = value_type(.true.)
             end if
 
-            if (.not. allocated(b%invisibility_spec)) allocate (b%invisibility_spec(0))
+            if (.not. allocated(b%invisibility_specification)) allocate (b%invisibility_specification(0))
             e%atom = value_type(name=element)
 
             if (present(ellipsis)) then
@@ -698,18 +700,18 @@ contains
                 e%ellipsis = ellipsis
             end if
 
-            b%invisibility_spec = [e, b%invisibility_spec]
+            b%invisibility_specification = [e, b%invisibility_specification]
         end associate
-    end subroutine add_to_invisibility_spec
+    end subroutine add_to_invisibility_specification
 
-    !> Remove ELEMENT from `buffer_invisibility_spec' (the name ELEMENT,
+    !> Remove ELEMENT from `buffer_invisibility_specification' (the name ELEMENT,
     !> with ELLIPSIS when given).
-    !> If `buffer_invisibility_spec' isn't an array before calling this
+    !> If `buffer_invisibility_specification' isn't an array before calling this
     !> function, it will be made into an array containing just .true. as
     !> its only entry.  This means that if text exists with invisibility
     !> values other than .true., that text will become visible.  Port of
     !> subr.el:remove-from-invisibility-spec.
-    subroutine remove_from_invisibility_spec(element, ellipsis)
+    subroutine remove_from_invisibility_specification(element, ellipsis)
         character(len=*), intent(in) :: element
         logical, intent(in), optional :: ellipsis
         logical, allocatable :: keep(:)
@@ -718,22 +720,22 @@ contains
         if (current == 0) return
 
         associate (b => buffers(current))
-            if (b%invisibility_spec_t .or. .not. allocated(b%invisibility_spec)) then
-                b%invisibility_spec_t = .false.
-                if (allocated(b%invisibility_spec)) deallocate (b%invisibility_spec)
-                allocate (b%invisibility_spec(1))
-                b%invisibility_spec(1)%atom = value_type(.true.)
+            if (b%invisibility_specification_t .or. .not. allocated(b%invisibility_specification)) then
+                b%invisibility_specification_t = .false.
+                if (allocated(b%invisibility_specification)) deallocate (b%invisibility_specification)
+                allocate (b%invisibility_specification(1))
+                b%invisibility_specification(1)%atom = value_type(.true.)
                 return
             end if
 
             ! (delete ELEMENT ...): `equal' elements.
-            allocate (keep(size(b%invisibility_spec)))
+            allocate (keep(size(b%invisibility_specification)))
 
-            do k = 1, size(b%invisibility_spec)
-                keep(k) = .not. same_entry(b%invisibility_spec(k))
+            do k = 1, size(b%invisibility_specification)
+                keep(k) = .not. same_entry(b%invisibility_specification(k))
             end do
 
-            b%invisibility_spec = pack(b%invisibility_spec, keep)
+            b%invisibility_specification = pack(b%invisibility_specification, keep)
         end associate
 
     contains
@@ -744,7 +746,7 @@ contains
             same_entry = value_eq(e%atom, value_type(name=element)) .and. (e%cons .eqv. present(ellipsis))
             if (same_entry .and. present(ellipsis)) same_entry = e%ellipsis .eqv. ellipsis
         end function same_entry
-    end subroutine remove_from_invisibility_spec
+    end subroutine remove_from_invisibility_specification
 
     !> Quote ARGUMENT for passing as argument to an inferior shell.
     !>
@@ -832,7 +834,7 @@ contains
         call read_event(key, have, status)
         cursor_in_echo_area = .false.
         if (.not. status%ok()) return
-        if (.not. have) call set_error(status, FM_QUIT)
+        if (.not. have) call set_error(status, QUIT_CODE)
     end subroutine read_key
 
     !> Keymap of responses to questions posed by commands like `query_replace'.
@@ -844,7 +846,7 @@ contains
     !> `delete_and_edit', `automatic', `backup', `undo', `undo_all',
     !> `quit', and `help'.  Made on first use.  Port of replace.el
     !> query-replace-map.
-    subroutine init_query_replace_map()
+    subroutine initialize_query_replace_map()
         type(value_type), allocatable :: seq(:)
         type(status_type) :: st
         integer :: k
@@ -856,7 +858,7 @@ contains
             call key_parse(trim(QRM_KEYS(k)), seq, st)
             if (st%ok()) call define_key(query_replace_map, seq, value_type(name=trim(QRM_ANSWERS(k))), st)
         end do
-    end subroutine init_query_replace_map
+    end subroutine initialize_query_replace_map
 
     !> The answer `key' is in `query_replace_map' (the bindings
     !> y-or-n-p, map-y-or-n-p and perform-replace use): an ANSWER_ code,
@@ -868,8 +870,8 @@ contains
         character(len=:), allocatable :: name
 
         answer = ANSWER_NONE
-        call init_query_replace_map()
-        call lookup_key(make_keymap_ref(query_replace_map), [key], def, st, .true.)
+        call initialize_query_replace_map()
+        call lookup_key(make_keymap_reference(query_replace_map), [key], def, st, .true.)
         if (.not. st%ok() .or. (vtag(def) /= V_NAME .and. vtag(def) /= V_NULL)) return
         name = symbols(xsymbol(def))%name
 
@@ -935,8 +937,8 @@ contains
     !> Port of subr.el:add-to-history (the history is found by name, see
     !> `find_history'; `added' says whether the list changed; a name that
     !> is no history is a `void_variable' error in `status').
-    subroutine add_to_history(history_var, newelt, maxelt, keep_all, added, status)
-        character(len=*), intent(in) :: history_var, newelt
+    subroutine add_to_history(history_variable, newelt, maxelt, keep_all, added, status)
+        character(len=*), intent(in) :: history_variable, newelt
         integer, intent(in), optional :: maxelt
         logical, intent(in), optional :: keep_all
         logical, intent(out), optional :: added
@@ -945,10 +947,10 @@ contains
 
         if (present(added)) added = .false.
         if (present(status)) status = status_type()
-        history => find_history(history_var)
+        history => find_history(history_variable)
 
         if (.not. associated(history)) then
-            if (present(status)) call set_error(status, FM_VOID_VARIABLE, history_var)
+            if (present(status)) call set_error(status, VOID_VARIABLE_CODE, history_variable)
             return
         end if
 
@@ -966,19 +968,19 @@ contains
         call message(key_description(this_command_keys)//" is undefined")
         ! If this is a down-mouse event, don't reset prefix-arg; pass it to
         ! the command run by the up event.
-        prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
     end subroutine undefined
 
     !> Give the variable NAME an unallocated value unless it
     !> has a value already.  Port of eval.c:Fdefvar (INITVALUE empty).
-    subroutine defvar_nil(name)
+    subroutine defvar_false(name)
         character(len=*), intent(in) :: name
         type(value_type) :: v
         type(status_type) :: st
 
         call symbol_value(value_type(name=name), v, st)
         if (.not. st%ok()) call set(value_type(name=name), value_type(), st)
-    end subroutine defvar_nil
+    end subroutine defvar_false
 
     !> Give KEY a global binding as COMMAND.
     !> This is a legacy function; see `keymap_global_set' for the
@@ -1008,19 +1010,19 @@ contains
     end subroutine global_set_key_command
 
     !> Return the string of text matched by the previous search or regexp
-    !> operation.  NUM specifies the number of the parenthesized
+    !> operation.  NUMBER specifies the number of the parenthesized
     !> sub-expression in the last regexp whose match to return.  Zero
     !> means the entire text matched by the whole regexp or whole string.
     !>
     !> The return value is an empty string (and `matched' false) if NUMth
-    !> subexpression didn't match, or there were less than NUM subexpressions.
+    !> subexpression didn't match, or there were less than NUMBER subexpressions.
     !>
     !> STRING should be given if the last search was by `string_match' on
     !> STRING.  If STRING is absent, the current buffer should be the same
     !> buffer as the one in which the search/match was performed.  Port of
     !> subr.el:match-string.
-    function match_string(num, string, matched) result(text)
-        integer, intent(in) :: num
+    function match_string(number, string, matched) result(text)
+        integer, intent(in) :: number
         character(len=*), intent(in), optional :: string
         logical, intent(out), optional :: matched
         character(len=:), allocatable :: text
@@ -1029,9 +1031,9 @@ contains
 
         text = ""
         if (present(matched)) matched = .false.
-        b = match_beginning(num, status)
+        b = match_beginning(number, status)
         if (.not. status%ok() .or. b == 0) return
-        e = match_end(num, status)
+        e = match_end(number, status)
         if (present(matched)) matched = .true.
 
         if (present(string)) then
@@ -1042,21 +1044,21 @@ contains
     end function match_string
 
     !> Return string of text matched by last search, without text
-    !> properties.  NUM specifies which parenthesized expression in the
+    !> properties.  NUMBER specifies which parenthesized expression in the
     !> last regexp.  Value is an empty string if NUMth subexpression didn't match, or there
-    !> were less than NUM subexpressions.  Zero means the entire text matched by
+    !> were less than NUMBER subexpressions.  Zero means the entire text matched by
     !> the whole regexp or whole string.  STRING should be given if the
     !> last search was by `string_match' on STRING.  If STRING is absent, the
     !> current buffer should be the same buffer as the one in which the
     !> search/match was performed.  Port of
     !> subr.el:match-string-no-properties.
-    function match_string_no_properties(num, string, matched) result(text)
-        integer, intent(in) :: num
+    function match_string_no_properties(number, string, matched) result(text)
+        integer, intent(in) :: number
         character(len=*), intent(in), optional :: string
         logical, intent(out), optional :: matched
         character(len=:), allocatable :: text
 
-        text = match_string(num, string, matched)
+        text = match_string(number, string, matched)
     end function match_string_no_properties
 
     !> Return REPLACEMENT as it will be inserted by `replace_match'.
@@ -1086,41 +1088,41 @@ contains
         call set_match_data(saved)
     end function match_substitute_replacement
 
-    !> Return true if POS is in a normal subregexp context in REGEXP.
+    !> Return true if POSITION is in a normal subregexp context in REGULAR_EXPRESSION.
     !> A subregexp context is one where a sub-regexp can appear.
     !> A non-subregexp context is for example within brackets, or within a
     !> repetition bounds operator `\{...\}', or right after a `\'.
-    !> If START is present, it should be a position in REGEXP, smaller
-    !> than POS, and known to be in a subregexp context.  (POS and START are
-    !> 1-based character indices: the text before the character at POS
+    !> If START is present, it should be a position in REGULAR_EXPRESSION, smaller
+    !> than POSITION, and known to be in a subregexp context.  (POSITION and START are
+    !> 1-based character indices: the text before the character at POSITION
     !> is examined.)  Port of subr.el:subregexp-context-p.
-    recursive logical function is_subregexp_context(regexp, pos, status, start) result(context)
-        character(len=*), intent(in) :: regexp
-        integer(int64), intent(in) :: pos
+    recursive logical function is_subregexp_context(regular_expression, position, status, start) result(context)
+        character(len=*), intent(in) :: regular_expression
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
         integer(int64) :: b, e, index
 
         b = 0
-        if (present(start)) b = string_index_to_offset(regexp, start)
-        e = string_index_to_offset(regexp, pos)
-        index = string_match(regexp(b + 1:e), "", status, inhibit_modify=.true.)
+        if (present(start)) b = string_index_to_offset(regular_expression, start)
+        e = string_index_to_offset(regular_expression, position)
+        index = string_match(regular_expression(b + 1:e), "", status, inhibit_modify=.true.)
         context = .true.
-        if (status%code /= FM_INVALID_REGEXP) return
+        if (status%code /= FM_INVALID_REGULAR_EXPRESSION) return
         context = .not. (status%detail == """Unmatched [ or [^""" .or. status%detail == """Unmatched \{""" .or. &
                          status%detail == """Trailing backslash""")
         status = status_type()
         if (index < 0) continue
     end function is_subregexp_context
 
-    !> Whether REGEXP matches STRING, as `string_match' finds; this function
+    !> Whether REGULAR_EXPRESSION matches STRING, as `string_match' finds; this function
     !> does not change the match data.  Port of subr.el:string-match-p.
-    logical function string_matches(regexp, string, status, start) result(found)
-        character(len=*), intent(in) :: regexp, string
+    logical function string_matches(regular_expression, string, status, start) result(found)
+        character(len=*), intent(in) :: regular_expression, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
 
-        found = string_match(regexp, string, status, start, inhibit_modify=.true.) > 0
+        found = string_match(regular_expression, string, status, start, inhibit_modify=.true.) > 0
     end function string_matches
 
     !> The version that version string TEXT gives, as an array of
@@ -1174,10 +1176,10 @@ contains
     type(version_type) function version(text) result(v)
         character(len=*), intent(in) :: text
         ! version-regexp-alist, in its order.
-        character(len=*), parameter :: separator_regexps(7) = [character(len=48) :: &
-                                                               "^[-._+ ]?snapshot$", "^[-._+]$", &
+        character(len=*), parameter :: separator_regular_expressions(7) = [character(len=48) :: &
+                                                                           "^[-._+ ]?snapshot$", "^[-._+]$", &
                                                                "^[-._+ ]?\(cvs\|git\|bzr\|svn\|hg\|darcs\)$", "^[-._+ ]?unknown$", &
-                                                               "^[-._+ ]?alpha$", "^[-._+ ]?beta$", "^[-._+ ]?\(pre\|rc\)$"]
+                                                                       "^[-._+ ]?alpha$", "^[-._+ ]?beta$", "^[-._+ ]?\(pre\|rc\)$"]
         integer(int64), parameter :: priorities(7) = [-4, -4, -4, -4, -3, -2, -1]
         character(len=*), parameter :: DIGITS = "0123456789"
         character(len=:), allocatable :: normalized, s, letter
@@ -1193,7 +1195,7 @@ contains
         if (index(normalized, ".") == 1) normalized = "0"//normalized
 
         if (.not. string_matches("^[0-9]", normalized, v%status)) then
-            call set_error(v%status, FM_GENERIC_ERROR, "Invalid version syntax: `"//text//"' (must start with a number)")
+            call set_error(v%status, GENERIC_ERROR_CODE, "Invalid version syntax: `"//text//"' (must start with a number)")
             return
         end if
 
@@ -1221,11 +1223,11 @@ contains
             ! The alpha, beta, pre, etc. separator.
             if (s == ".") cycle
 
-            do k = 1, size(separator_regexps)
-                if (string_matches(trim(separator_regexps(k)), s, v%status)) exit
+            do k = 1, size(separator_regular_expressions)
+                if (string_matches(trim(separator_regular_expressions(k)), s, v%status)) exit
             end do
 
-            if (k <= size(separator_regexps)) then
+            if (k <= size(separator_regular_expressions)) then
                 v%numbers = [v%numbers, priorities(k)]
                 cycle
             end if
@@ -1242,11 +1244,11 @@ contains
             end if
 
             if (.not. matched) then
-                call set_error(v%status, FM_GENERIC_ERROR, "Invalid version syntax: `"//text//"'")
+                call set_error(v%status, GENERIC_ERROR_CODE, "Invalid version syntax: `"//text//"'")
                 exit
             end if
 
-            call string_char_and_length(letter, 1_int64, c, clen)
+            call string_character_and_length(letter, 1_int64, c, clen)
             v%numbers = [v%numbers, int(downcase(c) - iachar("a") + 1, int64)]
         end do
 
@@ -1260,7 +1262,7 @@ contains
     !> That is, the trailing ".0"s are insignificant.  Also, version "1"
     !> is higher (newer) than "1pre", which is higher than "1beta", which
     !> is higher than "1alpha", which is higher than "1snapshot".  Also,
-    !> "-GIT", "-CVS" and "-NNN" are treated as snapshot versions.  False
+    !> "-GIT", "-CONCURRENT_VERSIONS_SYSTEM" and "-NNN" are treated as snapshot versions.  False
     !> when either has invalid version syntax.  The operator `<' between
     !> two `version_type' values.  Port of subr.el:version< and
     !> version-list-<.
@@ -1308,7 +1310,7 @@ contains
     !> That is, the trailing ".0"s are insignificant.  Also, version "1"
     !> is higher (newer) than "1pre", which is higher than "1beta", which
     !> is higher than "1alpha", which is higher than "1snapshot".  Also,
-    !> "-GIT", "-CVS" and "-NNN" are treated as snapshot versions.  False
+    !> "-GIT", "-CONCURRENT_VERSIONS_SYSTEM" and "-NNN" are treated as snapshot versions.  False
     !> when either has invalid version syntax.  The operator `==' between
     !> two `version_type' values.  Port of subr.el:version= and
     !> version-list-=.
@@ -1355,57 +1357,58 @@ contains
 
     !> Same as `looking_at' except this function does not change the match
     !> data.  Port of subr.el:looking-at-p.
-    logical function is_looking_at(regexp, status)
-        character(len=*), intent(in) :: regexp
+    logical function is_looking_at(regular_expression, status)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
 
-        is_looking_at = looking_at(regexp, status, inhibit_modify=.true.)
+        is_looking_at = looking_at(regular_expression, status, inhibit_modify=.true.)
     end function is_looking_at
 
     !> Return true if text before point matches regular expression
-    !> REGEXP.  Like `looking_at' except matches before point, and is
+    !> REGULAR_EXPRESSION.  Like `looking_at' except matches before point, and is
     !> slower.  LIMIT if true speeds up the search by specifying a
     !> minimum starting position, to avoid checking matches that would
     !> start before LIMIT.
     !>
     !> If GREEDY is true, extend the match backwards as far as possible,
     !> stopping when a single additional previous character cannot be part
-    !> of a match for REGEXP.  When the match is extended, its starting
+    !> of a match for REGULAR_EXPRESSION.  When the match is extended, its starting
     !> position is allowed to occur before LIMIT.
     !>
     !> As a general recommendation, try to avoid using `looking_back'
     !> wherever possible, since it is slow.  Port of subr.el:looking-back.
-    logical function looking_back(regexp, status, limit, greedy) result(found)
-        character(len=*), intent(in) :: regexp
+    logical function looking_back(regular_expression, status, limit, greedy) result(found)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: limit
         logical, intent(in), optional :: greedy
-        integer(int64) :: start, pos, saved_begv, saved_zv
+        integer(int64) :: start, position, saved_beginning_of_accessible_portion, saved_end_of_accessible_portion
         logical :: ignored
 
         start = point()
-        call re_search_backward("\(?:"//regexp//"\)\=", pos, status, bound=limit, noerror=SEARCH_NOERROR)
-        found = status%ok() .and. pos > 0
-        if (found) pos = point()
-        call goto_char(start)
+        call regular_expression_search_backward("\(?:"//regular_expression//"\)\=", position, status, bound=limit, &
+                                                noerror=SEARCH_NOERROR)
+        found = status%ok() .and. position > 0
+        if (found) position = point()
+        call goto_character(start)
         if (.not. found) return
         if (.not. present(greedy)) return
         if (.not. greedy) return
-        saved_begv = point_min()
-        saved_zv = point_max()
-        call narrow_to_region(point_min(), start, status)
+        saved_beginning_of_accessible_portion = point_minimum()
+        saved_end_of_accessible_portion = point_maximum()
+        call narrow_to_region(point_minimum(), start, status)
 
-        do while (pos > point_min())
-            call goto_char(pos - 1)
-            if (.not. looking_at("\(?:"//regexp//"\)\'", status)) exit
-            pos = pos - 1
+        do while (position > point_minimum())
+            call goto_character(position - 1)
+            if (.not. looking_at("\(?:"//regular_expression//"\)\'", status)) exit
+            position = position - 1
         end do
 
-        call goto_char(pos)
-        ignored = looking_at("\(?:"//regexp//"\)\'", status)
+        call goto_character(position)
+        ignored = looking_at("\(?:"//regular_expression//"\)\'", status)
         call widen()
-        call narrow_to_region(saved_begv, saved_zv, status)
-        call goto_char(start)
+        call narrow_to_region(saved_beginning_of_accessible_portion, saved_end_of_accessible_portion, status)
+        call goto_character(start)
     end function looking_back
 
     !> Return progress reporter object for use with `progress_reporter_update'.
@@ -1414,41 +1417,41 @@ contains
     !> appended to the end.  When you call `progress_reporter_done', the
     !> word "done" is printed after the MESSAGE.
     !>
-    !> MIN_VALUE and MAX_VALUE are starting (0% complete) and final (100%
+    !> MINIMUM_VALUE and MAXIMUM_VALUE are starting (0% complete) and final (100%
     !> complete) states of operation; the latter should be larger.  The
     !> status message shows the percentage progress.  The minimal change
     !> to report is 1%, the minimum interval between echo area updates
-    !> 0.2 seconds.  Without MIN_VALUE and MAX_VALUE, the reporter is a
+    !> 0.2 seconds.  Without MINIMUM_VALUE and MAXIMUM_VALUE, the reporter is a
     !> pulsing one (its indicator turns).  Port of
     !> subr.el:make-progress-reporter (default CURRENT-VALUE, MIN-CHANGE
     !> and MIN-TIME).
-    subroutine make_progress_reporter(reporter, message_text, min_value, max_value)
+    subroutine make_progress_reporter(reporter, message_text, minimum_value, maximum_value)
         type(progress_reporter_type), intent(out) :: reporter
         character(len=*), intent(in) :: message_text
-        integer(int64), intent(in), optional :: min_value, max_value
+        integer(int64), intent(in), optional :: minimum_value, maximum_value
         type(status_type) :: st
 
         reporter%text = message_text
         if (string_match("[[:alnum:]]\'", message_text, st) > 0) reporter%text = message_text//"..."
         reporter%update_time = real(current_time())
 
-        if (.not. (present(min_value) .and. present(max_value))) then
+        if (.not. (present(minimum_value) .and. present(maximum_value))) then
             ! A pulsing indicator.
             reporter%pulsing = .true.
             call progress_reporter_pulse(reporter)
             return
         end if
 
-        reporter%next_value = real(min_value, real64)
+        reporter%next_value = real(minimum_value, real64)
         reporter%update_time = real(current_time())
-        reporter%min_value = min_value
-        reporter%max_value = max_value
+        reporter%minimum_value = minimum_value
+        reporter%maximum_value = maximum_value
         ! Force a call to `message' now.
-        call progress_reporter_update(reporter, min_value)
+        call progress_reporter_update(reporter, minimum_value)
     end subroutine make_progress_reporter
 
     !> Report progress of an operation in the echo area.
-    !> VALUE should be a number between MIN_VALUE and MAX_VALUE.
+    !> VALUE should be a number between MINIMUM_VALUE and MAXIMUM_VALUE.
     !>
     !> This function is relatively inexpensive.  If the change since
     !> last update is too small or insufficient time has passed, it does
@@ -1467,24 +1470,24 @@ contains
         now = real(current_time())
         enough_time_passed = reporter%update_time < now
         ! Calculate time for the next update.
-        if (enough_time_passed) reporter%update_time = reporter%update_time + reporter%min_time
-        one_percent = real(reporter%max_value - reporter%min_value, real64)/100.0_real64
+        if (enough_time_passed) reporter%update_time = reporter%update_time + reporter%minimum_time
+        one_percent = real(reporter%maximum_value - reporter%minimum_value, real64)/100.0_real64
 
-        if (reporter%max_value == reporter%min_value) then
+        if (reporter%maximum_value == reporter%minimum_value) then
             percentage = 0
         else
-            percentage = int((value - reporter%min_value)/one_percent, int64)
+            percentage = int((value - reporter%minimum_value)/one_percent, int64)
         end if
 
         ! If we are not printing message because not enough time has
         ! passed, use 1 instead of MIN-CHANGE.
         if (enough_time_passed) then
-            reporter%next_value = reporter%min_value + (percentage + reporter%min_change)*one_percent
+            reporter%next_value = reporter%minimum_value + (percentage + reporter%minimum_change)*one_percent
         else
-            reporter%next_value = reporter%min_value + (percentage + 1)*one_percent
+            reporter%next_value = reporter%minimum_value + (percentage + 1)*one_percent
         end if
 
-        reporter%next_value = min(reporter%next_value, real(reporter%max_value, real64))
+        reporter%next_value = min(reporter%next_value, real(reporter%maximum_value, real64))
         reporter%next_value = real(ceiling(reporter%next_value, int64), real64)
         ! Print message only if enough time has passed.
         if (.not. enough_time_passed) return
@@ -1515,7 +1518,7 @@ contains
         integer :: k
 
         if (.not. (reporter%update_time < real(current_time()))) return
-        reporter%update_time = reporter%update_time + reporter%min_time
+        reporter%update_time = reporter%update_time + reporter%minimum_time
         reporter%pulse_index = reporter%pulse_index + 1
         k = mod(reporter%pulse_index, 4) + 1
         call message(reporter%text//" "//pulse_characters(k:k))
@@ -1524,20 +1527,20 @@ contains
     !> Move point to the next position that is the end of an identifier.
     !> An identifier is any sequence of characters that are in either the
     !> word constituent or identifier constituent syntax class.
-    !> With prefix argument ARG, do it ARG times if positive, or move
-    !> backwards ARG times if negative.  Port of subr.el:forward-symbol.
-    subroutine forward_identifier(arg)
-        integer(int64), intent(in) :: arg
+    !> With prefix argument ARGUMENT, do it ARGUMENT times if positive, or move
+    !> backwards ARGUMENT times if negative.  Port of subr.el:forward-symbol.
+    subroutine forward_identifier(argument)
+        integer(int64), intent(in) :: argument
         integer(int64) :: found, moved, n
         type(status_type) :: st
 
-        if (arg >= 0) then
-            call re_search_forward("\(\sw\|\s_\)+", found, st, noerror=SEARCH_MOVE, count=arg)
+        if (argument >= 0) then
+            call regular_expression_search_forward("\(\sw\|\s_\)+", found, st, noerror=SEARCH_MOVE, count=argument)
         else
-            n = arg
+            n = argument
 
             do while (n < 0)
-                call re_search_backward("\(\sw\|\s_\)+", found, st, noerror=SEARCH_MOVE)
+                call regular_expression_search_backward("\(\sw\|\s_\)+", found, st, noerror=SEARCH_MOVE)
                 if (found > 0) moved = skip_syntax_backward("w_")
                 n = n + 1
             end do
@@ -1551,50 +1554,50 @@ contains
     subroutine bounds_of_identifier_at_point(beginning, end, found)
         integer(int64), intent(out) :: beginning, end
         logical, intent(out) :: found
-        integer(int64) :: orig, at, real_end, real_beginning
+        integer(int64) :: original, at, real_end, real_beginning
         type(status_type) :: st
         logical :: ok
 
         found = .false.
         beginning = 0
         end = 0
-        orig = point()
+        original = point()
         ! If the buffer is totally empty, give up.
-        call goto_char(point_min())
-        call re_search_forward("[^"//achar(9)//achar(10)//" ]", at, st, noerror=SEARCH_NOERROR)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward("[^"//achar(9)//achar(10)//" ]", at, st, noerror=SEARCH_NOERROR)
 
         if (at == 0) then
-            call goto_char(orig)
+            call goto_character(original)
             return
         end if
 
-        call goto_char(orig)
+        call goto_character(original)
         ! Try moving forward, then back.
         call forward_identifier(1_int64)
         call beginning_of_identifier(ok)
 
         if (.not. ok) then
-            call goto_char(orig)
+            call goto_character(original)
             return
         end if
 
         beginning = point()
 
-        if (beginning <= orig) then
-            ! If that brings us all the way back to ORIG, it worked.  But
+        if (beginning <= original) then
+            ! If that brings us all the way back to ORIGINAL, it worked.  But
             ! END may not be the real end.  So find the real end that
             ! corresponds to BEGINNING.
             call forward_identifier(1_int64)
             real_end = point()
 
-            if (orig <= real_end .and. beginning < real_end) then
+            if (original <= real_end .and. beginning < real_end) then
                 end = real_end
                 found = .true.
             end if
         else
-            call goto_char(orig)
+            call goto_character(original)
             ! Try a second time, moving backward first and then forward,
-            ! so that we can find a thing that ends at ORIG.
+            ! so that we can find a thing that ends at ORIGINAL.
             call beginning_of_identifier(ok)
 
             if (ok) then
@@ -1605,7 +1608,7 @@ contains
                 if (ok) then
                     real_beginning = point()
 
-                    if (real_beginning <= orig .and. orig <= end .and. real_beginning < end) then
+                    if (real_beginning <= original .and. original <= end .and. real_beginning < end) then
                         beginning = real_beginning
                         found = .true.
                     end if
@@ -1613,7 +1616,7 @@ contains
             end if
         end if
 
-        call goto_char(orig)
+        call goto_character(original)
 
     contains
 
@@ -1624,7 +1627,7 @@ contains
             integer(int64) :: found, moved
             type(status_type) :: st
 
-            call re_search_backward("\(\sw\|\s_\)+", found, st)
+            call regular_expression_search_backward("\(\sw\|\s_\)+", found, st)
             ok = st%ok() .and. found > 0
             if (ok) moved = skip_syntax_backward("w_")
         end subroutine beginning_of_identifier
@@ -1648,26 +1651,26 @@ contains
     !> If there is no tag at point, `found' is false.  Port of
     !> subr.el:find-tag-default-as-regexp (find-tag-default-function is
     !> not ported: the default is `find_tag_default').
-    subroutine find_tag_default_as_regexp(regexp, found)
-        character(len=:), allocatable, intent(out) :: regexp
+    subroutine find_tag_default_as_regular_expression(regular_expression, found)
+        character(len=:), allocatable, intent(out) :: regular_expression
         logical, intent(out) :: found
         character(len=:), allocatable :: tag
 
         call find_tag_default(tag, found)
-        regexp = ""
-        if (found) regexp = regexp_quote(tag)
-    end subroutine find_tag_default_as_regexp
+        regular_expression = ""
+        if (found) regular_expression = regular_expression_quote(tag)
+    end subroutine find_tag_default_as_regular_expression
 
     !> Return regexp that matches the default tag at point as identifier.
     !> If there is no tag at point, `found' is false.  Port of
     !> subr.el:find-tag-default-as-symbol-regexp.
-    subroutine find_tag_default_as_identifier_regexp(regexp, found)
-        character(len=:), allocatable, intent(out) :: regexp
+    subroutine find_tag_default_as_identifier_regular_expression(regular_expression, found)
+        character(len=:), allocatable, intent(out) :: regular_expression
         logical, intent(out) :: found
 
-        call find_tag_default_as_regexp(regexp, found)
-        if (found) regexp = "\_<"//regexp//"\_>"
-    end subroutine find_tag_default_as_identifier_regexp
+        call find_tag_default_as_regular_expression(regular_expression, found)
+        if (found) regular_expression = "\_<"//regular_expression//"\_>"
+    end subroutine find_tag_default_as_identifier_regular_expression
 
     ! ------------------------------------------------------------------
     ! Overlays and strings
@@ -1683,7 +1686,7 @@ contains
         type(handle_type), intent(out) :: copy
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer
-        type(value_type), allocatable :: props(:)
+        type(value_type), allocatable :: properties(:)
         integer :: k
 
         buffer = overlay_buffer(overlay)
@@ -1691,15 +1694,15 @@ contains
         if (buffer%index /= 0) then
             call make_overlay(copy, overlay_start(overlay), overlay_end(overlay), status, buffer=buffer)
         else
-            call make_overlay(copy, point_min(), point_min(), status)
+            call make_overlay(copy, point_minimum(), point_minimum(), status)
             if (status%ok()) call delete_overlay(copy)
         end if
 
         if (.not. status%ok()) return
-        call list_elements(overlay_properties(overlay), props)
+        call list_elements(overlay_properties(overlay), properties)
 
-        do k = 1, size(props) - 1, 2
-            call overlay_put(copy, symbols(xsymbol(props(k)))%name, props(k + 1), status)
+        do k = 1, size(properties) - 1, 2
+            call overlay_put(copy, symbols(xsymbol(properties(k)))%name, properties(k + 1), status)
             if (.not. status%ok()) return
         end do
     end subroutine copy_overlay

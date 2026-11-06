@@ -19,43 +19,45 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> `regexp_opt' returns a regexp matching any of a list of strings,
+!> `regular_expression_optimization' returns a regexp matching any of a list of strings,
 !> merging common prefixes and suffixes so the regexp matcher need not
-!> backtrack; `regexp_opt_charset' a regexp matching any of a set of
-!> characters; `regexp_opt_depth' the number of groups of a regexp.
+!> backtrack; `regular_expression_optimization_character_set' a regexp matching any of a set of
+!> characters; `regular_expression_optimization_depth' the number of groups of a regexp.
 !>
 !> The strings are given as a character array whose elements' trailing
 !> blanks are not part of the strings (a string cannot end with a space).
-!> PAREN is one of the REGEXP_OPT_* constants, or the string OPEN.
+!> PARENTHESIS is one of the REGULAR_EXPRESSION_OPTIMIZATION_* constants, or the string OPEN.
 module regular_expression_optimization_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type
-    use search_mod, only: regexp_quote, string_match, match_beginning, match_end, match_data, set_match_data
+    use search_mod, only: regular_expression_quote, string_match, match_beginning, match_end, match_data, set_match_data
     use basic_subprograms_mod, only: is_subregexp_context
-    use editing_functions_mod, only: char_to_string
+    use editing_functions_mod, only: character_to_string
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
-    public :: regexp_opt, regexp_opt_charset, regexp_opt_depth
+    public :: regular_expression_optimization, regular_expression_optimization_character_set, regular_expression_optimization_depth
 
-    !> PAREN of `regexp_opt': REGEXP_OPT_SHY (a shy group if a postfix operator
-    !> needs one), REGEXP_OPT_GROUP (a group), REGEXP_OPT_WORDS (\<\( ... \)\>) and REGEXP_OPT_IDENTIFIERS
-    !> (\_<\( ... \)\_>).
-    integer, parameter, public :: REGEXP_OPT_SHY = 0, REGEXP_OPT_GROUP = 1, REGEXP_OPT_WORDS = 2, REGEXP_OPT_IDENTIFIERS = 3
+    !> PARENTHESIS of `regular_expression_optimization': REGULAR_EXPRESSION_OPTIMIZATION_SHY
+    !> (a shy group if a postfix operator needs one), REGULAR_EXPRESSION_OPTIMIZATION_GROUP
+    !> (a group), REGULAR_EXPRESSION_OPTIMIZATION_WORDS (\<\( ... \)\>) and
+    !> REGULAR_EXPRESSION_OPTIMIZATION_IDENTIFIERS (\_<\( ... \)\_>).
+    integer, parameter, public :: REGULAR_EXPRESSION_OPTIMIZATION_SHY = 0, REGULAR_EXPRESSION_OPTIMIZATION_GROUP = 1, &
+                                  REGULAR_EXPRESSION_OPTIMIZATION_WORDS = 2, REGULAR_EXPRESSION_OPTIMIZATION_IDENTIFIERS = 3
 
     !> A regexp that never matches anything.  Port of subr.el
     !> regexp-unmatchable.
-    character(len=*), parameter, public :: regexp_unmatchable = "\`a\`"
+    character(len=*), parameter, public :: regular_expression_unmatchable = "\`a\`"
 
 contains
 
-    !> Return the depth of REGEXP.
+    !> Return the depth of REGULAR_EXPRESSION.
     !> This means the number of non-shy regexp grouping constructs
-    !> (parenthesized expressions) in REGEXP.  Port of
+    !> (parenthesized expressions) in REGULAR_EXPRESSION.  Port of
     !> regexp-opt.el:regexp-opt-depth.
-    recursive integer function regexp_opt_depth(regexp, status) result(count)
-        character(len=*), intent(in) :: regexp
+    recursive integer function regular_expression_optimization_depth(regular_expression, status) result(count)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), allocatable :: saved(:)
         integer(int64) :: start, last, index, mb
@@ -64,15 +66,15 @@ contains
         count = 0
         ! save-match-data
         saved = match_data()
-        ! Hack to signal an error if REGEXP does not have balanced parentheses.
-        index = string_match(regexp, "", status)
+        ! Hack to signal an error if REGULAR_EXPRESSION does not have balanced parentheses.
+        index = string_match(regular_expression, "", status)
         if (.not. status%ok()) return
-        ! Count the number of open parentheses in REGEXP.
+        ! Count the number of open parentheses in REGULAR_EXPRESSION.
         start = 1
         last = 0
 
         do
-            index = string_match("\\(\(\?[0-9]*:\)?", regexp, status, start)
+            index = string_match("\\(\(\?[0-9]*:\)?", regular_expression, status, start)
             if (.not. status%ok()) exit
             if (index == 0) exit
             ! Start of next search.
@@ -82,9 +84,9 @@ contains
                 mb = match_beginning(0, status)
 
                 if (last > 0) then
-                    context = is_subregexp_context(regexp, mb, status, last)
+                    context = is_subregexp_context(regular_expression, mb, status, last)
                 else
-                    context = is_subregexp_context(regexp, mb, status)
+                    context = is_subregexp_context(regular_expression, mb, status)
                 end if
 
                 if (.not. status%ok()) exit
@@ -100,33 +102,33 @@ contains
         end do
 
         call set_match_data(saved)
-    end function regexp_opt_depth
+    end function regular_expression_optimization_depth
 
     !> Return a regexp to match a string in the list STRINGS.
     !> Each member of STRINGS is treated as a fixed string, not as a regexp.
-    !> Optional PAREN specifies how the returned regexp is surrounded by
+    !> Optional PARENTHESIS specifies how the returned regexp is surrounded by
     !> grouping constructs.
     !>
     !> If STRINGS is the empty list, the return value is a regexp that
     !> never matches anything.
     !>
-    !> The optional argument PAREN can be any of the following:
+    !> The optional argument PARENTHESIS can be any of the following:
     !>
     !> OPEN, a string
     !>     the resulting regexp is preceded by OPEN and followed by
     !>     \), e.g.  use "\(?1:" to produce an explicitly numbered
     !>     group.
     !>
-    !> REGEXP_OPT_WORDS
+    !> REGULAR_EXPRESSION_OPTIMIZATION_WORDS
     !>     the resulting regexp is surrounded by \<\( and \)\>.
     !>
-    !> REGEXP_OPT_IDENTIFIERS
+    !> REGULAR_EXPRESSION_OPTIMIZATION_IDENTIFIERS
     !>     the resulting regexp is surrounded by \_<\( and \)\_>.
     !>
-    !> REGEXP_OPT_GROUP
+    !> REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     !>     the resulting regexp is surrounded by \( and \).
     !>
-    !> REGEXP_OPT_SHY (the default)
+    !> REGULAR_EXPRESSION_OPTIMIZATION_SHY (the default)
     !>     the resulting regexp is surrounded by \(?: and \), if it is
     !>     necessary to ensure that a postfix operator appended to it will
     !>     apply to the whole expression.
@@ -134,23 +136,23 @@ contains
     !> The returned regexp is ordered in such a way that it will always
     !> match the longest string possible.  Port of
     !> regexp-opt.el:regexp-opt.
-    function regexp_opt(strings, paren, open) result(regexp)
+    function regular_expression_optimization(strings, parenthesis, open) result(regular_expression)
         character(len=*), intent(in) :: strings(:)
-        integer, intent(in), optional :: paren
+        integer, intent(in), optional :: parenthesis
         character(len=*), intent(in), optional :: open
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         type(string_type), allocatable :: list(:)
         character(len=:), allocatable :: op
         integer :: p
         logical :: has_open
 
-        p = REGEXP_OPT_SHY
-        if (present(paren)) p = paren
+        p = REGULAR_EXPRESSION_OPTIMIZATION_SHY
+        if (present(parenthesis)) p = parenthesis
         has_open = .true.
 
         if (present(open)) then
             op = open
-        else if (p /= REGEXP_OPT_SHY) then
+        else if (p /= REGULAR_EXPRESSION_OPTIMIZATION_SHY) then
             op = "\("
         else
             has_open = .false.
@@ -161,32 +163,32 @@ contains
 
         if (size(list) > 0) then
             if (has_open) then
-                regexp = opt_group(list, .true., .false., op)
+                regular_expression = option_group(list, .true., .false., op)
             else
-                regexp = opt_group(list, .true., .true.)
+                regular_expression = option_group(list, .true., .true.)
             end if
         else
             if (has_open) then
-                regexp = op//regexp_unmatchable//"\)"
+                regular_expression = op//regular_expression_unmatchable//"\)"
             else
-                regexp = "\(?:"//regexp_unmatchable//"\)"
+                regular_expression = "\(?:"//regular_expression_unmatchable//"\)"
             end if
         end if
 
         if (present(open)) return
 
-        if (p == REGEXP_OPT_WORDS) then
-            regexp = "\<"//regexp//"\>"
-        else if (p == REGEXP_OPT_IDENTIFIERS) then
-            regexp = "\_<"//regexp//"\_>"
+        if (p == REGULAR_EXPRESSION_OPTIMIZATION_WORDS) then
+            regular_expression = "\<"//regular_expression//"\>"
+        else if (p == REGULAR_EXPRESSION_OPTIMIZATION_IDENTIFIERS) then
+            regular_expression = "\_<"//regular_expression//"\_>"
         end if
-    end function regexp_opt
+    end function regular_expression_optimization
 
     !> STRINGS sorted (string<) without duplicates.  Not a port.
     subroutine sorted_unique(strings, list)
         character(len=*), intent(in) :: strings(:)
         type(string_type), allocatable, intent(out) :: list(:)
-        type(string_type) :: tmp
+        type(string_type) :: temporary
         integer :: i, j, n
 
         allocate (list(size(strings)))
@@ -197,16 +199,16 @@ contains
 
         ! Insertion sort (the lists are short).
         do i = 2, size(list)
-            call move_alloc(list(i)%text, tmp%text)
+            call move_alloc(list(i)%text, temporary%text)
             j = i - 1
 
             do while (j >= 1)
-                if (.not. llt(tmp%text, list(j)%text)) exit
+                if (.not. llt(temporary%text, list(j)%text)) exit
                 call move_alloc(list(j)%text, list(j + 1)%text)
                 j = j - 1
             end do
 
-            call move_alloc(tmp%text, list(j + 1)%text)
+            call move_alloc(temporary%text, list(j + 1)%text)
         end do
 
         n = 0
@@ -292,60 +294,60 @@ contains
     end function common_suffix
 
     !> Return a regexp to match a string in the sorted list STRINGS.
-    !> If PAREN, output regexp parentheses around returned regexp (OPEN,
+    !> If PARENTHESIS, output regexp parentheses around returned regexp (OPEN,
     !> or a shy group).  If LAX, don't output parentheses if it doesn't
     !> require them.  Merges keywords to avoid backtracking in Fortmacs's
     !> regexp matcher.  Port of regexp-opt.el:regexp-opt-group.
-    recursive function opt_group(strings, paren, lax, open) result(regexp)
+    recursive function option_group(strings, parenthesis, lax, open) result(regular_expression)
         type(string_type), intent(in) :: strings(:)
-        logical, intent(in) :: paren, lax
+        logical, intent(in) :: parenthesis, lax
         character(len=*), intent(in), optional :: open
-        character(len=:), allocatable :: regexp
-        character(len=:), allocatable :: open_group, close_group, open_charset, close_charset, prefix, xiffus, first
+        character(len=:), allocatable :: regular_expression
+        character(len=:), allocatable :: open_group, close_group, open_character_set, close_character_set, prefix, xiffus, first
         ! (Results of recursive calls go through these first: gfortran
         ! garbles two such results in one concatenation.)
         character(len=:), allocatable :: sub1, sub2
         type(string_type), allocatable :: rest(:), parts(:)
         integer(int32), allocatable :: letters(:)
-        integer :: i, n, nl, nr, k
+        integer :: i, n, newline, nr, k
         logical :: any_one
 
         if (present(open)) then
             open_group = open
-        else if (paren) then
+        else if (parenthesis) then
             open_group = "\(?:"
         else
             open_group = ""
         end if
 
         close_group = ""
-        if (paren) close_group = "\)"
-        open_charset = open_group
-        close_charset = close_group
+        if (parenthesis) close_group = "\)"
+        open_character_set = open_group
+        close_character_set = close_group
 
         if (lax) then
-            open_charset = ""
-            close_charset = ""
+            open_character_set = ""
+            close_character_set = ""
         end if
 
         if (size(strings) == 0) then
-            regexp = ""
+            regular_expression = ""
             return
         end if
 
         if (size(strings) == 1) then
             if (nchars(strings(1)%text) == 1) then
-                regexp = open_charset//regexp_quote(strings(1)%text)//close_charset
+                regular_expression = open_character_set//regular_expression_quote(strings(1)%text)//close_character_set
             else
-                regexp = open_group//regexp_quote(strings(1)%text)//close_group
+                regular_expression = open_group//regular_expression_quote(strings(1)%text)//close_group
             end if
 
             return
         end if
 
         if (len(strings(1)%text) == 0) then
-            sub1 = opt_group(strings(2:), .true., .true.)
-            regexp = open_charset//sub1//"?"//close_charset
+            sub1 = option_group(strings(2:), .true., .true.)
+            regular_expression = open_character_set//sub1//"?"//close_character_set
             return
         end if
 
@@ -360,12 +362,12 @@ contains
         if (any_one) then
             ! Collect one-char strings
             allocate (letters(0), rest(0))
-            nl = 0
+            newline = 0
             nr = 0
 
             do i = 1, size(strings)
                 if (nchars(strings(i)%text) == 1) then
-                    letters = [letters, first_char(strings(i)%text)]
+                    letters = [letters, first_character(strings(i)%text)]
                 else
                     rest = [rest, strings(i)]
                 end if
@@ -374,11 +376,11 @@ contains
             if (size(rest) > 0) then
                 ! several one-char strings: take them and recurse
                 ! on the rest (first so as to match the longest).
-                sub1 = opt_group(rest, .false., .false.)
-                regexp = open_group//sub1//"\|"//regexp_opt_charset(letters)//close_group
+                sub1 = option_group(rest, .false., .false.)
+                regular_expression = open_group//sub1//"\|"//regular_expression_optimization_character_set(letters)//close_group
             else
                 ! all are one-char strings: just return a character set.
-                regexp = open_charset//regexp_opt_charset(letters)//close_charset
+                regular_expression = open_character_set//regular_expression_optimization_character_set(letters)//close_character_set
             end if
 
             return
@@ -395,8 +397,8 @@ contains
                 parts(i)%text = strings(i)%text(n + 1:)
             end do
 
-            sub1 = opt_group(parts, .true., .true.)
-            regexp = open_group//regexp_quote(prefix)//sub1//close_group
+            sub1 = option_group(parts, .true., .true.)
+            regular_expression = open_group//regular_expression_quote(prefix)//sub1//close_group
             return
         end if
 
@@ -413,14 +415,14 @@ contains
 
             ! Sorting is necessary in cases such as ("ad" "d").
             call sort_list(parts)
-            sub1 = opt_group(parts, .true., .true.)
-            regexp = open_group//sub1//regexp_quote(xiffus)//close_group
+            sub1 = option_group(parts, .true., .true.)
+            regular_expression = open_group//sub1//regular_expression_quote(xiffus)//close_group
             return
         end if
 
         ! Otherwise, divide the list into those that start with a
         ! particular letter and those that do not, and recurse on them.
-        first = char_prefix(strings(1)%text)
+        first = character_prefix(strings(1)%text)
         k = 0
 
         do i = 1, size(strings)
@@ -429,33 +431,33 @@ contains
             k = i
         end do
 
-        sub1 = opt_group(strings(1:k), .false., .false.)
-        sub2 = opt_group(strings(k + 1:), .false., .false.)
-        regexp = open_group//sub1//"\|"//sub2//close_group
-    end function opt_group
+        sub1 = option_group(strings(1:k), .false., .false.)
+        sub2 = option_group(strings(k + 1:), .false., .false.)
+        regular_expression = open_group//sub1//"\|"//sub2//close_group
+    end function option_group
 
     !> Sort LIST (string<), keeping duplicates.  Not a port.
     subroutine sort_list(list)
         type(string_type), intent(inout) :: list(:)
-        type(string_type) :: tmp
+        type(string_type) :: temporary
         integer :: i, j
 
         do i = 2, size(list)
-            call move_alloc(list(i)%text, tmp%text)
+            call move_alloc(list(i)%text, temporary%text)
             j = i - 1
 
             do while (j >= 1)
-                if (.not. llt(tmp%text, list(j)%text)) exit
+                if (.not. llt(temporary%text, list(j)%text)) exit
                 call move_alloc(list(j)%text, list(j + 1)%text)
                 j = j - 1
             end do
 
-            call move_alloc(tmp%text, list(j + 1)%text)
+            call move_alloc(temporary%text, list(j + 1)%text)
         end do
     end subroutine sort_list
 
     !> The first character of S, as a string.  Not a port.
-    function char_prefix(s) result(c)
+    function character_prefix(s) result(c)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: c
         integer :: k
@@ -468,10 +470,10 @@ contains
         end do
 
         c = s(1:k)
-    end function char_prefix
+    end function character_prefix
 
     !> The code point of the first character of S (UTF-8).  Not a port.
-    integer(int32) function first_char(s) result(c)
+    integer(int32) function first_character(s) result(c)
         character(len=*), intent(in) :: s
         integer :: b, n, k
 
@@ -495,18 +497,18 @@ contains
             if (k + 1 > len(s)) exit
             c = ior(ishft(c, 6), iand(iachar(s(k + 1:k + 1)), 63))
         end do
-    end function first_char
+    end function first_character
 
     !> Return a regexp to match a character in CHARS.
     !> CHARS should be a list of characters.
     !> If CHARS is the empty list, the return value is a regexp that
     !> never matches anything.  Port of regexp-opt.el:regexp-opt-charset.
-    function regexp_opt_charset(chars) result(regexp)
+    function regular_expression_optimization_character_set(chars) result(regular_expression)
         integer(int32), intent(in) :: chars(:)
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer(int32), allocatable :: set(:)
-        integer(int32) :: start, end, c, tmp
-        character(len=:), allocatable :: charset, bracket, dash, caret, whole
+        integer(int32) :: start, end, c, temporary
+        character(len=:), allocatable :: character_set, bracket, dash, caret, whole
         integer :: i, j
 
         bracket = ""
@@ -530,21 +532,21 @@ contains
 
         ! In increasing order (as map-char-table walks the table).
         do i = 2, size(set)
-            tmp = set(i)
+            temporary = set(i)
             j = i - 1
 
             do while (j >= 1)
-                if (set(j) <= tmp) exit
+                if (set(j) <= temporary) exit
                 set(j + 1) = set(j)
                 j = j - 1
             end do
 
-            set(j + 1) = tmp
+            set(j + 1) = temporary
         end do
 
         start = -1
         end = -2
-        charset = ""
+        character_set = ""
 
         do i = 1, size(set)
             c = set(i)
@@ -559,16 +561,16 @@ contains
         end do
 
         call flush ()
-        whole = bracket//charset//caret//dash
+        whole = bracket//character_set//caret//dash
 
         if (len(whole) == 0) then
-            regexp = regexp_unmatchable
+            regular_expression = regular_expression_unmatchable
         else if (nchars(whole) == 1) then
-            regexp = regexp_quote(whole)
+            regular_expression = regular_expression_quote(whole)
         else if (whole == "^-") then
-            regexp = "[-^]"
+            regular_expression = "[-^]"
         else
-            regexp = "["//whole//"]"
+            regular_expression = "["//whole//"]"
         end if
 
     contains
@@ -578,16 +580,16 @@ contains
             type(status_type) :: st
 
             if (end > start + 2) then
-                call char_to_string(start, first, st)
-                call char_to_string(end, last, st)
-                charset = charset//first//"-"//last
+                call character_to_string(start, first, st)
+                call character_to_string(end, last, st)
+                character_set = character_set//first//"-"//last
             else
                 do while (end >= start)
-                    call char_to_string(start, first, st)
-                    charset = charset//first
+                    call character_to_string(start, first, st)
+                    character_set = character_set//first
                     start = start + 1
                 end do
             end if
         end subroutine flush
-    end function regexp_opt_charset
+    end function regular_expression_optimization_character_set
 end module regular_expression_optimization_mod

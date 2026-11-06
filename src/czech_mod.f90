@@ -33,7 +33,7 @@ contains
                                         documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
                                          //" sets the default input method to ""czech"","//achar(10)//"and selects the C" &
                                          //"zech tutorial.", &
-                                         charsets=[character(len=40) :: "ascii", "latin-iso8859-2"], &
+                                         character_sets=[character(len=40) :: "ascii", "latin-iso8859-2"], &
                                          sample_text="Přejeme vám hezký den!", &
                                          coding_systems=[character(len=40) :: "iso-8859-2"], &
                                          coding_system_order=[character(len=40) :: "iso-8859-2"], &

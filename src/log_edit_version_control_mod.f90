@@ -1,4 +1,4 @@
-! log_edit_version_control_mod.f90 -- the VC parts of Log Edit mode.
+! log_edit_version_control_mod.f90 -- the VERSION_CONTROL parts of Log Edit mode.
 ! Ported from GNU Emacs 31.1 lisp/vc/log-edit.el.
 !
 ! Copyright (C) 1999-2026 Free Software Foundation, Inc.
@@ -21,12 +21,12 @@
 
 !> `log_edit_diff_fileset', `log_edit_mode_help' and
 !> `generate_log_edit_changelog_from_diff': a submodule because they use
-!> version_control_mod (`vc_diff'), version_control_dispatcher_mod (`vc_log_fileset'), help_functions_mod
+!> version_control_mod (`version_control_diff'), version_control_dispatcher_mod (`version_control_log_fileset'), help_functions_mod
 !> (`describe_function') and diff_mode_mod
 !> (`diff_add_log_current_subprograms'), which use log_edit_mod.
 submodule(log_edit_mod) log_edit_version_control_mod
-    use version_control_mod, only: vc_diff, vc_fileset_type
-    use version_control_dispatcher_mod, only: vc_log_fileset
+    use version_control_mod, only: version_control_diff, version_control_fileset_type
+    use version_control_dispatcher_mod, only: version_control_log_fileset
     use help_functions_mod, only: describe_function
     use diff_mode_mod, only: diff_add_log_current_subprograms
     use add_log_mod, only: change_log_entry_type, insert_change_log_entries
@@ -51,7 +51,7 @@ contains
     end procedure log_edit_mode_help
 
     module procedure log_edit_diff_fileset
-    type(vc_fileset_type) :: fs
+    type(version_control_fileset_type) :: fs
     logical :: found
 
     ! Re NOT-ESSENTIAL .true.: this function can get called from
@@ -60,9 +60,9 @@ contains
     ! still actually get saved before committing, by the
     ! `vc-log-operation' anonymous function.  Possibly
     ! `log-edit-maybe-show-diff' should catch the error instead.
-    fs%backend = log_edit_vc_backend()
-    call vc_log_fileset(fs%files, found)
-    call vc_diff(status, not_essential=.true., fileset=fs)
+    fs%backend = log_edit_version_control_backend()
+    call version_control_log_fileset(fs%files, found)
+    call version_control_diff(status, not_essential=.true., fileset=fs)
     end procedure log_edit_diff_fileset
 
     module procedure generate_log_edit_changelog_from_diff
@@ -70,7 +70,7 @@ contains
     type(display_action_type) :: saved_action
     type(handle_type) :: log_buffer
     type(status_type) :: st
-    integer(int64) :: opoint, eoh
+    integer(int64) :: original_point, end_of_headers
     logical :: single_line_summary
 
     log_buffer = current_buffer()
@@ -95,15 +95,15 @@ contains
 
     if (size(entries) == 1) then
         if (size(entries(1)%subprograms) < 2) then
-            opoint = point()
-            call rfc822_goto_eoh(st)
-            eoh = point()
-            call goto_char(opoint)
+            original_point = point()
+            call rfc822_goto_end_of_headers(st)
+            end_of_headers = point()
+            call goto_character(original_point)
 
-            if (opoint < eoh) then
+            if (original_point < end_of_headers) then
                 call beginning_of_line()
                 single_line_summary = looking_at("Summary:", st)
-                call goto_char(opoint)
+                call goto_character(original_point)
             end if
         end if
     end if

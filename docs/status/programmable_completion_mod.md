@@ -25,7 +25,7 @@
 `pcomplete-dirs`,
 `pcomplete-executables`,
 `pcomplete-dirs-or-entries`,
-`pcomplete-find-completion-function` (pcomplete/NAME and pcomplete/MODE/NAME as `pcomplete_command_functions%append`),
+`pcomplete-find-completion-function` (pcomplete/NAME and pcomplete/MODE/NAME as `programmable_completion_command_functions%append`),
 `pcomplete-parse-arguments-function`,
 `pcomplete-command-completion-function`,
 `pcomplete-command-name-function`,

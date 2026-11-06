@@ -20,23 +20,23 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> Imenu: a buffer index (the definitions of a buffer and their
-!> positions) made by the major mode's `imenu_create_index_function', by
-!> default from its `imenu_patterns' or its
-!> `imenu_prev_index_position_function' and
-!> `imenu_extract_index_name_function', and the command `imenu' (M-g i)
+!> positions) made by the major mode's `index_menu_create_index_function', by
+!> default from its `index_menu_patterns' or its
+!> `index_menu_previous_index_position_function' and
+!> `index_menu_extract_index_name_function', and the command `index_menu' (M-g i)
 !> that reads an entry of it with completion and goes there.
 !>
-!> The index is an `imenu_index_type': a flat array of entries, each
+!> The index is an `index_menu_index_type': a flat array of entries, each
 !> naming the submenu that holds it (`parent', 0 at the top level), so
 !> no derived type contains itself.  A buffer's own values of the
 !> buffer-local variables are kept by their setting objects
-!> (`call imenu_patterns%set_local(patterns)'); the cached index
+!> (`call index_menu_patterns%set_local(patterns)'); the cached index
 !> of a buffer (upstream's imenu--index-alist) is reached through
-!> `has_imenu_index', `get_imenu_index' and `set_imenu_index'.  What is
+!> `has_index_menu_index', `get_index_menu_index' and `set_index_menu_index'.  What is
 !> not ported yet is listed in docs/status/index_menu_mod.md.
 module index_menu_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_IMENU_UNAVAILABLE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, INDEX_MENU_UNAVAILABLE_CODE
     use handle_mod, only: handle_type
     use print_mod, only: fortran_string
     use data_mod, only: logical_setting_type, string_setting_type, history_setting_type, forward_setting, choice_setting_type, &
@@ -46,15 +46,15 @@ module index_menu_mod
     use commands_mod, only: commands
     use buffer_mod, only: buffers, current, buffer_serial_live
     use marker_mod, only: make_marker, set_marker, set_marker_insertion_type, marker_position, destroy_marker
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, narrow_to_region, is_buffer_narrowed, is_bob, &
-                                     buffer_size
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, widen, narrow_to_region, &
+                                     is_buffer_narrowed, is_beginning_of_buffer, buffer_size
     use editing_commands_mod, only: beginning_of_line
-    use search_mod, only: re_search_backward, match_beginning, match_end, string_match, regexp_quote, case_fold_search, &
-                          match_data, set_match_data, SEARCH_NOERROR, SEARCH_MOVE
+    use search_mod, only: regular_expression_search_backward, match_beginning, match_end, string_match, regular_expression_quote, &
+                          case_fold_search, match_data, set_match_data, SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: match_string_no_properties, find_tag_default
-    use syntax_mod, only: parse_state_type, syntax_ppss, syntax_table, set_syntax_table, copy_syntax_table, &
+    use syntax_mod, only: parse_state_type, syntax_parser_state, syntax_table, set_syntax_table, copy_syntax_table, &
                           destroy_syntax_table, modify_syntax_entry
-    use character_mod, only: string_char_and_length
+    use character_mod, only: string_character_and_length
     use font_core_mod, only: font_lock_defaults, font_lock_defaults_type, font_lock_syntax_entry_type
     use expression_motion_mod, only: beginning_of_subprogram
     use display_engine_mod, only: message, invisibility
@@ -64,46 +64,48 @@ module index_menu_mod
     implicit none(type, external)
     private
 
-    public :: init_imenu, imenu, cmd_imenu, choose_imenu_buffer_index, create_imenu_index, &
-              goto_imenu_position, make_imenu_index, make_imenu_generic_index, flush_imenu_cache, &
-              destroy_imenu_markers, truncate_imenu_items, find_imenu_default, find_imenu_entry, flatten_imenu_index, &
-              read_imenu_index_item, is_imenu_name_before, is_imenu_position_before, has_imenu_index, get_imenu_index, &
-              set_imenu_index, current_imenu_menubar_modified_tick, imenu_beginning_of_subprogram
-    public :: imenu_matcher_procedure, imenu_create_index_procedure, imenu_prev_index_position_procedure, &
-              imenu_extract_index_name_procedure, imenu_name_lookup_procedure, imenu_goto_procedure
+    public :: initialize_index_menu, index_menu, execute_index_menu, choose_index_menu_buffer_index, create_index_menu_index, &
+              goto_index_menu_position, make_index_menu_index, make_index_menu_generic_index, flush_index_menu_cache, &
+              destroy_index_menu_markers, truncate_index_menu_items, find_index_menu_default, find_index_menu_entry, &
+              flatten_index_menu_index, &
+              read_index_menu_index_item, is_index_menu_name_before, is_index_menu_position_before, has_index_menu_index, &
+              get_index_menu_index, &
+              set_index_menu_index, current_index_menu_menubar_modified_tick, index_menu_beginning_of_subprogram
+    public :: index_menu_matcher_procedure, index_menu_create_index_procedure, index_menu_previous_index_position_procedure, &
+              index_menu_extract_index_name_procedure, index_menu_name_lookup_procedure, index_menu_goto_procedure
 
     !> The `position' of the entry that rescans the buffer (upstream's
     !> imenu--rescan-item).
-    integer(int64), parameter, public :: IMENU_RESCAN_POSITION = -99
+    integer(int64), parameter, public :: INDEX_MENU_RESCAN_POSITION = -99
     !> The name of the entry that rescans the buffer (upstream's
     !> imenu--rescan-item).
-    character(len=*), parameter, public :: IMENU_RESCAN_NAME = "*Rescan*"
+    character(len=*), parameter, public :: INDEX_MENU_RESCAN_NAME = "*Rescan*"
 
-    !> `imenu_max_item_length' when entries are not truncated.
-    integer, parameter, public :: IMENU_MAX_ITEM_LENGTH_UNLIMITED = -1
+    !> `index_menu_maximum_item_length' when entries are not truncated.
+    integer, parameter, public :: INDEX_MENU_MAXIMUM_ITEM_LENGTH_UNLIMITED = -1
 
-    !> The value of `imenu_flatten' besides .false. (nested indexes): a
+    !> The value of `index_menu_flatten' besides .false. (nested indexes): a
     !> flat list with the section names prepended to the candidates.
-    integer, parameter, public :: IMENU_FLATTEN_PREFIX = 1
+    integer, parameter, public :: INDEX_MENU_FLATTEN_PREFIX = 1
 
     !> One entry of an Imenu index (an element of upstream's index alist):
     !> an item NAME at a buffer position, kept in `marker' when
-    !> `imenu_use_markers' was true (else in `position'), or a submenu
+    !> `index_menu_use_markers' was true (else in `position'), or a submenu
     !> (`submenu' true) named NAME whose entries name it as their
     !> `parent' (the index of its entry; 0 for the top level).
-    type, public :: imenu_entry_type
+    type, public :: index_menu_entry_type
         character(len=:), allocatable :: name
         integer(int64) :: position = 0
         type(handle_type) :: marker
         integer :: parent = 0
         logical :: submenu = .false.
-    end type imenu_entry_type
+    end type index_menu_entry_type
 
     !> A buffer index: its entries, each submenu before the entries it
     !> holds, the entries of one submenu (or of the top level) in order.
     !> Port of imenu.el's index alist (see imenu--index-alist).
-    type, public :: imenu_index_type
-        type(imenu_entry_type), allocatable :: entries(:)
+    type, public :: index_menu_index_type
+        type(index_menu_entry_type), allocatable :: entries(:)
     contains
         !> Append an entry: NAME at POSITION (or the MARKER), in submenu
         !> PARENT (0 for the top level), a submenu if SUBMENU; K gets its
@@ -115,80 +117,80 @@ module index_menu_mod
         !> The indices of the entries of submenu PARENT (0: the top level),
         !> in order.
         procedure :: children => index_children
-    end type imenu_index_type
+    end type index_menu_index_type
 
     abstract interface
-        !> A function in place of a regexp in `imenu_patterns':
+        !> A function in place of a regexp in `index_menu_patterns':
         !> search backwards and FOUND if it finds a definition construct,
         !> setting the match data for that construct.  Not a port.
-        subroutine imenu_matcher_procedure(found)
+        subroutine index_menu_matcher_procedure(found)
             implicit none(type, external)
             logical, intent(out) :: found
-        end subroutine imenu_matcher_procedure
+        end subroutine index_menu_matcher_procedure
 
-        !> An `imenu_create_index_function': INDEX gets the index of the
+        !> An `index_menu_create_index_function': INDEX gets the index of the
         !> current buffer.  Not a port.
-        recursive subroutine imenu_create_index_procedure(index, status)
-            import :: imenu_index_type, status_type
+        recursive subroutine index_menu_create_index_procedure(index, status)
+            import :: index_menu_index_type, status_type
             implicit none(type, external)
-            type(imenu_index_type), intent(out) :: index
+            type(index_menu_index_type), intent(out) :: index
             type(status_type), intent(out) :: status
-        end subroutine imenu_create_index_procedure
+        end subroutine index_menu_create_index_procedure
 
-        !> An `imenu_prev_index_position_function': move back to the
+        !> An `index_menu_previous_index_position_function': move back to the
         !> previous index position, FOUND if there is one.  Not a port.
-        recursive subroutine imenu_prev_index_position_procedure(found)
+        recursive subroutine index_menu_previous_index_position_procedure(found)
             implicit none(type, external)
             logical, intent(out) :: found
-        end subroutine imenu_prev_index_position_procedure
+        end subroutine index_menu_previous_index_position_procedure
 
-        !> An `imenu_extract_index_name_function': NAME gets the name of
+        !> An `index_menu_extract_index_name_function': NAME gets the name of
         !> the index item at point (unallocated for none).  Not a port.
-        recursive subroutine imenu_extract_index_name_procedure(name)
+        recursive subroutine index_menu_extract_index_name_procedure(name)
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: name
-        end subroutine imenu_extract_index_name_procedure
+        end subroutine index_menu_extract_index_name_procedure
 
-        !> An `imenu_name_lookup_function': whether STRING matches the
+        !> An `index_menu_name_lookup_function': whether STRING matches the
         !> index item named NAME.  Not a port.
-        logical function imenu_name_lookup_procedure(string, name)
+        logical function index_menu_name_lookup_procedure(string, name)
             implicit none(type, external)
             character(len=*), intent(in) :: string, name
-        end function imenu_name_lookup_procedure
+        end function index_menu_name_lookup_procedure
 
-        !> An `imenu_default_goto_function': go to the index item
+        !> An `index_menu_default_goto_function': go to the index item
         !> NAME at POSITION.  Not a port.
-        recursive subroutine imenu_goto_procedure(name, position, status)
+        recursive subroutine index_menu_goto_procedure(name, position, status)
             import :: int64, status_type
             implicit none(type, external)
             character(len=*), intent(in) :: name
             integer(int64), intent(in) :: position
             type(status_type), intent(out) :: status
-        end subroutine imenu_goto_procedure
+        end subroutine index_menu_goto_procedure
     end interface
 
-    !> One element of `imenu_patterns': the definitions that
-    !> REGEXP matches (or that the procedure MATCHER finds, in place of a
+    !> One element of `index_menu_patterns': the definitions that
+    !> REGULAR_EXPRESSION matches (or that the procedure MATCHER finds, in place of a
     !> regexp) are put into the submenu MENU_TITLE ("" for the top level
     !> of the index), named by what subexpression SUBEXPRESSION of the
     !> match matched.  Not a port.
-    type, public :: imenu_pattern_type
+    type, public :: index_menu_pattern_type
         character(len=:), allocatable :: menu_title
-        character(len=:), allocatable :: regexp
-        procedure(imenu_matcher_procedure), pointer, nopass :: matcher => null()
+        character(len=:), allocatable :: regular_expression
+        procedure(index_menu_matcher_procedure), pointer, nopass :: matcher => null()
         integer :: subexpression = 0
-    end type imenu_pattern_type
+    end type index_menu_pattern_type
 
-    ! One buffer's own `imenu_patterns'.
+    ! One buffer's own `index_menu_patterns'.
     type :: patterns_entry_type
         integer(int64) :: serial = 0
-        type(imenu_pattern_type), allocatable :: patterns(:)
+        type(index_menu_pattern_type), allocatable :: patterns(:)
     end type patterns_entry_type
 
-    !> The type of `imenu_patterns': the default `value' and
+    !> The type of `index_menu_patterns': the default `value' and
     !> buffers' own values (`set_local').
-    type, public :: imenu_patterns_type
-        type(imenu_pattern_type), allocatable :: value(:)
+    type, public :: index_menu_patterns_type
+        type(index_menu_pattern_type), allocatable :: value(:)
         type(patterns_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value MATCHERS (set_local).
@@ -197,17 +199,17 @@ module index_menu_mod
         procedure :: current => current_patterns
         !> Make the current buffer use the default again.
         procedure :: clear_local => patterns_clear_local
-    end type imenu_patterns_type
+    end type index_menu_patterns_type
 
-    ! One buffer's own `imenu_syntax_modifications'.
+    ! One buffer's own `index_menu_syntax_modifications'.
     type :: syntax_entry_type
         integer(int64) :: serial = 0
         type(font_lock_syntax_entry_type), allocatable :: modifications(:)
     end type syntax_entry_type
 
-    !> The type of `imenu_syntax_modifications': the default `value' and
+    !> The type of `index_menu_syntax_modifications': the default `value' and
     !> buffers' own values (`set_local').
-    type, public :: imenu_syntax_modifications_type
+    type, public :: index_menu_syntax_modifications_type
         type(font_lock_syntax_entry_type), allocatable :: value(:)
         type(syntax_entry_type), allocatable :: entries(:)
     contains
@@ -217,18 +219,18 @@ module index_menu_mod
         procedure :: current => current_syntax
         !> Make the current buffer use the default again.
         procedure :: clear_local => syntax_clear_local
-    end type imenu_syntax_modifications_type
+    end type index_menu_syntax_modifications_type
 
-    ! One buffer's own `imenu_create_index_function'.
+    ! One buffer's own `index_menu_create_index_function'.
     type :: create_entry_type
         integer(int64) :: serial = 0
-        procedure(imenu_create_index_procedure), pointer, nopass :: fn => null()
+        procedure(index_menu_create_index_procedure), pointer, nopass :: fn => null()
     end type create_entry_type
 
-    !> The type of `imenu_create_index_function': the default `value'
+    !> The type of `index_menu_create_index_function': the default `value'
     !> (assign with `=>') and buffers' own values (`set_local').
-    type, public :: imenu_create_index_function_type
-        procedure(imenu_create_index_procedure), pointer, nopass :: value => null()
+    type, public :: index_menu_create_index_function_type
+        procedure(index_menu_create_index_procedure), pointer, nopass :: value => null()
         type(create_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value FN (set_local).
@@ -237,40 +239,40 @@ module index_menu_mod
         procedure :: current => current_create
         !> Make the current buffer use the default again.
         procedure :: clear_local => create_clear_local
-    end type imenu_create_index_function_type
+    end type index_menu_create_index_function_type
 
-    ! One buffer's own `imenu_prev_index_position_function'.
-    type :: prev_entry_type
+    ! One buffer's own `index_menu_previous_index_position_function'.
+    type :: previous_entry_type
         integer(int64) :: serial = 0
-        procedure(imenu_prev_index_position_procedure), pointer, nopass :: fn => null()
-    end type prev_entry_type
+        procedure(index_menu_previous_index_position_procedure), pointer, nopass :: fn => null()
+    end type previous_entry_type
 
-    !> The type of `imenu_prev_index_position_function': the default
+    !> The type of `index_menu_previous_index_position_function': the default
     !> `value' (assign with `=>') and buffers' own values (`set_local';
     !> absent sets the buffer's own value to null).
-    type, public :: imenu_prev_index_position_function_type
-        procedure(imenu_prev_index_position_procedure), pointer, nopass :: value => null()
-        type(prev_entry_type), allocatable :: entries(:)
+    type, public :: index_menu_previous_index_position_function_type
+        procedure(index_menu_previous_index_position_procedure), pointer, nopass :: value => null()
+        type(previous_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value FN (set_local).
-        procedure :: set_local => prev_set_local
+        procedure :: set_local => previous_set_local
         !> The value in the current buffer (null when unset).
-        procedure :: current => current_prev
+        procedure :: current => current_previous
         !> Make the current buffer use the default again.
-        procedure :: clear_local => prev_clear_local
-    end type imenu_prev_index_position_function_type
+        procedure :: clear_local => previous_clear_local
+    end type index_menu_previous_index_position_function_type
 
-    ! One buffer's own `imenu_extract_index_name_function'.
+    ! One buffer's own `index_menu_extract_index_name_function'.
     type :: extract_entry_type
         integer(int64) :: serial = 0
-        procedure(imenu_extract_index_name_procedure), pointer, nopass :: fn => null()
+        procedure(index_menu_extract_index_name_procedure), pointer, nopass :: fn => null()
     end type extract_entry_type
 
-    !> The type of `imenu_extract_index_name_function': the default
+    !> The type of `index_menu_extract_index_name_function': the default
     !> `value' (assign with `=>') and buffers' own values (`set_local';
     !> absent sets the buffer's own value to null).
-    type, public :: imenu_extract_index_name_function_type
-        procedure(imenu_extract_index_name_procedure), pointer, nopass :: value => null()
+    type, public :: index_menu_extract_index_name_function_type
+        procedure(index_menu_extract_index_name_procedure), pointer, nopass :: value => null()
         type(extract_entry_type), allocatable :: entries(:)
     contains
         !> Give the current buffer its own value FN (set_local).
@@ -279,25 +281,25 @@ module index_menu_mod
         procedure :: current => current_extract
         !> Make the current buffer use the default again.
         procedure :: clear_local => extract_clear_local
-    end type imenu_extract_index_name_function_type
+    end type index_menu_extract_index_name_function_type
 
     ! A buffer's cached index (imenu--index-alist: HAS_INDEX false is nil)
     ! and imenu-menubar-modified-tick.
     type :: cache_entry_type
         integer(int64) :: serial = 0
         logical :: has_index = .false.
-        type(imenu_index_type) :: index
+        type(index_menu_index_type) :: index
         integer(int64) :: menubar_modified_tick = 0
     end type cache_entry_type
 
     type(cache_entry_type), allocatable :: caches(:)
 
-    ! A submenu `make_imenu_generic_index' is gathering (MAIN: the top
+    ! A submenu `make_index_menu_generic_index' is gathering (MAIN: the top
     ! level, upstream's title nil), with its items.
     type :: pending_menu_type
         character(len=:), allocatable :: title
         logical :: main = .false.
-        type(imenu_entry_type), allocatable :: items(:)
+        type(index_menu_entry_type), allocatable :: items(:)
     end type pending_menu_type
 
     !> True means use markers instead of integers for Imenu buffer positions.
@@ -307,119 +309,119 @@ module index_menu_mod
     !>
     !> This might not yet be honored by all index-building functions.  Port
     !> of imenu.el imenu-use-markers.
-    logical, public :: imenu_use_markers = .true.
+    logical, public :: index_menu_use_markers = .true.
 
-    !> If not IMENU_MAX_ITEM_LENGTH_UNLIMITED, truncate Imenu entries to that
+    !> If not INDEX_MENU_MAXIMUM_ITEM_LENGTH_UNLIMITED, truncate Imenu entries to that
     !> length.  Port of imenu.el imenu-max-item-length.
-    integer, public :: imenu_max_item_length = 60
+    integer, public :: index_menu_maximum_item_length = 60
 
     !> True means Imenu should always rescan the buffers.  Port of imenu.el
     !> imenu-auto-rescan.
-    logical, public :: imenu_auto_rescan = .false.
+    logical, public :: index_menu_auto_rescan = .false.
 
     !> Imenu auto-rescan is disabled in buffers larger than this size (in bytes).
-    !> Also see `imenu_max_index_time'.  Port of imenu.el
+    !> Also see `index_menu_maximum_index_time'.  Port of imenu.el
     !> imenu-auto-rescan-maxout.
-    integer(int64), public :: imenu_auto_rescan_maxout = 600000
+    integer(int64), public :: index_menu_auto_rescan_maxout = 600000
 
     !> Hooks called after jumping to a place in the buffer.
     !>
     !> Useful things to use here include `reposition_window' and `recenter'.
     !> Port of imenu.el imenu-after-jump-hook.
-    type(hook_type), target, public :: imenu_after_jump_hook = hook_type(name="imenu_after_jump_hook")
+    type(hook_type), target, public :: index_menu_after_jump_hook = hook_type(name="index_menu_after_jump_hook")
 
     !> The replacement string for spaces in index names.
     !> Used when presenting the index in a completion buffer to make the
     !> names work as tokens (unallocated for none).  Port of imenu.el
     !> imenu-space-replacement.
-    type(string_setting_type), target, public :: imenu_space_replacement = &
-                                                 string_setting_type(name="imenu_space_replacement")
+    type(string_setting_type), target, public :: index_menu_space_replacement = &
+                                                 string_setting_type(name="index_menu_space_replacement")
 
     !> The separator between index names of different levels.
     !> Used for flattening nested indexes with name concatenation.  Port of
     !> imenu.el imenu-level-separator.
-    character(len=:), allocatable, public :: imenu_level_separator
+    character(len=:), allocatable, public :: index_menu_level_separator
 
     !> Whether to flatten the list of sections in an imenu or show it nested.
     !> If .false., use nested indexes.
-    !> If the value is `IMENU_FLATTEN_PREFIX', pop up the completion buffer
+    !> If the value is `INDEX_MENU_FLATTEN_PREFIX', pop up the completion buffer
     !> with a flattened menu where section names are prepended to completion
     !> candidates as prefixes.
     !>
-    !> The value of `imenu_level_separator', a string, is used to separate
+    !> The value of `index_menu_level_separator', a string, is used to separate
     !> names from different flattened levels, such as section names, from the
     !> names of completion candidates.  Port of imenu.el imenu-flatten (the
     !> values `annotation' and `group' are not ported).
-    type(choice_setting_type), public :: imenu_flatten = choice_setting_type(name="imenu_flatten")
+    type(choice_setting_type), public :: index_menu_flatten = choice_setting_type(name="index_menu_flatten")
 
     !> When true, ignore text inside comments and strings.
-    !> Only affects `create_imenu_index' (and any
-    !> alternative implementation of `imenu_create_index_function' that
-    !> uses `make_imenu_generic_index').  Port of imenu.el
+    !> Only affects `create_index_menu_index' (and any
+    !> alternative implementation of `index_menu_create_index_function' that
+    !> uses `make_index_menu_generic_index').  Port of imenu.el
     !> imenu-generic-skip-comments-and-strings.
-    logical, public :: imenu_generic_skip_comments_and_strings = .true.
+    logical, public :: index_menu_generic_skip_comments_and_strings = .true.
 
     !> Max time to use when creating imenu indices.  Port of imenu.el
     !> imenu-max-index-time.
-    real, public :: imenu_max_index_time = 5.0
+    real, public :: index_menu_maximum_index_time = 5.0
 
     !> List of definition matchers for creating an Imenu index.
-    !> Each element of this array is an `imenu_pattern_type':
+    !> Each element of this array is an `index_menu_pattern_type':
     !>
-    !>   imenu_pattern_type(menu_title=MENU_TITLE, regexp=REGEXP, subexpression=INDEX)
+    !>   index_menu_pattern_type(menu_title=MENU_TITLE, regexp=REGULAR_EXPRESSION, subexpression=INDEX)
     !>
     !> MENU_TITLE should be "" (in which case the matches for this
     !> element are put in the top level of the buffer index) or a
     !> string (which specifies the title of a submenu into which the
     !> matches are put).
-    !> REGEXP is a regular expression matching a definition construct
-    !> which is to be displayed in the menu.  In place of REGEXP the
+    !> REGULAR_EXPRESSION is a regular expression matching a definition construct
+    !> which is to be displayed in the menu.  In place of REGULAR_EXPRESSION the
     !> element may give a procedure of no arguments, MATCHER.  It is
     !> expected to search backwards, return FOUND if it finds a
     !> definition construct, and set the match data for that construct.
-    !> INDEX is an integer specifying which subexpression of REGEXP
+    !> INDEX is an integer specifying which subexpression of REGULAR_EXPRESSION
     !> matches the definition's name; this subexpression is displayed as
     !> the menu item.
     !>
-    !> The variable `imenu_case_fold_search' determines whether or not
-    !> the regexp matches are case sensitive, and `imenu_syntax_modifications'
+    !> The variable `index_menu_case_fold_search' determines whether or not
+    !> the regexp matches are case sensitive, and `index_menu_syntax_modifications'
     !> can be used to alter the syntax table for the search.
     !>
-    !> If not empty this pattern is passed to `make_imenu_generic_index' to
+    !> If not empty this pattern is passed to `make_index_menu_generic_index' to
     !> create a buffer index.  A major mode gives its buffer its own value
-    !> with `imenu_patterns%set_local'.  Port of imenu.el
+    !> with `index_menu_patterns%set_local'.  Port of imenu.el
     !> imenu-generic-expression (FUNCTION and ARGUMENTS of an element are
     !> not ported).
-    type(imenu_patterns_type), public :: imenu_patterns
+    type(index_menu_patterns_type), public :: index_menu_patterns
 
     !> The function to use for creating an index of the current buffer.
     !>
     !> It should be a procedure that gives the index of the current
     !> buffer.  The function is called within a `save_excursion'.
     !>
-    !> See `imenu_index_type' for the format of the buffer index.  Port of
+    !> See `index_menu_index_type' for the format of the buffer index.  Port of
     !> imenu.el imenu-create-index-function.
-    type(imenu_create_index_function_type), public :: imenu_create_index_function
+    type(index_menu_create_index_function_type), public :: index_menu_create_index_function
 
     !> Function for finding the next index position.
     !>
-    !> If `imenu_create_index_function' is set to
-    !> `create_imenu_index', then you must set this variable
+    !> If `index_menu_create_index_function' is set to
+    !> `create_index_menu_index', then you must set this variable
     !> to a function that will find the next index, looking backwards in the
     !> file.
     !>
     !> The function should leave point at the place to be connected to the
     !> index and it should give FOUND .false. when it doesn't find another
     !> index.  Port of imenu.el imenu-prev-index-position-function.
-    type(imenu_prev_index_position_function_type), public :: imenu_prev_index_position_function
+    type(index_menu_previous_index_position_function_type), public :: index_menu_previous_index_position_function
 
     !> Function for extracting the index item name, given a position.
     !>
-    !> This function is called after `imenu_prev_index_position_function'
+    !> This function is called after `index_menu_previous_index_position_function'
     !> finds a position for an index item, with point at that position.
     !> It should return the name for that index item.  Port of imenu.el
     !> imenu-extract-index-name-function.
-    type(imenu_extract_index_name_function_type), public :: imenu_extract_index_name_function
+    type(index_menu_extract_index_name_function_type), public :: index_menu_extract_index_name_function
 
     !> Function to compare string with index item.
     !>
@@ -431,95 +433,95 @@ module index_menu_mod
     !> such as "begins with" or "name matches and number of
     !> arguments match".  Port of imenu.el imenu-name-lookup-function (not
     !> buffer-local yet).
-    procedure(imenu_name_lookup_procedure), pointer, public :: imenu_name_lookup_function => null()
+    procedure(index_menu_name_lookup_procedure), pointer, public :: index_menu_name_lookup_function => null()
 
     !> The default function called when selecting an Imenu item.
     !> The function in this variable is called when selecting a normal
-    !> index-item (the procedure is `goto_imenu_position').  Port of imenu.el
+    !> index-item (the procedure is `goto_index_menu_position').  Port of imenu.el
     !> imenu-default-goto-function (not buffer-local yet).
-    procedure(imenu_goto_procedure), pointer, public :: imenu_default_goto_function => null()
+    procedure(index_menu_goto_procedure), pointer, public :: index_menu_default_goto_function => null()
 
-    !> Defines whether `make_imenu_generic_index' should fold case when matching.
+    !> Defines whether `make_index_menu_generic_index' should fold case when matching.
     !>
     !> This variable should be set (only) by initialization code
-    !> for modes which use `make_imenu_generic_index'.  If it is not set, but
+    !> for modes which use `make_index_menu_generic_index'.  If it is not set, but
     !> `font_lock_defaults' is set, then font-lock's setting is used.
     !> Port of imenu.el imenu-case-fold-search.
-    type(logical_setting_type), target, public :: imenu_case_fold_search = &
-                                                  logical_setting_type(name="imenu_case_fold_search", value=.true.)
+    type(logical_setting_type), target, public :: index_menu_case_fold_search = &
+                                                  logical_setting_type(name="index_menu_case_fold_search", value=.true.)
 
-    !> Syntax table modifiers to use while in `make_imenu_generic_index'.
+    !> Syntax table modifiers to use while in `make_index_menu_generic_index'.
     !>
     !> Each entry gives CHARS (one character, or a string whose characters
     !> all get the syntax) and SYNTAX, a syntax description appropriate for
     !> `modify_syntax_entry'.
     !>
     !> This is typically used to give word syntax to characters which
-    !> normally have identifier syntax to simplify `imenu_patterns'
+    !> normally have identifier syntax to simplify `index_menu_patterns'
     !> and speed-up matching.  Port of imenu.el imenu-syntax-alist.
-    type(imenu_syntax_modifications_type), public :: imenu_syntax_modifications
+    type(index_menu_syntax_modifications_type), public :: index_menu_syntax_modifications
 
-    !> History list for `choose_imenu_buffer_index'.  Port of imenu.el
+    !> History list for `choose_index_menu_buffer_index'.  Port of imenu.el
     !> imenu--history-list.
-    type(history_setting_type), target, public :: imenu_history = history_setting_type(name="imenu_history")
+    type(history_setting_type), target, public :: index_menu_history = history_setting_type(name="index_menu_history")
 
 contains
 
     !> Set up Imenu: its settings, the command and the defaults (as
     !> loading imenu.el does).  Not a port.
-    subroutine init_imenu()
-        call forward_setting(imenu_case_fold_search, local_if_set=.true.)
-        call forward_setting(imenu_space_replacement)
-        call forward_setting(imenu_history)
-        if (.not. allocated(imenu_space_replacement%value)) imenu_space_replacement = "."
-        if (.not. allocated(imenu_level_separator)) imenu_level_separator = ":"
-        if (.not. allocated(imenu_patterns%value)) allocate (imenu_patterns%value(0))
-        if (.not. allocated(imenu_syntax_modifications%value)) allocate (imenu_syntax_modifications%value(0))
+    subroutine initialize_index_menu()
+        call forward_setting(index_menu_case_fold_search, local_if_set=.true.)
+        call forward_setting(index_menu_space_replacement)
+        call forward_setting(index_menu_history)
+        if (.not. allocated(index_menu_space_replacement%value)) index_menu_space_replacement = "."
+        if (.not. allocated(index_menu_level_separator)) index_menu_level_separator = ":"
+        if (.not. allocated(index_menu_patterns%value)) allocate (index_menu_patterns%value(0))
+        if (.not. allocated(index_menu_syntax_modifications%value)) allocate (index_menu_syntax_modifications%value(0))
 
-        if (.not. associated(imenu_create_index_function%value)) then
-            imenu_create_index_function%value => create_imenu_index
+        if (.not. associated(index_menu_create_index_function%value)) then
+            index_menu_create_index_function%value => create_index_menu_index
         end if
 
-        if (.not. associated(imenu_prev_index_position_function%value)) then
-            imenu_prev_index_position_function%value => imenu_beginning_of_subprogram
+        if (.not. associated(index_menu_previous_index_position_function%value)) then
+            index_menu_previous_index_position_function%value => index_menu_beginning_of_subprogram
         end if
 
-        if (.not. associated(imenu_default_goto_function)) then
-            imenu_default_goto_function => goto_imenu_position
+        if (.not. associated(index_menu_default_goto_function)) then
+            index_menu_default_goto_function => goto_index_menu_position
         end if
 
-        commands%imenu%execute => cmd_imenu
-        call append_locals_clearer(clear_imenu_locals)
-    end subroutine init_imenu
+        commands%index_menu%execute => execute_index_menu
+        call append_locals_clearer(clear_index_menu_locals)
+    end subroutine initialize_index_menu
 
     !> kill-all-local-variables: the buffer-local variables of imenu.el
     !> kept here (the index is dropped and its markers destroyed).
     !> Not a port.
-    subroutine clear_imenu_locals()
+    subroutine clear_index_menu_locals()
         integer :: k
 
-        call imenu_patterns%clear_local()
-        call imenu_syntax_modifications%clear_local()
-        call imenu_create_index_function%clear_local()
-        call imenu_prev_index_position_function%clear_local()
-        call imenu_extract_index_name_function%clear_local()
+        call index_menu_patterns%clear_local()
+        call index_menu_syntax_modifications%clear_local()
+        call index_menu_create_index_function%clear_local()
+        call index_menu_previous_index_position_function%clear_local()
+        call index_menu_extract_index_name_function%clear_local()
         k = cache_index()
         if (k == 0) return
-        call destroy_imenu_markers(caches(k)%index)
+        call destroy_index_menu_markers(caches(k)%index)
         caches(k) = cache_entry_type()
-    end subroutine clear_imenu_locals
+    end subroutine clear_index_menu_locals
 
     !> `beginning_of_subprogram' as the default
-    !> `imenu_prev_index_position_function' (upstream's beginning-of-defun
+    !> `index_menu_previous_index_position_function' (upstream's beginning-of-defun
     !> called with no argument): FOUND if it found the beginning of a
     !> subprogram.  Not a port.
-    recursive subroutine imenu_beginning_of_subprogram(found)
+    recursive subroutine index_menu_beginning_of_subprogram(found)
         logical, intent(out) :: found
         type(status_type) :: st
 
         call beginning_of_subprogram(1_int64, found, st)
         if (.not. st%ok()) found = .false.
-    end subroutine imenu_beginning_of_subprogram
+    end subroutine index_menu_beginning_of_subprogram
 
     ! ------------------------------------------------------------------
     ! The index
@@ -527,14 +529,14 @@ contains
 
     ! Not a port.
     subroutine index_append(self, name, k, position, marker, parent, submenu)
-        class(imenu_index_type), intent(inout) :: self
+        class(index_menu_index_type), intent(inout) :: self
         character(len=*), intent(in) :: name
         integer, intent(out) :: k
         integer(int64), intent(in), optional :: position
         type(handle_type), intent(in), optional :: marker
         integer, intent(in), optional :: parent
         logical, intent(in), optional :: submenu
-        type(imenu_entry_type) :: e
+        type(index_menu_entry_type) :: e
 
         e%name = name
         if (present(position)) e%position = position
@@ -547,22 +549,22 @@ contains
     end subroutine index_append
 
     ! Not a port.
-    integer(int64) function index_position_of(self, k) result(pos)
-        class(imenu_index_type), intent(in) :: self
+    integer(int64) function index_position_of(self, k) result(position)
+        class(index_menu_index_type), intent(in) :: self
         integer, intent(in) :: k
         type(status_type) :: st
 
-        pos = self%entries(k)%position
+        position = self%entries(k)%position
 
         if (self%entries(k)%marker%index /= 0) then
-            call marker_position(self%entries(k)%marker, pos, st)
-            if (.not. st%ok()) pos = self%entries(k)%position
+            call marker_position(self%entries(k)%marker, position, st)
+            if (.not. st%ok()) position = self%entries(k)%position
         end if
     end function index_position_of
 
     ! Not a port.
     function index_children(self, parent) result(list)
-        class(imenu_index_type), intent(in) :: self
+        class(index_menu_index_type), intent(in) :: self
         integer, intent(in) :: parent
         integer, allocatable :: list(:)
         integer :: k
@@ -577,8 +579,8 @@ contains
     !> Comparison function to sort items depending on their index name.
     !> True if ITEM1's name comes before ITEM2's in the order of their
     !> character codes.  Port of imenu.el:imenu--sort-by-name.
-    logical function is_imenu_name_before(item1, item2) result(before)
-        type(imenu_entry_type), intent(in) :: item1, item2
+    logical function is_index_menu_name_before(item1, item2) result(before)
+        type(index_menu_entry_type), intent(in) :: item1, item2
         integer :: n
 
         n = min(len(item1%name), len(item2%name))
@@ -588,30 +590,30 @@ contains
         else
             before = len(item1%name) < len(item2%name)
         end if
-    end function is_imenu_name_before
+    end function is_index_menu_name_before
 
     !> Comparison function to sort items depending on their position.
     !> Return true if and only if ITEM1's position is lower than ITEM2's
     !> position.  Port of imenu.el:imenu--sort-by-position.
-    logical function is_imenu_position_before(item1, item2) result(before)
-        type(imenu_entry_type), intent(in) :: item1, item2
+    logical function is_index_menu_position_before(item1, item2) result(before)
+        type(index_menu_entry_type), intent(in) :: item1, item2
 
         before = item1%position < item2%position
-    end function is_imenu_position_before
+    end function is_index_menu_position_before
 
-    !> Truncate all names in INDEX to `imenu_max_item_length' characters.
+    !> Truncate all names in INDEX to `index_menu_maximum_item_length' characters.
     !> Port of imenu.el:imenu--truncate-items.
-    subroutine truncate_imenu_items(index)
-        type(imenu_index_type), intent(inout) :: index
+    subroutine truncate_index_menu_items(index)
+        type(index_menu_index_type), intent(inout) :: index
         integer :: k
 
-        if (imenu_max_item_length == IMENU_MAX_ITEM_LENGTH_UNLIMITED) return
+        if (index_menu_maximum_item_length == INDEX_MENU_MAXIMUM_ITEM_LENGTH_UNLIMITED) return
         if (.not. allocated(index%entries)) return
 
         do k = 1, size(index%entries)
-            index%entries(k)%name = first_characters(index%entries(k)%name, imenu_max_item_length)
+            index%entries(k)%name = first_characters(index%entries(k)%name, index_menu_maximum_item_length)
         end do
-    end subroutine truncate_imenu_items
+    end subroutine truncate_index_menu_items
 
     ! The first N characters of S (all of S if it is shorter).
     ! Not a port.
@@ -639,8 +641,8 @@ contains
 
     !> Destroy the markers of INDEX (they point nowhere afterwards).
     !> Port of imenu.el:imenu--cleanup.
-    subroutine destroy_imenu_markers(index)
-        type(imenu_index_type), intent(inout) :: index
+    subroutine destroy_index_menu_markers(index)
+        type(index_menu_index_type), intent(inout) :: index
         type(status_type) :: st
         integer :: k
 
@@ -651,14 +653,14 @@ contains
             call destroy_marker(index%entries(k)%marker, st)
             index%entries(k)%marker = handle_type()
         end do
-    end subroutine destroy_imenu_markers
+    end subroutine destroy_index_menu_markers
 
     !> Check whether the string NAME is contained in INDEX as a bottom-level
     !> entry (in any submenu); return its index (0 if not).  Port of
     !> imenu.el:imenu--in-alist.
-    integer function find_imenu_entry(name, index) result(found)
+    integer function find_index_menu_entry(name, index) result(found)
         character(len=*), intent(in) :: name
-        type(imenu_index_type), intent(in) :: index
+        type(index_menu_index_type), intent(in) :: index
 
         found = in_submenu(0)
 
@@ -679,8 +681,8 @@ contains
                     k = in_submenu(list(i))
                     if (k /= 0) return
                 else
-                    if (associated(imenu_name_lookup_function)) then
-                        matches = imenu_name_lookup_function(name, index%entries(list(i))%name)
+                    if (associated(index_menu_name_lookup_function)) then
+                        matches = index_menu_name_lookup_function(name, index%entries(list(i))%name)
                     else
                         matches = name == index%entries(list(i))%name .and. &
                                   len(name) == len(index%entries(list(i))%name)
@@ -693,7 +695,7 @@ contains
                 end if
             end do
         end function in_submenu
-    end function find_imenu_entry
+    end function find_index_menu_entry
 
     ! ------------------------------------------------------------------
     ! The buffer's cached index (imenu--index-alist)
@@ -725,7 +727,7 @@ contains
         if (k > size(caches)) then
             caches = [caches, entry]
         else
-            call destroy_imenu_markers(caches(k)%index)
+            call destroy_index_menu_markers(caches(k)%index)
             caches(k) = entry
         end if
 
@@ -734,31 +736,31 @@ contains
 
     !> Whether the current buffer has an index (upstream's imenu--index-alist
     !> has a value).  Not a port.
-    logical function has_imenu_index()
+    logical function has_index_menu_index()
         integer :: k
 
-        has_imenu_index = .false.
+        has_index_menu_index = .false.
         k = cache_index()
-        if (k > 0) has_imenu_index = caches(k)%has_index
-    end function has_imenu_index
+        if (k > 0) has_index_menu_index = caches(k)%has_index
+    end function has_index_menu_index
 
     !> INDEX gets the current buffer's index (empty if it has none).
     !> Not a port.
-    subroutine get_imenu_index(index)
-        type(imenu_index_type), intent(out) :: index
+    subroutine get_index_menu_index(index)
+        type(index_menu_index_type), intent(out) :: index
         integer :: k
 
         allocate (index%entries(0))
         k = cache_index()
         if (k == 0) return
         if (caches(k)%has_index .and. allocated(caches(k)%index%entries)) index = caches(k)%index
-    end subroutine get_imenu_index
+    end subroutine get_index_menu_index
 
-    !> Make INDEX the current buffer's index (`has_imenu_index' true); the
+    !> Make INDEX the current buffer's index (`has_index_menu_index' true); the
     !> markers of the index it replaces are destroyed, unless the new index
     !> holds them.  Absent INDEX makes the buffer have none.  Not a port.
-    subroutine set_imenu_index(index)
-        type(imenu_index_type), intent(in), optional :: index
+    subroutine set_index_menu_index(index)
+        type(index_menu_index_type), intent(in), optional :: index
         integer :: k, i
 
         call make_cache_entry(k)
@@ -775,41 +777,41 @@ contains
             end if
         end if
 
-        call destroy_imenu_markers(caches(k)%index)
-        caches(k)%index = imenu_index_type()
+        call destroy_index_menu_markers(caches(k)%index)
+        caches(k)%index = index_menu_index_type()
         caches(k)%has_index = present(index)
 
         if (present(index)) then
             caches(k)%index = index
             if (.not. allocated(caches(k)%index%entries)) allocate (caches(k)%index%entries(0))
         end if
-    end subroutine set_imenu_index
+    end subroutine set_index_menu_index
 
-    !> Value of `buffer_chars_modified_tick' when the menu bar index was last
+    !> Value of `buffer_characters_modified_tick' when the menu bar index was last
     !> updated (0 while it never was).  Port of imenu.el
     !> imenu-menubar-modified-tick.
-    integer(int64) function current_imenu_menubar_modified_tick() result(tick)
+    integer(int64) function current_index_menu_menubar_modified_tick() result(tick)
         integer :: k
 
         tick = 0
         k = cache_index()
         if (k > 0) tick = caches(k)%menubar_modified_tick
-    end function current_imenu_menubar_modified_tick
+    end function current_index_menu_menubar_modified_tick
 
     !> Create an index for the definitions in the current buffer.
-    !> This works by using the hook function `imenu_create_index_function'.
+    !> This works by using the hook function `index_menu_create_index_function'.
     !> Report an error if the index is empty unless NOERROR is present and
     !> true.  INDEX gets the index, with the entry that rescans the buffer
-    !> (IMENU_RESCAN_NAME) first unless `imenu_auto_rescan' is true.
+    !> (INDEX_MENU_RESCAN_NAME) first unless `index_menu_auto_rescan' is true.
     !>
-    !> See `imenu_index_type' for the format of the index.  Port of
+    !> See `index_menu_index_type' for the format of the index.  Port of
     !> imenu.el:imenu--make-index-alist.
-    recursive subroutine make_imenu_index(index, status, noerror)
-        type(imenu_index_type), intent(out) :: index
+    recursive subroutine make_index_menu_index(index, status, noerror)
+        type(index_menu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noerror
-        type(imenu_index_type) :: made, built
-        procedure(imenu_create_index_procedure), pointer :: create
+        type(index_menu_index_type) :: made, built
+        procedure(index_menu_create_index_procedure), pointer :: create
         integer(int64) :: saved_point, saved_beginning, saved_end
         logical :: narrowed, quiet
         integer :: k, i
@@ -818,49 +820,49 @@ contains
         quiet = .false.
         if (present(noerror)) quiet = noerror
 
-        if (.not. has_imenu_index() .or. (imenu_auto_rescan .and. buffer_size() <= imenu_auto_rescan_maxout)) then
+        if (.not. has_index_menu_index() .or. (index_menu_auto_rescan .and. buffer_size() <= index_menu_auto_rescan_maxout)) then
             ! Get the index; truncate if necessary.
             saved_point = point()
-            saved_beginning = point_min()
-            saved_end = point_max()
+            saved_beginning = point_minimum()
+            saved_end = point_maximum()
             narrowed = is_buffer_narrowed()
             call widen()
-            create => imenu_create_index_function%current()
+            create => index_menu_create_index_function%current()
             call create(made, status)
             if (narrowed) call narrow_to_region(saved_beginning, saved_end, status)
-            call goto_char(saved_point)
+            call goto_character(saved_point)
             if (.not. status%ok()) return
-            call truncate_imenu_items(made)
+            call truncate_index_menu_items(made)
 
             if (allocated(made%entries)) then
                 if (size(made%entries) > 0) then
-                    call set_imenu_index(made)
+                    call set_index_menu_index(made)
                 else
-                    call set_imenu_index()
+                    call set_index_menu_index()
                 end if
             else
-                call set_imenu_index()
+                call set_index_menu_index()
             end if
         end if
 
-        if (.not. has_imenu_index() .and. .not. quiet) then
-            call set_error(status, FM_IMENU_UNAVAILABLE, &
+        if (.not. has_index_menu_index() .and. .not. quiet) then
+            call set_error(status, INDEX_MENU_UNAVAILABLE_CODE, &
                            fortran_string("No items suitable for an index found in this buffer"))
             return
         end if
 
-        if (.not. has_imenu_index()) then
+        if (.not. has_index_menu_index()) then
             call make_cache_entry(k)
             if (k > 0) caches(k)%has_index = .true.
         end if
 
-        call get_imenu_index(built)
+        call get_index_menu_index(built)
 
-        if (imenu_auto_rescan) then
+        if (index_menu_auto_rescan) then
             index = built
         else
             ! Add a rescan option to the index.
-            call index%append(IMENU_RESCAN_NAME, k, position=IMENU_RESCAN_POSITION)
+            call index%append(INDEX_MENU_RESCAN_NAME, k, position=INDEX_MENU_RESCAN_POSITION)
 
             do i = 1, size(built%entries)
                 if (built%entries(i)%parent /= 0) built%entries(i)%parent = built%entries(i)%parent + 1
@@ -868,13 +870,13 @@ contains
 
             index%entries = [index%entries, built%entries]
         end if
-    end subroutine make_imenu_index
+    end subroutine make_index_menu_index
 
     !> Flush the current imenu cache.
     !> This forces a full rescan of the buffer to recreate the index
-    !> next time `imenu' is invoked.  Port of imenu.el:imenu-flush-cache.
-    subroutine flush_imenu_cache()
-        call set_imenu_index()
+    !> next time `index_menu' is invoked.  Port of imenu.el:imenu-flush-cache.
+    subroutine flush_index_menu_cache()
+        call set_index_menu_index()
         call clear_cache_flag()
 
     contains
@@ -886,7 +888,7 @@ contains
             k = cache_index()
             if (k > 0) caches(k)%has_index = .false.
         end subroutine clear_cache_flag
-    end subroutine flush_imenu_cache
+    end subroutine flush_index_menu_cache
 
     ! ------------------------------------------------------------------
     ! Making the index
@@ -895,65 +897,65 @@ contains
     !> Default function to create an index of the current buffer.
     !>
     !> The most general method is to move point to end of buffer, then
-    !> repeatedly call `imenu_prev_index_position_function' and
-    !> `imenu_extract_index_name_function'.  All the results returned by the
+    !> repeatedly call `index_menu_previous_index_position_function' and
+    !> `index_menu_extract_index_name_function'.  All the results returned by the
     !> latter are gathered into an index.  This method is used if those two
     !> variables are set.
     !>
     !> The alternate method, which is the one most often used, is to call
-    !> `make_imenu_generic_index' with `imenu_patterns' as argument.
+    !> `make_index_menu_generic_index' with `index_menu_patterns' as argument.
     !> Port of imenu.el:imenu-default-create-index-function.
-    recursive subroutine create_imenu_index(index, status)
-        type(imenu_index_type), intent(out) :: index
+    recursive subroutine create_index_menu_index(index, status)
+        type(index_menu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
-        procedure(imenu_prev_index_position_procedure), pointer :: prev
-        procedure(imenu_extract_index_name_procedure), pointer :: extract
-        type(imenu_pattern_type), allocatable :: patterns(:)
-        type(imenu_entry_type), allocatable :: found_items(:)
-        type(imenu_entry_type) :: item
+        procedure(index_menu_previous_index_position_procedure), pointer :: previous
+        procedure(index_menu_extract_index_name_procedure), pointer :: extract
+        type(index_menu_pattern_type), allocatable :: patterns(:)
+        type(index_menu_entry_type), allocatable :: found_items(:)
+        type(index_menu_entry_type) :: item
         character(len=:), allocatable :: name
         character(len=20) :: digits
-        integer(int64) :: pos, here, start_count, now, rate
+        integer(int64) :: position_value, here, start_count, now, rate
         integer :: k, appended
         logical :: found
 
         status = status_type()
         allocate (index%entries(0))
-        prev => imenu_prev_index_position_function%current()
-        extract => imenu_extract_index_name_function%current()
+        previous => index_menu_previous_index_position_function%current()
+        extract => index_menu_extract_index_name_function%current()
 
-        if (associated(prev) .and. associated(extract)) then
+        if (associated(previous) .and. associated(extract)) then
             allocate (found_items(0))
-            pos = point_max()
+            position_value = point_maximum()
             call system_clock(start_count, rate)
-            call goto_char(pos)
+            call goto_character(position_value)
 
             ! Search for the function.
             do
-                call prev(found)
+                call previous(found)
                 if (.not. found) exit
                 ! Don't use an excessive amount of time.
                 call system_clock(now)
-                if (real(now - start_count)/real(max(1_int64, rate)) >= imenu_max_index_time) exit
+                if (real(now - start_count)/real(max(1_int64, rate)) >= index_menu_maximum_index_time) exit
 
-                if (.not. point() < pos) then
-                    write (digits, "(i0)") pos
-                    call set_error(status, FM_GENERIC_ERROR, "Infinite loop at "//buffers(current)%name//":"// &
+                if (.not. point() < position_value) then
+                    write (digits, "(i0)") position_value
+                    call set_error(status, GENERIC_ERROR_CODE, "Infinite loop at "//buffers(current)%name//":"// &
                                    trim(digits)// &
-                                   ": imenu_prev_index_position_function does not move point")
+                                   ": index_menu_previous_index_position_function does not move point")
                     return
                 end if
 
-                pos = point()
+                position_value = point()
                 here = point()
                 call extract(name)
-                call goto_char(here)
+                call goto_character(here)
 
                 if (allocated(name)) then
-                    item = imenu_entry_type()
+                    item = index_menu_entry_type()
                     item%name = name
                     item%position = point()
-                    if (imenu_use_markers) call make_position_marker(point(), item%marker)
+                    if (index_menu_use_markers) call make_position_marker(point(), item%marker)
                     found_items = [item, found_items]
                 end if
             end do
@@ -964,52 +966,52 @@ contains
             end do
         else
             ! Use generic expression if possible.
-            patterns = imenu_patterns%current()
+            patterns = index_menu_patterns%current()
 
             if (size(patterns) > 0) then
-                call make_imenu_generic_index(patterns, index, status)
+                call make_index_menu_generic_index(patterns, index, status)
             else
-                call set_error(status, FM_IMENU_UNAVAILABLE, &
-                               fortran_string("This buffer cannot use `create_imenu_index'"))
+                call set_error(status, INDEX_MENU_UNAVAILABLE_CODE, &
+                               fortran_string("This buffer cannot use `create_index_menu_index'"))
             end if
         end if
-    end subroutine create_imenu_index
+    end subroutine create_index_menu_index
 
-    ! A marker at POS of the current buffer that advances on insertion
-    ! there (copy-marker POS t).  Not a port.
-    subroutine make_position_marker(pos, m)
-        integer(int64), intent(in) :: pos
+    ! A marker at POSITION of the current buffer that advances on insertion
+    ! there (copy-marker POSITION t).  Not a port.
+    subroutine make_position_marker(position, m)
+        integer(int64), intent(in) :: position
         type(handle_type), intent(out) :: m
         type(status_type) :: st
 
         call make_marker(m)
-        call set_marker(m, pos, st)
+        call set_marker(m, position, st)
         call set_marker_insertion_type(m, .true., st)
     end subroutine make_position_marker
 
     !> Return an index of the current buffer based on PATTERNS.
     !> PATTERNS should be an array of the same form as
-    !> `imenu_patterns'.
+    !> `index_menu_patterns'.
     !>
-    !> If `imenu_generic_skip_comments_and_strings' is true, this ignores
+    !> If `index_menu_generic_skip_comments_and_strings' is true, this ignores
     !> text inside comments and strings.
     !>
-    !> If `imenu_case_fold_search' is true, this ignores case.
+    !> If `index_menu_case_fold_search' is true, this ignores case.
     !>
     !> The entries of INDEX are items named by the matched subexpression at
     !> the beginning of the line where it starts, in submenus named by the
     !> patterns' menu titles.  Port of imenu.el:imenu--generic-function.
-    recursive subroutine make_imenu_generic_index(patterns, index, status)
-        type(imenu_pattern_type), intent(in) :: patterns(:)
-        type(imenu_index_type), intent(out) :: index
+    recursive subroutine make_index_menu_generic_index(patterns, index, status)
+        type(index_menu_pattern_type), intent(in) :: patterns(:)
+        type(index_menu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
         type(pending_menu_type), allocatable :: menus(:)
         type(pending_menu_type) :: new_menu
-        type(imenu_entry_type) :: item
+        type(index_menu_entry_type) :: item
         type(font_lock_syntax_entry_type), allocatable :: modifications(:)
         type(font_lock_defaults_type) :: defaults
         type(handle_type) :: old_table, table
-        type(parse_state_type) :: ppss
+        type(parse_state_type) :: parser_state
         type(status_type) :: st
         integer(int64), allocatable :: saved_match(:)
         integer(int64) :: start, beginning, at, start_count, now, rate
@@ -1020,8 +1022,8 @@ contains
         allocate (index%entries(0))
         allocate (menus(0))
 
-        if (imenu_case_fold_search%local_p() .or. .not. font_lock_defaults%present_p()) then
-            fold = imenu_case_fold_search%value
+        if (index_menu_case_fold_search%local_p() .or. .not. font_lock_defaults%present_p()) then
+            fold = index_menu_case_fold_search%value
         else
             defaults = font_lock_defaults%current()
             fold = defaults%case_fold
@@ -1032,13 +1034,13 @@ contains
         call copy_syntax_table(table, status, old_table)
         if (.not. status%ok()) return
         ! Modify the syntax table used while matching regexps.
-        modifications = imenu_syntax_modifications%current()
+        modifications = index_menu_syntax_modifications%current()
 
         do k = 1, size(modifications)
             call modify_characters(modifications(k))
         end do
 
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         saved_match = match_data()
         saved_fold = case_fold_search%value
         case_fold_search = fold
@@ -1048,13 +1050,13 @@ contains
         ! (typically functions, variables ...).
         patterns_loop: do p = 1, size(patterns)
             ! Go backwards for convenience of adding items in order.
-            call goto_char(point_max())
+            call goto_character(point_maximum())
 
             do
                 if (associated(patterns(p)%matcher)) then
                     call patterns(p)%matcher(found)
                 else
-                    call re_search_backward(patterns(p)%regexp, at, status, noerror=SEARCH_NOERROR)
+                    call regular_expression_search_backward(patterns(p)%regular_expression, at, status, noerror=SEARCH_NOERROR)
                     if (.not. status%ok()) exit patterns_loop
                     found = at /= 0
 
@@ -1062,8 +1064,8 @@ contains
                         ! Do not count invisible definitions.
                         invisible = invisibility(point()) /= 0
 
-                        do while (invisible .and. .not. is_bob())
-                            call re_search_backward(patterns(p)%regexp, at, status, noerror=SEARCH_MOVE)
+                        do while (invisible .and. .not. is_beginning_of_buffer())
+                            call regular_expression_search_backward(patterns(p)%regular_expression, at, status, noerror=SEARCH_MOVE)
                             if (.not. status%ok()) exit patterns_loop
                             invisible = at == 0
                         end do
@@ -1082,8 +1084,8 @@ contains
                 ! Don't take an excessive amount of time.
                 call system_clock(now)
 
-                if (real(now - start_count)/real(max(1_int64, rate)) >= imenu_max_index_time) then
-                    call message("`imenu_max_index_time' exceeded")
+                if (real(now - start_count)/real(max(1_int64, rate)) >= index_menu_maximum_index_time) then
+                    call message("`index_menu_maximum_index_time' exceeded")
                     exit
                 end if
 
@@ -1092,7 +1094,7 @@ contains
                 ! That's the official position of this definition.
                 at = match_beginning(patterns(p)%subexpression, status)
                 if (.not. status%ok()) exit patterns_loop
-                call goto_char(at)
+                call goto_character(at)
                 call beginning_of_line()
                 beginning = point()
                 ! Add this sort of submenu only when we've found an
@@ -1108,7 +1110,7 @@ contains
                     m = 1
                 end if
 
-                item = imenu_entry_type()
+                item = index_menu_entry_type()
                 item%name = match_string_no_properties(patterns(p)%subexpression, matched=matched)
                 if (.not. matched) item%name = ""
                 item%position = beginning
@@ -1120,16 +1122,16 @@ contains
                         len(menus(m)%items(j)%name) == len(item%name)) duplicate = .true.
                 end do
 
-                if (.not. duplicate .and. imenu_generic_skip_comments_and_strings) then
-                    call goto_char(start)
-                    call syntax_ppss(ppss)
-                    duplicate = ppss%comstr_start /= 0
+                if (.not. duplicate .and. index_menu_generic_skip_comments_and_strings) then
+                    call goto_character(start)
+                    call syntax_parser_state(parser_state)
+                    duplicate = parser_state%comstr_start /= 0
                 end if
 
                 if (.not. duplicate) menus(m)%items = [item, menus(m)%items]
                 ! Go to the start of the match, to make sure we
                 ! keep making progress backwards.
-                call goto_char(start)
+                call goto_character(start)
             end do
         end do patterns_loop
 
@@ -1179,41 +1181,41 @@ contains
         ! Give the characters of MODIFICATION its syntax in TABLE.
         subroutine modify_characters(modification)
             type(font_lock_syntax_entry_type), intent(in) :: modification
-            integer(int64) :: pos
+            integer(int64) :: position_value
             integer(int32) :: c, length
             type(status_type) :: st
 
-            pos = 1
+            position_value = 1
 
-            do while (pos <= len(modification%chars, kind=int64))
-                call string_char_and_length(modification%chars, pos, c, length)
+            do while (position_value <= len(modification%chars, kind=int64))
+                call string_character_and_length(modification%chars, position_value, c, length)
                 call modify_syntax_entry(int(c), int(c), modification%syntax, st, table)
-                pos = pos + max(1_int32, length)
+                position_value = position_value + max(1_int32, length)
             end do
         end subroutine modify_characters
 
         ! Append ITEMS to INDEX in submenu PARENT, with markers if
-        ! `imenu_use_markers'.
+        ! `index_menu_use_markers'.
         subroutine append_items(items, parent)
-            type(imenu_entry_type), intent(in) :: items(:)
+            type(index_menu_entry_type), intent(in) :: items(:)
             integer, intent(in) :: parent
             type(handle_type) :: marker
             integer :: i, k
 
             do i = 1, size(items)
                 marker = handle_type()
-                if (imenu_use_markers) call make_position_marker(items(i)%position, marker)
+                if (index_menu_use_markers) call make_position_marker(items(i)%position, marker)
                 call index%append(items(i)%name, k, position=items(i)%position, marker=marker, parent=parent)
             end do
         end subroutine append_items
-    end subroutine make_imenu_generic_index
+    end subroutine make_index_menu_generic_index
 
     ! Sort ITEMS by position, keeping the order of equal ones (a stable
     ! insertion sort, as `sort' with imenu--sort-by-position).
     ! Not a port.
     subroutine sort_by_position(items)
-        type(imenu_entry_type), intent(inout) :: items(:)
-        type(imenu_entry_type) :: x
+        type(index_menu_entry_type), intent(inout) :: items(:)
+        type(index_menu_entry_type) :: x
         integer :: i, j
 
         do i = 2, size(items)
@@ -1221,7 +1223,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. is_imenu_position_before(x, items(j))) exit
+                if (.not. is_index_menu_position_before(x, items(j))) exit
                 items(j + 1) = items(j)
                 j = j - 1
             end do
@@ -1236,11 +1238,11 @@ contains
 
     !> Fuzzily find an item based on GUESS among the NAMES of the top level
     !> of INDEX; "" if none.  Port of imenu.el:imenu-find-default.
-    function find_imenu_default(guess, index) result(found)
+    function find_index_menu_default(guess, index) result(found)
         character(len=*), intent(in) :: guess
-        type(imenu_index_type), intent(in) :: index
+        type(index_menu_index_type), intent(in) :: index
         character(len=:), allocatable :: found
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer, allocatable :: list(:)
         type(status_type) :: st
         logical :: saved_fold
@@ -1262,17 +1264,17 @@ contains
         search: do r = 1, 4
             select case (r)
             case (1)
-                regexp = "\`"//regexp_quote(guess)//"\'"
+                regular_expression = "\`"//regular_expression_quote(guess)//"\'"
             case (2)
-                regexp = "\`"//regexp_quote(guess)
+                regular_expression = "\`"//regular_expression_quote(guess)
             case (3)
-                regexp = regexp_quote(guess)//"\'"
+                regular_expression = regular_expression_quote(guess)//"\'"
             case default
-                regexp = regexp_quote(guess)
+                regular_expression = regular_expression_quote(guess)
             end select
 
             do i = 1, size(list)
-                if (string_match(regexp, index%entries(list(i))%name, st) > 0) then
+                if (string_match(regular_expression, index%entries(list(i))%name, st) > 0) then
                     found = index%entries(list(i))%name
                     exit search
                 end if
@@ -1280,20 +1282,20 @@ contains
         end do search
 
         case_fold_search = saved_fold
-    end function find_imenu_default
+    end function find_index_menu_default
 
     !> Let the user select from the entries of submenu PARENT of INDEX (0:
     !> the top level) in a completion buffer with PROMPT.
     !>
     !> CHOSEN gets the index of the entry, a submenu's entry chosen in
     !> turn from its own (0 if none).  Port of imenu.el:imenu--completion-buffer.
-    recursive subroutine read_imenu_index_item(index, parent, chosen, status, prompt)
-        type(imenu_index_type), intent(in) :: index
+    recursive subroutine read_index_menu_index_item(index, parent, chosen, status, prompt)
+        type(index_menu_index_type), intent(in) :: index
         integer, intent(in) :: parent
         integer, intent(out) :: chosen
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: prompt
-        type(imenu_index_type) :: prepared
+        type(index_menu_index_type) :: prepared
         type(completion_table_type) :: table
         type(value_type), allocatable :: names(:)
         character(len=:), allocatable :: name, full_prompt, default, result
@@ -1307,7 +1309,7 @@ contains
         prepared = index
         list = index%children(parent)
 
-        if (allocated(imenu_space_replacement%value)) then
+        if (allocated(index_menu_space_replacement%value)) then
             do i = 1, size(list)
                 prepared%entries(list(i))%name = replace_spaces(index%entries(list(i))%name)
             end do
@@ -1316,7 +1318,7 @@ contains
         call find_tag_default(name, found)
 
         if (found) then
-            default = find_imenu_default(name, submenu_index(prepared, parent))
+            default = find_index_menu_default(name, submenu_index(prepared, parent))
             if (len(default) > 0) name = default
         end if
 
@@ -1327,7 +1329,7 @@ contains
 
             if (found) then
                 ! Default to `name' if it's in the index.
-                if (find_imenu_entry(name, submenu_index(prepared, parent)) /= 0) default = name
+                if (find_index_menu_entry(name, submenu_index(prepared, parent)) /= 0) default = name
             end if
 
             full_prompt = "Index item"
@@ -1347,10 +1349,10 @@ contains
 
         if (found) then
             call completing_read(full_prompt, table, result, status, require_match=REQUIRE_MATCH_YES, &
-                                 history="imenu_history", default=name)
+                                 history="index_menu_history", default=name)
         else
             call completing_read(full_prompt, table, result, status, require_match=REQUIRE_MATCH_YES, &
-                                 history="imenu_history")
+                                 history="index_menu_history")
         end if
 
         if (.not. status%ok()) return
@@ -1360,7 +1362,7 @@ contains
 
             if (prepared%entries(k)%name == result .and. len(prepared%entries(k)%name) == len(result)) then
                 if (index%entries(k)%submenu) then
-                    call read_imenu_index_item(index, k, chosen, status, full_prompt)
+                    call read_index_menu_index_item(index, k, chosen, status, full_prompt)
                 else
                     chosen = k
                 end if
@@ -1372,27 +1374,27 @@ contains
     contains
 
         ! NAME with its spaces replaced by the first character of
-        ! `imenu_space_replacement' (subst-char-in-string).
+        ! `index_menu_space_replacement' (subst-char-in-string).
         function replace_spaces(name) result(r)
             character(len=*), intent(in) :: name
             character(len=:), allocatable :: r
             integer :: j
 
             r = name
-            if (len(imenu_space_replacement%value) == 0) return
+            if (len(index_menu_space_replacement%value) == 0) return
 
             do j = 1, len(r)
-                if (r(j:j) == " ") r(j:j) = imenu_space_replacement%value(1:1)
+                if (r(j:j) == " ") r(j:j) = index_menu_space_replacement%value(1:1)
             end do
         end function replace_spaces
-    end subroutine read_imenu_index_item
+    end subroutine read_index_menu_index_item
 
     ! INDEX with the entries of submenu PARENT at its top level (a submenu
     ! taken as an index of its own).  Not a port.
     function submenu_index(index, parent) result(sub)
-        type(imenu_index_type), intent(in) :: index
+        type(index_menu_index_type), intent(in) :: index
         integer, intent(in) :: parent
-        type(imenu_index_type) :: sub
+        type(index_menu_index_type) :: sub
         integer :: k
 
         sub = index
@@ -1409,12 +1411,12 @@ contains
 
     !> Return a flat index made from the nested INDEX.
     !> If CONCAT_NAMES is true, a nested entry has the names of its
-    !> submenus and `imenu_level_separator' prepended to its name.
+    !> submenus and `index_menu_level_separator' prepended to its name.
     !> Port of imenu.el:imenu--flatten-index-alist.
-    function flatten_imenu_index(index, concat_names) result(flat)
-        type(imenu_index_type), intent(in) :: index
+    function flatten_index_menu_index(index, concat_names) result(flat)
+        type(index_menu_index_type), intent(in) :: index
         logical, intent(in) :: concat_names
-        type(imenu_index_type) :: flat
+        type(index_menu_index_type) :: flat
 
         allocate (flat%entries(0))
         call flatten(0, "", .false.)
@@ -1435,7 +1437,7 @@ contains
             do i = 1, size(list)
                 associate (e => index%entries(list(i)))
                     new_prefix = e%name
-                    if (has_prefix) new_prefix = prefix//imenu_level_separator//e%name
+                    if (has_prefix) new_prefix = prefix//index_menu_level_separator//e%name
 
                     if (.not. e%submenu) then
                         if (concat_names) then
@@ -1449,7 +1451,7 @@ contains
                 end associate
             end do
         end subroutine flatten
-    end function flatten_imenu_index
+    end function flatten_index_menu_index
 
     !> Let the user select from a buffer index and return the chosen index
     !> entry ITEM (FOUND .false. if none).
@@ -1459,16 +1461,16 @@ contains
     !> If you call this function with INDEX, then it lets the user select
     !> from INDEX.
     !>
-    !> With no INDEX, it calls `make_imenu_index' to create the index.
+    !> With no INDEX, it calls `make_index_menu_index' to create the index.
     !> Port of imenu.el:imenu-choose-buffer-index (the mouse menu is not
     !> ported).
-    recursive subroutine choose_imenu_buffer_index(item, found, status, prompt, index)
-        type(imenu_entry_type), intent(out) :: item
+    recursive subroutine choose_index_menu_buffer_index(item, found, status, prompt, index)
+        type(index_menu_entry_type), intent(out) :: item
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: prompt
-        type(imenu_index_type), intent(in), optional :: index
-        type(imenu_index_type) :: alist
+        type(index_menu_index_type), intent(in), optional :: index
+        type(index_menu_index_type) :: alist
         integer :: chosen
 
         found = .false.
@@ -1479,16 +1481,16 @@ contains
                 alist = index
                 status = status_type()
             else
-                call make_imenu_index(alist, status)
+                call make_index_menu_index(alist, status)
                 if (.not. status%ok()) return
             end if
 
-            if (.not. imenu_flatten%is_off()) alist = flatten_imenu_index(alist, .true.)
+            if (.not. index_menu_flatten%is_off()) alist = flatten_index_menu_index(alist, .true.)
 
             if (present(prompt)) then
-                call read_imenu_index_item(alist, 0, chosen, status, prompt)
+                call read_index_menu_index_item(alist, 0, chosen, status, prompt)
             else
-                call read_imenu_index_item(alist, 0, chosen, status)
+                call read_index_menu_index_item(alist, 0, chosen, status)
             end if
 
             if (.not. status%ok()) return
@@ -1496,11 +1498,11 @@ contains
             item = alist%entries(chosen)
             item%position = alist%position_of(chosen)
             found = .true.
-            if (.not. (item%name == IMENU_RESCAN_NAME .and. item%position == IMENU_RESCAN_POSITION)) return
-            call flush_imenu_cache()
+            if (.not. (item%name == INDEX_MENU_RESCAN_NAME .and. item%position == INDEX_MENU_RESCAN_POSITION)) return
+            call flush_index_menu_cache()
             found = .false.
         end do
-    end subroutine choose_imenu_buffer_index
+    end subroutine choose_index_menu_buffer_index
 
     !> Move to the given position.
     !>
@@ -1508,7 +1510,7 @@ contains
     !> just makes this function have the same interface as a function
     !> placed in a special index item.  Port of
     !> imenu.el:imenu-default-goto-function.
-    recursive subroutine goto_imenu_position(name, position, status)
+    recursive subroutine goto_index_menu_position(name, position, status)
         character(len=*), intent(in) :: name
         integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
@@ -1516,20 +1518,20 @@ contains
         status = status_type()
         if (len(name) > 0) continue
         ! Widen if outside narrowing.
-        if (position < point_min() .or. position > point_max()) call widen()
-        call goto_char(position)
-    end subroutine goto_imenu_position
+        if (position < point_minimum() .or. position > point_maximum()) call widen()
+        call goto_character(position)
+    end subroutine goto_index_menu_position
 
     !> Jump to a place in the buffer chosen using a buffer menu.
     !> The index entry ITEM (or the top-level entry named NAME) specifies
-    !> the position.  See `choose_imenu_buffer_index' for more information.
+    !> the position.  See `choose_index_menu_buffer_index' for more information.
     !> Port of imenu.el:imenu.
-    recursive subroutine imenu(status, name, item)
+    recursive subroutine index_menu(status, name, item)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: name
-        type(imenu_entry_type), intent(in), optional :: item
-        type(imenu_index_type) :: index
-        type(imenu_entry_type) :: chosen
+        type(index_menu_entry_type), intent(in), optional :: item
+        type(index_menu_index_type) :: index
+        type(index_menu_entry_type) :: chosen
         integer, allocatable :: list(:)
         integer :: i
 
@@ -1539,7 +1541,7 @@ contains
             chosen = item
         else if (present(name)) then
             ! Convert a string to an index entry.
-            call make_imenu_index(index, status)
+            call make_index_menu_index(index, status)
             if (.not. status%ok()) return
             list = index%children(0)
 
@@ -1555,28 +1557,28 @@ contains
         end if
 
         if (chosen%submenu) then
-            call set_error(status, FM_GENERIC_ERROR, "Unknown imenu item: "//fortran_string(chosen%name))
+            call set_error(status, GENERIC_ERROR_CODE, "Unknown imenu item: "//fortran_string(chosen%name))
             return
         end if
 
         call push_mark(nomsg=.true.)
-        call imenu_default_goto_function(chosen%name, chosen%position, status)
+        call index_menu_default_goto_function(chosen%name, chosen%position, status)
         if (.not. status%ok()) return
-        call imenu_after_jump_hook%execute(status)
-    end subroutine imenu
+        call index_menu_after_jump_hook%execute(status)
+    end subroutine index_menu
 
     !> Jump to a place in the buffer chosen using a buffer menu or mouse menu.
-    !> INDEX-ITEM specifies the position.  See `choose_imenu_buffer_index'
+    !> INDEX-ITEM specifies the position.  See `choose_index_menu_buffer_index'
     !> for more information.  Port of imenu.el:imenu.
-    recursive subroutine cmd_imenu(status)
+    recursive subroutine execute_index_menu(status)
         type(status_type), intent(out) :: status
-        type(imenu_entry_type) :: item
+        type(index_menu_entry_type) :: item
         logical :: found
 
-        call choose_imenu_buffer_index(item, found, status)
+        call choose_index_menu_buffer_index(item, found, status)
         if (.not. status%ok()) return
-        if (found) call imenu(status, item=item)
-    end subroutine cmd_imenu
+        if (found) call index_menu(status, item=item)
+    end subroutine execute_index_menu
 
     ! ------------------------------------------------------------------
     ! Buffer-local values
@@ -1603,8 +1605,8 @@ contains
 
     ! Not a port.
     subroutine patterns_set_local(self, patterns)
-        class(imenu_patterns_type), intent(inout) :: self
-        type(imenu_pattern_type), intent(in) :: patterns(:)
+        class(index_menu_patterns_type), intent(inout) :: self
+        type(index_menu_pattern_type), intent(in) :: patterns(:)
         type(patterns_entry_type) :: entry
         integer :: i
 
@@ -1626,8 +1628,8 @@ contains
 
     ! Not a port.
     function current_patterns(self) result(patterns)
-        class(imenu_patterns_type), intent(in) :: self
-        type(imenu_pattern_type), allocatable :: patterns(:)
+        class(index_menu_patterns_type), intent(in) :: self
+        type(index_menu_pattern_type), allocatable :: patterns(:)
         integer :: i
 
         i = 0
@@ -1646,7 +1648,7 @@ contains
 
     ! Not a port.
     subroutine patterns_clear_local(self)
-        class(imenu_patterns_type), intent(inout) :: self
+        class(index_menu_patterns_type), intent(inout) :: self
         integer :: i
 
         if (.not. allocated(self%entries)) return
@@ -1658,7 +1660,7 @@ contains
 
     ! Not a port.
     subroutine syntax_set_local(self, modifications)
-        class(imenu_syntax_modifications_type), intent(inout) :: self
+        class(index_menu_syntax_modifications_type), intent(inout) :: self
         type(font_lock_syntax_entry_type), intent(in) :: modifications(:)
         type(syntax_entry_type) :: entry
         integer :: i
@@ -1681,7 +1683,7 @@ contains
 
     ! Not a port.
     function current_syntax(self) result(modifications)
-        class(imenu_syntax_modifications_type), intent(in) :: self
+        class(index_menu_syntax_modifications_type), intent(in) :: self
         type(font_lock_syntax_entry_type), allocatable :: modifications(:)
         integer :: i
 
@@ -1701,7 +1703,7 @@ contains
 
     ! Not a port.
     subroutine syntax_clear_local(self)
-        class(imenu_syntax_modifications_type), intent(inout) :: self
+        class(index_menu_syntax_modifications_type), intent(inout) :: self
         integer :: i
 
         if (.not. allocated(self%entries)) return
@@ -1713,8 +1715,8 @@ contains
 
     ! Not a port.
     subroutine create_set_local(self, fn)
-        class(imenu_create_index_function_type), intent(inout) :: self
-        procedure(imenu_create_index_procedure) :: fn
+        class(index_menu_create_index_function_type), intent(inout) :: self
+        procedure(index_menu_create_index_procedure) :: fn
         type(create_entry_type) :: entry
         integer :: i
 
@@ -1734,8 +1736,8 @@ contains
 
     ! Not a port.
     function current_create(self) result(fn)
-        class(imenu_create_index_function_type), intent(in) :: self
-        procedure(imenu_create_index_procedure), pointer :: fn
+        class(index_menu_create_index_function_type), intent(in) :: self
+        procedure(index_menu_create_index_procedure), pointer :: fn
         integer :: i
 
         fn => self%value
@@ -1746,7 +1748,7 @@ contains
 
     ! Not a port.
     subroutine create_clear_local(self)
-        class(imenu_create_index_function_type), intent(inout) :: self
+        class(index_menu_create_index_function_type), intent(inout) :: self
         integer :: i
 
         if (.not. allocated(self%entries)) return
@@ -1757,10 +1759,10 @@ contains
     end subroutine create_clear_local
 
     ! Not a port.
-    subroutine prev_set_local(self, fn)
-        class(imenu_prev_index_position_function_type), intent(inout) :: self
-        procedure(imenu_prev_index_position_procedure), optional :: fn
-        type(prev_entry_type) :: entry
+    subroutine previous_set_local(self, fn)
+        class(index_menu_previous_index_position_function_type), intent(inout) :: self
+        procedure(index_menu_previous_index_position_procedure), optional :: fn
+        type(previous_entry_type) :: entry
         integer :: i
 
         if (current == 0) return
@@ -1776,23 +1778,23 @@ contains
         self%entries(i)%serial = buffers(current)%serial
         self%entries(i)%fn => null()
         if (present(fn)) self%entries(i)%fn => fn
-    end subroutine prev_set_local
+    end subroutine previous_set_local
 
     ! Not a port.
-    function current_prev(self) result(fn)
-        class(imenu_prev_index_position_function_type), intent(in) :: self
-        procedure(imenu_prev_index_position_procedure), pointer :: fn
+    function current_previous(self) result(fn)
+        class(index_menu_previous_index_position_function_type), intent(in) :: self
+        procedure(index_menu_previous_index_position_procedure), pointer :: fn
         integer :: i
 
         fn => self%value
         if (.not. allocated(self%entries)) return
         i = findloc(self%entries%serial, current_serial(), dim=1)
         if (i > 0) fn => self%entries(i)%fn
-    end function current_prev
+    end function current_previous
 
     ! Not a port.
-    subroutine prev_clear_local(self)
-        class(imenu_prev_index_position_function_type), intent(inout) :: self
+    subroutine previous_clear_local(self)
+        class(index_menu_previous_index_position_function_type), intent(inout) :: self
         integer :: i
 
         if (.not. allocated(self%entries)) return
@@ -1800,12 +1802,12 @@ contains
         if (i == 0) return
         self%entries(i)%serial = 0
         self%entries(i)%fn => null()
-    end subroutine prev_clear_local
+    end subroutine previous_clear_local
 
     ! Not a port.
     subroutine extract_set_local(self, fn)
-        class(imenu_extract_index_name_function_type), intent(inout) :: self
-        procedure(imenu_extract_index_name_procedure), optional :: fn
+        class(index_menu_extract_index_name_function_type), intent(inout) :: self
+        procedure(index_menu_extract_index_name_procedure), optional :: fn
         type(extract_entry_type) :: entry
         integer :: i
 
@@ -1826,8 +1828,8 @@ contains
 
     ! Not a port.
     function current_extract(self) result(fn)
-        class(imenu_extract_index_name_function_type), intent(in) :: self
-        procedure(imenu_extract_index_name_procedure), pointer :: fn
+        class(index_menu_extract_index_name_function_type), intent(in) :: self
+        procedure(index_menu_extract_index_name_procedure), pointer :: fn
         integer :: i
 
         fn => self%value
@@ -1838,7 +1840,7 @@ contains
 
     ! Not a port.
     subroutine extract_clear_local(self)
-        class(imenu_extract_index_name_function_type), intent(inout) :: self
+        class(index_menu_extract_index_name_function_type), intent(inout) :: self
         integer :: i
 
         if (.not. allocated(self%entries)) return

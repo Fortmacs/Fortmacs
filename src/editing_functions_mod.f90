@@ -25,60 +25,62 @@
 !> (or similar) logical here.  Text comes back as byte strings in the
 !> buffer's representation.
 !>
-!> `goto_char' sets point with `set_point_both' (intervals.c, in text_properties_mod:
+!> `goto_character' sets point with `set_point_both' (intervals.c, in text_properties_mod:
 !> `intangible', `point_entered' and `point_left' when
 !> `inhibit_point_motion_hooks' is false); the other primitives that use
-!> SET_PT upstream still set it with `temp_set_point_both' (the same while
+!> SET_POINT upstream still set it with `temporary_set_point_both' (the same while
 !> that variable is true, its default).  What is not ported yet is listed
 !> in docs/status/editing_functions_mod.md.
 module editing_functions_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
     use value_mod, only: vtag, V_NULL, V_INTEGER, V_NAME, V_STRING, value_type, xstring, xfixnum, string_intervals
-    use error_mod, only: status_type, set_error, FM_ARGS_OUT_OF_RANGE, &
-                         FM_WRONG_TYPE_ARGUMENT, FM_GENERIC_ERROR, FM_MARK_INACTIVE, FM_OVERFLOW_ERROR
+    use error_mod, only: status_type, set_error, ARGUMENTS_OUT_OF_RANGE_CODE, &
+                         WRONG_TYPE_ARGUMENT_CODE, GENERIC_ERROR_CODE, MARK_INACTIVE_CODE, OVERFLOW_ERROR_CODE
     use handle_mod, only: handle_type
-    use character_mod, only: is_char_head, is_char_valid, char_string, string_char, is_single_byte_char, unibyte_to_char, &
-                             multibyte_chars_in_text, MAX_MULTIBYTE_LENGTH, string_char_and_length, bytes_by_char_head, &
-                             char_to_byte8, MAX_CHAR, glyph_width, char_hexdigit
-    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, BUF_BYTES_MAX, &
-                          buf_fetch_byte, buf_fetch_char, buf_prev_char_len, buf_next_char_len, buffer_byte_index, &
-                          buf_bytes, temp_set_point_both, current_buffer, &
-                          resolve_buffer, transient_mark_mode, set_buffer, is_buffer_live
-    use marker_mod, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos, &
+    use character_mod, only: is_character_head, is_character_valid, character_string, string_character, is_single_byte_character, &
+                             unibyte_to_character, multibyte_characters_in_text, MAXIMUM_MULTIBYTE_LENGTH, &
+                             string_character_and_length, bytes_by_character_head, character_to_byte8, MAXIMUM_CHARACTER, &
+                             glyph_width, character_hexdigit
+    use buffer_mod, only: buffers, current, BEGINNING, BEGINNING_BYTE, BUFFER_BYTES_MAXIMUM, buffer_fetch_byte, &
+                          buffer_fetch_character, buffer_previous_character_length, buffer_next_character_length, &
+                          buffer_byte_index, buffer_bytes, temporary_set_point_both, current_buffer, resolve_buffer, &
+                          transient_mark_mode, set_buffer, is_buffer_live
+    use marker_mod, only: character_to_byte, byte_to_character, buffer_character_position_to_byte_position, &
                           markers, resolve_marker, make_marker, set_marker_both, marker_position, marker_byte_position, &
-                          destroy_marker, marker_buffer, copy_marker_at, set_marker_insertion_type, clear_charpos_cache
+                          destroy_marker, marker_buffer, copy_marker_at, set_marker_insertion_type, clear_character_position_cache
     use execute_interactively_mod, only: mark_even_if_inactive
     use insert_delete_mod, only: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit, &
-                                 insert_from_string, insert_from_string_before_markers, del_range, del_range_1, modify_text, &
-                                 signal_after_change, move_gap_both, adjust_markers_bytepos, replace_range
+                                 insert_from_string, insert_from_string_before_markers, delete_range, delete_range_1, modify_text, &
+                                 signal_after_change, move_gap_both, adjust_markers_byte_position, replace_range
     use intervals_mod, only: copy_intervals_to_string, copy_intervals, graft_intervals_into_buffer
     use case_table_mod, only: downcase, case_canon
     use undo_mod, only: record_change
-    use window_mod, only: window_type, window_ref, frame_selected_window, window_buffer, set_window_point, is_window_live, &
+    use window_mod, only: window_type, window_reference, frame_selected_window, window_buffer, set_window_point, is_window_live, &
                           same_handle
-    use character_table_mod, only: char_table_subtype, char_table_ref
+    use character_table_mod, only: character_table_subtype, character_table_reference
     use search_mod, only: scan_newline_from_point, find_before_next_newline, find_newline, case_fold_search
     use value_mod, only: value_type
     use data_mod, only: value_eq
-    use text_properties_mod, only: get_text_property, text_property_stickiness, &
-                                   next_single_char_property_change, previous_single_char_property_change, set_point_both, &
-                                   string_add_text_properties, extend_property_ranges, text_property_range_type
+    use text_properties_mod, only: get_text_property, text_property_stickiness, next_single_character_property_change, &
+                                   previous_single_character_property_change, set_point_both, string_add_text_properties, &
+                                   extend_property_ranges, text_property_range_type
     use print_mod, only: readable_text, float_to_string, sprintf_float
     use error_mod, only: format_message
     implicit none(type, external)
     private
 
-    public :: point, point_min, point_max, buffer_size, buffer_size_of, &
+    public :: point, point_minimum, point_maximum, buffer_size, buffer_size_of, &
               gap_position, gap_size
-    public :: goto_char, goto_char_marker, set_point_from_marker
-    public :: point_marker, point_min_marker, point_max_marker
+    public :: goto_character, goto_character_marker, set_point_from_marker
+    public :: point_marker, point_minimum_marker, point_maximum_marker
     public :: mark_marker, mark_position, region_beginning, region_end, interactive_region, check_mark, region_position_procedure
     public :: position_bytes, byte_to_position
-    public :: following_char, preceding_char, is_bob, is_eob, is_bol, is_eol, &
-              char_after, char_before
+    public :: following_character, preceding_character, is_beginning_of_buffer, is_end_of_buffer, is_beginning_of_line, &
+              is_end_of_line, &
+              character_after, character_before
     public :: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit
-    public :: insert_char_n, narrow_to_region, widen, is_buffer_narrowed, validate_region, subst_char_in_region
+    public :: insert_character_n, narrow_to_region, widen, is_buffer_narrowed, validate_region, substitute_character_in_region
     public :: save_excursion_begin, save_excursion_end, save_restriction_begin, save_restriction_end
     public :: internal_labeled_narrow_to_region, internal_labeled_widen, labeled_narrow_to_region_begin, &
               labeled_narrow_to_region_end, labeled_restrictions_remove_in_current_buffer, &
@@ -86,9 +88,9 @@ module editing_functions_mod
     public :: transpose_regions, translate_region_internal
     public :: buffer_substring, buffer_substring_no_properties, buffer_string, insert_buffer_substring, delete_region, &
               delete_and_extract_region, make_buffer_string, compare_buffer_substrings
-    public :: char_to_string, string_to_char, is_char_equal
-    public :: pos_bol, pos_eol, line_beginning_position, line_end_position
-    public :: get_pos_property, find_field, field_beginning, field_end, field_string, field_string_no_properties, &
+    public :: character_to_string, string_to_character, is_character_equal
+    public :: position_beginning_of_line, position_end_of_line, line_beginning_position, line_end_position
+    public :: get_position_property, find_field, field_beginning, field_end, field_string, field_string_no_properties, &
               delete_field, constrain_to_field
     public :: format_message, ngettext, format_text, styled_format
     public :: user_login_name, user_real_login_name, user_full_name, system_name, fortmacs_pid, group_name, group_real_gid
@@ -106,10 +108,10 @@ module editing_functions_mod
     abstract interface
         !> A function of no arguments returning a buffer position.
         !> Not a port.
-        recursive subroutine region_position_procedure(pos, status)
+        recursive subroutine region_position_procedure(position, status)
             import :: int64, status_type
             implicit none(type, external)
-            integer(int64), intent(out) :: pos
+            integer(int64), intent(out) :: position
             type(status_type), intent(out) :: status
         end subroutine region_position_procedure
     end interface
@@ -169,7 +171,7 @@ module editing_functions_mod
     !> char-table (see the specifics).  Port of
     !> editfns.c:Ftranslate_region_internal.
     interface translate_region_internal
-        module procedure translate_region_by_string, translate_region_by_char_table
+        module procedure translate_region_by_string, translate_region_by_character_table
     end interface translate_region_internal
 
     !> Insert two to eight strings at point, in order (one string is
@@ -217,7 +219,7 @@ module editing_functions_mod
 
     !> The largest precision for which a %f conversion's last digit can
     !> be nonzero (upstream's USEFUL_PRECISION_MAX for a long double).
-    integer(int64), parameter :: USEFUL_PRECISION_MAX = 16382
+    integer(int64), parameter :: USEFUL_PRECISION_MAXIMUM = 16382
 
     !> The largest string length (upstream's STRING_BYTES_BOUND: 2**61 - 1
     !> on a 64-bit host).
@@ -259,11 +261,11 @@ module editing_functions_mod
     !> byte (0-based) where it starts in the format string, and the
     !> string it produced if that has text properties.  Port of
     !> editfns.c:styled_format's struct info.
-    type :: format_spec_type
+    type :: format_specification_type
         integer(int64) :: start = 0, end = 0, fbeg = 0
         logical :: intervals = .false.
         type(value_type) :: argument
-    end type format_spec_type
+    end type format_specification_type
 
     !> Format a string out of a format-string and arguments (see
     !> `format_text'); with MESSAGE true, as `format-message' (grave accents
@@ -364,24 +366,24 @@ contains
     ! ------------------------------------------------------------------
 
     !> Return value of point, as an integer.
-    !> Beginning of buffer is position `point_min()'.  Port of editfns.c:Fpoint.
+    !> Beginning of buffer is position `point_minimum()'.  Port of editfns.c:Fpoint.
     integer(int64) function point()
-        point = buffers(current)%pt
+        point = buffers(current)%point
     end function point
 
     !> Return the minimum permissible value of point in the current buffer.
     !> This is 1, unless narrowing (a buffer restriction) is in effect.
     !> Port of editfns.c:Fpoint_min.
-    integer(int64) function point_min()
-        point_min = buffers(current)%begv
-    end function point_min
+    integer(int64) function point_minimum()
+        point_minimum = buffers(current)%beginning_of_accessible_portion
+    end function point_minimum
 
     !> Return the maximum permissible value of point in the current buffer.
     !> This is `buffer_size() + 1', unless narrowing (a buffer restriction)
     !> is in effect, in which case it is less.  Port of editfns.c:Fpoint_max.
-    integer(int64) function point_max()
-        point_max = buffers(current)%zv
-    end function point_max
+    integer(int64) function point_maximum()
+        point_maximum = buffers(current)%end_of_accessible_portion
+    end function point_maximum
 
     !> Characters in the current buffer, ignoring narrowing.
     !> Port of editfns.c:Fbuffer_size.
@@ -415,48 +417,51 @@ contains
     !> Set point to `position', clipped to the accessible region.
     !> Port of editfns.c:Fgoto_char (integer POSITION; an error of a
     !> `point_left' or `point_entered' function is dropped).
-    recursive subroutine goto_char(position)
+    recursive subroutine goto_character(position)
         integer(int64), intent(in) :: position
-        integer(int64) :: pos
+        integer(int64) :: position_value
         type(status_type) :: st
 
-        pos = max(buffers(current)%begv, min(position, buffers(current)%zv))
-        call set_point_both(pos, char_to_byte(pos), st)
-    end subroutine goto_char
+        position_value = max(buffers(current)%beginning_of_accessible_portion, min(position, &
+                                                                                   buffers(current)%end_of_accessible_portion))
+        call set_point_both(position_value, character_to_byte(position_value), st)
+    end subroutine goto_character
 
     !> Set point to marker `m'.  Port of editfns.c:Fgoto_char (marker
     !> POSITION), i.e. intervals.c:set_point_from_marker.
-    recursive subroutine goto_char_marker(m, status)
+    recursive subroutine goto_character_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
 
         call set_point_from_marker(m, status)
-    end subroutine goto_char_marker
+    end subroutine goto_character_marker
 
     !> Port of intervals.c:set_point_from_marker.  The marker's byte
     !> position is only trusted if it is in the current buffer.
     recursive subroutine set_point_from_marker(m, status)
         type(handle_type), intent(in) :: m
         type(status_type), intent(out) :: status
-        integer(int64) :: i, charpos, bytepos
+        integer(int64) :: i, character_position, byte_position
 
         call resolve_marker(m, i, status)
         if (.not. status%ok()) return
 
         if (markers(i)%buffer == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Marker does not point anywhere")
+            call set_error(status, GENERIC_ERROR_CODE, "Marker does not point anywhere")
             return
         end if
 
-        charpos = max(buffers(current)%begv, min(markers(i)%charpos, buffers(current)%zv))
+        character_position = max(buffers(current)%beginning_of_accessible_portion, min(markers(i)%character_position, &
+                                                                                       buffers(current)%end_of_accessible_portion))
 
         if (markers(i)%buffer /= current) then
-            bytepos = buf_charpos_to_bytepos(current, charpos)
+            byte_position = buffer_character_position_to_byte_position(current, character_position)
         else
-            bytepos = max(buffers(current)%begv_byte, min(markers(i)%bytepos, buffers(current)%zv_byte))
+            byte_position = max(buffers(current)%beginning_of_accessible_portion_byte, min(markers(i)%byte_position, &
+                                                                                   buffers(current)%end_of_accessible_portion_byte))
         end if
 
-        call set_point_both(charpos, bytepos, status)
+        call set_point_both(character_position, byte_position, status)
     end subroutine set_point_from_marker
 
     !> A new marker at point; the caller frees it.
@@ -464,7 +469,7 @@ contains
     subroutine point_marker(m)
         type(handle_type), intent(out) :: m
 
-        call new_marker_at(buffers(current)%pt, buffers(current)%pt_byte, m)
+        call new_marker_at(buffers(current)%point, buffers(current)%point_byte, m)
     end subroutine point_marker
 
     !> Return this buffer's mark, as a marker object.
@@ -483,78 +488,78 @@ contains
 
     !> The position of the current buffer's mark, or 0 if it has none:
     !> the position of `mark_marker'.  Not a port.
-    integer(int64) function mark_position() result(pos)
+    integer(int64) function mark_position() result(position)
         integer(int64) :: i
         type(status_type) :: st
 
-        pos = 0
+        position = 0
         call resolve_marker(buffers(current)%mark, i, st)
         if (.not. st%ok()) return
-        if (markers(i)%buffer /= 0) pos = markers(i)%charpos
+        if (markers(i)%buffer /= 0) position = markers(i)%character_position
     end function mark_position
 
     !> Point or the mark, the smaller (`beginningp') or the larger,
     !> clipped to the accessible part.  Port of editfns.c:region_limit.
-    subroutine region_limit(beginningp, pos, status)
+    subroutine region_limit(beginningp, position, status)
         logical, intent(in) :: beginningp
-        integer(int64), intent(out) :: pos
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
         integer(int64) :: m
 
-        pos = 0
+        position = 0
 
         if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(current)%mark_active) then
-            call set_error(status, FM_MARK_INACTIVE)
+            call set_error(status, MARK_INACTIVE_CODE)
             return
         end if
 
         m = mark_position()
 
         if (m == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "The mark is not set now, so there is no region")
+            call set_error(status, GENERIC_ERROR_CODE, "The mark is not set now, so there is no region")
             return
         end if
 
-        if ((buffers(current)%pt < m) .eqv. beginningp) then
-            pos = buffers(current)%pt
+        if ((buffers(current)%point < m) .eqv. beginningp) then
+            position = buffers(current)%point
         else
-            pos = min(max(m, buffers(current)%begv), buffers(current)%zv)
+            position = min(max(m, buffers(current)%beginning_of_accessible_portion), buffers(current)%end_of_accessible_portion)
         end if
     end subroutine region_limit
 
     !> Return the integer value of point or mark, whichever is smaller.
     !> Port of editfns.c:Fregion_beginning (through
     !> `region_beginning_function', which rectangle_mark_mode advises).
-    recursive subroutine region_beginning(pos, status)
-        integer(int64), intent(out) :: pos
+    recursive subroutine region_beginning(position, status)
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
 
-        call region_beginning_function(pos, status)
+        call region_beginning_function(position, status)
     end subroutine region_beginning
 
     !> Return the integer value of point or mark, whichever is larger.
     !> Port of editfns.c:Fregion_end (through `region_end_function').
-    recursive subroutine region_end(pos, status)
-        integer(int64), intent(out) :: pos
+    recursive subroutine region_end(position, status)
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
 
-        call region_end_function(pos, status)
+        call region_end_function(position, status)
     end subroutine region_end
 
     !> Port of editfns.c:Fregion_beginning.
-    recursive subroutine primitive_region_beginning(pos, status)
-        integer(int64), intent(out) :: pos
+    recursive subroutine primitive_region_beginning(position, status)
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
 
-        call region_limit(.true., pos, status)
+        call region_limit(.true., position, status)
     end subroutine primitive_region_beginning
 
     !> Port of editfns.c:Fregion_end.
-    recursive subroutine primitive_region_end(pos, status)
-        integer(int64), intent(out) :: pos
+    recursive subroutine primitive_region_end(position, status)
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
 
-        call region_limit(.false., pos, status)
+        call region_limit(.false., position, status)
     end subroutine primitive_region_end
 
     !> Check that the mark is set in the current buffer and, in Transient
@@ -567,16 +572,16 @@ contains
 
         if (mark_position() == 0) then
             if (for_region) then
-                call set_error(status, FM_GENERIC_ERROR, "The mark is not set now, so there is no region")
+                call set_error(status, GENERIC_ERROR_CODE, "The mark is not set now, so there is no region")
             else
-                call set_error(status, FM_GENERIC_ERROR, "The mark is not set now")
+                call set_error(status, GENERIC_ERROR_CODE, "The mark is not set now")
             end if
 
             return
         end if
 
         if (transient_mark_mode%value .and. .not. mark_even_if_inactive .and. .not. buffers(current)%mark_active) then
-            call set_error(status, FM_MARK_INACTIVE)
+            call set_error(status, MARK_INACTIVE_CODE)
         end if
     end subroutine check_mark
 
@@ -596,68 +601,69 @@ contains
         call check_mark(.true., status)
         if (.not. status%ok()) return
         mark = mark_position()
-        beginning = min(buffers(current)%pt, mark)
-        end = max(buffers(current)%pt, mark)
+        beginning = min(buffers(current)%point, mark)
+        end = max(buffers(current)%point, mark)
     end subroutine interactive_region
 
     !> Port of editfns.c:Fpoint_min_marker.
-    subroutine point_min_marker(m)
+    subroutine point_minimum_marker(m)
         type(handle_type), intent(out) :: m
 
-        call new_marker_at(buffers(current)%begv, buffers(current)%begv_byte, m)
-    end subroutine point_min_marker
+        call new_marker_at(buffers(current)%beginning_of_accessible_portion, &
+                           buffers(current)%beginning_of_accessible_portion_byte, m)
+    end subroutine point_minimum_marker
 
     !> Port of editfns.c:Fpoint_max_marker.
-    subroutine point_max_marker(m)
+    subroutine point_maximum_marker(m)
         type(handle_type), intent(out) :: m
 
-        call new_marker_at(buffers(current)%zv, buffers(current)%zv_byte, m)
-    end subroutine point_max_marker
+        call new_marker_at(buffers(current)%end_of_accessible_portion, buffers(current)%end_of_accessible_portion_byte, m)
+    end subroutine point_maximum_marker
 
     !> Port of alloc.c:build_marker (current buffer).
-    subroutine new_marker_at(charpos, bytepos, m)
-        integer(int64), intent(in) :: charpos, bytepos
+    subroutine new_marker_at(character_position, byte_position, m)
+        integer(int64), intent(in) :: character_position, byte_position
         type(handle_type), intent(out) :: m
         type(status_type) :: st
 
         call make_marker(m)
-        call set_marker_both(m, current_buffer(), charpos, bytepos, st)
+        call set_marker_both(m, current_buffer(), character_position, byte_position, st)
     end subroutine new_marker_at
 
     !> Byte position of character `position'; `found' is false when it is
     !> outside the buffer.  Port of editfns.c:Fposition_bytes.
-    subroutine position_bytes(position, bytepos, found)
+    subroutine position_bytes(position, byte_position, found)
         integer(int64), intent(in) :: position
-        integer(int64), intent(out) :: bytepos
+        integer(int64), intent(out) :: byte_position
         logical, intent(out) :: found
 
-        bytepos = 0
+        byte_position = 0
         found = BEGINNING <= position .and. position <= buffers(current)%text%z
-        if (found) bytepos = char_to_byte(position)
+        if (found) byte_position = character_to_byte(position)
     end subroutine position_bytes
 
-    !> Character position containing byte `bytepos'; `found' is false when
+    !> Character position containing byte `byte_position'; `found' is false when
     !> it is outside the buffer.  Port of editfns.c:Fbyte_to_position.
-    subroutine byte_to_position(bytepos, position, found)
-        integer(int64), intent(in) :: bytepos
+    subroutine byte_to_position(byte_position, position, found)
+        integer(int64), intent(in) :: byte_position
         integer(int64), intent(out) :: position
         logical, intent(out) :: found
-        integer(int64) :: pos_byte
+        integer(int64) :: position_byte
 
         position = 0
-        found = BEGINNING_BYTE <= bytepos .and. bytepos <= buffers(current)%text%z_byte
+        found = BEGINNING_BYTE <= byte_position .and. byte_position <= buffers(current)%text%z_byte
         if (.not. found) return
-        pos_byte = bytepos
+        position_byte = byte_position
 
         if (buffers(current)%text%z /= buffers(current)%text%z_byte) then
-            ! Back up to the start of the character containing BYTEPOS.
-            do while (pos_byte < buffers(current)%text%z_byte)
-                if (is_char_head(buf_fetch_byte(buffers(current), pos_byte))) exit
-                pos_byte = pos_byte - 1
+            ! Back up to the start of the character containing BYTE_POSITION.
+            do while (position_byte < buffers(current)%text%z_byte)
+                if (is_character_head(buffer_fetch_byte(buffers(current), position_byte))) exit
+                position_byte = position_byte - 1
             end do
         end if
 
-        position = byte_to_char(pos_byte)
+        position = byte_to_character(position_byte)
     end subroutine byte_to_position
 
     ! ------------------------------------------------------------------
@@ -666,114 +672,115 @@ contains
 
     !> Character after point, or 0 at the end of the accessible region.
     !> Port of editfns.c:Ffollowing_char.
-    integer(int32) function following_char()
-        following_char = 0
+    integer(int32) function following_character()
+        following_character = 0
 
-        if (buffers(current)%pt < buffers(current)%zv) then
-            following_char = buf_fetch_char(buffers(current), buffers(current)%pt_byte)
+        if (buffers(current)%point < buffers(current)%end_of_accessible_portion) then
+            following_character = buffer_fetch_character(buffers(current), buffers(current)%point_byte)
         end if
-    end function following_char
+    end function following_character
 
     !> Character before point, or 0 at the start of the accessible region.
     !> Port of editfns.c:Fprevious_char.
-    integer(int32) function preceding_char()
-        integer(int64) :: pos
+    integer(int32) function preceding_character()
+        integer(int64) :: position
 
-        preceding_char = 0
+        preceding_character = 0
 
         associate (b => buffers(current))
-            if (b%pt <= b%begv) return
+            if (b%point <= b%beginning_of_accessible_portion) return
 
             if (b%multibyte) then
-                pos = b%pt_byte - buf_prev_char_len(b, b%pt_byte)
-                preceding_char = buf_fetch_char(b, pos)
+                position = b%point_byte - buffer_previous_character_length(b, b%point_byte)
+                preceding_character = buffer_fetch_character(b, position)
             else
-                preceding_char = buf_fetch_byte(b, b%pt_byte - 1)
+                preceding_character = buffer_fetch_byte(b, b%point_byte - 1)
             end if
         end associate
-    end function preceding_char
+    end function preceding_character
 
     !> Return true if point is at the beginning of the buffer.
     !> If the buffer is narrowed, this means the beginning of the narrowed part.
     !> Port of editfns.c:Fbobp.
-    logical function is_bob()
-        is_bob = buffers(current)%pt == buffers(current)%begv
-    end function is_bob
+    logical function is_beginning_of_buffer()
+        is_beginning_of_buffer = buffers(current)%point == buffers(current)%beginning_of_accessible_portion
+    end function is_beginning_of_buffer
 
     !> Return true if point is at the end of the buffer.
     !> If the buffer is narrowed, this means the end of the narrowed part.
     !> Port of editfns.c:Feobp.
-    logical function is_eob()
-        is_eob = buffers(current)%pt == buffers(current)%zv
-    end function is_eob
+    logical function is_end_of_buffer()
+        is_end_of_buffer = buffers(current)%point == buffers(current)%end_of_accessible_portion
+    end function is_end_of_buffer
 
     !> Return true if point is at the beginning of a line.  Port of
     !> editfns.c:Fbolp.
-    logical function is_bol()
+    logical function is_beginning_of_line()
         associate (b => buffers(current))
-            is_bol = b%pt == b%begv
-            if (.not. is_bol) is_bol = buf_fetch_byte(b, b%pt_byte - 1) == 10
+            is_beginning_of_line = b%point == b%beginning_of_accessible_portion
+            if (.not. is_beginning_of_line) is_beginning_of_line = buffer_fetch_byte(b, b%point_byte - 1) == 10
         end associate
-    end function is_bol
+    end function is_beginning_of_line
 
     !> Return true if point is at the end of a line.
     !> `End of a line' includes point being at the end of the buffer.  Port of
     !> editfns.c:Feolp.
-    logical function is_eol()
+    logical function is_end_of_line()
         associate (b => buffers(current))
-            is_eol = b%pt == b%zv
-            if (.not. is_eol) is_eol = buf_fetch_byte(b, b%pt_byte) == 10
+            is_end_of_line = b%point == b%end_of_accessible_portion
+            if (.not. is_end_of_line) is_end_of_line = buffer_fetch_byte(b, b%point_byte) == 10
         end associate
-    end function is_eol
+    end function is_end_of_line
 
-    !> Character at `pos' (default: point); `found' is false outside the
-    !> accessible region.  Port of editfns.c:Fchar_after (integer POS).
-    subroutine char_after(c, found, pos)
+    !> Character at `position' (default: point); `found' is false outside the
+    !> accessible region.  Port of editfns.c:Fchar_after (integer POSITION).
+    subroutine character_after(c, found, position)
         integer(int32), intent(out) :: c
         logical, intent(out) :: found
-        integer(int64), intent(in), optional :: pos
-        integer(int64) :: pos_byte
+        integer(int64), intent(in), optional :: position
+        integer(int64) :: position_byte
 
         c = 0
 
         associate (b => buffers(current))
-            if (.not. present(pos)) then
-                pos_byte = b%pt_byte
-                found = b%begv_byte <= pos_byte .and. pos_byte < b%zv_byte
+            if (.not. present(position)) then
+                position_byte = b%point_byte
+                found = b%beginning_of_accessible_portion_byte <= position_byte &
+                        .and. position_byte < b%end_of_accessible_portion_byte
             else
-                found = b%begv <= pos .and. pos < b%zv
-                if (found) pos_byte = char_to_byte(pos)
+                found = b%beginning_of_accessible_portion <= position .and. position < b%end_of_accessible_portion
+                if (found) position_byte = character_to_byte(position)
             end if
 
-            if (found) c = buf_fetch_char(b, pos_byte)
+            if (found) c = buffer_fetch_character(b, position_byte)
         end associate
-    end subroutine char_after
+    end subroutine character_after
 
-    !> Character before `pos' (default: point); `found' is false outside
-    !> the accessible region.  Port of editfns.c:Fchar_before (integer POS).
-    subroutine char_before(c, found, pos)
+    !> Character before `position' (default: point); `found' is false outside
+    !> the accessible region.  Port of editfns.c:Fchar_before (integer POSITION).
+    subroutine character_before(c, found, position)
         integer(int32), intent(out) :: c
         logical, intent(out) :: found
-        integer(int64), intent(in), optional :: pos
-        integer(int64) :: p, pos_byte
+        integer(int64), intent(in), optional :: position
+        integer(int64) :: p, position_byte
 
         c = 0
 
         associate (b => buffers(current))
-            p = b%pt
-            if (present(pos)) p = pos
-            found = b%begv < p .and. p <= b%zv
+            p = b%point
+            if (present(position)) p = position
+            found = b%beginning_of_accessible_portion < p .and. p <= b%end_of_accessible_portion
             if (.not. found) return
-            pos_byte = char_to_byte(p)
+            position_byte = character_to_byte(p)
 
             if (b%multibyte) then
-                pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
-                c = buf_fetch_char(b, pos_byte)
+                position_byte = position_byte - buffer_previous_character_length(b, position_byte)
+                c = buffer_fetch_character(b, position_byte)
             else
-                c = buf_fetch_byte(b, pos_byte - 1)
+                c = buffer_fetch_byte(b, position_byte - 1)
             end if
         end associate
-    end subroutine char_before
+    end subroutine character_before
 
     ! ------------------------------------------------------------------
     ! Inserting, narrowing, extracting, deleting
@@ -792,7 +799,7 @@ contains
     !> buffer; to accomplish this, apply `decode_coding_string' with the
     !> `no_conversion' coding system to the string and insert the result.
     !> Port of editfns.c:Finsert (strings; a character is inserted with
-    !> `insert_char', or as the string `char_to_string' gives).
+    !> `insert_character', or as the string `character_to_string' gives).
     recursive subroutine insert_strings(status, string1, string2, string3, string4, string5, string6, string7, string8)
         type(status_type), intent(out) :: status
         character(len=*), intent(in) :: string1, string2
@@ -914,7 +921,7 @@ contains
             type(status_type) :: st
             integer(int64) :: nchars
 
-            call multibyte_chars_in_text(string, nchars, st)
+            call multibyte_characters_in_text(string, nchars, st)
             if (.not. st%ok()) nchars = len(string, kind=int64)
 
             if (before_markers) then
@@ -927,22 +934,22 @@ contains
 
     !> Insert `count' copies of character `c' (nothing if count <= 0).
     !> Port of editfns.c:Finsert_char (without INHERIT).
-    recursive subroutine insert_char_n(c, count, status)
+    recursive subroutine insert_character_n(c, count, status)
         integer(int32), intent(in) :: c
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
-        character(len=MAX_MULTIBYTE_LENGTH) :: string
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: string
         character(len=:), allocatable :: block
         integer(int32) :: clen
         integer(int64) :: n, chunk, reps
 
-        if (.not. is_char_valid(c)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (.not. is_character_valid(c)) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
         if (buffers(current)%multibyte) then
-            call char_string(c, string, clen, status)
+            call character_string(c, string, clen, status)
             if (.not. status%ok()) return
         else
             string(1:1) = char(iand(c, 255_int32))
@@ -951,8 +958,8 @@ contains
 
         if (count <= 0) return
 
-        if (BUF_BYTES_MAX/clen < count) then
-            call set_error(status, FM_GENERIC_ERROR, "Maximum buffer size exceeded")
+        if (BUFFER_BYTES_MAXIMUM/clen < count) then
+            call set_error(status, GENERIC_ERROR_CODE, "Maximum buffer size exceeded")
             return
         end if
 
@@ -967,7 +974,7 @@ contains
             if (.not. status%ok()) return
             n = n - chunk
         end do
-    end subroutine insert_char_n
+    end subroutine insert_character_n
 
     !> Restrict editing in this buffer to the current region.
     !> The rest of the text becomes temporarily invisible and untouchable
@@ -988,7 +995,8 @@ contains
     subroutine narrow_to_region(start, end, status)
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
-        integer(int64) :: s, e, k, begv_charpos, zv_charpos, begv_byte, zv_byte
+        integer(int64) :: s, e, k, beginning_of_accessible_portion_character_position, &
+                  end_of_accessible_portion_character_position, beginning_of_accessible_portion_byte, end_of_accessible_portion_byte
 
         s = min(start, end)
         e = max(start, end)
@@ -1003,27 +1011,27 @@ contains
         if (k /= 0) then
             ! Limit the start and end positions to those of the innermost
             ! labeled restriction.
-            call marker_position(labeled_restrictions(k)%beginning, begv_charpos, status)
+            call marker_position(labeled_restrictions(k)%beginning, beginning_of_accessible_portion_character_position, status)
             if (.not. status%ok()) return
-            call marker_position(labeled_restrictions(k)%end, zv_charpos, status)
+            call marker_position(labeled_restrictions(k)%end, end_of_accessible_portion_character_position, status)
             if (.not. status%ok()) return
-            if (s < begv_charpos) s = begv_charpos
-            if (s > zv_charpos) s = zv_charpos
-            if (e < begv_charpos) e = begv_charpos
-            if (e > zv_charpos) e = zv_charpos
+            if (s < beginning_of_accessible_portion_character_position) s = beginning_of_accessible_portion_character_position
+            if (s > end_of_accessible_portion_character_position) s = end_of_accessible_portion_character_position
+            if (e < beginning_of_accessible_portion_character_position) e = beginning_of_accessible_portion_character_position
+            if (e > end_of_accessible_portion_character_position) e = end_of_accessible_portion_character_position
         end if
 
         associate (b => buffers(current))
             ! The byte positions first, while begv and zv still match
-            ! their byte positions (as buffer.h:SET_BUF_BEGV and SET_BUF_ZV).
-            begv_byte = char_to_byte(s)
-            zv_byte = char_to_byte(e)
-            b%begv = s
-            b%begv_byte = begv_byte
-            b%zv = e
-            b%zv_byte = zv_byte
-            if (b%pt < s) call temp_set_point_both(b, s, b%begv_byte)
-            if (e < b%pt) call temp_set_point_both(b, e, b%zv_byte)
+            ! their byte positions (as buffer.h:SET_BUF_BEGV and SET_BUFFER_END_OF_ACCESSIBLE_PORTION).
+            beginning_of_accessible_portion_byte = character_to_byte(s)
+            end_of_accessible_portion_byte = character_to_byte(e)
+            b%beginning_of_accessible_portion = s
+            b%beginning_of_accessible_portion_byte = beginning_of_accessible_portion_byte
+            b%end_of_accessible_portion = e
+            b%end_of_accessible_portion_byte = end_of_accessible_portion_byte
+            if (b%point < s) call temporary_set_point_both(b, s, b%beginning_of_accessible_portion_byte)
+            if (e < b%point) call temporary_set_point_both(b, e, b%end_of_accessible_portion_byte)
         end associate
     end subroutine narrow_to_region
 
@@ -1036,14 +1044,14 @@ contains
     !> name from LOGNAME or USER (else the effective uid's entry), and the
     !> full name of that user (or NAME, or "unknown").  Port of
     !> editfns.c:init_editfns (the user names).
-    subroutine init_user_names()
-        use system_dependent_mod, only: passwd_entry_by_uid, fortmacs_getuid, fortmacs_geteuid
+    subroutine initialize_user_names()
+        use system_dependent_mod, only: password_entry_by_uid, fortmacs_getuid, fortmacs_geteuid
         character(len=:), allocatable :: name, gecos, user_name
         integer :: length, stat
         logical :: found
 
         if (allocated(vuser_login_name)) return
-        call passwd_entry_by_uid(fortmacs_getuid(), name, gecos, found)
+        call password_entry_by_uid(fortmacs_getuid(), name, gecos, found)
 
         if (found) then
             vuser_real_login_name = name
@@ -1053,11 +1061,11 @@ contains
 
         ! Get the effective user name, by consulting environment variables,
         ! or the effective uid if those are unset.
-        user_name = env("LOGNAME")
-        if (.not. allocated(user_name)) user_name = env("USER")
+        user_name = environment("LOGNAME")
+        if (.not. allocated(user_name)) user_name = environment("USER")
 
         if (.not. allocated(user_name)) then
-            call passwd_entry_by_uid(fortmacs_geteuid(), name, gecos, found)
+            call password_entry_by_uid(fortmacs_geteuid(), name, gecos, found)
 
             if (found) then
                 user_name = name
@@ -1079,7 +1087,7 @@ contains
         call get_environment_variable("NAME", length=length, status=stat)
 
         if (stat == 0) then
-            user_full_name_variable = env("NAME")
+            user_full_name_variable = environment("NAME")
             if (.not. allocated(user_full_name_variable)) user_full_name_variable = ""
         else if (.not. found) then
             user_full_name_variable = "unknown"
@@ -1087,43 +1095,43 @@ contains
 
     contains
 
-        !> The value of the environment variable VAR, unallocated if unset.
-        function env(var) result(value)
-            character(len=*), intent(in) :: var
+        !> The value of the environment variable VARIABLE, unallocated if unset.
+        function environment(variable) result(value)
+            character(len=*), intent(in) :: variable
             character(len=:), allocatable :: value
             integer :: n, st
 
-            call get_environment_variable(var, length=n, status=st)
+            call get_environment_variable(variable, length=n, status=st)
             if (st /= 0) return
             allocate (character(len=n) :: value)
-            if (n > 0) call get_environment_variable(var, value)
-        end function env
-    end subroutine init_user_names
+            if (n > 0) call get_environment_variable(variable, value)
+        end function environment
+    end subroutine initialize_user_names
 
     !> The full name in the passwd entry of the user called LOGIN.
     !> Not a port.
     subroutine full_name_of(login, full, found)
-        use system_dependent_mod, only: passwd_entry_by_name
+        use system_dependent_mod, only: password_entry_by_name
         character(len=*), intent(in) :: login
         character(len=:), allocatable, intent(out) :: full
         logical, intent(out) :: found
         character(len=:), allocatable :: name, gecos
         integer :: uid
 
-        call passwd_entry_by_name(login, name, gecos, uid, found)
+        call password_entry_by_name(login, name, gecos, uid, found)
         full = ""
         if (found) full = gecos_full_name(gecos, name)
     end subroutine full_name_of
 
     !> The full name in the passwd entry of user UID.  Not a port.
     subroutine full_name_of_uid(uid, full, found)
-        use system_dependent_mod, only: passwd_entry_by_uid
+        use system_dependent_mod, only: password_entry_by_uid
         integer, intent(in) :: uid
         character(len=:), allocatable, intent(out) :: full
         logical, intent(out) :: found
         character(len=:), allocatable :: name, gecos
 
-        call passwd_entry_by_uid(uid, name, gecos, found)
+        call password_entry_by_uid(uid, name, gecos, found)
         full = ""
         if (found) full = gecos_full_name(gecos, name)
     end subroutine full_name_of_uid
@@ -1165,7 +1173,7 @@ contains
     function user_login_name() result(name)
         character(len=:), allocatable :: name
 
-        call init_user_names()
+        call initialize_user_names()
         name = vuser_login_name
     end function user_login_name
 
@@ -1176,7 +1184,7 @@ contains
     function user_real_login_name() result(name)
         character(len=:), allocatable :: name
 
-        call init_user_names()
+        call initialize_user_names()
         name = vuser_real_login_name
     end function user_real_login_name
 
@@ -1191,7 +1199,7 @@ contains
     function user_full_name() result(name)
         character(len=:), allocatable :: name
 
-        call init_user_names()
+        call initialize_user_names()
         name = user_full_name_variable
     end function user_full_name
 
@@ -1233,7 +1241,7 @@ contains
         ! A gid_t, an unsigned 32-bit integer (int32 holds the upper half
         ! as negative values).
         if (gid < 0 .or. gid > 4294967295_int64) then
-            call set_error(status, FM_GENERIC_ERROR, "Not an in-range integer")
+            call set_error(status, GENERIC_ERROR_CODE, "Not an in-range integer")
             return
         end if
 
@@ -1258,7 +1266,8 @@ contains
     !> Return true if the current buffer is narrowed.  Port of
     !> subr.el:buffer-narrowed-p.
     logical function is_buffer_narrowed()
-        is_buffer_narrowed = buffers(current)%zv - buffers(current)%begv /= buffers(current)%text%z - BEGINNING
+        is_buffer_narrowed = buffers(current)%end_of_accessible_portion - buffers(current)%beginning_of_accessible_portion &
+                             /= buffers(current)%text%z - BEGINNING
     end function is_buffer_narrowed
 
     !> Remove restrictions (narrowing) from current buffer.
@@ -1278,10 +1287,10 @@ contains
 
         if (k == 0) then
             associate (b => buffers(current))
-                b%begv = BEGINNING
-                b%begv_byte = BEGINNING_BYTE
-                b%zv = b%text%z
-                b%zv_byte = b%text%z_byte
+                b%beginning_of_accessible_portion = BEGINNING
+                b%beginning_of_accessible_portion_byte = BEGINNING_BYTE
+                b%end_of_accessible_portion = b%text%z
+                b%end_of_accessible_portion_byte = b%text%z_byte
             end associate
         else
             call set_bounds_from_markers(current, labeled_restrictions(k)%beginning, labeled_restrictions(k)%end)
@@ -1306,10 +1315,10 @@ contains
         type(status_type) :: st
 
         associate (buffer => buffers(b))
-            call marker_position(beginning, buffer%begv, st)
-            call marker_byte_position(beginning, buffer%begv_byte, st)
-            call marker_position(end, buffer%zv, st)
-            call marker_byte_position(end, buffer%zv_byte, st)
+            call marker_position(beginning, buffer%beginning_of_accessible_portion, st)
+            call marker_byte_position(beginning, buffer%beginning_of_accessible_portion_byte, st)
+            call marker_position(end, buffer%end_of_accessible_portion, st)
+            call marker_byte_position(end, buffer%end_of_accessible_portion_byte, st)
         end associate
     end subroutine set_bounds_from_markers
 
@@ -1400,15 +1409,15 @@ contains
     end subroutine remove_restrictions
 
     !> One of the labeled restriction bounds of BUFFER, as a marker (the
-    !> beginning when BEGV, else the end), or the null handle if BUFFER has
+    !> beginning when BEGINNING_OF_ACCESSIBLE_PORTION, else the end), or the null handle if BUFFER has
     !> no labeled restriction or is a closed buffer.  When OUTERMOST is
     !> true, the restriction bounds that were current when the first
     !> labeled restriction was entered are returned.  Otherwise the bounds
     !> of the innermost labeled restriction are returned.  Port of
     !> editfns.c:labeled_restrictions_get_bound.
-    function labeled_restrictions_get_bound(buffer, begv, outermost) result(marker)
+    function labeled_restrictions_get_bound(buffer, beginning_of_accessible_portion, outermost) result(marker)
         type(handle_type), intent(in) :: buffer
-        logical, intent(in) :: begv, outermost
+        logical, intent(in) :: beginning_of_accessible_portion, outermost
         type(handle_type) :: marker
         integer(int64) :: k
 
@@ -1424,7 +1433,7 @@ contains
 
         if (k == 0) return
 
-        if (begv) then
+        if (beginning_of_accessible_portion) then
             marker = labeled_restrictions(k)%beginning
         else
             marker = labeled_restrictions(k)%end
@@ -1497,7 +1506,7 @@ contains
     subroutine reset_outermost_restrictions_begin(restricted)
         type(handle_type), allocatable, intent(out) :: restricted(:)
         type(handle_type), allocatable :: listed(:)
-        type(handle_type) :: begv, zv
+        type(handle_type) :: beginning_of_accessible_portion, end_of_accessible_portion
         integer(int64) :: k, n, b
         type(status_type) :: st
 
@@ -1511,12 +1520,12 @@ contains
         n = 0
 
         do k = 1, size(listed, kind=int64)
-            begv = labeled_restrictions_get_bound(listed(k), .true., .true.)
-            zv = labeled_restrictions_get_bound(listed(k), .false., .true.)
+            beginning_of_accessible_portion = labeled_restrictions_get_bound(listed(k), .true., .true.)
+            end_of_accessible_portion = labeled_restrictions_get_bound(listed(k), .false., .true.)
 
-            if (begv%index /= 0 .and. zv%index /= 0) then
+            if (beginning_of_accessible_portion%index /= 0 .and. end_of_accessible_portion%index /= 0) then
                 call resolve_buffer(listed(k), b, st)
-                call set_bounds_from_markers(b, begv, zv)
+                call set_bounds_from_markers(b, beginning_of_accessible_portion, end_of_accessible_portion)
                 n = n + 1
                 restricted(n) = listed(k)
             else
@@ -1534,17 +1543,17 @@ contains
     !> editfns.c:unwind_reset_outermost_restriction (for each buffer).
     subroutine reset_outermost_restrictions_end(restricted)
         type(handle_type), intent(in) :: restricted(:)
-        type(handle_type) :: begv, zv
+        type(handle_type) :: beginning_of_accessible_portion, end_of_accessible_portion
         integer(int64) :: k, b
         type(status_type) :: st
 
         do k = size(restricted, kind=int64), 1, -1
-            begv = labeled_restrictions_get_bound(restricted(k), .true., .false.)
-            zv = labeled_restrictions_get_bound(restricted(k), .false., .false.)
+            beginning_of_accessible_portion = labeled_restrictions_get_bound(restricted(k), .true., .false.)
+            end_of_accessible_portion = labeled_restrictions_get_bound(restricted(k), .false., .false.)
 
-            if (begv%index /= 0 .and. zv%index /= 0) then
+            if (beginning_of_accessible_portion%index /= 0 .and. end_of_accessible_portion%index /= 0) then
                 call resolve_buffer(restricted(k), b, st)
-                call set_bounds_from_markers(b, begv, zv)
+                call set_bounds_from_markers(b, beginning_of_accessible_portion, end_of_accessible_portion)
             else
                 call labeled_restrictions_remove(restricted(k))
             end if
@@ -1572,19 +1581,19 @@ contains
         listed = listed(1:n)
     end subroutine restricted_buffers
 
-    !> Narrow the current buffer to BEGV..ZV with a restriction labeled
+    !> Narrow the current buffer to BEGINNING_OF_ACCESSIBLE_PORTION..END_OF_ACCESSIBLE_PORTION with a restriction labeled
     !> with LABEL, saving point in the marker POINT; the caller ends it with
     !> `labeled_narrow_to_region_end', which does what upstream leaves to
     !> the end of the enclosing scope.  Port of
     !> editfns.c:labeled_narrow_to_region.
-    subroutine labeled_narrow_to_region_begin(begv, zv, label, point, status)
-        integer(int64), intent(in) :: begv, zv
+    subroutine labeled_narrow_to_region_begin(beginning_of_accessible_portion, end_of_accessible_portion, label, point, status)
+        integer(int64), intent(in) :: beginning_of_accessible_portion, end_of_accessible_portion
         character(len=*), intent(in) :: label
         type(handle_type), intent(out) :: point
         type(status_type), intent(out) :: status
 
         call point_marker(point)
-        call internal_labeled_narrow_to_region(begv, zv, label, status)
+        call internal_labeled_narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, label, status)
     end subroutine labeled_narrow_to_region_begin
 
     !> End what `labeled_narrow_to_region_begin' began: widen the
@@ -1597,7 +1606,7 @@ contains
         type(status_type) :: st
 
         call internal_labeled_widen(label)
-        call goto_char_marker(point, st)
+        call goto_character_marker(point, st)
         call destroy_marker(point, st)
     end subroutine labeled_narrow_to_region_end
 
@@ -1617,8 +1626,8 @@ contains
 
         buffer = current_buffer()
         outermost_restriction%outermost = .true.
-        call point_min_marker(outermost_restriction%beginning)
-        call point_max_marker(outermost_restriction%end)
+        call point_minimum_marker(outermost_restriction%beginning)
+        call point_maximum_marker(outermost_restriction%end)
         call narrow_to_region(start, end, status)
         call labeled_restrictions_peek_label(buffer, k)
 
@@ -1631,8 +1640,8 @@ contains
 
         if (.not. status%ok()) return
         restriction%label = label
-        call point_min_marker(restriction%beginning)
-        call point_max_marker(restriction%end)
+        call point_minimum_marker(restriction%beginning)
+        call point_maximum_marker(restriction%end)
         call labeled_restrictions_push(buffer, restriction)
     end subroutine internal_labeled_narrow_to_region
 
@@ -1710,7 +1719,7 @@ contains
 
         call set_buffer(buffer, st)
         ! Point marker.
-        call goto_char_marker(saved%point, st)
+        call goto_character_marker(saved%point, st)
         call destroy_marker(saved%point, st)
         ! If buffer was visible in a window, and a different window was
         ! selected, and the old selected window is still showing this
@@ -1721,7 +1730,7 @@ contains
         ! Set window point if WINDOW is live and shows the current buffer.
         contents = window_buffer(saved%window, st)
         if (.not. same_handle(contents, current_buffer())) return
-        w => window_ref(saved%window)
+        w => window_reference(saved%window)
         if (associated(w)) call set_window_point(w, point(), st)
     end subroutine save_excursion_end
 
@@ -1762,10 +1771,10 @@ contains
             ! The common case that the buffer isn't narrowed needs no
             ! markers; save_restriction_end recognizes it as meaning no
             ! restriction.
-            if (b%begv /= BEGINNING .or. b%zv /= b%text%z) then
+            if (b%beginning_of_accessible_portion /= BEGINNING .or. b%end_of_accessible_portion /= b%text%z) then
                 saved%narrowed = .true.
-                call new_marker_at(b%begv, b%begv_byte, saved%beginning)
-                call new_marker_at(b%zv, b%zv_byte, saved%end)
+                call new_marker_at(b%beginning_of_accessible_portion, b%beginning_of_accessible_portion_byte, saved%beginning)
+                call new_marker_at(b%end_of_accessible_portion, b%end_of_accessible_portion_byte, saved%end)
                 ! END must move forward if text is inserted at its exact location.
                 call set_marker_insertion_type(saved%end, .true., st)
             end if
@@ -1791,8 +1800,8 @@ contains
 
             associate (beginning => markers(labeled_restrictions(k)%beginning%index), &
                        end => markers(labeled_restrictions(k)%end%index))
-                call copy_marker_at(beginning%charpos, saved%labeled(n)%beginning, beginning%insertion_type, st)
-                call copy_marker_at(end%charpos, saved%labeled(n)%end, end%insertion_type, st)
+                call copy_marker_at(beginning%character_position, saved%labeled(n)%beginning, beginning%insertion_type, st)
+                call copy_marker_at(end%character_position, saved%labeled(n)%end, end%insertion_type, st)
             end associate
         end do
     end subroutine save_restriction_begin
@@ -1804,7 +1813,8 @@ contains
     !> editfns.c:save_restriction_restore_1.
     subroutine save_restriction_end(saved)
         type(restriction_type), intent(inout) :: saved
-        integer(int64) :: b, pt, pt_byte, begv, begv_byte, zv, zv_byte
+        integer(int64) :: b, point, point_byte, beginning_of_accessible_portion, beginning_of_accessible_portion_byte, &
+                          end_of_accessible_portion, end_of_accessible_portion_byte
         type(status_type) :: st
         integer(int64) :: k
 
@@ -1827,26 +1837,29 @@ contains
             ! Two markers bounding a saved restriction: verify that they
             ! still point to a buffer.
             if (st%ok()) then
-                call marker_position(saved%beginning, begv, st)
-                call marker_byte_position(saved%beginning, begv_byte, st)
-                call marker_position(saved%end, zv, st)
-                call marker_byte_position(saved%end, zv_byte, st)
+                call marker_position(saved%beginning, beginning_of_accessible_portion, st)
+                call marker_byte_position(saved%beginning, beginning_of_accessible_portion_byte, st)
+                call marker_position(saved%end, end_of_accessible_portion, st)
+                call marker_byte_position(saved%end, end_of_accessible_portion_byte, st)
 
                 associate (buffer => buffers(b))
                     ! The restriction has changed from the saved one, so
                     ! restore the saved restriction.
-                    if (begv /= buffer%begv .or. zv /= buffer%zv) then
-                        pt = buffer%pt
-                        pt_byte = buffer%pt_byte
-                        buffer%begv = begv
-                        buffer%begv_byte = begv_byte
-                        buffer%zv = zv
-                        buffer%zv_byte = zv_byte
+                    if (beginning_of_accessible_portion /= buffer%beginning_of_accessible_portion .or. end_of_accessible_portion &
+                        /= buffer%end_of_accessible_portion) then
+                        point = buffer%point
+                        point_byte = buffer%point_byte
+                        buffer%beginning_of_accessible_portion = beginning_of_accessible_portion
+                        buffer%beginning_of_accessible_portion_byte = beginning_of_accessible_portion_byte
+                        buffer%end_of_accessible_portion = end_of_accessible_portion
+                        buffer%end_of_accessible_portion_byte = end_of_accessible_portion_byte
 
                         ! The point is outside the new visible range, move it inside.
-                        if (pt < begv .or. pt > zv) then
-                            call temp_set_point_both(buffer, max(begv, min(pt, zv)), &
-                                                     max(begv_byte, min(pt_byte, zv_byte)))
+                        if (point < beginning_of_accessible_portion .or. point > end_of_accessible_portion) then
+                            call temporary_set_point_both(buffer, max(beginning_of_accessible_portion, min(point, &
+                                                                                                      end_of_accessible_portion)), &
+                                                          max(beginning_of_accessible_portion_byte, min(point_byte, &
+                                                                                                   end_of_accessible_portion_byte)))
                         end if
                     end if
                 end associate
@@ -1858,10 +1871,10 @@ contains
             ! No old restriction: if the buffer has been narrowed, get rid
             ! of the narrowing.
             associate (buffer => buffers(b))
-                buffer%begv = BEGINNING
-                buffer%begv_byte = BEGINNING_BYTE
-                buffer%zv = buffer%text%z
-                buffer%zv_byte = buffer%text%z_byte
+                buffer%beginning_of_accessible_portion = BEGINNING
+                buffer%beginning_of_accessible_portion_byte = BEGINNING_BYTE
+                buffer%end_of_accessible_portion = buffer%text%z
+                buffer%end_of_accessible_portion_byte = buffer%text%z_byte
             end associate
         end if
     end subroutine save_restriction_end
@@ -1876,7 +1889,8 @@ contains
         s = min(start, end)
         e = max(start, end)
 
-        if (.not. (buffers(current)%begv <= s .and. e <= buffers(current)%zv)) then
+        if (.not. (buffers(current)%beginning_of_accessible_portion <= s .and. e <= buffers(current)%end_of_accessible_portion)) &
+            then
             call range_error(status, start, end)
             return
         end if
@@ -1885,7 +1899,7 @@ contains
         end = e
     end subroutine validate_region
 
-    ! An args-out-of-range error for A and B (args_out_of_range).
+    ! An args-out-of-range error for A and B (arguments_out_of_range).
     ! Not a port.
     subroutine range_error(status, a, b)
         type(status_type), intent(inout) :: status
@@ -1894,7 +1908,7 @@ contains
 
         write (sa, "(i0)") a
         write (sb, "(i0)") b
-        call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(sa)//", "//trim(sb))
+        call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(sa)//", "//trim(sb))
     end subroutine range_error
 
     !> Return the contents of part of the current buffer as a string.
@@ -1950,29 +1964,30 @@ contains
         e = end
         call validate_region(s, e, status)
         if (.not. status%ok()) return
-        text = buf_bytes(buffers(current), char_to_byte(s), char_to_byte(e))
+        text = buffer_bytes(buffers(current), character_to_byte(s), character_to_byte(e))
     end subroutine buffer_substring_no_properties
 
     !> The text of the current buffer from START to END (START <= END, in
     !> the accessible text) as a string value, with the text properties
-    !> of that text when PROPS is true.  Port of editfns.c:make_buffer_string
+    !> of that text when PROPERTIES is true.  Port of editfns.c:make_buffer_string
     !> (and editfns.c:make_buffer_string_both, the byte positions found
-    !> here; the bytes are joined across the gap by `buf_bytes').
-    subroutine make_buffer_string(start, end, props, string)
+    !> here; the bytes are joined across the gap by `buffer_bytes').
+    subroutine make_buffer_string(start, end, properties, string)
         integer(int64), intent(in) :: start, end
-        logical, intent(in) :: props
+        logical, intent(in) :: properties
         type(value_type), intent(out) :: string
 
-        string = value_type(text=buf_bytes(buffers(current), char_to_byte(start), char_to_byte(end)))
+        string = value_type(text=buffer_bytes(buffers(current), character_to_byte(start), character_to_byte(end)))
         ! Copy the text properties (none if that text has none).
-        if (props) call copy_intervals_to_string(string, buffers(current)%text%intervals, start, end - start)
+        if (properties) call copy_intervals_to_string(string, buffers(current)%text%intervals, start, end - start)
     end subroutine make_buffer_string
 
     !> The accessible text.  Port of editfns.c:Fbuffer_string.
     function buffer_string() result(text)
         character(len=:), allocatable :: text
 
-        text = buf_bytes(buffers(current), buffers(current)%begv_byte, buffers(current)%zv_byte)
+        text = buffer_bytes(buffers(current), buffers(current)%beginning_of_accessible_portion_byte, &
+                            buffers(current)%end_of_accessible_portion_byte)
     end function buffer_string
 
     !> Insert before point a substring of the contents of BUFFER.
@@ -2000,7 +2015,7 @@ contains
         status = status_type()
 
         if (.not. is_buffer_live(buffer)) then
-            call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Selecting deleted buffer")
             return
         end if
 
@@ -2008,8 +2023,8 @@ contains
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
         bp = current
-        b = point_min()
-        e = point_max()
+        b = point_minimum()
+        e = point_maximum()
         if (present(start)) b = start
         if (present(end)) e = end
         call validate_region(b, e, status)
@@ -2029,7 +2044,7 @@ contains
         e = end
         call validate_region(s, e, status)
         if (.not. status%ok()) return
-        call del_range(s, e, status)
+        call delete_range(s, e, status)
     end subroutine delete_region
 
     !> Delete the text between `start' and `end' and return it.
@@ -2046,7 +2061,7 @@ contains
         call validate_region(s, e, status)
         if (.not. status%ok()) return
         if (s == e) return
-        call del_range_1(s, e, .true., status, text)
+        call delete_range_1(s, e, .true., status, text)
     end subroutine delete_and_extract_region
 
     !> Compare two substrings of two buffers; return result as number.
@@ -2055,9 +2070,9 @@ contains
     !> The first substring is in BUFFER1 from START1 to END1 and the second
     !> is in BUFFER2 from START2 to END2.
     !> All arguments may be absent.  If BUFFER1 or BUFFER2 is absent, the current
-    !> buffer is used.  If START1 or START2 is absent, the value of `point_min'
+    !> buffer is used.  If START1 or START2 is absent, the value of `point_minimum'
     !> in the respective buffers is used.  If END1 or END2 is absent, the value
-    !> of `point_max' in the respective buffers is used.
+    !> of `point_maximum' in the respective buffers is used.
     !> The value of `case_fold_search' in the current buffer
     !> determines whether case is significant or ignored.
     !> Port of editfns.c:Fcompare_buffer_substrings.
@@ -2080,15 +2095,15 @@ contains
         if (.not. status%ok()) return
         i1 = begp1
         i2 = begp2
-        i1_byte = buf_charpos_to_bytepos(bp1, i1)
-        i2_byte = buf_charpos_to_bytepos(bp2, i2)
+        i1_byte = buffer_character_position_to_byte_position(bp1, i1)
+        i2_byte = buffer_character_position_to_byte_position(bp2, i2)
         chars = 0
 
         do while (i1 < endp1 .and. i2 < endp2)
             ! When we find a mismatch, we must compare the characters, not
             ! just the bytes.
-            call next_char(bp1, i1, i1_byte, c1)
-            call next_char(bp2, i2, i2_byte, c2)
+            call next_character(bp1, i1, i1_byte, c1)
+            call next_character(bp2, i2, i2_byte, c2)
 
             if (fold) then
                 c1 = case_canon(c1)
@@ -2125,7 +2140,7 @@ contains
             type(handle_type), intent(in), optional :: buffer
             integer(int64), intent(in), optional :: start, end
             integer(int64), intent(out) :: b, from, to
-            integer(int64) :: temp, given_from, given_to
+            integer(int64) :: temporary, given_from, given_to
 
             b = current
             from = 0
@@ -2133,7 +2148,7 @@ contains
 
             if (present(buffer)) then
                 if (.not. is_buffer_live(buffer)) then
-                    call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
+                    call set_error(status, GENERIC_ERROR_CODE, "Selecting deleted buffer")
                     return
                 end if
 
@@ -2141,39 +2156,41 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            from = buffers(b)%begv
-            to = buffers(b)%zv
+            from = buffers(b)%beginning_of_accessible_portion
+            to = buffers(b)%end_of_accessible_portion
             if (present(start)) from = start
             if (present(end)) to = end
             given_from = from
             given_to = to
 
             if (from > to) then
-                temp = from
+                temporary = from
                 from = to
-                to = temp
+                to = temporary
             end if
 
-            if (.not. (buffers(b)%begv <= from .and. to <= buffers(b)%zv)) call range_error(status, given_from, given_to)
+            if (.not. (buffers(b)%beginning_of_accessible_portion <= from .and. to <= buffers(b)%end_of_accessible_portion)) then
+                call range_error(status, given_from, given_to)
+            end if
         end subroutine find_substring
 
         !> The character C at I (byte I_BYTE) of buffer slot B, made
         !> multibyte; I and I_BYTE move past it.
-        subroutine next_char(b, i, i_byte, c)
+        subroutine next_character(b, i, i_byte, c)
             integer(int64), intent(in) :: b
             integer(int64), intent(inout) :: i, i_byte
             integer(int32), intent(out) :: c
 
             if (buffers(b)%multibyte) then
-                c = buf_fetch_char(buffers(b), i_byte)
-                i_byte = i_byte + buf_next_char_len(buffers(b), i_byte)
+                c = buffer_fetch_character(buffers(b), i_byte)
+                i_byte = i_byte + buffer_next_character_length(buffers(b), i_byte)
             else
-                c = unibyte_to_char(buf_fetch_byte(buffers(b), i_byte))
+                c = unibyte_to_character(buffer_fetch_byte(buffers(b), i_byte))
                 i_byte = i_byte + 1
             end if
 
             i = i + 1
-        end subroutine next_char
+        end subroutine next_character
     end subroutine compare_buffer_substrings
 
     ! ------------------------------------------------------------------
@@ -2182,54 +2199,54 @@ contains
 
     !> Convert arg C to a string containing that character.
     !> Port of editfns.c:Fchar_to_string.
-    subroutine char_to_string(c, string, status)
+    subroutine character_to_string(c, string, status)
         integer(int32), intent(in) :: c
         character(len=:), allocatable, intent(out) :: string
         type(status_type), intent(out) :: status
-        character(len=MAX_MULTIBYTE_LENGTH) :: bytes
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: bytes
         integer(int32) :: nbytes
 
         string = ""
 
-        if (.not. is_char_valid(c)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (.not. is_character_valid(c)) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
-        call char_string(c, bytes, nbytes, status)
+        call character_string(c, bytes, nbytes, status)
         if (.not. status%ok()) return
         string = bytes(1:nbytes)
-    end subroutine char_to_string
+    end subroutine character_to_string
 
     !> Return the first character in STRING (0 if it is empty).
     !> Port of editfns.c:Fstring_to_char.
-    integer(int32) function string_to_char(string) result(c)
+    integer(int32) function string_to_character(string) result(c)
         character(len=*), intent(in) :: string
 
         c = 0
-        if (len(string) > 0) c = string_char(string, 1_int64)
-    end function string_to_char
+        if (len(string) > 0) c = string_character(string, 1_int64)
+    end function string_to_character
 
     !> Return true if two characters match, optionally ignoring case.
     !> Both arguments must be characters (i.e. integers).
     !> Case is ignored if `case_fold_search' is true in the current buffer.
     !> Port of editfns.c:Fchar_equal.
-    logical function is_char_equal(c1, c2, status)
+    logical function is_character_equal(c1, c2, status)
         integer(int32), intent(in) :: c1, c2
         type(status_type), intent(out) :: status
         integer(int32) :: i1, i2
 
-        is_char_equal = .false.
+        is_character_equal = .false.
 
         ! Check they're chars, not just integers, otherwise we could get
         ! array bounds violations in downcase.
-        if (.not. is_char_valid(c1) .or. .not. is_char_valid(c2)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+        if (.not. is_character_valid(c1) .or. .not. is_character_valid(c2)) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
         if (c1 == c2) then
-            is_char_equal = .true.
+            is_character_equal = .true.
             return
         end if
 
@@ -2243,12 +2260,12 @@ contains
         ! raw bytes or Latin-1 characters.  Assume the former for now (see
         ! Bug#17011, and also casefiddle.c's casify_object).
         if (.not. buffers(current)%multibyte) then
-            if (is_single_byte_char(i1)) i1 = unibyte_to_char(i1)
-            if (is_single_byte_char(i2)) i2 = unibyte_to_char(i2)
+            if (is_single_byte_character(i1)) i1 = unibyte_to_character(i1)
+            if (is_single_byte_character(i2)) i2 = unibyte_to_character(i2)
         end if
 
-        is_char_equal = downcase(i1) == downcase(i2)
-    end function is_char_equal
+        is_character_equal = downcase(i1) == downcase(i2)
+    end function is_character_equal
 
     !> Return the translation of MSGID (plural MSGID_PLURAL) depending on N.
     !> MSGID is the singular form of the string to be converted;
@@ -2277,62 +2294,62 @@ contains
     !> Start of the current line, after moving `n' - 1 lines (default 1);
     !> `count' receives the number of lines scanned (n - 1).
     !> Port of editfns.c:bol.
-    integer(int64) function bol(n, count)
+    integer(int64) function beginning_of_line(n, count)
         integer(int64), intent(in), optional :: n
         integer(int64), intent(out), optional :: count
-        integer(int64) :: cnt, charpos, bytepos, counted
+        integer(int64) :: count_value, character_position, byte_position, counted
 
-        cnt = 0
-        if (present(n)) cnt = max(-BUF_BYTES_MAX, min(n - 1, BUF_BYTES_MAX))
-        if (present(count)) count = cnt
-        counted = scan_newline_from_point(cnt, charpos, bytepos)
-        bol = charpos
-    end function bol
+        count_value = 0
+        if (present(n)) count_value = max(-BUFFER_BYTES_MAXIMUM, min(n - 1, BUFFER_BYTES_MAXIMUM))
+        if (present(count)) count = count_value
+        counted = scan_newline_from_point(count_value, character_position, byte_position)
+        beginning_of_line = character_position
+    end function beginning_of_line
 
     !> Position of the first character on the current line (after moving
     !> `n' - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_bol.
-    integer(int64) function pos_bol(n)
+    integer(int64) function position_beginning_of_line(n)
         integer(int64), intent(in), optional :: n
 
-        pos_bol = bol(n)
-    end function pos_bol
+        position_beginning_of_line = beginning_of_line(n)
+    end function position_beginning_of_line
 
-    !> Like `pos_bol', but constrained to the field point is in (so it
+    !> Like `position_beginning_of_line', but constrained to the field point is in (so it
     !> stops after a minibuffer prompt).
     !> Port of editfns.c:Fline_beginning_position.
     integer(int64) function line_beginning_position(n)
         integer(int64), intent(in), optional :: n
-        integer(int64) :: count, charpos
+        integer(int64) :: count, character_position
 
-        charpos = bol(n, count)
-        line_beginning_position = constrain_to_field(charpos, buffers(current)%pt, count /= 0, .true.)
+        character_position = beginning_of_line(n, count)
+        line_beginning_position = constrain_to_field(character_position, buffers(current)%point, count /= 0, .true.)
     end function line_beginning_position
 
     !> Port of editfns.c:eol.
-    integer(int64) function eol(n)
+    integer(int64) function end_of_line(n)
         integer(int64), intent(in), optional :: n
-        integer(int64) :: cnt
+        integer(int64) :: count
 
-        cnt = 1
-        if (present(n)) cnt = max(-BUF_BYTES_MAX, min(n, BUF_BYTES_MAX))
-        if (cnt <= 0) cnt = cnt - 1
-        eol = find_before_next_newline(buffers(current)%pt, cnt)
-    end function eol
+        count = 1
+        if (present(n)) count = max(-BUFFER_BYTES_MAXIMUM, min(n, BUFFER_BYTES_MAXIMUM))
+        if (count <= 0) count = count - 1
+        end_of_line = find_before_next_newline(buffers(current)%point, count)
+    end function end_of_line
 
     !> Position of the last character on the current line (after moving
     !> `n' - 1 lines first).  Does not move point.  Port of editfns.c:Fpos_eol.
-    integer(int64) function pos_eol(n)
+    integer(int64) function position_end_of_line(n)
         integer(int64), intent(in), optional :: n
 
-        pos_eol = eol(n)
-    end function pos_eol
+        position_end_of_line = end_of_line(n)
+    end function position_end_of_line
 
-    !> Like `pos_eol', but constrained to the field point is in.
+    !> Like `position_end_of_line', but constrained to the field point is in.
     !> Port of editfns.c:Fline_end_position.
     integer(int64) function line_end_position(n)
         integer(int64), intent(in), optional :: n
 
-        line_end_position = constrain_to_field(eol(n), buffers(current)%pt, .false., .true.)
+        line_end_position = constrain_to_field(end_of_line(n), buffers(current)%point, .false., .true.)
     end function line_end_position
 
     ! ------------------------------------------------------------------
@@ -2347,43 +2364,43 @@ contains
         v = value_type(name="field")
     end function qfield
 
-    !> `prop' of the current buffer's character at `pos' (unallocated outside the
-    !> accessible text); get_char_property without overlays.  Not a port.
-    function char_property(pos, prop) result(v)
-        integer(int64), intent(in) :: pos
-        type(value_type), intent(in) :: prop
+    !> `property' of the current buffer's character at `position' (unallocated outside the
+    !> accessible text); get_character_property without overlays.  Not a port.
+    function character_property(position, property) result(v)
+        integer(int64), intent(in) :: position
+        type(value_type), intent(in) :: property
         type(value_type) :: v
         type(status_type) :: status
 
-        call get_text_property(pos, prop, v, status)
-    end function char_property
+        call get_text_property(position, property, v, status)
+    end function character_property
 
-    !> The value of `prop' that a character inserted at `position' would
+    !> The value of `property' that a character inserted at `position' would
     !> get from its neighbors.  Port of editfns.c:Fget_pos_property (text
     !> properties only).
-    function get_pos_property(position, prop) result(v)
+    function get_position_property(position, property) result(v)
         integer(int64), intent(in) :: position
-        type(value_type), intent(in) :: prop
+        type(value_type), intent(in) :: property
         type(value_type) :: v
         integer :: stickiness
 
-        stickiness = text_property_stickiness(prop, position)
+        stickiness = text_property_stickiness(property, position)
 
         if (stickiness > 0) then
-            v = char_property(position, prop)
-        else if (stickiness < 0 .and. position > buffers(current)%begv) then
-            v = char_property(position - 1, prop)
+            v = character_property(position, property)
+        else if (stickiness < 0 .and. position > buffers(current)%beginning_of_accessible_portion) then
+            v = character_property(position - 1, property)
         else
             v = value_type()
         end if
-    end function get_pos_property
+    end function get_position_property
 
-    !> The field around `pos' (default point): `beginning' and `end', limited
+    !> The field around `position' (default point): `beginning' and `end', limited
     !> by `beginning_limit' and `end_limit'.  With `merge_at_boundary', a
     !> position at the start of a field belongs to the previous one, and
     !> `boundary' fields are skipped.  Port of editfns.c:find_field.
-    subroutine find_field(pos, merge_at_boundary, beginning, end, beginning_limit, end_limit)
-        integer(int64), intent(in) :: pos
+    subroutine find_field(position, merge_at_boundary, beginning, end, beginning_limit, end_limit)
+        integer(int64), intent(in) :: position
         logical, intent(in) :: merge_at_boundary
         integer(int64), intent(out) :: beginning, end
         integer(int64), intent(in), optional :: beginning_limit, end_limit
@@ -2394,17 +2411,17 @@ contains
         at_field_start = .false.
         at_field_end = .false.
         boundary = value_type(name="boundary")
-        after_field = char_property(pos, qfield())
+        after_field = character_property(position, qfield())
 
-        if (pos > buffers(current)%begv) then
-            before_field = char_property(pos - 1, qfield())
+        if (position > buffers(current)%beginning_of_accessible_portion) then
+            before_field = character_property(position - 1, qfield())
         else
             ! Not nil: a buffer may start with a non-sticky field.
             before_field = after_field
         end if
 
         if (.not. merge_at_boundary) then
-            field = get_pos_property(pos, qfield())
+            field = get_position_property(position, qfield())
             if (.not. value_eq(field, after_field)) at_field_end = .true.
             if (.not. value_eq(field, before_field)) at_field_start = .true.
 
@@ -2417,133 +2434,134 @@ contains
         end if
 
         if (at_field_start) then
-            beginning = pos
+            beginning = position
         else
-            p = pos
+            p = position
 
             if (merge_at_boundary .and. value_eq(before_field, boundary)) then
-                p = previous_single_char_property_change(p, qfield(), beginning_limit)
+                p = previous_single_character_property_change(p, qfield(), beginning_limit)
             end if
 
-            beginning = previous_single_char_property_change(p, qfield(), beginning_limit)
+            beginning = previous_single_character_property_change(p, qfield(), beginning_limit)
         end if
 
         if (at_field_end) then
-            end = pos
+            end = position
         else
-            p = pos
+            p = position
 
             if (merge_at_boundary .and. value_eq(after_field, boundary)) then
-                p = next_single_char_property_change(p, qfield(), end_limit)
+                p = next_single_character_property_change(p, qfield(), end_limit)
             end if
 
-            end = next_single_char_property_change(p, qfield(), end_limit)
+            end = next_single_character_property_change(p, qfield(), end_limit)
         end if
     end subroutine find_field
 
-    !> Start of the field around `pos'.  Port of editfns.c:Ffield_beginning.
-    integer(int64) function field_beginning(pos, escape_from_edge, limit)
-        integer(int64), intent(in) :: pos
+    !> Start of the field around `position'.  Port of editfns.c:Ffield_beginning.
+    integer(int64) function field_beginning(position, escape_from_edge, limit)
+        integer(int64), intent(in) :: position
         logical, intent(in) :: escape_from_edge
         integer(int64), intent(in), optional :: limit
         integer(int64) :: end
 
-        call find_field(pos, escape_from_edge, field_beginning, end, beginning_limit=limit)
+        call find_field(position, escape_from_edge, field_beginning, end, beginning_limit=limit)
     end function field_beginning
 
-    !> End of the field around `pos'.  Port of editfns.c:Ffield_end.
-    integer(int64) function field_end(pos, escape_from_edge, limit)
-        integer(int64), intent(in) :: pos
+    !> End of the field around `position'.  Port of editfns.c:Ffield_end.
+    integer(int64) function field_end(position, escape_from_edge, limit)
+        integer(int64), intent(in) :: position
         logical, intent(in) :: escape_from_edge
         integer(int64), intent(in), optional :: limit
         integer(int64) :: beginning
 
-        call find_field(pos, escape_from_edge, beginning, field_end, end_limit=limit)
+        call find_field(position, escape_from_edge, beginning, field_end, end_limit=limit)
     end function field_end
 
-    !> Return the contents of the field surrounding POS as a string.
+    !> Return the contents of the field surrounding POSITION as a string.
     !> A field is a region of text with the same `field' property.
     !> Port of editfns.c:Ffield_string.
-    function field_string(pos) result(string)
-        integer(int64), intent(in) :: pos
+    function field_string(position) result(string)
+        integer(int64), intent(in) :: position
         type(value_type) :: string
         integer(int64) :: beginning, end
 
-        call find_field(pos, .false., beginning, end)
+        call find_field(position, .false., beginning, end)
         call make_buffer_string(beginning, end, .true., string)
     end function field_string
 
-    !> Return the contents of the field around POS, without text properties.
+    !> Return the contents of the field around POSITION, without text properties.
     !> A field is a region of text with the same `field' property.
     !> Port of editfns.c:Ffield_string_no_properties.
-    function field_string_no_properties(pos) result(text)
-        integer(int64), intent(in) :: pos
+    function field_string_no_properties(position) result(text)
+        integer(int64), intent(in) :: position
         character(len=:), allocatable :: text
         integer(int64) :: beginning, end
 
-        call find_field(pos, .false., beginning, end)
-        text = buf_bytes(buffers(current), char_to_byte(beginning), char_to_byte(end))
+        call find_field(position, .false., beginning, end)
+        text = buffer_bytes(buffers(current), character_to_byte(beginning), character_to_byte(end))
     end function field_string_no_properties
 
-    !> Delete the field around `pos'.  Port of editfns.c:Fdelete_field.
-    recursive subroutine delete_field(pos, status)
-        integer(int64), intent(in) :: pos
+    !> Delete the field around `position'.  Port of editfns.c:Fdelete_field.
+    recursive subroutine delete_field(position, status)
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
         integer(int64) :: beginning, end
 
-        call find_field(pos, .false., beginning, end)
-        if (beginning /= end) call del_range(beginning, end, status)
+        call find_field(position, .false., beginning, end)
+        if (beginning /= end) call delete_range(beginning, end, status)
     end subroutine delete_field
 
-    !> `new_pos' moved, if needed, to stay in the field of `old_pos'.  With
-    !> `escape_from_edge', `old_pos' at a field edge may count as in the
+    !> `new_position' moved, if needed, to stay in the field of `old_position'.  With
+    !> `escape_from_edge', `old_position' at a field edge may count as in the
     !> neighboring field; with `only_in_line', constrain only if the
     !> field edge is on the same line.  Port of
     !> editfns.c:Fconstrain_to_field (NEW-POS given; no
     !> INHIBIT-CAPTURE-PROPERTY).
-    integer(int64) function constrain_to_field(new_pos, old_pos, escape_from_edge, only_in_line) &
-        result(pos)
-        integer(int64), intent(in) :: new_pos, old_pos
+    integer(int64) function constrain_to_field(new_position, old_position, escape_from_edge, only_in_line) &
+        result(position)
+        integer(int64), intent(in) :: new_position, old_position
         logical, intent(in) :: escape_from_edge, only_in_line
-        integer(int64) :: field_bound, counted, nl
+        integer(int64) :: field_bound, counted, newline
         logical :: fwd
 
-        pos = new_pos
-        if (inhibit_field_text_motion .or. new_pos == old_pos) return
+        position = new_position
+        if (inhibit_field_text_motion .or. new_position == old_position) return
 
-        if (vtag(char_property(new_pos, qfield())) == V_NULL .and. vtag(char_property(old_pos, qfield())) == V_NULL) then
-            ! hazard-ok(short-circuit): char_property() takes any position.
-            if (.not. (new_pos > buffers(current)%begv .and. &
-                       vtag(char_property(new_pos - 1, qfield())) /= V_NULL)) then
-                ! hazard-ok(short-circuit): char_property() takes any position.
-                if (.not. (old_pos > buffers(current)%begv .and. &
-                           vtag(char_property(old_pos - 1, qfield())) /= V_NULL)) return
+        if (vtag(character_property(new_position, qfield())) == V_NULL .and. vtag(character_property(old_position, &
+                                                                                                     qfield())) == V_NULL) then
+            ! hazard-ok(short-circuit): character_property() takes any position.
+            if (.not. (new_position > buffers(current)%beginning_of_accessible_portion .and. &
+                       vtag(character_property(new_position - 1, qfield())) /= V_NULL)) then
+                ! hazard-ok(short-circuit): character_property() takes any position.
+                if (.not. (old_position > buffers(current)%beginning_of_accessible_portion .and. &
+                           vtag(character_property(old_position - 1, qfield())) /= V_NULL)) return
             end if
         end if
 
-        ! NEW_POS may not be in OLD_POS's field: try to move it there.
-        fwd = new_pos > old_pos
+        ! NEW_POSITION may not be in OLD_POSITION's field: try to move it there.
+        fwd = new_position > old_position
 
         if (fwd) then
-            field_bound = field_end(old_pos, escape_from_edge, new_pos)
+            field_bound = field_end(old_position, escape_from_edge, new_position)
         else
-            field_bound = field_beginning(old_pos, escape_from_edge, new_pos)
+            field_bound = field_beginning(old_position, escape_from_edge, new_position)
         end if
 
-        ! Unless escaping put the bound beyond NEW_POS already, constrain
+        ! Unless escaping put the bound beyond NEW_POSITION already, constrain
         ! it (with ONLY_IN_LINE, only to a bound on the same line).
-        if (merge(fwd,.not. fwd, field_bound < new_pos)) then
+        if (merge(fwd,.not. fwd, field_bound < new_position)) then
             if (only_in_line) then
                 if (fwd) then
-                    nl = find_newline(new_pos, field_bound, -1_int64, counted)
+                    newline = find_newline(new_position, field_bound, -1_int64, counted)
                 else
-                    nl = find_newline(new_pos, field_bound, 1_int64, counted)
+                    newline = find_newline(new_position, field_bound, 1_int64, counted)
                 end if
 
                 if (counted /= 0) return
             end if
 
-            pos = field_bound
+            position = field_bound
         end if
     end function constrain_to_field
 
@@ -2552,14 +2570,14 @@ contains
     !> and don't mark the buffer as really changed.
     !> Both characters must have the same length of multi-byte form.  Port of
     !> editfns.c:Fsubst_char_in_region (compositions are not ported).
-    recursive subroutine subst_char_in_region(start, end, fromchar, tochar, status, noundo)
+    recursive subroutine substitute_character_in_region(start, end, fromchar, tochar, status, noundo)
         integer(int64), intent(in) :: start, end
         integer(int32), intent(in) :: fromchar, tochar
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: noundo
-        integer(int64) :: pos, pos_byte, end_byte, pos_byte_next, s, e, k, m, changed, last_changed
+        integer(int64) :: position, position_byte, end_byte, position_byte_next, s, e, k, m, changed, last_changed
         integer(int32) :: nlen, tolen
-        character(len=MAX_MULTIBYTE_LENGTH) :: fromstr, tostr
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: fromstr, tostr
         character(len=:), allocatable :: saved_filename
         character(len=64) :: text
         logical :: no_undo, saved_undo, had_filename, rescan
@@ -2572,27 +2590,27 @@ contains
         call validate_region(s, e, status)
         if (.not. status%ok()) return
 
-        if (.not. is_char_valid(fromchar)) then
+        if (.not. is_character_valid(fromchar)) then
             write (text, '("expected integer (a character code), got ", i0)') fromchar
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(text))
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, trim(text))
             return
         end if
 
-        if (.not. is_char_valid(tochar)) then
+        if (.not. is_character_valid(tochar)) then
             write (text, '("expected integer (a character code), got ", i0)') tochar
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, trim(text))
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, trim(text))
             return
         end if
 
         if (buffers(current)%multibyte) then
-            call char_string(fromchar, fromstr, nlen, status)
+            call character_string(fromchar, fromstr, nlen, status)
             if (.not. status%ok()) return
-            call char_string(tochar, tostr, tolen, status)
+            call character_string(tochar, tostr, tolen, status)
             if (.not. status%ok()) return
 
             if (tolen /= nlen) then
-                call set_error(status, FM_GENERIC_ERROR, &
-                               format_message("Characters in `subst_char_in_region' have different byte-lengths"))
+                call set_error(status, GENERIC_ERROR_CODE, &
+                               format_message("Characters in `substitute_character_in_region' have different byte-lengths"))
                 return
             end if
         else
@@ -2618,29 +2636,29 @@ contains
 
         do
             rescan = .false.
-            pos = s
-            pos_byte = char_to_byte(pos)
-            end_byte = char_to_byte(e)
+            position = s
+            position_byte = character_to_byte(position)
+            end_byte = character_to_byte(e)
 
-            do while (pos_byte < end_byte)
-                pos_byte_next = pos_byte
+            do while (position_byte < end_byte)
+                position_byte_next = position_byte
 
                 if (buffers(current)%multibyte) then
-                    pos_byte_next = pos_byte_next + buf_next_char_len(buffers(current), pos_byte_next)
+                    position_byte_next = position_byte_next + buffer_next_character_length(buffers(current), position_byte_next)
                 else
-                    pos_byte_next = pos_byte_next + 1
+                    position_byte_next = position_byte_next + 1
                 end if
 
-                if (pos_byte_next - pos_byte == nlen) then
-                    if (buf_bytes(buffers(current), pos_byte, pos_byte_next) == fromstr(1:nlen)) then
+                if (position_byte_next - position_byte == nlen) then
+                    if (buffer_bytes(buffers(current), position_byte, position_byte_next) == fromstr(1:nlen)) then
                         if (changed < 0) then
                             ! We've already seen this and run the
                             ! before-change functions; this time we only
                             ! need to record the actual position.
-                            changed = pos
+                            changed = position
                         else if (changed == 0) then
                             changed = -1
-                            call modify_text(pos, e, status)
+                            call modify_text(position, e, status)
                             if (.not. status%ok()) exit
 
                             if (no_undo) then
@@ -2655,22 +2673,23 @@ contains
                             exit
                         end if
 
-                        if (.not. no_undo) call record_change(pos, 1_int64)
+                        if (.not. no_undo) call record_change(position, 1_int64)
 
                         do k = 0, nlen - 1
                             associate (t => buffers(current)%text)
                                 t%beginning(buffer_byte_index(buffers(current), &
-                                                              pos_byte + k):buffer_byte_index(buffers(current), pos_byte + k)) = &
+                                                              position_byte + k):buffer_byte_index(buffers(current), &
+                                                                                                   position_byte + k)) = &
                                     tostr(k + 1:k + 1)
                             end associate
                         end do
 
-                        last_changed = pos + 1
+                        last_changed = position + 1
                     end if
                 end if
 
-                pos_byte = pos_byte_next
-                pos = pos + 1
+                position_byte = position_byte_next
+                position = position + 1
             end do
 
             if (.not. rescan) exit
@@ -2696,7 +2715,7 @@ contains
                 deallocate (buffers(current)%filename)
             end if
         end if
-    end subroutine subst_char_in_region
+    end subroutine substitute_character_in_region
 
     ! ------------------------------------------------------------------
     ! Translating and transposing
@@ -2724,7 +2743,7 @@ contains
     !> element for character N is the mapping for the character with code
     !> N.  CHANGED gets the number of characters changed.  Port of
     !> editfns.c:Ftranslate_region_internal (a char-table TABLE).
-    recursive subroutine translate_region_by_char_table(start, end, table, changed, status)
+    recursive subroutine translate_region_by_character_table(start, end, table, changed, status)
         integer(int64), intent(in) :: start, end
         type(handle_type), intent(in) :: table
         integer(int64), intent(out) :: changed
@@ -2732,15 +2751,15 @@ contains
         character(len=:), allocatable :: purpose
 
         changed = 0
-        purpose = char_table_subtype(table, status)
+        purpose = character_table_subtype(table, status)
 
         if (.not. status%ok() .or. purpose /= "translation_table") then
-            call set_error(status, FM_GENERIC_ERROR, "Not a translation table")
+            call set_error(status, GENERIC_ERROR_CODE, "Not a translation table")
             return
         end if
 
         call translate_region(start, end, table, "", changed, status)
-    end subroutine translate_region_by_char_table
+    end subroutine translate_region_by_character_table
 
     !> Translate the characters from START to END by the char-table TABLE,
     !> or, when it is the null handle, by the string STRING_TABLE; CHANGED
@@ -2754,14 +2773,14 @@ contains
         integer(int64), intent(out) :: changed
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tt
-        character(len=MAX_MULTIBYTE_LENGTH) :: bytes
-        integer(int64) :: s, e, pos, pos_byte, end_pos, translatable_chars, k, string_byte
-        integer(int64) :: val
-        integer(int32) :: oc, nc, len1, str_len
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: bytes
+        integer(int64) :: s, e, position, position_byte, end_position, translatable_characters, k, string_byte
+        integer(int64) :: value
+        integer(int32) :: oc, nc, len1, string_length
         logical :: multibyte, string_multibyte
 
         changed = 0
-        translatable_chars = int(MAX_CHAR, int64) + 1
+        translatable_characters = int(MAXIMUM_CHARACTER, int64) + 1
         multibyte = buffers(current)%multibyte
         string_multibyte = .false.
         s = start
@@ -2772,76 +2791,76 @@ contains
         if (table%index == 0) then
             tt = string_table
             ! A string with a non-ASCII byte reads as multibyte text.
-            string_multibyte = verify(tt, ascii_chars()) /= 0
+            string_multibyte = verify(tt, ascii_characters()) /= 0
 
             if (.not. multibyte .and. string_multibyte) then
                 call string_make_unibyte(tt)
                 string_multibyte = .false.
             end if
 
-            translatable_chars = min(translatable_chars, len(tt, kind=int64))
+            translatable_characters = min(translatable_characters, len(tt, kind=int64))
         end if
 
-        pos = s
-        pos_byte = char_to_byte(pos)
-        end_pos = e
-        call modify_text(pos, end_pos, status)
+        position = s
+        position_byte = character_to_byte(position)
+        end_position = e
+        call modify_text(position, end_position, status)
         if (.not. status%ok()) return
 
-        do while (pos < end_pos)
+        do while (position < end_position)
             if (multibyte) then
-                call string_char_and_length(buffers(current)%text%beginning, &
-                                            buffer_byte_index(buffers(current), pos_byte), oc, len1)
+                call string_character_and_length(buffers(current)%text%beginning, &
+                                                 buffer_byte_index(buffers(current), position_byte), oc, len1)
             else
-                oc = buf_fetch_byte(buffers(current), pos_byte)
+                oc = buffer_fetch_byte(buffers(current), position_byte)
                 len1 = 1
             end if
 
-            if (oc < translatable_chars) then
+            if (oc < translatable_characters) then
                 nc = oc
 
                 if (table%index == 0) then
                     if (string_multibyte) then
                         ! (A code beyond the string's characters keeps its
                         ! character: upstream reads past the string there.)
-                        call string_char_byte(tt, int(oc, int64), string_byte)
+                        call string_character_byte(tt, int(oc, int64), string_byte)
 
                         if (string_byte > 0) then
-                            call string_char_and_length(tt, string_byte, nc, str_len)
-                            bytes = tt(string_byte:string_byte + str_len - 1)
+                            call string_character_and_length(tt, string_byte, nc, string_length)
+                            bytes = tt(string_byte:string_byte + string_length - 1)
                         end if
                     else
                         nc = ichar(tt(oc + 1:oc + 1), kind=int32)
 
                         if (nc > 127 .and. multibyte) then
-                            call char_string(unibyte_to_char(nc), bytes, str_len, status)
+                            call character_string(unibyte_to_character(nc), bytes, string_length, status)
                         else
-                            str_len = 1
+                            string_length = 1
                             bytes = tt(oc + 1:oc + 1)
                         end if
                     end if
                 else
-                    val = char_table_ref(table, int(oc))
+                    value = character_table_reference(table, int(oc))
 
-                    if (val >= 0 .and. val <= MAX_CHAR) then
-                        nc = int(val, int32)
-                        call char_string(nc, bytes, str_len, status)
+                    if (value >= 0 .and. value <= MAXIMUM_CHARACTER) then
+                        nc = int(value, int32)
+                        call character_string(nc, bytes, string_length, status)
                     end if
                 end if
 
                 if (nc /= oc) then
                     ! Simple one char to one char translation.
-                    if (len1 /= str_len) then
+                    if (len1 /= string_length) then
                         ! This is less efficient, because it moves the gap,
                         ! but it should handle multibyte characters correctly.
-                        call replace_range(pos, pos + 1, bytes(1:str_len), .true., status)
+                        call replace_range(position, position + 1, bytes(1:string_length), .true., status)
                         if (.not. status%ok()) return
-                        len1 = str_len
+                        len1 = string_length
                     else
-                        call record_change(pos, 1_int64)
-                        k = buffer_byte_index(buffers(current), pos_byte)
-                        buffers(current)%text%beginning(k:k + str_len - 1) = bytes(1:str_len)
-                        call signal_after_change(pos, 1_int64, 1_int64, status)
+                        call record_change(position, 1_int64)
+                        k = buffer_byte_index(buffers(current), position_byte)
+                        buffers(current)%text%beginning(k:k + string_length - 1) = bytes(1:string_length)
+                        call signal_after_change(position, 1_int64, 1_int64, status)
                         if (.not. status%ok()) return
                     end if
 
@@ -2849,25 +2868,25 @@ contains
                 end if
             end if
 
-            pos_byte = pos_byte + len1
-            pos = pos + 1
+            position_byte = position_byte + len1
+            position = position + 1
         end do
     end subroutine translate_region
 
     !> All 128 ASCII characters.  Not a port.
-    pure function ascii_chars() result(chars)
+    pure function ascii_characters() result(chars)
         character(len=128) :: chars
         integer :: k
 
         do k = 0, 127
             chars(k + 1:k + 1) = achar(k)
         end do
-    end function ascii_chars
+    end function ascii_characters
 
     !> Byte index in the multibyte text STRING of its character number N
     !> (counting from 0), or 0 if STRING has no such character.
-    !> Not a port (fns.c's string_char_to_byte, within the string).
-    pure subroutine string_char_byte(string, n, byte)
+    !> Not a port (fns.c's string_character_to_byte, within the string).
+    pure subroutine string_character_byte(string, n, byte)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: n
         integer(int64), intent(out) :: byte
@@ -2878,15 +2897,15 @@ contains
 
         do k = 0, n - 1
             if (i > len(string, kind=int64)) return
-            i = i + bytes_by_char_head(ichar(string(i:i), kind=int32))
+            i = i + bytes_by_character_head(ichar(string(i:i), kind=int32))
         end do
 
         if (i <= len(string, kind=int64)) byte = i
-    end subroutine string_char_byte
+    end subroutine string_character_byte
 
     !> Convert the multibyte text STRING to unibyte: each character becomes
     !> the byte of its low 8 bits (a raw byte its byte).  Not a port
-    !> (fns.c's string_make_unibyte, through character.h's CHAR_TO_BYTE8).
+    !> (fns.c's string_make_unibyte, through character.h's CHARACTER_TO_BYTE8).
     pure subroutine string_make_unibyte(string)
         character(len=:), allocatable, intent(inout) :: string
         character(len=:), allocatable :: unibyte
@@ -2898,9 +2917,9 @@ contains
         n = 0
 
         do while (i <= len(string, kind=int64))
-            call string_char_and_length(string, i, c, clen)
+            call string_character_and_length(string, i, c, clen)
             n = n + 1
-            unibyte(n:n) = achar(char_to_byte8(c))
+            unibyte(n:n) = achar(character_to_byte8(c))
             i = i + clen
         end do
 
@@ -2923,18 +2942,18 @@ contains
     !> editfns.c:transpose_markers.
     subroutine transpose_markers(start1, end1, start2, end2, start1_byte, end1_byte, start2_byte, end2_byte)
         integer(int64), intent(in) :: start1, end1, start2, end2, start1_byte, end1_byte, start2_byte, end2_byte
-        integer(int64) :: amt1, amt1_byte, amt2, amt2_byte, diff, diff_byte, mpos, m
+        integer(int64) :: amt1, amt1_byte, amt2, amt2_byte, diff, diff_byte, marker_position, m
 
         ! Update point as if it were a marker.
         associate (b => buffers(current))
-            if (b%pt >= start1) then
-                if (b%pt < end1) then
-                    call temp_set_point_both(b, b%pt + (end2 - end1), b%pt_byte + (end2_byte - end1_byte))
-                else if (b%pt < start2) then
-                    call temp_set_point_both(b, b%pt + (end2 - start2) - (end1 - start1), &
-                                             b%pt_byte + (end2_byte - start2_byte) - (end1_byte - start1_byte))
-                else if (b%pt < end2) then
-                    call temp_set_point_both(b, b%pt - (start2 - start1), b%pt_byte - (start2_byte - start1_byte))
+            if (b%point >= start1) then
+                if (b%point < end1) then
+                    call temporary_set_point_both(b, b%point + (end2 - end1), b%point_byte + (end2_byte - end1_byte))
+                else if (b%point < start2) then
+                    call temporary_set_point_both(b, b%point + (end2 - start2) - (end1 - start1), &
+                                                  b%point_byte + (end2_byte - start2_byte) - (end1_byte - start1_byte))
+                else if (b%point < end2) then
+                    call temporary_set_point_both(b, b%point - (start2 - start1), b%point_byte - (start2_byte - start1_byte))
                 end if
             end if
         end associate
@@ -2952,33 +2971,33 @@ contains
 
         do while (m /= 0)
             associate (marker => markers(m))
-                mpos = marker%bytepos
+                marker_position = marker%byte_position
 
-                if (mpos >= start1_byte .and. mpos < end2_byte) then
-                    if (mpos < end1_byte) then
-                        mpos = mpos + amt1_byte
-                    else if (mpos < start2_byte) then
-                        mpos = mpos + diff_byte
+                if (marker_position >= start1_byte .and. marker_position < end2_byte) then
+                    if (marker_position < end1_byte) then
+                        marker_position = marker_position + amt1_byte
+                    else if (marker_position < start2_byte) then
+                        marker_position = marker_position + diff_byte
                     else
-                        mpos = mpos - amt2_byte
+                        marker_position = marker_position - amt2_byte
                     end if
 
-                    marker%bytepos = mpos
+                    marker%byte_position = marker_position
                 end if
 
-                mpos = marker%charpos
+                marker_position = marker%character_position
 
-                if (mpos >= start1 .and. mpos < end2) then
-                    if (mpos < end1) then
-                        mpos = mpos + amt1
-                    else if (mpos < start2) then
-                        mpos = mpos + diff
+                if (marker_position >= start1 .and. marker_position < end2) then
+                    if (marker_position < end1) then
+                        marker_position = marker_position + amt1
+                    else if (marker_position < start2) then
+                        marker_position = marker_position + diff
                     else
-                        mpos = mpos - amt2
+                        marker_position = marker_position - amt2
                     end if
                 end if
 
-                marker%charpos = mpos
+                marker%character_position = marker_position
                 m = marker%next
             end associate
         end do
@@ -3005,9 +3024,9 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: leave_markers
         integer(int64) :: start1, end1, start2, end2, start1_byte, end1_byte, start2_byte, end2_byte
-        integer(int64) :: gap, len1, len_mid, len2, len1_byte, len_mid_byte, len2_byte, glumph, i
-        integer(int64), allocatable :: starts1(:), ends1(:), starts2(:), ends2(:), starts_mid(:), ends_mid(:)
-        type(value_type), allocatable :: plists1(:), plists2(:), plists_mid(:)
+        integer(int64) :: gap, len1, length_middle, len2, len1_byte, length_middle_byte, len2_byte, glumph, i
+        integer(int64), allocatable :: starts1(:), ends1(:), starts2(:), ends2(:), starts_middle(:), ends_middle(:)
+        type(value_type), allocatable :: plists1(:), plists2(:), plists_middle(:)
         character(len=:), allocatable :: text
         logical :: leave
 
@@ -3036,15 +3055,15 @@ contains
         len2 = end2 - start2
 
         if (start2 < end1) then
-            call set_error(status, FM_GENERIC_ERROR, "Transposed regions overlap")
+            call set_error(status, GENERIC_ERROR_CODE, "Transposed regions overlap")
             return
         else if ((start1 == end1 .or. start2 == end2) .and. end1 == start2) then
             ! Nothing to change for adjacent regions with one being empty.
             return
         end if
 
-        start1_byte = char_to_byte(start1)
-        end2_byte = char_to_byte(end2)
+        start1_byte = character_to_byte(start1)
+        end2_byte = character_to_byte(end2)
         ! Run the before-change hooks *before* we move the gap.
         call modify_text(start1, end2, status)
         if (.not. status%ok()) return
@@ -3061,8 +3080,8 @@ contains
             end if
         end if
 
-        start2_byte = char_to_byte(start2)
-        end1_byte = char_to_byte(end1)
+        start2_byte = character_to_byte(start2)
+        end1_byte = character_to_byte(end1)
         len1_byte = end1_byte - start1_byte
         len2_byte = end2_byte - start2_byte
         ! Maintaining undo and text properties needs to be done in terms of
@@ -3070,8 +3089,8 @@ contains
         ! of equal size in characters leave the text between them alone.
         call copy_intervals(buffers(current)%text%intervals, start1, len1, starts1, ends1, plists1)
         call copy_intervals(buffers(current)%text%intervals, start2, len2, starts2, ends2, plists2)
-        len_mid = start2 - end1
-        len_mid_byte = start2_byte - end1_byte
+        length_middle = start2 - end1
+        length_middle_byte = start2_byte - end1_byte
 
         if (len1 == len2) then
             if (end1 == start2) then
@@ -3088,7 +3107,7 @@ contains
             ! save the intervals of the mid to later restore them in their
             ! new position.
             call record_change(start1, end2 - start1)
-            call copy_intervals(buffers(current)%text%intervals, end1, len_mid, starts_mid, ends_mid, plists_mid)
+            call copy_intervals(buffers(current)%text%intervals, end1, length_middle, starts_middle, ends_middle, plists_middle)
         end if
 
         ! The gap is out of the way: the text is one run of bytes.
@@ -3096,19 +3115,19 @@ contains
 
         associate (t => buffers(current)%text%beginning)
             text = t(i:i + end2_byte - start1_byte - 1)
-            t(i:i + end2_byte - start1_byte - 1) = text(len1_byte + len_mid_byte + 1:)// &
-                                                   text(len1_byte + 1:len1_byte + len_mid_byte)//text(1:len1_byte)
+            t(i:i + end2_byte - start1_byte - 1) = text(len1_byte + length_middle_byte + 1:)// &
+                                                   text(len1_byte + 1:len1_byte + length_middle_byte)//text(1:len1_byte)
         end associate
 
-        call clear_charpos_cache(current)
+        call clear_character_position_cache(current)
 
         ! Grafting the copies (without inheriting) clears the text
         ! properties of each part first, as upstream's set_text_properties_1
         ! with no properties does.
         associate (t => buffers(current)%text)
             ! Restore intervals of the mid.
-            if (len1 /= len2) call graft_intervals_into_buffer(t%intervals, t%z, starts_mid, ends_mid, plists_mid, &
-                                                               start1 + len2, len_mid, .false.)
+            if (len1 /= len2) call graft_intervals_into_buffer(t%intervals, t%z, starts_middle, ends_middle, plists_middle, &
+                                                               start1 + len2, length_middle, .false.)
             call graft_intervals_into_buffer(t%intervals, t%z, starts1, ends1, plists1, end2 - len1, len1, .false.)
             call graft_intervals_into_buffer(t%intervals, t%z, starts2, ends2, plists2, start1, len2, .false.)
         end associate
@@ -3123,7 +3142,7 @@ contains
             ! still need to update their byte positions, because the
             ! transposed regions might include multibyte sequences which
             ! make some original byte positions of the markers invalid.
-            call adjust_markers_bytepos(start1, start1_byte, end2_byte)
+            call adjust_markers_byte_position(start1, start1_byte, end2_byte)
         end if
 
         call signal_after_change(start1, end2 - start1, end2 - start1, status)
@@ -3262,17 +3281,17 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: specification, buffer, text
         integer, allocatable :: discarded(:)
-        type(format_spec_type), allocatable :: info(:)
-        type(format_argument_type) :: arg
-        integer(int64) :: nformat, nargs, n, ispec, nspec, i, format0, num, num_end, field_width, precision, nchars, &
+        type(format_specification_type), allocatable :: info(:)
+        type(format_argument_type) :: argument
+        integer(int64) :: nformat, nargs, n, ispec, nspec, i, format0, number, number_end, field_width, precision, nchars, &
                           nchars_string, nbytes, width, padding
         integer(int32) :: c, clen
-        logical :: minus_flag, plus_flag, space_flag, sharp_flag, zero_flag, precision_given, arg_intervals, fmt_props
+        logical :: minus_flag, plus_flag, space_flag, sharp_flag, zero_flag, precision_given, argument_intervals, fmt_properties
         character :: conversion
         character(len=20) :: digits
 
         if (vtag(string) /= V_STRING) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected character(len=*)")
             return
         end if
 
@@ -3280,12 +3299,12 @@ contains
         nformat = len(specification, kind=int64)
         nargs = 0
         if (allocated(arguments%arguments)) nargs = size(arguments%arguments, kind=int64)
-        fmt_props = has_intervals(string)
+        fmt_properties = has_intervals(string)
         ! Upper bound on number of format specs.  Each uses at least 2
         ! characters.
         allocate (info(nformat/2 + 1), discarded(nformat))
         discarded = 0
-        arg_intervals = .false.
+        argument_intervals = .false.
         buffer = ""
         nchars = 0
         ! N is the argument index, ISPEC is the specification index.
@@ -3307,7 +3326,7 @@ contains
                     i = i + 1
 
                     do while (i <= nformat)
-                        if (is_char_head(iachar(specification(i:i)))) exit
+                        if (is_character_head(iachar(specification(i:i)))) exit
                         discarded(i) = 2
                         i = i + 1
                     end do
@@ -3329,12 +3348,12 @@ contains
 
             if (i <= nformat) then
                 if (is_digit(specification(i:i))) then
-                    call str2num(specification, i, num, num_end)
+                    call str2num(specification, i, number, number_end)
 
-                    if (num_end <= nformat) then
-                        if (specification(num_end:num_end) == "$") then
-                            n = num - 1
-                            i = num_end + 1
+                    if (number_end <= nformat) then
+                        if (specification(number_end:number_end) == "$") then
+                            n = number - 1
+                            i = number_end + 1
                         end if
                     end if
                 end if
@@ -3368,27 +3387,27 @@ contains
             ! Ignore flags when sprintf ignores them.
             space_flag = space_flag .and. .not. plus_flag
             zero_flag = zero_flag .and. .not. minus_flag
-            call str2num(specification, i, field_width, num_end)
+            call str2num(specification, i, field_width, number_end)
 
             if (field_width > STRING_BYTES_BOUND) then
-                call set_error(status, FM_GENERIC_ERROR, "Maximum string size exceeded")
+                call set_error(status, GENERIC_ERROR_CODE, "Maximum string size exceeded")
                 return
             end if
 
             precision_given = .false.
             precision = huge(0_int64)
 
-            if (num_end <= nformat) then
-                if (specification(num_end:num_end) == ".") then
+            if (number_end <= nformat) then
+                if (specification(number_end:number_end) == ".") then
                     precision_given = .true.
-                    call str2num(specification, num_end + 1, precision, num_end)
+                    call str2num(specification, number_end + 1, precision, number_end)
                 end if
             end if
 
-            i = num_end
+            i = number_end
 
             if (i > nformat) then
-                call set_error(status, FM_GENERIC_ERROR, "Format string ends in middle of format specifier")
+                call set_error(status, GENERIC_ERROR_CODE, "Format string ends in middle of format specifier")
                 return
             end if
 
@@ -3412,7 +3431,7 @@ contains
             n = n + 1
 
             if (n > nargs) then
-                call set_error(status, FM_GENERIC_ERROR, "Not enough arguments for format string")
+                call set_error(status, GENERIC_ERROR_CODE, "Not enough arguments for format string")
                 return
             end if
 
@@ -3421,40 +3440,41 @@ contains
 
             if (n == 0) then
                 ! A field number 0: the format string itself.
-                arg = format_argument_type()
-                arg%value = string
+                argument = format_argument_type()
+                argument%value = string
             else
-                arg = arguments%arguments(n)
+                argument = arguments%arguments(n)
             end if
 
             ! For 'S', prin1 the argument, and then treat like 's'.  For
             ! 's', princ any argument that is not a string or name.
-            if (conversion == "S" .or. (conversion == "s" .and. .not. (is_string_argument(arg) .or. is_name_argument(arg)))) then
-                select case (arg%tag)
+            if (conversion == "S" .or. (conversion == "s" .and. .not. (is_string_argument(argument) .or. is_name_argument( &
+                                                                       argument)))) then
+                select case (argument%tag)
                 case (FORMAT_ARGUMENT_INTEGER)
-                    write (digits, "(i0)") arg%integer_number
+                    write (digits, "(i0)") argument%integer_number
                     text = trim(digits)
                 case (FORMAT_ARGUMENT_REAL)
-                    text = float_to_string(arg%real_number)
+                    text = float_to_string(argument%real_number)
                 case default
-                    text = readable_text(arg%value, noescape=conversion == "s")
+                    text = readable_text(argument%value, noescape=conversion == "s")
                 end select
 
-                arg = format_argument_type()
-                arg%value = value_type(text=text)
+                argument = format_argument_type()
+                argument%value = value_type(text=text)
                 conversion = "s"
             else if (conversion == "c") then
-                if (arg%tag == FORMAT_ARGUMENT_INTEGER) then
-                    if (arg%integer_number < 0 .or. arg%integer_number > 127) then
-                        if (arg%integer_number > MAX_CHAR) then
-                            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+                if (argument%tag == FORMAT_ARGUMENT_INTEGER) then
+                    if (argument%integer_number < 0 .or. argument%integer_number > 127) then
+                        if (argument%integer_number > MAXIMUM_CHARACTER) then
+                            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
                             return
                         end if
 
-                        call char_to_string(int(arg%integer_number, int32), text, status)
+                        call character_to_string(int(argument%integer_number, int32), text, status)
                         if (.not. status%ok()) return
-                        arg = format_argument_type()
-                        arg%value = value_type(text=text)
+                        argument = format_argument_type()
+                        argument%value = value_type(text=text)
                         conversion = "s"
                     end if
                 end if
@@ -3462,13 +3482,13 @@ contains
                 zero_flag = .false.
             end if
 
-            if (is_name_argument(arg)) then
-                text = readable_text(arg%value)
-                arg%value = value_type(text=text)
+            if (is_name_argument(argument)) then
+                text = readable_text(argument%value)
+                argument%value = value_type(text=text)
             end if
 
             if (conversion == "s") then
-                text = xstring(arg%value)
+                text = xstring(argument%value)
 
                 if (precision_given .and. precision == 0) then
                     width = 0
@@ -3481,7 +3501,7 @@ contains
                     nbytes = 0
 
                     do while (nbytes < len(text, kind=int64))
-                        call string_char_and_length(text, nbytes + 1, c, clen)
+                        call string_character_and_length(text, nbytes + 1, c, clen)
                         if (precision_given .and. width + glyph_width(c) > precision) exit
                         width = width + glyph_width(c)
                         nbytes = nbytes + clen
@@ -3492,7 +3512,7 @@ contains
                 padding = max(0_int64, field_width - width)
                 ! If the format spec has properties, the padding on the
                 ! left counts in the info array.
-                if (fmt_props) info(ispec)%start = nchars
+                if (fmt_properties) info(ispec)%start = nchars
 
                 if (.not. minus_flag) then
                     buffer = buffer//repeat(" ", int(padding))
@@ -3501,7 +3521,7 @@ contains
 
                 ! If the properties will come from the argument, they are
                 ! not extended to the left over the padding.
-                if (.not. fmt_props) info(ispec)%start = nchars
+                if (.not. fmt_properties) info(ispec)%start = nchars
                 buffer = buffer//text(1:nbytes)
                 nchars = nchars + nchars_string
 
@@ -3514,27 +3534,28 @@ contains
 
                 ! If this argument has text properties, record where in
                 ! the result string it appears.
-                if (has_intervals(arg%value)) then
+                if (has_intervals(argument%value)) then
                     info(ispec)%intervals = .true.
-                    info(ispec)%argument = arg%value
-                    arg_intervals = .true.
+                    info(ispec)%argument = argument%value
+                    argument_intervals = .true.
                 end if
 
                 cycle
             end if
 
             if (scan(conversion, "cdefgioxXbB") == 0) then
-                call string_char_and_length(specification, i - 1, c, clen)
-                call set_error(status, FM_GENERIC_ERROR, "Invalid format operation %"//specification(i - 1:i - 2 + clen))
+                call string_character_and_length(specification, i - 1, c, clen)
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid format operation %"//specification(i - 1:i - 2 + clen))
                 return
             end if
 
-            if (.not. (arg%tag == FORMAT_ARGUMENT_INTEGER .or. (arg%tag == FORMAT_ARGUMENT_REAL .and. conversion /= "c"))) then
-                call set_error(status, FM_GENERIC_ERROR, "Format specifier doesn't match argument type")
+            if (.not. (argument%tag == FORMAT_ARGUMENT_INTEGER .or. (argument%tag == FORMAT_ARGUMENT_REAL .and. conversion &
+                                                                     /= "c"))) then
+                call set_error(status, GENERIC_ERROR_CODE, "Format specifier doesn't match argument type")
                 return
             end if
 
-            call format_number(arg, conversion, field_width, precision, precision_given, minus_flag, plus_flag, &
+            call format_number(argument, conversion, field_width, precision, precision_given, minus_flag, plus_flag, &
                                space_flag, sharp_flag, zero_flag, text, status)
             if (.not. status%ok()) return
             info(ispec)%start = nchars
@@ -3544,10 +3565,10 @@ contains
         end do
 
         result = value_type(text=buffer)
-        if (fmt_props) call translate_format_properties(string, discarded, info(1:nspec), result)
+        if (fmt_properties) call translate_format_properties(string, discarded, info(1:nspec), result)
 
         ! Add text properties from arguments.
-        if (arg_intervals) then
+        if (argument_intervals) then
             do i = 1, nspec
                 if (info(i)%intervals) call add_argument_properties(info(i), result)
             end do
@@ -3555,13 +3576,13 @@ contains
     end subroutine styled_format_value
 
     !> The output of a numeric %-sequence (CONVERSION one of c d e f g i
-    !> o x X b B) for ARG, an integer or a real64, with its width, precision
+    !> o x X b B) for ARGUMENT, an integer or a real64, with its width, precision
     !> and flags.  Port of the numeric part of editfns.c:styled_format
     !> (sprintf for integers and floats, bignum_to_c_string for floats
     !> beyond the unsigned 64-bit range).
-    subroutine format_number(arg, conversion, field_width, precision, precision_given, minus_flag, plus_flag, &
+    subroutine format_number(argument, conversion, field_width, precision, precision_given, minus_flag, plus_flag, &
                              space_flag, sharp_flag, zero_flag, item, status)
-        type(format_argument_type), intent(in) :: arg
+        type(format_argument_type), intent(in) :: argument
         character, intent(in) :: conversion
         integer(int64), intent(in) :: field_width, precision
         logical, intent(in) :: precision_given, minus_flag, plus_flag, space_flag
@@ -3583,7 +3604,7 @@ contains
         float_conversion = scan(conversion, "efg") > 0
         if (.not. (float_conversion .or. conversion == "c")) zero = zero .and. .not. precision_given
         prec = -1
-        if (precision_given) prec = min(precision, USEFUL_PRECISION_MAX)
+        if (precision_given) prec = min(precision, USEFUL_PRECISION_MAXIMUM)
         prefix = ""
 
         select case (conversion)
@@ -3597,30 +3618,30 @@ contains
         end select
 
         if (float_conversion) then
-            if (arg%tag == FORMAT_ARGUMENT_INTEGER) then
-                body = sprintf_float(arg%integer_number, conversion, prec, plus_flag, space_flag, sharp)
+            if (argument%tag == FORMAT_ARGUMENT_INTEGER) then
+                body = sprintf_float(argument%integer_number, conversion, prec, plus_flag, space_flag, sharp)
             else
-                body = sprintf_float(arg%real_number, conversion, prec, plus_flag, space_flag, sharp)
+                body = sprintf_float(argument%real_number, conversion, prec, plus_flag, space_flag, sharp)
             end if
         else if (conversion == "c") then
             ! Not sprintf, which might mishandle the precision.
-            body = achar(arg%integer_number)
+            body = achar(argument%integer_number)
             if (prec == 0) body = ""
-        else if (arg%tag == FORMAT_ARGUMENT_INTEGER) then
-            negative = arg%integer_number < 0
-            digits = integer_digits(arg%integer_number, base, conversion == "X")
-            body = sprintf_integer_digits(digits, negative, arg%integer_number /= 0, conversion, prec, plus_flag, &
+        else if (argument%tag == FORMAT_ARGUMENT_INTEGER) then
+            negative = argument%integer_number < 0
+            digits = integer_digits(argument%integer_number, base, conversion == "X")
+            body = sprintf_integer_digits(digits, negative, argument%integer_number /= 0, conversion, prec, plus_flag, &
                                           space_flag, sharp)
         else if (conversion == "d" .or. conversion == "i") then
             ! Truncate and then convert -0 to 0, to be more consistent
             ! with %x etc.; see Bug#31938.
-            x = aint(arg%real_number)
+            x = aint(argument%real_number)
             if (x == 0) x = 0
             body = sprintf_float(x, "f", 0_int64, plus_flag, space_flag, .false.)
             signedp = .not. is_digit(body(1:1))
             prec = min(precision, len(body, kind=int64) - merge(1, 0, signedp))
         else
-            x = arg%real_number
+            x = argument%real_number
 
             if (abs(x) < 2.0_real64**64) then
                 negative = x <= -1
@@ -3632,7 +3653,7 @@ contains
                 ! bignum_to_c_string writes it, then the sign and 0x
                 ! prefix as a separate prefix.
                 if (.not. ieee_is_finite(x)) then
-                    call set_error(status, FM_OVERFLOW_ERROR)
+                    call set_error(status, OVERFLOW_ERROR_CODE)
                     return
                 end if
 
@@ -3670,7 +3691,7 @@ contains
         padding = max(0_int64, field_width - numwidth)
 
         if (numwidth > STRING_BYTES_BOUND .or. padding > STRING_BYTES_BOUND - numwidth) then
-            call set_error(status, FM_GENERIC_ERROR, "Maximum string size exceeded")
+            call set_error(status, GENERIC_ERROR_CODE, "Maximum string size exceeded")
             return
         end if
 
@@ -3686,7 +3707,7 @@ contains
         end if
 
         if (zero .and. bytes > beglen) then
-            if (char_hexdigit(iachar(body(beglen + 1:beglen + 1), int32)) >= 0) then
+            if (character_hexdigit(iachar(body(beglen + 1:beglen + 1), int32)) >= 0) then
                 leading_zeros = leading_zeros + padding
                 padding = 0
             end if
@@ -3861,21 +3882,21 @@ contains
     subroutine translate_format_properties(string, discarded, info, result)
         type(value_type), intent(in) :: string
         integer, intent(in) :: discarded(:)
-        type(format_spec_type), intent(in) :: info(:)
+        type(format_specification_type), intent(in) :: info(:)
         type(value_type), intent(inout) :: result
         integer(int64), allocatable :: starts(:), ends(:)
         type(value_type), allocatable :: plists(:)
         type(status_type) :: st
-        integer(int64) :: bytepos, position, translated, fieldn, new_start
+        integer(int64) :: byte_position, position, translated, fieldn, new_start
         integer :: k
         logical :: changed
 
         call string_intervals(string, starts, ends, plists)
-        ! BYTEPOS is the byte position in the format string, POSITION
+        ! BYTE_POSITION is the byte position in the format string, POSITION
         ! the untranslated character position in it, TRANSLATED the
         ! translated character position in the result, and FIELDN the
         ! number of the next %-sequence we will come to.
-        bytepos = 1
+        byte_position = 1
         position = 0
         translated = 0
         fieldn = 1
@@ -3889,37 +3910,37 @@ contains
 
     contains
 
-        !> Advance BYTEPOS, POSITION, TRANSLATED and FIELDN up to POS.
-        subroutine advance(pos)
-            integer(int64), intent(in) :: pos
+        !> Advance BYTE_POSITION, POSITION, TRANSLATED and FIELDN up to POSITION.
+        subroutine advance(position_value)
+            integer(int64), intent(in) :: position_value
 
-            do while (position < pos .and. bytepos <= size(discarded))
-                if (discarded(bytepos) == 0) then
+            do while (position < position_value .and. byte_position <= size(discarded))
+                if (discarded(byte_position) == 0) then
                     position = position + 1
                     translated = translated + 1
-                else if (discarded(bytepos) == 1) then
+                else if (discarded(byte_position) == 1) then
                     position = position + 1
 
                     if (fieldn <= size(info)) then
-                        if (bytepos - 1 >= info(fieldn)%fbeg .and. translated == info(fieldn)%start) then
+                        if (byte_position - 1 >= info(fieldn)%fbeg .and. translated == info(fieldn)%start) then
                             translated = translated + info(fieldn)%end - info(fieldn)%start
                             fieldn = fieldn + 1
                         end if
                     end if
                 end if
 
-                bytepos = bytepos + 1
+                byte_position = byte_position + 1
             end do
         end subroutine advance
     end subroutine translate_format_properties
 
     !> Add the text properties of the string a %-sequence produced
-    !> (SPEC's argument) where it went in RESULT, the last range extended
+    !> (SPECIFICATION's argument) where it went in RESULT, the last range extended
     !> over the padding on the right.  Port of the part of
     !> editfns.c:styled_format that adds text properties from arguments
     !> (the copy of `composition' values is deferred).
-    subroutine add_argument_properties(spec, result)
-        type(format_spec_type), intent(in) :: spec
+    subroutine add_argument_properties(specification, result)
+        type(format_specification_type), intent(in) :: specification
         type(value_type), intent(inout) :: result
         integer(int64), allocatable :: starts(:), ends(:)
         type(value_type), allocatable :: plists(:)
@@ -3929,8 +3950,8 @@ contains
         integer :: k
         logical :: changed
 
-        call multibyte_chars_in_text(xstring(spec%argument), nchars, st)
-        call string_intervals(spec%argument, starts, ends, plists)
+        call multibyte_characters_in_text(xstring(specification%argument), nchars, st)
+        call string_intervals(specification%argument, starts, ends, plists)
         allocate (ranges(size(starts)))
 
         do k = 1, size(starts)
@@ -3939,38 +3960,39 @@ contains
             ranges(k)%plist = plists(k)
         end do
 
-        call extend_property_ranges(ranges, nchars, spec%end - spec%start)
+        call extend_property_ranges(ranges, nchars, specification%end - specification%start)
 
         do k = 1, size(ranges)
-            call string_add_text_properties(ranges(k)%start + spec%start, ranges(k)%end + spec%start, ranges(k)%plist, &
+            call string_add_text_properties(ranges(k)%start + specification%start, ranges(k)%end + specification%start, &
+                                            ranges(k)%plist, &
                                             result, changed, st)
         end do
     end subroutine add_argument_properties
 
     !> Convert the prefix of STRING from position I on from ASCII decimal
-    !> digits to a number NUM; NUM_END is the position of the first
-    !> non-digit.  NUM is huge(0_int64) on overflow, 0 if there is no
+    !> digits to a number NUMBER; NUMBER_END is the position of the first
+    !> non-digit.  NUMBER is huge(0_int64) on overflow, 0 if there is no
     !> number.  Port of editfns.c:str2num.
-    pure subroutine str2num(string, i, num, num_end)
+    pure subroutine str2num(string, i, number, number_end)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: i
-        integer(int64), intent(out) :: num, num_end
+        integer(int64), intent(out) :: number, number_end
         integer(int64) :: d
 
-        num = 0
-        num_end = i
+        number = 0
+        number_end = i
 
-        do while (num_end <= len(string, kind=int64))
-            if (.not. is_digit(string(num_end:num_end))) exit
-            d = iachar(string(num_end:num_end)) - iachar("0")
+        do while (number_end <= len(string, kind=int64))
+            if (.not. is_digit(string(number_end:number_end))) exit
+            d = iachar(string(number_end:number_end)) - iachar("0")
 
-            if (num > (huge(num) - d)/10) then
-                num = huge(num)
+            if (number > (huge(number) - d)/10) then
+                number = huge(number)
             else
-                num = 10*num + d
+                number = 10*number + d
             end if
 
-            num_end = num_end + 1
+            number_end = number_end + 1
         end do
     end subroutine str2num
 
@@ -3981,20 +4003,20 @@ contains
         is_digit = lge(c, "0") .and. lle(c, "9")
     end function is_digit
 
-    !> Whether ARG is a string value.  Not a port.
-    elemental logical function is_string_argument(arg)
-        type(format_argument_type), intent(in) :: arg
+    !> Whether ARGUMENT is a string value.  Not a port.
+    elemental logical function is_string_argument(argument)
+        type(format_argument_type), intent(in) :: argument
 
-        is_string_argument = arg%tag == FORMAT_ARGUMENT_VALUE .and. vtag(arg%value) == V_STRING
+        is_string_argument = argument%tag == FORMAT_ARGUMENT_VALUE .and. vtag(argument%value) == V_STRING
     end function is_string_argument
 
-    !> Whether ARG is a name or the null value (upstream's SYMBOLP).
+    !> Whether ARGUMENT is a name or the null value (upstream's SYMBOLP).
     !> Not a port.
-    elemental logical function is_name_argument(arg)
-        type(format_argument_type), intent(in) :: arg
+    elemental logical function is_name_argument(argument)
+        type(format_argument_type), intent(in) :: argument
 
-        is_name_argument = arg%tag == FORMAT_ARGUMENT_VALUE .and. &
-                           (vtag(arg%value) == V_NAME .or. vtag(arg%value) == V_NULL)
+        is_name_argument = argument%tag == FORMAT_ARGUMENT_VALUE .and. &
+                           (vtag(argument%value) == V_NAME .or. vtag(argument%value) == V_NULL)
     end function is_name_argument
 
     !> Whether the string value V has text properties (upstream's

@@ -26,7 +26,7 @@ module test_directory_editor_mode_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xstring, vtag, V_STRING, choice_type
@@ -34,24 +34,32 @@ module test_directory_editor_mode_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, close_buffer, current_buffer, &
                           is_buffer_live, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, goto_char, buffer_string, is_eob, line_beginning_position, &
-                                     line_end_position, delete_region
+    use editing_functions_mod, only: point, point_minimum, goto_character, buffer_string, is_end_of_buffer, &
+                                     line_beginning_position, line_end_position, delete_region
     use editing_commands_mod, only: forward_line
     use keyboard_mod, only: unread_command_events, discard_input
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                                      write_region, create_directory_internal
-    use files_mod, only: find_file_noselect, delete_directory, abbreviate_file_name, is_insert_directory_wildcard_in_dir, &
+    use files_mod, only: find_file_noselect, delete_directory, abbreviate_file_name, is_insert_directory_wildcard_in_directory, &
                          file_relative_name
-    use directory_editor_mode_mod, only: dired, dired_noselect, dired_get_filename, dired_goto_file, dired_get_marked_files, &
-                                         dired_toggle_marks, dired_mark_files_regexp, &
-                                         dired_mark_files_containing_regexp, dired_flag_file_deletion, dired_do_delete, &
-                                         dired_do_flagged_delete, dired_find_file, dired_up_directory, dired_revert, &
-                                         dired_create_directory, dired_file_name_at_point, dired_buffers_for_dir, &
-                                         dired_sort_toggle, dired_unmark_all_files, dired_mark_1, dired_insert_directory, &
-                                         dired_deletion_confirmer, dired_auto_revert_buffer, dired_always_read_filesystem, &
-                                         dired_free_space, DIRED_FREE_SPACE_SEPARATE, dired_switches_in_mode_line, &
-                                         DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, DIRED_SWITCHES_IN_MODE_LINE_AS_IS, &
-                                         DIRED_LOCALP_ABSOLUTE, DIRED_LOCALP_RELATIVE, DIRED_LOCALP_NO_DIR, DIRED_ARG_NONE
+    use directory_editor_mode_mod, only: directory_editor, directory_editor_noselect, directory_editor_get_filename, &
+                                         directory_editor_goto_file, directory_editor_get_marked_files, &
+                                         directory_editor_toggle_marks, directory_editor_mark_files_regular_expression, &
+                                         directory_editor_mark_files_containing_regular_expression, &
+                                         directory_editor_flag_file_deletion, directory_editor_do_delete, &
+                                         directory_editor_do_flagged_delete, directory_editor_find_file, &
+                                         directory_editor_up_directory, directory_editor_revert, &
+                                         directory_editor_create_directory, directory_editor_file_name_at_point, &
+                                         directory_editor_buffers_for_directory, directory_editor_sort_toggle, &
+                                         directory_editor_unmark_all_files, directory_editor_mark_1, &
+                                         directory_editor_insert_directory, directory_editor_deletion_confirmer, &
+                                         directory_editor_auto_revert_buffer, directory_editor_always_read_filesystem, &
+                                         directory_editor_free_space, DIRECTORY_EDITOR_FREE_SPACE_SEPARATE, &
+                                         directory_editor_switches_in_mode_line, &
+                                         DIRECTORY_EDITOR_SWITCHES_IN_MODE_LINE_SORT_ORDER, &
+                                         DIRECTORY_EDITOR_SWITCHES_IN_MODE_LINE_AS_IS, DIRECTORY_EDITOR_LOCALP_ABSOLUTE, &
+                                         DIRECTORY_EDITOR_LOCALP_RELATIVE, DIRECTORY_EDITOR_LOCALP_NO_DIRECTORY, &
+                                         DIRECTORY_EDITOR_ARGUMENT_NONE
     use string_type_mod, only: string_type
     use data_mod, only: choice_state
     implicit none(type, external)
@@ -60,7 +68,7 @@ module test_directory_editor_mode_mod
     public :: collect_directory_editor_mode_mod
 
     !> The test directory, under the build directory.
-    character(len=*), parameter :: subdir = "build/test-dired-mode"
+    character(len=*), parameter :: subdirectory = "build/test-dired-mode"
 
 contains
 
@@ -69,9 +77,9 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("dired-buffer", test_dired_buffer), &
+                    new_unittest("dired-buffer", test_directory_editor_buffer), &
                     new_unittest("dired-marks", test_marks), &
-                    new_unittest("dired-mark-regexp", test_mark_regexp), &
+                    new_unittest("dired-mark-regexp", test_mark_regular_expression), &
                     new_unittest("dired-flag-and-delete", test_flag_and_delete), &
                     new_unittest("dired-create-directory", test_create_directory), &
                     new_unittest("dired-up-directory", test_up_directory), &
@@ -85,15 +93,15 @@ contains
                     new_unittest("dired-test-bug27940", test_bug27940), &
                     new_unittest("dired-test-ls-error-message", test_ls_error), &
                     new_unittest("files-tests-insert-directory-shows-files", test_insert_directory_files), &
-                    new_unittest("files-tests-insert-directory-wildcard-in-dir-p", test_wildcard_in_dir) &
+                    new_unittest("files-tests-insert-directory-wildcard-in-dir-p", test_wildcard_in_directory) &
                     ]
     end subroutine collect_directory_editor_mode_mod
 
     !> The absolute name of the test directory, as a directory.
-    function tdir() result(dir)
-        character(len=:), allocatable :: dir
+    function tdir() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
     end function tdir
 
     !> A fresh, empty test directory; *scratch* current and shown alone.
@@ -101,19 +109,19 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
         buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         call show_alone()
-        call kill_dired_buffers()
+        call kill_directory_editor_buffers()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call create_directory_internal(tdir(), st)
-        dired_deletion_confirmer => always_yes
-        dired_auto_revert_buffer = .false.
-        dired_always_read_filesystem = .false.
+        directory_editor_deletion_confirmer => always_yes
+        directory_editor_auto_revert_buffer = .false.
+        directory_editor_always_read_filesystem = .false.
     end subroutine setup
 
     !> Remove the test directory and the buffers showing it.
@@ -121,33 +129,33 @@ contains
         type(status_type) :: st
         type(handle_type) :: buffer
 
-        call kill_dired_buffers()
+        call kill_directory_editor_buffers()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
-        dired_deletion_confirmer => null()
+        directory_editor_deletion_confirmer => null()
     end subroutine teardown
 
     !> Kill every Dired buffer of the test directory and its subdirectories.
-    subroutine kill_dired_buffers()
-        type(handle_type), allocatable :: bufs(:)
+    subroutine kill_directory_editor_buffers()
+        type(handle_type), allocatable :: buffers(:)
         type(status_type) :: st
         integer :: k
 
-        bufs = dired_buffers_for_dir(tdir())
+        buffers = directory_editor_buffers_for_directory(tdir())
 
-        do k = 1, size(bufs)
-            call close_buffer(bufs(k), st)
+        do k = 1, size(buffers)
+            call close_buffer(buffers(k), st)
         end do
 
-        bufs = dired_buffers_for_dir(tdir()//"sub/")
+        buffers = directory_editor_buffers_for_directory(tdir()//"sub/")
 
-        do k = 1, size(bufs)
-            call close_buffer(bufs(k), st)
+        do k = 1, size(buffers)
+            call close_buffer(buffers(k), st)
         end do
-    end subroutine kill_dired_buffers
+    end subroutine kill_directory_editor_buffers
 
-    !> A `dired_deletion_confirmer' that always says yes.
+    !> A `directory_editor_deletion_confirmer' that always says yes.
     recursive subroutine always_yes(prompt, answer, status)
         character(len=*), intent(in) :: prompt
         logical, intent(out) :: answer
@@ -220,7 +228,7 @@ contains
         type(status_type) :: st
         integer :: k
 
-        call dired_get_marked_files(files, st, localp=DIRED_LOCALP_NO_DIR)
+        call directory_editor_get_marked_files(files, st, localp=DIRECTORY_EDITOR_LOCALP_NO_DIRECTORY)
         s = ""
 
         do k = 1, size(files)
@@ -239,25 +247,25 @@ contains
         call create_directory_internal(tdir()//"sub", st)
     end subroutine make_tree
 
-    subroutine test_dired_buffer(error)
+    subroutine test_directory_editor_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: file, text, dname, disp
         type(value_type) :: v
         logical :: found
-        integer(int64) :: i, pos
+        integer(int64) :: i, position
 
         call setup()
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buffer, st)
+            call directory_editor_noselect(tdir(), buffer, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call set_buffer(buffer, st)
             i = current
-            call check(error, buffers(i)%major_mode == "dired_mode" .and. buffers(i)%read_only, "mode and read-only")
+            call check(error, buffers(i)%major_mode == "directory_editor_mode" .and. buffers(i)%read_only, "mode and read-only")
             if (allocated(error)) exit body
             ! The header line, then `ls -al' output indented by two.
             text = buffer_string()
@@ -265,7 +273,7 @@ contains
             dname = dname(1:len(dname) - 1)
             call check(error, index(text, "  "//dname//":"//achar(10)) == 1, text)
             if (allocated(error)) exit body
-            ! With `dired_free_space' `first', the "total" line is gone and the
+            ! With `directory_editor_free_space' `first', the "total" line is gone and the
             ! header line's colon shows the available space.
             call check(error, index(text, achar(10)//"  total") == 0, text)
             if (allocated(error)) exit body
@@ -276,59 +284,59 @@ contains
             call check(error, index(disp, ": (") == 1 .and. index(disp, " available)") > 0, disp)
             if (allocated(error)) exit body
             ! Point starts on the first file that is not . or ..
-            call dired_get_filename(file, found, st, DIRED_LOCALP_NO_DIR)
+            call directory_editor_get_filename(file, found, st, DIRECTORY_EDITOR_LOCALP_NO_DIRECTORY)
             call check(error, found .and. file == "a.txt", "point on a.txt")
             if (allocated(error)) exit body
-            pos = dired_goto_file(tdir()//"c.el", st)
-            call check(error, pos > 0 .and. pos == point(), "goto c.el")
+            position = directory_editor_goto_file(tdir()//"c.el", st)
+            call check(error, position > 0 .and. position == point(), "goto c.el")
             if (allocated(error)) exit body
-            call dired_get_filename(file, found, st)
+            call directory_editor_get_filename(file, found, st)
             call check(error, found .and. file == tdir()//"c.el", file)
             if (allocated(error)) exit body
-            call dired_get_filename(file, found, st, DIRED_LOCALP_RELATIVE)
+            call directory_editor_get_filename(file, found, st, DIRECTORY_EDITOR_LOCALP_RELATIVE)
             call check(error, found .and. file == "c.el", file)
             if (allocated(error)) exit body
-            ! A second `dired' of the same directory reuses the buffer.
-            call dired(tdir(), st)
+            ! A second `directory_editor' of the same directory reuses the buffer.
+            call directory_editor(tdir(), st)
             call check(error, st%ok() .and. same_handle(current_buffer(), buffer), "same buffer")
         end block body
 
         call teardown()
-    end subroutine test_dired_buffer
+    end subroutine test_directory_editor_buffer
 
     subroutine test_marks(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call setup()
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buffer, st)
+            call directory_editor_noselect(tdir(), buffer, st)
             call set_buffer(buffer, st)
-            pos = dired_goto_file(tdir()//"b.txt", st)
-            call dired_mark_1(1_int64, .false., st)
+            position = directory_editor_goto_file(tdir()//"b.txt", st)
+            call directory_editor_mark_1(1_int64, .false., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, marked_names(), "b.txt")
             if (allocated(error)) exit body
-            call goto_char(pos)
+            call goto_character(position)
             call check(error, line_mark() == "*", this_line())
             if (allocated(error)) exit body
             ! Toggling marks all the others (not . and ..).
-            call dired_toggle_marks(st)
+            call directory_editor_toggle_marks(st)
             call check(error, marked_names(), "a.txt c.el sub")
             if (allocated(error)) exit body
-            call dired_unmark_all_files(achar(13), st)
+            call directory_editor_unmark_all_files(achar(13), st)
             call check(error, marked_count() == 0, "no marks left")
         end block body
 
         call teardown()
     end subroutine test_marks
 
-    subroutine test_mark_regexp(error)
+    subroutine test_mark_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
@@ -337,43 +345,43 @@ contains
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buffer, st)
+            call directory_editor_noselect(tdir(), buffer, st)
             call set_buffer(buffer, st)
-            call dired_mark_files_regexp("\.txt\'", st)
+            call directory_editor_mark_files_regular_expression("\.txt\'", st)
             call check(error, marked_names(), "a.txt b.txt")
         end block body
 
         call teardown()
-    end subroutine test_mark_regexp
+    end subroutine test_mark_regular_expression
 
     subroutine test_flag_and_delete(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call setup()
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buffer, st)
+            call directory_editor_noselect(tdir(), buffer, st)
             call set_buffer(buffer, st)
-            pos = dired_goto_file(tdir()//"a.txt", st)
-            call dired_flag_file_deletion(1_int64, .false., st)
-            call goto_char(pos)
+            position = directory_editor_goto_file(tdir()//"a.txt", st)
+            call directory_editor_flag_file_deletion(1_int64, .false., st)
+            call goto_character(position)
             call check(error, line_mark() == "D", this_line())
             if (allocated(error)) exit body
-            call dired_do_flagged_delete(st)
+            call directory_editor_do_flagged_delete(st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. file_exists(tdir()//"a.txt"), "a.txt deleted")
             if (allocated(error)) exit body
-            call check(error, dired_goto_file(tdir()//"a.txt", st) == 0, "entry removed")
+            call check(error, directory_editor_goto_file(tdir()//"a.txt", st) == 0, "entry removed")
             if (allocated(error)) exit body
-            call check(error, dired_goto_file(tdir()//"b.txt", st) > 0, "b.txt still listed")
+            call check(error, directory_editor_goto_file(tdir()//"b.txt", st) > 0, "b.txt still listed")
             if (allocated(error)) exit body
-            ! `dired_do_delete' with no marks deletes the file at point.
-            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
+            ! `directory_editor_do_delete' with no marks deletes the file at point.
+            call directory_editor_do_delete(DIRECTORY_EDITOR_ARGUMENT_NONE, 0_int64, st)
             call check(error, st%ok() .and. .not. file_exists(tdir()//"b.txt"), format_error(st))
         end block body
 
@@ -389,15 +397,15 @@ contains
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buffer, st)
+            call directory_editor_noselect(tdir(), buffer, st)
             call set_buffer(buffer, st)
-            call dired_create_directory(tdir()//"new/deep", st)
+            call directory_editor_create_directory(tdir()//"new/deep", st)
             call check(error, st%ok() .and. is_file_directory(tdir()//"new/deep"), format_error(st))
             if (allocated(error)) exit body
             ! The topmost new directory is added to the listing.
-            call check(error, dired_goto_file(tdir()//"new", st) > 0, "new listed")
+            call check(error, directory_editor_goto_file(tdir()//"new", st) > 0, "new listed")
             if (allocated(error)) exit body
-            call dired_create_directory(tdir()//"new", st)
+            call directory_editor_create_directory(tdir()//"new", st)
             call check(error, format_error(st), "Cannot create directory "//tdir()//"new: file exists")
         end block body
 
@@ -415,14 +423,14 @@ contains
         call make_tree()
 
         body: block
-            call dired(tdir()//"sub/", st)
+            call directory_editor(tdir()//"sub/", st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             buffer = current_buffer()
-            call dired_up_directory(st)
+            call directory_editor_up_directory(st)
             call check(error, st%ok() .and. .not. (same_handle(current_buffer(), buffer)), format_error(st))
             if (allocated(error)) exit body
-            call dired_get_filename(file, found, st, DIRED_LOCALP_NO_DIR)
+            call directory_editor_get_filename(file, found, st, DIRECTORY_EDITOR_LOCALP_NO_DIRECTORY)
             call check(error, found .and. file == "sub", "point on sub")
         end block body
 
@@ -438,35 +446,35 @@ contains
         call make_tree()
 
         body: block
-            call dired_noselect(tdir(), buffer, st)
+            call directory_editor_noselect(tdir(), buffer, st)
             call set_buffer(buffer, st)
             call check(error, buffers(current)%mode_name, "Dired by name")
             if (allocated(error)) exit body
-            call dired_sort_toggle(st)
+            call directory_editor_sort_toggle(st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, buffers(current)%mode_name, "Dired by date")
             if (allocated(error)) exit body
-            call dired_sort_toggle(st)
+            call directory_editor_sort_toggle(st)
             call check(error, buffers(current)%mode_name, "Dired by name")
             if (allocated(error)) exit body
-            ! The other values of `dired_switches_in_mode_line'.
-            dired_switches_in_mode_line%characters = 0
-            call dired_sort_toggle(st)
+            ! The other values of `directory_editor_switches_in_mode_line'.
+            directory_editor_switches_in_mode_line%characters = 0
+            call directory_editor_sort_toggle(st)
             call check(error, buffers(current)%mode_name, "Dired")
             if (allocated(error)) exit body
-            dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_AS_IS
-            call check(error, dired_switches_in_mode_line%characters < 0, "number cleared")
+            directory_editor_switches_in_mode_line = DIRECTORY_EDITOR_SWITCHES_IN_MODE_LINE_AS_IS
+            call check(error, directory_editor_switches_in_mode_line%characters < 0, "number cleared")
             if (allocated(error)) exit body
-            call dired_sort_toggle(st)
+            call directory_editor_sort_toggle(st)
             call check(error, index(buffers(current)%mode_name, "Dired -") == 1, buffers(current)%mode_name)
             if (allocated(error)) exit body
-            dired_switches_in_mode_line%procedure => switches_length
-            call dired_sort_toggle(st)
+            directory_editor_switches_in_mode_line%procedure => switches_length
+            call directory_editor_sort_toggle(st)
             call check(error, buffers(current)%mode_name(1:len("Dired length ")), "Dired length ")
         end block body
 
-        dired_switches_in_mode_line = DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER
+        directory_editor_switches_in_mode_line = DIRECTORY_EDITOR_SWITCHES_IN_MODE_LINE_SORT_ORDER
         call teardown()
 
     contains
@@ -483,7 +491,7 @@ contains
 
     !> Keys typed in a Dired buffer: m, n, u and t.
     subroutine test_keys(error)
-        use keyboard_mod, only: kbd_store_bytes, command_loop
+        use keyboard_mod, only: keyboard_store_bytes, command_loop
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
@@ -491,14 +499,14 @@ contains
         call make_tree()
 
         body: block
-            call dired(tdir(), st)
+            call directory_editor(tdir(), st)
             call show_alone()
             ! On a.txt: mark it and b.txt (m m), then go back and unmark b.txt.
-            call kbd_store_bytes("mmpu")
+            call keyboard_store_bytes("mmpu")
             call command_loop(st)
             call check(error, marked_names(), "a.txt")
             if (allocated(error)) exit body
-            call kbd_store_bytes("t")
+            call keyboard_store_bytes("t")
             call command_loop(st)
             call check(error, marked_names(), "b.txt c.el sub")
         end block body
@@ -509,7 +517,7 @@ contains
     !> C-x d RET lists the default directory; d flags a file and x deletes
     !> it after a yes-or-no question.
     subroutine test_cx_d(error)
-        use keyboard_mod, only: kbd_store_bytes, command_loop, last_message
+        use keyboard_mod, only: keyboard_store_bytes, command_loop, last_message
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: file
@@ -520,16 +528,16 @@ contains
 
         body: block
             buffers(current)%directory = tdir()
-            dired_deletion_confirmer => null()
-            call kbd_store_bytes(achar(24)//"d"//achar(13))
+            directory_editor_deletion_confirmer => null()
+            call keyboard_store_bytes(achar(24)//"d"//achar(13))
             call command_loop(st)
-            call check(error, buffers(current)%major_mode == "dired_mode" .and. &
+            call check(error, buffers(current)%major_mode == "directory_editor_mode" .and. &
                        buffers(current)%directory == abbreviate_file_name(tdir()), "C-x d RET")
             if (allocated(error)) exit body
-            call dired_get_filename(file, found, st, DIRED_LOCALP_NO_DIR)
+            call directory_editor_get_filename(file, found, st, DIRECTORY_EDITOR_LOCALP_NO_DIRECTORY)
             call check(error, found .and. file == "a.txt", "on a.txt")
             if (allocated(error)) exit body
-            call kbd_store_bytes("dxyes"//achar(13))
+            call keyboard_store_bytes("dxyes"//achar(13))
             call command_loop(st)
             call check(error,.not. file_exists(tdir()//"a.txt"), last_message)
             if (allocated(error)) exit body
@@ -550,13 +558,13 @@ contains
         call setup()
 
         body: block
-            dired_always_read_filesystem = .true.
+            directory_editor_always_read_filesystem = .true.
             call make_file("test", "foo")
             call find_file_noselect(tdir()//"test", fbuf, st)
-            call dired(tdir(), st)
+            call directory_editor(tdir(), st)
             call make_file("test", "bar")
-            call dired_mark_files_containing_regexp("bar", st)
-            call dired_get_marked_files(files, st, distinguish_one_marked=.true., one_marked=one)
+            call directory_editor_mark_files_containing_regular_expression("bar", st)
+            call directory_editor_get_marked_files(files, st, distinguish_one_marked=.true., one_marked=one)
             call check(error, one .and. size(files) == 1, "one marked")
             if (allocated(error)) exit body
             call check(error, files(1)%text, tdir()//"test")
@@ -570,7 +578,7 @@ contains
     subroutine test_bug27243_01(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer, dirbuf
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffers(:)
         type(status_type) :: st
         character(len=:), allocatable :: name
         logical :: found
@@ -579,9 +587,9 @@ contains
         call setup()
 
         body: block
-            dired_auto_revert_buffer = .true.
-            bufs = dired_buffers_for_dir(tdir())
-            call check(error, size(bufs) == 0, "no Dired buffer yet")
+            directory_editor_auto_revert_buffer = .true.
+            buffers = directory_editor_buffers_for_directory(tdir())
+            call check(error, size(buffers) == 0, "no Dired buffer yet")
             if (allocated(error)) exit body
             call find_file_noselect(tdir(), dirbuf, st)
             call check(error, st%ok(), format_error(st))
@@ -589,21 +597,21 @@ contains
             call set_buffer(dirbuf, st)
             call create_directory_internal(tdir()//"test-subdir", st)
             ! Point must be at end-of-buffer.
-            call check(error, is_eob(), "at eob")
+            call check(error, is_end_of_buffer(), "at eob")
             if (allocated(error)) exit body
-            call dired(tdir(), st)
+            call directory_editor(tdir(), st)
             ! Previous dired call shouldn't create a new buffer.
-            bufs = dired_buffers_for_dir(tdir())
-            call check(error, size(bufs) == 1 .and. same_handle(current_buffer(), dirbuf), "one buffer")
+            buffers = directory_editor_buffers_for_directory(tdir())
+            call check(error, size(buffers) == 1 .and. same_handle(current_buffer(), dirbuf), "one buffer")
             if (allocated(error)) exit body
             buffer = current_buffer()
             pt1 = point()
             call make_file("test-subdir/test-file", "Test")
             ! Sanity check: point should now be on the subdirectory.
-            call dired_file_name_at_point(name, found)
+            call directory_editor_file_name_at_point(name, found)
             call check(error, found .and. name == abbreviate_file_name(tdir()//"test-subdir/"), name)
             if (allocated(error)) exit body
-            call dired_find_file(st)
+            call directory_editor_find_file(st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             pt2 = point()
@@ -611,7 +619,7 @@ contains
             ! Sanity check: point should now be back on the subdirectory.
             call check(error, point() == pt1, "back on test-subdir")
             if (allocated(error)) exit body
-            call dired_find_file(st)
+            call directory_editor_find_file(st)
             call check(error, point() == pt2, "on test-file again")
         end block body
 
@@ -630,22 +638,22 @@ contains
         call setup()
 
         body: block
-            dired_auto_revert_buffer = .true.
+            directory_editor_auto_revert_buffer = .true.
             call find_file_noselect(tdir(), dirbuf, st)
             call create_directory_internal(tdir()//"test-subdir", st)
-            call dired(tdir(), st)
+            call directory_editor(tdir(), st)
             buffer = current_buffer()
             pt1 = point()
             call make_file("test-subdir/test-file", "Test")
-            call dired_file_name_at_point(name, found)
+            call directory_editor_file_name_at_point(name, found)
             call check(error, found .and. name == abbreviate_file_name(tdir()//"test-subdir/"), name)
             if (allocated(error)) exit body
-            call dired_find_file(st)
+            call directory_editor_find_file(st)
             call pop_to(buffer)
             call check(error, point() == pt1, "back on test-subdir")
             if (allocated(error)) exit body
-            call dired(tdir(), st)
-            call dired_file_name_at_point(name, found)
+            call directory_editor(tdir(), st)
+            call directory_editor_file_name_at_point(name, found)
             call check(error, found .and. name == abbreviate_file_name(tdir()//"test-subdir/"), name)
         end block body
 
@@ -663,31 +671,31 @@ contains
 
     !> Port of dired-test-bug27968.
     subroutine test_bug27968(error)
-        use simple_mod, only: line_number_at_pos
+        use simple_mod, only: line_number_at_position
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
         character(len=:), allocatable :: file, new_header
         logical :: found
-        integer(int64) :: orig_len, len2, diff, pos, line_nb, shortage, opoint
+        integer(int64) :: original_length, len2, diff, position, line_nb, shortage, original_point
 
         call setup()
 
         body: block
             call create_directory_internal(tdir()//"subdir", st)
-            call dired_noselect(tdir()//"subdir", buffer, st)
+            call directory_editor_noselect(tdir()//"subdir", buffer, st)
             call set_buffer(buffer, st)
-            orig_len = header_len()
-            pos = point()
-            line_nb = line_number_at_pos()
+            original_length = header_length()
+            position = point()
+            line_nb = line_number_at_position()
             call create_directory_internal(tdir()//"subdir/subdir", st)
-            call dired_revert(.false., .false., st)
+            call directory_editor_revert(.false., .false., st)
             ! Change the header line.
-            opoint = point()
-            call goto_char(1_int64)
+            original_point = point()
+            call goto_character(1_int64)
             shortage = forward_line(1_int64)
             new_header = "  test-bug27968"
-            if (orig_len == len(new_header)) new_header = new_header//" :-)"
+            if (original_length == len(new_header)) new_header = new_header//" :-)"
 
             block
                 use data_mod, only: set
@@ -698,17 +706,17 @@ contains
                 call set(value_type(name="inhibit_read_only"), value_type(), st)
             end block
 
-            len2 = header_len()
-            diff = len2 - orig_len
+            len2 = header_length()
+            diff = len2 - original_length
             ! (save-excursion: point moved with the text before it)
-            call goto_char(opoint + diff)
+            call goto_character(original_point + diff)
             call check(error, diff /= 0, "header length has changed")
             if (allocated(error)) exit body
-            call check(error, line_nb == line_number_at_pos() .and. line_nb == line_number_at_pos(pos + diff), &
+            call check(error, line_nb == line_number_at_position() .and. line_nb == line_number_at_position(position + diff), &
                        "same line")
             if (allocated(error)) exit body
             ! After revert, the point must be in 'subdir' line.
-            call dired_get_filename(file, found, st, DIRED_LOCALP_RELATIVE, .true.)
+            call directory_editor_get_filename(file, found, st, DIRECTORY_EDITOR_LOCALP_RELATIVE, .true.)
             call check(error, found .and. file == "subdir", file)
         end block body
 
@@ -716,21 +724,21 @@ contains
 
     contains
 
-        integer(int64) function header_len()
+        integer(int64) function header_length()
             integer(int64) :: p, s
 
             p = point()
-            call goto_char(1_int64)
+            call goto_character(1_int64)
             s = forward_line(1_int64)
-            header_len = line_end_position() - point()
-            call goto_char(p)
-        end function header_len
+            header_length = line_end_position() - point()
+            call goto_character(p)
+        end function header_length
     end subroutine test_bug27968
 
     !> The five empty directories and zeta-empty-dir of dired-test-with-temp-dirs,
-    !> plus five non-empty ones unless JUST_EMPTY_DIRS; then all marked.
-    subroutine bug27940_tree(just_empty_dirs)
-        logical, intent(in) :: just_empty_dirs
+    !> plus five non-empty ones unless JUST_EMPTY_DIRECTORIES; then all marked.
+    subroutine bug27940_tree(just_empty_directories)
+        logical, intent(in) :: just_empty_directories
         type(status_type) :: st
         character(len=1) :: d
         integer :: i
@@ -742,7 +750,7 @@ contains
             call create_directory_internal(tdir()//"empty-dir-"//d, st)
         end do
 
-        if (.not. just_empty_dirs) then
+        if (.not. just_empty_directories) then
             do i = 0, 4
                 write (d, "(i1)") i
                 call create_directory_internal(tdir()//"non-empty-"//d, st)
@@ -751,8 +759,8 @@ contains
         end if
 
         call create_directory_internal(tdir()//"zeta-empty-dir", st)
-        call dired(tdir(), st)
-        call dired_toggle_marks(st)
+        call directory_editor(tdir(), st)
+        call directory_editor_toggle_marks(st)
     end subroutine bug27940_tree
 
     !> The number of marked files.
@@ -761,7 +769,7 @@ contains
         type(status_type) :: st
         logical :: one
 
-        call dired_get_marked_files(files, st, distinguish_one_marked=.true., one_marked=one)
+        call directory_editor_get_marked_files(files, st, distinguish_one_marked=.true., one_marked=one)
         marked_count = size(files)
         if (size(files) == 1 .and. .not. one) marked_count = 0
     end function marked_count
@@ -775,7 +783,7 @@ contains
             ! If just empty dirs we shouldn't be prompted.
             call bug27940_tree(.true.)
             call type_keys("x")
-            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
+            call directory_editor_do_delete(DIRECTORY_EDITOR_ARGUMENT_NONE, 0_int64, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, marked_count() == 0, "all dirs deleted")
@@ -784,25 +792,25 @@ contains
             ! Answer yes (each time).
             call bug27940_tree(.false.)
             call type_keys(repeat("yes"//achar(13), 5))
-            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
+            call directory_editor_do_delete(DIRECTORY_EDITOR_ARGUMENT_NONE, 0_int64, st)
             call check(error, marked_count() == 0, "yes: all dirs deleted")
             if (allocated(error)) exit body
             ! Answer no.
             call bug27940_tree(.false.)
             call type_keys(repeat("no"//achar(13), 5))
-            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
+            call directory_editor_do_delete(DIRECTORY_EDITOR_ARGUMENT_NONE, 0_int64, st)
             call check(error, marked_count() == 5, "no: just the empty dirs deleted")
             if (allocated(error)) exit body
             ! Answer all.
             call bug27940_tree(.false.)
             call type_keys("all"//achar(13))
-            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
+            call directory_editor_do_delete(DIRECTORY_EDITOR_ARGUMENT_NONE, 0_int64, st)
             call check(error, marked_count() == 0, "all: all dirs deleted")
             if (allocated(error)) exit body
             ! Answer quit.
             call bug27940_tree(.false.)
             call type_keys("quit"//achar(13))
-            call dired_do_delete(DIRED_ARG_NONE, 0_int64, st)
+            call directory_editor_do_delete(DIRECTORY_EDITOR_ARGUMENT_NONE, 0_int64, st)
             call check(error, marked_count() == 6, "quit: all empty dirs but zeta-empty-dir deleted")
         end block body
 
@@ -821,7 +829,7 @@ contains
         call setup()
 
         body: block
-            call dired(tdir()//"bla", st)
+            call directory_editor(tdir()//"bla", st)
             errbuf = get_buffer("*ls error*")
             call check(error, is_buffer_live(errbuf), "*ls error* exists")
             if (allocated(error)) exit body
@@ -849,10 +857,10 @@ contains
         call make_file("bar", "")
         call get_or_make_buffer("files-tests--insert-directory", buffer, st)
         call set_buffer(buffer, st)
-        saved = choice_state(dired_free_space)
-        dired_free_space = DIRED_FREE_SPACE_SEPARATE
-        call dired_insert_directory(tdir(), "-l", st)
-        dired_free_space = saved
+        saved = choice_state(directory_editor_free_space)
+        directory_editor_free_space = DIRECTORY_EDITOR_FREE_SPACE_SEPARATE
+        call directory_editor_insert_directory(tdir(), "-l", st)
+        directory_editor_free_space = saved
         text = buffer_string()
         call check(error, st%ok() .and. index(text, "foo") > 0 .and. index(text, "bar") > 0, text)
 
@@ -866,7 +874,7 @@ contains
     end subroutine test_insert_directory_files
 
     !> Port of files-tests-insert-directory-wildcard-in-dir-p.
-    subroutine test_wildcard_in_dir(error)
+    subroutine test_wildcard_in_directory(error)
         type(error_type), allocatable, intent(out) :: error
 
         call one("/home/user/*/.txt", "/home/user/", "*/.txt")
@@ -889,20 +897,20 @@ contains
 
     contains
 
-        subroutine one(path, dir, wild)
-            character(len=*), intent(in) :: path, dir, wild
+        subroutine one(path, directory, wild)
+            character(len=*), intent(in) :: path, directory, wild
             character(len=:), allocatable :: d, w
             logical :: found
 
-            found = is_insert_directory_wildcard_in_dir(path, d, w)
+            found = is_insert_directory_wildcard_in_directory(path, d, w)
 
-            if (len(dir) == 0) then
+            if (len(directory) == 0) then
                 call check(error,.not. found, path)
             else
                 call check(error, found, path)
                 if (allocated(error)) return
-                call check(error, d//"|"//w, dir//"|"//wild)
+                call check(error, d//"|"//w, directory//"|"//wild)
             end if
         end subroutine one
-    end subroutine test_wildcard_in_dir
+    end subroutine test_wildcard_in_directory
 end module test_directory_editor_mode_mod

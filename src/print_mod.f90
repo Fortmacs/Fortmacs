@@ -66,7 +66,7 @@ contains
         type(value_type), intent(in) :: object
         logical, intent(in), optional :: noescape
         character(len=:), allocatable :: s
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: status
         character(len=21) :: buffer
         character(len=:), allocatable :: text
@@ -94,12 +94,12 @@ contains
                 s = quoted_text(text)
             end if
         case (V_ARRAY)
-            call list_elements(object, elems)
+            call list_elements(object, elements)
             s = "("
 
-            do k = 1, size(elems)
+            do k = 1, size(elements)
                 if (k > 1) s = s//" "
-                s = s//readable_text(elems(k), raw)
+                s = s//readable_text(elements(k), raw)
             end do
 
             s = s//")"
@@ -133,7 +133,7 @@ contains
     recursive function fortran_text(object) result(s)
         type(value_type), intent(in) :: object
         character(len=:), allocatable :: s
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: status
         integer :: k
 
@@ -151,12 +151,12 @@ contains
         case (V_STRING)
             s = fortran_string(xstring(object))
         case (V_ARRAY)
-            call list_elements(object, elems)
+            call list_elements(object, elements)
             s = "["
 
-            do k = 1, size(elems)
+            do k = 1, size(elements)
                 if (k > 1) s = s//", "
-                s = s//fortran_text(elems(k))
+                s = s//fortran_text(elements(k))
             end do
 
             s = s//"]"
@@ -225,7 +225,7 @@ contains
         if (markers(i)%buffer == 0) then
             s = s//"in no buffer"
         else
-            write (buffer, "(i0)") markers(i)%charpos
+            write (buffer, "(i0)") markers(i)%character_position
             call marker_buffer_name(markers(i)%buffer, name)
             s = s//"at "//trim(buffer)//" in "//name
         end if

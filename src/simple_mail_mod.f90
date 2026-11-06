@@ -34,12 +34,12 @@ contains
     status = status_type()
 
     if (.not. associated(mail_user_agent)) then
-        call set_error(status, FM_GENERIC_ERROR, "Invalid value for `mail_user_agent'")
+        call set_error(status, GENERIC_ERROR_CODE, "Invalid value for `mail_user_agent'")
         return
     end if
 
     if (.not. associated(mail_user_agent%compose)) then
-        call set_error(status, FM_GENERIC_ERROR, "Invalid value for `mail_user_agent'")
+        call set_error(status, GENERIC_ERROR_CODE, "Invalid value for `mail_user_agent'")
         return
     end if
 
@@ -65,20 +65,20 @@ contains
         if (status%ok()) call switch_to_buffer_other_window(buffer, status)
     end subroutine switch_to_buffer_other_window_by_name
 
-    recursive subroutine cmd_compose_mail(status)
+    recursive subroutine execute_compose_mail(status)
         type(status_type), intent(out) :: status
 
-        call compose_mail(status, continue=current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_compose_mail
+        call compose_mail(status, continue=current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_compose_mail
 
-    recursive subroutine cmd_compose_mail_other_window(status)
+    recursive subroutine execute_compose_mail_other_window(status)
         type(status_type), intent(out) :: status
 
-        call compose_mail_other_window(status, continue=current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_compose_mail_other_window
+        call compose_mail_other_window(status, continue=current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_compose_mail_other_window
 
-    module procedure init_simple_mail
-    commands%compose_mail%execute => cmd_compose_mail
-    commands%compose_mail_other_window%execute => cmd_compose_mail_other_window
-    end procedure init_simple_mail
+    module procedure initialize_simple_mail
+    commands%compose_mail%execute => execute_compose_mail
+    commands%compose_mail_other_window%execute => execute_compose_mail_other_window
+    end procedure initialize_simple_mail
 end submodule simple_mail_mod

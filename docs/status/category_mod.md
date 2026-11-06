@@ -14,13 +14,13 @@ with the category docstrings: `define-category`,
 `category-table-p`,
 `check_category_table`,
 `category-table`,
-`standard-category-table` (`init_category_once`, then characters_mod's categories),
+`standard-category-table` (`initialize_category_once`, then characters_mod's categories),
 `copy-category-table` (`copy_category_table`, `copy_category_entry`),
 `make-category-table`,
 `set-category-table` (per buffer: BVAR `category_table`, `bset_category_table`, reset by `kill-all-local-variables`),
-`char-category-set` (`char_category_set`),
+`char-category-set` (`character_category_set`),
 `modify-category-entry`,
-`CHAR_HAS_CATEGORY` (used by regexps, filling, indentation and word boundaries);
+`CHARACTER_HAS_CATEGORY` (used by regexps, filling, indentation and word boundaries);
 `is_word_boundary` is in syntax_mod
 
 ## Deferred

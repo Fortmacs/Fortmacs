@@ -17,7 +17,7 @@ contains
     subroutine check(process)
         integer, intent(in) :: process
 
-        call comint_check_process(process)
+        call command_interpreter_check_process(process)
         ! A chained entry reaches its final name in one run.
         call cut_backward_up_group()
     end subroutine check

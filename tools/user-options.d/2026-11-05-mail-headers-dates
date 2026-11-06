@@ -3,4 +3,4 @@ rfc2047_header_encodings
 rfc2047_allow_irregular_q_encoded_words
 rfc2047_allow_incomplete_encoded_text
 mime_coding_system_priorities
-mime_charset_overrides
+mime_character_set_overrides

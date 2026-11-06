@@ -38,17 +38,18 @@ module casefiddle_mod
     use commands_mod, only: commands
     use error_mod, only: status_type
     use data_mod, only: logical_setting_type
-    use character_mod, only: char_string, string_char_and_length, MAX_MULTIBYTE_LENGTH, CHAR_ALT, CHAR_SUPER, &
-                             CHAR_HYPER, CHAR_SHIFT, CHAR_CTL, CHAR_META, unibyte_to_char, char_to_byte8
+    use character_mod, only: character_string, string_character_and_length, MAXIMUM_MULTIBYTE_LENGTH, CHARACTER_ALT, &
+                             CHARACTER_SUPER, CHARACTER_HYPER, CHARACTER_SHIFT, CHARACTER_CONTROL, CHARACTER_META, &
+                             unibyte_to_character, character_to_byte8
     use case_table_mod, only: downcase, upcase
-    use syntax_mod, only: syntax_entry, char_syntax_class, scan_words, syntax_descriptor_type, SWORD, SSYMBOL
-    use buffer_mod, only: buffers, current, buf_fetch_char, buf_next_char_len, buf_bytes, temp_set_point_both, &
-                          buf_fetch_byte, buffer_byte_index
-    use marker_mod, only: char_to_byte
+    use syntax_mod, only: syntax_entry, character_syntax_class, scan_words, syntax_descriptor_type, SWORD, SSYMBOL
+    use buffer_mod, only: buffers, current, buffer_fetch_character, buffer_next_character_length, buffer_bytes, &
+                          temporary_set_point_both, buffer_fetch_byte, buffer_byte_index
+    use marker_mod, only: character_to_byte
     use insert_delete_mod, only: modify_text, replace_range_2, signal_after_change
     use undo_mod, only: record_insert, record_delete
-    use editing_functions_mod, only: validate_region, point, goto_char, region_beginning, region_end
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use editing_functions_mod, only: validate_region, point, goto_character, region_beginning, region_end
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use unicode_special_casing_mod, only: title_count, title_keys, title_values, special_count_1, special_keys_1, &
                                           special_lengths_1, special_values_1, special_count_2, special_keys_2, &
                                           special_lengths_2, special_values_2, special_count_3, special_keys_3, &
@@ -57,9 +58,9 @@ module casefiddle_mod
     private
 
     public :: upcase_string, downcase_string, capitalize_string, upcase_initials_string
-    public :: upcase_char, downcase_char, capitalize_char, upcase_initials_char
+    public :: upcase_character, downcase_character, capitalize_character, upcase_initials_character
     public :: upcase_region, downcase_region, capitalize_region, upcase_initials_region
-    public :: upcase_word, downcase_word, capitalize_word, init_casefiddle
+    public :: upcase_word, downcase_word, capitalize_word, initialize_casefiddle
 
     !> The case actions (enum case_action).
     integer, parameter, public :: CASE_UP = 0, CASE_DOWN = 1, CASE_CAPITALIZE = 2, CASE_CAPITALIZE_UP = 3
@@ -98,12 +99,12 @@ module casefiddle_mod
         logical :: downcase_last = .false.
     end type casing_context_type
 
-    !> The result of casing one character (struct casing_str_buf_type): up to
+    !> The result of casing one character (struct casing_string_buffer_type): up to
     !> three characters.
-    type :: casing_str_buf_type
+    type :: casing_string_buffer_type
         integer(int32) :: chars(3) = 0
-        integer :: len_chars = 0
-    end type casing_str_buf_type
+        integer :: length_characters = 0
+    end type casing_string_buffer_type
 
     abstract interface
         !> simple.el's `region_bounds': the region's pieces [STARTS(k),
@@ -163,22 +164,22 @@ contains
     pure integer(int32) function lookup(c, keys, values) result(v)
         integer(int32), intent(in) :: c
         integer(int32), intent(in) :: keys(:), values(:)
-        integer :: lo, hi, mid
+        integer :: lo, hi, middle
 
         v = -1
         lo = 1
         hi = size(keys)
 
         do while (lo <= hi)
-            mid = (lo + hi)/2
+            middle = (lo + hi)/2
 
-            if (keys(mid) == c) then
-                v = values(mid)
+            if (keys(middle) == c) then
+                v = values(middle)
                 return
-            else if (keys(mid) < c) then
-                lo = mid + 1
+            else if (keys(middle) < c) then
+                lo = middle + 1
             else
-                hi = mid - 1
+                hi = middle - 1
             end if
         end do
     end function lookup
@@ -187,32 +188,32 @@ contains
     pure integer function find_key(c, keys) result(k)
         integer(int32), intent(in) :: c
         integer(int32), intent(in) :: keys(:)
-        integer :: lo, hi, mid
+        integer :: lo, hi, middle
 
         k = 0
         lo = 1
         hi = size(keys)
 
         do while (lo <= hi)
-            mid = (lo + hi)/2
+            middle = (lo + hi)/2
 
-            if (keys(mid) == c) then
-                k = mid
+            if (keys(middle) == c) then
+                k = middle
                 return
-            else if (keys(mid) < c) then
-                lo = mid + 1
+            else if (keys(middle) < c) then
+                lo = middle + 1
             else
-                hi = mid - 1
+                hi = middle - 1
             end if
         end do
     end function find_key
 
     !> The special casing of CH for normalized FLAG into BUFFER, if there is
-    !> one (CHAR_TABLE_REF of the special-*case table).  Not a port.
+    !> one (CHARACTER_TABLE_REFERENCE of the special-*case table).  Not a port.
     logical function special_casing(flag, ch, buffer) result(found)
         integer, intent(in) :: flag
         integer(int32), intent(in) :: ch
-        type(casing_str_buf_type), intent(inout) :: buffer
+        type(casing_string_buffer_type), intent(inout) :: buffer
         integer :: k
 
         found = .false.
@@ -221,17 +222,17 @@ contains
         case (CASE_UP)
             k = find_key(ch, special_keys_3)
             if (k == 0) return
-            buffer%len_chars = special_lengths_3(k)
+            buffer%length_characters = special_lengths_3(k)
             buffer%chars = special_values_3(3*k - 2:3*k)
         case (CASE_DOWN)
             k = find_key(ch, special_keys_1)
             if (k == 0) return
-            buffer%len_chars = special_lengths_1(k)
+            buffer%length_characters = special_lengths_1(k)
             buffer%chars = special_values_1(3*k - 2:3*k)
         case default
             k = find_key(ch, special_keys_2)
             if (k == 0) return
-            buffer%len_chars = special_lengths_2(k)
+            buffer%length_characters = special_lengths_2(k)
             buffer%chars = special_values_2(3*k - 2:3*k)
         end select
 
@@ -245,7 +246,7 @@ contains
     integer(int32) function case_character_impl(ctx, ch, buffer, changed) result(cased)
         type(casing_context_type), intent(inout) :: ctx
         integer(int32), intent(in) :: ch
-        type(casing_str_buf_type), intent(inout), optional :: buffer
+        type(casing_string_buffer_type), intent(inout), optional :: buffer
         logical, intent(out), optional :: changed
         integer :: flag
         logical :: was_inword
@@ -253,7 +254,7 @@ contains
 
         ! Update inword state.
         was_inword = ctx%inword
-        ctx%inword = case_ch_is_word(char_syntax_class(ch))
+        ctx%inword = case_ch_is_word(character_syntax_class(ch))
         if (ctx%inword .and. ctx%inbuffer .and. .not. was_inword) ctx%inword = .not. is_syntax_prefix_flag(ch)
 
         ! Normalize flag so its one of CASE_UP, CASE_DOWN or
@@ -312,7 +313,7 @@ contains
 
         subroutine done()
             if (present(buffer)) then
-                buffer%len_chars = 1
+                buffer%length_characters = 1
                 buffer%chars = [cased, 0_int32, 0_int32]
             end if
 
@@ -336,7 +337,7 @@ contains
     !> casing rules and the final sigma.  Port of
     !> casefiddle.c:case_character.
     logical function case_character(buffer, ctx, ch, next) result(changed)
-        type(casing_str_buf_type), intent(inout) :: buffer
+        type(casing_string_buffer_type), intent(inout) :: buffer
         type(casing_context_type), intent(inout) :: ctx
         integer(int32), intent(in) :: ch, next
         logical :: was_inword
@@ -351,42 +352,43 @@ contains
         if (was_inword .and. ch == GREEK_CAPITAL_LETTER_SIGMA .and. changed) then
             if (next < 0) then
                 buffer%chars = [GREEK_SMALL_LETTER_FINAL_SIGMA, 0_int32, 0_int32]
-                buffer%len_chars = 1
-            else if (.not. case_ch_is_word(char_syntax_class(next))) then
+                buffer%length_characters = 1
+            else if (.not. case_ch_is_word(character_syntax_class(next))) then
                 buffer%chars = [GREEK_SMALL_LETTER_FINAL_SIGMA, 0_int32, 0_int32]
-                buffer%len_chars = 1
+                buffer%length_characters = 1
             end if
         end if
     end function case_character
 
     !> The UTF-8 form of the characters in BUFFER.  Not a port.
     function buffer_text(buffer) result(s)
-        type(casing_str_buf_type), intent(in) :: buffer
+        type(casing_string_buffer_type), intent(in) :: buffer
         character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: tmp
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: temporary
         integer(int32) :: nbytes
         integer :: k
         type(status_type) :: status
 
         s = ""
 
-        do k = 1, buffer%len_chars
-            call char_string(buffer%chars(k), tmp, nbytes, status)
-            s = s//tmp(1:nbytes)
+        do k = 1, buffer%length_characters
+            call character_string(buffer%chars(k), temporary, nbytes, status)
+            s = s//temporary(1:nbytes)
         end do
     end function buffer_text
 
     !> Case character CH (with modifier bits) by FLAG.  Port of
     !> casefiddle.c:do_casify_natnum (and casefiddle.c:casify_object for a
     !> character).
-    integer(int32) function casify_char(flag, ch) result(r)
+    integer(int32) function casify_character(flag, ch) result(r)
         integer, intent(in) :: flag
         integer(int32), intent(in) :: ch
         integer(int32) :: flagbits, flags, c, cased
         type(casing_context_type) :: ctx
         logical :: multibyte
 
-        flagbits = ior(ior(ior(CHAR_ALT, CHAR_SUPER), ior(CHAR_HYPER, CHAR_SHIFT)), ior(CHAR_CTL, CHAR_META))
+        flagbits = ior(ior(ior(CHARACTER_ALT, CHARACTER_SUPER), ior(CHARACTER_HYPER, CHARACTER_SHIFT)), ior(CHARACTER_CONTROL, &
+                                                                                                            CHARACTER_META))
         r = ch
         ! If the character has higher bits set above the flags, return it
         ! unchanged.  It is not a real character.
@@ -397,21 +399,21 @@ contains
         multibyte = c >= 256
         if (.not. multibyte) multibyte = current == 0
         if (.not. multibyte) multibyte = buffers(current)%multibyte
-        if (.not. multibyte) c = unibyte_to_char(c)
+        if (.not. multibyte) c = unibyte_to_character(c)
         cased = case_single_character(ctx, c)
         if (cased == c) return
-        if (.not. multibyte) cased = make_char_unibyte(cased)
+        if (.not. multibyte) cased = make_character_unibyte(cased)
         r = ior(cased, flags)
-    end function casify_char
+    end function casify_character
 
     !> If C is not ASCII, make it unibyte.  Port of
     !> casefiddle.c:make_char_unibyte.
-    elemental integer(int32) function make_char_unibyte(c)
+    elemental integer(int32) function make_character_unibyte(c)
         integer(int32), intent(in) :: c
 
-        make_char_unibyte = c
-        if (c >= 128) make_char_unibyte = char_to_byte8(c)
-    end function make_char_unibyte
+        make_character_unibyte = c
+        if (c >= 128) make_character_unibyte = character_to_byte8(c)
+    end function make_character_unibyte
 
     !> Case the multibyte string STRING by FLAG.  Port of
     !> casefiddle.c:do_casify_multibyte_string (and casefiddle.c:casify_object
@@ -421,7 +423,7 @@ contains
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: out
         type(casing_context_type) :: ctx
-        type(casing_str_buf_type) :: buffer
+        type(casing_string_buffer_type) :: buffer
         integer(int64) :: i
         integer(int32) :: ch, clen, next, nlen
         logical :: ignored
@@ -431,9 +433,9 @@ contains
         i = 1
 
         do while (i <= len(string, kind=int64))
-            call string_char_and_length(string, i, ch, clen)
+            call string_character_and_length(string, i, ch, clen)
             next = -1
-            if (i + clen <= len(string, kind=int64)) call string_char_and_length(string, i + clen, next, nlen)
+            if (i + clen <= len(string, kind=int64)) call string_character_and_length(string, i + clen, next, nlen)
             ignored = case_character(buffer, ctx, ch, next)
             out = out//buffer_text(buffer)
             i = i + clen
@@ -488,36 +490,36 @@ contains
     !> Convert a character to upper case.  Characters which map to
     !> multiple code points when cased, e.g. ﬁ, are returned unchanged.
     !> Port of casefiddle.c:Fupcase for a character.
-    integer(int32) function upcase_char(ch)
+    integer(int32) function upcase_character(ch)
         integer(int32), intent(in) :: ch
 
-        upcase_char = casify_char(CASE_UP, ch)
-    end function upcase_char
+        upcase_character = casify_character(CASE_UP, ch)
+    end function upcase_character
 
     !> Convert a character to lower case.  Port of casefiddle.c:Fdowncase
     !> for a character.
-    integer(int32) function downcase_char(ch)
+    integer(int32) function downcase_character(ch)
         integer(int32), intent(in) :: ch
 
-        downcase_char = casify_char(CASE_DOWN, ch)
-    end function downcase_char
+        downcase_character = casify_character(CASE_DOWN, ch)
+    end function downcase_character
 
     !> Convert a character to capitalized form: title case or upper case.
     !> Port of casefiddle.c:Fcapitalize for a character.
-    integer(int32) function capitalize_char(ch)
+    integer(int32) function capitalize_character(ch)
         integer(int32), intent(in) :: ch
 
-        capitalize_char = casify_char(CASE_CAPITALIZE, ch)
-    end function capitalize_char
+        capitalize_character = casify_character(CASE_CAPITALIZE, ch)
+    end function capitalize_character
 
     !> Convert the initial of a character "word" to upper case: title case
     !> or upper case.  Port of casefiddle.c:Fupcase_initials for a
     !> character.
-    integer(int32) function upcase_initials_char(ch)
+    integer(int32) function upcase_initials_character(ch)
         integer(int32), intent(in) :: ch
 
-        upcase_initials_char = casify_char(CASE_CAPITALIZE_UP, ch)
-    end function upcase_initials_char
+        upcase_initials_character = casify_character(CASE_CAPITALIZE_UP, ch)
+    end function upcase_initials_character
 
     !> Based on CTX, case region in a unibyte buffer from START to END.
     !> Save first and last positions that has changed in START and END
@@ -528,20 +530,20 @@ contains
     integer(int64) function do_casify_unibyte_region(ctx, start, end) result(added)
         type(casing_context_type), intent(inout) :: ctx
         integer(int64), intent(inout) :: start, end
-        integer(int64) :: first, last, pos, k
+        integer(int64) :: first, last, position, k
         integer(int32) :: ch, cased
 
         first = -1
         last = -1
 
-        do pos = start, end - 1
-            ch = unibyte_to_char(buf_fetch_byte(buffers(current), pos))
+        do position = start, end - 1
+            ch = unibyte_to_character(buffer_fetch_byte(buffers(current), position))
             cased = case_single_character(ctx, ch)
             if (cased == ch) cycle
-            last = pos + 1
-            if (first < 0) first = pos
-            k = buffer_byte_index(buffers(current), pos)
-            buffers(current)%text%beginning(k:k) = achar(make_char_unibyte(cased))
+            last = position + 1
+            if (first < 0) first = position
+            k = buffer_byte_index(buffers(current), position)
+            buffers(current)%text%beginning(k:k) = achar(make_character_unibyte(cased))
         end do
 
         start = first
@@ -558,49 +560,51 @@ contains
         type(casing_context_type), intent(inout) :: ctx
         integer(int64), intent(inout) :: start, end
         type(status_type), intent(out) :: status
-        integer(int64) :: first, last, pos, pos_byte, size, opoint
+        integer(int64) :: first, last, position, position_byte, size, original_point
         integer(int32) :: ch, len1, next
-        type(casing_str_buf_type) :: buffer
+        type(casing_string_buffer_type) :: buffer
         character(len=:), allocatable :: text
 
         status = status_type()
         first = -1
         last = -1
-        pos = start
-        pos_byte = char_to_byte(pos)
-        size = end - pos
-        opoint = point()
+        position = start
+        position_byte = character_to_byte(position)
+        size = end - position
+        original_point = point()
         added = 0
 
         do while (size > 0)
-            ch = buf_fetch_char(buffers(current), pos_byte)
-            len1 = buf_next_char_len(buffers(current), pos_byte)
+            ch = buffer_fetch_character(buffers(current), position_byte)
+            len1 = buffer_next_character_length(buffers(current), position_byte)
             next = -1
-            if (size > 1) next = buf_fetch_char(buffers(current), pos_byte + len1)
+            if (size > 1) next = buffer_fetch_character(buffers(current), position_byte + len1)
 
             if (.not. case_character(buffer, ctx, ch, next)) then
-                pos_byte = pos_byte + len1
-                pos = pos + 1
+                position_byte = position_byte + len1
+                position = position + 1
                 size = size - 1
                 cycle
             end if
 
-            last = pos + buffer%len_chars
-            if (first < 0) first = pos
+            last = position + buffer%length_characters
+            if (first < 0) first = position
             text = buffer_text(buffer)
             ! Replace one character with the other(s), keeping text
             ! properties the same.
-            call replace_range_2(pos, pos_byte, pos + 1, pos_byte + len1, text, int(buffer%len_chars, int64), &
+            call replace_range_2(position, position_byte, position + 1, position_byte + len1, text, int(buffer%length_characters, &
+                                                                                                        int64), &
                                  .false., status)
             if (.not. status%ok()) return
-            added = added + buffer%len_chars - 1
-            if (opoint > pos) opoint = opoint + buffer%len_chars - 1
-            pos_byte = pos_byte + len(text)
-            pos = pos + buffer%len_chars
+            added = added + buffer%length_characters - 1
+            if (original_point > position) original_point = original_point + buffer%length_characters - 1
+            position_byte = position_byte + len(text)
+            position = position + buffer%length_characters
             size = size - 1
         end do
 
-        if (point() /= opoint) call temp_set_point_both(buffers(current), opoint, char_to_byte(opoint))
+        if (point() /= original_point) call temporary_set_point_both(buffers(current), original_point, &
+                                                                     character_to_byte(original_point))
         start = first
         end = last
     end function do_casify_multibyte_region
@@ -611,7 +615,7 @@ contains
         integer, intent(in) :: flag
         integer(int64), intent(in) :: b, e
         type(status_type), intent(out) :: status
-        integer(int64) :: start, end, orig_end, length, ostart, added
+        integer(int64) :: start, end, original_end, length, ostart, added
         type(casing_context_type) :: ctx
 
         start = b
@@ -625,8 +629,8 @@ contains
         call modify_text(start, end, status)
         if (.not. status%ok()) return
         ctx = prepare_casing_context(flag, .true.)
-        orig_end = end
-        call record_delete(start, buf_bytes(buffers(current), char_to_byte(start), char_to_byte(end)), end - start)
+        original_end = end
+        call record_delete(start, buffer_bytes(buffers(current), character_to_byte(start), character_to_byte(end)), end - start)
         length = end - start
         ostart = start
 
@@ -638,7 +642,7 @@ contains
         end if
 
         call record_insert(ostart, length + added)
-        new_end = orig_end + added
+        new_end = original_end + added
         if (start >= 0) call signal_after_change(start, end - start - added, end - start, status)
     end function casify_region
 
@@ -726,26 +730,26 @@ contains
         end if
     end subroutine casify_pnc_region
 
-    !> Case from point over ARG words by FLAG.  Port of
+    !> Case from point over ARGUMENT words by FLAG.  Port of
     !> casefiddle.c:casify_word.
-    subroutine casify_word(flag, arg, status)
+    subroutine casify_word(flag, argument, status)
         integer, intent(in) :: flag
-        integer(int64), intent(in) :: arg
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
-        integer(int64) :: farend, pos
+        integer(int64) :: farend, position
 
-        farend = scan_words(point(), arg)
+        farend = scan_words(point(), argument)
 
         if (farend == 0) then
-            if (arg <= 0) then
-                farend = buffers(current)%begv
+            if (argument <= 0) then
+                farend = buffers(current)%beginning_of_accessible_portion
             else
-                farend = buffers(current)%zv
+                farend = buffers(current)%end_of_accessible_portion
             end if
         end if
 
-        pos = casify_region(flag, point(), farend, status)
-        if (status%ok()) call goto_char(pos)
+        position = casify_region(flag, point(), farend, status)
+        if (status%ok()) call goto_character(position)
     end subroutine casify_word
 
     !> Convert to upper case from point to end of word, moving over.
@@ -755,11 +759,11 @@ contains
     !>
     !> With negative argument, convert previous words but do not move.
     !> See also `capitalize_word'.  Port of casefiddle.c:Fupcase_word.
-    subroutine upcase_word(arg, status)
-        integer(int64), intent(in) :: arg
+    subroutine upcase_word(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call casify_word(CASE_UP, arg, status)
+        call casify_word(CASE_UP, argument, status)
     end subroutine upcase_word
 
     !> Convert to lower case from point to end of word, moving over.
@@ -769,15 +773,15 @@ contains
     !>
     !> With negative argument, convert previous words but do not move.
     !> Port of casefiddle.c:Fdowncase_word.
-    subroutine downcase_word(arg, status)
-        integer(int64), intent(in) :: arg
+    subroutine downcase_word(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call casify_word(CASE_DOWN, arg, status)
+        call casify_word(CASE_DOWN, argument, status)
     end subroutine downcase_word
 
     !> Capitalize from point to the end of word, moving over.
-    !> With numerical argument ARG, capitalize the next ARG-1 words as
+    !> With numerical argument ARGUMENT, capitalize the next ARGUMENT-1 words as
     !> well.  This gives the word(s) a first character in upper case and
     !> the rest lower case.
     !>
@@ -786,30 +790,30 @@ contains
     !>
     !> With negative argument, capitalize previous words but do not move.
     !> Port of casefiddle.c:Fcapitalize_word.
-    subroutine capitalize_word(arg, status)
-        integer(int64), intent(in) :: arg
+    subroutine capitalize_word(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call casify_word(CASE_CAPITALIZE, arg, status)
+        call casify_word(CASE_CAPITALIZE, argument, status)
     end subroutine capitalize_word
 
-    subroutine cmd_upcase_word(status)
+    subroutine execute_upcase_word(status)
         type(status_type), intent(out) :: status
 
-        call upcase_word(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_upcase_word
+        call upcase_word(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_upcase_word
 
-    subroutine cmd_downcase_word(status)
+    subroutine execute_downcase_word(status)
         type(status_type), intent(out) :: status
 
-        call downcase_word(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_downcase_word
+        call downcase_word(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_downcase_word
 
-    subroutine cmd_capitalize_word(status)
+    subroutine execute_capitalize_word(status)
         type(status_type), intent(out) :: status
 
-        call capitalize_word(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_capitalize_word
+        call capitalize_word(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_capitalize_word
 
     !> The region commands take the region (interactive "(list
     !> (region-beginning) (region-end) (region-noncontiguous-p))").
@@ -829,38 +833,38 @@ contains
         call casify_pnc_region(flag, b, e, status, noncontiguous)
     end subroutine region_command
 
-    subroutine cmd_upcase_region(status)
+    subroutine execute_upcase_region(status)
         type(status_type), intent(out) :: status
 
         call region_command(CASE_UP, status)
-    end subroutine cmd_upcase_region
+    end subroutine execute_upcase_region
 
-    subroutine cmd_downcase_region(status)
+    subroutine execute_downcase_region(status)
         type(status_type), intent(out) :: status
 
         call region_command(CASE_DOWN, status)
-    end subroutine cmd_downcase_region
+    end subroutine execute_downcase_region
 
-    subroutine cmd_capitalize_region(status)
+    subroutine execute_capitalize_region(status)
         type(status_type), intent(out) :: status
 
         call region_command(CASE_CAPITALIZE, status)
-    end subroutine cmd_capitalize_region
+    end subroutine execute_capitalize_region
 
-    subroutine cmd_upcase_initials_region(status)
+    subroutine execute_upcase_initials_region(status)
         type(status_type), intent(out) :: status
 
         call region_command(CASE_CAPITALIZE_UP, status)
-    end subroutine cmd_upcase_initials_region
+    end subroutine execute_upcase_initials_region
 
     !> Register the commands.  Port of casefiddle.c:syms_of_casefiddle.
-    subroutine init_casefiddle()
-        commands%upcase_word%execute => cmd_upcase_word
-        commands%downcase_word%execute => cmd_downcase_word
-        commands%capitalize_word%execute => cmd_capitalize_word
-        commands%upcase_region%execute => cmd_upcase_region
-        commands%downcase_region%execute => cmd_downcase_region
-        commands%capitalize_region%execute => cmd_capitalize_region
-        commands%upcase_initials_region%execute => cmd_upcase_initials_region
-    end subroutine init_casefiddle
+    subroutine initialize_casefiddle()
+        commands%upcase_word%execute => execute_upcase_word
+        commands%downcase_word%execute => execute_downcase_word
+        commands%capitalize_word%execute => execute_capitalize_word
+        commands%upcase_region%execute => execute_upcase_region
+        commands%downcase_region%execute => execute_downcase_region
+        commands%capitalize_region%execute => execute_capitalize_region
+        commands%upcase_initials_region%execute => execute_upcase_initials_region
+    end subroutine initialize_casefiddle
 end module casefiddle_mod

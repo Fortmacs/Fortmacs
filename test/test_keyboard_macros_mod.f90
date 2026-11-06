@@ -22,33 +22,37 @@
 
 module test_keyboard_macros_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_error, FM_QUIT
+    use error_mod, only: status_type, format_error, QUIT_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list, xfixnum
     use data_mod, only: value_eq
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, set_buffer_read_only, current_buffer
-    use editing_functions_mod, only: point, goto_char, buffer_string
+    use editing_functions_mod, only: point, goto_character, buffer_string
     use keymap_mod, only: key_parse, key_binding
-    use execute_interactively_mod, only: current_prefix_arg, prefix_arg
-    use keyboard_mod, only: kbd_store_bytes, command_loop, discard_input, last_message, unread_command_events, &
-                            defining_kbd_macro, DEFINING_KBD_MACRO_NO, DEFINING_KBD_MACRO_APPEND, last_kbd_macro, &
-                            this_command_keys, last_input_event, store_kbd_macro_event, finalize_kbd_macro_chars, &
-                            kbd_macro_termination_hook, last_command, store_event
-    use bindings_mod, only: init_bindings
+    use execute_interactively_mod, only: current_prefix_argument, prefix_argument
+    use keyboard_mod, only: keyboard_store_bytes, command_loop, discard_input, last_message, unread_command_events, &
+                            defining_keyboard_macro, DEFINING_KEYBOARD_MACRO_NO, DEFINING_KEYBOARD_MACRO_APPEND, &
+                            last_keyboard_macro, this_command_keys, last_input_event, store_keyboard_macro_event, &
+                            finalize_keyboard_macro_characters, keyboard_macro_termination_hook, last_command, store_event
+    use bindings_mod, only: initialize_bindings
     use register_mod, only: set_register, get_register, register_contents_type, REGISTER_NUMBER
     use display_engine_mod, only: mode_line_modes_faces, face_span_type
-    use keyboard_macro_editor_mod, only: format_kbd_macro
-    use keyboard_macros_mod, only: kmacro_insert_counter, kmacro_set_counter, kmacro_set_format, kmacro_start_macro, &
-                                kmacro_end_macro, kmacro_end_or_execute_macro, kmacro_end_and_execute_macro, kmacro_execute_macro, &
-                                kmacro_execute_ring_2nd, kmacro_view_ring_2nd, kmacro_cycle_ring_next, kmacro_cycle_ring_previous, &
-                               kmacro_swap_ring, kmacro_delete_ring_head, kmacro_view_macro, kmacro_start_macro_or_insert_counter, &
-                          kmacro_ring, kmacro_counter, kmacro_ring_max, kmacro_execute_repeat_key, kmacro_execute_repeat_with_arg, &
-                                   kmacro_initial_counter_value, kmacro_counter_format, kmacro_default_counter_format, &
-                                   kmacro_counter_format_start, kmacro_counter_value_start, kmacro_last_counter, &
-                                   kmacro_execute_before_append, kmacro_repeat_no_prefix, KMACRO_REPEAT_NO
+    use keyboard_macro_editor_mod, only: format_keyboard_macro
+    use keyboard_macros_mod, only: keyboard_macro_insert_counter, keyboard_macro_set_counter, keyboard_macro_set_format, &
+                                   keyboard_macro_start_macro, keyboard_macro_end_macro, keyboard_macro_end_or_execute_macro, &
+                                   keyboard_macro_end_and_execute_macro, keyboard_macro_execute_macro, &
+                                   keyboard_macro_execute_ring_2nd, keyboard_macro_view_ring_2nd, keyboard_macro_cycle_ring_next, &
+                                   keyboard_macro_cycle_ring_previous, keyboard_macro_swap_ring, keyboard_macro_delete_ring_head, &
+                                   keyboard_macro_view_macro, keyboard_macro_start_macro_or_insert_counter, keyboard_macro_ring, &
+                                   keyboard_macro_counter, keyboard_macro_ring_maximum, keyboard_macro_execute_repeat_key, &
+                                   keyboard_macro_execute_repeat_with_argument, keyboard_macro_initial_counter_value, &
+                                   keyboard_macro_counter_format, keyboard_macro_default_counter_format, &
+                                   keyboard_macro_counter_format_start, keyboard_macro_counter_value_start, &
+                                   keyboard_macro_last_counter, keyboard_macro_execute_before_append, &
+                                   keyboard_macro_repeat_no_prefix, KEYBOARD_MACRO_REPEAT_NO
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -74,7 +78,7 @@ contains
                     new_unittest("kmacro-tests-set-macro-counter-while-defining", test_counter_while_defining), &
                     new_unittest("kmacro-tests-start-insert-counter-appends-to-macro", test_appends_to_macro), &
                     new_unittest("kmacro-tests-test-reg-and-quit-counters", test_reg_and_quit_counters), &
-                    new_unittest("kmacro-tests-end-call-macro-prefix-args", test_end_execute_prefix_args), &
+                    new_unittest("kmacro-tests-end-call-macro-prefix-args", test_end_execute_prefix_arguments), &
                     new_unittest("kmacro-tests-end-and-call-macro", test_end_and_execute_macro), &
                     new_unittest("kmacro-tests-call-macro-hint-and-repeat", test_hint_and_repeat), &
                     new_unittest("kmacro-tests-test-ring-2nd-commands", test_ring_2nd_commands), &
@@ -89,7 +93,7 @@ contains
                     new_unittest("f3-f4-counter", test_f3_f4), &
                     new_unittest("termination-hook", test_termination_hook), &
                     new_unittest("mode-line-def", test_mode_line), &
-                    new_unittest("format-kbd-macro", test_format_kbd_macro), &
+                    new_unittest("format-kbd-macro", test_format_keyboard_macro), &
                     new_unittest("keys", test_keys) &
                     ]
     end subroutine collect_keyboard_macros_mod
@@ -109,38 +113,38 @@ contains
         call set_buffer_read_only(h, .false., st)
         call erase_buffer(st)
         call show_alone()
-        defining_kbd_macro = DEFINING_KBD_MACRO_NO
+        defining_keyboard_macro = DEFINING_KEYBOARD_MACRO_NO
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        current_prefix_arg = prefix_arg_type()
-        call init_bindings()
-        kmacro_execute_before_append = .true.
-        kmacro_ring_max = 8
-        kmacro_repeat_no_prefix = .true.
-        kmacro_execute_repeat_key = .false.
-        kmacro_execute_repeat_with_arg = .false.
-        if (allocated(last_kbd_macro)) deallocate (last_kbd_macro)
-        if (allocated(kmacro_ring)) deallocate (kmacro_ring)
-        kmacro_counter = 0
-        kmacro_default_counter_format = "%d"
-        kmacro_counter_format = "%d"
-        kmacro_counter_format_start = "%d"
-        kmacro_counter_value_start = 0
-        kmacro_last_counter = 0
-        if (allocated(kmacro_initial_counter_value)) deallocate (kmacro_initial_counter_value)
+        prefix_argument = prefix_argument_type()
+        current_prefix_argument = prefix_argument_type()
+        call initialize_bindings()
+        keyboard_macro_execute_before_append = .true.
+        keyboard_macro_ring_maximum = 8
+        keyboard_macro_repeat_no_prefix = .true.
+        keyboard_macro_execute_repeat_key = .false.
+        keyboard_macro_execute_repeat_with_argument = .false.
+        if (allocated(last_keyboard_macro)) deallocate (last_keyboard_macro)
+        if (allocated(keyboard_macro_ring)) deallocate (keyboard_macro_ring)
+        keyboard_macro_counter = 0
+        keyboard_macro_default_counter_format = "%d"
+        keyboard_macro_counter_format = "%d"
+        keyboard_macro_counter_format_start = "%d"
+        keyboard_macro_counter_value_start = 0
+        keyboard_macro_last_counter = 0
+        if (allocated(keyboard_macro_initial_counter_value)) deallocate (keyboard_macro_initial_counter_value)
         if (allocated(this_command_keys)) deallocate (this_command_keys)
         allocate (this_command_keys(0))
         last_message = ""
     end subroutine fresh
 
     !> The events of KEYS (kbd syntax).
-    function kbd(keys) result(evs)
+    function keyboard(keys) result(evs)
         character(len=*), intent(in) :: keys
         type(value_type), allocatable :: evs(:)
         type(status_type) :: st
 
         call key_parse(keys, evs, st)
-    end function kbd
+    end function keyboard
 
     !> The characters of TEXT as events.
     function chars(text) result(evs)
@@ -155,17 +159,17 @@ contains
         end do
     end function chars
 
-    !> Whether EVS are the events of `last_kbd_macro'.
+    !> Whether EVS are the events of `last_keyboard_macro'.
     logical function last_macro_is(evs)
         type(value_type), intent(in) :: evs(:)
         integer :: k
 
         last_macro_is = .false.
-        if (.not. allocated(last_kbd_macro)) return
-        if (size(last_kbd_macro) /= size(evs)) return
+        if (.not. allocated(last_keyboard_macro)) return
+        if (size(last_keyboard_macro) /= size(evs)) return
 
         do k = 1, size(evs)
-            if (.not. value_eq(last_kbd_macro(k), evs(k))) return
+            if (.not. value_eq(last_keyboard_macro(k), evs(k))) return
         end do
 
         last_macro_is = .true.
@@ -190,50 +194,50 @@ contains
         character(len=*), intent(in) :: bytes
         type(status_type) :: st
 
-        call kbd_store_bytes(bytes)
+        call keyboard_store_bytes(bytes)
         call command_loop(st)
     end subroutine type_bytes
 
     !> Define EVS as a keyboard macro with the kmacro commands
     !> (kmacro-tests-define-macro): the events are recorded between
-    !> `kmacro_start_macro' and `kmacro_end_macro'.
+    !> `keyboard_macro_start_macro' and `keyboard_macro_end_macro'.
     subroutine define_macro(evs)
         type(value_type), intent(in) :: evs(:)
         type(status_type) :: st
         integer :: k
 
-        current_prefix_arg = prefix_arg_type()
-        call kmacro_start_macro(prefix_arg_type(), st)
+        current_prefix_argument = prefix_argument_type()
+        call keyboard_macro_start_macro(prefix_argument_type(), st)
 
         do k = 1, size(evs)
-            call store_kbd_macro_event(evs(k))
+            call store_keyboard_macro_event(evs(k))
         end do
 
-        call finalize_kbd_macro_chars()
-        call kmacro_end_macro(prefix_arg_type(), st)
+        call finalize_keyboard_macro_characters()
+        call keyboard_macro_end_macro(prefix_argument_type(), st)
     end subroutine define_macro
 
     !> Insert the counter as kmacro-tests-simulate-command does, with
-    !> current-prefix-arg ARG.
-    subroutine insert_counter(arg)
-        type(prefix_arg_type), intent(in) :: arg
+    !> current-prefix-arg ARGUMENT.
+    subroutine insert_counter(argument)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type) :: st
 
-        current_prefix_arg = arg
-        call kmacro_insert_counter(arg, st)
-        current_prefix_arg = prefix_arg_type()
+        current_prefix_argument = argument
+        call keyboard_macro_insert_counter(argument, st)
+        current_prefix_argument = prefix_argument_type()
     end subroutine insert_counter
 
     !> Set the counter as kmacro-tests-simulate-command does.
-    subroutine set_counter(n, arg)
+    subroutine set_counter(n, argument)
         integer(int64), intent(in) :: n
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
         type(status_type) :: st
 
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, n)
-        if (present(arg)) current_prefix_arg = arg
-        call kmacro_set_counter(n, st)
-        current_prefix_arg = prefix_arg_type()
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, n)
+        if (present(argument)) current_prefix_argument = argument
+        call keyboard_macro_set_counter(n, st)
+        current_prefix_argument = prefix_argument_type()
     end subroutine set_counter
 
     !> The text of the current buffer.
@@ -254,8 +258,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(prefix_arg_type())
-        call insert_counter(prefix_arg_type())
+        call insert_counter(prefix_argument_type())
+        call insert_counter(prefix_argument_type())
         call check(error, text(), "01")
         call close_buffer(h, st)
     end subroutine test_insert_counter_01
@@ -267,9 +271,9 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(prefix_arg_type(PREFIX_NUMBER, 2_int64))
-        call insert_counter(prefix_arg_type(PREFIX_NUMBER, 3_int64))
-        call insert_counter(prefix_arg_type())
+        call insert_counter(prefix_argument_type(PREFIX_NUMBER, 2_int64))
+        call insert_counter(prefix_argument_type(PREFIX_NUMBER, 3_int64))
+        call insert_counter(prefix_argument_type())
         call check(error, text(), "025")
         call close_buffer(h, st)
     end subroutine test_insert_counter_02
@@ -281,8 +285,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(prefix_arg_type(PREFIX_RAW, 16_int64))
-        call insert_counter(prefix_arg_type(PREFIX_RAW, 4_int64))
+        call insert_counter(prefix_argument_type(PREFIX_RAW, 16_int64))
+        call insert_counter(prefix_argument_type(PREFIX_RAW, 4_int64))
         call check(error, text(), "00")
         call close_buffer(h, st)
     end subroutine test_insert_counter_03
@@ -294,8 +298,8 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call insert_counter(prefix_arg_type(PREFIX_MINUS))
-        call insert_counter(prefix_arg_type())
+        call insert_counter(prefix_argument_type(PREFIX_MINUS))
+        call insert_counter(prefix_argument_type())
         call check(error, text(), "0-1")
         call close_buffer(h, st)
     end subroutine test_insert_counter_04
@@ -308,11 +312,11 @@ contains
 
         call fresh(h)
         call set_counter(10_int64)
-        call insert_counter(prefix_arg_type())
-        call insert_counter(prefix_arg_type())
-        call kmacro_set_format("c=%s")
+        call insert_counter(prefix_argument_type())
+        call insert_counter(prefix_argument_type())
+        call keyboard_macro_set_format("c=%s")
         call set_counter(50_int64)
-        call insert_counter(prefix_arg_type())
+        call insert_counter(prefix_argument_type())
         call check(error, text(), "1011c=50")
         call close_buffer(h, st)
     end subroutine test_start_format_counter
@@ -324,12 +328,12 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call kmacro_start_macro(prefix_arg_type(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
+        call keyboard_macro_start_macro(prefix_argument_type(), st)
+        call check(error, defining_keyboard_macro /= DEFINING_KEYBOARD_MACRO_NO .and. .not. allocated(last_keyboard_macro), &
                    "recording")
         if (allocated(error)) return
-        call kmacro_start_macro(prefix_arg_type(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
+        call keyboard_macro_start_macro(prefix_argument_type(), st)
+        call check(error, defining_keyboard_macro /= DEFINING_KEYBOARD_MACRO_NO .and. .not. allocated(last_keyboard_macro), &
                    "still recording")
         if (allocated(error)) return
         call check(error, last_message, "Already defining keyboard macro.")
@@ -344,15 +348,15 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 5_int64)
-        call kmacro_start_macro(prefix_arg_type(PREFIX_NUMBER, 5_int64), st)
-        current_prefix_arg = prefix_arg_type()
-        call insert_counter(prefix_arg_type())
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, 5_int64)
+        call keyboard_macro_start_macro(prefix_argument_type(PREFIX_NUMBER, 5_int64), st)
+        current_prefix_argument = prefix_argument_type()
+        call insert_counter(prefix_argument_type())
         call set_counter(1_int64)
-        call insert_counter(prefix_arg_type())
+        call insert_counter(prefix_argument_type())
         ! Using universal arg to set counter should reset to starting value.
-        call set_counter(4_int64, prefix_arg_type(PREFIX_RAW, 4_int64))
-        call insert_counter(prefix_arg_type())
+        call set_counter(4_int64, prefix_argument_type(PREFIX_RAW, 4_int64))
+        call insert_counter(prefix_argument_type())
         call check(error, text(), "515")
         call discard_input()
         call close_buffer(h, st)
@@ -365,31 +369,31 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call kmacro_start_macro_or_insert_counter(prefix_arg_type(), st)
-        call check(error, defining_kbd_macro /= DEFINING_KBD_MACRO_NO, "recording")
+        call keyboard_macro_start_macro_or_insert_counter(prefix_argument_type(), st)
+        call check(error, defining_keyboard_macro /= DEFINING_KEYBOARD_MACRO_NO, "recording")
         if (allocated(error)) return
         ! Call it again and it should insert the counter.
-        call kmacro_start_macro_or_insert_counter(prefix_arg_type(), st)
+        call keyboard_macro_start_macro_or_insert_counter(prefix_argument_type(), st)
         call check(error, text(), "0")
         if (allocated(error)) return
         ! The macro recorded is "hello" (kmacro-tests-end-macro-advice).
         call record(chars("hello"))
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 3_int64)
-        call kmacro_end_or_execute_macro(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
-        current_prefix_arg = prefix_arg_type()
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "finished")
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, 3_int64)
+        call keyboard_macro_end_or_execute_macro(prefix_argument_type(PREFIX_NUMBER, 3_int64), st)
+        current_prefix_argument = prefix_argument_type()
+        call check(error, defining_keyboard_macro == DEFINING_KEYBOARD_MACRO_NO, "finished")
         if (allocated(error)) return
         call check(error, text(), "0hellohello", "the definition repeated")
         if (allocated(error)) return
         call erase_buffer(st)
         ! Now use prefix arg to append to the previous macro.
         ! This should run the previous macro first.
-        current_prefix_arg = prefix_arg_type(PREFIX_RAW, 4_int64)
-        call kmacro_start_macro_or_insert_counter(current_prefix_arg, st)
-        current_prefix_arg = prefix_arg_type()
+        current_prefix_argument = prefix_argument_type(PREFIX_RAW, 4_int64)
+        call keyboard_macro_start_macro_or_insert_counter(current_prefix_argument, st)
+        current_prefix_argument = prefix_argument_type()
         call check(error, text(), "hello")
         if (allocated(error)) return
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_APPEND, "append")
+        call check(error, defining_keyboard_macro == DEFINING_KEYBOARD_MACRO_APPEND, "append")
         call discard_input()
         call close_buffer(h, st)
     end subroutine test_appends_to_macro
@@ -401,10 +405,10 @@ contains
         integer :: k
 
         do k = 1, size(evs)
-            call store_kbd_macro_event(evs(k))
+            call store_keyboard_macro_event(evs(k))
         end do
 
-        call finalize_kbd_macro_chars()
+        call finalize_keyboard_macro_characters()
     end subroutine record
 
     !> The register and quit counter tests of kmacro-tests.el:
@@ -472,10 +476,10 @@ contains
         end if
 
         if (set) call set_counter(start)
-        call define_macro(kbd(mac))
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, count)
-        call kmacro_end_or_execute_macro(prefix_arg_type(PREFIX_NUMBER, count), st)
-        current_prefix_arg = prefix_arg_type()
+        call define_macro(keyboard(mac))
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, count)
+        call keyboard_macro_end_or_execute_macro(prefix_argument_type(PREFIX_NUMBER, count), st)
+        current_prefix_argument = prefix_argument_type()
         call check(error, st%ok(), name//": "//format_error(st))
         if (allocated(error)) return
         call check(error, text(), expected, name)
@@ -496,28 +500,28 @@ contains
 
         call fresh(h)
         if (set) call set_counter(start)
-        call define_macro(kbd(mac))
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 4_int64)
-        call kmacro_end_or_execute_macro(prefix_arg_type(PREFIX_NUMBER, 4_int64), st)
+        call define_macro(keyboard(mac))
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, 4_int64)
+        call keyboard_macro_end_or_execute_macro(prefix_argument_type(PREFIX_NUMBER, 4_int64), st)
         call check(error, text(), expected, name)
         if (allocated(error)) return
 
         if (quits) then
-            call check(error, kmacro_counter == after, name//": counter")
+            call check(error, keyboard_macro_counter == after, name//": counter")
             if (allocated(error)) return
         end if
 
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 1_int64)
-        call kmacro_end_or_execute_macro(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
-        current_prefix_arg = prefix_arg_type()
-        call check(error, (st%code == FM_QUIT) .eqv. quits, name//": quit")
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, 1_int64)
+        call keyboard_macro_end_or_execute_macro(prefix_argument_type(PREFIX_NUMBER, 1_int64), st)
+        current_prefix_argument = prefix_argument_type()
+        call check(error, (st%code == QUIT_CODE) .eqv. quits, name//": quit")
         if (allocated(error)) return
-        if (.not. quits) call check(error, kmacro_counter == after, name//": counter")
+        if (.not. quits) call check(error, keyboard_macro_counter == after, name//": counter")
         call close_buffer(h, st)
     end subroutine quit_case
 
     !> kmacro-end-call-macro changes behavior based on prefix arg.
-    subroutine test_end_execute_prefix_args(error)
+    subroutine test_end_execute_prefix_arguments(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -526,14 +530,14 @@ contains
         call define_macro(chars("macro #1"))
         call define_macro(chars("macro #2"))
         ! With no prefix arg, it should call the second macro.
-        call kmacro_end_or_execute_macro(prefix_arg_type(), st)
+        call keyboard_macro_end_or_execute_macro(prefix_argument_type(), st)
         call check(error, text(), "macro #2")
         if (allocated(error)) return
         ! With universal arg, it should call the first one.
-        call kmacro_end_or_execute_macro(prefix_arg_type(PREFIX_RAW, 4_int64), st)
+        call keyboard_macro_end_or_execute_macro(prefix_argument_type(PREFIX_RAW, 4_int64), st)
         call check(error, text(), "macro #2macro #1")
         call close_buffer(h, st)
-    end subroutine test_end_execute_prefix_args
+    end subroutine test_end_execute_prefix_arguments
 
     !> Keyboard command to end and call macro works under various conditions.
     subroutine test_end_and_execute_macro(error)
@@ -543,17 +547,17 @@ contains
 
         call fresh(h)
         ! First, try it with no macro to record.
-        call kmacro_start_macro(prefix_arg_type(), st)
-        call kmacro_end_and_execute_macro(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
+        call keyboard_macro_start_macro(prefix_argument_type(), st)
+        call keyboard_macro_end_and_execute_macro(prefix_argument_type(PREFIX_NUMBER, 2_int64), st)
         call check(error, format_error(st), "No kbd macro has been defined")
         if (allocated(error)) return
         ! Check that it stopped defining and that no macro was recorded.
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO .and. .not. allocated(last_kbd_macro), &
+        call check(error, defining_keyboard_macro == DEFINING_KEYBOARD_MACRO_NO .and. .not. allocated(last_keyboard_macro), &
                    "no macro")
         if (allocated(error)) return
         ! Now try it while not recording, but first record a macro.
         call define_macro(chars("macro"))
-        call kmacro_end_and_execute_macro(prefix_arg_type(), st)
+        call keyboard_macro_end_and_execute_macro(prefix_argument_type(), st)
         call check(error, text(), "macro")
         call close_buffer(h, st)
     end subroutine test_end_and_execute_macro
@@ -567,12 +571,12 @@ contains
 
         call fresh(h)
         call define_macro(chars("m"))
-        kmacro_execute_repeat_key = .true.
-        kmacro_execute_repeat_with_arg = .true.
+        keyboard_macro_execute_repeat_key = .true.
+        keyboard_macro_execute_repeat_with_argument = .true.
         last_input_event = value_type(int(iachar("e"), int64))
-        this_command_keys = kbd("C-x e")
+        this_command_keys = keyboard("C-x e")
         last_message = ""
-        call kmacro_execute_macro(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
+        call keyboard_macro_execute_macro(prefix_argument_type(PREFIX_NUMBER, 3_int64), st)
         call check(error, last_message, "(Type e to repeat macro 3 times)")
         if (allocated(error)) return
         ! Check that it set up for repeat, and run the repeat.
@@ -589,27 +593,27 @@ contains
 
         call fresh(h)
         ! Record one macro, with count.
-        current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, 1_int64)
-        call kmacro_start_macro(prefix_arg_type(PREFIX_NUMBER, 1_int64), st)
-        current_prefix_arg = prefix_arg_type()
-        call record(kbd("C-x C-k C-i C-u C-x C-k C-i"))
-        call kmacro_end_macro(prefix_arg_type(), st)
+        current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, 1_int64)
+        call keyboard_macro_start_macro(prefix_argument_type(PREFIX_NUMBER, 1_int64), st)
+        current_prefix_argument = prefix_argument_type()
+        call record(keyboard("C-x C-k C-i C-u C-x C-k C-i"))
+        call keyboard_macro_end_macro(prefix_argument_type(), st)
         ! Check that execute and display do nothing with no 2nd macro.
-        call kmacro_execute_ring_2nd(prefix_arg_type(), st)
+        call keyboard_macro_execute_ring_2nd(prefix_argument_type(), st)
         call check(error, text(), "")
         if (allocated(error)) return
-        call kmacro_view_ring_2nd(st)
+        call keyboard_macro_view_ring_2nd(st)
         call check(error, last_message, "Only one keyboard macro defined.")
         if (allocated(error)) return
         ! Record another one, with format.
-        call kmacro_set_format("=%d=")
+        call keyboard_macro_set_format("=%d=")
         call define_macro(chars("bar"))
         ! Execute the first one; should get default format.
-        call kmacro_execute_ring_2nd(prefix_arg_type(), st)
+        call keyboard_macro_execute_ring_2nd(prefix_argument_type(), st)
         call check(error, text(), "11")
         if (allocated(error)) return
         ! Now display the 2nd ring macro and check result.
-        call kmacro_view_ring_2nd(st)
+        call keyboard_macro_view_ring_2nd(st)
         call check(error, last_message, "2nd macro: C-x C-k TAB C-u C-x C-k TAB")
         call close_buffer(h, st)
     end subroutine test_ring_2nd_commands
@@ -621,7 +625,7 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_ring_max = 4
+        keyboard_macro_ring_maximum = 4
         ! Record enough macros that the first one drops off the history.
         call define_macro(chars("a"))
         call define_macro(chars("bb"))
@@ -629,23 +633,23 @@ contains
         call define_macro(chars("dddd"))
         call define_macro(chars("eeeee"))
         ! Cycle the ring and check that #2 comes up.
-        call kmacro_cycle_ring_next(st)
+        call keyboard_macro_cycle_ring_next(st)
         call check(error, last_message, "Macro: bb")
         if (allocated(error)) return
         ! Execute the current macro and check arguments.
-        call kmacro_execute_macro(prefix_arg_type(PREFIX_NUMBER, 2_int64), st, KMACRO_REPEAT_NO)
+        call keyboard_macro_execute_macro(prefix_argument_type(PREFIX_NUMBER, 2_int64), st, KEYBOARD_MACRO_REPEAT_NO)
         call check(error, text(), "bbbb")
         if (allocated(error)) return
         ! Cycle the ring the other way; #5 expected.
-        call kmacro_cycle_ring_previous(st)
+        call keyboard_macro_cycle_ring_previous(st)
         call check(error, last_message, "Macro: 5*e")
         if (allocated(error)) return
         ! Swapping the top two should give #4.
-        call kmacro_swap_ring(st)
+        call keyboard_macro_swap_ring(st)
         call check(error, last_message, "Macro: 4*d")
         if (allocated(error)) return
         ! Delete the top and expect #5.
-        call kmacro_delete_ring_head(st)
+        call keyboard_macro_delete_ring_head(st)
         call check(error, last_message, "Macro: 5*e")
         call close_buffer(h, st)
     end subroutine test_fill_ring_and_rotate
@@ -664,20 +668,20 @@ contains
 
             select case (k)
             case (1)
-                call kmacro_cycle_ring_next(st)
+                call keyboard_macro_cycle_ring_next(st)
             case (2)
-                call kmacro_cycle_ring_previous(st)
+                call keyboard_macro_cycle_ring_previous(st)
             case (3)
-                call kmacro_swap_ring(st)
+                call keyboard_macro_swap_ring(st)
             case (4)
-                call kmacro_delete_ring_head(st)
+                call keyboard_macro_delete_ring_head(st)
             case (5)
-                call kmacro_view_ring_2nd(st)
+                call keyboard_macro_view_ring_2nd(st)
             case (6)
-                call kmacro_execute_ring_2nd(prefix_arg_type(), st)
+                call keyboard_macro_execute_ring_2nd(prefix_argument_type(), st)
             case default
                 ! kmacro-view-macro says so, then that there are none.
-                call kmacro_view_macro(st)
+                call keyboard_macro_view_macro(st)
                 call check(error, last_message, "No keyboard macros defined")
                 exit
             end select
@@ -696,7 +700,7 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_execute_repeat_key = .true.
+        keyboard_macro_execute_repeat_key = .true.
         call define_macro(chars("a"))
         call define_macro(chars("b"))
         call define_macro(chars("c"))
@@ -704,7 +708,7 @@ contains
         last_command => null()
         ! 6 views (the first plus 5 repeats) should cycle through the ring
         ! and get to the second-to-last macro defined; C-k runs it.
-        call type_events(kbd("C-x C-k C-v C-v C-v C-v C-v C-v C-k"))
+        call type_events(keyboard("C-x C-k C-v C-v C-v C-v C-v C-v C-k"))
         call check(error, text(), "c")
         if (allocated(error)) return
         ! (Reading C-k wiped the echo area; the views were logged.)
@@ -740,15 +744,15 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_execute_repeat_key = .true.
-        call type_events(kbd("C-x ( a b C-x )"))
+        keyboard_macro_execute_repeat_key = .true.
+        call type_events(keyboard("C-x ( a b C-x )"))
         call check(error, last_macro_is(chars("ab")), "macro recorded")
         if (allocated(error)) return
         call check(error, last_message, "Keyboard macro defined")
         if (allocated(error)) return
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "no longer defining")
+        call check(error, defining_keyboard_macro == DEFINING_KEYBOARD_MACRO_NO, "no longer defining")
         if (allocated(error)) return
-        call type_events(kbd("C-x e"))
+        call type_events(keyboard("C-x e"))
         call check(error, text(), "abab")
         if (allocated(error)) return
         call check(error, last_message, "(Type e to repeat macro)")
@@ -772,10 +776,10 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call type_events(kbd("C-x ( C-u 3 a C-x )"))
-        call check(error, last_macro_is(kbd("C-u 3 a")), "C-u 3 a")
+        call type_events(keyboard("C-x ( C-u 3 a C-x )"))
+        call check(error, last_macro_is(keyboard("C-u 3 a")), "C-u 3 a")
         if (allocated(error)) return
-        call type_events(kbd("C-x e"))
+        call type_events(keyboard("C-x e"))
         call check(error, text(), "aaaaaa")
         call close_buffer(h, st)
     end subroutine test_recording_prefix
@@ -788,7 +792,7 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call type_events(kbd("C-x ( x C-u 3 C-x )"))
+        call type_events(keyboard("C-x ( x C-u 3 C-x )"))
         call check(error, last_macro_is(chars("x")), "macro x")
         if (allocated(error)) return
         call check(error, text(), "xxx")
@@ -802,13 +806,13 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call type_events(kbd("C-x ( a C-x )"))
-        call type_events(kbd("C-x ( b C-g"))
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "not defining")
+        call type_events(keyboard("C-x ( a C-x )"))
+        call type_events(keyboard("C-x ( b C-g"))
+        call check(error, defining_keyboard_macro == DEFINING_KEYBOARD_MACRO_NO, "not defining")
         if (allocated(error)) return
         call check(error, last_macro_is(chars("a")), "previous macro")
         if (allocated(error)) return
-        call check(error,.not. allocated(kmacro_ring) .or. size(kmacro_ring) == 0, "ring popped")
+        call check(error,.not. allocated(keyboard_macro_ring) .or. size(keyboard_macro_ring) == 0, "ring popped")
         if (allocated(error)) return
         call check(error, last_message, "Quit")
         call close_buffer(h, st)
@@ -822,10 +826,10 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        call type_events(kbd("C-x ( b C-a C-b"))
-        call check(error, defining_kbd_macro == DEFINING_KBD_MACRO_NO, "not defining")
+        call type_events(keyboard("C-x ( b C-a C-b"))
+        call check(error, defining_keyboard_macro == DEFINING_KEYBOARD_MACRO_NO, "not defining")
         if (allocated(error)) return
-        call check(error, last_macro_is(kbd("b C-a")), "macro b C-a")
+        call check(error, last_macro_is(keyboard("b C-a")), "macro b C-a")
         if (allocated(error)) return
         call check(error, last_message, "Beginning of buffer")
         call close_buffer(h, st)
@@ -839,11 +843,11 @@ contains
         type(status_type) :: st
 
         call fresh(h)
-        kmacro_execute_repeat_key = .true.
-        call type_events(kbd("M-5 <f3> x M-2 <f3> y <f4> <f4> <f4> <f4>"))
+        keyboard_macro_execute_repeat_key = .true.
+        call type_events(keyboard("M-5 <f3> x M-2 <f3> y <f4> <f4> <f4> <f4>"))
         call check(error, text(), "x5yx7yx9yx11y")
         if (allocated(error)) return
-        call check(error, last_macro_is(kbd("x M-2 <f3> y")), "macro")
+        call check(error, last_macro_is(keyboard("x M-2 <f3> y")), "macro")
         call close_buffer(h, st)
     end subroutine test_f3_f4
 
@@ -854,7 +858,7 @@ contains
         terminations = terminations + 1
     end subroutine count_termination
 
-    !> kbd_macro_termination_hook runs after each execution, also one
+    !> keyboard_macro_termination_hook runs after each execution, also one
     !> ended by an error.
     subroutine test_termination_hook(error)
         type(error_type), allocatable, intent(out) :: error
@@ -863,12 +867,12 @@ contains
 
         call fresh(h)
         terminations = 0
-        call kbd_macro_termination_hook%prepend(count_termination)
+        call keyboard_macro_termination_hook%prepend(count_termination)
         call define_macro(chars("a"))
-        call kmacro_execute_macro(prefix_arg_type(PREFIX_NUMBER, 2_int64), st)
-        call define_macro(kbd("C-a C-b"))
-        call kmacro_execute_macro(prefix_arg_type(), st)
-        call kbd_macro_termination_hook%remove(count_termination)
+        call keyboard_macro_execute_macro(prefix_argument_type(PREFIX_NUMBER, 2_int64), st)
+        call define_macro(keyboard("C-a C-b"))
+        call keyboard_macro_execute_macro(prefix_argument_type(), st)
+        call keyboard_macro_termination_hook%remove(count_termination)
         call check(error, terminations, 2)
         if (allocated(error)) return
         call check(error, format_error(st), "Beginning of buffer")
@@ -889,7 +893,7 @@ contains
         call mode_line_modes_faces(h%index, modes, spans, faces)
         call check(error, modes, "Fundamental")
         if (allocated(error)) return
-        call kmacro_start_macro(prefix_arg_type(), st)
+        call keyboard_macro_start_macro(prefix_argument_type(), st)
         call mode_line_modes_faces(h%index, modes, spans, faces)
         call check(error, modes, "Fundamental Def")
         if (allocated(error)) return
@@ -903,29 +907,29 @@ contains
     end subroutine test_mode_line
 
     !> The printed form of macros (edmacro.el's format-kbd-macro).
-    subroutine test_format_kbd_macro(error)
+    subroutine test_format_keyboard_macro(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh(h)
-        call check(error, format_kbd_macro(kbd("C-x C-f")), "C-x C-f")
+        call check(error, format_keyboard_macro(keyboard("C-x C-f")), "C-x C-f")
         if (allocated(error)) return
-        call check(error, format_kbd_macro(chars("abc")), "abc")
+        call check(error, format_keyboard_macro(chars("abc")), "abc")
         if (allocated(error)) return
-        call check(error, format_kbd_macro(kbd("C-f C-f C-f")), "3*C-f")
+        call check(error, format_keyboard_macro(keyboard("C-f C-f C-f")), "3*C-f")
         if (allocated(error)) return
-        call check(error, format_kbd_macro(kbd("C-u 3 C-f")), "C-u 3 C-f")
+        call check(error, format_keyboard_macro(keyboard("C-u 3 C-f")), "C-u 3 C-f")
         if (allocated(error)) return
-        call check(error, format_kbd_macro(kbd("M-1 M-2 a")), "M-12 a")
+        call check(error, format_keyboard_macro(keyboard("M-1 M-2 a")), "M-12 a")
         if (allocated(error)) return
-        call check(error, format_kbd_macro(kbd("M-x f o r w a r d _ c h a r RET")), "<<forward_char>>")
+        call check(error, format_keyboard_macro(keyboard("M-x f o r w a r d _ c h a r a c t e r RET")), "<<forward_character>>")
         if (allocated(error)) return
-        call check(error, format_kbd_macro(kbd("a a a b <f3> SPC")), "aaab <f3> SPC")
+        call check(error, format_keyboard_macro(keyboard("a a a b <f3> SPC")), "aaab <f3> SPC")
         if (allocated(error)) return
-        call check(error, format_kbd_macro(kbd("C-M-a ESC DEL")), "M-C-a ESC DEL")
+        call check(error, format_keyboard_macro(keyboard("C-M-a ESC DEL")), "M-C-a ESC DEL")
         call close_buffer(h, st)
-    end subroutine test_format_kbd_macro
+    end subroutine test_format_keyboard_macro
 
     !> The keys of kmacro.el's autoloads and kmacro-keymap.
     subroutine test_keys(error)
@@ -936,21 +940,27 @@ contains
                                                                        "C-x C-k C-k", "C-x C-k C-n", "C-x C-k C-p", "C-x C-k C-v", &
                                                                        "C-x C-k C-i", "C-x C-k C-c", "C-x C-k C-a", "C-x C-k C-f", &
                                                                                                                    "C-x C-k C-d"]
-        character(len=*), parameter :: cmds(14) = [character(len=36) :: "kmacro_start_macro", "kmacro_end_macro", &
-                                                           "kmacro_end_and_execute_macro", "kmacro_start_macro_or_insert_counter", &
-                                                              "kmacro_end_or_execute_macro", "kmacro_end_or_execute_macro_repeat", &
-                                                                           "kmacro_cycle_ring_next", "kmacro_cycle_ring_previous", &
-                                                                              "kmacro_view_macro_repeat", "kmacro_insert_counter", &
-                                                                  "kmacro_set_counter", "kmacro_add_counter", "kmacro_set_format", &
-                                                                                                          "kmacro_delete_ring_head"]
+        character(len=*), parameter :: commands(14) = [character(len=44) :: "keyboard_macro_start_macro", &
+                                                                                                       "keyboard_macro_end_macro", &
+                                                                                           "keyboard_macro_end_and_execute_macro", &
+                                                                                   "keyboard_macro_start_macro_or_insert_counter", &
+                                                                                            "keyboard_macro_end_or_execute_macro", &
+                                                                                     "keyboard_macro_end_or_execute_macro_repeat", &
+                                                                                                 "keyboard_macro_cycle_ring_next", &
+                                                                                             "keyboard_macro_cycle_ring_previous", &
+                                                                                               "keyboard_macro_view_macro_repeat", &
+                                                                                                  "keyboard_macro_insert_counter", &
+                                                                       "keyboard_macro_set_counter", "keyboard_macro_add_counter", &
+                                                                                                      "keyboard_macro_set_format", &
+                                                                                                  "keyboard_macro_delete_ring_head"]
         type(value_type) :: b
         integer :: k
 
         call fresh(h)
 
         do k = 1, size(keys)
-            call key_binding(kbd(trim(keys(k))), b, st)
-            call check(error, value_eq(b, value_type(name=trim(cmds(k)))), trim(keys(k)))
+            call key_binding(keyboard(trim(keys(k))), b, st)
+            call check(error, value_eq(b, value_type(name=trim(commands(k)))), trim(keys(k)))
             if (allocated(error)) return
         end do
 

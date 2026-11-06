@@ -24,28 +24,25 @@ module test_file_input_output_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, condition_matches, format_error, FM_FILE_ERROR, &
-                         FM_FILE_ALREADY_EXISTS, &
-                         FM_FILE_MISSING, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, condition_matches, format_error, FILE_ERROR_CODE, &
+                         FILE_ALREADY_EXISTS_CODE, &
+                         FILE_MISSING_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
     use coding_mod, only: last_coding_system_used
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, &
                           is_buffer_modified, current_buffer
     use insert_delete_mod, only: insert, after_change_functions
-    use editing_functions_mod, only: point, buffer_string, goto_char
-    use system_dependent_mod, only: passwd_name_of_user, passwd_home_of_user
+    use editing_functions_mod, only: point, buffer_string, goto_character
+    use system_dependent_mod, only: password_name_of_user, password_home_of_user
     use environment_mod, only: setenv
-    use file_input_output_mod, only: file_name_directory, file_name_nondirectory, file_name_as_directory, &
-                                     is_file_executable, is_file_newer_than_file, &
-                                     create_symbolic_link, is_file_symlink, &
-                                     directory_file_name, is_directory_name, is_file_name_absolute, &
-                                     expand_file_name, get_homedir, init_fileio, fortmacs_wd, file_exists, &
-                                     is_file_readable, is_file_writable, is_file_directory, file_modes, &
-                                     set_file_modes, insert_file_contents, write_region, &
-                                     is_visited_file_modtime_current, create_directory_internal, &
-                                     delete_directory_internal, delete_file_internal, rename_file, copy_file, &
-                                   substitute_in_file_name, create_temp_file_internal, default_file_modes, set_default_file_modes, &
-                                     access_file, visited_file_modtime, set_visited_file_modtime
+    use file_input_output_mod, only: file_name_directory, file_name_nondirectory, file_name_as_directory, is_file_executable, &
+                                     is_file_newer_than_file, create_symbolic_link, is_file_symlink, directory_file_name, &
+                                     is_directory_name, is_file_name_absolute, expand_file_name, get_homedir, initialize_fileio, &
+                                     fortmacs_wd, file_exists, is_file_readable, is_file_writable, is_file_directory, file_modes, &
+                                     set_file_modes, insert_file_contents, write_region, is_visited_file_modtime_current, &
+                                     create_directory_internal, delete_directory_internal, delete_file_internal, rename_file, &
+                                     copy_file, substitute_in_file_name, create_temporary_file_internal, default_file_modes, &
+                                     set_default_file_modes, access_file, visited_file_modtime, set_visited_file_modtime
     use time_functions_mod, only: time_type, is_time_equal, is_time_less
     implicit none(type, external)
     private
@@ -84,7 +81,7 @@ contains
                     new_unittest("rename-and-copy", test_rename_copy), &
                     new_unittest("substitute-in-file-name", test_substitute), &
                     new_unittest("insert-file-contents-change-hooks", test_insert_change_hooks), &
-                    new_unittest("make-temp-file-internal", test_create_temp_file_internal), &
+                    new_unittest("make-temp-file-internal", test_create_temporary_file_internal), &
                     new_unittest("set-default-file-modes-and-unix-sync", test_default_file_modes), &
                     new_unittest("access-file", test_access_file) &
                     ]
@@ -112,7 +109,7 @@ contains
         type(handle_type), intent(out) :: buffer
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call get_or_make_buffer("fileio-test", buffer, st)
         call set_buffer(buffer, st)
         buffers(current)%directory = file_name_as_directory(fortmacs_wd)
@@ -191,7 +188,7 @@ contains
         integer :: i
         logical :: found
 
-        call passwd_name_of_user(me, found)
+        call password_name_of_user(me, found)
 
         do i = 1, size(suffixes)
             if (len_trim(suffixes(i)) > 0) then
@@ -216,17 +213,17 @@ contains
     end subroutine test_is_file_name_absolute
 
     !> expand(name, dir) == want.
-    subroutine check_expand(error, name, dir, want)
+    subroutine check_expand(error, name, directory, want)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), intent(in) :: name, dir, want
+        character(len=*), intent(in) :: name, directory, want
         character(len=:), allocatable :: got
         type(status_type) :: st
 
-        call expand_file_name(name, got, st, dir)
+        call expand_file_name(name, got, st, directory)
         call check(error, st%ok(), "expand "//name)
         if (allocated(error)) return
         call check(error, got == want .and. len(got) == len(want), &
-                   "expand-file-name """//name//""" """//dir//""" gave """//got//""", want """//want//"""")
+                   "expand-file-name """//name//""" """//directory//""" gave """//got//""", want """//want//"""")
     end subroutine check_expand
 
     subroutine test_expand_file_name(error)
@@ -294,8 +291,8 @@ contains
         character(len=:), allocatable :: me, home
         logical :: found, found_home
 
-        call passwd_name_of_user(me, found)
-        call passwd_home_of_user(home, found_home)
+        call password_name_of_user(me, found)
+        call password_home_of_user(home, found_home)
         call check_expand(error, "~", "/x/", "/home/someone")
         if (allocated(error)) return
         call check_expand(error, "~/a/../b", "/x/", "/home/someone/b")
@@ -349,7 +346,7 @@ contains
         type(status_type) :: st
         logical :: had_home
 
-        call init_fileio()
+        call initialize_fileio()
         call save_home(home, had_home)
         call setenv("HOME", "a/b/c")
         call expand_file_name("~/foo", a, st)
@@ -384,15 +381,15 @@ contains
         type(status_type) :: st
 
         call expand_file_name("file"//achar(0)//".txt", name, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT)
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE)
         if (allocated(error)) return
         call expand_file_name("file.txt", name, st, "dir"//achar(0))
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT)
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE)
         if (allocated(error)) return
         call setup(buffer)
         buffers(current)%directory = "dir"//achar(0)
         call expand_file_name("file.txt", name, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT)
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE)
         call teardown(buffer)
     end subroutine test_null_bytes
 
@@ -400,16 +397,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message_text
         integer(int64) :: inserted
         logical :: modified
 
         call setup(buffer)
         call insert("héllo"//new_line("a")//"wörld"//new_line("a"), st)
-        call write_region(testdir//"/f1", .true., st, message=msg)
+        call write_region(testdir//"/f1", .true., st, message=message_text)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call check(error, msg == "Wrote "//file_name_as_directory(fortmacs_wd)//testdir//"/f1", msg)
+        call check(error, message_text == "Wrote "//file_name_as_directory(fortmacs_wd)//testdir//"/f1", message_text)
         if (allocated(error)) return
         call check(error, buffers(current)%filename == file_name_as_directory(fortmacs_wd)//testdir//"/f1")
         if (allocated(error)) return
@@ -420,7 +417,7 @@ contains
         call teardown(buffer)
         call make_test_buffer(buffer)
         call insert("<>", st)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call insert_file_contents(testdir//"/f1", .false., inserted, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -476,7 +473,7 @@ contains
 
         call setup(buffer)
         call insert_file_contents(testdir//"/missing", .true., inserted, st)
-        call check(error, st%code == FM_FILE_MISSING .and. condition_matches(st%code, FM_FILE_ERROR), format_error(st))
+        call check(error, st%code == FILE_MISSING_CODE .and. condition_matches(st%code, FILE_ERROR_CODE), format_error(st))
         if (allocated(error)) return
         call check(error, format_error(st) == "Opening input file: No such file or directory, "// &
                    file_name_as_directory(fortmacs_wd)//testdir//"/missing", format_error(st))
@@ -489,7 +486,7 @@ contains
         call teardown(buffer)
         call make_test_buffer(buffer)
         call insert_file_contents(testdir//"/missing", .false., inserted, st)
-        call check(error, st%code == FM_FILE_MISSING .and. .not. allocated(buffers(current)%filename), format_error(st))
+        call check(error, st%code == FILE_MISSING_CODE .and. .not. allocated(buffers(current)%filename), format_error(st))
         call teardown(buffer)
     end subroutine test_visit_nonexistent
 
@@ -501,7 +498,7 @@ contains
 
         call setup(buffer)
         call insert_file_contents(testdir, .false., inserted, st)
-        call check(error, st%code == FM_FILE_ERROR, format_error(st))
+        call check(error, st%code == FILE_ERROR_CODE, format_error(st))
         if (allocated(error)) return
         call check(error, index(format_error(st), "Read error: Is a directory, ") == 1, format_error(st))
         call teardown(buffer)
@@ -599,7 +596,7 @@ contains
         call check(error, st%ok() .and. is_file_symlink(testdir//"/link"), "symbolic link")
         if (allocated(error)) return
         call create_symbolic_link("f6", testdir//"/link", st)
-        call check(error, st%code == FM_FILE_ALREADY_EXISTS .and. condition_matches(st%code, FM_FILE_ERROR), &
+        call check(error, st%code == FILE_ALREADY_EXISTS_CODE .and. condition_matches(st%code, FILE_ERROR_CODE), &
                    format_error(st))
         if (allocated(error)) return
         call create_symbolic_link("f6", testdir//"/link", st, ok_if_already_exists=.true.)
@@ -610,9 +607,9 @@ contains
         call check(error, st%ok() .and. is_file_directory(testdir//"/sub/"))
         if (allocated(error)) return
         call create_directory_internal(testdir//"/sub", st)
-        call check(error, condition_matches(st%code, FM_FILE_ERROR), "already exists")
+        call check(error, condition_matches(st%code, FILE_ERROR_CODE), "already exists")
         if (allocated(error)) return
-        call check(error, st%code == FM_FILE_ALREADY_EXISTS .and. index(format_error(st), "File exists: /") == 1 &
+        call check(error, st%code == FILE_ALREADY_EXISTS_CODE .and. index(format_error(st), "File exists: /") == 1 &
                    .and. index(format_error(st), testdir//"/sub") > 0, format_error(st))
         if (allocated(error)) return
         call delete_directory_internal(testdir//"/sub", st)
@@ -642,7 +639,7 @@ contains
         call check(error, buffer_string() == "data")
         if (allocated(error)) return
         call rename_file(testdir//"/missing", testdir//"/f4", st)
-        call check(error, st%code == FM_FILE_MISSING .and. index(format_error(st), "Renaming: ") == 1, &
+        call check(error, st%code == FILE_MISSING_CODE .and. index(format_error(st), "Renaming: ") == 1, &
                    format_error(st))
         call teardown(buffer)
     end subroutine test_rename_copy
@@ -652,7 +649,7 @@ contains
         character(len=:), allocatable :: me
         logical :: found
 
-        call passwd_name_of_user(me, found)
+        call password_name_of_user(me, found)
         call setenv("FM_TEST_DIR", "/opt/x")
         call setenv("FM_TEST_UNSET")
         call check(error, substitute_in_file_name("/a/b//etc/hosts") == "/etc/hosts")
@@ -682,14 +679,14 @@ contains
         call check(error, substitute_in_file_name("/plain") == "/plain")
     end subroutine test_substitute
 
-    !> Records "A<beginning>,<end>,<old_len>" (an after-change function).
-    subroutine rec_after(beginning, end, old_len, status)
-        integer(int64), intent(in) :: beginning, end, old_len
+    !> Records "A<beginning>,<end>,<old_length>" (an after-change function).
+    subroutine rec_after(beginning, end, old_length, status)
+        integer(int64), intent(in) :: beginning, end, old_length
         type(status_type), intent(out) :: status
         character(len=64) :: buffer
 
         status = status_type()
-        write (buffer, "(a, i0, a, i0, a, i0)") " A", beginning, ",", end, ",", old_len
+        write (buffer, "(a, i0, a, i0, a, i0)") " A", beginning, ",", end, ",", old_length
         trace = trace//trim(buffer)
     end subroutine rec_after
 
@@ -714,7 +711,7 @@ contains
         call teardown(buffer)
         call make_test_buffer(buffer)
         call insert("<>", st)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         trace = ""
         call insert_file_contents(testdir//"/f5", .false., inserted, st)
         call check(error, trace, " A2,5,0", "inserting")
@@ -725,7 +722,7 @@ contains
     !> make-temp-file-internal: a new file of mode 600 named PREFIX, six
     !> letters or digits and SUFFIX; a directory of mode 700; only a free
     !> name when CREATE is false; a file error in a missing directory.
-    subroutine test_create_temp_file_internal(error)
+    subroutine test_create_temporary_file_internal(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
@@ -733,7 +730,7 @@ contains
 
         call setup(buffer)
         prefix = testdir//"/tmp-"
-        call create_temp_file_internal(prefix, ".txt", name, st)
+        call create_temporary_file_internal(prefix, ".txt", name, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, len(name) == len(prefix) + 10, name)
@@ -745,20 +742,20 @@ contains
         call check(error, file_exists(name) .and. file_modes(name) == int(o'600', int32), "a file of mode 600")
         if (allocated(error)) return
         call delete_file_internal(name, st)
-        call create_temp_file_internal(prefix, "", name, st, directory=.true.)
+        call create_temporary_file_internal(prefix, "", name, st, directory=.true.)
         call check(error, st%ok() .and. is_file_directory(name), "a directory: "//format_error(st))
         if (allocated(error)) return
         call check(error, file_modes(name) == int(o'700', int32), "a directory of mode 700")
         if (allocated(error)) return
         call delete_directory_internal(name, st)
-        call create_temp_file_internal(prefix, "", name, st, create=.false.)
+        call create_temporary_file_internal(prefix, "", name, st, create=.false.)
         call check(error, st%ok() .and. len(name) == len(prefix) + 6 .and. .not. file_exists(name), "only a name")
         if (allocated(error)) return
-        call create_temp_file_internal(testdir//"/missing/tmp-", "", name, st)
-        call check(error, condition_matches(st%code, FM_FILE_ERROR) .and. &
+        call create_temporary_file_internal(testdir//"/missing/tmp-", "", name, st)
+        call check(error, condition_matches(st%code, FILE_ERROR_CODE) .and. &
                    index(format_error(st), "Creating file with prefix") > 0, format_error(st))
         call close_buffer(buffer, st)
-    end subroutine test_create_temp_file_internal
+    end subroutine test_create_temporary_file_internal
 
     !> set-default-file-modes sets the mask default-file-modes reads back
     !> (only the low 9 bits) and that new files get; unix-sync runs.
@@ -775,7 +772,7 @@ contains
         call check(error, default_file_modes() == int(o'640', int32), "default-file-modes")
 
         if (.not. allocated(error)) then
-            call create_temp_file_internal(testdir//"/modes-", "", name, st, directory=.true.)
+            call create_temporary_file_internal(testdir//"/modes-", "", name, st, directory=.true.)
             call check(error, st%ok() .and. file_modes(name) == int(o'600', int32), "a new directory masked to 600")
             call delete_directory_internal(name, st)
         end if
@@ -784,7 +781,7 @@ contains
         if (allocated(error)) return
         call check(error, default_file_modes() == saved, "restored")
         if (allocated(error)) return
-        call commands%unix_sync%execute(st)
+        call commands%unix_synchronize%execute(st)
         call check(error, st%ok(), format_error(st))
         call close_buffer(buffer, st)
     end subroutine test_default_file_modes
@@ -803,7 +800,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call access_file(testdir//"/missing", "Opening input file", st)
-        call check(error, st%code == FM_FILE_MISSING .and. index(format_error(st), "Opening input file") == 1, &
+        call check(error, st%code == FILE_MISSING_CODE .and. index(format_error(st), "Opening input file") == 1, &
                    format_error(st))
         call close_buffer(buffer, st)
     end subroutine test_access_file

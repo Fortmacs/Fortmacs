@@ -7,7 +7,7 @@
 ## Ported
 
 `char-script-table` as sorted runs,
-`char_script`
+`character_script`
 
 ## Deferred
 

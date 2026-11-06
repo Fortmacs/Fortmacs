@@ -1,4 +1,4 @@
-! files_dir_mod.f90 -- directory listings, file names and deletion, a
+! files_directory_mod.f90 -- directory listings, file names and deletion, a
 ! submodule of files_mod.
 ! Ported from GNU Emacs 31.1 lisp/files.el.
 !
@@ -25,27 +25,27 @@
 !> `delete_file', `delete_directory', file size strings and
 !> `revert_buffer': a submodule because they use execute_process_mod and directory_editor_mod,
 !> which use files_mod.
-submodule(files_mod) files_dir_mod
+submodule(files_mod) files_directory_mod
     use value_mod, only: make_list, list_elements, xstring, value_type
     use names_mod, only: read_string_literal
-    use execute_process_mod, only: execute_process, shell_file_name, init_callproc
+    use execute_process_mod, only: execute_process, shell_file_name, initialize_callproc
     use directory_editor_mod, only: directory_files
     use search_mod, only: string_match, match_beginning, match_end, looking_at, string_index_to_offset
     use basic_subprograms_mod, only: match_string
     use text_properties_mod, only: put_text_property
     use editing_commands_mod, only: forward_line
-    use editing_functions_mod, only: line_end_position, char_after, is_bol, is_eol
+    use editing_functions_mod, only: line_end_position, character_after, is_beginning_of_line, is_end_of_line
     use file_input_output_mod, only: is_file_name_absolute, delete_file_internal, delete_directory_internal, file_system_info, &
-                                     fortmacs_wd, create_temp_file_internal
-    use character_mod, only: string_char_and_length, is_char_byte8
+                                     fortmacs_wd, create_temporary_file_internal
+    use character_mod, only: string_character_and_length, is_character_byte8
     use casefiddle_mod, only: downcase_string
     use minibuffer_mod, only: read_file_name_completion_ignore_case
     use system_dependent_mod, only: fortmacs_readlink
-    use error_mod, only: FM_FILE_MISSING
+    use error_mod, only: FILE_MISSING_CODE
     use search_mod, only: case_fold_search
-    use editing_functions_mod, only: buffer_substring, delete_region, pos_bol
-    use buffer_mod, only: buf_fetch_char, buf_next_char_len
-    use marker_mod, only: char_to_byte
+    use editing_functions_mod, only: buffer_substring, delete_region, position_beginning_of_line
+    use buffer_mod, only: buffer_fetch_character, buffer_next_character_length
+    use marker_mod, only: character_to_byte
     use file_input_output_mod, only: report_file_errno
     use string_type_mod, only: string_type
     implicit none(type, external)
@@ -61,7 +61,7 @@ contains
     ! Listing directories
     ! ------------------------------------------------------------------
 
-    module subroutine create_temp_file(prefix, file, status, directory, suffix)
+    module subroutine create_temporary_file(prefix, file, status, directory, suffix)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable, intent(out) :: file
         type(status_type), intent(out) :: status
@@ -81,41 +81,41 @@ contains
         end if
 
         if (present(suffix)) then
-            call create_temp_file_internal(absolute_prefix, suffix, file, status, directory=directory)
+            call create_temporary_file_internal(absolute_prefix, suffix, file, status, directory=directory)
         else
-            call create_temp_file_internal(absolute_prefix, "", file, status, directory=directory)
+            call create_temporary_file_internal(absolute_prefix, "", file, status, directory=directory)
         end if
-    end subroutine create_temp_file
+    end subroutine create_temporary_file
 
     !> The shell `insert_directory' runs a wildcard listing with:
     !> `shell_file_name' (callproc.c).  Not a port.
-    function shell_name() result(sh)
-        character(len=:), allocatable :: sh
+    function shell_name() result(shell)
+        character(len=:), allocatable :: shell
 
-        if (.not. allocated(shell_file_name%value)) call init_callproc()
-        sh = shell_file_name%value
+        if (.not. allocated(shell_file_name%value)) call initialize_callproc()
+        shell = shell_file_name%value
     end function shell_name
 
     recursive module subroutine insert_directory(file, switches, status, wildcard, full_directory)
         character(len=*), intent(in) :: file, switches
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: wildcard, full_directory
-        character(len=:), allocatable :: errfile, dir, pattern, command, sw, f, saved_dir
-        type(value_type) :: result, parts, args
-        type(value_type), allocatable :: elems(:), argv(:)
+        character(len=:), allocatable :: errfile, directory, pattern, command, sw, f, saved_directory
+        type(value_type) :: result, parts, arguments
+        type(value_type), allocatable :: elements(:), argv(:)
         type(handle_type) :: errbuf, old
-        type(file_stat_type) :: st
-        type(status_type) :: dst
+        type(file_status_type) :: st
+        type(status_type) :: destination_name
         integer(int64) :: beginning, inserted
         integer :: k
-        logical :: wild, full, found, had_dir
+        logical :: wild, full, found, had_directory
 
         wild = .false.
         if (present(wildcard)) wild = wildcard
         full = .false.
         if (present(full_directory)) full = full_directory
         beginning = point()
-        call create_temp_file("lserr", errfile, status)
+        call create_temporary_file("lserr", errfile, status)
         if (.not. status%ok()) return
 
         if (wild) then
@@ -124,15 +124,15 @@ contains
             ! argument.  Otherwise, run ls in the longest subdirectory of the
             ! directory part free of wildcards; use the remaining of the file
             ! pattern as argument.
-            if (is_insert_directory_wildcard_in_dir(file, dir, pattern)) then
+            if (is_insert_directory_wildcard_in_directory(file, directory, pattern)) then
                 continue
             else
                 if (is_file_name_absolute(file)) then
-                    dir = file_name_directory(file)
+                    directory = file_name_directory(file)
                 else
                     call expand_file_name(file, f, status)
                     if (.not. status%ok()) return
-                    dir = file_name_directory(f)
+                    directory = file_name_directory(f)
                 end if
 
                 pattern = file_name_nondirectory(file)
@@ -143,25 +143,26 @@ contains
             command = "\"//insert_directory_program//" -d "
             call split_string_and_unquote(switches, parts, status)
             if (.not. status%ok()) return
-            call list_elements(parts, elems)
+            call list_elements(parts, elements)
 
-            do k = 1, size(elems)
+            do k = 1, size(elements)
                 if (k > 1) command = command//" "
-                command = command//shell_quote_wildcard_pattern(xstring(elems(k)))
+                command = command//shell_quote_wildcard_pattern(xstring(elements(k)))
             end do
 
             command = command//" -- "//shell_quote_wildcard_pattern(pattern)
-            had_dir = allocated(buffers(current)%directory)
-            if (had_dir) saved_dir = buffers(current)%directory
-            buffers(current)%directory = dir
+            had_directory = allocated(buffers(current)%directory)
+            if (had_directory) saved_directory = buffers(current)%directory
+            buffers(current)%directory = directory
             allocate (argv(2))
             argv(1) = value_type(text="-c")
             argv(2) = value_type(text=command)
-            args = make_list(argv)
-            call execute_process(shell_name(), result, status, destination=value_type(.true.), args=args, error_file=errfile)
+            arguments = make_list(argv)
+            call execute_process(shell_name(), result, status, destination=value_type(.true.), arguments=arguments, &
+                                 error_file=errfile)
 
-            if (had_dir) then
-                buffers(current)%directory = saved_dir
+            if (had_directory) then
+                buffers(current)%directory = saved_directory
             else
                 deallocate (buffers(current)%directory)
             end if
@@ -182,22 +183,22 @@ contains
                 ! options as separate args.
                 call split_string_and_unquote(sw, parts, status)
                 if (.not. status%ok()) return
-                call list_elements(parts, elems)
+                call list_elements(parts, elements)
             else
-                allocate (elems(0))
+                allocate (elements(0))
             end if
 
-            allocate (argv(size(elems) + 2))
+            allocate (argv(size(elements) + 2))
 
-            do k = 1, size(elems)
-                argv(k) = elems(k)
+            do k = 1, size(elements)
+                argv(k) = elements(k)
             end do
 
             ! Avoid lossage if FILE starts with `-'.
-            argv(size(elems) + 1) = value_type(text="--")
-            argv(size(elems) + 2) = value_type(text=f)
-            args = make_list(argv)
-            call execute_process(insert_directory_program, result, status, destination=value_type(.true.), args=args, &
+            argv(size(elements) + 1) = value_type(text="--")
+            argv(size(elements) + 2) = value_type(text=f)
+            arguments = make_list(argv)
+            call execute_process(insert_directory_program, result, status, destination=value_type(.true.), arguments=arguments, &
                                  error_file=errfile)
         end if
 
@@ -213,12 +214,12 @@ contains
             call set_buffer(errbuf, status)
             call erase_buffer(status)
             call insert_file_contents(errfile, .false., inserted, status)
-            call set_buffer(old, dst)
+            call set_buffer(old, destination_name)
             if (.not. status%ok()) return
-            dired_ls_error_buffer = errbuf
+            directory_editor_ls_error_buffer = errbuf
         end if
 
-        dired_ls_error_file = errfile
+        directory_editor_ls_error_file = errfile
         call delete_file(errfile, status)
         if (.not. status%ok()) return
         call insert_directory_clean(beginning, switches, status)
@@ -230,7 +231,7 @@ contains
         character(len=*), intent(in) :: switches
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: line
-        integer(int64) :: end, linebeg, shortage, start, fend, k, num, nums(2), offset, pos, byte, ext
+        integer(int64) :: end, linebeg, shortage, start, fend, k, number, numbers(2), offset, position, byte, ext
         integer(int32) :: c, n
         logical :: saved, found, have
         integer :: got
@@ -240,7 +241,7 @@ contains
         if (.not. status%ok()) return
         ! The following overshoots by one line for an empty directory
         ! listed with "--dired", but without "-a" switch, where the ls
-        ! output contains a "//DIRED-OPTIONS//" line, but no "//DIRED//"
+        ! output contains a "//DIRED-OPTIONS//" line, but no "//DIRECTORY_EDITOR//"
         ! line.  We take care of that case later.
         shortage = forward_line(-2_int64)
         saved = case_fold_search%value
@@ -255,41 +256,42 @@ contains
             end = line_end_position()
             linebeg = point()
             call buffer_substring(linebeg, end, line, status)
-            ! Read the numeric positions of file names (after "//DIRED// "),
+            ! Read the numeric positions of file names (after "//DIRECTORY_EDITOR// "),
             ! as byte offsets from BEGINNING in the program's output: walk the text
             ! once, counting each character's bytes as the program wrote them
             ! (a raw byte as one).
-            pos = beginning
+            position = beginning
             byte = 0
             k = len("//DIRED//") + 1
             got = 0
 
             do
-                call next_number(line, k, num, have)
+                call next_number(line, k, number, have)
                 if (.not. have) exit
                 got = got + 1
-                nums(got) = num
+                numbers(got) = number
                 if (got < 2) cycle
                 got = 0
-                start = position_of(nums(1))
-                fend = position_of(nums(2))
-                call char_after(c, found, fend)
+                start = position_of(numbers(1))
+                fend = position_of(numbers(2))
+                call character_after(c, found, fend)
 
                 if (found) then
                     ! End is followed by \n or by output of -F.
                     if (index(achar(10)//" /*@%=|", achar(min(c, 127))) > 0 .and. c < 128) then
-                        call put_text_property(start, fend, value_type(name="dired_filename"), value_type(.true.), status)
+                        call put_text_property(start, fend, value_type(name="directory_editor_filename"), value_type(.true.), &
+                                               status)
                         if (.not. status%ok()) exit
                     end if
                 end if
             end do
 
-            call goto_char(end)
-            call goto_char(pos_bol())
+            call goto_character(end)
+            call goto_character(position_beginning_of_line())
             call delete_region(point(), next_line_start(), status)
         else
             ! Take care of the case where the ls output contains a
-            ! "//DIRED-OPTIONS//"-line, but no "//DIRED//"-line and we went
+            ! "//DIRED-OPTIONS//"-line, but no "//DIRECTORY_EDITOR//"-line and we went
             ! one line too far back (see above).
             shortage = forward_line(1_int64)
         end if
@@ -304,12 +306,12 @@ contains
 
         !> The position after this line (forward-line 1).
         integer(int64) function next_line_start() result(p)
-            integer(int64) :: opoint, sh
+            integer(int64) :: original_point, shell
 
-            opoint = point()
-            sh = forward_line(1_int64)
+            original_point = point()
+            shell = forward_line(1_int64)
             p = point()
-            call goto_char(opoint)
+            call goto_character(original_point)
         end function next_line_start
 
         !> The buffer position of output byte offset OFFSET (offsets come in
@@ -319,16 +321,16 @@ contains
 
             offset = offset_in
 
-            do while (byte < offset .and. pos < buffers(current)%zv)
-                c = buf_fetch_char(buffers(current), char_to_byte(pos))
-                n = buf_next_char_len(buffers(current), char_to_byte(pos))
+            do while (byte < offset .and. position < buffers(current)%end_of_accessible_portion)
+                c = buffer_fetch_character(buffers(current), character_to_byte(position))
+                n = buffer_next_character_length(buffers(current), character_to_byte(position))
                 ext = n
-                if (is_char_byte8(c)) ext = 1
+                if (is_character_byte8(c)) ext = 1
                 byte = byte + ext
-                pos = pos + 1
+                position = position + 1
             end do
 
-            p = pos
+            p = position
         end function position_of
 
         !> The next decimal number in TEXT from K on (skipping spaces).
@@ -353,21 +355,21 @@ contains
         end subroutine next_number
     end subroutine insert_directory_clean
 
-    module function is_insert_directory_wildcard_in_dir(dir, directory, wildcard) result(found)
-        character(len=*), intent(in) :: dir
+    module function is_insert_directory_wildcard_in_directory(directory_name, directory, wildcard) result(found)
+        character(len=*), intent(in) :: directory_name
         character(len=:), allocatable, intent(out), optional :: directory, wildcard
         logical :: found
         type(status_type) :: st
 
         found = .false.
-        if (string_match("[[?*]", file_name_directory(dir), st, inhibit_modify=.true.) == 0) return
+        if (string_match("[[?*]", file_name_directory(directory_name), st, inhibit_modify=.true.) == 0) return
         ! Prefer an existing file to wildcards.
-        if (file_exists(dir)) return
-        if (string_match("\`\([^[?*]*/\)\([^[?*]*[[?*].*\)", dir, st) == 0) return
+        if (file_exists(directory_name)) return
+        if (string_match("\`\([^[?*]*/\)\([^[?*]*[[?*].*\)", directory_name, st) == 0) return
         found = .true.
-        if (present(directory)) directory = match_string(1, dir)
-        if (present(wildcard)) wildcard = match_string(2, dir)
-    end function is_insert_directory_wildcard_in_dir
+        if (present(directory)) directory = match_string(1, directory_name)
+        if (present(wildcard)) wildcard = match_string(2, directory_name)
+    end function is_insert_directory_wildcard_in_directory
 
     module subroutine split_string_and_unquote(string, parts, status)
         character(len=*), intent(in) :: string
@@ -414,7 +416,7 @@ contains
                 b = string_match("\s-+", piece, st, start)
 
                 if (b == 0) then
-                    if (start <= len_chars(piece)) call append(substr(piece, start, len_chars(piece) + 1))
+                    if (start <= length_characters(piece)) call append(substr(piece, start, length_characters(piece) + 1))
                     exit
                 end if
 
@@ -434,7 +436,7 @@ contains
         end function substr
 
         !> The number of characters of STRING.
-        integer(int64) function len_chars(piece) result(m)
+        integer(int64) function length_characters(piece) result(m)
             character(len=*), intent(in) :: piece
             integer(int64) :: p
             integer(int32) :: ch, l
@@ -443,11 +445,11 @@ contains
             p = 1
 
             do while (p <= len(piece))
-                call string_char_and_length(piece, p, ch, l)
+                call string_character_and_length(piece, p, ch, l)
                 p = p + l
                 m = m + 1
             end do
-        end function len_chars
+        end function length_characters
 
         subroutine append(text)
             character(len=*), intent(in) :: text
@@ -498,7 +500,7 @@ contains
         character(len=*), intent(in) :: filename
         character(len=:), allocatable, intent(out) :: truename
         type(status_type), intent(out) :: status
-        type(string_pair_type), allocatable :: prev_dirs(:)
+        type(string_pair_type), allocatable :: previous_directories(:)
         character(len=:), allocatable :: name
         integer :: counter
         type(status_type) :: st
@@ -518,20 +520,20 @@ contains
         end if
 
         counter = 100
-        allocate (prev_dirs(0))
-        call truename_1(name, counter, prev_dirs, truename, status)
+        allocate (previous_directories(0))
+        call truename_1(name, counter, previous_directories, truename, status)
     end subroutine file_truename
 
     !> The loop of file-truename, with COUNTER links left to chase and the
-    !> PREV_DIRS truenames already computed.
+    !> PREVIOUS_DIRECTORIES truenames already computed.
     !> Port of files.el:file-truename, in part.
-    recursive subroutine truename_1(filename_in, counter, prev_dirs, filename, status)
+    recursive subroutine truename_1(filename_in, counter, previous_directories, filename, status)
         character(len=*), intent(in) :: filename_in
         integer, intent(inout) :: counter
-        type(string_pair_type), allocatable, intent(inout) :: prev_dirs(:)
+        type(string_pair_type), allocatable, intent(inout) :: previous_directories(:)
         character(len=:), allocatable, intent(out) :: filename
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir, dirfile, new, nodir, target
+        character(len=:), allocatable :: directory, dirfile, new, nodir, target
         type(string_pair_type) :: pair
         logical :: done, cached
         integer :: k
@@ -545,59 +547,59 @@ contains
             counter = counter - 1
 
             if (counter < 0) then
-                call set_error(status, FM_GENERIC_ERROR, "Apparent cycle of symbolic links for "//filename)
+                call set_error(status, GENERIC_ERROR_CODE, "Apparent cycle of symbolic links for "//filename)
                 return
             end if
 
-            dir = file_name_directory(filename)
+            directory = file_name_directory(filename)
 
-            if (len(dir) == 0) then
-                dir = "./"
+            if (len(directory) == 0) then
+                directory = "./"
 
                 if (current /= 0) then
-                    if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+                    if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
                 end if
             end if
 
             ! Get the truename of the directory.
-            dirfile = directory_file_name(dir)
+            dirfile = directory_file_name(directory)
 
             ! If these are equal, we have the (or a) root directory.
-            if (dir /= dirfile .or. len(dir) /= len(dirfile)) then
+            if (directory /= dirfile .or. len(directory) /= len(dirfile)) then
                 ! If this is the same dir we last got the truename for, save
                 ! time--don't recalculate.
                 cached = .false.
 
-                do k = 1, size(prev_dirs)
-                    if (prev_dirs(k)%a == dir) then
-                        dir = prev_dirs(k)%b
+                do k = 1, size(previous_directories)
+                    if (previous_directories(k)%a == directory) then
+                        directory = previous_directories(k)%b
                         cached = .true.
                         exit
                     end if
                 end do
 
                 if (.not. cached) then
-                    call truename_1(dirfile, counter, prev_dirs, new, status)
+                    call truename_1(dirfile, counter, previous_directories, new, status)
                     if (.not. status%ok()) return
                     new = file_name_as_directory(new)
-                    pair%a = dir
+                    pair%a = directory
                     pair%b = new
-                    prev_dirs = [prev_dirs, pair]
-                    dir = new
+                    previous_directories = [previous_directories, pair]
+                    directory = new
                 end if
             end if
 
             nodir = file_name_nondirectory(filename)
 
             if (nodir == "..") then
-                filename = directory_file_name(file_name_directory(directory_file_name(dir)))
+                filename = directory_file_name(file_name_directory(directory_file_name(directory)))
                 done = .true.
             else if (nodir == ".") then
-                filename = directory_file_name(dir)
+                filename = directory_file_name(directory)
                 done = .true.
             else
                 ! Put it back on the file name.
-                filename = dir//nodir
+                filename = directory//nodir
                 ! Is the file name the name of a link?
                 target = ""
                 err = -1
@@ -610,7 +612,7 @@ contains
                     if (index(target, "/") == 1) then
                         filename = target
                     else
-                        filename = dir//target
+                        filename = directory//target
                     end if
                 else
                     ! No, we are done!
@@ -620,9 +622,9 @@ contains
         end do
     end subroutine truename_1
 
-    pure module function wildcard_to_regexp(wildcard) result(regexp)
+    pure module function wildcard_to_regular_expression(wildcard) result(regular_expression)
         character(len=*), intent(in) :: wildcard
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         character(len=:), allocatable :: result
         character :: ch
         integer :: i, j, n
@@ -632,7 +634,7 @@ contains
         i = scan(wildcard, "[.*+\^$?")
 
         if (i == 0) then
-            regexp = "\`"//wildcard//"\'"
+            regular_expression = "\`"//wildcard//"\'"
             return
         end if
 
@@ -722,8 +724,8 @@ contains
 
         ! Shell wildcards should match the entire filename, not its part.
         ! Make the regexp say so.
-        regexp = "\`"//result//"\'"
-    end function wildcard_to_regexp
+        regular_expression = "\`"//result//"\'"
+    end function wildcard_to_regular_expression
 
     module subroutine file_name_extension(filename, extension, found, period)
         character(len=*), intent(in) :: filename
@@ -787,7 +789,7 @@ contains
         character(len=*), intent(in), optional :: flavor, space, unit
         character(len=:), allocatable :: text
         character(len=1), parameter :: prefixes(11) = [character(len=1) :: "", "k", "M", "G", "T", "P", "E", "Z", "Y", "R", "Q"]
-        character(len=:), allocatable :: fl, prefix, prefixed_unit, num
+        character(len=:), allocatable :: fl, prefix, prefixed_unit, number
         real(real64) :: amount, power, frac
         character(len=40) :: buffer
         integer :: k
@@ -836,15 +838,15 @@ contains
             write (buffer, "(f0.0)") amount
         end if
 
-        num = trim(adjustl(buffer))
+        number = trim(adjustl(buffer))
 
-        if (len(num) > 0) then
-            if (num(len(num):len(num)) == ".") num = num(1:len(num) - 1)
+        if (len(number) > 0) then
+            if (number(len(number):len(number)) == ".") number = number(1:len(number) - 1)
         end if
 
-        if (index(num, ".") == 1) num = "0"//num
-        if (len(num) == 0) num = "0"
-        text = num
+        if (index(number, ".") == 1) number = "0"//number
+        if (len(number) == 0) number = "0"
+        text = number
         if (len(prefixed_unit) > 0 .and. present(space)) text = text//space
         text = text//prefixed_unit
     end function file_size_human_readable
@@ -856,15 +858,15 @@ contains
         text = file_size_human_readable(size, "iec", " ")
     end function byte_count_to_string
 
-    module subroutine get_free_disk_space(dir, text, found, status)
-        character(len=*), intent(in) :: dir
+    module subroutine get_free_disk_space(directory, text, found, status)
+        character(len=*), intent(in) :: directory
         character(len=:), allocatable, intent(out) :: text
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64) :: total, free, avail
 
         text = ""
-        call file_system_info(dir, total, free, avail, found, status)
+        call file_system_info(directory, total, free, avail, found, status)
         if (found) text = byte_count_to_string(real(avail, real64))
     end subroutine get_free_disk_space
 
@@ -880,7 +882,7 @@ contains
         status = status_type()
 
         if (is_file_directory(filename) .and. .not. is_file_symlink(filename)) then
-            call set_error(status, FM_FILE_ERROR, "Removing old name: is a directory: "//filename)
+            call set_error(status, FILE_ERROR_CODE, "Removing old name: is a directory: "//filename)
             return
         end if
 
@@ -893,36 +895,36 @@ contains
         character(len=*), intent(in) :: directory
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: recursive
-        character(len=:), allocatable :: dir, name
+        character(len=:), allocatable :: directory_name, name
         type(value_type) :: files
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
         logical :: rec, proceed
         integer :: k
 
         rec = .false.
         if (present(recursive)) rec = recursive
-        call expand_file_name(directory, dir, status)
+        call expand_file_name(directory, directory_name, status)
         if (.not. status%ok()) return
-        dir = directory_file_name(dir)
+        directory_name = directory_file_name(directory_name)
         ! Call ourselves recursively if needed.
         proceed = .true.
 
-        if (rec .and. .not. is_file_symlink(dir)) then
-            call directory_files(dir, files, st, full=.true.)
+        if (rec .and. .not. is_file_symlink(directory_name)) then
+            call directory_files(directory_name, files, st, full=.true.)
 
             if (.not. st%ok()) then
-                if (.not. condition_matches(st%code, FM_FILE_MISSING)) then
+                if (.not. condition_matches(st%code, FILE_MISSING_CODE)) then
                     status = st
                     return
                 end if
 
                 proceed = .false.
             else
-                call list_elements(files, elems)
+                call list_elements(files, elements)
 
-                do k = 1, size(elems)
-                    name = xstring(elems(k))
+                do k = 1, size(elements)
+                    name = xstring(elements(k))
                     ! directory-files-no-dot-files-regexp
                     if (file_name_nondirectory(name) == "." .or. file_name_nondirectory(name) == "..") cycle
 
@@ -935,7 +937,7 @@ contains
                         call delete_file(name, st)
 
                         if (.not. st%ok()) then
-                            if (.not. condition_matches(st%code, FM_FILE_MISSING)) then
+                            if (.not. condition_matches(st%code, FILE_MISSING_CODE)) then
                                 status = st
                                 return
                             end if
@@ -946,10 +948,10 @@ contains
         end if
 
         if (.not. proceed) return
-        call delete_directory_internal(dir, st)
+        call delete_directory_internal(directory_name, st)
 
         if (.not. st%ok()) then
-            if (rec .and. condition_matches(st%code, FM_FILE_MISSING)) return
+            if (rec .and. condition_matches(st%code, FILE_MISSING_CODE)) return
             status = st
         end if
     end subroutine delete_directory
@@ -1030,7 +1032,7 @@ contains
         auto_save_p = .false. .and. .not. ignore_auto
 
         if (.not. allocated(buffers(current)%filename)) then
-            call set_error(status, FM_GENERIC_ERROR, "Buffer does not seem to be associated with any file")
+            call set_error(status, GENERIC_ERROR_CODE, "Buffer does not seem to be associated with any file")
             return
         end if
 
@@ -1100,9 +1102,9 @@ contains
 
         if (.not. file_exists(file_name)) then
             if (file_number) then
-                call set_error(status, FM_GENERIC_ERROR, "File "//file_name//" no longer exists!")
+                call set_error(status, GENERIC_ERROR_CODE, "File "//file_name//" no longer exists!")
             else
-                call set_error(status, FM_GENERIC_ERROR, "Cannot revert nonexistent file "//file_name)
+                call set_error(status, GENERIC_ERROR_CODE, "Cannot revert nonexistent file "//file_name)
             end if
 
             return
@@ -1110,9 +1112,9 @@ contains
 
         if (.not. is_file_readable(file_name)) then
             if (file_number) then
-                call set_error(status, FM_GENERIC_ERROR, "File "//file_name//" no longer readable!")
+                call set_error(status, GENERIC_ERROR_CODE, "File "//file_name//" no longer readable!")
             else
-                call set_error(status, FM_GENERIC_ERROR, "Cannot revert unreadable file "//file_name)
+                call set_error(status, GENERIC_ERROR_CODE, "Cannot revert unreadable file "//file_name)
             end if
 
             return
@@ -1145,9 +1147,9 @@ contains
     use directory_editor_mod, only: file_name_all_completions
     use file_input_output_mod, only: is_file_directory, is_file_newer_than_file, expand_file_name, file_name_directory, &
                                      file_name_nondirectory
-    character(len=:), allocatable :: name, expanded, dir, candidate, tmp
+    character(len=:), allocatable :: name, expanded, directory, candidate, temporary
     type(value_type) :: all
-    type(value_type), allocatable :: elts(:)
+    type(value_type), allocatable :: elements(:)
     character(len=:), allocatable :: s1
     type(string_type), allocatable :: kept(:)
     type(status_type) :: st
@@ -1159,16 +1161,16 @@ contains
     call expand_file_name(filename, expanded, st)
     if (.not. st%ok()) return
     name = file_name_sans_versions(make_backup_file_name(expanded))
-    dir = file_name_directory(name)
-    if (.not. is_file_directory(dir)) return
-    call file_name_all_completions(file_name_nondirectory(name), dir, all, st)
+    directory = file_name_directory(name)
+    if (.not. is_file_directory(directory)) return
+    call file_name_all_completions(file_name_nondirectory(name), directory, all, st)
     if (.not. st%ok()) return
-    call list_elements(all, elts)
-    allocate (kept(size(elts)))
+    call list_elements(all, elements)
+    allocate (kept(size(elements)))
     n = 0
 
-    do k = 1, size(elts)
-        candidate = dir//xstring(elts(k))
+    do k = 1, size(elements)
+        candidate = directory//xstring(elements(k))
         if (.not. is_backup_file_name(candidate)) cycle
         s1 = file_name_sans_versions(candidate)
         if (s1 /= name .or. len(s1) /= len(name)) cycle
@@ -1178,35 +1180,35 @@ contains
 
     ! (sort ... #'file-newer-than-file-p), stably.
     do i = 2, n
-        tmp = kept(i)%text
+        temporary = kept(i)%text
         j = i - 1
 
         do while (j >= 1)
-            if (.not. is_file_newer_than_file(tmp, kept(j)%text)) exit
+            if (.not. is_file_newer_than_file(temporary, kept(j)%text)) exit
             kept(j + 1)%text = kept(j)%text
             j = j - 1
         end do
 
-        kept(j + 1)%text = tmp
+        kept(j + 1)%text = temporary
     end do
 
-    deallocate (elts)
-    allocate (elts(n))
+    deallocate (elements)
+    allocate (elements(n))
 
     do k = 1, n
-        elts(k) = value_type(text=kept(k)%text)
+        elements(k) = value_type(text=kept(k)%text)
     end do
 
-    names = make_list(elts)
+    names = make_list(elements)
     end procedure file_backup_file_names
 
     module procedure file_newest_backup
     type(value_type) :: names
-    type(value_type), allocatable :: elts(:)
+    type(value_type), allocatable :: elements(:)
 
     call file_backup_file_names(filename, names)
-    call list_elements(names, elts)
-    found = size(elts) > 0
-    if (found) backup = xstring(elts(1))
+    call list_elements(names, elements)
+    found = size(elements) > 0
+    if (found) backup = xstring(elements(1))
     end procedure file_newest_backup
-end submodule files_dir_mod
+end submodule files_directory_mod

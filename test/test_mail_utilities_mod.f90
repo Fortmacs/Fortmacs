@@ -30,12 +30,12 @@ module test_mail_utilities_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point_min, point_max
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: buffer_string, goto_character, point_minimum, point_maximum
+    use bindings_mod, only: initialize_bindings
     use search_mod, only: string_match
     use mail_utilities_mod, only: quote_mail_printable, quote_mail_printable_region, unquote_mail_printable, &
                                   unquote_mail_printable_region, strip_mail_quoted_names, mail_dont_reply_to, &
-                                  get_mail_field, parse_mail_comma_list, mail_comma_list_regexp, mail_rfc822_date, &
+                                  get_mail_field, parse_mail_comma_list, mail_comma_list_regular_expression, mail_rfc822_date, &
                                   mail_dont_reply_to_names, mail_mbox_from
     use time_functions_mod, only: set_time_zone_rule
     implicit none(type, external)
@@ -62,7 +62,7 @@ contains
                     new_unittest("mail-utils-tests-mail-dont-reply-to", test_dont_reply_to), &
                     new_unittest("mail-utils-tests-mail-fetch-field", test_fetch_field), &
                     new_unittest("mail-utils-tests-mail-parse-comma-list", test_parse_comma_list), &
-                    new_unittest("mail-utils-tests-mail-comma-list-regexp", test_comma_list_regexp), &
+                    new_unittest("mail-utils-tests-mail-comma-list-regexp", test_comma_list_regular_expression), &
                     new_unittest("mail-utils-test-mail-rfc822-date/contains-year", test_rfc822_date), &
                     new_unittest("mail-utils-test-mail-mbox-from", test_mbox_from), &
                     new_unittest("get-mail-field-options", test_fetch_field_options), &
@@ -75,17 +75,17 @@ contains
     ! ------------------------------------------------------------------
 
     !> (with-temp-buffer (insert TEXT)).
-    subroutine temp_buffer(text, h)
+    subroutine temporary_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *mail-utils-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine leave(h)
         type(handle_type), intent(in) :: h
@@ -120,14 +120,14 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer('?=""', h)
-        call quote_mail_printable_region(point_min(), point_max(), st)
+        call temporary_buffer('?=""', h)
+        call quote_mail_printable_region(point_minimum(), point_maximum(), st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check_string(error, buffer_string(), "=3F=3D=22=22")
         call leave(h)
         if (allocated(error)) return
-        call temp_buffer("x", h)
-        call quote_mail_printable_region(point_min(), point_max(), st, .true.)
+        call temporary_buffer("x", h)
+        call quote_mail_printable_region(point_minimum(), point_maximum(), st, .true.)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check_string(error, buffer_string(), "=?=?ISO-8859-1?Q?x")
         call leave(h)
@@ -146,14 +146,14 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("=E5=E4=F6", h)
-        call unquote_mail_printable_region(point_min(), point_max(), st)
+        call temporary_buffer("=E5=E4=F6", h)
+        call unquote_mail_printable_region(point_minimum(), point_maximum(), st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check_string(error, buffer_string(), AAO)
         call leave(h)
         if (allocated(error)) return
-        call temp_buffer("=?ISO-8859-1?Q?=E5=E4=F6?=", h)
-        call unquote_mail_printable_region(point_min(), point_max(), st, .true.)
+        call temporary_buffer("=?ISO-8859-1?Q?=E5=E4=F6?=", h)
+        call unquote_mail_printable_region(point_minimum(), point_maximum(), st, .true.)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check_string(error, buffer_string(), AAO)
         call leave(h)
@@ -189,7 +189,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: value
 
-        call temp_buffer("Foo: bar"//LF//"Baz: zut", h)
+        call temporary_buffer("Foo: bar"//LF//"Baz: zut", h)
         call get_mail_field("Foo", value, st)
         call check(error, st%ok() .and. allocated(value), "no value")
         if (.not. allocated(error)) call check_string(error, value, "bar")
@@ -202,8 +202,8 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: items(:)
 
-        call temp_buffer("foo@example.org,bar@example.org,baz@example.org", h)
-        call goto_char(point_min())
+        call temporary_buffer("foo@example.org,bar@example.org,baz@example.org", h)
+        call goto_character(point_minimum())
         call parse_mail_comma_list(items, st)
         call check(error, st%ok() .and. size(items) == 3, "three items wanted")
 
@@ -215,12 +215,12 @@ contains
         call leave(h)
     end subroutine test_parse_comma_list
 
-    subroutine test_comma_list_regexp(error)
+    subroutine test_comma_list_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_string(error, mail_comma_list_regexp("foo@example.org,bar@example.org,baz@example.org"), &
+        call check_string(error, mail_comma_list_regular_expression("foo@example.org,bar@example.org,baz@example.org"), &
                           "foo@example.org\|bar@example.org\|baz@example.org")
-    end subroutine test_comma_list_regexp
+    end subroutine test_comma_list_regular_expression
 
     subroutine test_rfc822_date(error)
         type(error_type), allocatable, intent(out) :: error
@@ -239,8 +239,8 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: line
 
-        call temp_buffer("Subject: Hello"//LF//"From: jrh@example.org"//LF//"To: emacs-devel@gnu.org"//LF// &
-                         "Date: Sun, 07 Feb 2021 22:46:37 -0500", h)
+        call temporary_buffer("Subject: Hello"//LF//"From: jrh@example.org"//LF//"To: emacs-devel@gnu.org"//LF// &
+                              "Date: Sun, 07 Feb 2021 22:46:37 -0500", h)
         call set_time_zone_rule("EST5")
         line = mail_mbox_from(st)
         call set_time_zone_rule()
@@ -255,7 +255,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: value
 
-        call temp_buffer("To: a@x"//LF//"Cc: b@x,"//LF//"  c@x  "//LF//"To: d@x"//LF, h)
+        call temporary_buffer("To: a@x"//LF//"Cc: b@x,"//LF//"  c@x  "//LF//"To: d@x"//LF, h)
         call get_mail_field("to", value, st, last=.true.)
         call check(error, allocated(value), "no last value")
         if (.not. allocated(error)) call check_string(error, value, "d@x")

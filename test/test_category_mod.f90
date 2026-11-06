@@ -27,8 +27,8 @@ module test_category_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
     use category_mod, only: category_set_type, make_category_set, define_category, category_docstring, &
                             get_unused_category, is_category_table, category_table, standard_category_table, &
-                            copy_category_table, make_category_table, set_category_table, char_category_set, &
-                            category_set_mnemonics, modify_category_entry, char_has_category
+                            copy_category_table, make_category_table, set_category_table, character_category_set, &
+                            category_set_mnemonics, modify_category_entry, character_has_category
     implicit none(type, external)
     private
 
@@ -69,13 +69,13 @@ contains
         call check(error, is_category_table(standard_category_table()))
         if (allocated(error)) return
         ! 漢 is han and line breakable; あ hiragana; a Latin; U+0301 combining.
-        call check(error, category_set_mnemonics(char_category_set(int(z'6F22'))) == "C|")
+        call check(error, category_set_mnemonics(character_category_set(int(z'6F22'))) == "C|")
         if (allocated(error)) return
-        call check(error, char_has_category(int(z'3042'), "H") .and. .not. char_has_category(int(z'3042'), "K"))
+        call check(error, character_has_category(int(z'3042'), "H") .and. .not. character_has_category(int(z'3042'), "K"))
         if (allocated(error)) return
-        call check(error, category_set_mnemonics(char_category_set(iachar("a"))) == "l")
+        call check(error, category_set_mnemonics(character_category_set(iachar("a"))) == "l")
         if (allocated(error)) return
-        call check(error, char_has_category(int(z'301'), "^") .and. .not. char_has_category(int(z'41'), "^"))
+        call check(error, character_has_category(int(z'301'), "^") .and. .not. character_has_category(int(z'41'), "^"))
         if (allocated(error)) return
         doc = category_docstring("|", st, defined=defined)
         call check(error, defined .and. doc(1:14) == "line breakable")
@@ -123,13 +123,13 @@ contains
         current_table = category_table()
         call check(error, current_table%index == tbl%index)
         if (allocated(error)) return
-        call check(error, char_has_category(65, "x") .and. .not. char_has_category(70, "x") .and. &
-                   char_has_category(73, "x") .and. .not. char_has_category(91, "x"))
+        call check(error, character_has_category(65, "x") .and. .not. character_has_category(70, "x") .and. &
+                   character_has_category(73, "x") .and. .not. character_has_category(91, "x"))
         if (allocated(error)) return
         ! The standard table's categories are not in it.
-        call check(error,.not. char_has_category(int(z'6F22'), "C"))
+        call check(error,.not. character_has_category(int(z'6F22'), "C"))
         if (allocated(error)) return
         call close_buffer(h, st)
-        call check(error, char_has_category(int(z'6F22'), "C"))
+        call check(error, character_has_category(int(z'6F22'), "C"))
     end subroutine test_buffer_table
 end module test_category_mod

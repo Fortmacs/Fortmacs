@@ -7,7 +7,7 @@
 ## Ported
 
 `rfc2047-header-encoding-alist` (`rfc2047_header_encodings`, records of `rfc2047_header_encoding_type`: a header regular expression or `all_headers`, and an `RFC2047_HEADER_ENCODING_` method),
-`rfc2047-charset-encoding-alist` (`rfc2047_charset_encodings`),
+`rfc2047-charset-encoding-alist` (`rfc2047_character_set_encodings`),
 `rfc2047-encode-encoded-words`,
 `rfc2047-allow-irregular-q-encoded-words`,
 `rfc2047-encoded-word-regexp` and `rfc2047-encoded-word-regexp-loose`,

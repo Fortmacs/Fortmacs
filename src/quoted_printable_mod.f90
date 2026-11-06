@@ -26,20 +26,21 @@
 module quoted_printable_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, &
                           generate_new_buffer_name
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, narrow_to_region, char_after, is_eob, &
-                                     is_eol, delete_region, buffer_string, line_beginning_position, interactive_region, &
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, narrow_to_region, character_after, &
+                                     is_end_of_buffer, is_end_of_line, delete_region, buffer_string, line_beginning_position, &
+                                     interactive_region, &
                                      save_excursion_begin, save_excursion_end, save_restriction_begin, &
                                      save_restriction_end, excursion_type, restriction_type
     use insert_delete_mod, only: insert
-    use editing_commands_mod, only: forward_char, forward_line, end_of_line, beginning_of_line, delete_char
-    use syntax_mod, only: skip_chars_forward
-    use search_mod, only: re_search_forward, search_backward, looking_at, match_beginning, match_end, replace_match, &
-                          case_fold_search, SEARCH_NOERROR
-    use character_mod, only: is_char_byte8, char_to_byte8, str_to_multibyte
+    use editing_commands_mod, only: forward_character, forward_line, end_of_line, beginning_of_line, delete_character
+    use syntax_mod, only: skip_characters_forward
+    use search_mod, only: regular_expression_search_forward, search_backward, looking_at, match_beginning, match_end, &
+                          replace_match, case_fold_search, SEARCH_NOERROR
+    use character_mod, only: is_character_byte8, character_to_byte8, string_to_multibyte
     use coding_mod, only: is_coding_system, encode_coding_region, decode_coding_region, coding_system_for_read
     use indent_mod, only: current_column
     use display_engine_mod, only: tab_width, message
@@ -47,10 +48,10 @@ module quoted_printable_mod
     private
 
     public :: decode_quoted_printable_region, decode_quoted_printable_string, encode_quoted_printable_region, &
-              encode_quoted_printable_string, init_quoted_printable
+              encode_quoted_printable_string, initialize_quoted_printable
 
     character(len=*), parameter :: LF = achar(10)
-    character(len=*), parameter :: HEX_DIGITS = "0123456789ABCDEF"
+    character(len=*), parameter :: HEXADECIMAL_DIGITS = "0123456789ABCDEF"
 
 contains
 
@@ -82,17 +83,17 @@ contains
     end subroutine temporary_buffer_end
 
     ! The value of the hexadecimal digit C (either case).  Not a port.
-    integer function hex_value(c)
+    integer function hexadecimal_value(c)
         integer(int32), intent(in) :: c
 
         if (c <= iachar("9")) then
-            hex_value = c - iachar("0")
+            hexadecimal_value = c - iachar("0")
         else if (c <= iachar("F")) then
-            hex_value = c - iachar("A") + 10
+            hexadecimal_value = c - iachar("A") + 10
         else
-            hex_value = c - iachar("a") + 10
+            hexadecimal_value = c - iachar("a") + 10
         end if
-    end function hex_value
+    end function hexadecimal_value
 
     ! The byte of the character after point (get-byte): the character
     ! itself if ASCII or in a unibyte buffer, its byte if a raw byte.
@@ -101,9 +102,9 @@ contains
         integer(int32) :: c
         logical :: found
 
-        call char_after(c, found)
+        call character_after(c, found)
         byte_after = c
-        if (is_char_byte8(c)) byte_after = char_to_byte8(c)
+        if (is_character_byte8(c)) byte_after = character_to_byte8(c)
     end function byte_after
 
     ! Replace the character after point by "=XX", its byte in hexadecimal.
@@ -113,8 +114,9 @@ contains
         integer :: byte
 
         byte = byte_after()
-        call insert("="//HEX_DIGITS(byte/16 + 1:byte/16 + 1)//HEX_DIGITS(mod(byte, 16) + 1:mod(byte, 16) + 1), status)
-        if (status%ok()) call delete_char(1_int64, status)
+        call insert("="//HEXADECIMAL_DIGITS(byte/16 + 1:byte/16 + 1)//HEXADECIMAL_DIGITS(mod(byte, 16) + 1:mod(byte, 16) + 1), &
+                    status)
+        if (status%ok()) call delete_character(1_int64, status)
     end subroutine encode_byte_after
 
     ! ------------------------------------------------------------------
@@ -167,21 +169,21 @@ contains
             ! already contains non-ASCII characters which would then get
             ! doubly-decoded below.
             if (len(coding) > 0) then
-                call encode_coding_region(point_min(), point_max(), coding, inserted, status)
+                call encode_coding_region(point_minimum(), point_maximum(), coding, inserted, status)
                 if (.not. status%ok()) exit body
             end if
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do
-                moved = skip_chars_forward("^=", status)
+                moved = skip_characters_forward("^=", status)
                 if (.not. status%ok()) exit body
-                if (is_eob()) exit
-                call char_after(n1, found, point() + 1)
+                if (is_end_of_buffer()) exit
+                call character_after(n1, found, point() + 1)
 
                 if (found) then
                     if (n1 == 10) then
-                        call delete_char(2_int64, status)
+                        call delete_character(2_int64, status)
                         if (.not. status%ok()) exit body
                         cycle
                     end if
@@ -192,7 +194,7 @@ contains
 
                 if (.not. matched) then
                     call message("Malformed quoted-printable text")
-                    call forward_char(status)
+                    call forward_character(status)
                     if (.not. status%ok()) exit body
                     cycle
                 end if
@@ -205,17 +207,17 @@ contains
                 bytes = repeat(" ", int(n))
 
                 do k = 1, n
-                    call char_after(n1, found, point() + 1)
-                    call char_after(n2, found, point() + 2)
-                    bytes(k:k) = achar(16*hex_value(n1) + hex_value(n2))
-                    call forward_char(status, 3_int64)
+                    call character_after(n1, found, point() + 1)
+                    call character_after(n2, found, point() + 2)
+                    bytes(k:k) = achar(16*hexadecimal_value(n1) + hexadecimal_value(n2))
+                    call forward_character(status, 3_int64)
                 end do
 
                 call delete_region(beginning, end, status)
 
                 if (status%ok()) then
                     if (buffers(current)%multibyte) then
-                        call insert(str_to_multibyte(bytes), status)
+                        call insert(string_to_multibyte(bytes), status)
                     else
                         call insert(bytes, status)
                     end if
@@ -224,7 +226,7 @@ contains
                 if (.not. status%ok()) exit body
             end do
 
-            if (len(coding) > 0) call decode_coding_region(point_min(), point_max(), coding, inserted, status)
+            if (len(coding) > 0) call decode_coding_region(point_minimum(), point_maximum(), coding, inserted, status)
         end block body
 
         case_fold_search%value = saved_fold
@@ -247,7 +249,7 @@ contains
 
         call temporary_buffer_begin(old, temporary, .false.)
         call insert(string, st)
-        if (st%ok()) call decode_quoted_printable_region(point_min(), point_max(), st, coding_system)
+        if (st%ok()) call decode_quoted_printable_region(point_minimum(), point_maximum(), st, coding_system)
         decoded = buffer_string()
         call temporary_buffer_end(old, temporary)
         if (present(status)) status = st
@@ -262,7 +264,7 @@ contains
     !> If FOLD, fold long lines at 76 characters (as required by the RFC).
     !> If CLASS is present, translate the characters not matched by that
     !> regular expression class, which is in the form expected by
-    !> `skip_chars_forward'.  You should probably avoid non-ASCII
+    !> `skip_characters_forward'.  You should probably avoid non-ASCII
     !> characters in this argument.  A character in the region that is
     !> neither ASCII nor a raw byte is the error "Multibyte character in QP
     !> encoding region" in STATUS.  Port of
@@ -293,12 +295,12 @@ contains
 
         body: block
             do p = from, to - 1
-                call char_after(c, exists, p)
+                call character_after(c, exists, p)
                 if (.not. buffers(current)%multibyte) exit
                 if (c <= 127) cycle
 
-                if (.not. is_char_byte8(c)) then
-                    call set_error(status, FM_GENERIC_ERROR, "Multibyte character in QP encoding region")
+                if (.not. is_character_byte8(c)) then
+                    call set_error(status, GENERIC_ERROR_CODE, "Multibyte character in QP encoding region")
                     exit body
                 end if
             end do
@@ -309,26 +311,26 @@ contains
             narrowed: block
                 if (.not. status%ok()) exit narrowed
                 ! Encode all the non-ascii and control characters.
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 do
-                    moved = skip_chars_forward(chars, status)
+                    moved = skip_characters_forward(chars, status)
                     if (.not. status%ok()) exit narrowed
-                    if (is_eob()) exit
+                    if (is_end_of_buffer()) exit
                     call encode_byte_after(status)
                     if (.not. status%ok()) exit narrowed
                 end do
 
                 ! Encode white space at the end of lines.
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
                 do
-                    call re_search_forward("[ "//achar(9)//"]+$", found, status, noerror=SEARCH_NOERROR)
+                    call regular_expression_search_forward("[ "//achar(9)//"]+$", found, status, noerror=SEARCH_NOERROR)
                     if (.not. status%ok()) exit narrowed
                     if (found == 0) exit
-                    call goto_char(match_beginning(0, status))
+                    call goto_character(match_beginning(0, status))
 
-                    do while (.not. is_eol())
+                    do while (.not. is_end_of_line())
                         call encode_byte_after(status)
                         if (.not. status%ok()) exit narrowed
                     end do
@@ -340,16 +342,16 @@ contains
                 tab_width%value = 1
                 saved_fold = case_fold_search%value
                 case_fold_search%value = .false.
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
-                do while (.not. is_eob())
+                do while (.not. is_end_of_buffer())
                     call end_of_line()
 
                     ! Fold long lines.
                     do while (current_column() > 76)
                         call beginning_of_line()
                         ! 75 chars plus an "="
-                        call forward_char(status, 75_int64)
+                        call forward_character(status, 75_int64)
                         if (.not. status%ok()) exit
                         call search_backward("=", found, status, bound=point() - 2, noerror=SEARCH_NOERROR)
                         if (.not. status%ok()) exit
@@ -390,7 +392,7 @@ contains
         if (present(multibyte)) is_multibyte = multibyte
         call temporary_buffer_begin(old, temporary, is_multibyte)
         call insert(string, st)
-        if (st%ok()) call encode_quoted_printable_region(point_min(), point_max(), st)
+        if (st%ok()) call encode_quoted_printable_region(point_minimum(), point_maximum(), st)
         encoded = buffer_string()
         call temporary_buffer_end(old, temporary)
         if (present(status)) status = st
@@ -400,7 +402,7 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine cmd_decode_quoted_printable_region(status)
+    recursive subroutine execute_decode_quoted_printable_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
@@ -413,19 +415,19 @@ contains
         else
             call decode_quoted_printable_region(b, e, status)
         end if
-    end subroutine cmd_decode_quoted_printable_region
+    end subroutine execute_decode_quoted_printable_region
 
-    recursive subroutine cmd_encode_quoted_printable_region(status)
+    recursive subroutine execute_encode_quoted_printable_region(status)
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
 
         call interactive_region(b, e, status)
         if (status%ok()) call encode_quoted_printable_region(b, e, status)
-    end subroutine cmd_encode_quoted_printable_region
+    end subroutine execute_encode_quoted_printable_region
 
     !> Register the quoted-printable region commands.  Not a port.
-    subroutine init_quoted_printable()
-        commands%decode_quoted_printable_region%execute => cmd_decode_quoted_printable_region
-        commands%encode_quoted_printable_region%execute => cmd_encode_quoted_printable_region
-    end subroutine init_quoted_printable
+    subroutine initialize_quoted_printable()
+        commands%decode_quoted_printable_region%execute => execute_decode_quoted_printable_region
+        commands%encode_quoted_printable_region%execute => execute_encode_quoted_printable_region
+    end subroutine initialize_quoted_printable
 end module quoted_printable_mod

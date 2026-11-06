@@ -21,8 +21,8 @@
 
 !> `parse_time_string' parses a time in a string and returns a decoded
 !> time, just like `decode_time', where unspecified components in the
-!> string are unallocated (except unspecified DST, which is
-!> DECODED_TIME_DST_UNKNOWN).  `encode_partial_decoded_time' may be
+!> string are unallocated (except unspecified DAYLIGHT_SAVING_TIME, which is
+!> DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN).  `encode_partial_decoded_time' may be
 !> applied on these values to obtain an internal time value
 !> (`parse_iso8601_time_string' does).
 !>
@@ -31,8 +31,9 @@
 !> ported yet is listed in docs/status/parse_time_mod.md.
 module parse_time_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, FM_OVERFLOW_ERROR
-    use time_functions_mod, only: time_type, DECODED_TIME_DST_UNKNOWN, DECODED_TIME_DST_YES, DECODED_TIME_DST_NO
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, OVERFLOW_ERROR_CODE
+    use time_functions_mod, only: time_type, DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN, DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, &
+                                  DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
     use time_date_mod, only: partial_decoded_time_type, encode_partial_decoded_time
     use iso8601_mod, only: parse_iso8601
     implicit none(type, external)
@@ -53,7 +54,7 @@ module parse_time_mod
     type, public :: parse_time_zone_type
         character(len=3) :: name = ""
         integer :: offset = 0
-        logical :: dst = .false.
+        logical :: daylight_saving_time = .false.
     end type parse_time_zone_type
 
     !> The names of the months (lower case) that `parse_time_string'
@@ -96,7 +97,8 @@ module parse_time_mod
                                           parse_time_zone_type("est", -5*3600), parse_time_zone_type("edt", -4*3600, .true.)]
 
     ! The slots of a decoded time as parse-time-rules numbers them.
-    integer, parameter :: SECOND = 0, MINUTE = 1, HOUR = 2, DAY = 3, MONTH = 4, YEAR = 5, WEEKDAY = 6, DST = 7, ZONE = 8
+    integer, parameter :: SECOND = 0, MINUTE = 1, HOUR = 2, DAY = 3, MONTH = 4, YEAR = 5, WEEKDAY = 6, DAYLIGHT_SAVING_TIME = 7, &
+                          ZONE = 8
 
     ! A token of the text: a run of lower-case letters, digits, signs and
     ! colons, or a number when it is all digits.
@@ -109,16 +111,16 @@ module parse_time_mod
 contains
 
     !> Parse the time in STRING into a decoded time (second, minute, hour,
-    !> day, month, year, weekday, DST and zone).  STRING should be an ISO
+    !> day, month, year, weekday, DAYLIGHT_SAVING_TIME and zone).  STRING should be an ISO
     !> 8601 time string, e.g., "2020-01-15T16:12:21-08:00", or something
     !> resembling an RFC 822 (or later) date-time, e.g., "Wed, 15 Jan 2020
     !> 16:12:21 -0800".  This function is somewhat liberal in what format it
     !> accepts, and will attempt to return a "likely" value even for
     !> somewhat malformed strings.  The values returned are identical to
-    !> those of `decode_time', but any unknown values other than DST are
-    !> unallocated, and an unknown DST value is DECODED_TIME_DST_UNKNOWN.
+    !> those of `decode_time', but any unknown values other than DAYLIGHT_SAVING_TIME are
+    !> unallocated, and an unknown DAYLIGHT_SAVING_TIME value is DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN.
     !> Note that, unlike `decode_time', this function does not interpret the
-    !> time string, and in particular the values of DST and ZONE do not
+    !> time string, and in particular the values of DAYLIGHT_SAVING_TIME and ZONE do not
     !> affect the returned value of date and time, they only affect the last
     !> two components of the returned value.  This function simply parses
     !> the textual representation of date and time into separate numerical
@@ -142,7 +144,7 @@ contains
         time = parse_iso8601(string, st, keep_fraction)
         if (st%ok()) return
 
-        if (st%code /= FM_WRONG_TYPE_ARGUMENT) then
+        if (st%code /= WRONG_TYPE_ARGUMENT_CODE) then
             if (present(status)) status = st
             return
         end if
@@ -150,8 +152,8 @@ contains
         st = status_type()
         known = .false.
         slots = 0
-        known(DST) = .true.
-        slots(DST) = DECODED_TIME_DST_UNKNOWN
+        known(DAYLIGHT_SAVING_TIME) = .true.
+        slots(DAYLIGHT_SAVING_TIME) = DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN
         call tokenize(ascii_downcase(string), tokens, st)
 
         if (st%ok()) then
@@ -175,7 +177,7 @@ contains
         if (known(MONTH)) time%month = int(slots(MONTH))
         if (known(YEAR)) time%year = slots(YEAR)
         if (known(WEEKDAY)) time%weekday = int(slots(WEEKDAY))
-        time%dst = int(slots(DST))
+        time%daylight_saving_time = int(slots(DAYLIGHT_SAVING_TIME))
         if (known(ZONE)) time%zone = int(slots(ZONE))
     end function parse_time_string
 
@@ -261,14 +263,14 @@ contains
 
             if (all_digits) then
                 if (len(token%text) > 18) then
-                    call set_error(status, FM_OVERFLOW_ERROR, token%text)
+                    call set_error(status, OVERFLOW_ERROR_CODE, token%text)
                     return
                 end if
 
                 read (token%text, *, iostat=ios) token%number
 
                 if (ios /= 0) then
-                    call set_error(status, FM_OVERFLOW_ERROR, token%text)
+                    call set_error(status, OVERFLOW_ERROR_CODE, token%text)
                     return
                 end if
             end if
@@ -344,10 +346,10 @@ contains
             if (k > 0) then
                 call set_slot(ZONE, int(parse_time_zoneinfo(k)%offset, int64))
 
-                if (parse_time_zoneinfo(k)%dst) then
-                    call set_slot(DST, int(DECODED_TIME_DST_YES, int64))
+                if (parse_time_zoneinfo(k)%daylight_saving_time) then
+                    call set_slot(DAYLIGHT_SAVING_TIME, int(DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, int64))
                 else
-                    call set_slot(DST, int(DECODED_TIME_DST_NO, int64))
+                    call set_slot(DAYLIGHT_SAVING_TIME, int(DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, int64))
                 end if
 
                 return
@@ -468,7 +470,7 @@ contains
         if (valid) valid = verify(text(start:last), "0123456789") == 0
 
         if (.not. valid) then
-            call set_error(status, FM_GENERIC_ERROR, "Not an integer string: `"//text//"'")
+            call set_error(status, GENERIC_ERROR_CODE, "Not an integer string: `"//text//"'")
             return
         end if
 

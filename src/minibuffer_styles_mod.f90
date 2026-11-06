@@ -31,7 +31,7 @@
 !> Patterns of partial-completion are arrays of elements: strings and the
 !> wildcards `star', `point', `any', `any-delim' and `prefix'.
 !>
-!> Deferred: the faces of `completion_pcm__hilit_commonality' (strings
+!> Deferred: the faces of `completion_partial_completion_mode__hilit_commonality' (strings
 !> carry no text properties), the shorthand style (Lisp symbol shorthands;
 !> it never matches here), styles that set variables while they run, the
 !> `completion-try-word' property that keeps a delimiter inserted by
@@ -40,17 +40,17 @@
 submodule(minibuffer_mod) minibuffer_styles_mod
     use value_mod, only: value_type, vtag, V_STRING
     use search_mod, only: string_match, match_beginning, match_end, case_fold_search
-    use case_table_mod, only: downcase_char => downcase
+    use case_table_mod, only: downcase_character => downcase
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
 
     ! Pattern elements.
     integer, parameter :: P_STRING = 0, P_STAR = 1, P_POINT = 2, P_ANY = 3, P_ANY_DELIM = 4, P_PREFIX = 5
 
-    type :: pat_elt_type
+    type :: pattern_element_type
         integer :: kind = P_STRING
         character(len=:), allocatable :: s
-    end type pat_elt_type
+    end type pattern_element_type
 
     !> A segment of a pattern: a fixed string and the wildcards after it.
     type :: segment_type
@@ -68,14 +68,14 @@ contains
     subroutine to_boxes(v, boxes)
         type(value_type), intent(in) :: v
         type(string_type), allocatable, intent(out) :: boxes(:)
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        call list_elements(v, elts)
-        allocate (boxes(size(elts)))
+        call list_elements(v, elements)
+        allocate (boxes(size(elements)))
 
-        do k = 1, size(elts)
-            boxes(k)%text = xstring(elts(k))
+        do k = 1, size(elements)
+            boxes(k)%text = xstring(elements(k))
         end do
     end subroutine to_boxes
 
@@ -83,56 +83,56 @@ contains
     function from_boxes(boxes) result(v)
         type(string_type), intent(in) :: boxes(:)
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        allocate (elts(size(boxes)))
+        allocate (elements(size(boxes)))
 
         do k = 1, size(boxes)
-            elts(k) = value_type(text=boxes(k)%text)
+            elements(k) = value_type(text=boxes(k)%text)
         end do
 
-        v = make_list(elts)
+        v = make_list(elements)
     end function from_boxes
 
     !> Append an element to the pattern P.  Not a port.
-    subroutine append_elt(p, kind, s)
-        type(pat_elt_type), allocatable, intent(inout) :: p(:)
+    subroutine append_element(p, kind, s)
+        type(pattern_element_type), allocatable, intent(inout) :: p(:)
         integer, intent(in) :: kind
         character(len=*), intent(in), optional :: s
-        type(pat_elt_type) :: elt
+        type(pattern_element_type) :: element
 
         if (.not. allocated(p)) allocate (p(0))
-        elt%kind = kind
+        element%kind = kind
 
         if (present(s)) then
-            elt%s = s
+            element%s = s
         else
-            elt%s = ""
+            element%s = ""
         end if
 
-        p = [p, elt]
-    end subroutine append_elt
+        p = [p, element]
+    end subroutine append_element
 
-    !> Whether regexp RE matches STRING (from 1-based index START), with
+    !> Whether regexp REGULAR_EXPRESSION matches STRING (from 1-based index START), with
     !> case folded when `completion_ignore_case'; keeps the match data.
     !> Not a port.
-    integer(int64) function re_match(regexp, string, start) result(index)
-        character(len=*), intent(in) :: regexp, string
+    integer(int64) function regular_expression_match(regular_expression, string, start) result(index)
+        character(len=*), intent(in) :: regular_expression, string
         integer(int64), intent(in), optional :: start
         type(status_type) :: st
         logical :: saved
 
         saved = case_fold_search%value
         case_fold_search%value = completion_ignore_case%value
-        index = string_match(regexp, string, st, start)
+        index = string_match(regular_expression, string, st, start)
         case_fold_search%value = saved
         if (.not. st%ok()) index = 0
-    end function re_match
+    end function regular_expression_match
 
     !> S with the regexp special characters quoted.  Port of
     !> search.c:Fregexp_quote.
-    function regexp_quote(s) result(q)
+    function regular_expression_quote(s) result(q)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: q
         integer :: i
@@ -143,7 +143,7 @@ contains
             if (index("[*.\?+^$", s(i:i)) > 0) q = q//"\"
             q = q//s(i:i)
         end do
-    end function regexp_quote
+    end function regular_expression_quote
 
     !> The try-completion value of STRING over the strings BOXES.  Not a port.
     subroutine try_strings(string, boxes, res)
@@ -216,7 +216,8 @@ contains
     end if
 
     if (.not. allocated(completion_category_overrides)) allocate (completion_category_overrides(0))
-    if (.not. allocated(completion_pcm_word_delimiters)) completion_pcm_word_delimiters = "-_./:| "
+    if (.not. allocated(completion_partial_completion_mode_word_delimiters)) completion_partial_completion_mode_word_delimiters = &
+        "-_./:| "
 
 contains
 
@@ -270,26 +271,26 @@ contains
         styles = styles(1:n)
     end subroutine styles_for
 
-    !> The `styles' property of category CAT, from
+    !> The `styles' property of category CATEGORY, from
     !> `completion_category_overrides' then `completion_category_defaults'.
     !> Port of minibuffer.el:completion-category-get.
-    subroutine category_styles(cat, styles)
-        character(len=*), intent(in) :: cat
+    subroutine category_styles(category, styles)
+        character(len=*), intent(in) :: category
         character(len=24), allocatable, intent(out) :: styles(:)
         integer :: k
 
         allocate (styles(0))
-        if (len(cat) == 0) return
+        if (len(category) == 0) return
 
         do k = 1, size(completion_category_overrides)
-            if (trim(completion_category_overrides(k)%category) == cat) then
+            if (trim(completion_category_overrides(k)%category) == category) then
                 styles = completion_category_overrides(k)%styles
                 return
             end if
         end do
 
         do k = 1, size(completion_category_defaults)
-            if (trim(completion_category_defaults(k)%category) == cat) then
+            if (trim(completion_category_defaults(k)%category) == category) then
                 styles = completion_category_defaults(k)%styles
                 return
             end if
@@ -311,7 +312,7 @@ contains
         case ("basic")
             call basic_try_completion(string, table, point, res, test)
         case ("partial-completion")
-            call pcm_try_completion(string, table, point, res, test)
+            call partial_completion_mode_try_completion(string, table, point, res, test)
         case ("substring")
             call substring_try_completion(string, table, point, res, test)
         case ("flex")
@@ -348,7 +349,7 @@ contains
         case ("basic")
             call basic_all_completions(string, table, point, all, base_size, test)
         case ("partial-completion")
-            call pcm_all_completions(string, table, point, all, base_size, test)
+            call partial_completion_mode_all_completions(string, table, point, all, base_size, test)
         case ("substring")
             call substring_all_completions(string, table, point, all, base_size, test)
         case ("flex")
@@ -459,12 +460,12 @@ contains
     subroutine basic_pattern(beforepoint, afterpoint, bstart, bend, p)
         character(len=*), intent(in) :: beforepoint, afterpoint
         integer(int64), intent(in) :: bstart, bend
-        type(pat_elt_type), allocatable, intent(out) :: p(:)
+        type(pattern_element_type), allocatable, intent(out) :: p(:)
 
         allocate (p(0))
-        call append_elt(p, P_STRING, substring(beforepoint, bstart))
-        call append_elt(p, P_POINT)
-        call append_elt(p, P_STRING, substring(afterpoint, 0_int64, bend))
+        call append_element(p, P_STRING, substring(beforepoint, bstart))
+        call append_element(p, P_POINT)
+        call append_element(p, P_STRING, substring(afterpoint, 0_int64, bend))
     end subroutine basic_pattern
 
     !> Port of minibuffer.el:completion-basic-try-completion.
@@ -477,7 +478,7 @@ contains
         character(len=:), allocatable :: beforepoint, afterpoint, suffix, prefix
         type(value_type) :: completion
         type(status_type) :: status
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: all(:)
         integer(int64) :: bstart, bend
 
@@ -503,7 +504,7 @@ contains
         prefix = substring(beforepoint, 0_int64, bstart)
         call basic_pattern(beforepoint, afterpoint, bstart, bend, pattern)
         call optimize_pattern(pattern)
-        call pcm_all(prefix, pattern, table, all, test)
+        call partial_completion_mode_all(prefix, pattern, table, all, test)
         if (minibuffer_completing_file_name) call filename_try_filter(all)
         call merge_try(pattern, all, prefix, suffix, res)
     end subroutine basic_try_completion
@@ -517,7 +518,7 @@ contains
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint, prefix
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: boxes(:)
         integer(int64) :: bstart, bend
 
@@ -527,7 +528,7 @@ contains
         prefix = substring(beforepoint, 0_int64, bstart)
         call basic_pattern(beforepoint, afterpoint, bstart, bend, pattern)
         call delete_empty(pattern)
-        call pcm_all(prefix, pattern, table, boxes, test)
+        call partial_completion_mode_all(prefix, pattern, table, boxes, test)
         all = from_boxes(boxes)
         base_size = bstart
     end subroutine basic_all_completions
@@ -538,15 +539,15 @@ contains
 
     !> Remove the empty strings of P.  Not a port.
     subroutine delete_empty(p)
-        type(pat_elt_type), allocatable, intent(inout) :: p(:)
-        type(pat_elt_type), allocatable :: q(:)
+        type(pattern_element_type), allocatable, intent(inout) :: p(:)
+        type(pattern_element_type), allocatable :: q(:)
         integer :: k
 
         allocate (q(0))
 
         do k = 1, size(p)
             if (p(k)%kind == P_STRING .and. len(p(k)%s) == 0) cycle
-            call append_elt(q, p(k)%kind, p(k)%s)
+            call append_element(q, p(k)%kind, p(k)%s)
         end do
 
         call move_alloc(q, p)
@@ -554,8 +555,8 @@ contains
 
     !> Port of minibuffer.el:completion-pcm--optimize-pattern.
     subroutine optimize_pattern(p)
-        type(pat_elt_type), allocatable, intent(inout) :: p(:)
-        type(pat_elt_type), allocatable :: n(:)
+        type(pattern_element_type), allocatable, intent(inout) :: p(:)
+        type(pattern_element_type), allocatable :: n(:)
         integer :: k
 
         ! Remove empty strings in a separate phase since otherwise a ""
@@ -573,7 +574,7 @@ contains
                 end if
             end if
 
-            call append_elt(n, p(k)%kind, p(k)%s)
+            call append_element(n, p(k)%kind, p(k)%s)
             k = k + 1
         end do
 
@@ -582,7 +583,7 @@ contains
 
     !> Port of minibuffer.el:completion-pcm--pattern-trivial-p.
     logical function is_pattern_trivial(p)
-        type(pat_elt_type), intent(in) :: p(:)
+        type(pattern_element_type), intent(in) :: p(:)
         integer :: k
 
         is_pattern_trivial = .false.
@@ -601,12 +602,12 @@ contains
 
     !> The regexp matching a delimiter of partial-completion.  Port of
     !> minibuffer.el:completion-pcm--delim-re.
-    function delim_regexp(delims) result(regexp)
+    function delim_regular_expression(delims) result(regular_expression)
         character(len=*), intent(in) :: delims
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
-        regexp = "["//delims//"*]"
-    end function delim_regexp
+        regular_expression = "["//delims//"*]"
+    end function delim_regular_expression
 
     !> Split STRING into a pattern, with `point' at POINT (zero-based;
     !> negative for none).  Port of
@@ -614,9 +615,9 @@ contains
     recursive subroutine string_to_pattern(string, point, pattern)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: point
-        type(pat_elt_type), allocatable, intent(out) :: pattern(:)
-        type(pat_elt_type), allocatable :: tail(:)
-        character(len=:), allocatable :: regexp
+        type(pattern_element_type), allocatable, intent(out) :: pattern(:)
+        type(pattern_element_type), allocatable :: tail(:)
+        character(len=:), allocatable :: regular_expression
         integer(int64) :: p, p0, n, mb1, me0
         integer :: pending, k
         type(status_type) :: st
@@ -626,24 +627,24 @@ contains
 
         if (point >= 0 .and. point <= n) then
             call string_to_pattern(substring(string, 0_int64, point), -1_int64, pattern)
-            call append_elt(pattern, P_POINT)
+            call append_element(pattern, P_POINT)
             call string_to_pattern(substring(string, point), -1_int64, tail)
 
             do k = 1, size(tail)
-                call append_elt(pattern, tail(k)%kind, tail(k)%s)
+                call append_element(pattern, tail(k)%kind, tail(k)%s)
             end do
 
             return
         end if
 
-        regexp = delim_regexp(completion_pcm_word_delimiters)
+        regular_expression = delim_regular_expression(completion_partial_completion_mode_word_delimiters)
         p0 = 0
         pending = -1
         p = 0
 
         do
             ! Indices of string_match are 1-based.
-            p = string_match(regexp, string, st, p + 1, inhibit_modify=.false.)
+            p = string_match(regular_expression, string, st, p + 1, inhibit_modify=.false.)
             if (p == 0 .or. .not. st%ok()) exit
             p = p - 1
             mb1 = match_end(1, st) - 1
@@ -653,26 +654,26 @@ contains
             if (mb1 >= 0) p = mb1
 
             if (p0 /= p) then
-                if (pending >= 0) call append_elt(pattern, pending)
-                call append_elt(pattern, P_STRING, substring(string, p0, p))
+                if (pending >= 0) call append_element(pattern, pending)
+                call append_element(pattern, P_STRING, substring(string, p0, p))
             end if
 
             pending = -1
 
             if (substring(string, p, p + 1) == "*") then
-                call append_elt(pattern, P_STAR)
+                call append_element(pattern, P_STAR)
                 p0 = p + 1
             else
-                call append_elt(pattern, P_ANY)
+                call append_element(pattern, P_ANY)
 
                 if (mb1 >= 0) then
                     p0 = p
                 else
-                    call append_elt(pattern, P_STRING, substring(string, p, me0))
+                    call append_element(pattern, P_STRING, substring(string, p, me0))
 
                     ! `any-delim' is used so that "a-b" also finds
                     ! "array->beginning".
-                    if (completion_pcm_leading_wildcard) then
+                    if (completion_partial_completion_mode_leading_wildcard) then
                         pending = P_PREFIX
                     else
                         pending = P_ANY_DELIM
@@ -687,17 +688,17 @@ contains
         end do
 
         if (n > p0) then
-            if (pending >= 0) call append_elt(pattern, pending)
-            call append_elt(pattern, P_STRING, substring(string, p0))
+            if (pending >= 0) call append_element(pattern, pending)
+            call append_element(pattern, P_STRING, substring(string, p0))
         end if
 
-        if (completion_pcm_leading_wildcard .and. size(pattern) > 0) then
+        if (completion_partial_completion_mode_leading_wildcard .and. size(pattern) > 0) then
             if (pattern(1)%kind == P_STRING) then
                 allocate (tail(0))
-                call append_elt(tail, P_PREFIX)
+                call append_element(tail, P_PREFIX)
 
                 do k = 1, size(pattern)
-                    call append_elt(tail, pattern(k)%kind, pattern(k)%s)
+                    call append_element(tail, pattern(k)%kind, pattern(k)%s)
                 end do
 
                 call move_alloc(tail, pattern)
@@ -708,7 +709,7 @@ contains
     !> Segment PATTERN into its fixed strings and the wildcards after
     !> each.  Port of minibuffer.el:completion-pcm--pattern->segments.
     subroutine pattern_to_segments(pattern, segs)
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         type(segment_type), allocatable, intent(out) :: segs(:)
         type(segment_type) :: seg
         integer :: k
@@ -740,45 +741,46 @@ contains
     end subroutine pattern_to_segments
 
     !> Port of minibuffer.el:completion-pcm--segments->regex.
-    function segments_to_regexp(segs, group) result(regexp)
+    function segments_to_regular_expression(segs, group) result(regular_expression)
         type(segment_type), intent(in) :: segs(:)
         logical, intent(in) :: group
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer :: k
 
-        regexp = "\`"
+        regular_expression = "\`"
 
         do k = 1, size(segs)
-            regexp = regexp//regexp_quote(segs(k)%fixed)
+            regular_expression = regular_expression//regular_expression_quote(segs(k)%fixed)
 
             if (size(segs(k)%wildcards) > 0) then
-                if (group) regexp = regexp//"\("
+                if (group) regular_expression = regular_expression//"\("
 
                 if (all(segs(k)%wildcards == P_ANY_DELIM)) then
-                    regexp = regexp//delim_regexp(completion_pcm_word_delimiters)//"*?"
+                    regular_expression = regular_expression//delim_regular_expression( &
+                                         completion_partial_completion_mode_word_delimiters)//"*?"
                 else
-                    regexp = regexp//"[^z-a]*?"
+                    regular_expression = regular_expression//"[^z-a]*?"
                 end if
 
-                if (group) regexp = regexp//"\)"
+                if (group) regular_expression = regular_expression//"\)"
             end if
         end do
-    end function segments_to_regexp
+    end function segments_to_regular_expression
 
     !> Port of minibuffer.el:completion-pcm--pattern->regex.
-    function pattern_to_regexp(pattern, group) result(regexp)
-        type(pat_elt_type), intent(in) :: pattern(:)
+    function pattern_to_regular_expression(pattern, group) result(regular_expression)
+        type(pattern_element_type), intent(in) :: pattern(:)
         logical, intent(in) :: group
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         type(segment_type), allocatable :: segs(:)
 
         call pattern_to_segments(pattern, segs)
-        regexp = segments_to_regexp(segs, group)
-    end function pattern_to_regexp
+        regular_expression = segments_to_regular_expression(segs, group)
+    end function pattern_to_regular_expression
 
     !> Port of minibuffer.el:completion-pcm--pattern->string.
     function pattern_to_string(pattern) result(s)
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         character(len=:), allocatable :: s
         integer :: k
 
@@ -801,16 +803,16 @@ contains
     !> PATTERN is as returned by `string_to_pattern'.  Port of
     !> minibuffer.el:completion-pcm--all-completions (the regexp filters
     !> the candidates, as completion-regexp-list does).
-    subroutine pcm_all(prefix, pattern, table, all, test)
+    subroutine partial_completion_mode_all(prefix, pattern, table, all, test)
         character(len=*), intent(in) :: prefix
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         type(completion_table_type), intent(in) :: table
         type(string_type), allocatable, intent(out) :: all(:)
         procedure(completion_test_procedure), optional :: test
         type(value_type) :: compl
         type(string_type), allocatable :: cands(:)
         type(status_type) :: status
-        character(len=:), allocatable :: regexp, head
+        character(len=:), allocatable :: regular_expression, head
         integer :: k
 
         allocate (all(0))
@@ -823,7 +825,7 @@ contains
         end if
 
         ! Use all-completions to do an initial cull.
-        regexp = pattern_to_regexp(pattern, .false.)
+        regular_expression = pattern_to_regular_expression(pattern, .false.)
         head = ""
 
         if (size(pattern) > 0) then
@@ -834,9 +836,9 @@ contains
         call to_boxes(compl, cands)
 
         do k = 1, size(cands)
-            if (re_match(regexp, cands(k)%text) > 0) call append_string(all, cands(k)%text)
+            if (regular_expression_match(regular_expression, cands(k)%text) > 0) call append_string(all, cands(k)%text)
         end do
-    end subroutine pcm_all
+    end subroutine partial_completion_mode_all
 
     !> Find all completions for STRING at POINT in TABLE, satisfying TEST:
     !> the pattern, the completions, the prefix and the suffix.  FILTER, if
@@ -847,13 +849,13 @@ contains
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         logical, intent(in) :: filter
-        type(pat_elt_type), allocatable, intent(out) :: pattern(:)
+        type(pattern_element_type), allocatable, intent(out) :: pattern(:)
         type(string_type), allocatable, intent(out) :: all(:)
         character(len=:), allocatable, intent(out) :: prefix, suffix
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint, string, sub, subprefix, subsuffix, between, &
-                                         newbeforepoint, sep
-        type(pat_elt_type), allocatable :: subpat(:), newpat(:)
+                                         newbeforepoint, separator
+        type(pattern_element_type), allocatable :: subpat(:), newpat(:)
         type(string_type), allocatable :: suball(:), kept(:), more(:)
         type(value_type) :: tryv
         type(status_type) :: status
@@ -869,7 +871,7 @@ contains
         relpoint = point - bstart
         call string_to_pattern(string, relpoint, pattern)
         call optimize_pattern(pattern)
-        call pcm_all(prefix, pattern, table, all, test)
+        call partial_completion_mode_all(prefix, pattern, table, all, test)
         if (filter) call filename_try_filter(all)
         if (size(all) > 0 .or. bstart <= 0) return
         call try_completion(prefix, table, tryv, status, test)
@@ -878,7 +880,7 @@ contains
         ! that first.
         sub = substring(prefix, 0_int64, -1_int64)
         call find_all_completions(sub, table, count_characters(sub), filter, subpat, suball, subprefix, subsuffix, test)
-        sep = substring(prefix, count_characters(prefix) - 1)
+        separator = substring(prefix, count_characters(prefix) - 1)
         between = ""
 
         ! SUBPAT was computed with point at its end; remove the trailing
@@ -891,7 +893,8 @@ contains
         allocate (kept(0))
 
         do k = 1, size(suball)
-            if (substring(suball(k)%text, count_characters(suball(k)%text) - 1) == sep) call append_string(kept, suball(k)%text)
+            if (substring(suball(k)%text, count_characters(suball(k)%text) - 1) == separator) call append_string(kept, &
+                                                                                                                 suball(k)%text)
         end do
 
         if (size(kept) > 0) then
@@ -911,7 +914,7 @@ contains
             end if
 
             do k = 1, size(kept)
-                call pcm_all(subprefix//kept(k)%text//between, pattern, table, more, test)
+                call partial_completion_mode_all(subprefix//kept(k)%text//between, pattern, table, more, test)
                 if (filter) call filename_try_filter(more)
 
                 do j = 1, size(more)
@@ -923,15 +926,15 @@ contains
         allocate (newpat(0))
 
         do k = 1, size(subpat)
-            call append_elt(newpat, subpat(k)%kind, subpat(k)%s)
+            call append_element(newpat, subpat(k)%kind, subpat(k)%s)
         end do
 
-        call append_elt(newpat, P_ANY)
-        call append_elt(newpat, P_STRING, sep)
-        if (len(between) > 0) call append_elt(newpat, P_STRING, between)
+        call append_element(newpat, P_ANY)
+        call append_element(newpat, P_STRING, separator)
+        if (len(between) > 0) call append_element(newpat, P_STRING, between)
 
         do k = 1, size(pattern)
-            call append_elt(newpat, pattern(k)%kind, pattern(k)%s)
+            call append_element(newpat, pattern(k)%kind, pattern(k)%s)
         end do
 
         call move_alloc(newpat, pattern)
@@ -970,28 +973,28 @@ contains
         if (size(try) > 0) call move_alloc(try, all)
     end subroutine filename_try_filter
 
-    !> The common suffix of the strings STRS.  Port of
+    !> The common suffix of the strings STRINGS.  Port of
     !> minibuffer.el:completion--common-suffix.
-    function common_suffix(strs) result(s)
-        type(string_type), intent(in) :: strs(:)
+    function common_suffix(strings) result(s)
+        type(string_type), intent(in) :: strings(:)
         character(len=:), allocatable :: s
-        type(string_type), allocatable :: rev(:)
+        type(string_type), allocatable :: reversed(:)
         type(value_type) :: t
         integer :: k
 
-        allocate (rev(size(strs)))
+        allocate (reversed(size(strings)))
 
-        do k = 1, size(strs)
-            rev(k)%text = reverse_chars(strs(k)%text)
+        do k = 1, size(strings)
+            reversed(k)%text = reverse_characters(strings(k)%text)
         end do
 
-        call try_strings("", rev, t)
+        call try_strings("", reversed, t)
         s = ""
-        if (vtag(t) == V_STRING) s = reverse_chars(xstring(t))
+        if (vtag(t) == V_STRING) s = reverse_characters(xstring(t))
     end function common_suffix
 
     !> S with its characters in reverse order.  Not a port.
-    function reverse_chars(s) result(r)
+    function reverse_characters(s) result(r)
         character(len=*), intent(in) :: s
         character(len=:), allocatable :: r
         integer(int64) :: n, k
@@ -1002,21 +1005,21 @@ contains
         do k = n - 1, 0, -1
             r = r//substring(s, k, k + 1)
         end do
-    end function reverse_chars
+    end function reverse_characters
 
-    !> Extract the commonality in STRS, with the help of PATTERN: the
+    !> Extract the commonality in STRINGS, with the help of PATTERN: the
     !> merged pattern, in reverse order.  `any' only grows from the left,
     !> `prefix' only from the right, `star' from both ends (reified as
     !> "*"), `point' like `star' but reified as the position of point.
     !> Port of minibuffer.el:completion-pcm--merge-completions.
-    subroutine merge_completions(strs, pattern, res)
-        type(string_type), intent(in) :: strs(:)
-        type(pat_elt_type), intent(in) :: pattern(:)
-        type(pat_elt_type), allocatable, intent(out) :: res(:)
-        type(pat_elt_type), allocatable :: pat(:)
+    subroutine merge_completions(strings, pattern, res)
+        type(string_type), intent(in) :: strings(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
+        type(pattern_element_type), allocatable, intent(out) :: res(:)
+        type(pattern_element_type), allocatable :: pattern_text(:)
         type(segment_type), allocatable :: segs(:)
         type(string_type), allocatable :: comps(:), chopped(:, :), rest(:)
-        character(len=:), allocatable :: regexp, prefix, suf
+        character(len=:), allocatable :: regular_expression, prefix, suffix
         type(value_type) :: t
         type(status_type) :: st
         integer(int64) :: last, nxt
@@ -1025,22 +1028,22 @@ contains
 
         allocate (res(0))
 
-        if (size(strs) <= 1) then
-            if (size(strs) == 1) call append_elt(res, P_STRING, strs(1)%text)
+        if (size(strings) <= 1) then
+            if (size(strings) == 1) call append_element(res, P_STRING, strings(1)%text)
             return
         end if
 
-        pat = pattern
-        call append_elt(pat, P_ANY)
-        call pattern_to_segments(pat, segs)
+        pattern_text = pattern
+        call append_element(pattern_text, P_ANY)
+        call pattern_to_segments(pattern_text, segs)
         ! First chop each string into the parts corresponding to each
         ! non-constant element of `pattern', using regexp-matching.
-        regexp = segments_to_regexp(segs, .true.)//"\'"
+        regular_expression = segments_to_regular_expression(segs, .true.)//"\'"
         nparts = size(segs)
-        allocate (chopped(nparts, size(strs)))
+        allocate (chopped(nparts, size(strings)))
 
-        do k = 1, size(strs)
-            if (re_match(regexp, strs(k)%text) == 0) then
+        do k = 1, size(strings)
+            if (regular_expression_match(regular_expression, strings(k)%text) == 0) then
                 do i = 1, nparts
                     chopped(i, k)%text = ""
                 end do
@@ -1058,7 +1061,7 @@ contains
                     cycle
                 end if
 
-                chopped(i, k)%text = substring(strs(k)%text, last, nxt)
+                chopped(i, k)%text = substring(strings(k)%text, last, nxt)
                 last = nxt
             end do
         end do
@@ -1066,9 +1069,9 @@ contains
         ! Then for each of those non-constant elements, extract the
         ! commonality between them.
         do i = 1, nparts
-            allocate (comps(size(strs)))
+            allocate (comps(size(strings)))
 
-            do k = 1, size(strs)
+            do k = 1, size(strings)
                 comps(k)%text = chopped(i, k)%text
             end do
 
@@ -1095,25 +1098,25 @@ contains
             if (unique) then
                 ! If the common prefix is unique, it also is a common
                 ! suffix, so we should add it for `prefix' elements.
-                call append_elt(res, P_STRING, prefix)
+                call append_element(res, P_STRING, prefix)
             else
                 has_prefix_wc = any(segs(i)%wildcards == P_PREFIX)
                 ! `prefix' only wants to include the fixed part before the
                 ! wildcard, not the result of growing that fixed part.
                 if (has_prefix_wc) prefix = substring(prefix, 0_int64, count_characters(segs(i)%fixed))
-                call append_elt(res, P_STRING, prefix)
+                call append_element(res, P_STRING, prefix)
                 ! Push all the wildcards in this stretch, to preserve
-                ! `point' and `star' wildcards before ELEM, collapsing
+                ! `point' and `star' wildcards before ELEMENT, collapsing
                 ! multiple `star's to one on each side of point.
                 star_seen = .false.
 
                 do j = 1, size(segs(i)%wildcards)
                     if (segs(i)%wildcards(j) == P_STAR) then
-                        if (.not. star_seen) call append_elt(res, P_STAR)
+                        if (.not. star_seen) call append_element(res, P_STAR)
                         star_seen = .true.
                     else
                         if (segs(i)%wildcards(j) == P_POINT) star_seen = .false.
-                        call append_elt(res, segs(i)%wildcards(j))
+                        call append_element(res, segs(i)%wildcards(j))
                     end if
                 end do
 
@@ -1132,8 +1135,8 @@ contains
                         rest(k)%text = substring(comps(k)%text, count_characters(prefix))
                     end do
 
-                    suf = common_suffix(rest)
-                    if (len(suf) > 0) call append_elt(res, P_STRING, suf)
+                    suffix = common_suffix(rest)
+                    if (len(suffix) > 0) call append_element(res, P_STRING, suffix)
                     deallocate (rest)
                 end if
             end if
@@ -1164,11 +1167,11 @@ contains
 
     !> Port of minibuffer.el:completion-pcm--merge-try.
     subroutine merge_try(pattern, all, prefix, suffix_in, res)
-        type(pat_elt_type), intent(in) :: pattern(:)
+        type(pattern_element_type), intent(in) :: pattern(:)
         type(string_type), intent(in) :: all(:)
         character(len=*), intent(in) :: prefix, suffix_in
         type(try_result_type), intent(out) :: res
-        type(pat_elt_type), allocatable :: merged_pat(:)
+        type(pattern_element_type), allocatable :: merged_pattern(:)
         character(len=:), allocatable :: merged, suffix
         integer(int64) :: newpos
         integer :: at
@@ -1183,17 +1186,17 @@ contains
             end if
         end if
 
-        call merge_completions(all, pattern, merged_pat)
-        ! `merged_pat' is in reverse order.  Place new point (by order of
+        call merge_completions(all, pattern, merged_pattern)
+        ! `merged_pattern' is in reverse order.  Place new point (by order of
         ! preference) either at the old point, or at the last place where
         ! there's something to choose, or at the very end.
-        at = findloc(merged_pat%kind, P_POINT, dim=1)
-        if (at == 0) at = findloc(merged_pat%kind, P_ANY, dim=1)
-        if (at == 0) at = findloc(merged_pat%kind, P_STAR, dim=1)
+        at = findloc(merged_pattern%kind, P_POINT, dim=1)
+        if (at == 0) at = findloc(merged_pattern%kind, P_ANY, dim=1)
+        if (at == 0) at = findloc(merged_pattern%kind, P_STAR, dim=1)
         if (at == 0) at = 1
         ! New pos from the start.
-        newpos = count_characters(pattern_to_string(merged_pat(at:)))
-        merged = pattern_to_string(merged_pat(size(merged_pat):1:-1))
+        newpos = count_characters(pattern_to_string(merged_pattern(at:)))
+        merged = pattern_to_string(merged_pattern(size(merged_pattern):1:-1))
         ! The second arg should ideally be "the position right after the
         ! last char of `merged' that comes from the text to be
         ! completed"; the "last but one" position tends to work well in
@@ -1209,37 +1212,37 @@ contains
     ! ------------------------------------------------------------------
 
     !> Port of minibuffer.el:completion-pcm-try-completion.
-    subroutine pcm_try_completion(string, table, point, res, test)
+    subroutine partial_completion_mode_try_completion(string, table, point, res, test)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         type(try_result_type), intent(out) :: res
         procedure(completion_test_procedure), optional :: test
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: all(:)
         character(len=:), allocatable :: prefix, suffix
 
         call find_all_completions(string, table, point, minibuffer_completing_file_name, pattern, all, prefix, &
                                   suffix, test)
         call merge_try(pattern, all, prefix, suffix, res)
-    end subroutine pcm_try_completion
+    end subroutine partial_completion_mode_try_completion
 
     !> Port of minibuffer.el:completion-pcm-all-completions.
-    subroutine pcm_all_completions(string, table, point, all, base_size, test)
+    subroutine partial_completion_mode_all_completions(string, table, point, all, base_size, test)
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         type(value_type), intent(out) :: all
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: boxes(:)
         character(len=:), allocatable :: prefix, suffix
 
         call find_all_completions(string, table, point, .false., pattern, boxes, prefix, suffix, test)
         all = from_boxes(boxes)
         base_size = count_characters(prefix)
-    end subroutine pcm_all_completions
+    end subroutine partial_completion_mode_all_completions
 
     !> Match the presumed substring STRING to the entries in TABLE:
     !> the completions, the pattern, the prefix and the suffix.  Port of
@@ -1249,11 +1252,11 @@ contains
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         type(string_type), allocatable, intent(out) :: all(:)
-        type(pat_elt_type), allocatable, intent(out) :: pattern(:)
+        type(pattern_element_type), allocatable, intent(out) :: pattern(:)
         character(len=:), allocatable, intent(out) :: prefix, suffix
         procedure(completion_test_procedure), optional :: test
         character(len=:), allocatable :: beforepoint, afterpoint
-        type(pat_elt_type), allocatable :: basic(:)
+        type(pattern_element_type), allocatable :: basic(:)
         integer(int64) :: bstart, bend
         integer :: k
 
@@ -1265,14 +1268,14 @@ contains
         call basic_pattern(beforepoint, afterpoint, bstart, bend, basic)
         allocate (pattern(0))
         ! basic's pattern always starts with a string.
-        call append_elt(pattern, P_PREFIX)
+        call append_element(pattern, P_PREFIX)
 
         do k = 1, size(basic)
-            call append_elt(pattern, basic(k)%kind, basic(k)%s)
+            call append_element(pattern, basic(k)%kind, basic(k)%s)
         end do
 
         call optimize_pattern(pattern)
-        call pcm_all(prefix, pattern, table, all, test)
+        call partial_completion_mode_all(prefix, pattern, table, all, test)
     end subroutine substring_all
 
     !> Port of minibuffer.el:completion-substring-try-completion.
@@ -1282,7 +1285,7 @@ contains
         integer(int64), intent(in) :: point
         type(try_result_type), intent(out) :: res
         procedure(completion_test_procedure), optional :: test
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: all(:)
         character(len=:), allocatable :: prefix, suffix
 
@@ -1299,7 +1302,7 @@ contains
         type(value_type), intent(out) :: all
         integer(int64), intent(out) :: base_size
         procedure(completion_test_procedure), optional :: test
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         type(string_type), allocatable :: boxes(:)
         character(len=:), allocatable :: prefix, suffix
 
@@ -1312,32 +1315,32 @@ contains
     ! flex
     ! ------------------------------------------------------------------
 
-    !> Compute the cost of PAT matching STRING using the modified Gotoh
+    !> Compute the cost of PATTERN matching STRING using the modified Gotoh
     !> algorithm: COST (lower is better) and MATCHES, where each character
-    !> of PAT matched in STRING (zero-based); FOUND false if PAT does not
+    !> of PATTERN matched in STRING (zero-based); FOUND false if PATTERN does not
     !> match.  Port of minibuf.c:Fcompletion__flex_cost_gotoh.
-    subroutine flex_cost_gotoh(pat, string, found, cost, matches)
-        character(len=*), intent(in) :: pat, string
+    subroutine flex_cost_gotoh(pattern, string, found, cost, matches)
+        character(len=*), intent(in) :: pattern, string
         logical, intent(out) :: found
         integer, intent(out) :: cost
         integer, allocatable, intent(out) :: matches(:)
-        integer, parameter :: GAP_OPEN_COST = 10, GAP_EXTEND_COST = 1, POS_INF = huge(0)/2
-        integer, parameter :: MAX_STRING_SIZE = 512, MAX_PAT_SIZE = 128
+        integer, parameter :: GAP_OPEN_COST = 10, GAP_EXTEND_COST = 1, POSITION_INF = huge(0)/2
+        integer, parameter :: MAXIMUM_STRING_SIZE = 512, MAXIMUM_PATTERN_SIZE = 128
         integer, allocatable :: m(:, :), d(:, :), pc(:), sc(:)
-        integer :: patlen, strlen, i, j, pi, prev_match, best_cost, lastcol, l
+        integer :: patlen, strlen, i, j, pi, previous_match, best_cost, lastcol, l
         logical :: match_seen, cmatch
 
         found = .false.
         cost = 0
         allocate (matches(0))
-        call chars_of(pat, pc)
-        call chars_of(string, sc)
+        call characters_of(pattern, pc)
+        call characters_of(string, sc)
         patlen = size(pc)
         strlen = size(sc)
         ! Bail if strings are empty or matrix too large.
-        if (patlen == 0 .or. strlen == 0 .or. (patlen + 1)*(strlen + 1) > MAX_PAT_SIZE*MAX_STRING_SIZE) return
+        if (patlen == 0 .or. strlen == 0 .or. (patlen + 1)*(strlen + 1) > MAXIMUM_PATTERN_SIZE*MAXIMUM_STRING_SIZE) return
 
-        ! Also bail if PAT is not a subsequence of STRING (case-sensitive).
+        ! Also bail if PATTERN is not a subsequence of STRING (case-sensitive).
         if (.not. completion_ignore_case%value) then
             pi = 1
 
@@ -1351,20 +1354,20 @@ contains
 
         ! M(i, j) and D(i, j) for i, j from -1.
         allocate (m(-1:patlen - 1, -1:strlen - 1), d(-1:patlen - 1, -1:strlen - 1))
-        m = POS_INF
-        d = POS_INF
+        m = POSITION_INF
+        d = POSITION_INF
         ! D[-1,-1] is 0 to promote matches at the beginning; the rest of
         ! the first row has GAP_OPEN_COST/2 for cheaper leading gaps.
         d(-1, :) = GAP_OPEN_COST/2
         d(-1, -1) = 0
-        prev_match = 0
+        previous_match = 0
 
         do i = 0, patlen - 1
             match_seen = .false.
 
-            do j = prev_match, strlen - 1
+            do j = previous_match, strlen - 1
                 if (completion_ignore_case%value) then
-                    cmatch = downcase_char(pc(i + 1)) == downcase_char(sc(j + 1))
+                    cmatch = downcase_character(pc(i + 1)) == downcase_character(sc(j + 1))
                 else
                     cmatch = pc(i + 1) == sc(j + 1)
                 end if
@@ -1372,7 +1375,7 @@ contains
                 if (cmatch) then
                     if (.not. match_seen) then
                         match_seen = .true.
-                        prev_match = j
+                        previous_match = j
                     end if
 
                     m(i, j) = min(m(i - 1, j - 1), d(i - 1, j - 1))
@@ -1383,7 +1386,7 @@ contains
         end do
 
         ! Find lowest cost in last row.
-        best_cost = POS_INF
+        best_cost = POSITION_INF
         lastcol = -1
 
         do j = 0, strlen - 1
@@ -1393,7 +1396,7 @@ contains
             end if
         end do
 
-        if (lastcol < 0 .or. best_cost >= POS_INF) return
+        if (lastcol < 0 .or. best_cost >= POSITION_INF) return
         ! Go backwards to build match positions list.
         deallocate (matches)
         allocate (matches(patlen))
@@ -1415,7 +1418,7 @@ contains
     end subroutine flex_cost_gotoh
 
     !> The characters of multibyte S.  Not a port.
-    subroutine chars_of(s, cs)
+    subroutine characters_of(s, cs)
         character(len=*), intent(in) :: s
         integer, allocatable, intent(out) :: cs(:)
         integer(int64) :: p
@@ -1426,22 +1429,22 @@ contains
         p = 1
 
         do while (p <= len(s, kind=int64))
-            call string_char_and_length(s, p, c, length)
+            call string_character_and_length(s, p, c, length)
             n = n + 1
             cs(n) = c
             p = p + length
         end do
 
         cs = cs(1:n)
-    end subroutine chars_of
+    end subroutine characters_of
 
-    !> Filter the completions of TABLE by PAT, a "flex" string: the
+    !> Filter the completions of TABLE by PATTERN, a "flex" string: the
     !> completions (with their costs in `flex_costs'), the pattern
     !> string, the prefix and the suffix.  Port of
     !> minibuffer.el:completion--flex-all-completions-1 with
     !> completion--flex-cost.
-    subroutine flex_all_1(pat, table, point, all, costs, pat2, prefix, suffix, test)
-        character(len=*), intent(in) :: pat
+    subroutine flex_all_1(pattern, table, point, all, costs, pat2, prefix, suffix, test)
+        character(len=*), intent(in) :: pattern
         type(completion_table_type), intent(in) :: table
         integer(int64), intent(in) :: point
         type(string_type), allocatable, intent(out) :: all(:)
@@ -1457,12 +1460,12 @@ contains
         integer :: k, cost
         logical :: found
 
-        beforepoint = substring(pat, 0_int64, point)
-        afterpoint = substring(pat, point)
+        beforepoint = substring(pattern, 0_int64, point)
+        afterpoint = substring(pattern, point)
         call completion_boundaries(beforepoint, table, afterpoint, bstart, bend, test)
         prefix = substring(beforepoint, 0_int64, bstart)
         suffix = substring(afterpoint, bend)
-        pat2 = substring(pat, bstart, point + bend)
+        pat2 = substring(pattern, bstart, point + bend)
         call all_completions(prefix, table, v, status, test)
         call to_boxes(v, cands)
         allocate (all(0), costs(0))
@@ -1496,22 +1499,22 @@ contains
         type(string_type), allocatable :: all(:)
         integer, allocatable :: costs(:)
         character(len=:), allocatable :: pat2, prefix, suffix
-        type(pat_elt_type), allocatable :: pattern(:)
+        type(pattern_element_type), allocatable :: pattern(:)
         integer(int64) :: point_index, i
 
         if (completion_flex_nospace .and. index(string, " ") > 0) return
         call flex_all_1(string, table, point, all, costs, pat2, prefix, suffix, test)
         allocate (pattern(0))
-        call append_elt(pattern, P_PREFIX)
+        call append_element(pattern, P_PREFIX)
         point_index = point - count_characters(prefix) - 1
 
         do i = 0, count_characters(pat2) - 1
-            call append_elt(pattern, P_STRING, substring(pat2, i, i + 1))
+            call append_element(pattern, P_STRING, substring(pat2, i, i + 1))
 
             if (i == point_index) then
-                call append_elt(pattern, P_POINT)
+                call append_element(pattern, P_POINT)
             else
-                call append_elt(pattern, P_ANY)
+                call append_element(pattern, P_ANY)
             end if
         end do
 
@@ -1566,7 +1569,7 @@ contains
         character(len=*), intent(in) :: string
         type(completion_table_type), intent(in) :: table
         procedure(completion_test_procedure), optional :: test
-        character(len=:), allocatable :: newstr, without_last, sep
+        character(len=:), allocatable :: newstr, without_last, separator
         integer(int64) :: bstart, bend, b2, e2, i, n
 
         newstr = ""
@@ -1575,7 +1578,8 @@ contains
         if (n == 0) return
         ! Only check within the boundaries, since the boundary char (e.g.
         ! /) might be in delim-regexp.
-        if (re_match(delim_regexp(completion_pcm_word_delimiters), string, bstart + 1) > 0) return
+        if (regular_expression_match(delim_regular_expression(completion_partial_completion_mode_word_delimiters), string, &
+                                     bstart + 1) > 0) return
 
         if (bstart == 0) then
             do i = 0, n - 1
@@ -1591,11 +1595,11 @@ contains
         without_last = substring(string, 0_int64, bstart - 1)
         call completion_boundaries(without_last, table, "", b2, e2, test)
         if (b2 /= count_characters(without_last)) return
-        sep = substring(string, bstart - 1, bstart)
+        separator = substring(string, bstart - 1, bstart)
         newstr = substring(string, 0_int64, bstart)
 
         do i = bstart, n - 1
-            if (i > bstart) newstr = newstr//sep
+            if (i > bstart) newstr = newstr//separator
             newstr = newstr//substring(string, i, i + 1)
         end do
     end function initials_expand
@@ -1612,7 +1616,8 @@ contains
         all = value_type()
         base_size = 0
         newstr = initials_expand(string, table, test)
-        if (len(newstr) > 0) call pcm_all_completions(newstr, table, count_characters(newstr), all, base_size, test)
+        if (len(newstr) > 0) call partial_completion_mode_all_completions(newstr, table, count_characters(newstr), all, base_size, &
+                                                                          test)
     end subroutine initials_all_completions
 
     !> Port of minibuffer.el:completion-initials-try-completion.
@@ -1624,6 +1629,6 @@ contains
         character(len=:), allocatable :: newstr
 
         newstr = initials_expand(string, table, test)
-        if (len(newstr) > 0) call pcm_try_completion(newstr, table, count_characters(newstr), res, test)
+        if (len(newstr) > 0) call partial_completion_mode_try_completion(newstr, table, count_characters(newstr), res, test)
     end subroutine initials_try_completion
 end submodule minibuffer_styles_mod

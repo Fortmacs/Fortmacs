@@ -33,7 +33,7 @@ contains
     module subroutine define_khmer_language_environments()
         call define_language_environment("Khmer", &
                                          has_documentation=.true., &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Khmer (ភាសាខ្មែរ)"//achar(9)//"ជំរាបសួរ", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"])

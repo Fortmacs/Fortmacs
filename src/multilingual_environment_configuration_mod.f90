@@ -36,7 +36,7 @@ module multilingual_environment_configuration_mod
     implicit none(type, external)
     private
 
-    public :: init_mule_conf
+    public :: initialize_multilingual_environment_configuration
 
     !> List of words equivalent to "password".
     !> This is used by Shell mode and other parts of Fortmacs to recognize
@@ -56,7 +56,7 @@ contains
     !> their default values (unless set already).  Port of the defcustoms of
     !> mule-conf.el's password-word-equivalents and
     !> password-colon-equivalents.
-    subroutine init_mule_conf()
+    subroutine initialize_multilingual_environment_configuration()
         if (.not. allocated(password_word_equivalents)) then
             password_word_equivalents = [character(len=48) :: &
                                          "password", &
@@ -117,5 +117,5 @@ contains
                                           int(z'fe13', int32), & ! PRESENTATION FORM FOR VERTICAL COLON
                                           int(z'17d6', int32)] ! KHMER SIGN CAMNUC PII KUUH
         end if
-    end subroutine init_mule_conf
+    end subroutine initialize_multilingual_environment_configuration
 end module multilingual_environment_configuration_mod

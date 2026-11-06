@@ -22,7 +22,7 @@
 !> Applying `syntax_table' text properties where needed
 !> (`syntax_propertize', run lazily by the syntax scanner through
 !> `internal_syntax_propertize') and the cached parse state
-!> `syntax_ppss'.  Named so as not to clash with syntax_mod (syntax.c).
+!> `syntax_parser_state'.  Named so as not to clash with syntax_mod (syntax.c).
 !>
 !> The `syntax_propertize_rules' macro becomes the type
 !> `syntax_propertize_rules_type': its RULES are data (a regexp and its
@@ -35,14 +35,14 @@
 !> arrays of rules, joined as Fortran arrays.
 !>
 !> Deferred: `syntax_propertize_via_font_lock' (font-lock-syntactic-keywords
-!> are not ported), `syntax_ppss_debug' and `syntax_ppss_stats'.
+!> are not ported), `syntax_parser_state_debug' and `syntax_parser_state_statistics'.
 module syntax_propertize_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use utility_functions_mod, only: count_characters
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, buffer_serial_live
-    use value_mod, only: value_type, list, make_syntax_table_ref, vtag, V_NULL, V_NAME
+    use value_mod, only: value_type, list, make_syntax_table_reference, vtag, V_NULL, V_NAME
     use data_mod, only: value_eq, append_locals_clearer
     use hooks_mod, only: region_hook_type, region_entry_type
     use insert_delete_mod, only: before_change_functions
@@ -50,26 +50,27 @@ module syntax_propertize_mod
                                    previous_single_property_change, text_property_any
     use syntax_mod, only: parse_state_type, parse_partial_expression, syntax_table, set_syntax_table, is_syntax_table_live, &
                           string_to_syntax, syntax_descriptor_type, syntax_descriptor_value, syntax_propertize_done, &
-                          parse_expression_lookup_properties, internal_syntax_propertize, syntax_ppss_function
-    use search_mod, only: re_search_forward, string_match, match_beginning, match_end, match_data, set_match_data, &
+                          parse_expression_lookup_properties, internal_syntax_propertize, syntax_parser_state_function
+    use search_mod, only: regular_expression_search_forward, string_match, match_beginning, match_end, match_data, set_match_data, &
                           string_index_to_offset, SEARCH_NOERROR
     use basic_subprograms_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end, &
                                      is_subregexp_context
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bol, line_beginning_position, &
-                                     inhibit_field_text_motion
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_line, &
+                                     line_beginning_position, inhibit_field_text_motion
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use display_engine_mod, only: message
-    use regular_expression_optimization_mod, only: regexp_opt_depth
+    use regular_expression_optimization_mod, only: regular_expression_optimization_depth
     implicit none(type, external)
     private
 
-    public :: syntax_propertize, internal_syntax_propertize_function, syntax_ppss_cached, syntax_ppss_flush_cache, &
+    public :: syntax_propertize, internal_syntax_propertize_function, syntax_parser_state_cached, syntax_parser_state_flush_cache, &
               syntax_propertize_wholelines, syntax_propertize_multiline, syntax_propertize_shift_groups_and_backrefs, &
-              is_syntax_propertize_in_process, syntax_ppss_depth, syntax_ppss_toplevel_pos, syntax_ppss_context, &
-              init_syntax_propertize
+              is_syntax_propertize_in_process, syntax_parser_state_depth, syntax_parser_state_toplevel_position, &
+              syntax_parser_state_context, &
+              initialize_syntax_propertize
 
-    !> What `syntax_ppss_context' returns: neither, a string, a comment.
-    integer, parameter, public :: SYNTAX_PPSS_NONE = 0, SYNTAX_PPSS_STRING = 1, SYNTAX_PPSS_COMMENT = 2
+    !> What `syntax_parser_state_context' returns: neither, a string, a comment.
+    integer, parameter, public :: SYNTAX_PARSER_STATE_NONE = 0, SYNTAX_PARSER_STATE_STRING = 1, SYNTAX_PARSER_STATE_COMMENT = 2
 
     !> most-positive-fixnum, the value of `syntax_propertize_done' while
     !> `syntax_propertize' runs (saved and restored against recursion, as upstream binds it).
@@ -131,9 +132,9 @@ module syntax_propertize_mod
         procedure(syntax_code_procedure), pointer, nopass :: after => null()
     end type syntax_highlight_type
 
-    !> A rule: (REGEXP HIGHLIGHT1 ... HIGHLIGHTn).
+    !> A rule: (REGULAR_EXPRESSION HIGHLIGHT1 ... HIGHLIGHTn).
     type, public :: syntax_propertize_rule_type
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         type(syntax_highlight_type), allocatable :: highlights(:)
     end type syntax_propertize_rule_type
 
@@ -162,7 +163,7 @@ module syntax_propertize_mod
     type, public :: syntax_propertize_rules_type
         type(syntax_propertize_rule_type), allocatable :: rules(:)
         logical, private :: compiled = .false.
-        character(len=:), allocatable, private :: regexp
+        character(len=:), allocatable, private :: regular_expression
         type(rule_branch_type), allocatable, private :: branches(:)
     contains
         !> Apply the rules to the text from START to END.
@@ -190,40 +191,40 @@ module syntax_propertize_mod
     end type syntax_propertize_function_type
 
     ! A cache: LAST, a pair (LAST-POS . LAST-PPSS) caching the last
-    ! invocation (`last_pos' 0 is nil), and CACHE, (POS . PPSS) pairs in
-    ! decreasing POS order.
-    type :: ppss_cell_type
+    ! invocation (`last_position' 0 is nil), and CACHE, (POSITION . PARSER_STATE) pairs in
+    ! decreasing POSITION order.
+    type :: parser_state_cell_type
         logical :: exists = .false.
         logical :: has_last = .false.
-        integer(int64) :: last_pos = 0
-        type(parse_state_type) :: last_ppss
-        integer(int64), allocatable :: cache_pos(:)
-        type(parse_state_type), allocatable :: cache_ppss(:)
-    end type ppss_cell_type
+        integer(int64) :: last_position = 0
+        type(parse_state_type) :: last_parser_state
+        integer(int64), allocatable :: cache_position(:)
+        type(parse_state_type), allocatable :: cache_parser_state(:)
+    end type parser_state_cell_type
 
-    ! A buffer's own variables: `syntax_ppss_wide', `syntax_ppss_narrow',
-    ! `syntax_ppss_narrow_start' (0 is nil), `syntax_ppss__updated_cache'
-    ! and `syntax_ppss_table'.
-    type :: ppss_data_type
+    ! A buffer's own variables: `syntax_parser_state_wide', `syntax_parser_state_narrow',
+    ! `syntax_parser_state_narrow_start' (0 is nil), `syntax_parser_state__updated_cache'
+    ! and `syntax_parser_state_table'.
+    type :: parser_state_data_type
         integer(int64) :: serial = 0
-        type(ppss_cell_type) :: wide, narrow
+        type(parser_state_cell_type) :: wide, narrow
         integer(int64) :: narrow_start = 0
         logical :: updated_cache = .false.
         logical :: has_table = .false.
         type(handle_type) :: table
-    end type ppss_data_type
+    end type parser_state_data_type
 
-    !> The type of `syntax_ppss_table': buffers' own syntax tables
+    !> The type of `syntax_parser_state_table': buffers' own syntax tables
     !> (`set_local'; no table when unset).
-    type, public :: syntax_ppss_table_type
+    type, public :: syntax_parser_state_table_type
     contains
         !> Make H the current buffer's table (set_local).
-        procedure, nopass :: set_local => ppss_table_set_local
+        procedure, nopass :: set_local => parser_state_table_set_local
         !> Whether the current buffer has a table, and which (FOUND).
-        procedure, nopass :: current => current_ppss_table
+        procedure, nopass :: current => current_parser_state_table
         !> Make the current buffer's value unset again.
-        procedure, nopass :: clear_local => ppss_table_clear_local
-    end type syntax_ppss_table_type
+        procedure, nopass :: clear_local => parser_state_table_clear_local
+    end type syntax_parser_state_table_type
 
     !> Mode-specific function to apply `syntax_table' text properties.
     !> It is the work horse of `syntax_propertize', which is called by things like
@@ -234,10 +235,10 @@ module syntax_propertize_mod
     !> override the buffer's syntax table for special syntactic constructs that
     !> cannot be handled just by the buffer's syntax-table.
     !>
-    !> The specified function may call `syntax_ppss' on any position
-    !> before END, but if it calls `syntax_ppss' on some
+    !> The specified function may call `syntax_parser_state' on any position
+    !> before END, but if it calls `syntax_parser_state' on some
     !> position and later modifies the buffer on some earlier position,
-    !> then it is its responsibility to call `syntax_ppss_flush_cache' to flush
+    !> then it is its responsibility to call `syntax_parser_state_flush_cache' to flush
     !> the now obsolete ppss info from the cache.
     !>
     !> Note: When this variable is a function, it must apply _all_ the
@@ -271,11 +272,11 @@ module syntax_propertize_mod
     !> This is a tradeoff between correctly applying the syntax rules,
     !> and avoiding major slowdown on pathologically long lines.  Port of
     !> syntax.el syntax-wholeline-max.
-    integer(int64), public :: syntax_wholeline_max = 10000
+    integer(int64), public :: syntax_wholeline_maximum = 10000
 
-    !> Syntax-table to use during `syntax_ppss', if any.  Port of
+    !> Syntax-table to use during `syntax_parser_state', if any.  Port of
     !> syntax.el syntax-ppss-table.
-    type(syntax_ppss_table_type), public :: syntax_ppss_table
+    type(syntax_parser_state_table_type), public :: syntax_parser_state_table
 
     !> How far ahead of the position the syntax scanner needs
     !> `internal_syntax_propertize_function' propertizes.  Port of
@@ -286,21 +287,21 @@ module syntax_propertize_mod
     !> We try to make sure that cache entries are at least this far apart
     !> from each other, to avoid keeping too much useless info.  Port of
     !> syntax.el syntax-ppss-max-span.
-    integer(int64), public :: syntax_ppss_max_span = 20000
+    integer(int64), public :: syntax_parser_state_maximum_span = 20000
 
     !> Function to move back outside of any comment/string/paren.
     !> This function should move the cursor back to some syntactically safe
-    !> point (where the PPSS is equivalent to the empty state).  Port of syntax.el
+    !> point (where the PARSER_STATE is equivalent to the empty state).  Port of syntax.el
     !> syntax-begin-function (obsolete since 25.1).
     procedure(syntax_begin_procedure), pointer, public :: syntax_begin_function => null()
 
-    ! Statistics about which case is more/less frequent in `syntax_ppss'
+    ! Statistics about which case is more/less frequent in `syntax_parser_state'
     ! (count . total distance); the 5th slot drives the heuristic to use
     ! `syntax_begin_function'.  syntax.el syntax-ppss-stats.
-    integer(int64) :: stats_count(0:5) = [0_int64, 0_int64, 0_int64, 0_int64, 0_int64, 2_int64]
-    integer(int64) :: stats_total(0:5) = [0_int64, 0_int64, 0_int64, 0_int64, 0_int64, 2500_int64]
+    integer(int64) :: statistics_count(0:5) = [0_int64, 0_int64, 0_int64, 0_int64, 0_int64, 2_int64]
+    integer(int64) :: statistics_total(0:5) = [0_int64, 0_int64, 0_int64, 0_int64, 0_int64, 2500_int64]
 
-    type(ppss_data_type), allocatable :: data(:)
+    type(parser_state_data_type), allocatable :: data(:)
 
 contains
 
@@ -313,7 +314,7 @@ contains
     ! Not a port.
     subroutine make_data_entry(k)
         integer, intent(out) :: k
-        type(ppss_data_type) :: entry
+        type(parser_state_data_type) :: entry
 
         if (.not. allocated(data)) allocate (data(0))
         k = findloc(data%serial, buffers(current)%serial, dim=1)
@@ -324,7 +325,7 @@ contains
         end do
 
         if (k > size(data)) data = [data, entry]
-        data(k) = ppss_data_type(serial=buffers(current)%serial)
+        data(k) = parser_state_data_type(serial=buffers(current)%serial)
     end subroutine make_data_entry
 
     ! Not a port.
@@ -383,7 +384,7 @@ contains
     end subroutine function_clear_local
 
     ! Not a port.
-    subroutine ppss_table_set_local(h)
+    subroutine parser_state_table_set_local(h)
         type(handle_type), intent(in) :: h
         integer :: k
 
@@ -391,10 +392,10 @@ contains
         call make_data_entry(k)
         data(k)%has_table = .true.
         data(k)%table = h
-    end subroutine ppss_table_set_local
+    end subroutine parser_state_table_set_local
 
     ! Not a port.
-    subroutine current_ppss_table(h, found)
+    subroutine current_parser_state_table(h, found)
         type(handle_type), intent(out) :: h
         logical, intent(out) :: found
         integer :: k
@@ -404,16 +405,16 @@ contains
         call make_data_entry(k)
         found = data(k)%has_table
         if (found) h = data(k)%table
-    end subroutine current_ppss_table
+    end subroutine current_parser_state_table
 
     ! Not a port.
-    subroutine ppss_table_clear_local()
+    subroutine parser_state_table_clear_local()
         integer :: k
 
         if (current == 0) return
         call make_data_entry(k)
         data(k)%has_table = .false.
-    end subroutine ppss_table_clear_local
+    end subroutine parser_state_table_clear_local
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
@@ -423,48 +424,48 @@ contains
         call syntax_propertize_function%clear_local()
         if (current == 0) return
         call make_data_entry(k)
-        data(k) = ppss_data_type(serial=buffers(current)%serial)
+        data(k) = parser_state_data_type(serial=buffers(current)%serial)
     end subroutine clear_syntax_locals
 
-    ! The table `syntax_propertize' and `syntax_ppss' parse with:
+    ! The table `syntax_propertize' and `syntax_parser_state' parse with:
     ! (or syntax-ppss-table (syntax-table)).  Not a port.
-    function ppss_syntax_table() result(h)
+    function parser_state_syntax_table() result(h)
         type(handle_type) :: h
         logical :: found
 
-        call current_ppss_table(h, found)
+        call current_parser_state_table(h, found)
 
         if (found) then
             if (is_syntax_table_live(h)) return
         end if
 
         h = syntax_table()
-    end function ppss_syntax_table
+    end function parser_state_syntax_table
 
     ! ------------------------------------------------------------------
     ! Applying syntax-table properties where needed
     ! ------------------------------------------------------------------
 
-    !> Like `line_beginning_position' but obeying `syntax_wholeline_max'.
+    !> Like `line_beginning_position' but obeying `syntax_wholeline_maximum'.
     !> Port of syntax.el:syntax--lbp.
-    integer(int64) function syntax_lbp(arg) result(res)
-        integer(int64), intent(in), optional :: arg
-        integer(int64) :: pos, max
+    integer(int64) function syntax_lbp(argument) result(res)
+        integer(int64), intent(in), optional :: argument
+        integer(int64) :: position, max
 
-        pos = point()
-        res = line_beginning_position(arg)
-        if (abs(pos - res) < syntax_wholeline_max) return
+        position = point()
+        res = line_beginning_position(argument)
+        if (abs(position - res) < syntax_wholeline_maximum) return
         ! For lines that are too long, round to the nearest multiple of
-        ! `syntax_wholeline_max'.  We use rounding rather than just
+        ! `syntax_wholeline_maximum'.  We use rounding rather than just
         ! (min res (+ pos syntax-wholeline-max)) so that repeated calls
         ! to `syntax_propertize_wholelines' don't keep growing the bounds,
         ! i.e. it really behaves like additional line-breaks.
-        max = syntax_wholeline_max
+        max = syntax_wholeline_maximum
 
-        if (res < pos) then
-            res = maxval([point_min(), max*(pos/max)])
+        if (res < position) then
+            res = maxval([point_minimum(), max*(position/max)])
         else
-            res = minval([point_max(), max*((pos + max - 1)/max)])
+            res = minval([point_maximum(), max*((position + max - 1)/max)])
         end if
     end function syntax_lbp
 
@@ -483,12 +484,12 @@ contains
         status = status_type()
         saved = inhibit_field_text_motion
         inhibit_field_text_motion = .true.
-        call goto_char(beginning)
+        call goto_character(beginning)
         new_beginning = beginning
-        if (.not. is_bol()) new_beginning = syntax_lbp()
-        call goto_char(end)
+        if (.not. is_beginning_of_line()) new_beginning = syntax_lbp()
+        call goto_character(end)
         new_end = end
-        if (.not. is_bol()) new_end = syntax_lbp(2_int64)
+        if (.not. is_beginning_of_line()) new_end = syntax_lbp(2_int64)
         inhibit_field_text_motion = saved
     end subroutine syntax_propertize_wholelines
 
@@ -498,98 +499,100 @@ contains
         integer(int64), intent(in) :: beginning, end
         integer(int64), intent(out) :: new_beginning, new_end
         type(status_type), intent(out) :: status
-        type(value_type) :: val
-        integer(int64) :: pos
+        type(value_type) :: value
+        integer(int64) :: position
         logical :: found
 
         new_beginning = beginning
         new_end = end
         status = status_type()
 
-        if (beginning > point_min()) then
-            call get_text_property(beginning - 1, value_type(name="syntax_multiline"), val, status)
+        if (beginning > point_minimum()) then
+            call get_text_property(beginning - 1, value_type(name="syntax_multiline"), value, status)
             if (.not. status%ok()) return
 
-            if (allocated(val%a)) then
-                call previous_single_property_change(beginning, value_type(name="syntax_multiline"), pos, found, status)
+            if (allocated(value%a)) then
+                call previous_single_property_change(beginning, value_type(name="syntax_multiline"), position, found, status)
                 if (.not. status%ok()) return
-                new_beginning = point_min()
-                if (found) new_beginning = pos
+                new_beginning = point_minimum()
+                if (found) new_beginning = position
             end if
         end if
 
-        call get_text_property(end, value_type(name="syntax_multiline"), val, status)
+        call get_text_property(end, value_type(name="syntax_multiline"), value, status)
         if (.not. status%ok()) return
 
-        if (allocated(val%a)) then
-            call text_property_any(end, point_max(), value_type(name="syntax_multiline"), value_type(), pos, found, status)
+        if (allocated(value%a)) then
+            call text_property_any(end, point_maximum(), value_type(name="syntax_multiline"), value_type(), position, found, status)
             if (.not. status%ok()) return
-            new_end = point_max()
-            if (found) new_end = pos
+            new_end = point_maximum()
+            if (found) new_end = position
         end if
     end subroutine syntax_propertize_multiline
 
-    !> RE with its explicitly numbered groups and its back-references
+    !> REGULAR_EXPRESSION with its explicitly numbered groups and its back-references
     !> shifted by N.  Port of
     !> syntax.el:syntax-propertize--shift-groups-and-backrefs.
-    recursive function syntax_propertize_shift_groups_and_backrefs(regexp, n, status) result(new_regexp)
-        character(len=*), intent(in) :: regexp
+    recursive function syntax_propertize_shift_groups_and_backrefs(regular_expression, n, status) result(new_regular_expression)
+        character(len=*), intent(in) :: regular_expression
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: new_regexp
-        integer(int64) :: pos, index, mb, me, mb0
-        integer :: num, ios
+        character(len=:), allocatable :: new_regular_expression
+        integer(int64) :: position, index, mb, me, mb0
+        integer :: number, ios
         logical :: context
         character(len=12) :: buffer
         character(len=:), allocatable :: digits
 
-        new_regexp = ""
+        new_regular_expression = ""
         ! (replace-regexp-in-string "\\\\(\\?\\([0-9]+\\):" ... re t t)
-        pos = 1
+        position = 1
 
         do
-            index = string_match("\\(\?\([0-9]+\):", regexp, status, pos)
+            index = string_match("\\(\?\([0-9]+\):", regular_expression, status, position)
             if (.not. status%ok()) return
             if (index == 0) exit
             mb = match_beginning(1, status)
             me = match_end(1, status)
-            digits = chars(regexp, mb, me)
-            read (digits, *, iostat=ios) num
-            if (ios /= 0) num = 0
-            write (buffer, "(i0)") n + num
-            new_regexp = new_regexp//chars(regexp, pos, mb)//trim(buffer)
-            pos = me
+            digits = chars(regular_expression, mb, me)
+            read (digits, *, iostat=ios) number
+            if (ios /= 0) number = 0
+            write (buffer, "(i0)") n + number
+            new_regular_expression = new_regular_expression//chars(regular_expression, position, mb)//trim(buffer)
+            position = me
         end do
 
-        new_regexp = new_regexp//chars(regexp, pos, count_characters(regexp) + 1)
-        pos = 1
+        new_regular_expression = new_regular_expression//chars(regular_expression, position, &
+                                                               count_characters(regular_expression) + 1)
+        position = 1
 
         do
-            index = string_match("\\\([0-9]+\)", new_regexp, status, pos)
+            index = string_match("\\\([0-9]+\)", new_regular_expression, status, position)
             if (.not. status%ok()) return
             if (index == 0) exit
             mb0 = match_beginning(0, status)
             mb = match_beginning(1, status)
             me = match_end(1, status)
-            pos = 1 + mb
+            position = 1 + mb
             ! With \N, the \ must be in a subregexp context, i.e.,
             ! not in a character class or in a \{\} repetition.
-            context = is_subregexp_context(new_regexp, mb0, status)
+            context = is_subregexp_context(new_regular_expression, mb0, status)
             if (.not. status%ok()) return
 
             if (context) then
-                digits = chars(new_regexp, mb, me)
-                read (digits, *, iostat=ios) num
-                if (ios /= 0) num = 0
-                num = n + num
+                digits = chars(new_regular_expression, mb, me)
+                read (digits, *, iostat=ios) number
+                if (ios /= 0) number = 0
+                number = n + number
 
-                if (num > 9) then
-                    call set_error(status, FM_GENERIC_ERROR, "There may be at most nine back-references")
+                if (number > 9) then
+                    call set_error(status, GENERIC_ERROR_CODE, "There may be at most nine back-references")
                     return
                 end if
 
-                write (buffer, "(i0)") num
-                new_regexp = chars(new_regexp, 1_int64, mb)//trim(buffer)//chars(new_regexp, me, count_characters(new_regexp) + 1)
+                write (buffer, "(i0)") number
+                new_regular_expression = chars(new_regular_expression, 1_int64, mb)//trim(buffer)//chars(new_regular_expression, &
+                                                                                   me, count_characters(new_regular_expression) + 1)
             end if
         end do
     end function syntax_propertize_shift_groups_and_backrefs
@@ -621,14 +624,14 @@ contains
         if (allocated(self%rules)) nrules = size(self%rules)
         if (allocated(self%branches)) deallocate (self%branches)
         allocate (self%branches(nrules))
-        self%regexp = ""
+        self%regular_expression = ""
         offset = 0
 
         do i = 1, nrules
             associate (rule => self%rules(i), branch => self%branches(i))
                 nh = 0
                 if (allocated(rule%highlights)) nh = size(rule%highlights)
-                pattern = rule%regexp
+                pattern = rule%regular_expression
                 has0 = .false.
 
                 do j = 1, nh
@@ -698,11 +701,11 @@ contains
                 end do
 
                 if (.not. status%ok()) exit
-                depth = regexp_opt_depth(rule%regexp, status)
+                depth = regular_expression_optimization_depth(rule%regular_expression, status)
                 if (.not. status%ok()) exit
                 offset = offset + depth
-                if (i > 1) self%regexp = self%regexp//"\|"
-                self%regexp = self%regexp//pattern
+                if (i > 1) self%regular_expression = self%regular_expression//"\|"
+                self%regular_expression = self%regular_expression//pattern
             end associate
         end do
 
@@ -728,10 +731,10 @@ contains
             if (.not. status%ok()) return
         end if
 
-        call goto_char(start)
+        call goto_character(start)
 
         do while (point() < end)
-            call re_search_forward(self%regexp, found, status, bound=end, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(self%regular_expression, found, status, bound=end, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
             if (found == 0) exit
 
@@ -796,7 +799,7 @@ contains
     recursive subroutine execute_step(step, status)
         type(rule_step_type), intent(in) :: step
         type(status_type), intent(out) :: status
-        type(syntax_property_type) :: prop
+        type(syntax_property_type) :: property
         integer(int64) :: mb, me
 
         status = status_type()
@@ -809,11 +812,11 @@ contains
         else if (associated(step%highlight%value)) then
             mb = match_beginning(step%gn, status)
             me = match_end(step%gn, status)
-            call step%highlight%value(prop, status)
+            call step%highlight%value(property, status)
             if (.not. status%ok()) return
 
-            if (prop%apply) then
-                call put_property(mb, me, prop, status)
+            if (property%apply) then
+                call put_property(mb, me, property, status)
                 if (.not. status%ok()) return
             end if
         end if
@@ -821,37 +824,38 @@ contains
         if (associated(step%highlight%after)) call step%highlight%after(status)
     end subroutine execute_step
 
-    ! Give START..END the `syntax_table' property PROP.  Not a port.
-    subroutine put_property(start, end, prop, status)
+    ! Give START..END the `syntax_table' property PROPERTY.  Not a port.
+    subroutine put_property(start, end, property, status)
         integer(int64), intent(in) :: start, end
-        type(syntax_property_type), intent(in) :: prop
+        type(syntax_property_type), intent(in) :: property
         type(status_type), intent(out) :: status
 
-        if (prop%is_table) then
-            call put_text_property(start, end, value_type(name="syntax_table"), make_syntax_table_ref(prop%table), status)
+        if (property%is_table) then
+            call put_text_property(start, end, value_type(name="syntax_table"), make_syntax_table_reference(property%table), status)
         else
-            call put_text_property(start, end, value_type(name="syntax_table"), syntax_descriptor_value(prop%descriptor), status)
+            call put_text_property(start, end, value_type(name="syntax_table"), syntax_descriptor_value(property%descriptor), &
+                                   status)
         end if
     end subroutine put_property
 
     !> True if we're inside `syntax_propertize'.
     !> This is used to avoid infinite recursion as well as to handle cases where
-    !> `syntax_ppss' is called when the final `syntax_table' properties have not
+    !> `syntax_parser_state' is called when the final `syntax_table' properties have not
     !> yet been setup, in which case we may end up putting invalid info into the cache.
-    !> It's also used so that `syntax_ppss_flush_cache' can be used from within
+    !> It's also used so that `syntax_parser_state_flush_cache' can be used from within
     !> `syntax_propertize' without ruining the `syntax_table' already set.
     !> Port of syntax.el:syntax-propertize--in-process-p.
     logical function is_syntax_propertize_in_process()
         is_syntax_propertize_in_process = syntax_propertize_done%value == MOST_POSITIVE_FIXNUM
     end function is_syntax_propertize_in_process
 
-    !> Ensure that syntax-table properties are set until POS (a buffer point).
+    !> Ensure that syntax-table properties are set until POSITION (a buffer point).
     !> Port of syntax.el:syntax-propertize.
-    recursive subroutine syntax_propertize(pos, status)
-        integer(int64), intent(in) :: pos
+    recursive subroutine syntax_propertize(position, status)
+        integer(int64), intent(in) :: position
         type(status_type), intent(out) :: status
         procedure(syntax_propertize_procedure), pointer :: fn
-        type(region_entry_type), allocatable :: fns(:)
+        type(region_entry_type), allocatable :: functions(:)
         type(silent_modifications_type) :: silent
         type(handle_type) :: here, old_table
         type(status_type) :: st
@@ -861,20 +865,20 @@ contains
         character(len=24) :: b1, b2
 
         status = status_type()
-        if (.not. (syntax_propertize_done%value < pos)) return
+        if (.not. (syntax_propertize_done%value < position)) return
         fn => syntax_propertize_function%current()
 
         if (.not. associated(fn)) then
-            call syntax_propertize_done%set_local(max(point_max(), pos))
+            call syntax_propertize_done%set_local(max(point_maximum(), position))
             return
         end if
 
         call parse_expression_lookup_properties%set_local(.true.)
 
-        if (syntax_propertize_done%value < point_min()) then
+        if (syntax_propertize_done%value < point_minimum()) then
             if (syntax_propertize_done%value > 0) then
                 write (b1, "(i0)") syntax_propertize_done%value
-                write (b2, "(i0)") point_min()
+                write (b2, "(i0)") point_minimum()
                 call message("Cannot syntax-propertize "//trim(b1)//".."//trim(b2)//" because of narrowing!")
             end if
 
@@ -889,28 +893,28 @@ contains
         call copy_marker_at(point(), here, .false., st)
         call silent_modifications_begin(silent)
         old_table = syntax_table()
-        call set_syntax_table(ppss_syntax_table(), st)
+        call set_syntax_table(parser_state_syntax_table(), st)
         ! Just in case!
         call syntax_propertize_done%make_local()
         ! Make sure we save and restore it only buffer-locally.
         call make_data_entry(k)
         saved_updated = data(k)%updated_cache
         data(k)%updated_cache = .false.
-        start = max(min(syntax_propertize_done%value, point_max()), point_min())
-        end = max(pos, min(point_max(), start + syntax_propertize_chunk_size))
+        start = max(min(syntax_propertize_done%value, point_maximum()), point_minimum())
+        end = max(position, min(point_maximum(), start + syntax_propertize_chunk_size))
         first = .true.
         repeat = .true.
 
         body: block
             do while (repeat)
                 repeat = .false.
-                fns = syntax_propertize_extend_region_functions%functions()
+                functions = syntax_propertize_extend_region_functions%functions()
 
-                do i = 1, size(fns)
+                do i = 1, size(functions)
                     ! Bind `syntax_propertize_done' to avoid recursion!
                     saved_done = syntax_propertize_done%value
                     call syntax_propertize_done%set_local(MOST_POSITIVE_FIXNUM)
-                    call fns(i)%fn(start, end, new_beginning, new_end, status)
+                    call functions(i)%fn(start, end, new_beginning, new_end, status)
                     call syntax_propertize_done%set_local(saved_done)
                     if (.not. status%ok()) exit body
                     changed = new_beginning /= start .or. new_end /= end
@@ -931,7 +935,7 @@ contains
 
             ! Flush ppss cache between the original value of `start' and that
             ! set above by syntax-propertize-extend-region-functions.
-            call syntax_ppss_flush_cache(start)
+            call syntax_parser_state_flush_cache(start)
             ! Move the limit before calling the function, so it's
             ! done in case of errors.
             call syntax_propertize_done%set_local(end)
@@ -946,11 +950,11 @@ contains
 
             if (status%ok()) then
                 call make_data_entry(k)
-                ! `syntax_ppss' was called and updated the cache while we
+                ! `syntax_parser_state' was called and updated the cache while we
                 ! were propertizing so we need to flush the part of the
                 ! cache that may have been rendered out-of-date by the new
                 ! properties.
-                if (data(k)%updated_cache) call syntax_ppss_flush_cache(start)
+                if (data(k)%updated_cache) call syntax_parser_state_flush_cache(start)
             end if
 
             call syntax_propertize_done%set_local(saved_done)
@@ -961,22 +965,22 @@ contains
         call set_syntax_table(old_table, st)
         call silent_modifications_end(silent)
         call marker_position(here, p, st)
-        call goto_char(p)
+        call goto_character(p)
         call destroy_marker(here, st)
     end subroutine syntax_propertize
 
-    !> Propertize far enough beyond CHARPOS for the syntax scanner (called
+    !> Propertize far enough beyond CHARACTER_POSITION for the syntax scanner (called
     !> from syntax_mod's parse_expression_propertize; its errors are ignored, as
     !> upstream's safe_calln does).  Port of
     !> syntax.el:internal--syntax-propertize.
-    recursive subroutine internal_syntax_propertize_function(charpos)
-        integer(int64), intent(in) :: charpos
+    recursive subroutine internal_syntax_propertize_function(character_position)
+        integer(int64), intent(in) :: character_position
         integer(int64), allocatable :: saved(:)
         type(status_type) :: status
 
         ! save-match-data
         saved = match_data()
-        call syntax_propertize(min(syntax_propertize_chunks + charpos, point_max()), status)
+        call syntax_propertize(min(syntax_propertize_chunks + character_position, point_maximum()), status)
         call set_match_data(saved)
     end subroutine internal_syntax_propertize_function
 
@@ -984,66 +988,66 @@ contains
     ! Incrementally compute and memoize parser state
     ! ------------------------------------------------------------------
 
-    !> The depth in parens of PPSS.  Port of syntax.el:syntax-ppss-depth.
-    integer(int64) function syntax_ppss_depth(ppss)
-        type(parse_state_type), intent(in) :: ppss
+    !> The depth in parens of PARSER_STATE.  Port of syntax.el:syntax-ppss-depth.
+    integer(int64) function syntax_parser_state_depth(parser_state)
+        type(parse_state_type), intent(in) :: parser_state
 
-        syntax_ppss_depth = ppss%depth
-    end function syntax_ppss_depth
+        syntax_parser_state_depth = parser_state%depth
+    end function syntax_parser_state_depth
 
     !> Get the latest syntactically outermost position found in a syntactic scan.
-    !> PPSS is a scan state, as returned by `parse_partial_expression' or `syntax_ppss'.
+    !> PARSER_STATE is a scan state, as returned by `parse_partial_expression' or `syntax_parser_state'.
     !> An "outermost position" means one that it is outside of any syntactic entity:
     !> outside of any parentheses, comments, or strings encountered in the scan.
-    !> If no such position is recorded in PPSS (because the end of the scan was
+    !> If no such position is recorded in PARSER_STATE (because the end of the scan was
     !> itself at the outermost level), return 0.  Port of
     !> syntax.el:syntax-ppss-toplevel-pos.
-    integer(int64) function syntax_ppss_toplevel_pos(ppss) result(pos)
-        type(parse_state_type), intent(in) :: ppss
+    integer(int64) function syntax_parser_state_toplevel_position(parser_state) result(position)
+        type(parse_state_type), intent(in) :: parser_state
 
-        pos = 0
+        position = 0
 
-        if (allocated(ppss%open_parens)) then
-            if (size(ppss%open_parens) > 0) then
-                pos = ppss%open_parens(1)
+        if (allocated(parser_state%open_parentheses)) then
+            if (size(parser_state%open_parentheses) > 0) then
+                position = parser_state%open_parentheses(1)
                 return
             end if
         end if
 
-        pos = ppss%comstr_start
-    end function syntax_ppss_toplevel_pos
+        position = parser_state%comstr_start
+    end function syntax_parser_state_toplevel_position
 
-    !> Say whether PPSS is a string, a comment, or something else.
-    !> If PPSS is a string, `SYNTAX_PPSS_STRING' is returned.  If it's a
-    !> comment, `SYNTAX_PPSS_COMMENT' is returned.  If it's something
-    !> else, `SYNTAX_PPSS_NONE' is returned.  Port of
+    !> Say whether PARSER_STATE is a string, a comment, or something else.
+    !> If PARSER_STATE is a string, `SYNTAX_PARSER_STATE_STRING' is returned.  If it's a
+    !> comment, `SYNTAX_PARSER_STATE_COMMENT' is returned.  If it's something
+    !> else, `SYNTAX_PARSER_STATE_NONE' is returned.  Port of
     !> syntax.el:syntax-ppss-context.
-    integer function syntax_ppss_context(ppss) result(context)
-        type(parse_state_type), intent(in) :: ppss
+    integer function syntax_parser_state_context(parser_state) result(context)
+        type(parse_state_type), intent(in) :: parser_state
 
-        context = SYNTAX_PPSS_NONE
+        context = SYNTAX_PARSER_STATE_NONE
 
-        if (ppss%instring /= -1) then
-            context = SYNTAX_PPSS_STRING
-        else if (ppss%incomment /= 0) then
-            context = SYNTAX_PPSS_COMMENT
+        if (parser_state%instring /= -1) then
+            context = SYNTAX_PARSER_STATE_STRING
+        else if (parser_state%incomment /= 0) then
+            context = SYNTAX_PARSER_STATE_COMMENT
         end if
-    end function syntax_ppss_context
+    end function syntax_parser_state_context
 
-    ! `syntax_ppss_flush_cache' as a `before_change_functions' function.
+    ! `syntax_parser_state_flush_cache' as a `before_change_functions' function.
     ! Not a port.
     recursive subroutine flush_cache_hook(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call syntax_ppss_flush_cache(beginning)
+        call syntax_parser_state_flush_cache(beginning)
         if (end < beginning) continue
     end subroutine flush_cache_hook
 
-    !> Flush the cache of `syntax_ppss' starting at position BEGINNING.  Port of
+    !> Flush the cache of `syntax_parser_state' starting at position BEGINNING.  Port of
     !> syntax.el:syntax-ppss-flush-cache.
-    recursive subroutine syntax_ppss_flush_cache(beginning)
+    recursive subroutine syntax_parser_state_flush_cache(beginning)
         integer(int64), intent(in) :: beginning
         integer :: k
 
@@ -1062,17 +1066,17 @@ contains
     contains
 
         subroutine flush_cell(cell)
-            type(ppss_cell_type), intent(inout) :: cell
+            type(parser_state_cell_type), intent(inout) :: cell
             integer :: n, drop
             integer(int64) :: limit
 
             if (.not. cell%exists) return
             n = 0
-            if (allocated(cell%cache_pos)) n = size(cell%cache_pos)
+            if (allocated(cell%cache_position)) n = size(cell%cache_position)
             drop = 0
 
             do while (drop < n)
-                if (cell%cache_pos(drop + 1) <= beginning) exit
+                if (cell%cache_position(drop + 1) <= beginning) exit
                 drop = drop + 1
             end do
 
@@ -1080,133 +1084,133 @@ contains
 
             ! Throw away `last' value if made invalid.
             if (cell%has_last) then
-                if (beginning < cell%last_pos) then
+                if (beginning < cell%last_position) then
                     ! If syntax-begin-function jumped to BEGINNING, then the old state at BEGINNING can
                     ! depend on the text after BEGINNING (which is presumably changed).  So if
                     ! BEGINNING=(car (nth 10 syntax-ppss-last)) don't reuse that data because the
                     ! assumed nil state at BEGINNING may not be valid any more.
-                    limit = syntax_ppss_toplevel_pos(cell%last_ppss)
-                    if (limit == 0) limit = cell%last_ppss%last_expression_start
+                    limit = syntax_parser_state_toplevel_position(cell%last_parser_state)
+                    if (limit == 0) limit = cell%last_parser_state%last_expression_start
 
                     if (beginning <= limit) then
                         cell%has_last = .false.
                     else
-                        cell%last_pos = 0
+                        cell%last_position = 0
                     end if
                 end if
             end if
         end subroutine flush_cell
-    end subroutine syntax_ppss_flush_cache
+    end subroutine syntax_parser_state_flush_cache
 
     ! Drop the first N entries of CELL's cache.  Not a port.
     subroutine remove_entries(cell, n)
-        type(ppss_cell_type), intent(inout) :: cell
+        type(parser_state_cell_type), intent(inout) :: cell
         integer, intent(in) :: n
-        integer(int64), allocatable :: pos(:)
-        type(parse_state_type), allocatable :: ppss(:)
+        integer(int64), allocatable :: position(:)
+        type(parse_state_type), allocatable :: parser_state(:)
         integer :: i, m
 
-        m = size(cell%cache_pos) - n
-        allocate (pos(m), ppss(m))
+        m = size(cell%cache_position) - n
+        allocate (position(m), parser_state(m))
 
         do i = 1, m
-            pos(i) = cell%cache_pos(n + i)
-            ppss(i) = cell%cache_ppss(n + i)
+            position(i) = cell%cache_position(n + i)
+            parser_state(i) = cell%cache_parser_state(n + i)
         end do
 
-        call move_alloc(pos, cell%cache_pos)
-        call move_alloc(ppss, cell%cache_ppss)
+        call move_alloc(position, cell%cache_position)
+        call move_alloc(parser_state, cell%cache_parser_state)
     end subroutine remove_entries
 
-    ! Insert (POS . PPSS) into CELL's cache before entry AT.  Not a port.
-    subroutine insert_entry(cell, at, pos, ppss)
-        type(ppss_cell_type), intent(inout) :: cell
+    ! Insert (POSITION . PARSER_STATE) into CELL's cache before entry AT.  Not a port.
+    subroutine insert_entry(cell, at, position, parser_state)
+        type(parser_state_cell_type), intent(inout) :: cell
         integer, intent(in) :: at
-        integer(int64), intent(in) :: pos
-        type(parse_state_type), intent(in) :: ppss
-        integer(int64), allocatable :: new_pos(:)
-        type(parse_state_type), allocatable :: new_ppss(:)
+        integer(int64), intent(in) :: position
+        type(parse_state_type), intent(in) :: parser_state
+        integer(int64), allocatable :: new_position(:)
+        type(parse_state_type), allocatable :: new_parser_state(:)
         integer :: i, n
 
         n = 0
-        if (allocated(cell%cache_pos)) n = size(cell%cache_pos)
-        allocate (new_pos(n + 1), new_ppss(n + 1))
+        if (allocated(cell%cache_position)) n = size(cell%cache_position)
+        allocate (new_position(n + 1), new_parser_state(n + 1))
 
         do i = 1, at - 1
-            new_pos(i) = cell%cache_pos(i)
-            new_ppss(i) = cell%cache_ppss(i)
+            new_position(i) = cell%cache_position(i)
+            new_parser_state(i) = cell%cache_parser_state(i)
         end do
 
-        new_pos(at) = pos
-        new_ppss(at) = ppss
+        new_position(at) = position
+        new_parser_state(at) = parser_state
 
         do i = at, n
-            new_pos(i + 1) = cell%cache_pos(i)
-            new_ppss(i + 1) = cell%cache_ppss(i)
+            new_position(i + 1) = cell%cache_position(i)
+            new_parser_state(i + 1) = cell%cache_parser_state(i)
         end do
 
-        call move_alloc(new_pos, cell%cache_pos)
-        call move_alloc(new_ppss, cell%cache_ppss)
+        call move_alloc(new_position, cell%cache_position)
+        call move_alloc(new_parser_state, cell%cache_parser_state)
     end subroutine insert_entry
 
     ! Port of syntax.el:syntax-ppss--update-stats.
-    subroutine update_stats(i, old, new)
+    subroutine update_statistics(i, old, new)
         integer, intent(in) :: i
         integer(int64), intent(in) :: old, new
 
-        stats_count(i) = stats_count(i) + 1
-        stats_total(i) = stats_total(i) + (new - old)
-    end subroutine update_stats
+        statistics_count(i) = statistics_count(i) + 1
+        statistics_total(i) = statistics_total(i) + (new - old)
+    end subroutine update_statistics
 
     ! The cell of the current buffer's restriction (syntax-ppss--data),
     ! in `data(k)'.  Port of syntax.el:syntax-ppss--data.
-    subroutine ppss_data(k, wide)
+    subroutine parser_state_data(k, wide)
         integer, intent(out) :: k
         logical, intent(out) :: wide
 
         call make_data_entry(k)
-        wide = point_min() == 1
+        wide = point_minimum() == 1
 
         if (wide) then
             data(k)%wide%exists = .true.
         else
-            if (data(k)%narrow_start /= point_min()) then
-                data(k)%narrow_start = point_min()
-                data(k)%narrow = ppss_cell_type(exists=.true.)
+            if (data(k)%narrow_start /= point_minimum()) then
+                data(k)%narrow_start = point_minimum()
+                data(k)%narrow = parser_state_cell_type(exists=.true.)
             end if
         end if
-    end subroutine ppss_data
+    end subroutine parser_state_data
 
-    !> Parse-Partial-Sexp State at POS, defaulting to point.
-    !> If POS is given, this function moves point to POS.
+    !> Parse-Partial-Sexp State at POSITION, defaulting to point.
+    !> If POSITION is given, this function moves point to POSITION.
     !>
     !> The returned value is the same as that of `parse_partial_expression'
-    !> run from `point_min' to POS except that values at positions 2 and 6
+    !> run from `point_minimum' to POSITION except that values at positions 2 and 6
     !> in the returned list (counting from 0) cannot be relied upon.
     !>
-    !> It is necessary to call `syntax_ppss_flush_cache' explicitly if
+    !> It is necessary to call `syntax_parser_state_flush_cache' explicitly if
     !> this function is called while `before_change_functions' is
     !> temporarily saved and changed, or if the buffer is modified without
     !> running the hook.  Port of syntax.el:syntax-ppss.
-    recursive subroutine syntax_ppss_cached(state, pos)
+    recursive subroutine syntax_parser_state_cached(state, position)
         type(parse_state_type), intent(out) :: state
-        integer(int64), intent(in), optional :: pos
-        type(ppss_cell_type) :: cell
-        type(parse_state_type) :: old_ppss, ppss, ppss_best
+        integer(int64), intent(in), optional :: position
+        type(parser_state_cell_type) :: cell
+        type(parse_state_type) :: old_parser_state, parser_state, parser_state_best
         type(handle_type) :: old_table
         type(status_type) :: status, st
         type(value_type) :: face
-        integer(int64) :: p, old_pos, pt_min, pt_best, new_min
+        integer(int64) :: p, old_position, point_minimum_value, point_best, new_minimum
         integer :: k, index, cache_test, n
-        logical :: wide, has_old_ppss, has_ppss, has_best, use_begin
+        logical :: wide, has_old_parser_state, has_parser_state, has_best, use_begin
 
         ! Default values.
         p = point()
-        if (present(pos)) p = pos
+        if (present(position)) p = position
         call syntax_propertize(p, st)
         old_table = syntax_table()
-        call set_syntax_table(ppss_syntax_table(), st)
-        call ppss_data(k, wide)
+        call set_syntax_table(parser_state_syntax_table(), st)
+        call parser_state_data(k, wide)
 
         if (wide) then
             cell = data(k)%wide
@@ -1214,20 +1218,20 @@ contains
             cell = data(k)%narrow
         end if
 
-        has_old_ppss = cell%has_last
-        if (has_old_ppss) old_ppss = cell%last_ppss
-        old_pos = 0
-        if (cell%has_last) old_pos = cell%last_pos
-        if (old_pos /= 0 .and. old_pos > p) old_pos = 0
+        has_old_parser_state = cell%has_last
+        if (has_old_parser_state) old_parser_state = cell%last_parser_state
+        old_position = 0
+        if (cell%has_last) old_position = cell%last_position
+        if (old_position /= 0 .and. old_position > p) old_position = 0
         n = 0
-        if (allocated(cell%cache_pos)) n = size(cell%cache_pos)
+        if (allocated(cell%cache_position)) n = size(cell%cache_position)
 
         body: block
             ! Use the OLD-POS if usable and close.  Don't update the `last' cache.
-            if (old_pos /= 0) then
-                if (p - old_pos < (2*stats_total(5))/stats_count(5)) then
-                    call update_stats(0, old_pos, p)
-                    call parse_partial_expression(old_pos, p, state, status, oldstate=old_ppss)
+            if (old_position /= 0) then
+                if (p - old_position < (2*statistics_total(5))/statistics_count(5)) then
+                    call update_statistics(0, old_position, p)
+                    call parse_partial_expression(old_position, p, state, status, oldstate=old_parser_state)
                     if (.not. status%ok()) exit body
                     call set_syntax_table(old_table, st)
                     return
@@ -1235,49 +1239,50 @@ contains
             end if
 
             ! Use OLD-PPSS if possible and close enough.
-            pt_min = 0
+            point_minimum_value = 0
 
-            if (old_pos == 0 .and. has_old_ppss) then
-                ! If `pt-min' is too far from `pos', we could try to use
+            if (old_position == 0 .and. has_old_parser_state) then
+                ! If `pt-min' is too far from `position', we could try to use
                 ! other positions in (nth 9 old-ppss), but that doesn't
                 ! seem to happen in practice and it would complicate this
                 ! code (and the before-change-function code even more).
                 ! But maybe it would be useful in "degenerate" cases such
                 ! as when the whole file is wrapped in a set
                 ! of parentheses.
-                pt_min = syntax_ppss_toplevel_pos(old_ppss)
-                if (pt_min == 0) pt_min = old_ppss%last_expression_start
+                point_minimum_value = syntax_parser_state_toplevel_position(old_parser_state)
+                if (point_minimum_value == 0) point_minimum_value = old_parser_state%last_expression_start
             end if
 
-            if (pt_min /= 0 .and. pt_min <= p .and. p - pt_min < syntax_ppss_max_span) then
-                call update_stats(1, pt_min, p)
-                call parse_partial_expression(pt_min, p, ppss, status)
+            if (point_minimum_value /= 0 .and. point_minimum_value <= p .and. p &
+                - point_minimum_value < syntax_parser_state_maximum_span) then
+                call update_statistics(1, point_minimum_value, p)
+                call parse_partial_expression(point_minimum_value, p, parser_state, status)
                 if (.not. status%ok()) exit body
             else
                 ! The OLD-* data can't be used.  Consult the cache.
                 cache_test = 0
-                pt_min = point_min()
+                point_minimum_value = point_minimum()
                 ! I differentiate between PT-MIN and PT-BEST because
                 ! I feel like it might be important to ensure that the
                 ! cache is only filled with 100% sure data (whereas
                 ! syntax-begin-function might return incorrect data).
                 ! Maybe that's just stupid.
-                pt_best = point_min()
+                point_best = point_minimum()
                 has_best = .false.
-                has_ppss = .false.
+                has_parser_state = .false.
                 ! look for a usable cache entry.
                 index = 1
 
                 do while (index <= n)
-                    if (.not. p < cell%cache_pos(index)) exit
+                    if (.not. p < cell%cache_position(index)) exit
                     cache_test = index
                     index = index + 1
                 end do
 
                 if (index <= n) then
-                    pt_min = cell%cache_pos(index)
-                    ppss = cell%cache_ppss(index)
-                    has_ppss = .true.
+                    point_minimum_value = cell%cache_position(index)
+                    parser_state = cell%cache_parser_state(index)
+                    has_parser_state = .true.
                 end if
 
                 ! Setup the before-change function if necessary.
@@ -1291,15 +1296,15 @@ contains
                 end if
 
                 ! Use the best of OLD-POS and CACHE.
-                if (old_pos == 0 .or. old_pos < pt_min) then
-                    pt_best = pt_min
-                    has_best = has_ppss
-                    if (has_ppss) ppss_best = ppss
+                if (old_position == 0 .or. old_position < point_minimum_value) then
+                    point_best = point_minimum_value
+                    has_best = has_parser_state
+                    if (has_parser_state) parser_state_best = parser_state
                 else
-                    call update_stats(4, old_pos, p)
-                    pt_best = old_pos
-                    has_best = has_old_ppss
-                    if (has_best) ppss_best = old_ppss
+                    call update_statistics(4, old_position, p)
+                    point_best = old_position
+                    has_best = has_old_parser_state
+                    if (has_best) parser_state_best = old_parser_state
                 end if
 
                 ! Use the `syntax-begin-function' if available.
@@ -1310,10 +1315,10 @@ contains
                 ! - If this function almost always finds a safe nearby spot,
                 !   the cache won't be populated, so consulting it is cheap.
                 if (associated(syntax_begin_function)) then
-                    call goto_char(p)
+                    call goto_character(p)
                     call syntax_begin_function()
                     ! Make sure it's better.
-                    use_begin = point() > pt_best
+                    use_begin = point() > point_best
                     ! Simple sanity checks.
                     ! backward-paragraph can fail here.
                     if (use_begin) use_begin = point() < p
@@ -1329,61 +1334,61 @@ contains
                     end if
 
                     if (use_begin) then
-                        call update_stats(5, point(), p)
-                        pt_best = point()
+                        call update_statistics(5, point(), p)
+                        point_best = point()
                         has_best = .false.
                     end if
                 end if
 
-                if (p - pt_best < syntax_ppss_max_span) then
+                if (p - point_best < syntax_parser_state_maximum_span) then
                     ! Quick case when we found a nearby pos.
-                    call update_stats(2, pt_best, p)
+                    call update_statistics(2, point_best, p)
 
                     if (has_best) then
-                        call parse_partial_expression(pt_best, p, ppss, status, oldstate=ppss_best)
+                        call parse_partial_expression(point_best, p, parser_state, status, oldstate=parser_state_best)
                     else
-                        call parse_partial_expression(pt_best, p, ppss, status)
+                        call parse_partial_expression(point_best, p, parser_state, status)
                     end if
 
                     if (.not. status%ok()) exit body
                 else
                     ! Slow case: compute the state from some known position and
                     ! populate the cache so we won't need to do it again soon.
-                    call update_stats(3, pt_min, p)
+                    call update_statistics(3, point_minimum_value, p)
                     call make_data_entry(k)
                     data(k)%updated_cache = .true.
 
                     ! If `pt-min' is too far, add a few intermediate entries.
-                    do while (p - pt_min > 2*syntax_ppss_max_span)
-                        new_min = (pt_min + p)/2
-                        call parse_ppss(pt_min, new_min)
+                    do while (p - point_minimum_value > 2*syntax_parser_state_maximum_span)
+                        new_minimum = (point_minimum_value + p)/2
+                        call parse_parser_state(point_minimum_value, new_minimum)
                         if (.not. status%ok()) exit body
-                        pt_min = new_min
-                        call insert_entry(cell, cache_test + 1, pt_min, ppss)
+                        point_minimum_value = new_minimum
+                        call insert_entry(cell, cache_test + 1, point_minimum_value, parser_state)
                     end do
 
                     ! Compute the actual return value.
-                    call parse_ppss(pt_min, p)
+                    call parse_parser_state(point_minimum_value, p)
                     if (.not. status%ok()) exit body
                     ! Store it in the cache.
                     n = 0
-                    if (allocated(cell%cache_pos)) n = size(cell%cache_pos)
+                    if (allocated(cell%cache_position)) n = size(cell%cache_position)
 
                     if (cache_test > 0) then
-                        if (cell%cache_pos(cache_test) - p > syntax_ppss_max_span) then
-                            call insert_entry(cell, cache_test + 1, p, ppss)
+                        if (cell%cache_position(cache_test) - p > syntax_parser_state_maximum_span) then
+                            call insert_entry(cell, cache_test + 1, p, parser_state)
                         else
-                            cell%cache_pos(cache_test) = p
-                            cell%cache_ppss(cache_test) = ppss
+                            cell%cache_position(cache_test) = p
+                            cell%cache_parser_state(cache_test) = parser_state
                         end if
                     else
                         if (n == 0) then
-                            call insert_entry(cell, 1, p, ppss)
-                        else if (cell%cache_pos(1) - p > syntax_ppss_max_span) then
-                            call insert_entry(cell, 1, p, ppss)
+                            call insert_entry(cell, 1, p, parser_state)
+                        else if (cell%cache_position(1) - p > syntax_parser_state_maximum_span) then
+                            call insert_entry(cell, 1, p, parser_state)
                         else
-                            cell%cache_pos(1) = p
-                            cell%cache_ppss(1) = ppss
+                            cell%cache_position(1) = p
+                            cell%cache_parser_state(1) = parser_state
                         end if
                     end if
                 end if
@@ -1392,8 +1397,8 @@ contains
             call make_data_entry(k)
             data(k)%updated_cache = .true.
             cell%has_last = .true.
-            cell%last_pos = p
-            cell%last_ppss = ppss
+            cell%last_position = p
+            cell%last_parser_state = parser_state
             cell%exists = .true.
 
             if (wide) then
@@ -1402,7 +1407,7 @@ contains
                 data(k)%narrow = cell
             end if
 
-            state = ppss
+            state = parser_state
             call set_syntax_table(old_table, st)
             return
         end block body
@@ -1411,33 +1416,33 @@ contains
         ! we may end up calling parse-partial-sexp with a position before
         ! point-min.  In that case, just parse from point-min assuming
         ! a nil state.
-        if (status%code == FM_ARGS_OUT_OF_RANGE) call parse_partial_expression(point_min(), p, state, status)
+        if (status%code == ARGUMENTS_OUT_OF_RANGE_CODE) call parse_partial_expression(point_minimum(), p, state, status)
         call set_syntax_table(old_table, st)
 
     contains
 
         ! (parse-partial-sexp FROM TO nil nil ppss) into ppss.
-        recursive subroutine parse_ppss(from, to)
+        recursive subroutine parse_parser_state(from, to)
             integer(int64), intent(in) :: from, to
             type(parse_state_type) :: next
 
-            if (has_ppss) then
-                call parse_partial_expression(from, to, next, status, oldstate=ppss)
+            if (has_parser_state) then
+                call parse_partial_expression(from, to, next, status, oldstate=parser_state)
             else
                 call parse_partial_expression(from, to, next, status)
             end if
 
-            ppss = next
-            has_ppss = .true.
-        end subroutine parse_ppss
-    end subroutine syntax_ppss_cached
+            parser_state = next
+            has_parser_state = .true.
+        end subroutine parse_parser_state
+    end subroutine syntax_parser_state_cached
 
     !> Give the variables their defaults and hook syntax-propertize and
     !> the cache into syntax_mod.  Not a port.
-    subroutine init_syntax_propertize()
+    subroutine initialize_syntax_propertize()
         call syntax_propertize_extend_region_functions%prepend(syntax_propertize_wholelines)
         call append_locals_clearer(clear_syntax_locals)
         internal_syntax_propertize => internal_syntax_propertize_function
-        syntax_ppss_function => syntax_ppss_cached
-    end subroutine init_syntax_propertize
+        syntax_parser_state_function => syntax_parser_state_cached
+    end subroutine initialize_syntax_propertize
 end module syntax_propertize_mod

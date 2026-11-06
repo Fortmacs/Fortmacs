@@ -23,7 +23,7 @@
 `tty-color-values`,
 `tty-color-desc`,
 `tty-color-gray-shades`;
-`tty_register_colors` (startup.el's tty-register-default-colors, then xterm's colors) at terminal setup;
+`terminal_register_colors` (startup.el's tty-register-default-colors, then xterm's colors) at terminal setup;
 `clear_face_cache_hook` where upstream calls clear-face-cache
 
 ## Deferred

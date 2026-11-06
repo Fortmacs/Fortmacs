@@ -44,11 +44,11 @@ contains
         time = encode_partial_decoded_time(parsed, status)
         if (status%ok()) return
 
-        if (status%code == FM_GENERIC_ERROR .and. allocated(status%detail)) then
+        if (status%code == GENERIC_ERROR_CODE .and. allocated(status%detail)) then
             if (status%detail == "Specified time is not representable") return
         end if
 
-        call set_error(status, FM_GENERIC_ERROR, "Invalid date: "//date)
+        call set_error(status, GENERIC_ERROR_CODE, "Invalid date: "//date)
     end function date_to_time
 
     module function safe_date_to_time(date) result(time)

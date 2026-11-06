@@ -22,7 +22,7 @@
 !> New suites are registered in the `testsuites` array below.
 program tester
     use, intrinsic :: iso_fortran_env, only: error_unit
-    use system_dependent_mod, only: sys_unsetenv
+    use system_dependent_mod, only: system_unsetenv
     use testdrive, only: run_testsuite, run_selected, new_testsuite, &
                          testsuite_type, select_suite
     use test_version_mod, only: collect_version_mod
@@ -58,6 +58,7 @@ program tester
     use test_simple_minded_indentation_engine_mod, only: collect_simple_minded_indentation_engine_mod
     use test_shell_script_mod, only: collect_shell_script_mod
     use test_f90_mod, only: collect_f90_mod
+    use test_fortran_completion_mod, only: collect_fortran_completion_mod
     use test_error_mod, only: collect_error_mod
     use test_handle_mod, only: collect_handle_mod
     use test_string_type_mod, only: collect_string_type_mod
@@ -176,6 +177,7 @@ program tester
     use test_mail_extract_mod, only: collect_mail_extract_mod
     use test_mail_abbreviations_mod, only: collect_mail_abbreviations_mod
     use test_send_mail_mod, only: collect_send_mail_mod
+    use test_message_mod, only: collect_message_mod
     use test_smtpmail_mod, only: collect_smtpmail_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buffer_menu_mod, only: collect_buffer_menu_mod
@@ -200,9 +202,9 @@ program tester
     stat = 0
     ! The editor started by the tests takes no language environment from
     ! the locale (startup.el:command-line's set-locale-environment).
-    is = sys_unsetenv("LC_ALL")
-    is = sys_unsetenv("LC_CTYPE")
-    is = sys_unsetenv("LANG")
+    is = system_unsetenv("LC_ALL")
+    is = system_unsetenv("LC_CTYPE")
+    is = system_unsetenv("LANG")
     testsuites = [ &
                  new_testsuite("version_mod", collect_version_mod), &
                  new_testsuite("basic_subprograms_mod", collect_basic_subprograms_mod), &
@@ -306,6 +308,7 @@ program tester
                  new_testsuite("simple_minded_indentation_engine_mod", collect_simple_minded_indentation_engine_mod), &
                  new_testsuite("shell_script_mod", collect_shell_script_mod), &
                  new_testsuite("f90_mod", collect_f90_mod), &
+                 new_testsuite("fortran_completion_mod", collect_fortran_completion_mod), &
                  new_testsuite("terminal_colors_mod", collect_terminal_colors_mod), &
                  new_testsuite("faces_mod", collect_faces_mod), &
                  new_testsuite("face_realization_mod", collect_face_realization_mod), &
@@ -368,6 +371,7 @@ program tester
                  new_testsuite("mail_extract_mod", collect_mail_extract_mod), &
                  new_testsuite("mail_abbreviations_mod", collect_mail_abbreviations_mod), &
                  new_testsuite("send_mail_mod", collect_send_mail_mod), &
+                 new_testsuite("message_mod", collect_message_mod), &
                  new_testsuite("smtpmail_mod", collect_smtpmail_mod) &
                  ]
     call get_argument(1, suite_name)
@@ -415,15 +419,15 @@ program tester
 contains
 
     !> Fetch command-line argument `index`, leaving `arg` unallocated if absent.
-    subroutine get_argument(index, arg)
+    subroutine get_argument(index, argument)
         integer, intent(in) :: index
-        character(len=:), allocatable, intent(out) :: arg
+        character(len=:), allocatable, intent(out) :: argument
         integer :: length, astat
 
         call get_command_argument(index, length=length, status=astat)
         if (astat /= 0 .or. length == 0) return
-        allocate (character(len=length) :: arg)
-        call get_command_argument(index, arg, status=astat)
-        if (astat /= 0) deallocate (arg)
+        allocate (character(len=length) :: argument)
+        call get_command_argument(index, argument, status=astat)
+        if (astat /= 0) deallocate (argument)
     end subroutine get_argument
 end program tester

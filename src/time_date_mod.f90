@@ -31,9 +31,10 @@
 !> What is not ported yet is listed in docs/status/time_date_mod.md.
 module time_date_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use time_functions_mod, only: time_type, decoded_time_type, decode_time, current_time, time_add, time_subtract, &
-                                  time_convert, is_time_less, real, DECODED_TIME_DST_UNKNOWN, DECODED_TIME_DST_NO
+                                  time_convert, is_time_less, real, DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN, &
+                                  DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
     use search_mod, only: string_match, match_beginning, match_end, case_fold_search
     use basic_subprograms_mod, only: match_string
     implicit none(type, external)
@@ -51,8 +52,8 @@ module time_date_mod
     !> as `parse_time_string' and `parse_iso8601' return
     !> it, and the components that `add_decoded_time' should change.  The
     !> structure constructor is upstream's make-decoded-time:
-    !> partial_decoded_time_type(month=2) has only its month and DST
-    !> unknown.  `dst' is one of time_functions_mod's DECODED_TIME_DST_
+    !> partial_decoded_time_type(month=2) has only its month and DAYLIGHT_SAVING_TIME
+    !> unknown.  `daylight_saving_time' is one of time_functions_mod's DECODED_TIME_DAYLIGHT_SAVING_TIME_
     !> constants, and `zone' the UTC offset in seconds east of Greenwich
     !> (unallocated: local time).
     type, public :: partial_decoded_time_type
@@ -63,7 +64,7 @@ module time_date_mod
         integer, allocatable :: month
         integer(int64), allocatable :: year
         integer, allocatable :: weekday
-        integer :: dst = DECODED_TIME_DST_UNKNOWN
+        integer :: daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN
         integer, allocatable :: zone
     end type partial_decoded_time_type
 
@@ -138,25 +139,25 @@ module time_date_mod
                           SECONDS_TO_STRING_EXPANDED = 2
 
     ! seconds-to-string: the units of the plain format, (LIMIT UNIT
-    ! SECS); the last has no limit.
+    ! SECONDS); the last has no limit.
     real(real64), parameter :: PLAIN_LIMITS(5) = [1.0_real64, 100.0_real64, 6000.0_real64, &
                                                   108000.0_real64, 34560000.0_real64]
     character(len=2), parameter :: PLAIN_UNITS(6) = ["ms", "s ", "m ", "h ", "d ", "y "]
-    integer, parameter :: PLAIN_UNIT_LEN(6) = [2, 1, 1, 1, 1, 1]
-    real(real64), parameter :: PLAIN_SECS(6) = [0.001_real64, 1.0_real64, 60.0_real64, 3600.0_real64, &
-                                                86400.0_real64, 365.25_real64*24*3600]
+    integer, parameter :: PLAIN_UNIT_LENGTH(6) = [2, 1, 1, 1, 1, 1]
+    real(real64), parameter :: PLAIN_SECONDS(6) = [0.001_real64, 1.0_real64, 60.0_real64, 3600.0_real64, &
+                                                   86400.0_real64, 365.25_real64*24*3600]
 
-    ! seconds-to-string-readable: (ABBREV-UNIT UNIT UNIT-PLURAL SECS).
-    character(len=1), parameter :: READABLE_ABBREV(7) = ["Y", "M", "w", "d", "h", "m", "s"]
+    ! seconds-to-string-readable: (ABBREV-UNIT UNIT UNIT-PLURAL SECONDS).
+    character(len=1), parameter :: READABLE_ABBREVIATION(7) = ["Y", "M", "w", "d", "h", "m", "s"]
     character(len=6), parameter :: READABLE_UNIT(7) = ["year  ", "month ", "week  ", "day   ", "hour  ", "minute", &
                                                        "second"]
     character(len=7), parameter :: READABLE_PLURAL(7) = ["years  ", "months ", "weeks  ", "days   ", "hours  ", &
                                                          "minutes", "seconds"]
-    integer(int64), parameter :: READABLE_SECS(7) = [31556952_int64, 2629746_int64, 604800_int64, 86400_int64, &
-                                                     3600_int64, 60_int64, 1_int64]
+    integer(int64), parameter :: READABLE_SECONDS(7) = [31556952_int64, 2629746_int64, 604800_int64, 86400_int64, &
+                                                        3600_int64, 60_int64, 1_int64]
 
-    ! format-seconds: the units, (SPEC NAME SECONDS); "z" and "x" are flags.
-    character(len=1), parameter :: FORMAT_UNIT_SPECS(7) = ["y", "d", "h", "m", "s", "z", "x"]
+    ! format-seconds: the units, (SPECIFICATION NAME SECONDS); "z" and "x" are flags.
+    character(len=1), parameter :: FORMAT_UNIT_SPECIFICATIONS(7) = ["y", "d", "h", "m", "s", "z", "x"]
     character(len=6), parameter :: FORMAT_UNIT_NAMES(5) = ["year  ", "day   ", "hour  ", "minute", "second"]
     integer(int64), parameter :: FORMAT_UNIT_SECONDS(5) = [31536000_int64, 86400_int64, 3600_int64, 60_int64, 1_int64]
 
@@ -259,7 +260,7 @@ contains
 
         if (month < 1 .or. month > 12) then
             write (text, "(i0)") month
-            if (present(status)) call set_error(status, FM_GENERIC_ERROR, "Month "//trim(text)//" is invalid")
+            if (present(status)) call set_error(status, GENERIC_ERROR_CODE, "Month "//trim(text)//" is invalid")
             return
         end if
 
@@ -275,8 +276,8 @@ contains
 
     !> Convert a YEAR/ORDINAL to the equivalent decoded time.  ORDINAL is
     !> the number of days since the start of the year, with January 1st
-    !> being 1.  Only the day, month and year are known; DST is
-    !> DECODED_TIME_DST_NO.  Port of time-date.el:date-ordinal-to-time.
+    !> being 1.  Only the day, month and year are known; DAYLIGHT_SAVING_TIME is
+    !> DECODED_TIME_DAYLIGHT_SAVING_TIME_NO.  Port of time-date.el:date-ordinal-to-time.
     function date_ordinal_to_time(year, ordinal) result(time)
         integer(int64), intent(in) :: year
         integer, intent(in) :: ordinal
@@ -294,7 +295,7 @@ contains
         time%day = day
         time%month = month
         time%year = year
-        time%dst = DECODED_TIME_DST_NO
+        time%daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
     end function date_ordinal_to_time
 
     ! Set STATUS to the wrong-type error of a component that is unknown
@@ -302,7 +303,7 @@ contains
     subroutine unknown_component(status)
         type(status_type), intent(inout) :: status
 
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer, got unallocated")
+        call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer, got unallocated")
     end subroutine unknown_component
 
     ! The number of days in the month of TIME: date_days_in_month of its
@@ -315,7 +316,7 @@ contains
         days = 0
 
         if (.not. allocated(time%month)) then
-            call set_error(status, FM_GENERIC_ERROR, "Month unallocated is invalid")
+            call set_error(status, GENERIC_ERROR_CODE, "Month unallocated is invalid")
         else if (time%month == 2 .and. .not. allocated(time%year)) then
             call unknown_component(status)
         else if (allocated(time%year)) then
@@ -511,7 +512,7 @@ contains
         new = time_add(old, seconds)
         seconds_per_day = time_type(seconds=86400_int64, count_rate=new%count_rate)
 
-        ! Hm...  DST...
+        ! Hm...  DAYLIGHT_SAVING_TIME...
         do while (is_time_less(new, time_type()))
             call alter_day(time, .false., status)
             if (.not. status%ok()) return
@@ -551,7 +552,7 @@ contains
         if (.not. allocated(time%month)) time%month = 1
         if (.not. allocated(time%year)) time%year = 1970
         if (.not. allocated(time%zone) .and. present(default_zone)) time%zone = default_zone
-        ! Do not set the weekday or DST, as `encode_time' can infer them
+        ! Do not set the weekday or DAYLIGHT_SAVING_TIME, as `encode_time' can infer them
         ! well enough when unknown.
     end subroutine set_decoded_time_defaults
 
@@ -600,7 +601,7 @@ contains
         decoded%day = time%day
         decoded%month = time%month
         decoded%year = time%year
-        decoded%dst = time%dst
+        decoded%daylight_saving_time = time%daylight_saving_time
         if (allocated(time%zone)) decoded%zone = time%zone
         encoded = encode_time(decoded, status=status)
     end function encode_partial_decoded_time
@@ -661,13 +662,13 @@ contains
         real(real64), intent(in) :: seconds
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
-        character(len=:), allocatable :: spec, lower, minus, pre, width, precision, suffix
-        character(len=1) :: used(size(FORMAT_UNIT_SPECS))
+        character(len=:), allocatable :: specification, lower, minus, pre, width, precision, suffix
+        character(len=1) :: used(size(FORMAT_UNIT_SPECIFICATIONS))
         type(status_type) :: st
-        integer(int64) :: start, unit, prev, whole, num, beginning, leading_zero_position, trailing_zero_position, &
+        integer(int64) :: start, unit, previous, whole, number, beginning, leading_zero_position, trailing_zero_position, &
                           chop_leading
         integer :: u, n_used
-        logical :: zero_flag, larger, has_prev, has_leading, has_trailing, has_chop_leading, chop_trailing, is_zero
+        logical :: zero_flag, larger, has_previous, has_leading, has_trailing, has_chop_leading, chop_trailing, is_zero
         real(real64) :: fraction, value
 
         text = ""
@@ -675,23 +676,23 @@ contains
         n_used = 0
         zero_flag = .false.
         larger = .false.
-        has_prev = .false.
-        prev = 0
+        has_previous = .false.
+        previous = 0
 
         do while (string_match("%\.?[0-9]*\(,[0-9]\)?\(.\)", string, st, start=start) > 0)
             start = match_end(0, st)
-            spec = match_string(2, string)
-            if (spec == "%") cycle
-            lower = ascii_downcase(spec)
-            u = findloc(FORMAT_UNIT_SPECS == lower, .true., dim=1)
+            specification = match_string(2, string)
+            if (specification == "%") cycle
+            lower = ascii_downcase(specification)
+            u = findloc(FORMAT_UNIT_SPECIFICATIONS == lower, .true., dim=1)
 
             if (u == 0) then
-                call set_error(status, FM_GENERIC_ERROR, "Bad format specifier: `"//spec//"'")
+                call set_error(status, GENERIC_ERROR_CODE, "Bad format specifier: `"//specification//"'")
                 return
             end if
 
             if (any(used(1:n_used) == lower)) then
-                call set_error(status, FM_GENERIC_ERROR, "Multiple instances of specifier: `"//spec//"'")
+                call set_error(status, GENERIC_ERROR_CODE, "Multiple instances of specifier: `"//specification//"'")
                 return
             end if
 
@@ -699,9 +700,9 @@ contains
                 zero_flag = .true.
             else if (.not. larger) then
                 unit = FORMAT_UNIT_SECONDS(u)
-                larger = has_prev .and. unit > prev
-                prev = unit
-                has_prev = .true.
+                larger = has_previous .and. unit > previous
+                previous = unit
+                has_previous = .true.
             end if
 
             n_used = n_used + 1
@@ -709,7 +710,7 @@ contains
         end do
 
         if (zero_flag .and. larger) then
-            call set_error(status, FM_GENERIC_ERROR, "Units are not in decreasing order of size")
+            call set_error(status, GENERIC_ERROR_CODE, "Units are not in decreasing order of size")
             return
         end if
 
@@ -727,12 +728,12 @@ contains
         trailing_zero_position = 0
         chop_leading = 0
 
-        do u = 1, size(FORMAT_UNIT_SPECS)
-            if (string_match("%\(\.?[0-9]+\)?\(,[0-9]+\)?\("//FORMAT_UNIT_SPECS(u)//"\)", text, st) == 0) cycle
+        do u = 1, size(FORMAT_UNIT_SPECIFICATIONS)
+            if (string_match("%\(\.?[0-9]+\)?\(,[0-9]+\)?\("//FORMAT_UNIT_SPECIFICATIONS(u)//"\)", text, st) == 0) cycle
             ! Positions from here on count from 0, as upstream's.
             beginning = match_beginning(0, st) - 1
 
-            select case (FORMAT_UNIT_SPECS(u))
+            select case (FORMAT_UNIT_SPECIFICATIONS(u))
             case ("z")
                 if (has_leading) then
                     chop_leading = min(leading_zero_position, beginning)
@@ -747,15 +748,15 @@ contains
             case default
                 ! Cf article-make-date-line in gnus-art.
                 unit = FORMAT_UNIT_SECONDS(u)
-                num = whole/unit
-                whole = whole - num*unit
+                number = whole/unit
+                whole = whole - number*unit
 
                 if (unit == 1) then
-                    is_zero = real(num, real64) + fraction == 0
-                    value = real(num, real64) + fraction
+                    is_zero = real(number, real64) + fraction == 0
+                    value = real(number, real64) + fraction
                 else
-                    is_zero = num == 0
-                    value = real(num, real64)
+                    is_zero = number == 0
+                    value = real(number, real64)
                 end if
 
                 ! Start position of the first non-zero unit.
@@ -777,10 +778,10 @@ contains
                     if (width(1:1) == ".") width = "0"//width(2:)
                 end if
 
-                if (match_string(3, text) == FORMAT_UNIT_SPECS(u)) then
+                if (match_string(3, text) == FORMAT_UNIT_SPECIFICATIONS(u)) then
                     ! Lower-case, no unit-name.
                     suffix = ""
-                else if (num == 1) then
+                else if (number == 1) then
                     suffix = " "//trim(FORMAT_UNIT_NAMES(u))
                 else
                     suffix = " "//trim(FORMAT_UNIT_NAMES(u))//"s"
@@ -949,22 +950,22 @@ contains
     !> convert DELAY into a readable string, using the information provided
     !> in the variable `seconds_to_string_readable'.  If it is
     !> `SECONDS_TO_STRING_EXPANDED', use two units to describe DELAY, if
-    !> appropriate.  E.g. "1 hour 32 minutes".  If ABBREV is true,
+    !> appropriate.  E.g. "1 hour 32 minutes".  If ABBREVIATION is true,
     !> abbreviate the readable units.  If PRECISION is a whole number, round
     !> the value associated with the smallest displayed unit to that many
     !> digits after the decimal.  If PRECISION_FRACTION is a non-negative
     !> float less than 1.0, round to that value.  Port of
     !> time-date.el:seconds-to-string.
-    recursive function seconds_to_string(delay, readable, abbrev, precision, precision_fraction) result(s)
+    recursive function seconds_to_string(delay, readable, abbreviation, precision, precision_fraction) result(s)
         real(real64), intent(in) :: delay
         integer, intent(in), optional :: readable
-        logical, intent(in), optional :: abbrev
+        logical, intent(in), optional :: abbreviation
         integer, intent(in), optional :: precision
         real(real64), intent(in), optional :: precision_fraction
         character(len=:), allocatable :: s
         integer :: how, digits, here, here_pre, k
         logical :: abbreviate, expanded, isfloatp, has_pre
-        real(real64) :: round_to, cnt, cnt_pre, cnt_val
+        real(real64) :: round_to, count, count_pre, count_value
         character(len=:), allocatable :: padding
         character(len=64) :: buffer
         character(len=16) :: format
@@ -972,10 +973,10 @@ contains
         how = SECONDS_TO_STRING_PLAIN
         if (present(readable)) how = readable
         abbreviate = .false.
-        if (present(abbrev)) abbreviate = abbrev
+        if (present(abbreviation)) abbreviate = abbreviation
 
         if (delay < 0) then
-            ! (Upstream passes PRECISION as ABBREV here.)
+            ! (Upstream passes PRECISION as ABBREVIATION here.)
             if (present(precision)) then
                 s = "-"//seconds_to_string(-delay, how, .true.)
             else if (present(precision_fraction)) then
@@ -1016,51 +1017,51 @@ contains
 
             here = 1
 
-            do while (here < size(READABLE_SECS))
-                if (delay/real(READABLE_SECS(here), real64) >= 1) exit
+            do while (here < size(READABLE_SECONDS))
+                if (delay/real(READABLE_SECONDS(here), real64) >= 1) exit
                 here = here + 1
             end do
 
             has_pre = .false.
             here_pre = 0
-            cnt_pre = 0
+            count_pre = 0
 
-            if (expanded .and. here < size(READABLE_SECS)) then
+            if (expanded .and. here < size(READABLE_SECONDS)) then
                 here_pre = here
                 here = here + 1
-                cnt_pre = floor(delay/real(READABLE_SECS(here_pre), real64))
-                cnt = lisp_round((delay - cnt_pre*real(READABLE_SECS(here_pre), real64)) &
-                                 /real(READABLE_SECS(here), real64), round_to)
+                count_pre = floor(delay/real(READABLE_SECONDS(here_pre), real64))
+                count = lisp_round((delay - count_pre*real(READABLE_SECONDS(here_pre), real64)) &
+                                   /real(READABLE_SECONDS(here), real64), round_to)
 
-                if (cnt > 0) then
+                if (count > 0) then
                     has_pre = .true.
                 else
-                    cnt = cnt_pre
+                    count = count_pre
                     here = here_pre
                 end if
             end if
 
-            if (.not. has_pre) cnt = lisp_round(delay/real(READABLE_SECS(here), real64), round_to)
-            cnt_val = cnt*round_to
-            isfloatp = digits > 0 .and. cnt_val - floor(cnt_val) > 0
+            if (.not. has_pre) count = lisp_round(delay/real(READABLE_SECONDS(here), real64), round_to)
+            count_value = count*round_to
+            isfloatp = digits > 0 .and. count_value - floor(count_value) > 0
             s = ""
 
             if (has_pre) then
-                write (buffer, "(i0)") int(cnt_pre, int64)
-                s = trim(buffer)//padding//unit_name(cnt_pre, here_pre, abbreviate, .false.)//" "
+                write (buffer, "(i0)") int(count_pre, int64)
+                s = trim(buffer)//padding//unit_name(count_pre, here_pre, abbreviate, .false.)//" "
             end if
 
             if (isfloatp) then
                 write (format, '("(f0.", i0, ")")') digits
-                write (buffer, format) cnt_val
+                write (buffer, format) count_value
                 buffer = adjustl(buffer)
                 if (buffer(1:1) == ".") buffer = "0"//buffer(1:len(buffer) - 1)
             else
-                write (buffer, "(i0)") floor(cnt_val, int64)
+                write (buffer, "(i0)") floor(count_value, int64)
             end if
 
             ! Float formats are always plural.
-            s = s//trim(buffer)//padding//unit_name(cnt_val, here, abbreviate, isfloatp)
+            s = s//trim(buffer)//padding//unit_name(count_value, here, abbreviate, isfloatp)
         else if (.not. (delay > 0)) then
             s = "0s"
         else
@@ -1071,23 +1072,23 @@ contains
                 k = k + 1
             end do
 
-            write (buffer, "(f0.2)") delay/PLAIN_SECS(k)
+            write (buffer, "(f0.2)") delay/PLAIN_SECONDS(k)
             buffer = adjustl(buffer)
             if (buffer(1:1) == ".") buffer = "0"//buffer(1:len(buffer) - 1)
-            s = trim(buffer)//PLAIN_UNITS(k) (1:PLAIN_UNIT_LEN(k))
+            s = trim(buffer)//PLAIN_UNITS(k) (1:PLAIN_UNIT_LENGTH(k))
         end if
     end function seconds_to_string
 
-    ! The unit HERE for VAL: abbreviated, singular or PLURAL.  Not a port.
-    function unit_name(val, here, abbrev, plural) result(name)
-        real(real64), intent(in) :: val
+    ! The unit HERE for VALUE: abbreviated, singular or PLURAL.  Not a port.
+    function unit_name(value, here, abbreviation, plural) result(name)
+        real(real64), intent(in) :: value
         integer, intent(in) :: here
-        logical, intent(in) :: abbrev, plural
+        logical, intent(in) :: abbreviation, plural
         character(len=:), allocatable :: name
 
-        if (abbrev) then
-            name = trim(READABLE_ABBREV(here))
-        else if (.not. plural .and. floor(val) <= 1) then
+        if (abbreviation) then
+            name = trim(READABLE_ABBREVIATION(here))
+        else if (.not. plural .and. floor(value) <= 1) then
             name = trim(READABLE_UNIT(here))
         else
             name = trim(READABLE_PLURAL(here))

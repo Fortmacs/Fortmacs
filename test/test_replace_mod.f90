@@ -30,7 +30,7 @@
 !> (no Lisp).
 module test_replace_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type
@@ -39,26 +39,26 @@ module test_replace_mod
     use data_mod, only: set
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, is_buffer_live, buffers, current
     use error_mod, only: format_error
-    use editing_functions_mod, only: point, point_min, line_end_position, buffer_substring
+    use editing_functions_mod, only: point, point_minimum, line_end_position, buffer_substring
     use files_mod, only: revert_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, buffer_string
+    use editing_functions_mod, only: goto_character, buffer_string
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
-    use execute_interactively_mod, only: prefix_arg
-    use bindings_mod, only: init_bindings
+    use execute_interactively_mod, only: prefix_argument
+    use bindings_mod, only: initialize_bindings
     use basic_subprograms_mod, only: match_string
     use replace_mod, only: occur_edit_mode, occur_cease_edit
     use replace_mod, only: occur, occur_next, occur_mode_goto_occurrence, how_many, keep_lines, flush_lines, &
                            cut_matching_lines, copy_matching_lines, list_matching_lines_jump_to_current_line
-    use replace_mod, only: perform_replace, replace_regexp, replace_quote, query_replace_defaults, &
-                           replace_expand_count, query_replace_compile_replacement, read_regexp_suggestions, &
+    use replace_mod, only: perform_replace, replace_regular_expression, replace_quote, query_replace_defaults, &
+                           replace_expand_count, query_replace_compile_replacement, read_regular_expression_suggestions, &
                            query_replace_read_from_suggestions
     use basic_subprograms_mod, only: query_replace_answer, ANSWER_SCROLL_DOWN, ANSWER_SCROLL_UP, ANSWER_SKIP, ANSWER_EXIT, &
                                      ANSWER_HELP, ANSWER_SCROLL_OTHER_WINDOW, ANSWER_SCROLL_OTHER_WINDOW_DOWN, ANSWER_ACT, &
                                      ANSWER_NONE
     use data_mod, only: symbol_value
-    use value_mod, only: list_length, list_elt, xstring, value_type
+    use value_mod, only: list_length, list_element, xstring, value_type
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -116,18 +116,18 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
         call get_or_make_buffer("replace-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         last_message = ""
         if (allocated(query_replace_defaults)) deallocate (query_replace_defaults)
         call set(value_type(name="query_replace_history"), value_type(), st)
         call set(value_type(name="search_ring"), value_type(), st)
-        call set(value_type(name="regexp_search_ring"), value_type(), st)
+        call set(value_type(name="regular_expression_search_ring"), value_type(), st)
         call show_alone()
     end subroutine enter
 
@@ -245,20 +245,20 @@ contains
 
     !> replace-tests-with-undo: replace FROM with TO in INPUT, answering
     !> KEYS, and compare the result with EXPECTED.
-    subroutine with_undo(error, input, from, to, keys, expected, regexp_flag, fn)
+    subroutine with_undo(error, input, from, to, keys, expected, regular_expression_flag, fn)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: input, from, to, keys, expected
-        logical, intent(in), optional :: regexp_flag
+        logical, intent(in), optional :: regular_expression_flag
         procedure(theorem_replacement), optional :: fn
         type(handle_type) :: h
         type(status_type) :: st
-        logical :: regexp
+        logical :: regular_expression
 
-        regexp = .true.
-        if (present(regexp_flag)) regexp = regexp_flag
+        regular_expression = .true.
+        if (present(regular_expression_flag)) regular_expression = regular_expression_flag
         call enter(input, h)
         call queue_keys(keys)
-        call perform_replace(from, to, .true., regexp, .false., st, replacement_fn=fn)
+        call perform_replace(from, to, .true., regular_expression, .false., st, replacement_fn=fn)
         call check(error, st%ok() .and. buffer_string() == expected, keys//": got "//buffer_string())
         call leave(h)
     end subroutine with_undo
@@ -343,7 +343,7 @@ contains
         ! Now run a test with regexp-flag arg in `perform_replace' set to nil
         call with_undo(error, " ^theorem$ 1"//achar(10)//" ^theorem$ 2"//achar(10)//" ^theorem$ 3", &
                        "^theorem$", "theo", "SPC SPC U SPC q", &
-                       " theo 1"//achar(10)//" ^theorem$ 2"//achar(10)//" ^theorem$ 3", regexp_flag=.false.)
+                       " theo 1"//achar(10)//" ^theorem$ 2"//achar(10)//" ^theorem$ 3", regular_expression_flag=.false.)
     end subroutine test_undo_37073
 
     subroutine test_undo_37287(error)
@@ -359,7 +359,7 @@ contains
         type(status_type) :: st
 
         call enter("1RB 1LC 1RC 1RB 1RD 0LE 1LA 1LD 1RH 0LA", h)
-        call replace_regexp("\(\(L\)\|\(R\)\)", "", st, replacement_fn=swap_replacement)
+        call replace_regular_expression("\(\(L\)\|\(R\)\)", "", st, replacement_fn=swap_replacement)
         call check(error, buffer_string() == "1LB 1RC 1LC 1LB 1LD 0RE 1RA 1RD 1LH 0RA", buffer_string())
         call leave(h)
     end subroutine test_bug45973
@@ -438,18 +438,18 @@ contains
         integer :: n
 
         call enter("foo_bar foo", h)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call query_replace_read_from_suggestions(list, n)
         call check(error, n >= 1, "a suggestion")
         if (allocated(error)) return
         call check(error, list(1)%text == "foo_bar", list(1)%text)
         if (allocated(error)) return
-        call read_regexp_suggestions(list, n)
+        call read_regular_expression_suggestions(list, n)
         call check(error, n >= 2, "regexp suggestions")
         if (allocated(error)) return
         call check(error, list(1)%text == "foo_bar" .and. list(2)%text == "\_<foo_bar\_>", list(1)%text//" "//list(2)%text)
         if (allocated(error)) return
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call type_keys("M-% M-n RET x RET !")
         call check(error, buffer_string() == "x foo", buffer_string())
         call leave(h)
@@ -464,14 +464,14 @@ contains
 
         call enter("aa", h)
         call set(value_type(name="query_replace_history"), value_type(), st)
-        call type_keys("M-x map_query_replace_regexp RET a RET x SPC y RET !")
+        call type_keys("M-x map_query_replace_regular_expression RET a RET x SPC y RET !")
         call check(error, buffer_string() == "xy", buffer_string())
         if (allocated(error)) return
         call symbol_value(value_type(name="query_replace_history"), v, st)
         call check(error, list_length(v) == 2, "from and to in query_replace_history")
         if (allocated(error)) return
-        call check(error, xstring(list_elt(v, 1_int64)) == "x y" .and. xstring(list_elt(v, 2_int64)) == "a", &
-                   xstring(list_elt(v, 1_int64)))
+        call check(error, xstring(list_element(v, 1_int64)) == "x y" .and. xstring(list_element(v, 2_int64)) == "a", &
+                   xstring(list_element(v, 1_int64)))
         call leave(h)
     end subroutine test_map_history
 
@@ -479,23 +479,23 @@ contains
     ! Occur
     ! ------------------------------------------------------------------
 
-    !> Port of replace-tests.el replace-occur-test-case: occur REGEXP with
+    !> Port of replace-tests.el replace-occur-test-case: occur REGULAR_EXPRESSION with
     !> NLINES in " *test-occur*" holding INPUT; the text of *Occur* must be
     !> OUTPUT.
-    subroutine occur_case(error, regexp, nlines, input, output)
+    subroutine occur_case(error, regular_expression, nlines, input, output)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), intent(in) :: regexp, input, output
+        character(len=*), intent(in) :: regular_expression, input, output
         integer(int64), intent(in) :: nlines
         type(handle_type) :: h, occ
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *test-occur*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(input, st)
-        call occur(regexp, st, nlines)
+        call occur(regular_expression, st, nlines)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         occ = get_buffer("*Occur*")
@@ -526,7 +526,7 @@ contains
         character(len=:), allocatable :: text
         logical :: saved
 
-        call init_bindings()
+        call initialize_bindings()
         saved = list_matching_lines_jump_to_current_line
         list_matching_lines_jump_to_current_line = jump
         call get_or_make_buffer(" *test-occur*", h, st)
@@ -546,8 +546,8 @@ contains
         if (.not. allocated(error)) then
             occ = get_buffer("*Occur*")
             call set_buffer(occ, st)
-            call goto_char(point_min())
-            call buffer_substring(point_min(), line_end_position(), text, st)
+            call goto_character(point_minimum())
+            call buffer_substring(point_minimum(), line_end_position(), text, st)
             call check(error, index(text, "2 matches for ""and"" in buffer: ") == 1, text)
             call close_buffer(occ, st)
         end if
@@ -591,7 +591,7 @@ contains
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("o"//LF//LF//LF//LF//"o"//LF//LF, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call how_many("^$", n, st)
             call check(error, n, 4_int64)
         end if
@@ -614,7 +614,7 @@ contains
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("a1"//LF//"b2"//LF//"a3"//LF//"c4"//LF, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call flush_lines("a", n, st)
             call check(error, buffer_string(), "b2"//LF//"c4"//LF)
             if (.not. allocated(error)) call check(error, n, 2_int64)
@@ -623,7 +623,7 @@ contains
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("x"//LF//"yes"//LF//"z"//LF//"yes too"//LF, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call cut_matching_lines("yes", n, st)
             call check(error, buffer_string(), "x"//LF//"z"//LF)
             if (.not. allocated(error)) call check(error, n, 2_int64)
@@ -632,7 +632,7 @@ contains
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call insert("x"//LF//"yes"//LF//"z"//LF, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call copy_matching_lines("yes", n, st)
             call check(error, buffer_string(), "x"//LF//"yes"//LF//"z"//LF)
             if (.not. allocated(error)) call check(error, n, 1_int64)
@@ -648,7 +648,7 @@ contains
         type(handle_type) :: h, occ
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *test-occur*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -663,7 +663,7 @@ contains
         call check(error, buffers(current)%major_mode, "occur_mode")
         if (allocated(error)) return
         ! The first line of matches.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call occur_find_next(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -678,9 +678,9 @@ contains
         call occur_edit_mode(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call occur_next(st)
-        call goto_char(line_end_position())
+        call goto_character(line_end_position())
         call insert("!", st)
         call set_buffer(h, st)
         call check(error, buffer_string(), "one"//LF//"two x!"//LF//"three"//LF//"x four"//LF)

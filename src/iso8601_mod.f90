@@ -42,9 +42,9 @@
 module iso8601_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_rint
-    use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE
     use time_functions_mod, only: time_type, decoded_time_type, decode_time, time_subtract, time_zone_rule, &
-                                  DECODED_TIME_DST_UNKNOWN, DECODED_TIME_DST_NO
+                                  DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
     use time_date_mod, only: partial_decoded_time_type, is_date_leap_year, date_ordinal_to_time, add_decoded_time, &
                              set_decoded_time_defaults, encode_partial_decoded_time
     use search_mod, only: string_match, match_beginning
@@ -151,21 +151,21 @@ contains
         character(len=*), intent(in) :: string
         type(status_type), intent(inout) :: status
 
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected ISO 8601 text, got """//string//"""")
+        call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected ISO 8601 text, got """//string//"""")
     end subroutine not_iso8601
 
-    ! The DST of a decoded time with ZONE (absent: no zone): "Z" and "z"
+    ! The DAYLIGHT_SAVING_TIME of a decoded time with ZONE (absent: no zone): "Z" and "z"
     ! are standard time; no zone and [-+][0-9][0-9]... are local time with
-    ! unknown DST.  Port of iso8601.el:iso8601--zone-dst.
-    integer function zone_dst(zone)
+    ! unknown DAYLIGHT_SAVING_TIME.  Port of iso8601.el:iso8601--zone-dst.
+    integer function zone_daylight_saving_time(zone)
         character(len=*), intent(in), optional :: zone
 
-        zone_dst = DECODED_TIME_DST_UNKNOWN
+        zone_daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN
 
         if (present(zone)) then
-            if (len(zone) == 1) zone_dst = DECODED_TIME_DST_NO
+            if (len(zone) == 1) zone_daylight_saving_time = DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
         end if
-    end function zone_dst
+    end function zone_daylight_saving_time
 
     ! ------------------------------------------------------------------
     ! Parsing
@@ -178,7 +178,7 @@ contains
     !> incomplete strings like "2008-03-02" are valid, as well as variants
     !> like "2008W32" (week number) and "2008-234" (ordinal day number).
     !> Values returned are identical to those of `decode_time', except that
-    !> an unknown DST value is DECODED_TIME_DST_UNKNOWN and other unknown
+    !> an unknown DAYLIGHT_SAVING_TIME value is DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN and other unknown
     !> values are unallocated.
     !>
     !> Note that, unlike `decode_time', this function does not interpret
@@ -229,7 +229,7 @@ contains
         if (has_zone) then
             ! The time zone in decoded times are in seconds.
             date%zone = parse_iso8601_zone(zone_string, status)*60
-            date%dst = zone_dst(zone_string)
+            date%daylight_saving_time = zone_daylight_saving_time(zone_string)
         end if
     end function parse_iso8601
 
@@ -399,10 +399,10 @@ contains
         end if
 
         if (has_zone) then
-            decoded%dst = zone_dst(zone)
+            decoded%daylight_saving_time = zone_daylight_saving_time(zone)
             decoded%zone = 60*parse_iso8601_zone(zone, status)
         else
-            decoded%dst = zone_dst()
+            decoded%daylight_saving_time = zone_daylight_saving_time()
         end if
     end function parse_iso8601_time
 
@@ -568,7 +568,7 @@ contains
         duration%month = difference%month
         duration%year = difference%year
         duration%weekday = difference%weekday
-        duration%dst = difference%dst
+        duration%daylight_saving_time = difference%daylight_saving_time
         if (allocated(difference%zone)) duration%zone = difference%zone
     end subroutine parse_iso8601_interval
 
@@ -594,7 +594,7 @@ contains
         if (allocated(negated%month)) negated%month = -negated%month
         if (allocated(negated%year)) negated%year = -negated%year
         if (allocated(negated%weekday)) negated%weekday = -negated%weekday
-        negated%dst = -negated%dst
+        negated%daylight_saving_time = -negated%daylight_saving_time
         if (allocated(negated%zone)) negated%zone = -negated%zone
     end function negate
 

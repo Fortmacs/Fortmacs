@@ -52,6 +52,35 @@ collect() {
 collect major_modes > "$tmp.major"
 collect minor_modes > "$tmp.minor"
 
+# The upstream names of the modes whose Fortran name differs (the Fortran
+# names of tools/fortran-names.d), from the citations of the modes'
+# procedures ("Port of sh-script.el:sh-mode" above `shell_script_mode`):
+# UPSTREAM FORTRAN, both with underscores.  A file's `mode:` written for
+# Emacs is read through them.
+cat "$tmp.major" "$tmp.minor" > "$tmp.modes"
+find src -name '*.f90' ! -name modes_mod.f90 ! -name docstrings_mod.f90 | sort | xargs awk -v modes="$tmp.modes" '
+BEGIN { while ((getline m < modes) > 0) mode[m] = 1 }
+/^[ \t]*!/ { block = block " " $0; next }
+{
+    l = tolower($0)
+    if (match(l, /(subroutine|function)[ \t]+[a-z0-9_]+/) && l !~ /^[ \t]*end/) {
+        name = substr(l, RSTART, RLENGTH)
+        sub(/.*[ \t]/, "", name)
+        if (name in mode) {
+            b = block
+            gsub(/!>?/, " ", b)
+            while (match(b, /[a-z0-9+-]+\.el:[a-z0-9-]+-mode/)) {
+                u = substr(b, RSTART, RLENGTH)
+                b = substr(b, RSTART + RLENGTH)
+                sub(/.*:/, "", u)
+                gsub(/-/, "_", u)
+                if (u != name && !(u in mode)) print u, name
+            }
+        }
+    }
+    block = ""
+}' | sort -u > "$tmp.upstream"
+
 {
 cat <<'EOF'
 ! modes_mod.f90 -- the built-in major and minor modes.
@@ -87,7 +116,7 @@ module modes_mod
     implicit none(type, external)
     private
 
-    public :: major_mode_table_type, minor_mode_table_type, major_modes, minor_modes
+    public :: major_mode_table_type, minor_mode_table_type, major_modes, minor_modes, mode_name_of_upstream
 
     !> One component per built-in major mode.
     type :: major_mode_table_type
@@ -108,6 +137,38 @@ cat <<'EOF'
 
     !> The built-in minor modes.
     type(minor_mode_table_type), target :: minor_modes
+EOF
+n=$(wc -l < "$tmp.upstream")
+awk -v n="$n" '
+{ u[NR] = $1; f[NR] = $2; if (length($1) > w) w = length($1); if (length($2) > w) w = length($2) }
+END {
+    if (n == 0) { u[1] = ""; f[1] = ""; n = 1; w = 1 }
+    print ""
+    print "    ! The upstream names of the modes whose Fortran name differs, and"
+    print "    ! those Fortran names (upstream names: tools/fortran-names.d leaves them)."
+    print "    ! fortran-names: off"
+    printf "    character(len=%d), parameter :: upstream_names(%d) = [character(len=%d) :: &\n", w, n, w
+    for (i = 1; i <= n; i++) printf "        \"%s\"%s\n", u[i], (i < n ? ", &" : "]")
+    printf "    character(len=%d), parameter :: fortran_names(%d) = [character(len=%d) :: &\n", w, n, w
+    for (i = 1; i <= n; i++) printf "        \"%s\"%s\n", f[i], (i < n ? ", &" : "]")
+    print "    ! fortran-names: on"
+}' "$tmp.upstream"
+cat <<'EOF'
+
+contains
+
+    !> The Fortran name of the mode upstream names NAME (upstream's `sh-mode`,
+    !> written with underscores, is `shell_script_mode`), or NAME itself: how a file's `mode:` written
+    !> for Emacs is read.  Not a port.
+    pure function mode_name_of_upstream(name) result(mode)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: mode
+        integer :: k
+
+        mode = name
+        k = findloc(upstream_names, name, dim=1)
+        if (k > 0) mode = trim(fortran_names(k))
+    end function mode_name_of_upstream
 end module modes_mod
 EOF
 } > "$tmp.f90"

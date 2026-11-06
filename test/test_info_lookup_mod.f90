@@ -28,13 +28,13 @@ module test_info_lookup_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: current_buffer, set_buffer, close_buffer, get_buffer, get_or_make_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, file_name_as_directory
+    use editing_functions_mod, only: goto_character
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, file_name_as_directory
     use window_mod, only: window_configuration_type, current_window_configuration, set_window_configuration, &
                           switch_to_buffer
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use info_mod, only: info_directories, info_current_node, info_display_manual
-    use info_lookup_mod, only: info_lookup_add_help, info_lookup_doc_specs_type, info_lookup_name, &
+    use info_lookup_mod, only: info_lookup_add_help, info_lookup_doc_specifications_type, info_lookup_name, &
                                info_lookup_reset, info_lookup_guess_default
     implicit none(type, external)
     private
@@ -57,22 +57,22 @@ contains
     !> Search Info files in test/info-resources only, with help for the
     !> mode test_look_mode from the index of test.info.
     subroutine setup()
-        character(len=:), allocatable :: dir
-        type(info_lookup_doc_specs_type) :: specs
+        character(len=:), allocatable :: directory
+        type(info_lookup_doc_specifications_type) :: specifications
         type(status_type) :: st
         type(handle_type) :: b
 
-        call init_bindings()
-        call init_fileio()
-        call expand_file_name("test/info-resources", dir, st, fortmacs_wd)
-        dir = file_name_as_directory(dir)
+        call initialize_bindings()
+        call initialize_fileio()
+        call expand_file_name("test/info-resources", directory, st, fortmacs_wd)
+        directory = file_name_as_directory(directory)
         if (allocated(info_directories)) deallocate (info_directories)
-        ! (dir1 has a `dir' file for the directory node.)
-        allocate (character(len=len(dir) + 5) :: info_directories(2))
-        info_directories(1) = dir
-        info_directories(2) = dir//"dir1/"
-        call specs%append("(test)Index")
-        call info_lookup_add_help(mode="test_look_mode", regexp="[a-z]+", doc_spec=specs)
+        ! (dir1 has a `directory' file for the directory node.)
+        allocate (character(len=len(directory) + 5) :: info_directories(2))
+        info_directories(1) = directory
+        info_directories(2) = directory//"dir1/"
+        call specifications%append("(test)Index")
+        call info_lookup_add_help(mode="test_look_mode", regular_expression="[a-z]+", doc_specification=specifications)
         call info_lookup_reset(st)
         ! The buffer looked up from, in the selected window; no Info
         ! buffer left by an earlier lookup.
@@ -81,14 +81,14 @@ contains
         if (b%index /= 0) call close_buffer(b, st)
     end subroutine setup
 
-    !> Kill *info* and go back to OLD and the window configuration CONFIG.
-    subroutine teardown(old, config)
+    !> Kill *info* and go back to OLD and the window configuration CONFIGURATION.
+    subroutine teardown(old, configuration)
         type(handle_type), intent(in) :: old
-        type(window_configuration_type), intent(in) :: config
+        type(window_configuration_type), intent(in) :: configuration
         type(handle_type) :: b
         type(status_type) :: st
 
-        call set_window_configuration(config)
+        call set_window_configuration(configuration)
         b = get_buffer("*info*")
         if (b%index /= 0) call close_buffer(b, st)
         call set_buffer(old, st)
@@ -113,12 +113,12 @@ contains
     subroutine test_lookup_symbol(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, now
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
         call setup()
         old = current_buffer()
-        call current_window_configuration(config)
+        call current_window_configuration(configuration)
         call info_lookup_name("section", st, mode="test_look_mode")
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, info_node(), "Section One")
@@ -139,7 +139,7 @@ contains
             call check(error, format_error(st), "Not documented as a symbol: nothing")
         end if
 
-        call teardown(old, config)
+        call teardown(old, configuration)
     end subroutine test_lookup_symbol
 
     subroutine test_guess_default(error)
@@ -154,7 +154,7 @@ contains
         call get_or_make_buffer(" info-look test", b, st)
         call set_buffer(b, st)
         call insert("see the section here", st)
-        call goto_char(11_int64)
+        call goto_character(11_int64)
         call info_lookup_guess_default("symbol", "test_look_mode", guess, found)
         call check(error, found, "found a guess")
         if (.not. allocated(error)) call check(error, guess, "section")
@@ -165,12 +165,12 @@ contains
     subroutine test_display_manual(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old, b, now
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(status_type) :: st
 
         call setup()
         old = current_buffer()
-        call current_window_configuration(config)
+        call current_window_configuration(configuration)
         ! A new Info buffer for the manual.
         call info_display_manual("test", st)
         call check(error, st%ok(), format_error(st))
@@ -186,6 +186,6 @@ contains
             call close_buffer(b, st)
         end if
 
-        call teardown(old, config)
+        call teardown(old, configuration)
     end subroutine test_display_manual
 end module test_info_lookup_mod

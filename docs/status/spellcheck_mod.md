@@ -9,7 +9,7 @@
 `ispell-word` (M-$; region, CONTINUE, check-only, quiet),
 `ispell-region`,
 `ispell-buffer`,
-`ispell`,
+`spellcheck`,
 `ispell-continue`,
 `ispell-comments-and-strings`,
 `ispell-comment-or-string-at-point`,
@@ -17,14 +17,14 @@
 `ispell-kill-ispell`,
 `ispell-pdict-save`,
 `ispell-check-version` (also as a command);
-the process (`ispell-start-process`, `ispell-init-process`, `ispell-send-string`, `ispell-accept-output`, `ispell-filter`, `ispell-parse-output` as `ispell_output_type`, `ispell--run-on-word`, `ispell-correct-p`);
+the process (`ispell-start-process`, `ispell-init-process`, `ispell-send-string`, `ispell-accept-output`, `ispell-filter`, `ispell-parse-output` as `spellcheck_output_type`, `spellcheck--run-on-word`, `ispell-correct-p`);
 `ispell-get-word`;
 `ispell-command-loop` with the *Choices* buffer shown above the selected window (`ispell-display-buffer`, `ispell-show-choices`) and all its keys (digits, SPC, i, a, A, r, R, ?, x, X, q, l, u, m, C-l, C-r, C-u abbrev saving, C-z),
 `ispell-help` (minibuffer and buffer),
 `ispell-lookup-words` (look or grep);
-region skipping (`ispell-skip-region-alist` as `ispell_skip_regions`, the TeX and HTML ones, tib, comments, the file name and URL regexp);
+region skipping (`ispell-skip-region-alist` as `spellcheck_skip_regions`, the TeX and HTML ones, tib, comments, the file name and URL regexp);
 buffer-local definitions (`ispell-accept-buffer-local-defs`, `ispell-buffer-local-dict`, `-words`, `-parsing`, `ispell-add-per-file-word-list`, session local words);
-the dictionaries (`ispell-dictionary-base-alist` as `ispell_base_dictionaries`, `ispell-set-spellchecker-params`, the decoded character sets, Aspell's `ispell-find-aspell-dictionaries`, `ispell-aspell-find-dictionary`, `ispell-aspell-add-aliases`);
+the dictionaries (`ispell-dictionary-base-alist` as `spellcheck_base_dictionaries`, `ispell-set-spellchecker-params`, the decoded character sets, Aspell's `ispell-find-aspell-dictionaries`, `ispell-aspell-find-dictionary`, `ispell-aspell-add-aliases`);
 `ispell-program-name` detection;
 highlighting with an overlay
 

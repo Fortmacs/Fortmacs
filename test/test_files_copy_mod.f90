@@ -26,16 +26,16 @@
 module test_files_copy_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use bindings_mod, only: init_bindings
-    use error_mod, only: status_type, format_error, FM_FILE_ALREADY_EXISTS
+    use bindings_mod, only: initialize_bindings
+    use error_mod, only: status_type, format_error, FILE_ALREADY_EXISTS_CODE
     use handle_mod, only: handle_type
     use time_functions_mod, only: time_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, file_exists, is_file_directory, &
                                      write_region, create_directory_internal, copy_file, rename_file, add_name_to_file, &
                                      create_symbolic_link, set_file_modes, file_modes, set_file_times, file_attributes, &
-                                     file_stat_type, file_symlink_target, default_file_modes
+                                     file_status_type, file_symlink_target, default_file_modes
     use files_mod, only: delete_directory, copy_directory, file_modes_symbolic_to_number, &
                          file_modes_number_to_symbolic, is_file_in_directory, create_empty_file
     implicit none(type, external)
@@ -43,7 +43,7 @@ module test_files_copy_mod
 
     public :: collect_files_copy_mod
 
-    character(len=*), parameter :: subdir = "build/test-files-copy"
+    character(len=*), parameter :: subdirectory = "build/test-files-copy"
 
 contains
 
@@ -64,17 +64,17 @@ contains
                     ]
     end subroutine collect_files_copy_mod
 
-    function tdir() result(dir)
-        character(len=:), allocatable :: dir
+    function tdir() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
     end function tdir
 
     subroutine setup()
         type(status_type) :: st
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
         call create_directory_internal(tdir(), st)
     end subroutine setup
@@ -115,7 +115,7 @@ contains
         integer(int32) :: n
         integer :: k
 
-        call init_fileio()
+        call initialize_fileio()
 
         do k = 1, size(modes)
             call file_modes_symbolic_to_number(trim(modes(k)), n, st)
@@ -159,35 +159,35 @@ contains
     subroutine test_copy_directory(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        character(len=:), allocatable :: dirname, source, dest, source2, dest2, source3, dest3
+        character(len=:), allocatable :: directory_name, source, destination, source2, dest2, source3, dest3
 
         call setup()
 
         body: block
-            dirname = tdir()
-            source = dirname//"source"
-            dest = dirname//"dest/new/directory/"
-            source2 = dirname//"source2"
-            dest2 = dirname//"dest/new2"
-            source3 = dirname//"source3/d"
-            dest3 = dirname//"dest3/d"
+            directory_name = tdir()
+            source = directory_name//"source"
+            destination = directory_name//"dest/new/directory/"
+            source2 = directory_name//"source2"
+            dest2 = directory_name//"dest/new2"
+            source3 = directory_name//"source3/d"
+            dest3 = directory_name//"dest3/d"
             call create_directory_internal(source, st)
             call make_file("source/file", "")
-            call copy_directory(source, dest, st, keep_time=.true., parents=.true., copy_contents=.true.)
-            call check(error, st%ok() .and. file_exists(dest//"file"), format_error(st))
+            call copy_directory(source, destination, st, keep_time=.true., parents=.true., copy_contents=.true.)
+            call check(error, st%ok() .and. file_exists(destination//"file"), format_error(st))
             if (allocated(error)) exit body
             call create_directory_internal(source2, st)
             call create_directory_internal(source2//"/a", st)
             call copy_directory(source2, dest2, st)
             call check(error, st%ok() .and. is_file_directory(dest2//"/a"), format_error(st))
             if (allocated(error)) exit body
-            call create_directory_internal(dirname//"source3", st)
+            call create_directory_internal(directory_name//"source3", st)
             call create_directory_internal(source3, st)
             call make_file("source3/d/file", "x"//achar(10))
-            call create_directory_internal(dirname//"dest3", st)
+            call create_directory_internal(directory_name//"dest3", st)
             call create_directory_internal(dest3, st)
             call make_file("dest3/d/file", "y"//achar(10))
-            call copy_directory(source3, dirname//"dest3/", st, keep_time=.true.)
+            call copy_directory(source3, directory_name//"dest3/", st, keep_time=.true.)
             call check(error, st%ok(), format_error(st))
         end block body
 
@@ -206,7 +206,7 @@ contains
             call make_file("a", "1")
             call make_file("b", "2")
             call copy_file(tdir()//"a", tdir()//"b", st)
-            call check(error, st%code == FM_FILE_ALREADY_EXISTS, format_error(st))
+            call check(error, st%code == FILE_ALREADY_EXISTS_CODE, format_error(st))
             if (allocated(error)) exit body
             call check(error, format_error(st), "File already exists: "//tdir()//"b")
             if (allocated(error)) exit body
@@ -228,7 +228,7 @@ contains
     subroutine test_copy_keep_time(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(file_stat_type) :: a, b
+        type(file_status_type) :: a, b
         logical :: found
 
         call setup()
@@ -241,12 +241,12 @@ contains
             call copy_file(tdir()//"a", tdir()//"b", st, keep_time=.true.)
             call file_attributes(tdir()//"a", a, found)
             call file_attributes(tdir()//"b", b, found)
-            call check(error, st%ok() .and. a%mtime_sec == 1000000000_int64 .and. b%mtime_sec == a%mtime_sec, &
+            call check(error, st%ok() .and. a%mtime_second == 1000000000_int64 .and. b%mtime_second == a%mtime_second, &
                        format_error(st))
             if (allocated(error)) exit body
             call copy_file(tdir()//"a", tdir()//"c", st)
             call file_attributes(tdir()//"c", b, found)
-            call check(error, b%mtime_sec /= a%mtime_sec, "not kept")
+            call check(error, b%mtime_second /= a%mtime_second, "not kept")
         end block body
 
         call teardown()
@@ -263,7 +263,7 @@ contains
             call make_file("a", "1")
             call make_file("b", "2")
             call rename_file(tdir()//"a", tdir()//"b", st)
-            call check(error, st%code == FM_FILE_ALREADY_EXISTS .and. file_exists(tdir()//"a"), format_error(st))
+            call check(error, st%code == FILE_ALREADY_EXISTS_CODE .and. file_exists(tdir()//"a"), format_error(st))
             if (allocated(error)) exit body
             call rename_file(tdir()//"a", tdir()//"b", st, ok_if_already_exists=.true.)
             call check(error, st%ok() .and. .not. file_exists(tdir()//"a"), format_error(st))
@@ -280,7 +280,7 @@ contains
     subroutine test_add_name(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(file_stat_type) :: a
+        type(file_status_type) :: a
         logical :: found
 
         call setup()
@@ -292,7 +292,7 @@ contains
             call check(error, st%ok() .and. a%nlink == 2, format_error(st))
             if (allocated(error)) exit body
             call add_name_to_file(tdir()//"a", tdir()//"b", st)
-            call check(error, st%code == FM_FILE_ALREADY_EXISTS, format_error(st))
+            call check(error, st%code == FILE_ALREADY_EXISTS_CODE, format_error(st))
             if (allocated(error)) exit body
             call create_symbolic_link("a", tdir()//"l", st)
             call check(error, file_symlink_target(tdir()//"l"), "a")

@@ -30,7 +30,7 @@ module test_inotify_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
     use insert_delete_mod, only: insert
     use file_input_output_mod, only: write_region
-    use files_mod, only: create_temp_file, delete_file
+    use files_mod, only: create_temporary_file, delete_file
     use keyboard_mod, only: read_event
     use inotify_mod, only: watch_descriptor_type, inotify_event_type, inotify_add_watch, inotify_rm_watch, &
                            is_inotify_valid, INOTIFY_ALL_EVENTS, INOTIFY_IGNORED
@@ -67,13 +67,13 @@ contains
         character(len=*), intent(in) :: file, text
         type(handle_type) :: old, h
         type(status_type) :: st
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message_text
 
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *inotify-test*"), h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call write_region(file, .false., st, message=msg)
+        call write_region(file, .false., st, message=message_text)
         call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_file
@@ -132,41 +132,41 @@ contains
     !> Test if watching a normal file works.
     subroutine test_file_watch_simple(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: temp_file
+        character(len=:), allocatable :: temporary_file
         type(watch_descriptor_type) :: wd
         type(status_type) :: st
 
-        call create_temp_file("inotify-test", temp_file, st)
+        call create_temporary_file("inotify-test", temporary_file, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         events = 0
-        call inotify_add_watch(temp_file, INOTIFY_ALL_EVENTS, count_event, wd, st)
+        call inotify_add_watch(temporary_file, INOTIFY_ALL_EVENTS, count_event, wd, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call write_file(temp_file, "Foo"//achar(10))
+        call write_file(temporary_file, "Foo"//achar(10))
         call wait_until(has_events, 5.0)
         call check(error, events > 0, "no events")
         if (.not. allocated(error)) call check(error, is_inotify_valid(wd), "valid")
         call inotify_rm_watch(wd, st)
         if (.not. allocated(error)) call check(error,.not. is_inotify_valid(wd), "invalid after rm")
-        call delete_file(temp_file, st)
+        call delete_file(temporary_file, st)
     end subroutine test_file_watch_simple
 
     !> Test whether IN_IGNORE events are delivered.
     subroutine test_stop_delivery(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: temp_file
+        character(len=:), allocatable :: temporary_file
         type(watch_descriptor_type) :: wd
         type(status_type) :: st
 
-        call create_temp_file("inotify-test", temp_file, st)
+        call create_temporary_file("inotify-test", temporary_file, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         success = .false.
-        call inotify_add_watch(temp_file, INOTIFY_ALL_EVENTS, note_ignored, wd, st)
+        call inotify_add_watch(temporary_file, INOTIFY_ALL_EVENTS, note_ignored, wd, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call delete_file(temp_file, st)
+        call delete_file(temporary_file, st)
         call wait_until(has_success, 5.0)
         call check(error, success, "no ignored event")
     end subroutine test_stop_delivery

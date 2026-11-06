@@ -21,44 +21,44 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> MIME charsets and the coding systems behind them: which coding system
-!> decodes a MIME charset (`mime_charset_to_coding_system') and which MIME
-!> charset encodes a region (`find_mime_charset_region').  What is not
+!> decodes a MIME charset (`mime_character_set_to_coding_system') and which MIME
+!> charset encodes a region (`find_mime_character_set_region').  What is not
 !> ported yet is listed in docs/status/mime_utilities_mod.md.
 module mime_utilities_mod
-    use error_mod, only: status_type, set_error, FM_VOID_FUNCTION
+    use error_mod, only: status_type, set_error, VOID_FUNCTION_CODE
     use buffer_mod, only: buffers, current
     use editing_functions_mod, only: buffer_substring_no_properties
-    use coding_mod, only: is_coding_system, coding_system_mime_charset, coding_system_base, coding_system_list, &
+    use coding_mod, only: is_coding_system, coding_system_mime_character_set, coding_system_base, coding_system_list, &
                           find_coding_systems_text, coding_system_list_entry_type
     use multilingual_environment_mod, only: coding_system_from_name, current_language_environment
     use search_mod, only: string_match
-    use character_mod, only: string_char_and_length, is_char_byte8
+    use character_mod, only: string_character_and_length, is_character_byte8
     use display_engine_mod, only: message
     use, intrinsic :: iso_fortran_env, only: int32, int64
     implicit none(type, external)
     private
 
-    public :: mime_charset_to_coding_system, find_mime_charset_region
+    public :: mime_character_set_to_coding_system, find_mime_character_set_region
 
     !> A MIME charset name and the coding system that stands for it, as
-    !> `mime_charset_synonyms' and `mime_charset_overrides' hold them.
-    type, public :: mime_charset_coding_type
-        character(len=24) :: charset = ""
+    !> `mime_character_set_synonyms' and `mime_character_set_overrides' hold them.
+    type, public :: mime_character_set_coding_type
+        character(len=24) :: character_set = ""
         character(len=24) :: coding_system = ""
-    end type mime_charset_coding_type
+    end type mime_character_set_coding_type
 
     !> A mapping from unknown or invalid charset names to the real charset
     !> names (unallocated: computed on first use from the coding systems
     !> Fortmacs has).  Port of mm-util.el mm-charset-synonym-alist.
-    type(mime_charset_coding_type), allocatable, public :: mime_charset_synonyms(:)
+    type(mime_character_set_coding_type), allocatable, public :: mime_character_set_synonyms(:)
 
     !> A mapping from undesired charset names to their replacement.
     !>
-    !> You may add entries like mime_charset_coding_type("iso-8859-1",
+    !> You may add entries like mime_character_set_coding_type("iso-8859-1",
     !> "windows-1252") here, i.e. treat iso-8859-1 as windows-1252.
     !> windows-1252 is a superset of iso-8859-1.  Port of mm-util.el
     !> mm-charset-override-alist.
-    type(mime_charset_coding_type), allocatable, public :: mime_charset_overrides(:)
+    type(mime_character_set_coding_type), allocatable, public :: mime_character_set_overrides(:)
 
     !> Preferred coding systems for encoding outgoing messages.
     !>
@@ -84,13 +84,13 @@ contains
     ! mm-util.el:mm-charset-synonym-alist, mm-charset-override-alist and
     ! mm-coding-system-priorities.
     subroutine initialize_defaults()
-        if (.not. allocated(mime_charset_synonyms)) call make_synonyms()
+        if (.not. allocated(mime_character_set_synonyms)) call make_synonyms()
 
-        if (.not. allocated(mime_charset_overrides)) then
-            mime_charset_overrides = [mime_charset_coding_type("gb2312", "gbk"), &
-                                      mime_charset_coding_type("iso-8859-1", "windows-1252"), &
-                                      mime_charset_coding_type("iso-8859-8", "windows-1255"), &
-                                      mime_charset_coding_type("iso-8859-9", "windows-1254")]
+        if (.not. allocated(mime_character_set_overrides)) then
+            mime_character_set_overrides = [mime_character_set_coding_type("gb2312", "gbk"), &
+                                            mime_character_set_coding_type("iso-8859-1", "windows-1252"), &
+                                            mime_character_set_coding_type("iso-8859-8", "windows-1255"), &
+                                            mime_character_set_coding_type("iso-8859-9", "windows-1254")]
         end if
 
         if (.not. allocated(mime_coding_system_priorities)) then
@@ -117,7 +117,7 @@ contains
     ! The charset synonyms of the coding systems Fortmacs lacks.  Port of
     ! the value of mm-util.el mm-charset-synonym-alist.
     subroutine make_synonyms()
-        type(mime_charset_coding_type) :: entries(12)
+        type(mime_character_set_coding_type) :: entries(12)
         integer :: n
 
         n = 0
@@ -151,16 +151,16 @@ contains
         if (.not. is_coding_system("iso8859-1") .and. is_coding_system("iso-8859-1")) call add("iso8859-1", "iso-8859-1")
         ! ISO_8859-1 is a bogus name for ISO-8859-1
         if (.not. is_coding_system("iso_8859-1") .and. is_coding_system("iso-8859-1")) call add("iso_8859-1", "iso-8859-1")
-        mime_charset_synonyms = entries(1:n)
+        mime_character_set_synonyms = entries(1:n)
 
     contains
 
-        ! Add CHARSET and CODING_SYSTEM.
-        subroutine add(charset, coding_system)
-            character(len=*), intent(in) :: charset, coding_system
+        ! Add CHARACTER_SET and CODING_SYSTEM.
+        subroutine add(character_set, coding_system)
+            character(len=*), intent(in) :: character_set, coding_system
 
             n = n + 1
-            entries(n) = mime_charset_coding_type(charset, coding_system)
+            entries(n) = mime_character_set_coding_type(character_set, coding_system)
         end subroutine add
     end subroutine make_synonyms
 
@@ -177,19 +177,19 @@ contains
         end do
     end function ascii_downcase
 
-    !> Return the coding system corresponding to CHARSET, a MIME charset
+    !> Return the coding system corresponding to CHARACTER_SET, a MIME charset
     !> name (any case), or "" if Fortmacs has none.  US-ASCII (and the
     !> names matching "ansi.x3.4") gives "ascii", which is not a coding
     !> system.
     !>
-    !> If ALLOW_OVERRIDE is true, use `mime_charset_overrides' to map
+    !> If ALLOW_OVERRIDE is true, use `mime_character_set_overrides' to map
     !> undesired charset names to their replacement.  This should only be
     !> used for decoding, not for encoding.
     !>
     !> A charset no coding system stands for shows "Unknown charset: NAME".
     !> Port of mm-util.el:mm-charset-to-coding-system.
-    function mime_charset_to_coding_system(charset, allow_override) result(coding_system)
-        character(len=*), intent(in) :: charset
+    function mime_character_set_to_coding_system(character_set, allow_override) result(coding_system)
+        character(len=*), intent(in) :: character_set
         logical, intent(in), optional :: allow_override
         character(len=:), allocatable :: coding_system
         type(coding_system_list_entry_type), allocatable :: names(:)
@@ -198,7 +198,7 @@ contains
         integer :: k
 
         call initialize_defaults()
-        name = ascii_downcase(charset)
+        name = ascii_downcase(character_set)
         coding_system = ""
         if (len(name) == 0) return
 
@@ -206,12 +206,12 @@ contains
         ! not for encoding!
         if (present(allow_override)) then
             if (allow_override) then
-                k = findloc(mime_charset_overrides%charset == name, .true., dim=1)
+                k = findloc(mime_character_set_overrides%character_set == name, .true., dim=1)
 
                 if (k > 0) then
-                    if (len_trim(mime_charset_overrides(k)%coding_system) > 0) then
-                        if (is_coding_system(trim(mime_charset_overrides(k)%coding_system))) then
-                            coding_system = trim(mime_charset_overrides(k)%coding_system)
+                    if (len_trim(mime_character_set_overrides(k)%coding_system) > 0) then
+                        if (is_coding_system(trim(mime_character_set_overrides(k)%coding_system))) then
+                            coding_system = trim(mime_character_set_overrides(k)%coding_system)
                             return
                         end if
                     end if
@@ -242,12 +242,12 @@ contains
         end if
 
         ! Translate invalid charsets.
-        k = findloc(mime_charset_synonyms%charset == name, .true., dim=1)
+        k = findloc(mime_character_set_synonyms%character_set == name, .true., dim=1)
 
         if (k > 0) then
-            if (len_trim(mime_charset_synonyms(k)%coding_system) > 0) then
-                if (is_coding_system(trim(mime_charset_synonyms(k)%coding_system))) then
-                    coding_system = trim(mime_charset_synonyms(k)%coding_system)
+            if (len_trim(mime_character_set_synonyms(k)%coding_system) > 0) then
+                if (is_coding_system(trim(mime_character_set_synonyms(k)%coding_system))) then
+                    coding_system = trim(mime_character_set_synonyms(k)%coding_system)
                     return
                 end if
             end if
@@ -259,7 +259,7 @@ contains
         call coding_system_list(names)
 
         do k = 1, size(names)
-            if (coding_system_mime_charset(names(k)%name) == name) then
+            if (coding_system_mime_character_set(names(k)%name) == name) then
                 coding_system = names(k)%name
                 return
             end if
@@ -267,27 +267,27 @@ contains
 
         ! Warn the user about unknown charset:
         call message("Unknown charset: "//name)
-    end function mime_charset_to_coding_system
+    end function mime_character_set_to_coding_system
 
     !> Return the MIME charsets needed to encode the region between B and E
-    !> in CHARSETS: none means ASCII, one element represents an appropriate
+    !> in CHARACTER_SETS: none means ASCII, one element represents an appropriate
     !> MIME charset, and more elements mean no appropriate charset.  Text
     !> that no coding system with a MIME charset encodes and that is not
     !> ASCII or raw bytes is a `void_function' error condition in STATUS
     !> (mm-find-charset-region and mm-mime-charset are not ported yet).
     !> Port of mm-util.el:mm-find-mime-charset-region (no HACK-CHARSETS).
-    subroutine find_mime_charset_region(b, e, charsets, status)
+    subroutine find_mime_character_set_region(b, e, character_sets, status)
         integer(int64), intent(in) :: b, e
-        character(len=:), allocatable, intent(out) :: charsets(:)
+        character(len=:), allocatable, intent(out) :: character_sets(:)
         type(status_type), intent(out) :: status
         type(coding_system_list_entry_type), allocatable :: systems(:)
-        character(len=:), allocatable :: text, charset
+        character(len=:), allocatable :: text, character_set
         integer, allocatable :: ranks(:), order(:)
         integer :: k, j, rank
         logical :: all
 
         call initialize_defaults()
-        allocate (character(len=0) :: charsets(0))
+        allocate (character(len=0) :: character_sets(0))
         call buffer_substring_no_properties(b, e, text, status)
         if (.not. status%ok()) return
 
@@ -332,17 +332,17 @@ contains
 
                 do k = 1, size(order)
                     if (systems(order(k))%name == "compound-text") cycle
-                    charset = coding_system_mime_charset(systems(order(k))%name)
-                    if (len(charset) == 0) cycle
+                    character_set = coding_system_mime_character_set(systems(order(k))%name)
+                    if (len(character_set) == 0) cycle
                     ! The mime-charset (`x-ctext') of `compound-text' is not
                     ! in the IANA list.  We shouldn't normally use anything
                     ! here with a mime-charset having an `x-' prefix.  Also
                     ! UTF-16 of any variety is invalid for text parts.
-                    if (index(charset, "x-") == 1 .or. index(charset, "X-") == 1) cycle
-                    if (index(charset, "utf-16") > 0) cycle
-                    deallocate (charsets)
-                    allocate (character(len=len(charset)) :: charsets(1))
-                    charsets(1) = charset
+                    if (index(character_set, "x-") == 1 .or. index(character_set, "X-") == 1) cycle
+                    if (index(character_set, "utf-16") > 0) cycle
+                    deallocate (character_sets)
+                    allocate (character(len=len(character_set)) :: character_sets(1))
+                    character_sets(1) = character_set
                     return
                 end do
             end if
@@ -350,8 +350,8 @@ contains
 
         ! We're not multibyte, or a single coding system won't cover it:
         ! ASCII (and raw bytes) need no charset.
-        if (.not. is_ascii_or_raw(text)) call set_error(status, FM_VOID_FUNCTION, "mm-find-charset-region")
-    end subroutine find_mime_charset_region
+        if (.not. is_ascii_or_raw(text)) call set_error(status, VOID_FUNCTION_CODE, "mm-find-charset-region")
+    end subroutine find_mime_character_set_region
 
     ! Whether TEXT, in the current buffer's representation, holds only
     ! ASCII characters and, in a multibyte buffer, raw bytes.  Not a port.
@@ -370,8 +370,8 @@ contains
             end if
 
             if (.not. buffers(current)%multibyte) return
-            call string_char_and_length(text, k, c, length)
-            if (.not. is_char_byte8(c)) return
+            call string_character_and_length(text, k, c, length)
+            if (.not. is_character_byte8(c)) return
             k = k + length
         end do
 

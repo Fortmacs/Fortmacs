@@ -31,9 +31,9 @@
 module thing_at_point_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_substring
-    use editing_commands_mod, only: forward_char
-    use search_mod, only: re_search_forward, match_beginning, match_end, SEARCH_NOERROR
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_substring
+    use editing_commands_mod, only: forward_character
+    use search_mod, only: regular_expression_search_forward, match_beginning, match_end, SEARCH_NOERROR
     implicit none(type, external)
     private
 
@@ -41,51 +41,51 @@ module thing_at_point_mod
 
     !> A regexp matching a decimal number.  Port of thingatpt.el
     !> thing-at-point-decimal-regexp.
-    character(len=*), parameter, public :: thing_at_point_decimal_regexp = "-?[0-9]+\.?[0-9]*"
+    character(len=*), parameter, public :: thing_at_point_decimal_regular_expression = "-?[0-9]+\.?[0-9]*"
 
     !> A regexp matching a hexadecimal number.  Port of thingatpt.el
     !> thing-at-point-hexadecimal-regexp.
-    character(len=*), parameter, public :: thing_at_point_hexadecimal_regexp = "\(0x\|#x\)\([a-fA-F0-9]+\)"
+    character(len=*), parameter, public :: thing_at_point_hexadecimal_regular_expression = "\(0x\|#x\)\([a-fA-F0-9]+\)"
 
 contains
 
-    !> Return true if point is in or just after a match for REGEXP.
+    !> Return true if point is in or just after a match for REGULAR_EXPRESSION.
     !> Set the match data from the earliest such match ending at or after
     !> point.
     !>
-    !> Optional argument DISTANCE limits search for REGEXP forward and
+    !> Optional argument DISTANCE limits search for REGULAR_EXPRESSION forward and
     !> back from point.  Port of thingatpt.el:thing-at-point-looking-at.
-    logical function thing_at_point_looking_at(regexp, distance) result(found)
-        character(len=*), intent(in) :: regexp
+    logical function thing_at_point_looking_at(regular_expression, distance) result(found)
+        character(len=*), intent(in) :: regular_expression
         integer(int64), intent(in), optional :: distance
-        integer(int64) :: old, beginning, end, prev, match, mb, me
+        integer(int64) :: old, beginning, end, previous, match, mb, me
         type(status_type) :: st
 
         old = point()
-        beginning = point_min()
-        if (present(distance)) beginning = max(point_min(), old - distance)
+        beginning = point_minimum()
+        if (present(distance)) beginning = max(point_minimum(), old - distance)
         end = 0
-        if (present(distance)) end = min(point_max(), old + distance)
-        call goto_char(beginning)
+        if (present(distance)) end = min(point_maximum(), old + distance)
+        call goto_character(beginning)
 
         do
-            prev = point()
+            previous = point()
 
             if (end > 0) then
-                call re_search_forward(regexp, match, st, bound=end, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(regular_expression, match, st, bound=end, noerror=SEARCH_NOERROR)
             else
-                call re_search_forward(regexp, match, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(regular_expression, match, st, noerror=SEARCH_NOERROR)
             end if
 
             if (.not. st%ok()) match = 0
             if (match <= 0) exit
             if (.not. match_end(0, st) < old) exit
-            call goto_char(match_beginning(0, st))
-            ! Avoid inflooping when `regexp' matches the empty string.
-            if (.not. prev < point()) call forward_char(st)
+            call goto_character(match_beginning(0, st))
+            ! Avoid inflooping when `regular_expression' matches the empty string.
+            if (.not. previous < point()) call forward_character(st)
         end do
 
-        call goto_char(old)
+        call goto_character(old)
         found = .false.
 
         if (match > 0) then
@@ -110,7 +110,7 @@ contains
 
         n = 0
         is_integer = .false.
-        found = thing_at_point_looking_at(thing_at_point_hexadecimal_regexp, 500_int64)
+        found = thing_at_point_looking_at(thing_at_point_hexadecimal_regular_expression, 500_int64)
 
         if (found) then
             call buffer_substring(match_beginning(2, st), match_end(2, st), text, st)
@@ -125,7 +125,7 @@ contains
             return
         end if
 
-        found = thing_at_point_looking_at(thing_at_point_decimal_regexp, 500_int64)
+        found = thing_at_point_looking_at(thing_at_point_decimal_regular_expression, 500_int64)
         if (.not. found) return
         call buffer_substring(match_beginning(0, st), match_end(0, st), text, st)
         k = index(text, ".")

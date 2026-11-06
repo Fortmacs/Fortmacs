@@ -30,11 +30,11 @@ module text_mode_mod
     use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
-    use abbreviation_mod, only: abbrev_table_type
+    use abbreviation_mod, only: abbreviation_table_type
     implicit none(type, external)
     private
 
-    public :: text_mode, init_text_mode
+    public :: text_mode, initialize_text_mode
 
     !> True if this buffer's major mode is a variant of Text mode.
     !> Obsolete since 27.1: don't set it, and instead of testing its value
@@ -56,13 +56,13 @@ module text_mode_mod
 
     !> Abbrev table for `text_mode'.  Port of text-mode.el
     !> text-mode-abbrev-table (made by define-derived-mode).
-    type(abbrev_table_type), target, public :: text_mode_abbrev_table
+    type(abbreviation_table_type), target, public :: text_mode_abbreviation_table
 
 contains
 
     !> Build text-mode-syntax-table.
     !> Port of the text-mode-syntax-table defvar of text-mode.el.
-    subroutine init_text_mode_syntax_table()
+    subroutine initialize_text_mode_syntax_table()
         type(status_type) :: st
 
         call make_syntax_table(text_mode_syntax_table, st)
@@ -80,7 +80,7 @@ contains
         call modify_syntax_entry(int(z'b7'), int(z'b7'), "w   ", st, text_mode_syntax_table)
         call modify_syntax_entry(int(z'2027'), int(z'2027'), "w   ", st, text_mode_syntax_table)
         call modify_syntax_entry(int(z'ff1a'), int(z'ff1a'), "w   ", st, text_mode_syntax_table)
-    end subroutine init_text_mode_syntax_table
+    end subroutine initialize_text_mode_syntax_table
 
     !> Major mode for editing text written for humans to read.
     !> In this mode, paragraphs are delimited only by blank or white lines.
@@ -92,7 +92,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. is_syntax_table_live(text_mode_syntax_table)) call init_text_mode()
+        if (.not. is_syntax_table_live(text_mode_syntax_table)) call initialize_text_mode()
         call major_modes%text_mode%begin(saved, status)
         if (.not. status%ok()) return
         call text_mode_variant%set_local(.true.)
@@ -102,11 +102,11 @@ contains
 
     !> Define Text mode.
     !> Not a port: upstream defines Text mode at top level.
-    subroutine init_text_mode()
-        if (.not. is_syntax_table_live(text_mode_syntax_table)) call init_text_mode_syntax_table()
+    subroutine initialize_text_mode()
+        if (.not. is_syntax_table_live(text_mode_syntax_table)) call initialize_text_mode_syntax_table()
         call major_modes%text_mode%define("text_mode", "Text", text_mode, text_mode_hook, &
-                                          syntax_table=text_mode_syntax_table, abbrev_table=text_mode_abbrev_table)
+                                          syntax_table=text_mode_syntax_table, abbreviation_table=text_mode_abbreviation_table)
         text_mode_map = major_modes%text_mode%map
         commands%text_mode%execute => text_mode
-    end subroutine init_text_mode
+    end subroutine initialize_text_mode
 end module text_mode_mod

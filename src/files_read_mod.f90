@@ -26,9 +26,9 @@ submodule(files_mod) files_read_mod
                               read_file_name_completion_ignore_case, read_file_name_internal, completion_table_with_context
     use minibuffer_reading_mod, only: all_completions
     use minibuffer_reading_tables_mod, only: completion_table_type, COMPLETE_BOUNDARIES
-    use value_mod, only: list, make_list, list_length, list_elt, xstring, value_type
+    use value_mod, only: list, make_list, list_length, list_element, xstring, value_type
     use directory_editor_mod, only: file_name_all_completions
-    use regular_expression_optimization_mod, only: regexp_opt, REGEXP_OPT_GROUP
+    use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     use search_mod, only: string_match, match_beginning
     use file_input_output_mod, only: is_file_name_absolute
     use utility_functions_mod, only: compare_strings, COMPARE_EQUAL
@@ -51,7 +51,7 @@ contains
     type(value_type), allocatable :: names(:), fullnames(:), items(:)
     type(value_type) :: files, matched
     type(completion_table_type) :: table
-    character(len=:), allocatable :: sufre, string_dir, string_file, dir, file, sfx, x, first
+    character(len=:), allocatable :: sufre, string_directory, string_file, directory, file, sfx, x, first
     integer(int64) :: k, mb
     integer :: d, nn, nf, i
     type(status_type) :: st
@@ -90,31 +90,31 @@ contains
     ! it's the only remaining element in the list, in which case we do
     ! list "foo", "foo.elc" and "foo.el").
     allocate (names(0), fullnames(0))
-    sufre = regexp_opt(suffixes, REGEXP_OPT_GROUP)//"\'"
-    string_dir = file_name_directory(string)
+    sufre = regular_expression_optimization(suffixes, REGULAR_EXPRESSION_OPTIMIZATION_GROUP)//"\'"
+    string_directory = file_name_directory(string)
     string_file = file_name_nondirectory(string)
 
-    do d = 1, size(dirs)
-        dir = trim(dirs(d))
+    do d = 1, size(directories)
+        directory = trim(directories(d))
 
-        if (len(dir) == 0) then
-            dir = "./"
+        if (len(directory) == 0) then
+            directory = "./"
 
             if (current > 0) then
-                if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+                if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
             end if
         end if
 
-        if (len(string_dir) > 0) then
-            call expand_file_name(string_dir, x, st, dir)
-            dir = x
+        if (len(string_directory) > 0) then
+            call expand_file_name(string_directory, x, st, directory)
+            directory = x
         end if
 
-        if (.not. is_file_directory(dir)) cycle
-        call file_name_all_completions(string_file, dir, files, st)
+        if (.not. is_file_directory(directory)) cycle
+        call file_name_all_completions(string_file, directory, files, st)
 
         do k = 1, list_length(files)
-            file = xstring(list_elt(files, k))
+            file = xstring(list_element(files, k))
 
             if (string_match(sufre, file, st) <= 0) then
                 call prepend(names, file)
@@ -139,7 +139,7 @@ contains
     allocate (names(nn))
 
     do i = 1, nn
-        names(i) = list_elt(matched, int(i, int64))
+        names(i) = list_element(matched, int(i, int64))
     end do
 
     ! Remove duplicates of the first element, so that we can easily check
@@ -168,7 +168,7 @@ contains
     end if
 
     table%list = make_list(names)
-    call completion_table_with_context(string_dir, table, string_file, action, result, status, test, suffix)
+    call completion_table_with_context(string_directory, table, string_file, action, result, status, test, suffix)
 
 contains
 
@@ -200,7 +200,7 @@ contains
     !> (no remote files; case is folded when
     !> `read_file_name_completion_ignore_case' is true).
     module procedure file_relative_name
-    character(len=:), allocatable :: dir, file, file_dir, ancestor, base, rest
+    character(len=:), allocatable :: directory_name, file, file_directory, ancestor, base, rest
     type(status_type) :: st
     logical :: fold
 
@@ -214,15 +214,15 @@ contains
         end if
     end if
 
-    call expand_file_name(base, dir, st)
-    dir = file_name_as_directory(dir)
+    call expand_file_name(base, directory_name, st)
+    directory_name = file_name_as_directory(directory_name)
     call expand_file_name(filename, file, st)
     fold = read_file_name_completion_ignore_case
     ancestor = "."
-    file_dir = file_name_as_directory(file)
+    file_directory = file_name_as_directory(file)
 
-    do while (.not. (is_prefix(dir, file_dir) .or. is_prefix(dir, file)))
-        dir = file_name_directory(dir(1:len(dir) - 1))
+    do while (.not. (is_prefix(directory_name, file_directory) .or. is_prefix(directory_name, file)))
+        directory_name = file_name_directory(directory_name(1:len(directory_name) - 1))
 
         if (ancestor == ".") then
             ancestor = ".."
@@ -232,20 +232,20 @@ contains
     end do
 
     ! Now ancestor is empty, or .., or ../.., etc.
-    if (is_prefix(dir, file)) then
+    if (is_prefix(directory_name, file)) then
         ! We matched within FILENAME's directory part.  Add the rest of
         ! FILENAME onto ANCESTOR.
-        rest = file(len(dir) + 1:)
+        rest = file(len(directory_name) + 1:)
 
         if (ancestor == "." .and. len(rest) > 0) then
             ! But don't bother with ANCESTOR if it would give us `./'.
-            rel = rest
+            relative = rest
         else
-            rel = file_name_as_directory(ancestor)//rest
+            relative = file_name_as_directory(ancestor)//rest
         end if
     else
         ! We matched FILENAME's directory equivalent.
-        rel = ancestor
+        relative = ancestor
     end if
 
 contains
@@ -265,12 +265,12 @@ contains
     end function is_prefix
     end procedure file_relative_name
 
-    recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, dir, &
+    recursive module subroutine read_file_name_in_minibuffer(prompt, result, status, directory, &
                                                              default_filename, initial_input, confirm_nonexistent)
         character(len=*), intent(in) :: prompt
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: dir, default_filename, initial_input
+        character(len=*), intent(in), optional :: directory, default_filename, initial_input
         logical, intent(in), optional :: confirm_nonexistent
         integer :: mustmatch
 
@@ -280,7 +280,7 @@ contains
             if (confirm_nonexistent) mustmatch = REQUIRE_MATCH_CONFIRM_AFTER_COMPLETION
         end if
 
-        call read_file_name(prompt, result, status, dir, default_filename, mustmatch=mustmatch, initial_input=initial_input)
+        call read_file_name(prompt, result, status, directory, default_filename, mustmatch=mustmatch, initial_input=initial_input)
     end subroutine read_file_name_in_minibuffer
 
     !> Visit FILENAME with FIND (`find_file', `find_file_other_window' or
@@ -295,7 +295,7 @@ contains
         status = status_type()
 
         if (.not. file_exists(filename)) then
-            call set_error(status, FM_GENERIC_ERROR, filename//" does not exist")
+            call set_error(status, GENERIC_ERROR_CODE, filename//" does not exist")
             return
         end if
 
@@ -330,17 +330,17 @@ contains
     !> Like \[find_file], but marks buffer as read-only.
     !> Use \[read_only_mode] to permit editing.  Port of
     !> files.el:find-file-read-only (interactive), with find-file-read-args.
-    recursive subroutine cmd_find_file_read_only(status)
+    recursive subroutine execute_find_file_read_only(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: filename, dir
+        character(len=:), allocatable :: filename, directory
 
-        dir = "~/"
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
-        call read_file_name_in_minibuffer("Find file read-only: ", filename, status, default_filename=dir, &
+        directory = "~/"
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
+        call read_file_name_in_minibuffer("Find file read-only: ", filename, status, default_filename=directory, &
                                           confirm_nonexistent=.true.)
         if (.not. status%ok()) return
         call find_file_read_only(filename, status)
-    end subroutine cmd_find_file_read_only
+    end subroutine execute_find_file_read_only
 
     !> Edit file FILENAME in another window but don't allow changes.
     !> Like \[find_file_other_window], but marks buffer as read-only.
@@ -350,55 +350,55 @@ contains
     !> when it decides whether to split the window horizontally or vertically.
     !> Port of files.el:find-file-read-only-other-window (interactive), with
     !> find-file-read-args.
-    recursive subroutine cmd_find_file_read_only_other_window(status)
+    recursive subroutine execute_find_file_read_only_other_window(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: filename, dir
+        character(len=:), allocatable :: filename, directory
 
-        dir = "~/"
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        directory = "~/"
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         call read_file_name_in_minibuffer("Find file read-only other window: ", filename, status, &
-                                          default_filename=dir, confirm_nonexistent=.true.)
+                                          default_filename=directory, confirm_nonexistent=.true.)
         if (.not. status%ok()) return
         call find_file_read_only_other_window(filename, status)
-    end subroutine cmd_find_file_read_only_other_window
+    end subroutine execute_find_file_read_only_other_window
 
     !> Edit file FILENAME in another frame but don't allow changes.
     !> Like \[find_file_other_frame], but marks buffer as read-only.
     !> Use \[read_only_mode] to permit editing.  Port of
     !> files.el:find-file-read-only-other-frame (interactive), with
     !> find-file-read-args.
-    recursive subroutine cmd_find_file_read_only_other_frame(status)
+    recursive subroutine execute_find_file_read_only_other_frame(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: filename, dir
+        character(len=:), allocatable :: filename, directory
 
-        dir = "~/"
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        directory = "~/"
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
         call read_file_name_in_minibuffer("Find file read-only other frame: ", filename, status, &
-                                          default_filename=dir, confirm_nonexistent=.true.)
+                                          default_filename=directory, confirm_nonexistent=.true.)
         if (.not. status%ok()) return
         call find_file_read_only_other_frame(filename, status)
-    end subroutine cmd_find_file_read_only_other_frame
+    end subroutine execute_find_file_read_only_other_frame
 
-    module subroutine init_files_read(ctl_x_map, ctl_x_4_map)
-        type(handle_type), intent(in) :: ctl_x_map
-        type(handle_type), intent(in), optional :: ctl_x_4_map
+    module subroutine initialize_files_read(control_x_map, control_x_4_map)
+        type(handle_type), intent(in) :: control_x_map
+        type(handle_type), intent(in), optional :: control_x_4_map
         type(value_type) :: key(1)
         type(status_type) :: status
 
-        commands%find_file_read_only%execute => cmd_find_file_read_only
-        commands%find_file_read_only_other_window%execute => cmd_find_file_read_only_other_window
-        commands%find_file_read_only_other_frame%execute => cmd_find_file_read_only_other_frame
+        commands%find_file_read_only%execute => execute_find_file_read_only
+        commands%find_file_read_only_other_window%execute => execute_find_file_read_only_other_window
+        commands%find_file_read_only_other_frame%execute => execute_find_file_read_only_other_frame
         ! files.el: (define-key ctl-x-map "\C-r" 'find-file-read-only)
         key(1) = value_type(18_int64)
-        call define_key(ctl_x_map, key, value_type(name="find_file_read_only"), status)
+        call define_key(control_x_map, key, value_type(name="find_file_read_only"), status)
         ! files.el: (define-key ctl-x-map "\C-q" 'read-only-mode)
         key(1) = value_type(17_int64)
-        call define_key(ctl_x_map, key, value_type(name="read_only_mode"), status)
+        call define_key(control_x_map, key, value_type(name="read_only_mode"), status)
 
-        if (present(ctl_x_4_map)) then
+        if (present(control_x_4_map)) then
             ! files.el: (define-key ctl-x-4-map "r" 'find-file-read-only-other-window)
             key(1) = value_type(int(iachar("r"), int64))
-            call define_key(ctl_x_4_map, key, value_type(name="find_file_read_only_other_window"), status)
+            call define_key(control_x_4_map, key, value_type(name="find_file_read_only_other_window"), status)
         end if
-    end subroutine init_files_read
+    end subroutine initialize_files_read
 end submodule files_read_mod

@@ -70,6 +70,20 @@ function load_names(table, line, f, n, lineno, files, nfiles, k, file, total) {
                 fn_terms[tolower(f[2])] = f[3]
                 fn_terms[tolower(f[2]) "s"] = f[3] "s"
                 fn_cand = fn_cand (fn_cand == "" ? "" : "|") tolower(f[2])
+            } else if ((f[1] == "word" || f[1] == "part") && n == 3) {
+                # A plural entry after its singular one (word dir directory,
+                # word dirs directories) replaces the singular's "s" plural.
+                if (f[1] == "word") fn_words[tolower(f[2])] = f[3]
+                else fn_parts[tolower(f[2])] = f[3]
+                if (!((tolower(f[2]) "s") in fn_explicit)) {
+                    if (f[1] == "word") fn_words[tolower(f[2]) "s"] = f[3] "s"
+                    else fn_parts[tolower(f[2]) "s"] = f[3] "s"
+                }
+                fn_explicit[tolower(f[2])] = 1
+                fn_cand = fn_cand (fn_cand == "" ? "" : "|") tolower(f[2])
+            } else if (f[1] == "prefix" && n == 3) {
+                fn_prefix[tolower(f[2])] = f[3]
+                fn_cand = fn_cand (fn_cand == "" ? "" : "|") tolower(f[2]) "_"
             } else if (f[1] == "name" && n == 4) {
                 add_scoped_name(f[2], f[3], f[4])
             } else if (f[1] == "name" && n == 3) {
@@ -137,10 +151,32 @@ function casefix(orig, new) {
     return new
 }
 
-# TOK (an identifier or word) renamed.  Sets `fn_first' to whether its first
-# part changed.
-function rename(tok, n, i, j, len, key, out, seg, done, lp, sn) {
+# TOK renamed by the table, again and again until nothing changes (a new
+# name of one entry can hold an old word of another: auto_coding_regexps,
+# a plural name, holds regexp).  Sets `fn_first' to whether the first part
+# changed.
+function rename(tok, new, next_new, first, k) {
+    new = rename_once(tok)
+    first = fn_first
+    for (k = 1; k <= 5; k++) {
+        next_new = rename_once(new)
+        if (next_new == new) break
+        new = next_new
+    }
+    fn_first = first
+    return new
+}
+
+# TOK (an identifier or word) renamed once.  Sets `fn_first' to whether its first
+# part changed.  `fn_text' says where TOK is: 0 (the default) in code, 1 in
+# a string literal or a file name, 2 in a comment or other prose.  Word,
+# part and prefix entries (spelled-out abbreviations) rename a token of
+# text only when it is a name written in it: it has an underscore, or, in
+# a comment, it is all upper case or quoted (`pos'), as docstrings name
+# arguments.
+function rename_once(tok, n, i, j, len, key, out, seg, done, lp, sn, ident) {
     n = split(tok, fn_part, "_")
+    ident = (fn_text == 0 || n > 1 || (fn_text == 2 && (tok ~ /^[A-Z][A-Z0-9]+$/ || fn_quoted)))
     out = ""
     fn_first = 0
     i = 1
@@ -166,12 +202,21 @@ function rename(tok, n, i, j, len, key, out, seg, done, lp, sn) {
                 if (i == 1) fn_first = 1
                 i += len
                 done = 1
+            } else if (len == 1 && i == 1 && n > 1 && ident && (key in fn_prefix)) {
+                # A prefix: cmd_upcase_region -> execute_upcase_region.
+                out = casefix(seg, fn_prefix[key])
+                fn_first = 1
+                i += len
+                done = 1
             }
         }
         if (!done) {
             lp = tolower(fn_part[i])
             if (lp in fn_terms) {
                 out = out (i > 1 ? "_" : "") casefix(fn_part[i], fn_terms[lp])
+                if (i == 1) fn_first = 1
+            } else if (ident && ((lp in fn_words) || (n > 1 && (lp in fn_parts)))) {
+                out = out (i > 1 ? "_" : "") casefix(fn_part[i], (lp in fn_words) ? fn_words[lp] : fn_parts[lp])
                 if (i == 1) fn_first = 1
             } else {
                 out = out (i > 1 ? "_" : "") fn_part[i]
@@ -231,6 +276,7 @@ function apply_line(line, out, rest, tok, new, before, pos) {
     fn_nrenamed = 0
     if (tolower(line) !~ fn_cand) return line
     mark_literals(line)
+    mark_context(line)
     out = ""
     rest = line
     pos = 0
@@ -240,6 +286,8 @@ function apply_line(line, out, rest, tok, new, before, pos) {
         rest = substr(rest, RSTART + RLENGTH)
         pos += RSTART
         new = tok
+        fn_text = fn_ctx[pos]
+        fn_quoted = (before ~ /`$/ && rest ~ /^'/)
         if (!((pos in fn_lit) || protected(before, rest, tok))) {
             # An interface named *_proc (R2-Q10: interfaces end _procedure, and
             # `proc' alone means a process): after `procedure(`, or the header
@@ -263,7 +311,37 @@ function apply_line(line, out, rest, tok, new, before, pos) {
         }
         out = before new
     }
+    fn_text = 0
+    fn_quoted = 0
     return out rest
+}
+
+# Marks in `fn_ctx' where each character of LINE is (for `fn_text'): in a
+# Fortran file (FILENAME ends in .f90), 0 in code, 1 in a string literal
+# and 2 in a comment; in a Markdown file 2 everywhere, in any other
+# file 1 (a script's code, where only names with an underscore are names).
+function mark_context(line, i, c, q, ctx, fortran) {
+    for (i in fn_ctx) delete fn_ctx[i]
+    fortran = (FILENAME ~ /\.f90$/)
+    q = ""
+    ctx = fortran ? 0 : (FILENAME ~ /\.md$/ ? 2 : 1)
+    for (i = 1; i <= length(line); i++) {
+        c = substr(line, i, 1)
+        if (fortran && ctx != 2) {
+            if (q != "") {
+                fn_ctx[i] = 1
+                if (c == q) q = ""
+                continue
+            } else if (c == "\"" || c == "'") {
+                q = c
+                fn_ctx[i] = 1
+                continue
+            } else if (c == "!") {
+                ctx = 2
+            }
+        }
+        fn_ctx[i] = ctx
+    }
 }
 
 # The index of LINE's comment character `!' (0 for none), outside strings.
@@ -291,5 +369,8 @@ function check_file_name(path, base, stem, ext) {
         ext = substr(stem, RSTART)
         stem = substr(stem, 1, RSTART - 1)
     }
-    return rename(stem) ext
+    fn_text = 1
+    stem = rename(stem)
+    fn_text = 0
+    return stem ext
 }

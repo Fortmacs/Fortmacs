@@ -1,0 +1,5 @@
+# fortran_completion_mode (an added feature, owner 2026-11-05).  The
+# generated table of the configuration API's types repeats the names of
+# the sources it is made from, which are checked themselves (keep entries
+# such as comint_stop_subjob's list the files that may use a name).
+keep	src/fortran_completion_table_mod.f90

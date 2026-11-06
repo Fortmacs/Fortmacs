@@ -28,8 +28,8 @@ module test_quoted_printable_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point_min, point_max
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: buffer_string, point_minimum, point_maximum
+    use bindings_mod, only: initialize_bindings
     use coding_mod, only: encode_coding_region
     use quoted_printable_mod, only: decode_quoted_printable_region, decode_quoted_printable_string, &
                                     encode_quoted_printable_region, encode_quoted_printable_string
@@ -76,7 +76,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *qp-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -97,8 +97,8 @@ contains
         integer(int64) :: inserted
 
         call temporary_buffer(QUOTE_QP, h)
-        call encode_coding_region(point_min(), point_max(), "utf-8", inserted, st)
-        if (st%ok()) call decode_quoted_printable_region(point_min(), point_max(), st, "utf-8")
+        call encode_coding_region(point_minimum(), point_maximum(), "utf-8", inserted, st)
+        if (st%ok()) call decode_quoted_printable_region(point_minimum(), point_maximum(), st, "utf-8")
         call check_string(error, buffer_string(), QUOTE_UTF8)
         call close_buffer(h, st)
     end subroutine test_decode_region
@@ -121,7 +121,7 @@ contains
         type(status_type) :: st
 
         call temporary_buffer(repeat("=", 26), h)
-        call encode_quoted_printable_region(point_min(), point_max(), st, .true.)
+        call encode_quoted_printable_region(point_minimum(), point_maximum(), st, .true.)
         call check_string(error, buffer_string(), "=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D"// &
                           "=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D="//LF//"=3D")
         call close_buffer(h, st)

@@ -27,11 +27,11 @@ module test_page_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, buffer_substring, widen, is_bob, &
-                                     region_beginning, region_end
-    use editing_commands_mod, only: forward_char, forward_line
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_string, buffer_substring, widen, &
+                                     is_beginning_of_buffer, region_beginning, region_end
+    use editing_commands_mod, only: forward_character, forward_line
     use search_mod, only: looking_at
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use page_mod, only: forward_page, backward_page, mark_page, narrow_to_page, page_count_lines_page, page_what_page
     implicit none(type, external)
     private
@@ -59,17 +59,17 @@ contains
 
     !> A fresh buffer holding TEXT, point at its end (with-temp-buffer,
     !> insert).
-    subroutine temp_buffer()
+    subroutine temporary_buffer()
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *page-test*", buffer, st)
         call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
         call insert(TEXT, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> (looking-at-p (concat "\n" S))
     logical function at_page(s)
@@ -94,12 +94,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call forward_page(st, -1_int64)
         call check(error, at_page("baz"), "-1")
         if (allocated(error)) return
         call forward_page(st, -2_int64)
-        call check(error, point() == point_min(), "-2")
+        call check(error, point() == point_minimum(), "-2")
         if (allocated(error)) return
         call forward_page(st, 1_int64)
         call check(error, at_page("bar"), "1")
@@ -108,14 +108,14 @@ contains
         call check(error, at_page("baz"), "nil")
         if (allocated(error)) return
         call forward_page(st, 1_int64)
-        call check(error, point() == point_max(), "1 to the end")
+        call check(error, point() == point_maximum(), "1 to the end")
     end subroutine test_forward_page
 
     subroutine test_backward_page(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call backward_page(st, 1_int64)
         call check(error, at_page("baz"), "1")
         if (allocated(error)) return
@@ -123,20 +123,20 @@ contains
         call check(error, at_page("bar"), "nil")
         if (allocated(error)) return
         call backward_page(st, 1_int64)
-        call check(error, point() == point_min(), "1 to the start")
+        call check(error, point() == point_minimum(), "1 to the start")
         if (allocated(error)) return
         call backward_page(st, -1_int64)
         call check(error, at_page("bar"), "-1")
         if (allocated(error)) return
         call backward_page(st, -2_int64)
-        call check(error, point() == point_max(), "-2")
+        call check(error, point() == point_maximum(), "-2")
     end subroutine test_backward_page
 
     subroutine test_mark_page(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call mark_page(0_int64, st)
         call check(error, region_string(), achar(10)//"baz")
         if (allocated(error)) return
@@ -151,8 +151,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
-        call goto_char(point_min())
+        call temporary_buffer()
+        call goto_character(point_minimum())
 
         checks: block
             call narrow_to_page(0_int64, st)
@@ -165,15 +165,15 @@ contains
             call check(error, buffer_string(), "bar"//achar(10))
             if (allocated(error)) exit checks
             call widen()
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call narrow_to_page(0_int64, st)
             call check(error, buffer_string(), "foo"//achar(10))
             if (allocated(error)) exit checks
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call narrow_to_page(2_int64, st)
             call check(error, buffer_string(), "baz")
             if (allocated(error)) exit checks
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call narrow_to_page(-1_int64, st)
             call check(error, buffer_string(), "bar"//achar(10))
         end block checks
@@ -185,12 +185,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: total, before, after
 
-        call temp_buffer()
-        call goto_char(point_min())
+        call temporary_buffer()
+        call goto_character(point_minimum())
         call page_count_lines_page(total, before, after)
         call check(error, total == 1 .and. before == 0 .and. after == 1, "(1 0 1)")
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call page_count_lines_page(total, before, after)
         call check(error, total == 2 .and. before == 2 .and. after == 0, "(2 2 0)")
     end subroutine test_count_lines_page
@@ -200,12 +200,12 @@ contains
         integer(int64) :: page, line, shortage
         type(status_type) :: st
 
-        call temp_buffer()
-        call goto_char(point_min())
+        call temporary_buffer()
+        call goto_character(point_minimum())
         call page_what_page(page, line)
         call check(error, page == 1 .and. line == 1, "(1 1)")
         if (allocated(error)) return
-        call forward_char(st)
+        call forward_character(st)
         call page_what_page(page, line)
         call check(error, page == 1 .and. line == 1, "(1 1) after a char")
         if (allocated(error)) return

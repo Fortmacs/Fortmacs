@@ -29,7 +29,7 @@
 !> known, so the "-1 = unknown" convention is replaced by optional
 !> arguments.
 !>
-!> String and regexp search (`search_forward', `re_search_forward',
+!> String and regexp search (`search_forward', `regular_expression_search_forward',
 !> `looking_at', `string_match' and their relatives) with the case table,
 !> a cache of compiled patterns and the match data.  regular_expression_mod does
 !> the matching.
@@ -38,22 +38,22 @@
 !> `index' (Emacs counts from 0), so that 0 can stand for none.
 !>
 !> A search while a process filter or sentinel runs saves the match data
-!> first (`running_asynch_code', `save_search_regs'), which the process
+!> first (`running_asynchronous_code', `save_search_regs'), which the process
 !> code then restores.
 !>
 !> Deferred: `match_data' markers, `inhibit_changing_match_data',
 !> Boyer-Moore search, the newline cache.
 module search_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_SEARCH_FAILED, FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, SEARCH_FAILED_CODE, ARGUMENTS_OUT_OF_RANGE_CODE
     use handle_mod, only: handle_type
     use print_mod, only: fortran_string
     use data_mod, only: logical_setting_type
-    use character_mod, only: string_char_and_length, char_bytes, is_char_head
+    use character_mod, only: string_character_and_length, character_bytes, is_character_head
     use case_table_mod, only: case_canon
-    use buffer_mod, only: buffers, current, buf_prev_char_len, temp_set_point_both, buf_fetch_char, &
-                          buf_next_char_len, current_buffer
-    use marker_mod, only: char_to_byte, byte_to_char
+    use buffer_mod, only: buffers, current, buffer_previous_character_length, temporary_set_point_both, buffer_fetch_character, &
+                          buffer_next_character_length, current_buffer
+    use marker_mod, only: character_to_byte, byte_to_character
     implicit none(type, external)
     private
 
@@ -61,15 +61,15 @@ module search_mod
               find_newline_no_quit, find_before_next_newline
     public :: search_forward, search_backward, search_buffer, match_beginning, match_end, update_search_regs, &
               match_buffer
-    public :: re_search_forward, re_search_backward, posix_search_forward, posix_search_backward, &
+    public :: regular_expression_search_forward, regular_expression_search_backward, posix_search_forward, posix_search_backward, &
               looking_at, posix_looking_at, string_match, posix_string_match, match_data, set_match_data, &
-              regexp_quote, is_match_in_string, init_search, replace_match, match_data_translate, &
+              regular_expression_quote, is_match_in_string, initialize_search, replace_match, match_data_translate, &
               save_search_regs, restore_search_regs, record_unwind_save_match_data, unwind_set_match_data, &
-              begin_running_asynch_code, end_running_asynch_code, &
+              begin_running_asynchronous_code, end_running_asynchronous_code, &
               fast_string_match, fast_looking_at
-    ! For search_regexp_mod (gfortran makes private procedures invisible to
+    ! For search_regular_expression_mod (gfortran makes private procedures invisible to
     ! submodules).
-    public :: string_chars, string_index_to_offset, string_offset_to_index, clear_search_regs, ensure_search_regs, &
+    public :: string_characters, string_index_to_offset, string_offset_to_index, clear_search_regs, ensure_search_regs, &
               matcher_overflow, &
               search_command
 
@@ -85,14 +85,14 @@ module search_mod
     !> If allocated, the regexp that replaces spaces in a regexp being
     !> compiled; unallocated for none.  Port of search.c
     !> search-spaces-regexp.
-    character(len=:), allocatable, public :: search_spaces_regexp
+    character(len=:), allocatable, public :: search_spaces_regular_expression
 
     !> The match data of the last search (search.c:search_regs), indexed
     !> by group: buffer positions or string indices, -1 when unset.  The
-    !> size is search_regs.num_regs: unallocated is 0.
+    !> size is search_regs.number_regs: unallocated is 0.
     integer(int64), allocatable :: search_regs_start(:), search_regs_end(:)
-    !> Registers a regexp match first allocates (regex-emacs.c RE_NREGS).
-    integer, parameter :: RE_NREGS = 30
+    !> Registers a regexp match first allocates (regex-emacs.c REGULAR_EXPRESSION_NREGS).
+    integer, parameter :: REGULAR_EXPRESSION_NREGS = 30
     !> The buffer of the last search (last_thing_searched), unless it was
     !> on a string.
     type(handle_type) :: last_thing_searched
@@ -100,8 +100,8 @@ module search_mod
 
     !> True while a process filter or sentinel runs: a search then saves
     !> the match data first (`save_search_regs'), and the process code
-    !> restores it afterwards.  Port of emacs.c running_asynch_code.
-    logical, public :: running_asynch_code = .false.
+    !> restores it afterwards.  Port of emacs.c running_asynchronous_code.
+    logical, public :: running_asynchronous_code = .false.
 
     !> The match data `save_search_regs' saved (search.c
     !> saved_search_regs, saved_last_thing_searched); unallocated when
@@ -113,19 +113,19 @@ module search_mod
     character(len=*), parameter :: newline = achar(10)
 
     interface
-        !> Port of search.c:looking_at_1.  (In search_regexp_mod.)
-        recursive module function looking_at_1(regexp, posix, modify_data, status) result(matched)
+        !> Port of search.c:looking_at_1.  (In search_regular_expression_mod.)
+        recursive module function looking_at_1(regular_expression, posix, modify_data, status) result(matched)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp
+            character(len=*), intent(in) :: regular_expression
             logical, intent(in) :: posix, modify_data
             type(status_type), intent(out) :: status
             logical :: matched
         end function looking_at_1
 
-        !> Port of search.c:string_match_1.  (In search_regexp_mod.)
-        recursive module function string_match_1(regexp, string, start, posix, modify_data, status) result(index)
+        !> Port of search.c:string_match_1.  (In search_regular_expression_mod.)
+        recursive module function string_match_1(regular_expression, string, start, posix, modify_data, status) result(index)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp, string
+            character(len=*), intent(in) :: regular_expression, string
             integer(int64), intent(in), optional :: start
             logical, intent(in) :: posix, modify_data
             type(status_type), intent(out) :: status
@@ -133,16 +133,17 @@ module search_mod
         end function string_match_1
 
         !> Regexp search for `search_buffer'.  Port of
-        !> search.c:search_buffer_re.  (In search_regexp_mod.)
-        recursive module function search_buffer_regexp(string, pos_in, pos_byte_in, lim, lim_byte, n_in, fold, posix, status) &
+        !> search.c:search_buffer_re.  (In search_regular_expression_mod.)
+        recursive module function search_buffer_regular_expression(string, position_in, position_byte_in, limit, limit_byte, n_in, &
+                                                                   fold, posix, status) &
             result(np)
             implicit none(type, external)
             character(len=*), intent(in) :: string
-            integer(int64), intent(in) :: pos_in, pos_byte_in, lim, lim_byte, n_in
+            integer(int64), intent(in) :: position_in, position_byte_in, limit, limit_byte, n_in
             logical, intent(in) :: fold, posix
             type(status_type), intent(inout) :: status
             integer(int64) :: np
-        end function search_buffer_regexp
+        end function search_buffer_regular_expression
 
         !> Replace text matched by last search with NEWTEXT.
         !> Leave point at the end of the replacement text.
@@ -164,7 +165,7 @@ module search_mod
         !>        If Nth parens didn't match, substitute nothing.
         !>   `\\' means insert one `\'.
         !>   `\?' is treated literally
-        !>        (for compatibility with `query_replace_regexp').
+        !>        (for compatibility with `query_replace_regular_expression').
         !>   Any other character following `\' makes an error condition occur.
         !> Case conversion does not apply to these substitutions.
         !>
@@ -178,7 +179,7 @@ module search_mod
         !> The optional fifth argument SUBEXP specifies a subexpression;
         !> it says to replace just that subexpression with NEWTEXT, rather
         !> than replacing the entire matched text.  Port of
-        !> search.c:Freplace_match.  (In search_regexp_mod.)
+        !> search.c:Freplace_match.  (In search_regular_expression_mod.)
         recursive module subroutine replace_match(newtext, status, fixedcase, literal, string, subexp, result)
             implicit none(type, external)
             character(len=*), intent(in) :: newtext
@@ -189,39 +190,39 @@ module search_mod
             character(len=:), allocatable, intent(out), optional :: result
         end subroutine replace_match
 
-        !> Match REGEXP against STRING, folding case when FOLD (through the
+        !> Match REGULAR_EXPRESSION against STRING, folding case when FOLD (through the
         !> case canon table), searching all of STRING, and return the index
         !> of the match (1-based), or 0 on failure.  This does not clobber
         !> the match data.  Port of search.c:fast_string_match_internal and
-        !> search.c:fast_c_string_match_internal (in search_regexp_mod).
-        recursive module function fast_string_match(regexp, string, fold, status) result(index)
+        !> search.c:fast_c_string_match_internal (in search_regular_expression_mod).
+        recursive module function fast_string_match(regular_expression, string, fold, status) result(index)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp, string
+            character(len=*), intent(in) :: regular_expression, string
             logical, intent(in) :: fold
             type(status_type), intent(out) :: status
             integer(int64) :: index
         end function fast_string_match
 
-        !> Match REGEXP against the characters after POS to LIMIT, and
+        !> Match REGULAR_EXPRESSION against the characters after POSITION to LIMIT, and
         !> return the number of matched bytes, or -1.  If STRING is present,
-        !> match against the characters in it.  In that case, POS and LIMIT
+        !> match against the characters in it.  In that case, POSITION and LIMIT
         !> are indices into the string (1-based).  This function doesn't
         !> modify the match data.  Port of search.c:fast_looking_at (in
-        !> search_regexp_mod).
-        recursive module function fast_looking_at(regexp, pos, limit, status, string) result(length)
+        !> search_regular_expression_mod).
+        recursive module function fast_looking_at(regular_expression, position, limit, status, string) result(length)
             implicit none(type, external)
-            character(len=*), intent(in) :: regexp
-            integer(int64), intent(in) :: pos, limit
+            character(len=*), intent(in) :: regular_expression
+            integer(int64), intent(in) :: position, limit
             type(status_type), intent(out) :: status
             character(len=*), intent(in), optional :: string
             integer(int64) :: length
         end function fast_looking_at
 
-        !> Register the search commands.  (In search_regexp_mod.)  Port of
+        !> Register the search commands.  (In search_regular_expression_mod.)  Port of
         !> search.c:syms_of_search (its commands).
-        module subroutine init_search()
+        module subroutine initialize_search()
             implicit none(type, external)
-        end subroutine init_search
+        end subroutine initialize_search
     end interface
 
 contains
@@ -291,87 +292,87 @@ contains
     end function previous_newline_byte
 
     !> Search for `count' newlines from `start' toward `end' (forward if
-    !> count > 0, backward if count < 0; `end' defaults to ZV or BEGV).
+    !> count > 0, backward if count < 0; `end' defaults to END_OF_ACCESSIBLE_PORTION or BEGINNING_OF_ACCESSIBLE_PORTION).
     !> Returns the position just after the count'th newline found -- also
     !> when searching backward -- or `end' if there are fewer.  `counted'
-    !> receives the number found (negated when backward); `bytepos' the
+    !> receives the number found (negated when backward); `byte_position' the
     !> byte position of the result.  Port of search.c:find_newline (with no
     !> newline cache, as search.c:find_newline1, which is find_newline
     !> without the cache, searching forward).
-    integer(int64) function find_newline(start, end, count, counted, bytepos, start_byte, end_byte) &
-        result(pos)
+    integer(int64) function find_newline(start, end, count, counted, byte_position, start_byte, end_byte) &
+        result(position)
         integer(int64), intent(in) :: start, count
         integer(int64), intent(in), optional :: end, start_byte, end_byte
-        integer(int64), intent(out), optional :: counted, bytepos
-        integer(int64) :: lim, lim_byte, pos_byte, nl, left
+        integer(int64), intent(out), optional :: counted, byte_position
+        integer(int64) :: limit, limit_byte, position_byte, newline, left
 
         associate (b => buffers(current))
             if (present(end)) then
-                lim = end
+                limit = end
 
                 if (present(end_byte)) then
-                    lim_byte = end_byte
+                    limit_byte = end_byte
                 else
-                    lim_byte = char_to_byte(end)
+                    limit_byte = character_to_byte(end)
                 end if
             else if (count > 0) then
-                lim = b%zv
-                lim_byte = b%zv_byte
+                limit = b%end_of_accessible_portion
+                limit_byte = b%end_of_accessible_portion_byte
             else
-                lim = b%begv
-                lim_byte = b%begv_byte
+                limit = b%beginning_of_accessible_portion
+                limit_byte = b%beginning_of_accessible_portion_byte
             end if
         end associate
 
         if (present(start_byte)) then
-            pos_byte = start_byte
+            position_byte = start_byte
         else
-            pos_byte = char_to_byte(start)
+            position_byte = character_to_byte(start)
         end if
 
         left = count
 
         if (count > 0) then
-            do while (pos_byte < lim_byte)
-                nl = next_newline_byte(pos_byte, lim_byte)
-                if (nl == 0) exit
-                pos_byte = nl + 1
+            do while (position_byte < limit_byte)
+                newline = next_newline_byte(position_byte, limit_byte)
+                if (newline == 0) exit
+                position_byte = newline + 1
                 left = left - 1
 
                 if (left == 0) then
-                    call finish(byte_to_char(pos_byte), pos_byte)
+                    call finish(byte_to_character(position_byte), position_byte)
                     return
                 end if
             end do
         else if (count < 0) then
-            do while (pos_byte > lim_byte)
-                nl = previous_newline_byte(lim_byte, pos_byte)
-                if (nl == 0) exit
+            do while (position_byte > limit_byte)
+                newline = previous_newline_byte(limit_byte, position_byte)
+                if (newline == 0) exit
                 left = left + 1
 
                 if (left >= 0) then
-                    call finish(byte_to_char(nl + 1), nl + 1)
+                    call finish(byte_to_character(newline + 1), newline + 1)
                     return
                 end if
 
-                pos_byte = nl
+                position_byte = newline
             end do
         else
             ! count == 0: "do anything you please"; stay put.
-            lim = start
-            lim_byte = pos_byte
+            limit = start
+            limit_byte = position_byte
         end if
 
         ! Fewer than COUNT newlines: stop at the limit.
-        call finish(lim, lim_byte)
+        call finish(limit, limit_byte)
 
     contains
 
         subroutine finish(p, pbyte)
             integer(int64), intent(in) :: p, pbyte
 
-            pos = p
-            if (present(bytepos)) bytepos = pbyte
+            position = p
+            if (present(byte_position)) byte_position = pbyte
             if (present(counted)) counted = count - left
         end subroutine finish
     end function find_newline
@@ -380,58 +381,60 @@ contains
     !> if there are fewer.  Port of search.c:scan_newline.
     subroutine scan_newline(start, start_byte, limit, limit_byte, count)
         integer(int64), intent(in) :: start, start_byte, limit, limit_byte, count
-        integer(int64) :: charpos, bytepos, counted
+        integer(int64) :: character_position, byte_position, counted
 
-        charpos = find_newline(start, limit, count, counted, bytepos, start_byte, limit_byte)
+        character_position = find_newline(start, limit, count, counted, byte_position, start_byte, limit_byte)
 
         if (counted /= count) then
-            call temp_set_point_both(buffers(current), limit, limit_byte)
+            call temporary_set_point_both(buffers(current), limit, limit_byte)
         else
-            call temp_set_point_both(buffers(current), charpos, bytepos)
+            call temporary_set_point_both(buffers(current), character_position, byte_position)
         end if
     end subroutine scan_newline
 
     !> Scan `count' lines from point (count <= 0: to the start of the line
     !> |count| lines back) without moving point.  Returns how many newlines
     !> were found.  Port of search.c:scan_newline_from_point.
-    integer(int64) function scan_newline_from_point(count, charpos, bytepos) result(counted)
+    integer(int64) function scan_newline_from_point(count, character_position, byte_position) result(counted)
         integer(int64), intent(in) :: count
-        integer(int64), intent(out) :: charpos, bytepos
+        integer(int64), intent(out) :: character_position, byte_position
 
         associate (b => buffers(current))
             if (count <= 0) then
-                charpos = find_newline(b%pt, b%begv, count - 1, counted, bytepos, b%pt_byte, b%begv_byte)
+                character_position = find_newline(b%point, b%beginning_of_accessible_portion, count - 1, counted, byte_position, &
+                                                  b%point_byte, b%beginning_of_accessible_portion_byte)
             else
-                charpos = find_newline(b%pt, b%zv, count, counted, bytepos, b%pt_byte, b%zv_byte)
+                character_position = find_newline(b%point, b%end_of_accessible_portion, count, counted, byte_position, &
+                                                  b%point_byte, b%end_of_accessible_portion_byte)
             end if
         end associate
     end function scan_newline_from_point
 
     !> Port of search.c:find_newline_no_quit.
-    integer(int64) function find_newline_no_quit(from, frombyte, cnt, bytepos)
-        integer(int64), intent(in) :: from, frombyte, cnt
-        integer(int64), intent(out), optional :: bytepos
+    integer(int64) function find_newline_no_quit(from, frombyte, count_value, byte_position)
+        integer(int64), intent(in) :: from, frombyte, count_value
+        integer(int64), intent(out), optional :: byte_position
 
-        find_newline_no_quit = find_newline(from, count=cnt, bytepos=bytepos, start_byte=frombyte)
+        find_newline_no_quit = find_newline(from, count=count_value, byte_position=byte_position, start_byte=frombyte)
     end function find_newline_no_quit
 
     !> Like `find_newline', but returns the position before the newline,
-    !> searching no further than `to' (default: ZV/BEGV).
+    !> searching no further than `to' (default: END_OF_ACCESSIBLE_PORTION/BEGINNING_OF_ACCESSIBLE_PORTION).
     !> Port of search.c:find_before_next_newline.
-    integer(int64) function find_before_next_newline(from, cnt, bytepos, to) result(pos)
-        integer(int64), intent(in) :: from, cnt
-        integer(int64), intent(out), optional :: bytepos
+    integer(int64) function find_before_next_newline(from, count, byte_position, to) result(position)
+        integer(int64), intent(in) :: from, count
+        integer(int64), intent(out), optional :: byte_position
         integer(int64), intent(in), optional :: to
         integer(int64) :: counted, pbyte
 
-        pos = find_newline(from, to, cnt, counted, pbyte)
+        position = find_newline(from, to, count, counted, pbyte)
 
-        if (counted == cnt) then
-            pos = pos - 1
-            pbyte = pbyte - buf_prev_char_len(buffers(current), pbyte)
+        if (counted == count) then
+            position = position - 1
+            pbyte = pbyte - buffer_previous_character_length(buffers(current), pbyte)
         end if
 
-        if (present(bytepos)) bytepos = pbyte
+        if (present(byte_position)) byte_position = pbyte
     end function find_before_next_newline
 
     ! ------------------------------------------------------------------
@@ -449,7 +452,7 @@ contains
         index = 1
 
         do i = 1, off
-            if (is_char_head(ichar(string(i:i), int32))) index = index + 1
+            if (is_character_head(ichar(string(i:i), int32))) index = index + 1
         end do
     end function string_offset_to_index
 
@@ -465,14 +468,14 @@ contains
         n = 1
 
         do while (n < index .and. off < len(string, kind=int64))
-            call string_char_and_length(string, off + 1, c, clen)
+            call string_character_and_length(string, off + 1, c, clen)
             off = off + clen
             n = n + 1
         end do
     end function string_index_to_offset
 
     !> Number of characters in STRING.  Not a port.
-    pure integer(int64) function string_chars(string) result(n)
+    pure integer(int64) function string_characters(string) result(n)
         character(len=*), intent(in) :: string
         integer(int64) :: off
         integer(int32) :: c, clen
@@ -481,11 +484,11 @@ contains
         off = 0
 
         do while (off < len(string, kind=int64))
-            call string_char_and_length(string, off + 1, c, clen)
+            call string_character_and_length(string, off + 1, c, clen)
             off = off + clen
             n = n + 1
         end do
-    end function string_chars
+    end function string_characters
 
     !> Make the match data `n' empty registers.  Not a port.
     subroutine clear_search_regs(n)
@@ -501,8 +504,8 @@ contains
     end subroutine clear_search_regs
 
     !> Make room in the match data for the `n' registers of a regexp match
-    !> and unset them all, as re_match_2_internal does with
-    !> REGS_UNALLOCATED (max (RE_NREGS, n) registers the first time) and
+    !> and unset them all, as regular_expression_match_2_internal does with
+    !> REGS_UNALLOCATED (max (REGULAR_EXPRESSION_NREGS, n) registers the first time) and
     !> REGS_REALLOCATE (grow by half when too few, never shrink).  Port of
     !> the register allocation in regex-emacs.c:re_match_2_internal.
     subroutine ensure_search_regs(n)
@@ -510,7 +513,7 @@ contains
         integer :: m
 
         if (.not. allocated(search_regs_start)) then
-            m = max(RE_NREGS, n)
+            m = max(REGULAR_EXPRESSION_NREGS, n)
         else
             m = size(search_regs_start)
             if (m < n) m = max(m + m/2, n)
@@ -523,20 +526,20 @@ contains
     ! Matching at point and in strings
     ! ------------------------------------------------------------------
 
-    !> Return true if text after point matches regular expression REGEXP.
+    !> Return true if text after point matches regular expression REGULAR_EXPRESSION.
     !> By default, this function modifies the match data that
     !> `match_beginning', `match_end' and `match_data' access.  If
     !> INHIBIT_MODIFY is true, don't modify the match data.  Port of
     !> search.c:Flooking_at.
-    recursive logical function looking_at(regexp, status, inhibit_modify) result(matched)
-        character(len=*), intent(in) :: regexp
+    recursive logical function looking_at(regular_expression, status, inhibit_modify) result(matched)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_modify
 
-        matched = looking_at_1(regexp, .false.,.not. opt(inhibit_modify), status)
+        matched = looking_at_1(regular_expression, .false.,.not. option(inhibit_modify), status)
     end function looking_at
 
-    !> Return true if text after point matches REGEXP according to Posix rules.
+    !> Return true if text after point matches REGULAR_EXPRESSION according to Posix rules.
     !> Find the longest match, in accordance with Posix regular expression
     !> rules.
     !>
@@ -544,23 +547,23 @@ contains
     !> `match_beginning', `match_end' and `match_data' access.  If
     !> INHIBIT_MODIFY is true, don't modify the match data.  Port of
     !> search.c:Fposix_looking_at.
-    recursive logical function posix_looking_at(regexp, status, inhibit_modify) result(matched)
-        character(len=*), intent(in) :: regexp
+    recursive logical function posix_looking_at(regular_expression, status, inhibit_modify) result(matched)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: inhibit_modify
 
-        matched = looking_at_1(regexp, .true.,.not. opt(inhibit_modify), status)
+        matched = looking_at_1(regular_expression, .true.,.not. option(inhibit_modify), status)
     end function posix_looking_at
 
     !> The value of an optional logical, false if absent.  Not a port.
-    pure logical function opt(flag)
+    pure logical function option(flag)
         logical, intent(in), optional :: flag
 
-        opt = .false.
-        if (present(flag)) opt = flag
-    end function opt
+        option = .false.
+        if (present(flag)) option = flag
+    end function option
 
-    !> Return index of start of first match for REGEXP in STRING, or
+    !> Return index of start of first match for REGULAR_EXPRESSION in STRING, or
     !> 0.  Matching ignores case if `case_fold_search' is true.  If
     !> START is present, start search at that index in STRING.
     !>
@@ -570,22 +573,22 @@ contains
     !> `match_end' and `match_beginning' give indices of substrings matched
     !> by parenthesis constructs in the pattern.  You can use the function
     !> `match_string' to extract the substrings matched by the parenthesis
-    !> constructions in REGEXP.  For index of first char beyond the match,
+    !> constructions in REGULAR_EXPRESSION.  For index of first char beyond the match,
     !> use `match_end(0)'.
     !>
     !> Indices are 1-based character indices, as Fortran's `index' (Emacs
     !> counts from 0); a negative START counts from the end.  Port of
     !> search.c:Fstring_match.
-    recursive integer(int64) function string_match(regexp, string, status, start, inhibit_modify) result(index)
-        character(len=*), intent(in) :: regexp, string
+    recursive integer(int64) function string_match(regular_expression, string, status, start, inhibit_modify) result(index)
+        character(len=*), intent(in) :: regular_expression, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
         logical, intent(in), optional :: inhibit_modify
 
-        index = string_match_1(regexp, string, start, .false.,.not. opt(inhibit_modify), status)
+        index = string_match_1(regular_expression, string, start, .false.,.not. option(inhibit_modify), status)
     end function string_match
 
-    !> Return index of start of first match for Posix REGEXP in STRING, or
+    !> Return index of start of first match for Posix REGULAR_EXPRESSION in STRING, or
     !> 0.  Find the longest match, in accord with Posix regular
     !> expression rules.  Case is ignored if `case_fold_search' is true
     !> in the current buffer.
@@ -596,15 +599,15 @@ contains
     !> `match_end' and `match_beginning' give indices of substrings matched
     !> by parenthesis constructs in the pattern.  You can use the function
     !> `match_string' to extract the substrings matched by the parenthesis
-    !> constructions in REGEXP.  For index of first char beyond the match,
+    !> constructions in REGULAR_EXPRESSION.  For index of first char beyond the match,
     !> use `match_end(0)'.  Port of search.c:Fposix_string_match.
-    recursive integer(int64) function posix_string_match(regexp, string, status, start, inhibit_modify) result(index)
-        character(len=*), intent(in) :: regexp, string
+    recursive integer(int64) function posix_string_match(regular_expression, string, status, start, inhibit_modify) result(index)
+        character(len=*), intent(in) :: regular_expression, string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: start
         logical, intent(in), optional :: inhibit_modify
 
-        index = string_match_1(regexp, string, start, .true.,.not. opt(inhibit_modify), status)
+        index = string_match_1(regular_expression, string, start, .true.,.not. option(inhibit_modify), status)
     end function posix_string_match
 
     !> Signal that the matcher's stack overflowed (matcher_overflow).
@@ -612,7 +615,7 @@ contains
     subroutine matcher_overflow(status)
         type(status_type), intent(inout) :: status
 
-        call set_error(status, FM_GENERIC_ERROR, "Stack overflow in regexp matcher")
+        call set_error(status, GENERIC_ERROR_CODE, "Stack overflow in regexp matcher")
     end subroutine matcher_overflow
 
     ! ------------------------------------------------------------------
@@ -668,7 +671,7 @@ contains
         call search_command(string, -1_int64, .false., .false., found, status, bound, noerror, count)
     end subroutine search_backward
 
-    !> Search forward from point for regular expression REGEXP.
+    !> Search forward from point for regular expression REGULAR_EXPRESSION.
     !> Set point to the end of the occurrence found, and return point
     !> in `found' (0 for none).
     !> The optional argument BOUND is a buffer position that bounds the
@@ -692,77 +695,77 @@ contains
     !>
     !> See also the functions `match_beginning', `match_end', `match_string',
     !> and `replace_match'.  Port of search.c:Fre_search_forward.
-    recursive subroutine re_search_forward(regexp, found, status, bound, noerror, count)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine regular_expression_search_forward(regular_expression, found, status, bound, noerror, count)
+        character(len=*), intent(in) :: regular_expression
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
 
-        call search_command(regexp, 1_int64, .true., .false., found, status, bound, noerror, count)
-    end subroutine re_search_forward
+        call search_command(regular_expression, 1_int64, .true., .false., found, status, bound, noerror, count)
+    end subroutine regular_expression_search_forward
 
-    !> Search backward from point for regular expression REGEXP.
-    !> This function is almost identical to `re_search_forward', except that
+    !> Search backward from point for regular expression REGULAR_EXPRESSION.
+    !> This function is almost identical to `regular_expression_search_forward', except that
     !> by default it searches backward instead of forward, and the sign of
     !> COUNT also indicates exactly the opposite searching direction.
-    !> See `re_search_forward' for details.
+    !> See `regular_expression_search_forward' for details.
     !>
     !> Note that searching backwards may give a shorter match than expected,
-    !> because REGEXP is still matched in the forward direction.  Port of
+    !> because REGULAR_EXPRESSION is still matched in the forward direction.  Port of
     !> search.c:Fre_search_backward.
-    recursive subroutine re_search_backward(regexp, found, status, bound, noerror, count)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine regular_expression_search_backward(regular_expression, found, status, bound, noerror, count)
+        character(len=*), intent(in) :: regular_expression
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
 
-        call search_command(regexp, -1_int64, .true., .false., found, status, bound, noerror, count)
-    end subroutine re_search_backward
+        call search_command(regular_expression, -1_int64, .true., .false., found, status, bound, noerror, count)
+    end subroutine regular_expression_search_backward
 
-    !> Search forward from point for REGEXP according to Posix rules.
+    !> Search forward from point for REGULAR_EXPRESSION according to Posix rules.
     !> Find the longest match in accord with Posix regular expression rules.
     !> Set point to the end of the occurrence found, and return point.
-    !> BOUND, NOERROR and COUNT are as for `re_search_forward'.  Port of
+    !> BOUND, NOERROR and COUNT are as for `regular_expression_search_forward'.  Port of
     !> search.c:Fposix_search_forward.
-    recursive subroutine posix_search_forward(regexp, found, status, bound, noerror, count)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine posix_search_forward(regular_expression, found, status, bound, noerror, count)
+        character(len=*), intent(in) :: regular_expression
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
 
-        call search_command(regexp, 1_int64, .true., .true., found, status, bound, noerror, count)
+        call search_command(regular_expression, 1_int64, .true., .true., found, status, bound, noerror, count)
     end subroutine posix_search_forward
 
-    !> Search backward from point for match for REGEXP according to Posix
+    !> Search backward from point for match for REGULAR_EXPRESSION according to Posix
     !> rules.  Find the longest match in accord with Posix regular
     !> expression rules.  This function is almost identical to
     !> `posix_search_forward', except that by default it searches backward
     !> instead of forward, and the sign of COUNT also indicates exactly the
     !> opposite searching direction.  Port of
     !> search.c:Fposix_search_backward.
-    recursive subroutine posix_search_backward(regexp, found, status, bound, noerror, count)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine posix_search_backward(regular_expression, found, status, bound, noerror, count)
+        character(len=*), intent(in) :: regular_expression
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
 
-        call search_command(regexp, -1_int64, .true., .true., found, status, bound, noerror, count)
+        call search_command(regular_expression, -1_int64, .true., .true., found, status, bound, noerror, count)
     end subroutine posix_search_backward
 
     !> Port of search.c:search_command.
-    recursive subroutine search_command(string, direction, regexp, posix, found, status, bound, noerror, count)
+    recursive subroutine search_command(string, direction, regular_expression, posix, found, status, bound, noerror, count)
         character(len=*), intent(in) :: string
         integer(int64), intent(in) :: direction
-        logical, intent(in) :: regexp, posix
+        logical, intent(in) :: regular_expression, posix
         integer(int64), intent(out) :: found
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound, count
         integer, intent(in), optional :: noerror
-        integer(int64) :: n, lim, lim_byte, np
+        integer(int64) :: n, limit, limit_byte, np
         integer :: mode
 
         status = status_type()
@@ -775,67 +778,68 @@ contains
         associate (b => buffers(current))
             if (.not. present(bound)) then
                 if (n > 0) then
-                    lim = b%zv
-                    lim_byte = b%zv_byte
+                    limit = b%end_of_accessible_portion
+                    limit_byte = b%end_of_accessible_portion_byte
                 else
-                    lim = b%begv
-                    lim_byte = b%begv_byte
+                    limit = b%beginning_of_accessible_portion
+                    limit_byte = b%beginning_of_accessible_portion_byte
                 end if
             else
-                lim = bound
+                limit = bound
 
-                if (merge(lim < b%pt, lim > b%pt, n > 0)) then
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid search bound (wrong side of point)")
+                if (merge(limit < b%point, limit > b%point, n > 0)) then
+                    call set_error(status, GENERIC_ERROR_CODE, "Invalid search bound (wrong side of point)")
                     return
                 end if
 
-                if (lim > b%zv) then
-                    lim = b%zv
-                    lim_byte = b%zv_byte
-                else if (lim < b%begv) then
-                    lim = b%begv
-                    lim_byte = b%begv_byte
+                if (limit > b%end_of_accessible_portion) then
+                    limit = b%end_of_accessible_portion
+                    limit_byte = b%end_of_accessible_portion_byte
+                else if (limit < b%beginning_of_accessible_portion) then
+                    limit = b%beginning_of_accessible_portion
+                    limit_byte = b%beginning_of_accessible_portion_byte
                 else
-                    lim_byte = char_to_byte(lim)
+                    limit_byte = character_to_byte(limit)
                 end if
             end if
         end associate
 
-        np = search_buffer(string, buffers(current)%pt, buffers(current)%pt_byte, lim, lim_byte, n, case_fold_search%value, &
-                           status, regexp, posix)
+        np = search_buffer(string, buffers(current)%point, buffers(current)%point_byte, limit, limit_byte, n, &
+                           case_fold_search%value, &
+                           status, regular_expression, posix)
         if (.not. status%ok()) return
 
         if (np <= 0) then
             if (mode == SEARCH_SIGNAL) then
-                call set_error(status, FM_SEARCH_FAILED, fortran_string(string))
+                call set_error(status, SEARCH_FAILED_CODE, fortran_string(string))
             else if (mode == SEARCH_MOVE) then
-                call temp_set_point_both(buffers(current), lim, lim_byte)
+                call temporary_set_point_both(buffers(current), limit, limit_byte)
             end if
 
             return
         end if
 
-        call temp_set_point_both(buffers(current), np, char_to_byte(np))
+        call temporary_set_point_both(buffers(current), np, character_to_byte(np))
         found = np
     end subroutine search_command
 
-    !> Return true if REGEXP matches just one constant string.  Port of
+    !> Return true if REGULAR_EXPRESSION matches just one constant string.  Port of
     !> search.c:trivial_regexp_p.
-    pure logical function is_trivial_regexp(regexp)
-        character(len=*), intent(in) :: regexp
+    pure logical function is_trivial_regular_expression(regular_expression)
+        character(len=*), intent(in) :: regular_expression
         integer :: i
 
-        is_trivial_regexp = .false.
+        is_trivial_regular_expression = .false.
         i = 1
 
-        do while (i <= len(regexp))
-            select case (regexp(i:i))
+        do while (i <= len(regular_expression))
+            select case (regular_expression(i:i))
             case (".", "*", "+", "?", "[", "^", "$")
                 return
             case ("\")
-                if (i == len(regexp)) return
+                if (i == len(regular_expression)) return
                 i = i + 1
-                if (index("|()`'bB<>wWsS={}_cC123456789", regexp(i:i)) > 0) return
+                if (index("|()`'bB<>wWsS={}_cC123456789", regular_expression(i:i)) > 0) return
             case default
                 continue
             end select
@@ -843,146 +847,149 @@ contains
             i = i + 1
         end do
 
-        is_trivial_regexp = .true.
-    end function is_trivial_regexp
+        is_trivial_regular_expression = .true.
+    end function is_trivial_regular_expression
 
     !> Search for the `n'th occurrence of STRING in the current buffer,
-    !> starting at position `pos' and stopping at position `lim'; with
-    !> `re', STRING is a regexp (a Posix one with `posix'); with `fold',
+    !> starting at position `position' and stopping at position `limit'; with
+    !> `regular_expression', STRING is a regexp (a Posix one with `posix'); with `fold',
     !> case is folded through the case canon table.  `n' negative searches
     !> backward.  The value is the position after the match (forward) or
     !> of its start (backward), or -M when M matches remained to be found.
     !> Port of search.c:search_buffer and search.c:search_buffer_non_re (no
     !> Boyer-Moore: simple_search, which works for any pattern).
-    recursive integer(int64) function search_buffer(string, pos, pos_byte, lim, lim_byte, n, fold, status, regexp, posix) &
+    recursive integer(int64) function search_buffer(string, position, position_byte, limit, limit_byte, n, fold, status, &
+                                                    regular_expression, posix) &
         result(np)
         character(len=*), intent(in) :: string
-        integer(int64), intent(in) :: pos, pos_byte, lim, lim_byte, n
+        integer(int64), intent(in) :: position, position_byte, limit, limit_byte, n
         logical, intent(in) :: fold
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: regexp, posix
-        integer(int32), allocatable :: pat(:)
-        integer(int64) :: i, k, len_byte
+        logical, intent(in), optional :: regular_expression, posix
+        integer(int32), allocatable :: pattern(:)
+        integer(int64) :: i, k, length_byte
         integer(int32) :: c, clen
-        logical :: is_regexp
+        logical :: is_regular_expression
 
         status = status_type()
-        is_regexp = opt(regexp)
-        if (running_asynch_code) call save_search_regs()
+        is_regular_expression = option(regular_expression)
+        if (running_asynchronous_code) call save_search_regs()
 
         ! Searching 0 times means don't move.  Null string is found at
         ! starting position.
         if (n == 0 .or. len(string) == 0) then
-            call set_search_regs(pos_byte, 0_int64)
-            np = pos
+            call set_search_regs(position_byte, 0_int64)
+            np = position
             return
         end if
 
-        if (is_regexp .and. .not. (is_trivial_regexp(string) .and. .not. allocated(search_spaces_regexp))) then
-            np = search_buffer_regexp(string, pos, pos_byte, lim, lim_byte, n, fold, opt(posix), status)
+        if (is_regular_expression .and. .not. (is_trivial_regular_expression(string) .and. .not. allocated( &
+                                               search_spaces_regular_expression))) then
+            np = search_buffer_regular_expression(string, position, position_byte, limit, limit_byte, n, fold, option(posix), &
+                                                  status)
             return
         end if
 
         ! The pattern as characters, translated as the buffer text will be.
         ! In a trivial regexp, a backslash just quotes the next character.
-        allocate (pat(len(string)))
+        allocate (pattern(len(string)))
         i = 1
         k = 0
-        len_byte = 0
+        length_byte = 0
 
         do while (i <= len(string))
-            if (is_regexp .and. string(i:i) == "\") i = i + 1
-            call string_char_and_length(string, i, c, clen)
+            if (is_regular_expression .and. string(i:i) == "\") i = i + 1
+            call string_character_and_length(string, i, c, clen)
             if (fold) c = case_canon(c)
             k = k + 1
-            pat(k) = c
-            len_byte = len_byte + char_bytes(c)
+            pattern(k) = c
+            length_byte = length_byte + character_bytes(c)
             i = i + clen
         end do
 
-        np = simple_search(n, pat(1:k), len_byte, fold, pos, pos_byte, lim, lim_byte)
+        np = simple_search(n, pattern(1:k), length_byte, fold, position, position_byte, limit, limit_byte)
     end function search_buffer
 
-    !> Do a simple string search N times for the characters PAT, whose
-    !> length in bytes is `len_byte', from buffer position POS/POS_BYTE
-    !> until LIM/LIM_BYTE.  With `fold', buffer characters are
+    !> Do a simple string search N times for the characters PATTERN, whose
+    !> length in bytes is `length_byte', from buffer position POSITION/POSITION_BYTE
+    !> until LIMIT/LIMIT_BYTE.  With `fold', buffer characters are
     !> translated through the case canon table.
     !>
     !> Return the character position where the match is found.
     !> Otherwise, if M matches remained to be found, return -M.
     !> Port of search.c:simple_search (multibyte buffers).
-    integer(int64) function simple_search(count, pat, len_byte, fold, start, start_byte, lim, lim_byte) &
+    integer(int64) function simple_search(count, pattern, length_byte, fold, start, start_byte, limit, limit_byte) &
         result(np)
-        integer(int64), intent(in) :: count, len_byte, start, start_byte, lim, lim_byte
-        integer(int32), intent(in) :: pat(:)
+        integer(int64), intent(in) :: count, length_byte, start, start_byte, limit, limit_byte
+        integer(int32), intent(in) :: pattern(:)
         logical, intent(in) :: fold
-        integer(int64) :: n, pos, pos_byte, this_pos, this_pos_byte, this_len, match_byte, nchars
-        integer(int32) :: buf_ch
+        integer(int64) :: n, position, position_byte, this_position, this_position_byte, this_length, match_byte, nchars
+        integer(int32) :: buffer_ch
 
         n = count
-        pos = start
-        pos_byte = start_byte
-        nchars = size(pat)
+        position = start
+        position_byte = start_byte
+        nchars = size(pattern)
         match_byte = -1
 
         associate (b => buffers(current))
-            if (lim > pos) then
+            if (limit > position) then
                 forward: do while (n > 0)
                     do
-                        ! Try matching at position POS.
-                        this_pos_byte = pos_byte
-                        this_len = 0
-                        if (pos + nchars > lim .or. pos_byte + len_byte > lim_byte) exit forward
+                        ! Try matching at position POSITION.
+                        this_position_byte = position_byte
+                        this_length = 0
+                        if (position + nchars > limit .or. position_byte + length_byte > limit_byte) exit forward
 
-                        do while (this_len < nchars)
-                            buf_ch = buf_fetch_char(b, this_pos_byte)
-                            if (fold) buf_ch = case_canon(buf_ch)
-                            if (buf_ch /= pat(this_len + 1)) exit
-                            this_len = this_len + 1
-                            this_pos_byte = this_pos_byte + buf_next_char_len(b, this_pos_byte)
+                        do while (this_length < nchars)
+                            buffer_ch = buffer_fetch_character(b, this_position_byte)
+                            if (fold) buffer_ch = case_canon(buffer_ch)
+                            if (buffer_ch /= pattern(this_length + 1)) exit
+                            this_length = this_length + 1
+                            this_position_byte = this_position_byte + buffer_next_character_length(b, this_position_byte)
                         end do
 
-                        if (this_len == nchars) then
-                            match_byte = this_pos_byte - pos_byte
-                            pos = pos + nchars
-                            pos_byte = pos_byte + match_byte
+                        if (this_length == nchars) then
+                            match_byte = this_position_byte - position_byte
+                            position = position + nchars
+                            position_byte = position_byte + match_byte
                             exit
                         end if
 
-                        pos_byte = pos_byte + buf_next_char_len(b, pos_byte)
-                        pos = pos + 1
+                        position_byte = position_byte + buffer_next_character_length(b, position_byte)
+                        position = position + 1
                     end do
 
                     n = n - 1
                 end do forward
-            else if (lim < pos) then
+            else if (limit < position) then
                 ! Backwards search.
                 backward: do while (n < 0)
                     do
-                        ! Try matching at position POS.
-                        this_pos = pos
-                        this_pos_byte = pos_byte
-                        this_len = 0
-                        if (this_pos - nchars < lim .or. pos_byte - len_byte < lim_byte) exit backward
+                        ! Try matching at position POSITION.
+                        this_position = position
+                        this_position_byte = position_byte
+                        this_length = 0
+                        if (this_position - nchars < limit .or. position_byte - length_byte < limit_byte) exit backward
 
-                        do while (this_len < nchars)
-                            this_pos = this_pos - 1
-                            this_pos_byte = this_pos_byte - buf_prev_char_len(b, this_pos_byte)
-                            buf_ch = buf_fetch_char(b, this_pos_byte)
-                            if (fold) buf_ch = case_canon(buf_ch)
-                            if (buf_ch /= pat(nchars - this_len)) exit
-                            this_len = this_len + 1
+                        do while (this_length < nchars)
+                            this_position = this_position - 1
+                            this_position_byte = this_position_byte - buffer_previous_character_length(b, this_position_byte)
+                            buffer_ch = buffer_fetch_character(b, this_position_byte)
+                            if (fold) buffer_ch = case_canon(buffer_ch)
+                            if (buffer_ch /= pattern(nchars - this_length)) exit
+                            this_length = this_length + 1
                         end do
 
-                        if (this_len == nchars) then
-                            match_byte = pos_byte - this_pos_byte
-                            pos = this_pos
-                            pos_byte = this_pos_byte
+                        if (this_length == nchars) then
+                            match_byte = position_byte - this_position_byte
+                            position = this_position
+                            position_byte = this_position_byte
                             exit
                         end if
 
-                        pos = pos - 1
-                        pos_byte = pos_byte - buf_prev_char_len(b, pos_byte)
+                        position = position - 1
+                        position_byte = position_byte - buffer_previous_character_length(b, position_byte)
                     end do
 
                     n = n + 1
@@ -992,12 +999,12 @@ contains
 
         if (n == 0) then
             if (count > 0) then
-                call set_search_regs(pos_byte - match_byte, match_byte)
+                call set_search_regs(position_byte - match_byte, match_byte)
             else
-                call set_search_regs(pos_byte, match_byte)
+                call set_search_regs(position_byte, match_byte)
             end if
 
-            np = pos
+            np = position
         else
             np = -abs(n)
         end if
@@ -1014,8 +1021,8 @@ contains
         n = 2
         if (allocated(search_regs_start)) n = max(n, size(search_regs_start))
         call clear_search_regs(n)
-        search_regs_start(0) = byte_to_char(beginning_byte)
-        search_regs_end(0) = byte_to_char(beginning_byte + nbytes)
+        search_regs_start(0) = byte_to_character(beginning_byte)
+        search_regs_end(0) = byte_to_character(beginning_byte + nbytes)
         last_thing_searched = current_buffer()
         last_search_in_string = .false.
     end subroutine set_search_regs
@@ -1030,11 +1037,11 @@ contains
     !>
     !> Return value is undefined if the last search failed.  Port of
     !> search.c:Fmatch_beginning.
-    integer(int64) function match_beginning(subexp, status) result(pos)
+    integer(int64) function match_beginning(subexp, status) result(position)
         integer, intent(in) :: subexp
         type(status_type), intent(out) :: status
 
-        call match_limit(subexp, .true., pos, status)
+        call match_limit(subexp, .true., position, status)
     end function match_beginning
 
     !> Return position of end of text matched by last search.
@@ -1047,33 +1054,33 @@ contains
     !>
     !> Return value is undefined if the last search failed.  Port of
     !> search.c:Fmatch_end.
-    integer(int64) function match_end(subexp, status) result(pos)
+    integer(int64) function match_end(subexp, status) result(position)
         integer, intent(in) :: subexp
         type(status_type), intent(out) :: status
 
-        call match_limit(subexp, .false., pos, status)
+        call match_limit(subexp, .false., position, status)
     end function match_end
 
     !> Port of search.c:match_limit.
-    subroutine match_limit(n, beginningp, pos, status)
+    subroutine match_limit(n, beginningp, position, status)
         integer, intent(in) :: n
         logical, intent(in) :: beginningp
-        integer(int64), intent(out) :: pos
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
         character(len=11) :: buffer
 
         status = status_type()
-        pos = 0
+        position = 0
 
         if (n < 0) then
-            ! args_out_of_range (num, 0).
+            ! arguments_out_of_range (num, 0).
             write (buffer, "(i0)") n
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, trim(buffer)//", 0")
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, trim(buffer)//", 0")
             return
         end if
 
         if (.not. allocated(search_regs_start)) then
-            call set_error(status, FM_GENERIC_ERROR, "No match data, because no search succeeded")
+            call set_error(status, GENERIC_ERROR_CODE, "No match data, because no search succeeded")
             return
         end if
 
@@ -1081,9 +1088,9 @@ contains
         if (search_regs_start(n) < 0) return
 
         if (beginningp) then
-            pos = search_regs_start(n)
+            position = search_regs_start(n)
         else
-            pos = search_regs_end(n)
+            position = search_regs_end(n)
         end if
     end subroutine match_limit
 
@@ -1160,23 +1167,23 @@ contains
     !> taken to be in the current buffer.  Port of search.c:Fset_match_data.
     subroutine set_match_data(data)
         integer(int64), intent(in) :: data(:)
-        integer :: i, length, num_regs
+        integer :: i, length, number_regs
 
-        if (running_asynch_code) call save_search_regs()
+        if (running_asynchronous_code) call save_search_regs()
         ! Allocate registers if they don't already exist (growing as
         ! xpalloc does: by half, or to 16 when tiny, or by what is needed).
         length = size(data)/2
-        num_regs = 0
-        if (allocated(search_regs_start)) num_regs = size(search_regs_start)
+        number_regs = 0
+        if (allocated(search_regs_start)) number_regs = size(search_regs_start)
 
-        if (length > num_regs) then
-            i = num_regs + num_regs/2
+        if (length > number_regs) then
+            i = number_regs + number_regs/2
             if (8*i < 128) i = 16
-            if (i - num_regs < length - num_regs) i = length
-            num_regs = i
+            if (i - number_regs < length - number_regs) i = length
+            number_regs = i
         end if
 
-        if (num_regs > 0) call clear_search_regs(num_regs)
+        if (number_regs > 0) call clear_search_regs(number_regs)
 
         do i = 0, length - 1
             if (data(2*i + 1) > 0 .and. data(2*i + 2) > 0) then
@@ -1190,7 +1197,7 @@ contains
     end subroutine set_match_data
 
     !> Save the match data while a process filter or sentinel runs
-    !> (`running_asynch_code'), unless it is saved already.  Called from
+    !> (`running_asynchronous_code'), unless it is saved already.  Called from
     !> `looking_at', `string_match', `search_buffer' and `set_match_data'.
     !> Port of search.c:save_search_regs.
     subroutine save_search_regs()
@@ -1238,15 +1245,15 @@ contains
     !> nonrecursively, save the same match data in safely recursive fashion
     !> (in SAVED); then, for speed, if a search happens within the filter,
     !> save the match data in a special nonrecursive fashion
-    !> (`running_asynch_code').  OUTER is the earlier state.  Port of the
+    !> (`running_asynchronous_code').  OUTER is the earlier state.  Port of the
     !> match data part of process.c:read_and_dispose_of_process_output and
     !> process.c:exec_sentinel.
-    subroutine begin_running_asynch_code(outer, saved)
+    subroutine begin_running_asynchronous_code(outer, saved)
         logical, intent(inout) :: outer
         integer(int64), allocatable, intent(inout) :: saved(:)
         integer(int64), allocatable :: tem(:)
 
-        outer = running_asynch_code
+        outer = running_asynchronous_code
 
         if (outer) then
             ! Don't clobber the CURRENT match data, either!
@@ -1256,22 +1263,22 @@ contains
             call set_match_data(tem)
         end if
 
-        running_asynch_code = .true.
-    end subroutine begin_running_asynch_code
+        running_asynchronous_code = .true.
+    end subroutine begin_running_asynchronous_code
 
     !> After a process filter or sentinel ran: if we saved the match data
     !> nonrecursively, restore it now; then reinstate what
-    !> `begin_running_asynch_code' saved.  Port of the match data part of
+    !> `begin_running_asynchronous_code' saved.  Port of the match data part of
     !> process.c:read_and_dispose_of_process_output and
     !> process.c:exec_sentinel.
-    subroutine end_running_asynch_code(outer, saved)
+    subroutine end_running_asynchronous_code(outer, saved)
         logical, intent(inout) :: outer
         integer(int64), allocatable, intent(inout) :: saved(:)
 
         call restore_search_regs()
-        running_asynch_code = outer
+        running_asynchronous_code = outer
         if (outer) call unwind_set_match_data(saved)
-    end subroutine end_running_asynch_code
+    end subroutine end_running_asynchronous_code
 
     !> Add N to all positions of the match data.  Internal.  Port of
     !> search.c:Fmatch_data__translate (string indices here are 1-based,
@@ -1304,7 +1311,7 @@ contains
 
     !> Return a regexp string which matches exactly STRING and nothing
     !> else.  Port of search.c:Fregexp_quote.
-    pure function regexp_quote(string) result(quoted)
+    pure function regular_expression_quote(string) result(quoted)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: quoted
         integer :: i
@@ -1315,5 +1322,5 @@ contains
             if (index("[*.\?+^$", string(i:i)) > 0) quoted = quoted//"\"
             quoted = quoted//string(i:i)
         end do
-    end function regexp_quote
+    end function regular_expression_quote
 end module search_mod

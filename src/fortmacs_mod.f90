@@ -29,13 +29,13 @@
 !> program around it.
 module fortmacs_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, output_unit, error_unit
-    use error_mod, only: format_message, status_type, set_error, format_error, FM_GENERIC_ERROR
+    use error_mod, only: format_message, status_type, set_error, format_error, GENERIC_ERROR_CODE
     use version_mod, only: version_string
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, current_buffer
-    use editing_functions_mod, only: goto_char, point_min
+    use editing_functions_mod, only: goto_character, point_minimum
     use editing_commands_mod, only: forward_line
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_name_absolute, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, is_file_name_absolute, &
                                      file_exists, is_file_executable, is_file_newer_than_file
     use files_mod, only: find_file_noselect
     use frame_mod, only: selected_frame
@@ -43,144 +43,145 @@ module fortmacs_mod
                           switch_to_buffer_other_window, other_window
     use system_dependent_mod, only: install_interrupt_handler, install_window_change_handler, fortmacs_isatty, &
                                     fortmacs_execv, fortmacs_strerror
-    use terminal_output_mod, only: init_tty, delete_tty, tty_set_terminal_modes
-    use terminal_state_mod, only: tty_flush
+    use terminal_output_mod, only: initialize_terminal, delete_terminal, terminal_set_terminal_modes
+    use terminal_state_mod, only: terminal_flush
     use display_update_mod, only: adjust_frame_glyphs, frame_ring_bell, do_pending_window_change
-    use display_engine_mod, only: redisplay_internal, init_frame_windows, message
-    use face_realization_mod, only: init_frame_faces
-    use faces_mod, only: init_faces
+    use display_engine_mod, only: redisplay_internal, initialize_frame_windows, message
+    use face_realization_mod, only: initialize_frame_faces
+    use faces_mod, only: initialize_faces
     use modes_mod, only: minor_modes
     use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_fortmacs_hook
     use process_mod, only: kill_buffer_processes
-    use bindings_mod, only: init_bindings
-    use terminal_xterm_mod, only: terminal_init_xterm
-    use terminal_colors_mod, only: tty_register_colors
-    use names_mod, only: user_init_file
-    use startup_mod, only: init_user_mail_address
-    use configuration_mod, only: install_prefix, configure_info_directory, running_executable, recompile, init_file_name, &
-                                current_build_name, generation_of, current_generation, switch_generation, rollback, list_generations
+    use bindings_mod, only: initialize_bindings
+    use terminal_xterm_mod, only: terminal_initialize_xterm
+    use terminal_colors_mod, only: terminal_register_colors
+    use names_mod, only: user_initialization_file
+    use startup_mod, only: initialize_user_mail_address
+    use configuration_mod, only: install_prefix, configure_info_directory, running_executable, recompile, &
+                                 initialization_file_name, current_build_name, generation_of, current_generation, &
+                                 switch_generation, rollback, list_generations
     use indent_mod, only: move_to_column
-    use abbreviation_mod, only: abbrevs_changed
+    use abbreviation_mod, only: abbreviations_changed
     use string_type_mod, only: string_type
     use data_mod, only: setting_errors
-    use docstrings_mod, only: init_choice_values
-    use coding_mod, only: eol_mnemonic_dos, eol_mnemonic_mac
+    use docstrings_mod, only: initialize_choice_values
+    use coding_mod, only: end_of_line_mnemonic_dos, end_of_line_mnemonic_mac
     use multilingual_environment_mod, only: set_locale_environment
     implicit none(type, external)
     private
 
-    public :: fortmacs_main, command_line, command_line_1, init_procedure, execute_editor, sort_args
-    public :: load_init_file
+    public :: fortmacs_main, command_line, command_line_1, initialize_procedure, execute_editor, sort_arguments
+    public :: load_initialization_file
 
     abstract interface
         !> The user's configuration: `configure' in init.f90, run once at
         !> startup the way upstream loads the init file.  Not a port.
-        subroutine init_procedure(status)
+        subroutine initialize_procedure(status)
             import :: status_type
             implicit none(type, external)
             type(status_type), intent(out) :: status
-        end subroutine init_procedure
+        end subroutine initialize_procedure
     end interface
 
     !> startup.el:init-file-had-error: whether the init file's
     !> `configure' failed at startup.
-    logical, public, protected :: init_file_had_error = .false.
+    logical, public, protected :: initialization_file_had_error = .false.
 
     !> A message for the echo area once the editor is up ("" for none).
     character(len=:), allocatable :: startup_message
 
-    !> One of emacs.c's standard_args: an option, its long name, its
-    !> priority for sort_args and its number of arguments.
-    type :: standard_arg_type
+    !> One of emacs.c's standard_arguments: an option, its long name, its
+    !> priority for sort_arguments and its number of arguments.
+    type :: standard_argument_type
         character(len=24) :: name = "", longname = ""
         integer :: priority = 0, nargs = 0
-    end type standard_arg_type
+    end type standard_argument_type
 
-    !> The options Fortmacs knows, for sort_args (emacs.c standard_args, as
+    !> The options Fortmacs knows, for sort_arguments (emacs.c standard_arguments, as
     !> built on GNU/Linux with the portable dumper, modules and seccomp).
-    type(standard_arg_type), parameter :: standard_args(82) = [ &
-                                          standard_arg_type("-version", "--version", 150, 0), &
-                                          standard_arg_type("-fingerprint", "--fingerprint", 140, 0), &
-                                          standard_arg_type("-chdir", "--chdir", 130, 1), &
-                                          standard_arg_type("-t", "--terminal", 120, 1), &
-                                          standard_arg_type("-nw", "--no-window-system", 110, 0), &
-                                          standard_arg_type("-nw", "--no-windows", 110, 0), &
-                                          standard_arg_type("-batch", "--batch", 100, 0), &
-                                          standard_arg_type("-script", "--script", 100, 1), &
-                                          standard_arg_type("-daemon", "--daemon", 99, 0), &
-                                          standard_arg_type("-bg-daemon", "--bg-daemon", 99, 0), &
-                                          standard_arg_type("-fg-daemon", "--fg-daemon", 99, 0), &
-                                          standard_arg_type("-help", "--help", 90, 0), &
-                                          standard_arg_type("-nl", "--no-loadup", 70, 0), &
-                                          standard_arg_type("-nsl", "--no-site-lisp", 65, 0), &
-                                          standard_arg_type("-no-build-details", "--no-build-details", 63, 0), &
-                                          standard_arg_type("-module-assertions", "--module-assertions", 62, 0), &
-                                          standard_arg_type("-d", "--display", 60, 1), &
-                                          standard_arg_type("-display", "", 60, 1), &
-                                          standard_arg_type("-Q", "--quick", 55, 0), &
-                                          standard_arg_type("-quick", "", 55, 0), &
-                                          standard_arg_type("-x", "", 55, 0), &
-                                          standard_arg_type("-q", "--no-init-file", 50, 0), &
-                                          standard_arg_type("-no-init-file", "", 50, 0), &
-                                          standard_arg_type("-init-directory", "--init-directory", 30, 1), &
-                                          standard_arg_type("-no-x-resources", "--no-x-resources", 40, 0), &
-                                          standard_arg_type("-no-site-file", "--no-site-file", 40, 0), &
-                                          standard_arg_type("-no-comp-spawn", "--no-comp-spawn", 60, 0), &
-                                          standard_arg_type("-u", "--user", 30, 1), &
-                                          standard_arg_type("-user", "", 30, 1), &
-                                          standard_arg_type("-debug-init", "--debug-init", 20, 0), &
-                                          standard_arg_type("-iconic", "--iconic", 15, 0), &
-                                          standard_arg_type("-D", "--basic-display", 12, 0), &
-                                          standard_arg_type("-basic-display", "", 12, 0), &
-                                          standard_arg_type("-nbc", "--no-blinking-cursor", 12, 0), &
-                                          standard_arg_type("-nbi", "--no-bitmap-icon", 10, 0), &
-                                          standard_arg_type("-bg", "--background-color", 10, 1), &
-                                          standard_arg_type("-background", "", 10, 1), &
-                                          standard_arg_type("-fg", "--foreground-color", 10, 1), &
-                                          standard_arg_type("-foreground", "", 10, 1), &
-                                          standard_arg_type("-bd", "--border-color", 10, 1), &
-                                          standard_arg_type("-bw", "--border-width", 10, 1), &
-                                          standard_arg_type("-ib", "--internal-border", 10, 1), &
-                                          standard_arg_type("-ms", "--mouse-color", 10, 1), &
-                                          standard_arg_type("-cr", "--cursor-color", 10, 1), &
-                                          standard_arg_type("-fn", "--font", 10, 1), &
-                                          standard_arg_type("-font", "", 10, 1), &
-                                          standard_arg_type("-fs", "--fullscreen", 10, 0), &
-                                          standard_arg_type("-fw", "--fullwidth", 10, 0), &
-                                          standard_arg_type("-fh", "--fullheight", 10, 0), &
-                                          standard_arg_type("-mm", "--maximized", 10, 0), &
-                                          standard_arg_type("-g", "--geometry", 10, 1), &
-                                          standard_arg_type("-geometry", "", 10, 1), &
-                                          standard_arg_type("-T", "--title", 10, 1), &
-                                          standard_arg_type("-title", "", 10, 1), &
-                                          standard_arg_type("-name", "--name", 10, 1), &
-                                          standard_arg_type("-xrm", "--xrm", 10, 1), &
-                                          standard_arg_type("-parent-id", "--parent-id", 10, 1), &
-                                          standard_arg_type("-r", "--reverse-video", 5, 0), &
-                                          standard_arg_type("-rv", "", 5, 0), &
-                                          standard_arg_type("-reverse", "", 5, 0), &
-                                          standard_arg_type("-hb", "--horizontal-scroll-bars", 5, 0), &
-                                          standard_arg_type("-vb", "--vertical-scroll-bars", 5, 0), &
-                                          standard_arg_type("-color", "--color", 5, 0), &
-                                          standard_arg_type("-no-splash", "--no-splash", 3, 0), &
-                                          standard_arg_type("-no-desktop", "--no-desktop", 3, 0), &
-                                          standard_arg_type("-temacs", "--temacs", 1, 1), &
-                                          standard_arg_type("-dump-file", "--dump-file", 1, 1), &
-                                          standard_arg_type("-seccomp", "--seccomp", 1, 1), &
-                                          standard_arg_type("-L", "--directory", 0, 1), &
-                                          standard_arg_type("-directory", "", 0, 1), &
-                                          standard_arg_type("-l", "--load", 0, 1), &
-                                          standard_arg_type("-load", "", 0, 1), &
-                                          standard_arg_type("-scriptload", "", 0, 1), &
-                                          standard_arg_type("-f", "--funcall", 0, 1), &
-                                          standard_arg_type("-funcall", "", 0, 1), &
-                                          standard_arg_type("-eval", "--eval", 0, 1), &
-                                          standard_arg_type("-execute", "--execute", 0, 1), &
-                                          standard_arg_type("-find-file", "--find-file", 0, 1), &
-                                          standard_arg_type("-visit", "--visit", 0, 1), &
-                                          standard_arg_type("-file", "--file", 0, 1), &
-                                          standard_arg_type("-insert", "--insert", 0, 1), &
-                                          standard_arg_type("-kill", "--kill", -10, 0)]
+    type(standard_argument_type), parameter :: standard_arguments(82) = [ &
+                                               standard_argument_type("-version", "--version", 150, 0), &
+                                               standard_argument_type("-fingerprint", "--fingerprint", 140, 0), &
+                                               standard_argument_type("-chdir", "--chdir", 130, 1), &
+                                               standard_argument_type("-t", "--terminal", 120, 1), &
+                                               standard_argument_type("-nw", "--no-window-system", 110, 0), &
+                                               standard_argument_type("-nw", "--no-windows", 110, 0), &
+                                               standard_argument_type("-batch", "--batch", 100, 0), &
+                                               standard_argument_type("-script", "--script", 100, 1), &
+                                               standard_argument_type("-daemon", "--daemon", 99, 0), &
+                                               standard_argument_type("-bg-daemon", "--bg-daemon", 99, 0), &
+                                               standard_argument_type("-fg-daemon", "--fg-daemon", 99, 0), &
+                                               standard_argument_type("-help", "--help", 90, 0), &
+                                               standard_argument_type("-nl", "--no-loadup", 70, 0), &
+                                               standard_argument_type("-nsl", "--no-site-lisp", 65, 0), &
+                                               standard_argument_type("-no-build-details", "--no-build-details", 63, 0), &
+                                               standard_argument_type("-module-assertions", "--module-assertions", 62, 0), &
+                                               standard_argument_type("-d", "--display", 60, 1), &
+                                               standard_argument_type("-display", "", 60, 1), &
+                                               standard_argument_type("-Q", "--quick", 55, 0), &
+                                               standard_argument_type("-quick", "", 55, 0), &
+                                               standard_argument_type("-x", "", 55, 0), &
+                                               standard_argument_type("-q", "--no-init-file", 50, 0), &
+                                               standard_argument_type("-no-init-file", "", 50, 0), &
+                                               standard_argument_type("-init-directory", "--init-directory", 30, 1), &
+                                               standard_argument_type("-no-x-resources", "--no-x-resources", 40, 0), &
+                                               standard_argument_type("-no-site-file", "--no-site-file", 40, 0), &
+                                               standard_argument_type("-no-comp-spawn", "--no-comp-spawn", 60, 0), &
+                                               standard_argument_type("-u", "--user", 30, 1), &
+                                               standard_argument_type("-user", "", 30, 1), &
+                                               standard_argument_type("-debug-init", "--debug-init", 20, 0), &
+                                               standard_argument_type("-iconic", "--iconic", 15, 0), &
+                                               standard_argument_type("-D", "--basic-display", 12, 0), &
+                                               standard_argument_type("-basic-display", "", 12, 0), &
+                                               standard_argument_type("-nbc", "--no-blinking-cursor", 12, 0), &
+                                               standard_argument_type("-nbi", "--no-bitmap-icon", 10, 0), &
+                                               standard_argument_type("-bg", "--background-color", 10, 1), &
+                                               standard_argument_type("-background", "", 10, 1), &
+                                               standard_argument_type("-fg", "--foreground-color", 10, 1), &
+                                               standard_argument_type("-foreground", "", 10, 1), &
+                                               standard_argument_type("-bd", "--border-color", 10, 1), &
+                                               standard_argument_type("-bw", "--border-width", 10, 1), &
+                                               standard_argument_type("-ib", "--internal-border", 10, 1), &
+                                               standard_argument_type("-ms", "--mouse-color", 10, 1), &
+                                               standard_argument_type("-cr", "--cursor-color", 10, 1), &
+                                               standard_argument_type("-fn", "--font", 10, 1), &
+                                               standard_argument_type("-font", "", 10, 1), &
+                                               standard_argument_type("-fs", "--fullscreen", 10, 0), &
+                                               standard_argument_type("-fw", "--fullwidth", 10, 0), &
+                                               standard_argument_type("-fh", "--fullheight", 10, 0), &
+                                               standard_argument_type("-mm", "--maximized", 10, 0), &
+                                               standard_argument_type("-g", "--geometry", 10, 1), &
+                                               standard_argument_type("-geometry", "", 10, 1), &
+                                               standard_argument_type("-T", "--title", 10, 1), &
+                                               standard_argument_type("-title", "", 10, 1), &
+                                               standard_argument_type("-name", "--name", 10, 1), &
+                                               standard_argument_type("-xrm", "--xrm", 10, 1), &
+                                               standard_argument_type("-parent-id", "--parent-id", 10, 1), &
+                                               standard_argument_type("-r", "--reverse-video", 5, 0), &
+                                               standard_argument_type("-rv", "", 5, 0), &
+                                               standard_argument_type("-reverse", "", 5, 0), &
+                                               standard_argument_type("-hb", "--horizontal-scroll-bars", 5, 0), &
+                                               standard_argument_type("-vb", "--vertical-scroll-bars", 5, 0), &
+                                               standard_argument_type("-color", "--color", 5, 0), &
+                                               standard_argument_type("-no-splash", "--no-splash", 3, 0), &
+                                               standard_argument_type("-no-desktop", "--no-desktop", 3, 0), &
+                                               standard_argument_type("-temacs", "--temacs", 1, 1), &
+                                               standard_argument_type("-dump-file", "--dump-file", 1, 1), &
+                                               standard_argument_type("-seccomp", "--seccomp", 1, 1), &
+                                               standard_argument_type("-L", "--directory", 0, 1), &
+                                               standard_argument_type("-directory", "", 0, 1), &
+                                               standard_argument_type("-l", "--load", 0, 1), &
+                                               standard_argument_type("-load", "", 0, 1), &
+                                               standard_argument_type("-scriptload", "", 0, 1), &
+                                               standard_argument_type("-f", "--funcall", 0, 1), &
+                                               standard_argument_type("-funcall", "", 0, 1), &
+                                               standard_argument_type("-eval", "--eval", 0, 1), &
+                                               standard_argument_type("-execute", "--execute", 0, 1), &
+                                               standard_argument_type("-find-file", "--find-file", 0, 1), &
+                                               standard_argument_type("-visit", "--visit", 0, 1), &
+                                               standard_argument_type("-file", "--file", 0, 1), &
+                                               standard_argument_type("-insert", "--insert", 0, 1), &
+                                               standard_argument_type("-kill", "--kill", -10, 0)]
 
 contains
 
@@ -209,12 +210,12 @@ contains
     !> digits; `line' gets the first number and `column' the second (0
     !> if absent).
     !> Port of part of startup.el:command-line-1 (the +LINE:COLUMN argument).
-    logical function is_line_arg(s, line, column)
+    logical function is_line_argument(s, line, column)
         character(len=*), intent(in) :: s
         integer(int64), intent(out) :: line, column
         integer :: colon, stat
 
-        is_line_arg = .false.
+        is_line_argument = .false.
         line = 0
         column = 0
         if (len(s) < 2) return
@@ -228,11 +229,11 @@ contains
         end if
 
         read (s(2:colon - 1), *, iostat=stat) line
-        is_line_arg = stat == 0
+        is_line_argument = stat == 0
 
-        if (is_line_arg .and. colon <= len(s)) then
+        if (is_line_argument .and. colon <= len(s)) then
             read (s(colon + 1:), *, iostat=stat) column
-            is_line_arg = stat == 0
+            is_line_argument = stat == 0
         end if
 
     contains
@@ -242,19 +243,19 @@ contains
 
             all_digits = len(t) > 0 .and. verify(t, "0123456789") == 0
         end function all_digits
-    end function is_line_arg
+    end function is_line_argument
 
-    !> Visit the files named in `args', then display them: the first in
+    !> Visit the files named in `arguments', then display them: the first in
     !> the selected window, a second in another window (the first
     !> selected), more ones in the other window's previous buffers.
     !> "+LINE" puts point on that line of the next file, "--" makes the
     !> rest file names, and "-file", "-find-file" or "-visit" (or with
     !> "--") name a file.  Port of the file part of
     !> startup.el:command-line-1 (other options are unknown).
-    subroutine command_line_1(args, status)
-        type(string_type), intent(in) :: args(:)
+    subroutine command_line_1(arguments, status)
+        type(string_type), intent(in) :: arguments(:)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: argi, dir
+        character(len=:), allocatable :: argi, directory
         type(handle_type), allocatable :: displayable(:)
         type(handle_type) :: visited
         integer(int64) :: line, n, column, c
@@ -267,11 +268,11 @@ contains
         just_files = .false.
         k = 0
 
-        do while (k < size(args))
+        do while (k < size(arguments))
             k = k + 1
-            argi = args(k)%text
+            argi = arguments(k)%text
 
-            if (.not. just_files .and. is_line_arg(argi, n, c)) then
+            if (.not. just_files .and. is_line_argument(argi, n, c)) then
                 line = n
                 column = c
                 cycle
@@ -291,31 +292,31 @@ contains
 
                     select case (argi)
                     case ("-file", "-find-file", "-visit")
-                        if (k == size(args)) then
-                            call set_error(status, FM_GENERIC_ERROR, format_message("File name omitted from `")//argi// &
+                        if (k == size(arguments)) then
+                            call set_error(status, GENERIC_ERROR_CODE, format_message("File name omitted from `")//argi// &
                                            format_message("' option"))
                             return
                         end if
 
                         k = k + 1
-                        argi = args(k)%text
+                        argi = arguments(k)%text
                     case default
-                        call set_error(status, FM_GENERIC_ERROR, &
-                                       format_message("Unknown option `")//args(k)%text//format_message("'"))
+                        call set_error(status, GENERIC_ERROR_CODE, &
+                                       format_message("Unknown option `")//arguments(k)%text//format_message("'"))
                         return
                     end select
                 end if
             end if
 
             ! process-file-arg
-            dir = file_name_as_directory(fortmacs_wd)
+            directory = file_name_as_directory(fortmacs_wd)
 
             if (len(fortmacs_wd) == 0 .and. .not. is_file_name_absolute(argi)) then
                 call message("Ignoring relative file name ("//argi//") due to unset default_directory")
                 cycle
             end if
 
-            call visit(argi, dir, line, column, status)
+            call visit(argi, directory, line, column, status)
             if (.not. status%ok()) return
             ! `displayable-buffers' has the newest first.
             visited = current_buffer()
@@ -367,10 +368,10 @@ contains
         end if
     end subroutine display_buffers
 
-    !> Visit `name' (relative to `dir'), make its buffer current and go to
+    !> Visit `name' (relative to `directory'), make its buffer current and go to
     !> line `line' if positive.  Port of part of startup.el:command-line-1.
-    subroutine visit(name, dir, line, column, status)
-        character(len=*), intent(in) :: name, dir
+    subroutine visit(name, directory, line, column, status)
+        character(len=*), intent(in) :: name, directory
         integer(int64), intent(in) :: line, column
         type(status_type), intent(out) :: status
         type(handle_type) :: buffer
@@ -379,7 +380,7 @@ contains
         if (is_file_name_absolute(name)) then
             call find_file_noselect(name, buffer, status)
         else
-            call find_file_noselect(dir//name, buffer, status)
+            call find_file_noselect(directory//name, buffer, status)
         end if
 
         if (.not. status%ok()) return
@@ -387,7 +388,7 @@ contains
         if (.not. status%ok()) return
 
         if (line /= 0) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             shortage = forward_line(line - 1)
         end if
 
@@ -395,22 +396,22 @@ contains
     end subroutine visit
 
     !> Run the editor on terminal type `terminal_type' at file descriptor
-    !> `fd' until the user leaves, visiting the files in `args' first.
-    !> Port of the terminal path of emacs.c:main (init_display, then the
+    !> `fd' until the user leaves, visiting the files in `arguments' first.
+    !> Port of the terminal path of emacs.c:main (initialize_display, then the
     !> file part of startup.el:command-line, then Frecursive_edit).
-    subroutine fortmacs_main(terminal_type, fd, status, args, configure)
+    subroutine fortmacs_main(terminal_type, fd, status, arguments, configure)
         character(len=*), intent(in) :: terminal_type
         integer(int32), intent(in) :: fd
         type(status_type), intent(out) :: status
-        type(string_type), intent(in), optional :: args(:)
-        procedure(init_procedure), optional :: configure
+        type(string_type), intent(in), optional :: arguments(:)
+        procedure(initialize_procedure), optional :: configure
         type(handle_type) :: scratch
-        type(status_type) :: st, opt_status, color_status, locale_status
+        type(status_type) :: st, option_status, color_status, locale_status
         type(string_type), allocatable :: rest(:)
-        logical :: init
+        logical :: initialize
 
-        call init_fileio()
-        call init_bindings()
+        call initialize_fileio()
+        call initialize_bindings()
         call get_or_make_buffer("*scratch*", scratch, status)
         if (.not. status%ok()) return
         call set_buffer(scratch, status)
@@ -427,45 +428,45 @@ contains
         selected_frame%needs_redraw = .true.
         ! dispnew.c:init_display and dispnew.c:init_display_interactive: the
         ! terminal TERM names.
-        call init_tty(selected_frame%tty, terminal_type, fd, status)
+        call initialize_terminal(selected_frame%terminal, terminal_type, fd, status)
         if (.not. status%ok()) return
         ! startup.el:command-line registers the 8 default colors, then
         ! faces.el:tty-run-terminal-initialization runs term/xterm.el,
         ! which replaces them by xterm's for the terminal's color count.
         ! Its error is shown once the editor is up.
-        call tty_register_colors(selected_frame%tty%tn_max_colors, .false., color_status)
-        if (xterm_like(terminal_type)) call terminal_init_xterm(color_status)
+        call terminal_register_colors(selected_frame%terminal%tn_maximum_colors, .false., color_status)
+        if (xterm_like(terminal_type)) call terminal_initialize_xterm(color_status)
         call set_input_fd(fd)
         call install_interrupt_handler()
         ! dispnew.c:init_display_interactive: SIGWINCH resizes the frame.
         call install_window_change_handler()
         call adjust_frame_glyphs(selected_frame)
-        call init_frame_windows(selected_frame)
+        call initialize_frame_windows(selected_frame)
         ! frame.c:make_frame: the root window shows the current buffer.
         call set_window_buffer_internal(selected_frame%root_window, scratch, .false.)
         ! The faces of faces.el (defined when it is loaded), set up for
         ! the terminal (frame-set-background-mode).
-        call init_faces()
-        call init_frame_faces(selected_frame, terminal_type)
+        call initialize_faces()
+        call initialize_frame_faces(selected_frame, terminal_type)
         ! global-font-lock-mode's delayed initialization (its :init-value
         ! is true when not in batch mode), before the init file.
         call minor_modes%global_font_lock_mode%enable(st)
-        call tty_set_terminal_modes(selected_frame%tty)
+        call terminal_set_terminal_modes(selected_frame%terminal)
         ! startup.el:command-line: the mode line's strings for the
         ! end-of-line formats that aren't native to this platform, then
         ! the language environment and coding systems of the locale.
-        eol_mnemonic_dos = "(DOS)"
-        eol_mnemonic_mac = "(Mac)"
+        end_of_line_mnemonic_dos = "(DOS)"
+        end_of_line_mnemonic_mac = "(Mac)"
         call set_locale_environment("", locale_status)
 
         ! startup.el:command-line: the options, then the init file, then
         ! command-line-1 for the rest.  Errors are shown once the editor
         ! is up.
-        if (present(args)) then
-            call command_line(args, rest, init, opt_status)
+        if (present(arguments)) then
+            call command_line(arguments, rest, initialize, option_status)
         else
             allocate (rest(0))
-            init = .true.
+            initialize = .true.
         end if
 
         ! A reminder from `execute_editor`; errors from what follows replace it.
@@ -476,29 +477,29 @@ contains
 
         if (.not. color_status%ok()) call message(format_error(color_status))
         if (.not. locale_status%ok()) call message(format_error(locale_status))
-        init_file_had_error = .false.
+        initialization_file_had_error = .false.
         ! The values each choice setting accepts, for the init file and
         ! `set_variable'.
-        call init_choice_values()
+        call initialize_choice_values()
 
-        if (opt_status%ok()) then
-            if (init .and. present(configure)) then
-                call load_init_file(configure)
+        if (option_status%ok()) then
+            if (initialize .and. present(configure)) then
+                call load_initialization_file(configure)
                 ! user-mail-address, unless the init file set it.
-                call init_user_mail_address()
+                call initialize_user_mail_address()
                 ! The faces as the configuration set them
                 ! (tty-run-terminal-initialization after the init file).
-                call init_frame_faces(selected_frame, terminal_type)
+                call initialize_frame_faces(selected_frame, terminal_type)
             end if
 
             ! If the abbrevs came entirely from the init file or the
             ! abbrevs file, they do not need saving.
-            abbrevs_changed = .false.
+            abbreviations_changed = .false.
             call command_line_1(rest, st)
             if (.not. st%ok()) call message(format_error(st))
         else
             ! An error in command-line's options ends it there.
-            call message(format_error(opt_status))
+            call message(format_error(option_status))
         end if
 
         redisplay_hook => do_redisplay
@@ -508,33 +509,33 @@ contains
         call exit_fortmacs_hook%execute(st)
         ring_bell_hook => null()
         redisplay_hook => null()
-        call delete_tty(selected_frame%tty, status)
-        call tty_flush(selected_frame%tty, st)
+        call delete_terminal(selected_frame%terminal, status)
+        call terminal_flush(selected_frame%terminal, st)
         call set_input_fd(-1_int32)
         ! shut_down_emacs: hang up the subprocesses.
         call kill_buffer_processes(null_handle())
     end subroutine fortmacs_main
 
     !> Run the init file's `configure'.  An error is shown in the echo area
-    !> and sets `init_file_had_error'; startup goes on.  So is each value
+    !> and sets `initialization_file_had_error'; startup goes on.  So is each value
     !> a choice setting rejected (panel 2026-11-04: `setting_errors'; the
     !> setting keeps its value).  Port of
     !> startup.el:startup--load-user-init-file (the init file is compiled
     !> in, so loading it is calling it).
-    subroutine load_init_file(configure)
-        procedure(init_procedure) :: configure
+    subroutine load_initialization_file(configure)
+        procedure(initialize_procedure) :: configure
         type(status_type) :: status
         integer :: k
 
-        init_file_had_error = .false.
-        user_init_file = init_file_name()
-        call init_choice_values()
+        initialization_file_had_error = .false.
+        user_initialization_file = initialization_file_name()
+        call initialize_choice_values()
         if (allocated(setting_errors)) deallocate (setting_errors)
         call configure(status)
 
         if (allocated(setting_errors)) then
             do k = 1, size(setting_errors)
-                init_file_had_error = .true.
+                initialization_file_had_error = .true.
                 call message("An error occurred while loading the init file: "//setting_errors(k)%text)
             end do
 
@@ -542,42 +543,42 @@ contains
         end if
 
         if (.not. status%ok()) then
-            init_file_had_error = .true.
+            initialization_file_had_error = .true.
             call message("An error occurred while loading the init file: "//format_error(status))
         end if
-    end subroutine load_init_file
+    end subroutine load_initialization_file
 
     !> Handle the options that startup.el handles before the init file:
     !> -q (--no-init-file) and -Q (--quick) turn off the init file
-    !> (`init' false), -no-site-file is accepted (there is no site file);
+    !> (`initialize' false), -no-site-file is accepted (there is no site file);
     !> long options may be abbreviated and take --OPTION=VALUE.  `rest'
     !> gets the arguments from the first other one on, for
     !> `command_line_1'.  Port of the option loop of startup.el:command-line
     !> (the options for X, the debugger, other users' and directories'
     !> init files, the dump and native compilation are not ported).
-    subroutine command_line(args, rest, init, status)
-        type(string_type), intent(in) :: args(:)
+    subroutine command_line(arguments, rest, initialize, status)
+        type(string_type), intent(in) :: arguments(:)
         type(string_type), allocatable, intent(out) :: rest(:)
-        logical, intent(out) :: init
+        logical, intent(out) :: initialize
         type(status_type), intent(out) :: status
         character(len=20), parameter :: longopts(14) = [character(len=20) :: &
                                                         "--no-init-file", "--no-site-file", "--no-x-resources", &
                                                         "--debug-init", "--user", "--iconic", "--icon-type", "--quick", &
                                                         "--no-blinking-cursor", "--basic-display", "--dump-file", &
                                                         "--temacs", "--seccomp", "--init-directory"]
-        character(len=:), allocatable :: argi, orig_argi, completion
+        character(len=:), allocatable :: argi, original_argi, completion
         logical :: has_argval, done, exact
         integer :: k, eq
 
         status = status_type()
-        init = .true.
+        initialize = .true.
         k = 0
         done = .false.
 
-        do while (.not. done .and. k < size(args))
+        do while (.not. done .and. k < size(arguments))
             k = k + 1
-            argi = args(k)%text
-            orig_argi = argi
+            argi = arguments(k)%text
+            original_argi = argi
             has_argval = .false.
             ! Handle --OPTION=VALUE format.
             eq = index(argi, "=")
@@ -587,15 +588,15 @@ contains
                 argi = argi(1:eq - 1)
             end if
 
-            if (len(orig_argi) >= 3) then
-                if (orig_argi(1:2) == "--") then
+            if (len(original_argi) >= 3) then
+                if (original_argi(1:2) == "--") then
                     call try_completion_list(argi, longopts, completion, exact)
 
                     if (exact) then
                         argi = argi(2:)
                     else if (len(completion) > 0) then
                         if (.not. any(longopts == completion)) then
-                            call set_error(status, FM_GENERIC_ERROR, format_message("Option `")//argi// &
+                            call set_error(status, GENERIC_ERROR_CODE, format_message("Option `")//argi// &
                                            format_message("' is ambiguous"))
                             return
                         end if
@@ -603,14 +604,14 @@ contains
                         argi = completion(2:)
                     else
                         has_argval = .false.
-                        argi = orig_argi
+                        argi = original_argi
                     end if
                 end if
             end if
 
             select case (argi)
             case ("-Q", "-quick", "-q", "-no-init-file")
-                init = .false.
+                initialize = .false.
             case ("-no-site-file")
                 ! site-run-file: Fortmacs has no site file.
                 continue
@@ -622,22 +623,22 @@ contains
 
             ! Was argval set but not used?
             if (has_argval) then
-                call set_error(status, FM_GENERIC_ERROR, format_message("Option `")//argi// &
+                call set_error(status, GENERIC_ERROR_CODE, format_message("Option `")//argi// &
                                format_message("' doesn't allow an argument"))
                 return
             end if
         end do
 
-        rest = args(k + 1:)
+        rest = arguments(k + 1:)
     end subroutine command_line
 
-    !> Put the options in ARGS in order of decreasing priority (ties in
+    !> Put the options in ARGUMENTS in order of decreasing priority (ties in
     !> their order), each with its arguments, removing duplicates of
     !> options without arguments; everything after "--" stays at the end.
     !> OK is false (and ERROR says why) when an option lacks its argument.
     !> Port of emacs.c:sort_args.
-    subroutine sort_args(args, ok, error)
-        type(string_type), allocatable, intent(inout) :: args(:)
+    subroutine sort_arguments(arguments, ok, error)
+        type(string_type), allocatable, intent(inout) :: arguments(:)
         logical, intent(out) :: ok
         character(len=:), allocatable, intent(out) :: error
         type(string_type), allocatable :: new(:)
@@ -647,7 +648,7 @@ contains
 
         ok = .true.
         error = ""
-        argc = size(args)
+        argc = size(arguments)
         allocate (options(argc), priority(argc), used(argc), new(argc))
         options = -1
         priority = 0
@@ -660,43 +661,43 @@ contains
             options(from) = -1
             priority(from) = 0
 
-            if (index(args(from)%text, "-") == 1) then
+            if (index(arguments(from)%text, "-") == 1) then
                 ! If we have found "--", don't consider any more arguments
                 ! as options.
-                if (args(from)%text == "--") then
+                if (arguments(from)%text == "--") then
                     priority(from:) = -100
                     options(from:) = -1
                     exit categorize
                 end if
 
                 ! Look for a match with a known old-fashioned option.
-                do i = 1, size(standard_args)
-                    if (args(from)%text == trim(standard_args(i)%name)) then
-                        options(from) = standard_args(i)%nargs
-                        priority(from) = standard_args(i)%priority
+                do i = 1, size(standard_arguments)
+                    if (arguments(from)%text == trim(standard_arguments(i)%name)) then
+                        options(from) = standard_arguments(i)%nargs
+                        priority(from) = standard_arguments(i)%priority
 
-                        if (from + standard_args(i)%nargs > argc) then
+                        if (from + standard_arguments(i)%nargs > argc) then
                             ok = .false.
-                            error = "Option '"//args(from)%text//"' requires an argument"
+                            error = "Option '"//arguments(from)%text//"' requires an argument"
                             return
                         end if
 
-                        from = from + standard_args(i)%nargs + 1
+                        from = from + standard_arguments(i)%nargs + 1
                         cycle categorize
                     end if
                 end do
 
                 ! Look for a match with a known long option.
-                if (index(args(from)%text, "--") == 1) then
-                    equals = index(args(from)%text, "=")
-                    thislen = len(args(from)%text)
+                if (index(arguments(from)%text, "--") == 1) then
+                    equals = index(arguments(from)%text, "=")
+                    thislen = len(arguments(from)%text)
                     if (equals > 0) thislen = equals - 1
                     match = -1
 
-                    do i = 1, size(standard_args)
-                        if (len_trim(standard_args(i)%longname) == 0) cycle
+                    do i = 1, size(standard_arguments)
+                        if (len_trim(standard_arguments(i)%longname) == 0) cycle
 
-                        if (standard_args(i)%longname(1:min(thislen, 24)) == args(from)%text(1:thislen) .and. &
+                        if (standard_arguments(i)%longname(1:min(thislen, 24)) == arguments(from)%text(1:thislen) .and. &
                             thislen <= 24) then
                             if (match == -1) then
                                 match = i
@@ -707,21 +708,21 @@ contains
                     end do
 
                     if (match > 0) then
-                        options(from) = standard_args(match)%nargs
-                        priority(from) = standard_args(match)%priority
+                        options(from) = standard_arguments(match)%nargs
+                        priority(from) = standard_arguments(match)%priority
                         ! If --OPTION=VALUE syntax is used, this option
                         ! uses just one argument.
                         if (equals > 0) options(from) = 0
 
                         if (from + options(from) > argc) then
                             ok = .false.
-                            error = "Option '"//args(from)%text//"' requires an argument"
+                            error = "Option '"//arguments(from)%text//"' requires an argument"
                             return
                         end if
 
                         from = from + options(from)
                     else if (match == -2) then
-                        write (error_unit, "(a)") "Option '"//args(from)%text//"' matched multiple standard arguments"
+                        write (error_unit, "(a)") "Option '"//arguments(from)%text//"' matched multiple standard arguments"
                     end if
                 end if
             end if
@@ -755,11 +756,11 @@ contains
             ! previous one.
             if (.not. dup_of_previous(best)) then
                 to = to + 1
-                new(to) = args(best)
+                new(to) = arguments(best)
 
                 do i = 1, options(best)
                     to = to + 1
-                    new(to) = args(best + i)
+                    new(to) = arguments(best + i)
                 end do
             end if
 
@@ -767,7 +768,7 @@ contains
             used(best:best + max(options(best), 0)) = .true.
         end do
 
-        args = new(1:to)
+        arguments = new(1:to)
 
     contains
 
@@ -776,29 +777,29 @@ contains
 
             dup_of_previous = .false.
             if (options(b) /= 0 .or. to == 0) return
-            dup_of_previous = new(to)%text == args(b)%text
+            dup_of_previous = new(to)%text == arguments(b)%text
         end function dup_of_previous
-    end subroutine sort_args
+    end subroutine sort_arguments
 
-    !> Whether the argument after the first SKIP of ARGS is the option
+    !> Whether the argument after the first SKIP of ARGUMENTS is the option
     !> SSTR or an abbreviation of LSTR at least MINLEN long (taking no
     !> argument); if so SKIP counts it.  Port of emacs.c:argmatch
     !> (without VALPTR).
-    logical function argmatch(args, sstr, lstr, minlen, skip) result(found)
-        type(string_type), intent(in) :: args(:)
+    logical function argmatch(arguments, sstr, lstr, minlen, skip) result(found)
+        type(string_type), intent(in) :: arguments(:)
         character(len=*), intent(in) :: sstr, lstr
         integer, intent(in) :: minlen
         integer, intent(inout) :: skip
-        character(len=:), allocatable :: arg
+        character(len=:), allocatable :: argument
 
         found = .false.
-        if (size(args) <= skip) return
-        arg = args(skip + 1)%text
+        if (size(arguments) <= skip) return
+        argument = arguments(skip + 1)%text
 
-        if (arg == sstr .and. len(arg) == len(sstr)) then
+        if (argument == sstr .and. len(argument) == len(sstr)) then
             found = .true.
-        else if (len(arg) >= minlen .and. len(arg) <= len(lstr)) then
-            found = arg == lstr(1:len(arg))
+        else if (len(argument) >= minlen .and. len(argument) <= len(lstr)) then
+            found = argument == lstr(1:len(argument))
         end if
 
         if (found) skip = skip + 1
@@ -853,12 +854,12 @@ contains
     !> installation it was built against.  Port of the startup part of
     !> emacs.c:main.
     subroutine execute_editor(configure, exit_code, prefix)
-        procedure(init_procedure) :: configure
+        procedure(initialize_procedure) :: configure
         integer, intent(out) :: exit_code
         character(len=*), intent(in), optional :: prefix
         character(len=*), parameter :: usage = "Usage: fortmacs [--version | --help] [-q] [+LINE] [FILE]..."
         character(len=:), allocatable :: term, install, reminder
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         type(status_type) :: status
         integer :: nargs, arglen, stat, k
         logical :: installed, ok
@@ -867,12 +868,12 @@ contains
 
         exit_code = 0
         nargs = command_argument_count()
-        allocate (args(nargs))
+        allocate (arguments(nargs))
 
         do k = 1, nargs
             call get_command_argument(k, length=arglen)
-            allocate (character(len=arglen) :: args(k)%text)
-            call get_command_argument(k, value=args(k)%text)
+            allocate (character(len=arglen) :: arguments(k)%text)
+            call get_command_argument(k, value=arguments(k)%text)
         end do
 
         ! Which installation this is: a user build knows; an installed
@@ -887,15 +888,15 @@ contains
         if (installed) configure_info_directory = install//"share/info/"
 
         if (nargs > 0) then
-            if (args(1)%text == "--recompile" .or. args(1)%text == "-recompile") then
+            if (arguments(1)%text == "--recompile" .or. arguments(1)%text == "-recompile") then
                 call do_recompile(installed, install, exit_code)
                 return
             end if
 
-            select case (args(1)%text)
+            select case (arguments(1)%text)
             case ("--list-generations", "-list-generations", "--rollback", "-rollback", &
                   "--switch-generation", "-switch-generation")
-                call do_generations(args, exit_code)
+                call do_generations(arguments, exit_code)
                 return
             case default
                 ! Not a generation command.
@@ -903,15 +904,15 @@ contains
         end if
 
         reminder = ""
-        if (.not. present(prefix) .and. installed) call execute_user_build(args, reminder)
+        if (.not. present(prefix) .and. installed) call execute_user_build(arguments, reminder)
 
         if (present(prefix)) then
-            if (is_file_newer_than_file(init_file_name(), running_executable())) then
-                reminder = init_file_name()//" has changed; run fortmacs --recompile to use it"
+            if (is_file_newer_than_file(initialization_file_name(), running_executable())) then
+                reminder = initialization_file_name()//" has changed; run fortmacs --recompile to use it"
             end if
         end if
 
-        call sort_args(args, ok, error)
+        call sort_arguments(arguments, ok, error)
 
         if (.not. ok) then
             write (error_unit, "(a)") "fortmacs: "//error
@@ -921,31 +922,31 @@ contains
 
         skip = 0
 
-        if (argmatch(args, "-version", "--version", 3, skip)) then
+        if (argmatch(arguments, "-version", "--version", 3, skip)) then
             write (output_unit, "(a)") version_string()
             if (present(prefix)) call write_configuration()
             return
         end if
 
         ! -nw: Fortmacs only uses the terminal.
-        if (.not. argmatch(args, "-nw", "--no-window-system", 6, skip)) then
-            if (argmatch(args, "-nw", "--no-windows", 6, skip)) continue
+        if (.not. argmatch(arguments, "-nw", "--no-window-system", 6, skip)) then
+            if (argmatch(arguments, "-nw", "--no-windows", 6, skip)) continue
         end if
 
-        if (argmatch(args, "-help", "--help", 3, skip)) then
+        if (argmatch(arguments, "-help", "--help", 3, skip)) then
             write (output_unit, "(a)") usage
             write (output_unit, "(a)") "       fortmacs --recompile | --list-generations | --rollback | --switch-generation N"
             write (output_unit, "(a)") "Edit the FILEs (or *scratch*) in the terminal; C-x C-s saves, C-x C-c quits."
             write (output_unit, "(a)") "+LINE puts point on line LINE of the next FILE."
             write (output_unit, "(a)") "-q (--no-init-file) skips the configure of your init.f90."
-            write (output_unit, "(a)") "--recompile builds "//init_file_name()//" into a new generation of your own"
+            write (output_unit, "(a)") "--recompile builds "//initialization_file_name()//" into a new generation of your own"
             write (output_unit, "(a)") "fortmacs, which an installed fortmacs runs; --rollback goes back to the generation"
             write (output_unit, "(a)") "before, --switch-generation N to generation N."
             return
         end if
 
         ! Everything else is for startup.el:command-line.
-        args = args(skip + 1:)
+        arguments = arguments(skip + 1:)
 
         ! emacs.c:main: a terminal is needed on standard input.
         if (.not. fortmacs_isatty(0_int32)) then
@@ -965,7 +966,7 @@ contains
         allocate (character(len=arglen) :: term)
         call get_environment_variable("TERM", term)
         startup_message = reminder
-        call fortmacs_main(term, 0_int32, status, args, configure)
+        call fortmacs_main(term, 0_int32, status, arguments, configure)
 
         if (.not. status%ok()) then
             ! term.c:fatal and term.c:vfatal: the message, then exit.
@@ -992,7 +993,7 @@ contains
             return
         end if
 
-        call init_fileio()
+        call initialize_fileio()
         call recompile(install, log, status, generation)
         if (len(log) > 0) write (error_unit, "(a)", advance="no") log
 
@@ -1014,24 +1015,24 @@ contains
         n = generation_of(running_executable())
 
         if (n > 0) then
-            write (output_unit, "(a, i0, a)") "With generation ", n, " of the configuration in "//init_file_name()
+            write (output_unit, "(a, i0, a)") "With generation ", n, " of the configuration in "//initialization_file_name()
         else
-            write (output_unit, "(a)") "With the configuration in "//init_file_name()
+            write (output_unit, "(a)") "With the configuration in "//initialization_file_name()
         end if
     end subroutine write_configuration
 
     !> --list-generations, --rollback and --switch-generation N, reporting
     !> as Guix does ("switched from generation 3 to 2").  Not a port.
-    subroutine do_generations(args, exit_code)
-        type(string_type), intent(in) :: args(:)
+    subroutine do_generations(arguments, exit_code)
+        type(string_type), intent(in) :: arguments(:)
         integer, intent(out) :: exit_code
         character(len=:), allocatable :: text, command
         type(status_type) :: status
         integer :: from, to, stat
 
         exit_code = 1
-        call init_fileio()
-        command = args(1)%text
+        call initialize_fileio()
+        command = arguments(1)%text
         if (command(1:2) == "--") command = command(2:)
 
         select case (command)
@@ -1043,7 +1044,7 @@ contains
         case default
             to = 0
             stat = 1
-            if (size(args) >= 2) read (args(2)%text, *, iostat=stat) to
+            if (size(arguments) >= 2) read (arguments(2)%text, *, iostat=stat) to
 
             if (stat /= 0 .or. to <= 0) then
                 write (error_unit, "(a)") "fortmacs: --switch-generation needs a generation number"
@@ -1070,32 +1071,32 @@ contains
     !> Replace this process with the user's build, if there is one and it
     !> is newer than this fortmacs; otherwise `reminder' says what to do.
     !> Returns only if the build is not run.  Not a port.
-    subroutine execute_user_build(args, reminder)
-        type(string_type), intent(in) :: args(:)
+    subroutine execute_user_build(arguments, reminder)
+        type(string_type), intent(in) :: arguments(:)
         character(len=:), allocatable, intent(inout) :: reminder
         type(string_type), allocatable :: argv(:)
-        character(len=:), allocatable :: build, init
+        character(len=:), allocatable :: build, initialize
         integer(int32) :: err
         integer :: k
 
         build = current_build_name()
-        init = init_file_name()
+        initialize = initialization_file_name()
 
         if (.not. is_file_executable(build)) then
-            if (file_exists(init)) reminder = init//" is not built yet; run fortmacs --recompile to use it"
+            if (file_exists(initialize)) reminder = initialize//" is not built yet; run fortmacs --recompile to use it"
             return
         end if
 
         if (is_file_newer_than_file(running_executable(), build)) then
-            reminder = "Fortmacs was updated since "//init//" was built; run fortmacs --recompile"
+            reminder = "Fortmacs was updated since "//initialize//" was built; run fortmacs --recompile"
             return
         end if
 
-        allocate (argv(size(args) + 1))
+        allocate (argv(size(arguments) + 1))
         argv(1)%text = build
 
-        do k = 1, size(args)
-            argv(k + 1)%text = args(k)%text
+        do k = 1, size(arguments)
+            argv(k + 1)%text = arguments(k)%text
         end do
 
         err = fortmacs_execv(build, argv)

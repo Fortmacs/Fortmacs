@@ -37,23 +37,24 @@ submodule(coding_mod) tibetan_mod
 contains
 
     !> Port of the `iso-2022' coding systems of tibetan.el.
-    module subroutine init_tibetan()
+    module subroutine initialize_tibetan()
         call define_iso_2022_coding_system("tibetan-iso-8bit", iachar("Q"), &
                                            doc="8-bit encoding for ASCII (MSB=0) and TIBETAN (MSB=1).", &
-                                           initial=[character(len=CHARSET_NAME_LEN) :: "ascii", "tibetan", "", ""], &
-                                           request_charset_names=[character(len=CHARSET_NAME_LEN) :: "tibetan", "ascii"], &
+                                           initial=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "tibetan", "", ""], &
+                                           request_character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "tibetan", &
+                                                                        "ascii"], &
                                            request_registers=[integer :: 1, 0], &
                                            register_usage=[4, 4], &
                                            flags=[character(len=16) ::], &
-                                           charset_names=[character(len=CHARSET_NAME_LEN) :: "ascii", "tibetan"])
+                                           character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ascii", "tibetan"])
         call define_coding_system_alias("tibetan", "tibetan-iso-8bit")
-    end subroutine init_tibetan
+    end subroutine initialize_tibetan
 
     !> Port of the language environments of tibetan.el.
     module subroutine define_tibetan_language_environments()
         call define_language_environment("Tibetan", &
                                          has_documentation=.true., &
-                                         charsets=[character(len=40) :: "tibetan", "tibetan-1-column"], &
+                                         character_sets=[character(len=40) :: "tibetan", "tibetan-1-column"], &
                                          sample_text="Tibetan (བོད་སྐ"//char(246)//""//char(144)//""//char(130)//"" &
                                          //char(142) &
                                          //"ད་) ༄༅༅༎བཀྲ"//char(246)//""//char(144)//""//char(130)//""//char(142) &

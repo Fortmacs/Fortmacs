@@ -28,8 +28,8 @@ module test_rfc2047_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point_min, point_max
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: buffer_string, goto_character, point_minimum, point_maximum
+    use bindings_mod, only: initialize_bindings
     use mime_utilities_mod, only: mime_coding_system_priorities
     use rfc2047_mod, only: fold_rfc2047_field, unfold_rfc2047_field, decode_rfc2047_string, &
                            decode_rfc2047_address_string, encode_rfc2047_string, encode_rfc2047_message_header, &
@@ -71,12 +71,12 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *rfc2047-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine temporary_buffer
 
     subroutine check_string(error, got, wanted)

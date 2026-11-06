@@ -24,15 +24,15 @@
 module test_skeleton_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_QUIT
+    use error_mod, only: status_type, format_error, QUIT_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_string, widen
-    use keyboard_mod, only: discard_input, kbd_store_bytes, last_command_event
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_string, widen
+    use keyboard_mod, only: discard_input, keyboard_store_bytes, last_command_event
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE
     use value_mod, only: value_type
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: fundamental_mode
     use test_support_mod, only: show_alone
     use skeleton_mod, only: skeleton_element_type, skeleton_insert, skeleton_command, skeleton_text, skeleton_literal, &
@@ -72,12 +72,12 @@ contains
     end subroutine collect_skeleton_mod
 
     !> A fresh buffer in Fundamental mode holding TEXT, point at its end.
-    subroutine temp_buffer(text)
+    subroutine temporary_buffer(text)
         character(len=*), intent(in) :: text
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*skeleton-test*", buffer, st)
         call set_buffer(buffer, st)
@@ -86,7 +86,7 @@ contains
         call fundamental_mode(st)
         call show_alone()
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     ! An upcasing transformation.
     subroutine upcase(string, result)
@@ -130,7 +130,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("if x"), SKELETON_NEWLINE, SKELETON_INDENT, &
                               SKELETON_POINT, SKELETON_NEWLINE, skeleton_text("fi")], st)
         call check(error, st%ok(), format_error(st))
@@ -140,7 +140,7 @@ contains
         call check(error, point() == 6_int64, "point after _")
         if (allocated(error)) return
         ! skeleton_end_newline false: no newline at the end; - overrides _.
-        call temp_buffer("")
+        call temporary_buffer("")
         skeleton_end_newline = .false.
         call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("a"), SKELETON_POINT, skeleton_text("b"), &
                               SKELETON_POINT_OVERRIDE, skeleton_text("c"), skeleton_delete(1)], st)
@@ -155,15 +155,15 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
-        call kbd_store_bytes("foo"//CR)
+        call temporary_buffer("")
+        call keyboard_store_bytes("foo"//CR)
         call skeleton_insert([skeleton_prompt("Name: "), skeleton_text("<"), SKELETON_STRING, skeleton_text(">"), &
                               SKELETON_STRING], st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call check(error, buffer_string() == "<foo>foo", "read: "//buffer_string())
         if (allocated(error)) return
-        call temp_buffer("")
+        call temporary_buffer("")
         call skeleton_insert([skeleton_prompt("Name: "), SKELETON_STRING], st, string="bar")
         call check(error, buffer_string() == "bar", "given: "//buffer_string())
     end subroutine test_read_string
@@ -173,8 +173,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
-        call kbd_store_bytes("a"//CR//"b"//CR//CR)
+        call temporary_buffer("")
+        call keyboard_store_bytes("a"//CR//"b"//CR//CR)
         call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("("), skeleton_prompt("item, %s: "), &
                               skeleton_text("["), SKELETON_STRING, skeleton_text("]"), SKELETON_END, skeleton_text(")")], st)
         call check(error, st%ok(), format_error(st))
@@ -187,12 +187,12 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
-        call kbd_store_bytes("a"//CR//achar(7))
+        call temporary_buffer("")
+        call keyboard_store_bytes("a"//CR//achar(7))
         call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("("), skeleton_prompt("item, %s: "), &
                               skeleton_text("["), SKELETON_STRING, skeleton_text("]"), SKELETON_END, skeleton_text("x"), &
                               SKELETON_RESUME, skeleton_text(")")], st)
-        call check(error, st%code == FM_QUIT, "the quit is passed on")
+        call check(error, st%code == QUIT_CODE, "the quit is passed on")
         if (allocated(error)) return
         call check(error, buffer_string() == "([a])", "resume: "//buffer_string())
     end subroutine test_quit_resume
@@ -202,7 +202,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("a"), SKELETON_IF_MOVED, skeleton_text("b"), &
                               skeleton_text(""), SKELETON_IF_MOVED, skeleton_text("c"), skeleton_text(""), SKELETON_IF_NOT_MOVED, &
                               skeleton_text("d"), skeleton_text("e"), SKELETON_IF_NOT_MOVED, skeleton_text("f")], st)
@@ -214,7 +214,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call skeleton_insert([SKELETON_NO_INTERACTOR, SKELETON_POSITION, skeleton_text("ab"), SKELETON_POSITION], st)
         call check(error, size(skeleton_positions) == 2, "two positions")
         if (allocated(error)) return
@@ -226,7 +226,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call skeleton_transformation_function_set_local(upcase)
         call skeleton_insert([skeleton_prompt("x"), skeleton_text("ab"), SKELETON_STRING, skeleton_literal("cd")], st, &
                              string="ef")
@@ -239,7 +239,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_for_each([character(len=2) :: "x", "yz"]), SKELETON_STRING, &
                               skeleton_text(";"), SKELETON_END], st)
         call check(error, buffer_string() == "x;yz;", "for each: "//buffer_string())
@@ -250,8 +250,8 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("one two three")
-        call goto_char(1_int64)
+        call temporary_buffer("one two three")
+        call goto_character(1_int64)
         call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("<b>"), SKELETON_POINT, skeleton_text("</b>")], st, &
                              2_int64)
         call check(error, st%ok(), format_error(st))
@@ -264,7 +264,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("keep")
+        call temporary_buffer("keep")
         call skeleton_command([SKELETON_NO_INTERACTOR, skeleton_text(" more"), skeleton_action(fail)], st)
         call check(error,.not. st%ok(), "the error is passed on")
         if (allocated(error)) return
@@ -276,7 +276,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_action(set_v1), SKELETON_V1, skeleton_value(sub_value)], st)
         call check(error, buffer_string() == "<v1>[sub]", "values: "//buffer_string())
     end subroutine test_values
@@ -286,14 +286,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         last_command_event = value_type(40_int64)
-        call skeleton_pair_insert_maybe(prefix_arg_type(PREFIX_NONE, 0_int64), st)
+        call skeleton_pair_insert_maybe(prefix_argument_type(PREFIX_NONE, 0_int64), st)
         call check(error, buffer_string() == "(", "unpaired: "//buffer_string())
         if (allocated(error)) return
-        call temp_buffer("")
+        call temporary_buffer("")
         skeleton_pair = .true.
-        call skeleton_pair_insert_maybe(prefix_arg_type(PREFIX_NONE, 0_int64), st)
+        call skeleton_pair_insert_maybe(prefix_argument_type(PREFIX_NONE, 0_int64), st)
         skeleton_pair = .false.
         call check(error, buffer_string() == "()", "paired: "//buffer_string())
         if (allocated(error)) return

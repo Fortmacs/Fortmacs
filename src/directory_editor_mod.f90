@@ -25,17 +25,17 @@
 !> File name completion: `file_name_completion', `file_name_all_completions'.
 !>
 !> Not ported yet: MATCH (it needs regexps), `directory_files_and_attributes',
-!> `file_attributes' as a list, `completion_regexps'.
+!> `file_attributes' as a list, `completion_regular_expressions'.
 module directory_editor_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE
     use value_mod, only: value_type, make_list
     use file_input_output_mod, only: expand_file_name, directory_file_name, file_name_as_directory, report_file_errno, &
-                                     is_file_directory, file_attributes, file_stat_type
+                                     is_file_directory, file_attributes, file_status_type
     use minibuffer_reading_mod, only: completion_ignore_case, completion_test_procedure
     use utility_functions_mod, only: compare_strings, COMPARE_EQUAL, count_characters, substring, is_string_less
     use system_dependent_mod, only: fortmacs_directory_entries, system_user_names, system_group_names, &
-                                    passwd_name_of_user, user_name_of_uid, group_name_of_gid
+                                    password_name_of_user, user_name_of_uid, group_name_of_gid
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
@@ -80,9 +80,9 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: full, nosort
         integer(int64), intent(in), optional :: count
-        character(len=:), allocatable :: dir, dirfilename
+        character(len=:), allocatable :: directory_name, dirfilename
         type(string_type), allocatable :: names(:)
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer, allocatable :: order(:)
         integer(int32) :: err
         integer :: n, k, j, key
@@ -92,7 +92,7 @@ contains
 
         if (present(count)) then
             if (count < 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer (>= 0)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (>= 0)")
                 return
             end if
         end if
@@ -101,9 +101,9 @@ contains
         if (present(full)) absolute = full
         sorted = .true.
         if (present(nosort)) sorted = .not. nosort
-        call expand_file_name(directory, dir, status)
+        call expand_file_name(directory, directory_name, status)
         if (.not. status%ok()) return
-        dirfilename = directory_file_name(dir)
+        dirfilename = directory_file_name(directory_name)
         err = fortmacs_directory_entries(dirfilename, names)
 
         if (err /= 0) then
@@ -135,17 +135,17 @@ contains
             end do
         end if
 
-        allocate (elems(n))
+        allocate (elements(n))
 
         do k = 1, n
             if (absolute) then
-                elems(k) = value_type(text=file_name_as_directory(dirfilename)//names(order(k))%text)
+                elements(k) = value_type(text=file_name_as_directory(dirfilename)//names(order(k))%text)
             else
-                elems(k) = value_type(text=names(order(k))%text)
+                elements(k) = value_type(text=names(order(k))%text)
             end if
         end do
 
-        files = make_list(elems)
+        files = make_list(elements)
     end subroutine directory_files
 
     !> Complete file name FILE in directory DIRECTORY.
@@ -215,25 +215,25 @@ contains
 
     !> Port of dired.c:file_name_completion (no completion-regexp-list or
     !> decomposed file name encodings).
-    subroutine file_name_completion_1(file, dirname, all_flag, result, status, test)
-        character(len=*), intent(in) :: file, dirname
+    subroutine file_name_completion_1(file, directory_name, all_flag, result, status, test)
+        character(len=*), intent(in) :: file, directory_name
         logical, intent(in) :: all_flag
         type(value_type), intent(out) :: result
         type(status_type), intent(out) :: status
         procedure(completion_test_procedure), optional :: test
         type(string_type), allocatable :: names(:)
         type(value_type), allocatable :: all(:)
-        character(len=:), allocatable :: dir, dirfilename, name, bestmatch
+        character(len=:), allocatable :: directory, dirfilename, name, bestmatch
         integer(int64) :: bestmatchsize, nfile, compare, cmp, matchsize, nname
         integer(int32) :: err
         integer :: k, matchcount, nall
         logical :: directoryp, canexclude, includeall, has_best
 
         result = value_type()
-        call expand_file_name(dirname, dir, status)
+        call expand_file_name(directory_name, directory, status)
         if (.not. status%ok()) return
-        dir = file_name_as_directory(dir)
-        dirfilename = directory_file_name(dir)
+        directory = file_name_as_directory(directory)
+        dirfilename = directory_file_name(directory)
         err = fortmacs_directory_entries(dirfilename, names)
 
         if (err /= 0) then
@@ -256,7 +256,7 @@ contains
             name = names(k)%text
             if (count_characters(name) < nfile) cycle
             if (compare_strings(name, file, completion_ignore_case%value, end1=nfile) /= COMPARE_EQUAL) cycle
-            directoryp = is_file_directory(dir//name)
+            directoryp = is_file_directory(directory//name)
 
             ! If all_flag is set, always include all.  It would not actually
             ! be helpful to the user to ignore any possible completions when
@@ -359,7 +359,7 @@ contains
     subroutine system_users(users)
         type(value_type), intent(out) :: users
         type(string_type), allocatable :: names(:)
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         character(len=:), allocatable :: me
         logical :: found
         integer :: k, n
@@ -369,21 +369,21 @@ contains
 
         if (n == 0) then
             ! At least current user is always known.
-            call passwd_name_of_user(me, found)
-            allocate (elems(1))
-            elems(1) = value_type(text=me)
-            users = make_list(elems)
+            call password_name_of_user(me, found)
+            allocate (elements(1))
+            elements(1) = value_type(text=me)
+            users = make_list(elements)
             return
         end if
 
-        allocate (elems(n))
+        allocate (elements(n))
 
         ! Consed: the last entry first.
         do k = 1, n
-            elems(k) = value_type(text=names(n + 1 - k)%text)
+            elements(k) = value_type(text=names(n + 1 - k)%text)
         end do
 
-        users = make_list(elems)
+        users = make_list(elements)
     end subroutine system_users
 
     !> Return a list of user group names currently registered in the system.
@@ -392,18 +392,18 @@ contains
     subroutine system_groups(groups)
         type(value_type), intent(out) :: groups
         type(string_type), allocatable :: names(:)
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k, n
 
         call system_group_names(names)
         n = size(names)
-        allocate (elems(n))
+        allocate (elements(n))
 
         do k = 1, n
-            elems(k) = value_type(text=names(n + 1 - k)%text)
+            elements(k) = value_type(text=names(n + 1 - k)%text)
         end do
 
-        groups = make_list(elems)
+        groups = make_list(elements)
     end subroutine system_groups
 
     !> The owner and group of FILENAME (not following a symbolic link) as
@@ -414,8 +414,8 @@ contains
         character(len=*), intent(in) :: filename
         character(len=:), allocatable, intent(out) :: user, group
         logical, intent(out) :: found
-        type(file_stat_type) :: st
-        character(len=12) :: num
+        type(file_status_type) :: st
+        character(len=12) :: number
         logical :: named
 
         user = ""
@@ -425,15 +425,15 @@ contains
         call user_name_of_uid(st%uid, user, named)
 
         if (.not. named) then
-            write (num, "(i0)") st%uid
-            user = trim(num)
+            write (number, "(i0)") st%uid
+            user = trim(number)
         end if
 
         call group_name_of_gid(st%gid, group, named)
 
         if (.not. named) then
-            write (num, "(i0)") st%gid
-            group = trim(num)
+            write (number, "(i0)") st%gid
+            group = trim(number)
         end if
     end subroutine file_attribute_names
 end module directory_editor_mod

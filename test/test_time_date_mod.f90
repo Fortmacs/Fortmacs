@@ -28,8 +28,8 @@ module test_time_date_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use time_functions_mod, only: time_type, current_time, time_subtract, is_time_equal, DECODED_TIME_DST_YES, &
-                                  DECODED_TIME_DST_NO, DECODED_TIME_DST_UNKNOWN
+    use time_functions_mod, only: time_type, current_time, time_subtract, is_time_equal, DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, &
+                                  DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN
     use time_date_mod, only: seconds_to_string, SECONDS_TO_STRING_READABLE, SECONDS_TO_STRING_EXPANDED, &
                              partial_decoded_time_type, date_to_time, days_between, is_date_leap_year, days_to_time, &
                              date_days_in_month, format_seconds, date_ordinal_to_time, add_decoded_time, &
@@ -39,6 +39,9 @@ module test_time_date_mod
     private
 
     public :: collect_time_date_mod
+
+    ! Daylight saving time not in effect.
+    integer, parameter :: STANDARD_TIME = DECODED_TIME_DAYLIGHT_SAVING_TIME_NO
 
 contains
 
@@ -131,51 +134,51 @@ contains
 
         call expect_date(error, "2021-12-04", &
                          partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=4, month=12, &
-                                                   year=2021_int64, dst=DECODED_TIME_DST_UNKNOWN))
+                                                   year=2021_int64, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN))
         if (allocated(error)) return
         call expect_date(error, "2006-05-04T03:02:01Z", &
                          partial_decoded_time_type(second=time_type(1), minute=2, hour=3, day=4, month=5, &
-                                                   year=2006_int64, dst=DECODED_TIME_DST_NO, zone=0))
+                                                   year=2006_int64, daylight_saving_time=STANDARD_TIME, zone=0))
         if (allocated(error)) return
         call expect_date(error, "14 Apr 89 03:20", &
                          partial_decoded_time_type(second=time_type(0), minute=20, hour=3, day=14, month=4, &
-                                                   year=1989_int64, dst=DECODED_TIME_DST_UNKNOWN))
+                                                   year=1989_int64, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN))
         if (allocated(error)) return
         call expect_date(error, "14 Apr 89 03:20:12 GMT", &
                          partial_decoded_time_type(second=time_type(12), minute=20, hour=3, day=14, month=4, &
-                                                   year=1989_int64, dst=DECODED_TIME_DST_NO, zone=0))
+                                                   year=1989_int64, daylight_saving_time=STANDARD_TIME, zone=0))
         if (allocated(error)) return
         call expect_date(error, "Fri, 17 Mar 89 4:01", &
                          partial_decoded_time_type(second=time_type(0), minute=1, hour=4, day=17, month=3, &
-                                                   year=1989_int64, dst=DECODED_TIME_DST_UNKNOWN))
+                                                   year=1989_int64, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN))
         if (allocated(error)) return
         call expect_date(error, "Fri, 17 Mar 89 4:01:33 GMT", &
                          partial_decoded_time_type(second=time_type(33), minute=1, hour=4, day=17, month=3, &
-                                                   year=1989_int64, dst=DECODED_TIME_DST_NO, zone=0))
+                                                   year=1989_int64, daylight_saving_time=STANDARD_TIME, zone=0))
         if (allocated(error)) return
         call expect_date(error, "Mon Jan 16 16:12 1989", &
                          partial_decoded_time_type(second=time_type(0), minute=12, hour=16, day=16, month=1, &
-                                                   year=1989_int64, dst=DECODED_TIME_DST_UNKNOWN))
+                                                   year=1989_int64, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN))
         if (allocated(error)) return
         call expect_date(error, "Mon Jan 16 16:12:37 GMT 1989", &
                          partial_decoded_time_type(second=time_type(37), minute=12, hour=16, day=16, month=1, &
-                                                   year=1989_int64, dst=DECODED_TIME_DST_NO, zone=0))
+                                                   year=1989_int64, daylight_saving_time=STANDARD_TIME, zone=0))
         if (allocated(error)) return
         call expect_date(error, "Thu, 11 Apr 16:17:12 91", &
                          partial_decoded_time_type(second=time_type(12), minute=17, hour=16, day=11, month=4, &
-                                                   year=1991_int64, dst=DECODED_TIME_DST_UNKNOWN))
+                                                   year=1991_int64, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN))
         if (allocated(error)) return
         call expect_date(error, "Mon, 6  Jul 16:47:20 T 1992", &
                          partial_decoded_time_type(second=time_type(20), minute=47, hour=16, day=6, month=7, &
-                                                   year=1992_int64, dst=DECODED_TIME_DST_UNKNOWN))
+                                                   year=1992_int64, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN))
         if (allocated(error)) return
         call expect_date(error, "1996-06-24 21:13:12", &
                          partial_decoded_time_type(second=time_type(12), minute=13, hour=21, day=24, month=6, &
-                                                   year=1996_int64, dst=DECODED_TIME_DST_UNKNOWN))
+                                                   year=1996_int64, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN))
         if (allocated(error)) return
         call expect_date(error, "19960624t211312", &
                          partial_decoded_time_type(second=time_type(12), minute=13, hour=21, day=24, month=6, &
-                                                   year=1996_int64, dst=DECODED_TIME_DST_UNKNOWN))
+                                                   year=1996_int64, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN))
     end subroutine test_date_to_time
 
     subroutine test_days_between(error)
@@ -266,13 +269,13 @@ contains
     subroutine test_ordinal(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect_decoded(error, date_ordinal_to_time(2008_int64, 271), "day=27 month=9 year=2008 dst=0")
+        call expect_decoded(error, date_ordinal_to_time(2008_int64, 271), "day=27 month=9 year=2008 daylight_saving_time=0")
         if (allocated(error)) return
-        call expect_decoded(error, date_ordinal_to_time(2008_int64, 1), "day=1 month=1 year=2008 dst=0")
+        call expect_decoded(error, date_ordinal_to_time(2008_int64, 1), "day=1 month=1 year=2008 daylight_saving_time=0")
         if (allocated(error)) return
-        call expect_decoded(error, date_ordinal_to_time(2008_int64, 32), "day=1 month=2 year=2008 dst=0")
+        call expect_decoded(error, date_ordinal_to_time(2008_int64, 32), "day=1 month=2 year=2008 daylight_saving_time=0")
         if (allocated(error)) return
-        call expect_decoded(error, date_ordinal_to_time(1981_int64, 95), "day=5 month=4 year=1981 dst=0")
+        call expect_decoded(error, date_ordinal_to_time(1981_int64, 95), "day=5 month=4 year=1981 daylight_saving_time=0")
     end subroutine test_ordinal
 
     subroutine test_decoded_add(error)
@@ -280,82 +283,82 @@ contains
         type(partial_decoded_time_type) :: time
 
         time = partial_decoded_time_type(second=time_type(12), minute=15, hour=16, day=8, month=7, year=2019_int64, &
-                                         weekday=1, dst=DECODED_TIME_DST_YES, zone=7200)
+                                         weekday=1, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, zone=7200)
         call expect_add(error, time, &
                         partial_decoded_time_type(year=1_int64), &
-                        "second=12 minute=15 hour=16 day=8 month=7 year=2020 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=7 year=2020 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(year=-2_int64), &
-                        "second=12 minute=15 hour=16 day=8 month=7 year=2017 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=7 year=2017 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(month=1), &
-                        "second=12 minute=15 hour=16 day=8 month=8 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=8 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(month=10), &
-                        "second=12 minute=15 hour=16 day=8 month=5 year=2020 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=5 year=2020 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(month=-1), &
-                        "second=12 minute=15 hour=16 day=8 month=6 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=6 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(month=-10), &
-                        "second=12 minute=15 hour=16 day=8 month=9 year=2018 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=9 year=2018 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(month=-14), &
-                        "second=12 minute=15 hour=16 day=8 month=5 year=2018 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=5 year=2018 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(month=-24), &
-                        "second=12 minute=15 hour=16 day=8 month=7 year=2017 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=7 year=2017 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(day=1), &
-                        "second=12 minute=15 hour=16 day=9 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=9 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(day=-1), &
-                        "second=12 minute=15 hour=16 day=7 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=7 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(day=30), &
-                        "second=12 minute=15 hour=16 day=7 month=8 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=7 month=8 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(day=-365), &
-                        "second=12 minute=15 hour=16 day=8 month=7 year=2018 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=7 year=2018 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(day=365), &
-                        "second=12 minute=15 hour=16 day=7 month=7 year=2020 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=7 month=7 year=2020 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(day=366), &
-                        "second=12 minute=15 hour=16 day=8 month=7 year=2020 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=8 month=7 year=2020 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(second=time_type(1)), &
-                        "second=13 minute=15 hour=16 day=8 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=13 minute=15 hour=16 day=8 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(second=time_subtract(time_type(), time_type(1))), &
-                        "second=11 minute=15 hour=16 day=8 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=11 minute=15 hour=16 day=8 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(second=time_type(61)), &
-                        "second=13 minute=16 hour=16 day=8 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=13 minute=16 hour=16 day=8 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(hour=1, minute=2, second=time_type(3)), &
-                        "second=15 minute=17 hour=17 day=8 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=15 minute=17 hour=17 day=8 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(hour=24), &
-                        "second=12 minute=15 hour=16 day=9 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=16 day=9 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
     end subroutine test_decoded_add
 
     subroutine test_decoded_add_zone(error)
@@ -363,14 +366,14 @@ contains
         type(partial_decoded_time_type) :: time
 
         time = partial_decoded_time_type(second=time_type(12), minute=15, hour=16, day=8, month=7, year=2019_int64, &
-                                         weekday=1, dst=DECODED_TIME_DST_YES, zone=7200)
+                                         weekday=1, daylight_saving_time=DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, zone=7200)
         call expect_add(error, time, &
                         partial_decoded_time_type(zone=-3600), &
-                        "second=12 minute=15 hour=15 day=8 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=15 day=8 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
         if (allocated(error)) return
         call expect_add(error, time, &
                         partial_decoded_time_type(zone=-7200), &
-                        "second=12 minute=15 hour=14 day=8 month=7 year=2019 weekday=1 dst=1 zone=7200")
+                        "second=12 minute=15 hour=14 day=8 month=7 year=2019 weekday=1 daylight_saving_time=1 zone=7200")
     end subroutine test_decoded_add_zone
 
     subroutine test_time_since(error)
@@ -388,39 +391,47 @@ contains
     subroutine test_time_decoded_period(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, decoded_time_period(partial_decoded_time_type(hour=1, dst=DECODED_TIME_DST_NO)) == 3600.0_real64, &
-                   "period 3600")
+        call check(error, decoded_time_period(partial_decoded_time_type(hour=1, daylight_saving_time=STANDARD_TIME)) &
+                   == 3600.0_real64, "period 3600")
         if (allocated(error)) return
         call check(error, decoded_time_period(partial_decoded_time_type(second=time_type(1), minute=0, hour=0, day=0, &
-                                                                   month=0, year=0_int64, dst=DECODED_TIME_DST_NO)) == 1.0_real64, &
+                                                                        month=0, year=0_int64, &
+                                                                        daylight_saving_time=STANDARD_TIME)) == 1.0_real64, &
                    "period 1")
         if (allocated(error)) return
         call check(error, decoded_time_period(partial_decoded_time_type(second=time_type(0), minute=1, hour=0, day=0, &
-                                                                  month=0, year=0_int64, dst=DECODED_TIME_DST_NO)) == 60.0_real64, &
+                                                                        month=0, year=0_int64, &
+                                                                        daylight_saving_time=STANDARD_TIME)) == 60.0_real64, &
                    "period 60")
         if (allocated(error)) return
         call check(error, decoded_time_period(partial_decoded_time_type(second=time_type(0), minute=0, hour=1, day=0, &
-                                                                month=0, year=0_int64, dst=DECODED_TIME_DST_NO)) == 3600.0_real64, &
+                                                                        month=0, year=0_int64, &
+                                                                        daylight_saving_time=STANDARD_TIME)) == 3600.0_real64, &
                    "period 3600")
         if (allocated(error)) return
         call check(error, decoded_time_period(partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=1, &
-                                                               month=0, year=0_int64, dst=DECODED_TIME_DST_NO)) == 86400.0_real64, &
+                                                                        month=0, year=0_int64, &
+                                                                        daylight_saving_time=STANDARD_TIME)) == 86400.0_real64, &
                    "period 86400")
         if (allocated(error)) return
         call check(error, decoded_time_period(partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=0, &
-                                                             month=1, year=0_int64, dst=DECODED_TIME_DST_NO)) == 2592000.0_real64, &
+                                                                        month=1, year=0_int64, &
+                                                                        daylight_saving_time=STANDARD_TIME)) == 2592000.0_real64, &
                    "period 2592000")
         if (allocated(error)) return
         call check(error, decoded_time_period(partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=0, &
-                                                            month=0, year=1_int64, dst=DECODED_TIME_DST_NO)) == 31536000.0_real64, &
+                                                                        month=0, year=1_int64, &
+                                                                        daylight_saving_time=STANDARD_TIME)) == 31536000.0_real64, &
                    "period 31536000")
         if (allocated(error)) return
         call check(error, decoded_time_period(partial_decoded_time_type(second=time_type(1), minute=2, hour=3, day=4, &
-                                                           month=5, year=6_int64, dst=DECODED_TIME_DST_NO)) == 202532521.0_real64, &
+                                                                        month=5, year=6_int64, &
+                                                                       daylight_saving_time=STANDARD_TIME)) == 202532521.0_real64, &
                    "period 202532521")
         if (allocated(error)) return
         call check(error, decoded_time_period(partial_decoded_time_type(second=time_type(13, 5, 10), minute=0, hour=0, &
-                                                           day=0, month=0, year=0_int64, dst=DECODED_TIME_DST_NO)) == 13.5_real64, &
+                                                                        day=0, month=0, year=0_int64, &
+                                                                        daylight_saving_time=STANDARD_TIME)) == 13.5_real64, &
                    "period 13.5")
     end subroutine test_time_decoded_period
 
@@ -428,34 +439,34 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call expect_add(error, partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=1, month=11, &
-                                                         year=2008_int64, dst=DECODED_TIME_DST_NO), &
+                                                         year=2008_int64, daylight_saving_time=STANDARD_TIME), &
                         partial_decoded_time_type(month=1), &
-                        "second=0 minute=0 hour=0 day=1 month=12 year=2008 dst=0")
+                        "second=0 minute=0 hour=0 day=1 month=12 year=2008 daylight_saving_time=0")
         if (allocated(error)) return
         call expect_add(error, partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=1, month=12, &
-                                                         year=2008_int64, dst=DECODED_TIME_DST_NO), &
+                                                         year=2008_int64, daylight_saving_time=STANDARD_TIME), &
                         partial_decoded_time_type(month=1), &
-                        "second=0 minute=0 hour=0 day=1 month=1 year=2009 dst=0")
+                        "second=0 minute=0 hour=0 day=1 month=1 year=2009 daylight_saving_time=0")
         if (allocated(error)) return
         call expect_add(error, partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=1, month=11, &
-                                                         year=2008_int64, dst=DECODED_TIME_DST_NO), &
+                                                         year=2008_int64, daylight_saving_time=STANDARD_TIME), &
                         partial_decoded_time_type(month=12), &
-                        "second=0 minute=0 hour=0 day=1 month=11 year=2009 dst=0")
+                        "second=0 minute=0 hour=0 day=1 month=11 year=2009 daylight_saving_time=0")
         if (allocated(error)) return
         call expect_add(error, partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=1, month=11, &
-                                                         year=2008_int64, dst=DECODED_TIME_DST_NO), &
+                                                         year=2008_int64, daylight_saving_time=STANDARD_TIME), &
                         partial_decoded_time_type(month=13), &
-                        "second=0 minute=0 hour=0 day=1 month=12 year=2009 dst=0")
+                        "second=0 minute=0 hour=0 day=1 month=12 year=2009 daylight_saving_time=0")
         if (allocated(error)) return
         call expect_add(error, partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=30, month=12, &
-                                                         year=2008_int64, dst=DECODED_TIME_DST_NO), &
+                                                         year=2008_int64, daylight_saving_time=STANDARD_TIME), &
                         partial_decoded_time_type(day=1), &
-                        "second=0 minute=0 hour=0 day=31 month=12 year=2008 dst=0")
+                        "second=0 minute=0 hour=0 day=31 month=12 year=2008 daylight_saving_time=0")
         if (allocated(error)) return
         call expect_add(error, partial_decoded_time_type(second=time_type(0), minute=0, hour=0, day=30, month=12, &
-                                                         year=2008_int64, dst=DECODED_TIME_DST_NO), &
+                                                         year=2008_int64, daylight_saving_time=STANDARD_TIME), &
                         partial_decoded_time_type(day=2), &
-                        "second=0 minute=0 hour=0 day=1 month=1 year=2009 dst=0")
+                        "second=0 minute=0 hour=0 day=1 month=1 year=2009 daylight_saving_time=0")
     end subroutine test_time_wrap_addition
 
     !> A TIME whose month is unknown is an error; one whose year is unknown
@@ -469,7 +480,7 @@ contains
         call check(error, format_error(st) == "Month unallocated is invalid", format_error(st))
         if (allocated(error)) return
         call expect_add(error, partial_decoded_time_type(day=15, month=3), partial_decoded_time_type(day=1), &
-                        "second=0 minute=0 hour=0 day=16 month=3 dst=-1")
+                        "second=0 minute=0 hour=0 day=16 month=3 daylight_saving_time=-1")
     end subroutine test_add_unknown
 
     !> The errors of `format_seconds'.
@@ -512,7 +523,7 @@ contains
         call expect(error, seconds_to_string(999999999.0_real64), "31.69y")
     end subroutine test_seconds_to_string
 
-    !> READABLE, ABBREV and `expanded' (Ibuffer's recency column uses the
+    !> READABLE, ABBREVIATION and `expanded' (Ibuffer's recency column uses the
     !> abbreviated readable form).
     subroutine test_readable(error)
         type(error_type), allocatable, intent(out) :: error

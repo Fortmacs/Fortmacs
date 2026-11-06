@@ -27,21 +27,21 @@
 module test_insert_delete_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, set_error, FM_BUFFER_READ_ONLY, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, BUFFER_READ_ONLY_CODE, GENERIC_ERROR_CODE
     use value_mod, only: value_type, list
     use data_mod, only: value_eq
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, close_buffer, &
-                          set_buffer, current_buffer, is_buffer_live, buf_bytes, &
-                          temp_set_point_both, set_buffer_read_only, buf_fetch_char
-    use marker_mod, only: char_to_byte, byte_to_char, buf_charpos_to_bytepos
-    use insert_delete_mod, only: del_range, del_range_1, del_range_byte, insert, insert_char, make_gap, &
+                          set_buffer, current_buffer, is_buffer_live, buffer_bytes, &
+                          temporary_set_point_both, set_buffer_read_only, buffer_fetch_character
+    use marker_mod, only: character_to_byte, byte_to_character, buffer_character_position_to_byte_position
+    use insert_delete_mod, only: delete_range, delete_range_1, delete_range_byte, insert, insert_character, make_gap, &
                                  move_gap_both, replace_range, before_change_functions, after_change_functions, &
                                  first_change_hook, inhibit_modification_hooks, combine_after_change_calls, &
                                  combine_after_change_execute, insert_and_inherit, insert_before_markers_and_inherit, &
-                                 insert_from_string, copy_text, safe_del_range
-    use editing_functions_mod, only: delete_region, delete_and_extract_region, subst_char_in_region, point_min, point_max, &
-                                     buffer_size, insert_char_n, insert_buffer_substring
+                                 insert_from_string, copy_text, safe_delete_range
+    use editing_functions_mod, only: delete_region, delete_and_extract_region, substitute_character_in_region, point_minimum, &
+                                     point_maximum, buffer_size, insert_character_n, insert_buffer_substring
     use casefiddle_mod, only: upcase_region, capitalize_region
     use text_properties_mod, only: put_text_property, get_text_property, propertize
     use search_mod, only: search_forward, match_end, replace_match
@@ -73,7 +73,7 @@ contains
                     new_unittest("insert-ascii", test_insert_ascii), &
                     new_unittest("insert-multibyte", test_insert_multibyte), &
                     new_unittest("insert-in-middle", test_insert_middle), &
-                    new_unittest("insert-char", test_insert_char), &
+                    new_unittest("insert-char", test_insert_character), &
                     new_unittest("gap-growth", test_gap_growth), &
                     new_unittest("delete-range", test_delete), &
                     new_unittest("delete-adjusts-point", test_delete_point), &
@@ -97,7 +97,7 @@ contains
                     new_unittest("combine-after-change-calls", test_combine_after_change), &
                     new_unittest("insert-and-inherit", test_insert_and_inherit), &
                     new_unittest("insert-with-properties", test_insert_with_properties), &
-                    new_unittest("copy-text-and-safe-del-range", test_copy_text_safe_del) &
+                    new_unittest("copy-text-and-safe-del-range", test_copy_text_safe_delete) &
                     ]
     end subroutine collect_insert_delete_mod
 
@@ -124,14 +124,14 @@ contains
     function contents() result(s)
         character(len=:), allocatable :: s
 
-        s = buf_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte)
+        s = buffer_bytes(buffers(current), 1_int64, buffers(current)%text%z_byte)
     end function contents
 
     !> Move point to char position `pos`.
-    subroutine goto(pos)
-        integer(int64), intent(in) :: pos
+    subroutine goto(position)
+        integer(int64), intent(in) :: position
 
-        call temp_set_point_both(buffers(current), pos, char_to_byte(pos))
+        call temporary_set_point_both(buffers(current), position, character_to_byte(position))
     end subroutine goto
 
     subroutine test_insert_ascii(error)
@@ -145,9 +145,9 @@ contains
         if (allocated(error)) return
         call check(error, contents(), "hello")
         if (allocated(error)) return
-        call check(error, buffers(current)%pt == 6 .and. buffers(current)%pt_byte == 6, "point")
+        call check(error, buffers(current)%point == 6 .and. buffers(current)%point_byte == 6, "point")
         if (allocated(error)) return
-        call check(error, buffers(current)%text%z == 6 .and. buffers(current)%zv == 6, "z/zv")
+        call check(error, buffers(current)%text%z == 6 .and. buffers(current)%end_of_accessible_portion == 6, "z/zv")
         if (allocated(error)) return
         call insert("", st)
         call check(error, contents(), "hello")
@@ -168,7 +168,7 @@ contains
         if (allocated(error)) return
         call check(error, buffers(current)%text%z_byte, 8_int64)
         if (allocated(error)) return
-        call check(error, buffers(current)%pt_byte, 8_int64)
+        call check(error, buffers(current)%point_byte, 8_int64)
         if (allocated(error)) return
         ! Invalid multibyte text is rejected.
         call insert(char(128), st)
@@ -187,7 +187,7 @@ contains
         call insert("bc", st)
         call check(error, contents(), "abcd")
         if (allocated(error)) return
-        call check(error, buffers(current)%pt, 4_int64)
+        call check(error, buffers(current)%point, 4_int64)
         if (allocated(error)) return
         ! Gap left (to 1), then right (to the end).
         call goto(1_int64)
@@ -202,21 +202,21 @@ contains
         call leave(h, old)
     end subroutine test_insert_middle
 
-    subroutine test_insert_char(error)
+    subroutine test_insert_character(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
 
         call enter("ti-char", h, old)
-        call insert_char(int(z'20AC', int32), st)
-        call insert_char(int(iachar("x"), int32), st)
+        call insert_character(int(z'20AC', int32), st)
+        call insert_character(int(iachar("x"), int32), st)
         call check(error, contents(), euro//"x")
         if (allocated(error)) return
-        call check(error, buf_fetch_char(buffers(current), 1_int64), int(z'20AC', int32))
+        call check(error, buffer_fetch_character(buffers(current), 1_int64), int(z'20AC', int32))
         if (allocated(error)) return
-        call check(error, buf_fetch_char(buffers(current), 4_int64), int(iachar("x"), int32))
+        call check(error, buffer_fetch_character(buffers(current), 4_int64), int(iachar("x"), int32))
         call leave(h, old)
-    end subroutine test_insert_char
+    end subroutine test_insert_character
 
     subroutine test_gap_growth(error)
         type(error_type), allocatable, intent(out) :: error
@@ -241,7 +241,7 @@ contains
         s = contents()
         call check(error, len(s), 6000)
         if (allocated(error)) return
-        call check(error, count_char(s, "x"), 3000)
+        call check(error, count_character(s, "x"), 3000)
         if (allocated(error)) return
         call check(error, len(buffers(current)%text%beginning, kind=int64), &
                    buffers(current)%text%z_byte - 1 + buffers(current)%text%gap_size)
@@ -249,17 +249,17 @@ contains
 
     contains
 
-        pure integer function count_char(string, c)
+        pure integer function count_character(string, c)
             character(len=*), intent(in) :: string
             character, intent(in) :: c
             integer :: i
 
-            count_char = 0
+            count_character = 0
 
             do i = 1, len(string)
-                if (string(i:i) == c) count_char = count_char + 1
+                if (string(i:i) == c) count_character = count_character + 1
             end do
-        end function count_char
+        end function count_character
     end subroutine test_gap_growth
 
     subroutine test_delete(error)
@@ -270,14 +270,14 @@ contains
 
         call enter("ti-del", h, old)
         call insert("a"//e_acute//"bcd"//euro//"e", st)
-        call del_range_1(2_int64, 4_int64, .true., st, gone)
+        call delete_range_1(2_int64, 4_int64, .true., st, gone)
         call check(error, gone, e_acute//"b")
         if (allocated(error)) return
         call check(error, contents(), "acd"//euro//"e")
         if (allocated(error)) return
         call check(error, buffers(current)%text%z, 6_int64)
         if (allocated(error)) return
-        call del_range(4_int64, 5_int64, st)
+        call delete_range(4_int64, 5_int64, st)
         call check(error, contents(), "acde")
         if (allocated(error)) return
         call check(error, buffers(current)%text%z_byte, 5_int64)
@@ -293,18 +293,18 @@ contains
         call insert("abcdefgh", st)
         ! Point after the range: shifts down.
         call goto(8_int64)
-        call del_range(2_int64, 4_int64, st)
-        call check(error, buffers(current)%pt, 6_int64)
+        call delete_range(2_int64, 4_int64, st)
+        call check(error, buffers(current)%point, 6_int64)
         if (allocated(error)) return
         ! Point inside the range: moves to its start.
         call goto(4_int64)
-        call del_range(3_int64, 5_int64, st)
-        call check(error, buffers(current)%pt, 3_int64)
+        call delete_range(3_int64, 5_int64, st)
+        call check(error, buffers(current)%point, 3_int64)
         if (allocated(error)) return
         ! Point before the range: unchanged.
         call goto(1_int64)
-        call del_range(2_int64, 3_int64, st)
-        call check(error, buffers(current)%pt, 1_int64)
+        call delete_range(2_int64, 3_int64, st)
+        call check(error, buffers(current)%point, 1_int64)
         if (allocated(error)) return
         call check(error, contents(), "agh")
         call leave(h, old)
@@ -319,14 +319,14 @@ contains
         call enter("ti-clamp", h, old)
         call insert("abc", st)
         tick = buffers(current)%text%modiff
-        call del_range(3_int64, 2_int64, st)
+        call delete_range(3_int64, 2_int64, st)
         call check(error, contents() == "abc" .and. buffers(current)%text%modiff == tick, &
                    "reversed range changed the buffer")
         if (allocated(error)) return
-        call del_range(-5_int64, 100_int64, st)
+        call delete_range(-5_int64, 100_int64, st)
         call check(error, contents(), "")
         if (allocated(error)) return
-        call check(error, buffers(current)%pt, 1_int64)
+        call check(error, buffers(current)%point, 1_int64)
         call leave(h, old)
     end subroutine test_delete_clamp
 
@@ -338,7 +338,7 @@ contains
         call enter("ti-delb", h, old)
         call insert("x"//euro//"y", st)
         ! Bytes 2..4 are the euro sign.
-        call del_range_byte(2_int64, 5_int64, st)
+        call delete_range_byte(2_int64, 5_int64, st)
         call check(error, contents(), "xy")
         if (allocated(error)) return
         call check(error, buffers(current)%text%z, 3_int64)
@@ -349,7 +349,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
-        integer(int64), parameter :: bytepos(*) = [1, 2, 4, 7, 8, 9]
+        integer(int64), parameter :: byte_position(*) = [1, 2, 4, 7, 8, 9]
         integer(int64) :: c
 
         call enter("ti-conv", h, old)
@@ -361,15 +361,15 @@ contains
         call move_gap_both(3_int64, 4_int64)
 
         do c = 1, 6
-            call check(error, char_to_byte(c), bytepos(c))
+            call check(error, character_to_byte(c), byte_position(c))
             if (allocated(error)) return
-            call check(error, byte_to_char(bytepos(c)), c)
+            call check(error, byte_to_character(byte_position(c)), c)
             if (allocated(error)) return
         end do
 
         ! The far end of the buffer, scanning backwards.
         call goto(1_int64)
-        call check(error, buf_charpos_to_bytepos(current, 5_int64), 8_int64)
+        call check(error, buffer_character_position_to_byte_position(current, 5_int64), 8_int64)
         call leave(h, old)
     end subroutine test_conversion
 
@@ -382,15 +382,15 @@ contains
         call insert("abc", st)
         call set_buffer_read_only(h, .true., st)
         call insert("x", st)
-        call check(error, st%code, FM_BUFFER_READ_ONLY)
+        call check(error, st%code, BUFFER_READ_ONLY_CODE)
         if (allocated(error)) return
-        call del_range(1_int64, 2_int64, st)
-        call check(error, st%code, FM_BUFFER_READ_ONLY)
+        call delete_range(1_int64, 2_int64, st)
+        call check(error, st%code, BUFFER_READ_ONLY_CODE)
         if (allocated(error)) return
         call check(error, contents(), "abc")
         if (allocated(error)) return
         ! Unprepared deletion skips the check, as upstream.
-        call del_range_1(1_int64, 2_int64, .false., st)
+        call delete_range_1(1_int64, 2_int64, .false., st)
         call check(error, contents(), "bc")
         call leave(h, old)
     end subroutine test_read_only
@@ -417,16 +417,16 @@ contains
     !> that reuses its registry slot with the same modiff.
     subroutine test_cache_reuse(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type) :: a, b, keep, old, prev
+        type(handle_type) :: a, b, keep, old, previous
         type(status_type) :: st
         integer(int64) :: slot, tick
 
         ! A live, visible buffer to fall back to, so killing A does not
         ! create *scratch* in A's slot.
-        call enter("ti-cache-keep", keep, prev)
+        call enter("ti-cache-keep", keep, previous)
         call enter("ti-cache-a", a, old)
         call insert(euro//euro//euro//euro//euro//euro, st)
-        call check(error, char_to_byte(4_int64), 10_int64)   ! now cached
+        call check(error, character_to_byte(4_int64), 10_int64)   ! now cached
         if (allocated(error)) return
         slot = a%index
         tick = buffers(current)%text%modiff
@@ -436,9 +436,9 @@ contains
         call check(error, b%index == slot .and. buffers(current)%text%modiff == tick, &
                    "test setup: slot or modiff differs")
         if (allocated(error)) return
-        call check(error, char_to_byte(4_int64), 4_int64)
+        call check(error, character_to_byte(4_int64), 4_int64)
         call leave(b, old)
-        call leave(keep, prev)
+        call leave(keep, previous)
     end subroutine test_cache_reuse
 
     ! ------------------------------------------------------------------
@@ -457,14 +457,14 @@ contains
         if (.not. inhibit_modification_hooks%value) trace = trace//"!"
     end subroutine rec_before
 
-    !> Records "A<beginning>,<end>,<old_len>".
-    subroutine rec_after(beginning, end, old_len, status)
-        integer(int64), intent(in) :: beginning, end, old_len
+    !> Records "A<beginning>,<end>,<old_length>".
+    subroutine rec_after(beginning, end, old_length, status)
+        integer(int64), intent(in) :: beginning, end, old_length
         type(status_type), intent(out) :: status
         character(len=64) :: text
 
         status = status_type()
-        write (text, '(" A", i0, ",", i0, ",", i0)') beginning, end, old_len
+        write (text, '(" A", i0, ",", i0, ",", i0)') beginning, end, old_length
         trace = trace//trim(text)
         if (.not. inhibit_modification_hooks%value) trace = trace//"!"
     end subroutine rec_after
@@ -496,18 +496,18 @@ contains
 
         write (text, '(" X", i0, ",", i0)') beginning, end
         trace = trace//trim(text)
-        call set_error(status, FM_GENERIC_ERROR, "before failed")
+        call set_error(status, GENERIC_ERROR_CODE, "before failed")
     end subroutine fail_before
 
     !> An after-change function that fails.
-    subroutine fail_after(beginning, end, old_len, status)
-        integer(int64), intent(in) :: beginning, end, old_len
+    subroutine fail_after(beginning, end, old_length, status)
+        integer(int64), intent(in) :: beginning, end, old_length
         type(status_type), intent(out) :: status
         character(len=64) :: text
 
-        write (text, '(" Y", i0, ",", i0, ",", i0)') beginning, end, old_len
+        write (text, '(" Y", i0, ",", i0, ",", i0)') beginning, end, old_length
         trace = trace//trim(text)
-        call set_error(status, FM_GENERIC_ERROR, "after failed")
+        call set_error(status, GENERIC_ERROR_CODE, "after failed")
     end subroutine fail_after
 
     !> editfns-tests.el delete-region-undo-markers-2: deletes one more
@@ -523,24 +523,24 @@ contains
     subroutine insert_at_start(beginning, end, status)
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         character(len=48) :: text
 
         write (text, '(" I", i0, ",", i0)') beginning, end
         trace = trace//trim(text)
-        opoint = buffers(current)%pt
+        original_point = buffers(current)%point
         call goto(1_int64)
         call insert("X", status)
-        call goto(opoint + 1)
+        call goto(original_point + 1)
     end subroutine insert_at_start
 
     !> Records the end of the last match, as an after-change function.
-    subroutine rec_match_end(beginning, end, old_len, status)
-        integer(int64), intent(in) :: beginning, end, old_len
+    subroutine rec_match_end(beginning, end, old_length, status)
+        integer(int64), intent(in) :: beginning, end, old_length
         type(status_type), intent(out) :: status
         character(len=88) :: text
 
-        write (text, '(" M", i0, " ", i0, ",", i0, ",", i0)') match_end(0, status), beginning, end, old_len
+        write (text, '(" M", i0, " ", i0, ",", i0, ",", i0)') match_end(0, status), beginning, end, old_length
         trace = trace//trim(text)
     end subroutine rec_match_end
 
@@ -572,7 +572,7 @@ contains
         call check(error, trace, " B1,1 A1,4,0", "insert")
         if (allocated(error)) return
         trace = ""
-        call del_range(2_int64, 3_int64, st)
+        call delete_range(2_int64, 3_int64, st)
         call check(error, trace, " B2,3 A2,2,1", "delete")
         if (allocated(error)) return
         trace = ""
@@ -594,7 +594,7 @@ contains
         call goto(4_int64)
         call insert("abab", st)
         trace = ""
-        call subst_char_in_region(1_int64, 8_int64, iachar("b", int32), iachar("c", int32), st)
+        call substitute_character_in_region(1_int64, 8_int64, iachar("b", int32), iachar("c", int32), st)
         call check(error, contents()//trace, "XYZacac B5,8 A5,8,3", "subst-char-in-region")
         if (allocated(error)) return
         trace = ""
@@ -646,7 +646,7 @@ contains
         call first_change_hook%prepend(rec_first, local=.true.)
         inhibit_modification_hooks = .true.
         call insert("abc", st)
-        call del_range(1_int64, 2_int64, st)
+        call delete_range(1_int64, 2_int64, st)
         inhibit_modification_hooks = .false.
         call check(error, contents()//trace, "bc")
         call forget_changes()
@@ -669,7 +669,7 @@ contains
         if (allocated(error)) return
         buffers(current)%text%save_modiff = buffers(current)%text%modiff
         trace = ""
-        call del_range(1_int64, 2_int64, st)
+        call delete_range(1_int64, 2_int64, st)
         call check(error, trace, " F B1,2 A1,1,1")
         call forget_changes()
         call leave(h, old)
@@ -691,7 +691,7 @@ contains
         call before_change_functions%prepend(fail_before, local=.true.)
         trace = ""
         call insert("x", st)
-        call check(error, st%code, FM_GENERIC_ERROR, "error returned")
+        call check(error, st%code, GENERIC_ERROR_CODE, "error returned")
         if (allocated(error)) return
         call check(error, contents()//trace, "abc X4,4", "nothing inserted")
         if (allocated(error)) return
@@ -726,7 +726,7 @@ contains
         call after_change_functions%prepend(fail_after)
         trace = ""
         call insert("abc", st)
-        call check(error, st%code, FM_GENERIC_ERROR, "error returned")
+        call check(error, st%code, GENERIC_ERROR_CODE, "error returned")
         if (allocated(error)) return
         call check(error, contents()//trace, "abc Y1,4,0")
         if (allocated(error)) return
@@ -821,7 +821,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. (point_min() <= beginning .and. beginning <= end .and. end <= point_max())) sc_errors = sc_errors + 1
+        if (.not. (point_minimum() <= beginning .and. beginning <= end .and. end <= point_maximum())) sc_errors = sc_errors + 1
         call sanity_check_size()
         sc_calls = sc_calls + 1
         sc_beginning = beginning
@@ -835,7 +835,7 @@ contains
         integer(int64) :: bend, offset
 
         status = status_type()
-        if (.not. (point_min() <= beginning .and. beginning <= end .and. end <= point_max())) sc_errors = sc_errors + 1
+        if (.not. (point_minimum() <= beginning .and. beginning <= end .and. end <= point_maximum())) sc_errors = sc_errors + 1
         if (len < 0) sc_errors = sc_errors + 1
         bend = beginning + len
         if (.not. (sc_beginning <= beginning .and. beginning <= bend .and. bend <= sc_end)) sc_errors = sc_errors + 1
@@ -861,18 +861,18 @@ contains
         sc_calls = 0
         sc_size_known = .false.
         call insert("utf-8-unix"//char(10)//char(10)//"UTF", st)
-        beginning = buffers(current)%pt
+        beginning = buffers(current)%point
         call insert(e_acute//e_acute//e_acute, st)
-        call upcase_region(beginning, buffers(current)%pt, st)
-        call capitalize_region(1_int64, buffers(current)%pt, st)
-        call subst_char_in_region(1_int64, buffers(current)%pt, iachar("-", int32), iachar("_", int32), st)
+        call upcase_region(beginning, buffers(current)%point, st)
+        call capitalize_region(1_int64, buffers(current)%point, st)
+        call substitute_character_in_region(1_int64, buffers(current)%point, iachar("-", int32), iachar("_", int32), st)
         call put_text_property(2_int64, 6_int64, value_type(name="face"), value_type(name="bold"), st)
         call delete_region(3_int64, 8_int64, st)
         call goto(1_int64)
         call search_forward("x", found, st)
         call replace_match("XYZW", st, fixedcase=.true., literal=.true.)
-        call goto(buffers(current)%zv)
-        call insert_char_n(233_int32, 3_int64, st)
+        call goto(buffers(current)%end_of_accessible_portion)
+        call insert_character_n(233_int32, 3_int64, st)
         call sanity_check_size()
         call check(error, sc_calls, 9, "before-change calls")
         if (allocated(error)) return
@@ -942,12 +942,14 @@ contains
         call check(error,.not. allocated(v%a), "rear-nonsticky face not inherited")
         if (allocated(error)) return
         ! front-sticky text after point.
-        call put_text_property(point_max() - 1, point_max(), value_type(name="mouse_face"), value_type(name="highlight"), st)
-        call put_text_property(point_max() - 1, point_max(), value_type(name="front_sticky"), list(value_type(name="mouse_face")), &
+        call put_text_property(point_maximum() - 1, point_maximum(), value_type(name="mouse_face"), value_type(name="highlight"), &
                                st)
-        call goto(point_max() - 1)
+        call put_text_property(point_maximum() - 1, point_maximum(), value_type(name="front_sticky"), &
+                               list(value_type(name="mouse_face")), &
+                               st)
+        call goto(point_maximum() - 1)
         call insert_before_markers_and_inherit("W", st)
-        call get_text_property(point_max() - 2, value_type(name="mouse_face"), v, st)
+        call get_text_property(point_maximum() - 2, value_type(name="mouse_face"), v, st)
         call check(error, value_eq(v, value_type(name="highlight")), "front-sticky property inherited from after")
         call leave(h, old)
     end subroutine test_insert_and_inherit
@@ -988,8 +990,8 @@ contains
     end subroutine test_insert_with_properties
 
     !> `copy_text' converts between unibyte and multibyte text; and
-    !> `safe_del_range' fails quietly in a read-only buffer.  Own test.
-    subroutine test_copy_text_safe_del(error)
+    !> `safe_delete_range' fails quietly in a read-only buffer.  Own test.
+    subroutine test_copy_text_safe_delete(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
@@ -1003,12 +1005,12 @@ contains
         call enter("*safe-del*", h, old)
         call insert("abc", st)
         call set_buffer_read_only(h, .true., st)
-        call check(error, safe_del_range(1_int64, 2_int64), "fails")
+        call check(error, safe_delete_range(1_int64, 2_int64), "fails")
         call set_buffer_read_only(h, .false., st)
         if (allocated(error)) return
-        call check(error,.not. safe_del_range(1_int64, 2_int64), "deletes")
+        call check(error,.not. safe_delete_range(1_int64, 2_int64), "deletes")
         if (allocated(error)) return
         call check(error, contents() == "bc", "the text deleted")
         call leave(h, old)
-    end subroutine test_copy_text_safe_del
+    end subroutine test_copy_text_safe_delete
 end module test_insert_delete_mod

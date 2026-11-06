@@ -84,29 +84,30 @@ contains
         type(time_type) :: time
 
         call expect(error, "Mon, 22 Feb 2016 19:35:42 +0100", &
-                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 dst=-1 zone=3600")
+                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
-        call expect(error, "22 Feb 2016 19:35:42 +0100", "second=42 minute=35 hour=19 day=22 month=2 year=2016 dst=-1 zone=3600")
+        call expect(error, "22 Feb 2016 19:35:42 +0100", &
+                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
-        call expect(error, "22 Feb 2016 +0100", "day=22 month=2 year=2016 dst=-1 zone=3600")
+        call expect(error, "22 Feb 2016 +0100", "day=22 month=2 year=2016 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
         call expect(error, "Mon, 22 Feb 16 19:35:42 +0100", &
-                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 dst=-1 zone=3600")
+                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
         call expect(error, "Mon, 22 February 2016 19:35:42 +0100", &
-                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 dst=-1 zone=3600")
+                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
         call expect(error, "Mon, 22 feb 2016 19:35:42 +0100", &
-                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 dst=-1 zone=3600")
+                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
         call expect(error, "Monday, 22 february 2016 19:35:42 +0100", &
-                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 dst=-1 zone=3600")
+                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
         call expect(error, "Monday, 22 february 2016 19:35:42 PST", &
-                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 dst=0 zone=-28800")
+                    "second=42 minute=35 hour=19 day=22 month=2 year=2016 weekday=1 daylight_saving_time=0 zone=-28800")
         if (allocated(error)) return
         call expect(error, "Friday, 21 Sep 2018 13:47:58 PDT", &
-                    "second=58 minute=47 hour=13 day=21 month=9 year=2018 weekday=5 dst=1 zone=-25200")
+                    "second=58 minute=47 hour=13 day=21 month=9 year=2018 weekday=5 daylight_saving_time=1 zone=-25200")
         if (allocated(error)) return
         call expect_utc(error, "1998-09-12T12:21:54-0200", "1998-09-12 14:21:54")
         if (allocated(error)) return
@@ -135,11 +136,11 @@ contains
         type(status_type) :: st
         type(partial_decoded_time_type) :: time
 
-        call expect(error, "Tuesday 7 Mar 89 EST", "day=7 month=3 year=1989 weekday=2 dst=0 zone=-18000")
+        call expect(error, "Tuesday 7 Mar 89 EST", "day=7 month=3 year=1989 weekday=2 daylight_saving_time=0 zone=-18000")
         if (allocated(error)) return
-        call expect(error, "12 Jan 2005 9:05", "second=0 minute=5 hour=9 day=12 month=1 year=2005 dst=-1")
+        call expect(error, "12 Jan 2005 9:05", "second=0 minute=5 hour=9 day=12 month=1 year=2005 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, "", "dst=-1")
+        call expect(error, "", "daylight_saving_time=-1")
         if (allocated(error)) return
         time = parse_time_string("1a:2b:3c", st)
         call check(error, format_error(st) == "Not an integer string: `1a:2b:3c'", format_error(st))

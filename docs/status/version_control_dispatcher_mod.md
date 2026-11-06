@@ -28,7 +28,7 @@ the log entry: `vc-start-logentry`,
 `vc-delete-logbuf-window`;
 `vc-do-async-command` ("Running '...'...", "Finished in N seconds", `vc-display-failed-async-commands`; EDIT for `vc-filter-command-function` bound to `vc-user-edit-command`),
 `vc-user-edit-command`,
-`vc--display-async-command-buffer`,
+`version_control--display-async-command-buffer`,
 `vc-compilation-mode` (VC-Compilation, derived from Compilation mode, with the backend's error regexps as an argument) and `vc-compilation-mode-hook`,
 `vc-set-async-update` (VC-Dir, Dired and file buffers)
 
@@ -39,7 +39,7 @@ the log entry: `vc-start-logentry`,
 `vc-post-command-functions`,
 `vc-tor`,
 separate standard error of asynchronous commands,
-`vc--inhibit-async-window`,
+`version_control--inhibit-async-window`,
 View mode after `vc-resynch-window`
 
 ## Tests

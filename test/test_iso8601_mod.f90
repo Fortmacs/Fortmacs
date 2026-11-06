@@ -20,7 +20,7 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The iso8601-tests.el tests.  A decoded time is compared as its known
-!> components, written "second=30 minute=47 ... dst=-1 zone=3600"
+!> components, written "second=30 minute=47 ... daylight_saving_time=-1 zone=3600"
 !> (a second with a fraction as TICKS/COUNT_RATE; dst always).
 module test_iso8601_mod
     use, intrinsic :: iso_fortran_env, only: int64
@@ -130,93 +130,96 @@ contains
     subroutine test_iso8601_date_years(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DATE, "1985", "year=1985 dst=-1")
+        call expect(error, DATE, "1985", "year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "-0003", "year=-3 dst=-1")
+        call expect(error, DATE, "-0003", "year=-3 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "+1985", "year=1985 dst=-1")
+        call expect(error, DATE, "+1985", "year=1985 daylight_saving_time=-1")
     end subroutine test_iso8601_date_years
 
     subroutine test_iso8601_date_dates(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DATE, "1985-03-14", "day=14 month=3 year=1985 dst=-1")
+        call expect(error, DATE, "1985-03-14", "day=14 month=3 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "19850314", "day=14 month=3 year=1985 dst=-1")
+        call expect(error, DATE, "19850314", "day=14 month=3 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985-02", "month=2 year=1985 dst=-1")
+        call expect(error, DATE, "1985-02", "month=2 year=1985 daylight_saving_time=-1")
     end subroutine test_iso8601_date_dates
 
     subroutine test_iso8601_date_obsolete(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DATE, "--02-01", "day=1 month=2 dst=-1")
+        call expect(error, DATE, "--02-01", "day=1 month=2 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "--0201", "day=1 month=2 dst=-1")
+        call expect(error, DATE, "--0201", "day=1 month=2 daylight_saving_time=-1")
     end subroutine test_iso8601_date_obsolete
 
     subroutine test_iso8601_date_obsolete_2000(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DATE, "--12", "month=12 dst=-1")
+        call expect(error, DATE, "--12", "month=12 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, COMBINED, "--12T14", "second=0 minute=0 hour=14 month=12 dst=-1")
+        call expect(error, COMBINED, "--12T14", "second=0 minute=0 hour=14 month=12 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "---12", "day=12 dst=-1")
+        call expect(error, DATE, "---12", "day=12 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, COMBINED, "---12T14:10:12", "second=12 minute=10 hour=14 day=12 dst=-1")
+        call expect(error, COMBINED, "---12T14:10:12", "second=12 minute=10 hour=14 day=12 daylight_saving_time=-1")
     end subroutine test_iso8601_date_obsolete_2000
 
     subroutine test_iso8601_date_weeks(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DATE, "2008W39-6", "day=27 month=9 year=2008 dst=-1")
+        call expect(error, DATE, "2008W39-6", "day=27 month=9 year=2008 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "2009W01-1", "day=29 month=12 year=2008 dst=-1")
+        call expect(error, DATE, "2009W01-1", "day=29 month=12 year=2008 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "2009W53-7", "day=3 month=1 year=2010 dst=-1")
+        call expect(error, DATE, "2009W53-7", "day=3 month=1 year=2010 daylight_saving_time=-1")
     end subroutine test_iso8601_date_weeks
 
     subroutine test_iso8601_date_ordinals(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DATE, "1981-095", "day=5 month=4 year=1981 dst=-1")
+        call expect(error, DATE, "1981-095", "day=5 month=4 year=1981 daylight_saving_time=-1")
     end subroutine test_iso8601_date_ordinals
 
     subroutine test_iso8601_time(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, TIME, "13:47:30", "second=30 minute=47 hour=13 dst=-1")
+        call expect(error, TIME, "13:47:30", "second=30 minute=47 hour=13 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "134730", "second=30 minute=47 hour=13 dst=-1")
+        call expect(error, TIME, "134730", "second=30 minute=47 hour=13 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "1347", "second=0 minute=47 hour=13 dst=-1")
+        call expect(error, TIME, "1347", "second=0 minute=47 hour=13 daylight_saving_time=-1")
     end subroutine test_iso8601_time
 
     subroutine test_iso8601_combined(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, COMBINED, "2008-03-02T13:47:30", "second=30 minute=47 hour=13 day=2 month=3 year=2008 dst=-1")
+        call expect(error, COMBINED, "2008-03-02T13:47:30", &
+                    "second=30 minute=47 hour=13 day=2 month=3 year=2008 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, COMBINED, "2008-03-02T13:47:30Z", "second=30 minute=47 hour=13 day=2 month=3 year=2008 dst=0 zone=0")
+        call expect(error, COMBINED, "2008-03-02T13:47:30Z", &
+                    "second=30 minute=47 hour=13 day=2 month=3 year=2008 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
         call expect(error, COMBINED, "2008-03-02T13:47:30+01:00", &
-                    "second=30 minute=47 hour=13 day=2 month=3 year=2008 dst=-1 zone=3600")
+                    "second=30 minute=47 hour=13 day=2 month=3 year=2008 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
         call expect(error, COMBINED, "2008-03-02T13:47:30-01", &
-                    "second=30 minute=47 hour=13 day=2 month=3 year=2008 dst=-1 zone=-3600")
+                    "second=30 minute=47 hour=13 day=2 month=3 year=2008 daylight_saving_time=-1 zone=-3600")
     end subroutine test_iso8601_combined
 
     subroutine test_iso8601_duration(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DURATION, "P3Y6M4DT12H30M5S", "second=5 minute=30 hour=12 day=4 month=6 year=3 dst=-1")
+        call expect(error, DURATION, "P3Y6M4DT12H30M5S", "second=5 minute=30 hour=12 day=4 month=6 year=3 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DURATION, "P1M", "second=0 minute=0 hour=0 day=0 month=1 year=0 dst=-1")
+        call expect(error, DURATION, "P1M", "second=0 minute=0 hour=0 day=0 month=1 year=0 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DURATION, "PT1M", "second=0 minute=1 hour=0 day=0 month=0 year=0 dst=-1")
+        call expect(error, DURATION, "PT1M", "second=0 minute=1 hour=0 day=0 month=0 year=0 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DURATION, "P0003-06-04T12:30:05", "second=5 minute=30 hour=12 day=4 month=6 year=3 dst=-1")
+        call expect(error, DURATION, "P0003-06-04T12:30:05", &
+                    "second=5 minute=30 hour=12 day=4 month=6 year=3 daylight_saving_time=-1")
     end subroutine test_iso8601_duration
 
     subroutine test_iso8601_invalid(error)
@@ -237,192 +240,205 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call expect_interval(error, "2007-03-01T13:00:00Z/2008-05-11T15:30:00Z", &
-                             "second=0 minute=0 hour=13 day=1 month=3 year=2007 dst=0 zone=0", &
-                             "second=0 minute=30 hour=15 day=11 month=5 year=2008 dst=0 zone=0", &
-                             "second=0 minute=30 hour=2 day=14 month=3 year=1971 weekday=0 dst=0 zone=0")
+                             "second=0 minute=0 hour=13 day=1 month=3 year=2007 daylight_saving_time=0 zone=0", &
+                             "second=0 minute=30 hour=15 day=11 month=5 year=2008 daylight_saving_time=0 zone=0", &
+                             "second=0 minute=30 hour=2 day=14 month=3 year=1971 weekday=0 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
         call expect_interval(error, "2007-03-01T13:00:00Z/P1Y2M10DT2H30M", &
-                             "second=0 minute=0 hour=13 day=1 month=3 year=2007 dst=0 zone=0", &
-                             "second=0 minute=30 hour=15 day=11 month=5 year=2008 dst=0 zone=0", &
-                             "second=0 minute=30 hour=2 day=10 month=2 year=1 dst=-1")
+                             "second=0 minute=0 hour=13 day=1 month=3 year=2007 daylight_saving_time=0 zone=0", &
+                             "second=0 minute=30 hour=15 day=11 month=5 year=2008 daylight_saving_time=0 zone=0", &
+                             "second=0 minute=30 hour=2 day=10 month=2 year=1 daylight_saving_time=-1")
         if (allocated(error)) return
         call expect_interval(error, "P1Y2M10DT2H30M/2008-05-11T15:30:00Z", &
-                             "second=0 minute=0 hour=13 day=1 month=3 year=2007 dst=0 zone=0", &
-                             "second=0 minute=30 hour=15 day=11 month=5 year=2008 dst=0 zone=0", &
-                             "second=0 minute=30 hour=2 day=10 month=2 year=1 dst=-1")
+                             "second=0 minute=0 hour=13 day=1 month=3 year=2007 daylight_saving_time=0 zone=0", &
+                             "second=0 minute=30 hour=15 day=11 month=5 year=2008 daylight_saving_time=0 zone=0", &
+                             "second=0 minute=30 hour=2 day=10 month=2 year=1 daylight_saving_time=-1")
     end subroutine test_iso8601_intervals
 
     subroutine test_standard_test_dates(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DATE, "19850412", "day=12 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "19850412", "day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985-04-12", "day=12 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "1985-04-12", "day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985102", "day=12 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "1985102", "day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985-102", "day=12 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "1985-102", "day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985W155", "day=12 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "1985W155", "day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985-W15-5", "day=12 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "1985-W15-5", "day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985W15", "day=7 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "1985W15", "day=7 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985-W15", "day=7 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "1985-W15", "day=7 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985-04", "month=4 year=1985 dst=-1")
+        call expect(error, DATE, "1985-04", "month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "1985", "year=1985 dst=-1")
+        call expect(error, DATE, "1985", "year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "+1985-04-12", "day=12 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "+1985-04-12", "day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DATE, "+19850412", "day=12 month=4 year=1985 dst=-1")
+        call expect(error, DATE, "+19850412", "day=12 month=4 year=1985 daylight_saving_time=-1")
     end subroutine test_standard_test_dates
 
     subroutine test_standard_test_time_of_day_local_time(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, TIME, "152746", "second=46 minute=27 hour=15 dst=-1")
+        call expect(error, TIME, "152746", "second=46 minute=27 hour=15 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:46", "second=46 minute=27 hour=15 dst=-1")
+        call expect(error, TIME, "15:27:46", "second=46 minute=27 hour=15 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "1528", "second=0 minute=28 hour=15 dst=-1")
+        call expect(error, TIME, "1528", "second=0 minute=28 hour=15 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "15:28", "second=0 minute=28 hour=15 dst=-1")
+        call expect(error, TIME, "15:28", "second=0 minute=28 hour=15 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "15", "second=0 minute=0 hour=15 dst=-1")
+        call expect(error, TIME, "15", "second=0 minute=0 hour=15 daylight_saving_time=-1")
     end subroutine test_standard_test_time_of_day_local_time
 
     subroutine test_standard_test_time_of_day_fractions(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, TIME, "152735,5", "second=355/10 minute=27 hour=15 dst=-1", .true.)
+        call expect(error, TIME, "152735,5", "second=355/10 minute=27 hour=15 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:35,5", "second=355/10 minute=27 hour=15 dst=-1", .true.)
+        call expect(error, TIME, "15:27:35,5", "second=355/10 minute=27 hour=15 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "2320,5", "second=30 minute=20 hour=23 dst=-1", .true.)
+        call expect(error, TIME, "2320,5", "second=30 minute=20 hour=23 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "23:20,8", "second=48 minute=20 hour=23 dst=-1", .true.)
+        call expect(error, TIME, "23:20,8", "second=48 minute=20 hour=23 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "23,3", "second=0 minute=18 hour=23 dst=-1", .true.)
+        call expect(error, TIME, "23,3", "second=0 minute=18 hour=23 daylight_saving_time=-1", .true.)
     end subroutine test_standard_test_time_of_day_fractions
 
     subroutine test_nonstandard_test_time_of_day_decimals(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, TIME, "15:27:35.123", "second=35123/1000 minute=27 hour=15 dst=-1", .true.)
+        call expect(error, TIME, "15:27:35.123", "second=35123/1000 minute=27 hour=15 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:35.123456789", "second=35123456789/1000000000 minute=27 hour=15 dst=-1", .true.)
+        call expect(error, TIME, "15:27:35.123456789", &
+                    "second=35123456789/1000000000 minute=27 hour=15 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:35.012345678", "second=35012345678/1000000000 minute=27 hour=15 dst=-1", .true.)
+        call expect(error, TIME, "15:27:35.012345678", &
+                    "second=35012345678/1000000000 minute=27 hour=15 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:35.00001", "second=3500001/100000 minute=27 hour=15 dst=-1", .true.)
+        call expect(error, TIME, "15:27:35.00001", "second=3500001/100000 minute=27 hour=15 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:35.0000100", "second=3500001/100000 minute=27 hour=15 dst=-1", .true.)
+        call expect(error, TIME, "15:27:35.0000100", "second=3500001/100000 minute=27 hour=15 daylight_saving_time=-1", .true.)
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:35.0", "second=35 minute=27 hour=15 dst=-1", .true.)
+        call expect(error, TIME, "15:27:35.0", "second=35 minute=27 hour=15 daylight_saving_time=-1", .true.)
     end subroutine test_nonstandard_test_time_of_day_decimals
 
     subroutine test_standard_test_time_of_day_beginning_of_day(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, TIME, "000000", "second=0 minute=0 hour=0 dst=-1")
+        call expect(error, TIME, "000000", "second=0 minute=0 hour=0 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "00:00:00", "second=0 minute=0 hour=0 dst=-1")
+        call expect(error, TIME, "00:00:00", "second=0 minute=0 hour=0 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "0000", "second=0 minute=0 hour=0 dst=-1")
+        call expect(error, TIME, "0000", "second=0 minute=0 hour=0 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, TIME, "00:00", "second=0 minute=0 hour=0 dst=-1")
+        call expect(error, TIME, "00:00", "second=0 minute=0 hour=0 daylight_saving_time=-1")
     end subroutine test_standard_test_time_of_day_beginning_of_day
 
     subroutine test_standard_test_time_of_day_utc(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, TIME, "232030Z", "second=30 minute=20 hour=23 dst=0 zone=0")
+        call expect(error, TIME, "232030Z", "second=30 minute=20 hour=23 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
-        call expect(error, TIME, "23:20:30Z", "second=30 minute=20 hour=23 dst=0 zone=0")
+        call expect(error, TIME, "23:20:30Z", "second=30 minute=20 hour=23 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
-        call expect(error, TIME, "2320Z", "second=0 minute=20 hour=23 dst=0 zone=0")
+        call expect(error, TIME, "2320Z", "second=0 minute=20 hour=23 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
-        call expect(error, TIME, "23:20Z", "second=0 minute=20 hour=23 dst=0 zone=0")
+        call expect(error, TIME, "23:20Z", "second=0 minute=20 hour=23 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
-        call expect(error, TIME, "23Z", "second=0 minute=0 hour=23 dst=0 zone=0")
+        call expect(error, TIME, "23Z", "second=0 minute=0 hour=23 daylight_saving_time=0 zone=0")
     end subroutine test_standard_test_time_of_day_utc
 
     subroutine test_standard_test_time_of_day_zone(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, TIME, "152746+0100", "second=46 minute=27 hour=15 dst=-1 zone=3600")
+        call expect(error, TIME, "152746+0100", "second=46 minute=27 hour=15 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:46+0100", "second=46 minute=27 hour=15 dst=-1 zone=3600")
+        call expect(error, TIME, "15:27:46+0100", "second=46 minute=27 hour=15 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
-        call expect(error, TIME, "152746+01", "second=46 minute=27 hour=15 dst=-1 zone=3600")
+        call expect(error, TIME, "152746+01", "second=46 minute=27 hour=15 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:46+01", "second=46 minute=27 hour=15 dst=-1 zone=3600")
+        call expect(error, TIME, "15:27:46+01", "second=46 minute=27 hour=15 daylight_saving_time=-1 zone=3600")
         if (allocated(error)) return
-        call expect(error, TIME, "152746-0500", "second=46 minute=27 hour=15 dst=-1 zone=-18000")
+        call expect(error, TIME, "152746-0500", "second=46 minute=27 hour=15 daylight_saving_time=-1 zone=-18000")
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:46-0500", "second=46 minute=27 hour=15 dst=-1 zone=-18000")
+        call expect(error, TIME, "15:27:46-0500", "second=46 minute=27 hour=15 daylight_saving_time=-1 zone=-18000")
         if (allocated(error)) return
-        call expect(error, TIME, "152746-05", "second=46 minute=27 hour=15 dst=-1 zone=-18000")
+        call expect(error, TIME, "152746-05", "second=46 minute=27 hour=15 daylight_saving_time=-1 zone=-18000")
         if (allocated(error)) return
-        call expect(error, TIME, "15:27:46-05", "second=46 minute=27 hour=15 dst=-1 zone=-18000")
+        call expect(error, TIME, "15:27:46-05", "second=46 minute=27 hour=15 daylight_saving_time=-1 zone=-18000")
     end subroutine test_standard_test_time_of_day_zone
 
     subroutine test_standard_test_date_and_time_of_day(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, COMBINED, "19850412T101530", "second=30 minute=15 hour=10 day=12 month=4 year=1985 dst=-1")
+        call expect(error, COMBINED, "19850412T101530", &
+                    "second=30 minute=15 hour=10 day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, COMBINED, "1985-04-12T10:15:30", "second=30 minute=15 hour=10 day=12 month=4 year=1985 dst=-1")
+        call expect(error, COMBINED, "1985-04-12T10:15:30", &
+                    "second=30 minute=15 hour=10 day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, COMBINED, "1985102T235030Z", "second=30 minute=50 hour=23 day=12 month=4 year=1985 dst=0 zone=0")
+        call expect(error, COMBINED, "1985102T235030Z", &
+                    "second=30 minute=50 hour=23 day=12 month=4 year=1985 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
-        call expect(error, COMBINED, "1985-102T23:50:30Z", "second=30 minute=50 hour=23 day=12 month=4 year=1985 dst=0 zone=0")
+        call expect(error, COMBINED, "1985-102T23:50:30Z", &
+                    "second=30 minute=50 hour=23 day=12 month=4 year=1985 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
-        call expect(error, COMBINED, "1985W155T235030", "second=30 minute=50 hour=23 day=12 month=4 year=1985 dst=-1")
+        call expect(error, COMBINED, "1985W155T235030", &
+                    "second=30 minute=50 hour=23 day=12 month=4 year=1985 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, COMBINED, "1985-W155T23:50:30", "second=30 minute=50 hour=23 day=12 month=4 year=1985 dst=-1")
+        call expect(error, COMBINED, "1985-W155T23:50:30", &
+                    "second=30 minute=50 hour=23 day=12 month=4 year=1985 daylight_saving_time=-1")
     end subroutine test_standard_test_date_and_time_of_day
 
     subroutine test_standard_test_interval(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call expect(error, DURATION, "P2Y10M15DT10H20M30S", "second=30 minute=20 hour=10 day=15 month=10 year=2 dst=-1")
+        call expect(error, DURATION, "P2Y10M15DT10H20M30S", &
+                    "second=30 minute=20 hour=10 day=15 month=10 year=2 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DURATION, "P00021015T102030", "second=30 minute=20 hour=10 day=15 month=10 year=2 dst=-1")
+        call expect(error, DURATION, "P00021015T102030", &
+                    "second=30 minute=20 hour=10 day=15 month=10 year=2 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DURATION, "P0002-10-15T10:20:30", "second=30 minute=20 hour=10 day=15 month=10 year=2 dst=-1")
+        call expect(error, DURATION, "P0002-10-15T10:20:30", &
+                    "second=30 minute=20 hour=10 day=15 month=10 year=2 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DURATION, "P1Y6M", "second=0 minute=0 hour=0 day=0 month=6 year=1 dst=-1")
+        call expect(error, DURATION, "P1Y6M", "second=0 minute=0 hour=0 day=0 month=6 year=1 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DURATION, "P0001-06", "month=6 year=1 dst=-1")
+        call expect(error, DURATION, "P0001-06", "month=6 year=1 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect(error, DURATION, "PT72H", "second=0 minute=0 hour=72 day=0 month=0 year=0 dst=-1")
+        call expect(error, DURATION, "PT72H", "second=0 minute=0 hour=72 day=0 month=0 year=0 daylight_saving_time=-1")
         if (allocated(error)) return
         call expect_interval(error, "19850412T232050Z/19850625T103000Z", &
-                             "second=50 minute=20 hour=23 day=12 month=4 year=1985 dst=0 zone=0", &
-                             "second=0 minute=30 hour=10 day=25 month=6 year=1985 dst=0 zone=0", &
-                             "second=10 minute=9 hour=11 day=15 month=3 year=1970 weekday=0 dst=0 zone=0")
+                             "second=50 minute=20 hour=23 day=12 month=4 year=1985 daylight_saving_time=0 zone=0", &
+                             "second=0 minute=30 hour=10 day=25 month=6 year=1985 daylight_saving_time=0 zone=0", &
+                             "second=10 minute=9 hour=11 day=15 month=3 year=1970 weekday=0 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
         call expect_interval(error, "1985-04-12T23:20:50Z/1985-06-25T10:30:00Z", &
-                             "second=50 minute=20 hour=23 day=12 month=4 year=1985 dst=0 zone=0", &
-                             "second=0 minute=30 hour=10 day=25 month=6 year=1985 dst=0 zone=0", &
-                             "second=10 minute=9 hour=11 day=15 month=3 year=1970 weekday=0 dst=0 zone=0")
+                             "second=50 minute=20 hour=23 day=12 month=4 year=1985 daylight_saving_time=0 zone=0", &
+                             "second=0 minute=30 hour=10 day=25 month=6 year=1985 daylight_saving_time=0 zone=0", &
+                             "second=10 minute=9 hour=11 day=15 month=3 year=1970 weekday=0 daylight_saving_time=0 zone=0")
         if (allocated(error)) return
-        call expect_interval(error, "19850412T232000/P1Y2M15DT12H", "second=0 minute=20 hour=23 day=12 month=4 year=1985 dst=-1", &
-                             "second=0 minute=20 hour=11 day=28 month=6 year=1986 dst=-1", &
-                             "second=0 minute=0 hour=12 day=15 month=2 year=1 dst=-1")
+        call expect_interval(error, "19850412T232000/P1Y2M15DT12H", &
+                             "second=0 minute=20 hour=23 day=12 month=4 year=1985 daylight_saving_time=-1", &
+                             "second=0 minute=20 hour=11 day=28 month=6 year=1986 daylight_saving_time=-1", &
+                             "second=0 minute=0 hour=12 day=15 month=2 year=1 daylight_saving_time=-1")
         if (allocated(error)) return
         call expect_interval(error, "1985-04-12T23:20:00/P1Y2M15DT12H", &
-                             "second=0 minute=20 hour=23 day=12 month=4 year=1985 dst=-1", &
-                             "second=0 minute=20 hour=11 day=28 month=6 year=1986 dst=-1", &
-                             "second=0 minute=0 hour=12 day=15 month=2 year=1 dst=-1")
+                             "second=0 minute=20 hour=23 day=12 month=4 year=1985 daylight_saving_time=-1", &
+                             "second=0 minute=20 hour=11 day=28 month=6 year=1986 daylight_saving_time=-1", &
+                             "second=0 minute=0 hour=12 day=15 month=2 year=1 daylight_saving_time=-1")
         if (allocated(error)) return
-        call expect_interval(error, "P1Y2M15DT12H/19850412T232000", "second=0 minute=20 hour=11 day=28 month=1 year=1984 dst=-1", &
-                             "second=0 minute=20 hour=23 day=12 month=4 year=1985 dst=-1", &
-                             "second=0 minute=0 hour=12 day=15 month=2 year=1 dst=-1")
+        call expect_interval(error, "P1Y2M15DT12H/19850412T232000", &
+                             "second=0 minute=20 hour=11 day=28 month=1 year=1984 daylight_saving_time=-1", &
+                             "second=0 minute=20 hour=23 day=12 month=4 year=1985 daylight_saving_time=-1", &
+                             "second=0 minute=0 hour=12 day=15 month=2 year=1 daylight_saving_time=-1")
     end subroutine test_standard_test_interval
 
     !> Round trip zone offsets through format_time_string and

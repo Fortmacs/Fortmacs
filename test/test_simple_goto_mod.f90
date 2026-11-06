@@ -34,14 +34,15 @@ module test_simple_goto_mod
     use value_mod, only: list, value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, widen, narrow_to_region, is_buffer_narrowed
-    use editing_commands_mod, only: forward_char
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, widen, narrow_to_region, &
+                                     is_buffer_narrowed
+    use editing_commands_mod, only: forward_character
     use text_properties_mod, only: put_text_property
     use keymap_mod, only: key_parse, key_binding
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use value_mod, only: value_type
     use data_mod, only: value_eq
-    use simple_mod, only: goto_line, goto_line_relative, count_words, count_words_format, line_number_at_pos
+    use simple_mod, only: goto_line, goto_line_relative, count_words, count_words_format, line_number_at_position
     use thing_at_point_mod, only: number_at_point
     implicit none(type, external)
     private
@@ -63,24 +64,24 @@ contains
                     new_unittest("goto-line-relative", test_goto_line_relative), &
                     new_unittest("test-numbers-none", test_numbers_none), &
                     new_unittest("test-numbers-decimal", test_numbers_decimal), &
-                    new_unittest("test-numbers-hex-lisp", test_numbers_hex_lisp), &
-                    new_unittest("test-numbers-hex-c", test_numbers_hex_c), &
+                    new_unittest("test-numbers-hex-lisp", test_numbers_hexadecimal_lisp), &
+                    new_unittest("test-numbers-hex-c", test_numbers_hexadecimal_c), &
                     new_unittest("goto-and-narrow-keys", test_keys) &
                     ]
     end subroutine collect_simple_goto_mod
 
-    subroutine temp_buffer(text)
+    subroutine temporary_buffer(text)
         character(len=*), intent(in) :: text
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *goto-test*", buffer, st)
         call set_buffer(buffer, st)
         call widen()
         call erase_buffer(st)
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine test_count_words_41761(error)
         type(error_type), allocatable, intent(out) :: error
@@ -88,7 +89,7 @@ contains
         integer(int64) :: start
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
 
         do i = 1, 10
             start = point()
@@ -97,18 +98,18 @@ contains
             call put_text_property(start, point(), value_type(name="field"), list(value_type(name="x"), value_type(.true.)), st)
         end do
 
-        call check(error, count_words(point_min(), point_max()) == 10, "10 words")
+        call check(error, count_words(point_minimum(), point_maximum()) == 10, "10 words")
     end subroutine test_count_words_41761
 
     subroutine test_count_words_format(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer("One two.  Three four five."//LF//"Six.")
-        call check(error, count_words_format("Buffer", point_min(), point_max()), &
+        call temporary_buffer("One two.  Three four five."//LF//"Six.")
+        call check(error, count_words_format("Buffer", point_minimum(), point_maximum()), &
                    "Buffer has 2 lines, 3 sentences, 6 words, and 31 characters")
         if (allocated(error)) return
-        call temp_buffer("a")
-        call check(error, count_words_format("Region", point_min(), point_max()), &
+        call temporary_buffer("a")
+        call check(error, count_words_format("Region", point_minimum(), point_maximum()), &
                    "Region has 1 line, 1 sentence, 1 word, and 1 character")
     end subroutine test_count_words_format
 
@@ -116,7 +117,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("1"//LF//"2"//LF//"3"//LF//"4"//LF//"5"//LF)
+        call temporary_buffer("1"//LF//"2"//LF//"3"//LF//"4"//LF//"5"//LF)
 
         checks: block
             call goto_line(3_int64, st)
@@ -140,26 +141,26 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer("1"//LF//"2"//LF//"3"//LF//"4"//LF//"5"//LF)
+        call temporary_buffer("1"//LF//"2"//LF//"3"//LF//"4"//LF//"5"//LF)
         call narrow_to_region(5_int64, 11_int64, st)
         call goto_line_relative(2_int64, st)
-        call check(error, point() == 7 .and. line_number_at_pos() == 2, "relative line 2")
+        call check(error, point() == 7 .and. line_number_at_position() == 2, "relative line 2")
         call widen()
     end subroutine test_goto_line_relative
 
-    !> The number at position POS of TEXT (thingatpt-tests.el's
+    !> The number at position POSITION of TEXT (thingatpt-tests.el's
     !> test--number), FOUND false for nil.
-    subroutine number_in(text, pos, n, found)
+    subroutine number_in(text, position, n, found)
         character(len=*), intent(in) :: text
-        integer, intent(in) :: pos
+        integer, intent(in) :: position
         integer(int64), intent(out) :: n
         logical, intent(out) :: found
         logical :: is_integer
         type(status_type) :: st
 
-        call temp_buffer(text//LF)
-        call goto_char(point_min())
-        call forward_char(st, int(pos, int64))
+        call temporary_buffer(text//LF)
+        call goto_character(point_minimum())
+        call forward_character(st, int(position, int64))
         call number_at_point(n, found, is_integer)
         found = found .and. is_integer
     end subroutine number_in
@@ -179,21 +180,21 @@ contains
         call expect("42", [0, 1, 2], 42_int64, error)
     end subroutine test_numbers_decimal
 
-    subroutine test_numbers_hex_lisp(error)
+    subroutine test_numbers_hexadecimal_lisp(error)
         type(error_type), allocatable, intent(out) :: error
 
         call expect("#x42", [0, 1, 2], 66_int64, error)
         if (allocated(error)) return
         call expect("#xf00", [0, 1, 2, 3], 3840_int64, error)
-    end subroutine test_numbers_hex_lisp
+    end subroutine test_numbers_hexadecimal_lisp
 
-    subroutine test_numbers_hex_c(error)
+    subroutine test_numbers_hexadecimal_c(error)
         type(error_type), allocatable, intent(out) :: error
 
         call expect("0x42", [0, 1, 2], 66_int64, error)
         if (allocated(error)) return
         call expect("0xf00", [0, 1, 2, 3], 3840_int64, error)
-    end subroutine test_numbers_hex_c
+    end subroutine test_numbers_hexadecimal_c
 
     subroutine expect(text, positions, value, error)
         character(len=*), intent(in) :: text
@@ -214,10 +215,10 @@ contains
     subroutine test_keys(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call expect_key("M-g g", "goto_line", error)
         if (allocated(error)) return
-        call expect_key("M-g c", "goto_char", error)
+        call expect_key("M-g c", "goto_character", error)
         if (allocated(error)) return
         call expect_key("M-g TAB", "move_to_column", error)
         if (allocated(error)) return
@@ -253,7 +254,7 @@ contains
         type(value_type) :: binding
         type(status_type) :: st
 
-        call temp_buffer("")
+        call temporary_buffer("")
         call key_parse(keys, key, st)
         call key_binding(key, binding, st)
         call check(error, value_eq(binding, value_type(name=command)), keys//" is not "//command)
