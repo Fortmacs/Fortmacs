@@ -1,7 +1,7 @@
 # message_mod
 
 - Module: message_mod (+ submodule message_smtp_mod)
-- Upstream: gnus/message.el (+ rfc2047.el `rfc2047-fold-field`, gnus-util.el `gnus-output-to-mail`, mailheader.el `mail-header-format`, and what mml.el's `mml-generate-mime` makes of a plain ASCII body)
+- Upstream: gnus/message.el (+ gnus-util.el `gnus-output-to-mail`, mailheader.el `mail-header-format`, and what mml.el's `mml-generate-mime` makes of a plain ASCII body)
 - State: partial
 
 ## Ported
@@ -19,7 +19,7 @@
 `message-send` (the resend question, `message-confirm-send`, `message-allow-no-recipients`, Fcc, `message-sent-hook`, the housekeeping),
 `message-fix-before-sending` (the final newline, sorting the headers, the illegible-text check with its choices, the bogus-recipient check),
 `message-check-recipients` (the bogus addresses, `message-bogus-addresses`),
-`message-send-mail` (the empty Mail-Followup-To removed, the generated headers, the continuation-line check, folding long headers, `message-header-hook`, the encoded copy, the Lines header, `message-ignored-mail-headers`, the final newline, the cleanup),
+`message-send-mail` (the empty Mail-Followup-To removed, the generated headers, the continuation-line check, folding long headers, `message-header-hook`, the encoded copy, the Lines header, `message-ignored-mail-headers`, the RFC 2047 encoding of the header (`mail-encode-encoded-word-buffer`, rfc2047_mod's `encode_rfc2047_message_header`), the final newline, the cleanup),
 `message-multi-smtp-send-mail` (`send_message_mail_by_method`: the X-Message-SMTP-Method header with the methods "smtp" (server, service, user) and "sendmail"),
 `message-send-mail-with-sendmail` (`message-sendmail-extra-arguments`, `message-sendmail-f-is-evil`, `message-interactive`, Resent-To, the exit value and the error output),
 `message-sendmail-envelope-from` and `message--sendmail-envelope-from`,
@@ -57,7 +57,7 @@
 `message-fill-field-address`,
 `message-fill-field-general`,
 `message-skip-to-next-address`,
-`message--fold-long-headers` (with rfc2047.el's `rfc2047-fold-field`, `rfc2047-fold-region` and `rfc2047--break-line`),
+`message--fold-long-headers` (with rfc2047_mod's `fold_rfc2047_field`),
 `message--check-continuation-headers`,
 `message-cleanup-headers`,
 `message-encode-message-body` (for a body of ASCII text with no MML tags, no line over 1000 characters and no Content-Type field),
@@ -110,7 +110,6 @@ MML (mml.el, mm-*.el): MML mode in Message mode and its keys (C-c C-a, C-c C-m .
 encoding any other body (non-ASCII text, MML tags, lines over 1000 characters, a Content-Type field: `message-encode-message-body` and Fcc fail with a `void_function` error condition instead of sending);
 `mml-secure-bcc-is-safe` and the secure-tag checks;
 `message-options`;
-RFC 2047 encoding of the header (`mail-encode-encoded-word-buffer`): a header with non-ASCII text is a `void_function` error condition;
 IDNA (puny.el, `message-idna-to-ascii-rhs`, `message-use-idna`): a non-ASCII domain is a `void_function` error condition;
 checking for suspicious addresses (textsec.el) and the syntactic check of addresses (mail-parse.el's `mail-header-parse-addresses`);
 news (`message-news`, `message-send-news`, the news headers and syntax checks, the courtesy copy, cancel and supersede, cross-posts, `message-insert-newsgroups`): a message with Newsgroups is a `void_function` error condition;
@@ -132,4 +131,4 @@ the obsolete `message-send-mail-function` (the function), `message-delete-line`,
 
 ## Tests
 
-test_message_mod (ports message-tests.el's message-all-recipients and message-replace-header; own: C-x m (`compose-mail`) with the default agent, sending through test/sendmail-resources/fake-sendmail with the generated headers and the MIME fields, Fcc to an mbox file, the X-Message-SMTP-Method header, a non-ASCII body refused, the syntax checks, the From styles, Message-ID with Supersedes and reply headers, In-Reply-To and References, sorting the headers, folding a long field, `position_message_on_field`)
+test_message_mod (ports message-tests.el's message-all-recipients and message-replace-header; own: C-x m (`compose-mail`) with the default agent, sending through test/sendmail-resources/fake-sendmail with the generated headers and the MIME fields, Fcc to an mbox file, the X-Message-SMTP-Method header, a non-ASCII body refused, a non-ASCII Subject encoded, the syntax checks, the From styles, Message-ID with Supersedes and reply headers, In-Reply-To and References, sorting the headers, folding a long field, `position_message_on_field`)

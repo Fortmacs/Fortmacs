@@ -1579,8 +1579,9 @@ contains
     !> This is a suitable value for `send_mail_function'.  It sends using the
     !> external program defined by `sendmail_program'.  Port of
     !> sendmail.el:sendmail-send-it (expanding mail aliases, which needs
-    !> mailalias.el, and RFC 2047 encoding of the header, which needs
-    !> rfc2047.el, are Deferred).
+    !> mailalias.el, and RFC 2047 encoding of the header, which rfc2047_mod's
+    !> `encode_rfc2047_message_header' does but this does not call yet, are
+    !> Deferred).
     recursive subroutine send_mail_with_sendmail(status)
         type(status_type), intent(out) :: status
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline

@@ -196,6 +196,10 @@ program tester
     use test_ibuffer_mod, only: collect_ibuffer_mod
     use test_ibuffer_extensions_mod, only: collect_ibuffer_extensions_mod
     use test_time_date_mod, only: collect_time_date_mod
+    use test_iso8601_mod, only: collect_iso8601_mod
+    use test_parse_time_mod, only: collect_parse_time_mod
+    use test_quoted_printable_mod, only: collect_quoted_printable_mod
+    use test_rfc2047_mod, only: collect_rfc2047_mod
     use test_multilingual_environment_utilities_mod, only: collect_multilingual_environment_utilities_mod
     use test_tabulated_list_mod, only: collect_tabulated_list_mod
     implicit none(type, external)
@@ -367,6 +371,8 @@ program tester
                  new_testsuite("ibuffer_mod", collect_ibuffer_mod), &
                  new_testsuite("ibuffer_extensions_mod", collect_ibuffer_extensions_mod), &
                  new_testsuite("time_date_mod", collect_time_date_mod), &
+                 new_testsuite("iso8601_mod", collect_iso8601_mod), &
+                 new_testsuite("parse_time_mod", collect_parse_time_mod), &
                  new_testsuite("multilingual_environment_utilities_mod", collect_multilingual_environment_utilities_mod), &
                  new_testsuite("tabulated_list_mod", collect_tabulated_list_mod), &
                  new_testsuite("info_mod", collect_info_mod), &
@@ -374,6 +380,8 @@ program tester
                  new_testsuite("ansi_color_mod", collect_ansi_color_mod), &
                  new_testsuite("programmable_completion_mod", collect_programmable_completion_mod), &
                  new_testsuite("mail_utilities_mod", collect_mail_utilities_mod), &
+                 new_testsuite("quoted_printable_mod", collect_quoted_printable_mod), &
+                 new_testsuite("rfc2047_mod", collect_rfc2047_mod), &
                  new_testsuite("mail_extract_mod", collect_mail_extract_mod), &
                  new_testsuite("mail_abbreviations_mod", collect_mail_abbreviations_mod), &
                  new_testsuite("send_mail_mod", collect_send_mail_mod), &
