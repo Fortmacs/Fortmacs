@@ -31,4 +31,4 @@ hippie-exp.el
 
 ## Tests
 
-test_dynamic_abbreviation_mod (ports dabbrev-expand-test, dabbrev-completion-test, -with-argument, -same-buffer-1 to -4, -other-buffer-1, -2, -4, dabbrev-expand-after-killing-buffer; own: cycling, case replacement, case-sensitive search, `dabbrev_case_distinction`)
+test_dynamic_abbreviation_mod (ports dabbrev-expand-test, dabbrev-completion-test, -with-argument, -same-buffer-1 to -4, -other-buffer-1, -2, -4, dabbrev-expand-after-killing-buffer; own: cycling, case replacement, case-sensitive search, `dynamic_abbreviation_case_distinction`)

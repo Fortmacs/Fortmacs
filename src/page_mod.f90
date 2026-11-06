@@ -28,20 +28,21 @@ module page_mod
     use execute_interactively_mod, only: PREFIX_NONE
     use error_mod, only: status_type
     use buffer_mod, only: buffers, current
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bol, is_bob, is_eob, is_eol, widen, narrow_to_region
-    use editing_commands_mod, only: forward_char, forward_line, beginning_of_line, end_of_line
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
-                          set_match_data, SEARCH_NOERROR
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_line, &
+                                     is_beginning_of_buffer, is_end_of_buffer, is_end_of_line, widen, narrow_to_region
+    use editing_commands_mod, only: forward_character, forward_line, beginning_of_line, end_of_line
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, match_beginning, &
+                          match_end, set_match_data, SEARCH_NOERROR
     use basic_subprograms_mod, only: looking_back
     use simple_mod, only: push_mark, count_lines
     use display_engine_mod, only: message
-    use paragraphs_mod, only: page_delimiter, init_paragraph_variables
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use paragraphs_mod, only: page_delimiter, initialize_paragraph_variables
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use commands_mod, only: commands
     implicit none(type, external)
     private
 
-    public :: forward_page, backward_page, mark_page, narrow_to_page, count_lines_page, what_page, init_page, &
+    public :: forward_page, backward_page, mark_page, narrow_to_page, count_lines_page, what_page, initialize_page, &
               page_count_lines_page, page_what_page
 
 contains
@@ -56,11 +57,11 @@ contains
         logical :: at_delimiter
 
         status = status_type()
-        call init_paragraph_variables()
+        call initialize_paragraph_variables()
         n = 1
         if (present(count)) n = count
 
-        do while (n > 0 .and. .not. is_eob())
+        do while (n > 0 .and. .not. is_end_of_buffer())
             at_delimiter = looking_at(page_delimiter%value, status)
             if (.not. status%ok()) return
             if (at_delimiter) at_delimiter = match_end(0, status) > point()
@@ -69,25 +70,25 @@ contains
                 ! If we're standing at the page delimiter, then just skip to
                 ! the end of it.  (But only if it's not a zero-length
                 ! delimiter, because then we wouldn't have forward progress.)
-                call goto_char(match_end(0, status))
+                call goto_character(match_end(0, status))
             else
                 ! In case the page-delimiter matches the null string,
                 ! don't find a match without moving.
-                if (is_bol()) call forward_char(status, 1_int64)
+                if (is_beginning_of_line()) call forward_character(status, 1_int64)
                 if (.not. status%ok()) return
-                call re_search_forward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
-                if (found == 0) call goto_char(point_max())
+                if (found == 0) call goto_character(point_maximum())
             end if
 
             n = n - 1
         end do
 
-        do while (n < 0 .and. .not. is_bob())
+        do while (n < 0 .and. .not. is_beginning_of_buffer())
             ! In case the page-delimiter matches the null string,
             ! don't find a match without moving.
             here = point()
-            call re_search_backward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_backward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
             if (.not. status%ok()) return
             mb = 0
             me = 0
@@ -97,24 +98,24 @@ contains
                 me = match_end(0, status)
             end if
 
-            call goto_char(here)
+            call goto_character(here)
 
             if (found /= 0) then
-                if (me == point()) call goto_char(mb)
+                if (me == point()) call goto_character(mb)
             end if
 
-            if (.not. is_bob()) then
-                call forward_char(status, -1_int64)
+            if (.not. is_beginning_of_buffer()) then
+                call forward_character(status, -1_int64)
                 if (.not. status%ok()) return
-                call re_search_backward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward(page_delimiter%value, found, status, noerror=SEARCH_NOERROR)
                 if (.not. status%ok()) return
 
                 if (found /= 0) then
                     ! We found one--move to the end of it.
-                    call goto_char(match_end(0, status))
+                    call goto_character(match_end(0, status))
                 else
                     ! We found nothing--go to beginning of buffer.
-                    call goto_char(point_min())
+                    call goto_character(point_minimum())
                 end if
             end if
 
@@ -135,30 +136,30 @@ contains
         call forward_page(status, -n)
     end subroutine backward_page
 
-    recursive subroutine cmd_forward_page(status)
+    recursive subroutine execute_forward_page(status)
         type(status_type), intent(out) :: status
 
-        call forward_page(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_forward_page
+        call forward_page(status, prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_forward_page
 
-    recursive subroutine cmd_backward_page(status)
+    recursive subroutine execute_backward_page(status)
         type(status_type), intent(out) :: status
 
-        call backward_page(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_backward_page
+        call backward_page(status, prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_backward_page
 
     !> Put mark at end of page, point at beginning.
     !> A numeric arg specifies to move forward or backward by that many pages,
     !> thus marking a page other than the one point was originally in.
-    !> Port of page.el:mark-page (ARG 0 for no prefix).
-    recursive subroutine mark_page(arg, status)
-        integer(int64), intent(in) :: arg
+    !> Port of page.el:mark-page (ARGUMENT 0 for no prefix).
+    recursive subroutine mark_page(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        if (arg > 0) then
-            call forward_page(status, arg)
-        else if (arg < 0) then
-            call forward_page(status, arg - 1)
+        if (argument > 0) then
+            call forward_page(status, argument)
+        else if (argument < 0) then
+            call forward_page(status, argument - 1)
         end if
 
         call forward_page(status)
@@ -170,11 +171,11 @@ contains
     !> Make text outside current page invisible.
     !> A numeric arg specifies to move forward or backward by that many pages,
     !> thus showing a page other than the one point was originally in.
-    !> Port of page.el:narrow-to-page (ARG 0 for no prefix).
-    recursive subroutine narrow_to_page(arg, status)
-        integer(int64), intent(in) :: arg
+    !> Port of page.el:narrow-to-page (ARGUMENT 0 for no prefix).
+    recursive subroutine narrow_to_page(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
-        integer(int64) :: saved, opoint, adjust, mb, e, shortage
+        integer(int64) :: saved, original_point, adjust, mb, e, shortage
         integer(int64), allocatable :: none(:)
         type(status_type) :: st
         logical :: at_page
@@ -183,19 +184,19 @@ contains
         saved = point()
         call widen()
 
-        if (arg > 0) then
-            call forward_page(status, arg)
-        else if (arg < 0) then
+        if (argument > 0) then
+            call forward_page(status, argument)
+        else if (argument < 0) then
             adjust = 0
-            opoint = point()
+            original_point = point()
             ! If we are not now at the beginning of a page,
             ! move back one extra time, to get to the start of this page.
             call beginning_of_line()
             at_page = looking_at(page_delimiter%value, st)
-            if (at_page) at_page = match_end(0, st) == opoint
+            if (at_page) at_page = match_end(0, st) == original_point
             if (.not. at_page) adjust = 1
-            call goto_char(opoint)
-            call forward_page(status, arg - adjust)
+            call goto_character(original_point)
+            call forward_page(status, argument - adjust)
         end if
 
         ! Find the end of the page.
@@ -211,11 +212,11 @@ contains
         mb = match_beginning(0, st)
 
         if (st%ok() .and. mb > 0) then
-            opoint = point()
-            call goto_char(mb)
+            original_point = point()
+            call goto_character(mb)
             at_page = looking_at(page_delimiter%value, st)
-            call goto_char(opoint)
-            if (at_page) call goto_char(mb)
+            call goto_character(original_point)
+            if (at_page) call goto_character(mb)
         end if
 
         e = point()
@@ -226,28 +227,28 @@ contains
         ! If extra text follows page delimiter on same line,
         ! include it.
         ! Otherwise, show text starting with following line.
-        if (is_eol() .and. .not. is_bob()) shortage = forward_line(1_int64)
+        if (is_end_of_line() .and. .not. is_beginning_of_buffer()) shortage = forward_line(1_int64)
         call narrow_to_region(e, point(), status)
-        call goto_char(min(max(saved, point_min()), point_max()))
+        call goto_character(min(max(saved, point_minimum()), point_maximum()))
     end subroutine narrow_to_page
 
     !> The line counts of the current page: TOTAL, BEFORE and AFTER point.
     !> Port of page.el:page--count-lines-page.
     subroutine page_count_lines_page(total, before, after)
         integer(int64), intent(out) :: total, before, after
-        integer(int64) :: opoint, end
+        integer(int64) :: original_point, end
         type(status_type) :: st
 
-        opoint = point()
+        original_point = point()
         call forward_page(st)
         call beginning_of_line()
         if (.not. looking_at(page_delimiter%value, st)) call end_of_line()
         end = point()
         call backward_page(st)
         total = count_lines(point(), end)
-        before = count_lines(point(), opoint)
-        after = count_lines(opoint, end)
-        call goto_char(opoint)
+        before = count_lines(point(), original_point)
+        after = count_lines(original_point, end)
+        call goto_character(original_point)
     end subroutine page_count_lines_page
 
     !> Report number of lines on current page, and how many are before or after point.
@@ -273,30 +274,30 @@ contains
     !> of the page).  Port of page.el:page--what-page.
     subroutine page_what_page(page, line)
         integer(int64), intent(out) :: page, line
-        integer(int64) :: opoint, begv, zv_from_end, adjust, found
+        integer(int64) :: original_point, beginning_of_accessible_portion, end_of_accessible_portion_from_end, adjust, found
         type(status_type) :: st
 
         ! (save-restriction (widen) (save-excursion ...))
-        begv = buffers(current)%begv
-        zv_from_end = buffers(current)%text%z - buffers(current)%zv
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
         call widen()
-        opoint = point()
+        original_point = point()
         page = 1
         adjust = 0
-        if (is_bol()) adjust = 1
+        if (is_beginning_of_line()) adjust = 1
         if (adjust == 0 .and. looking_back(page_delimiter%value, st)) adjust = 1
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(page_delimiter%value, found, st, bound=opoint, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(page_delimiter%value, found, st, bound=original_point, noerror=SEARCH_NOERROR)
             if (.not. st%ok() .or. found <= 0) exit
-            if (match_beginning(0, st) == match_end(0, st)) call forward_char(st)
+            if (match_beginning(0, st) == match_end(0, st)) call forward_character(st)
             page = page + 1
         end do
 
-        line = adjust + count_lines(point(), opoint)
-        call goto_char(opoint)
-        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
+        line = adjust + count_lines(point(), original_point)
+        call goto_character(original_point)
+        call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
     end subroutine page_what_page
 
     !> Display the page number, and the line number within that page.
@@ -312,32 +313,32 @@ contains
         call message(trim(text))
     end subroutine what_page
 
-    recursive subroutine cmd_mark_page(status)
+    recursive subroutine execute_mark_page(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
         n = 0
-        if (current_prefix_arg%kind /= PREFIX_NONE) n = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind /= PREFIX_NONE) n = prefix_numeric_value(current_prefix_argument)
         call mark_page(n, status)
-    end subroutine cmd_mark_page
+    end subroutine execute_mark_page
 
-    recursive subroutine cmd_narrow_to_page(status)
+    recursive subroutine execute_narrow_to_page(status)
         type(status_type), intent(out) :: status
         integer(int64) :: n
 
         n = 0
-        if (current_prefix_arg%kind /= PREFIX_NONE) n = prefix_numeric_value(current_prefix_arg)
+        if (current_prefix_argument%kind /= PREFIX_NONE) n = prefix_numeric_value(current_prefix_argument)
         call narrow_to_page(n, status)
-    end subroutine cmd_narrow_to_page
+    end subroutine execute_narrow_to_page
 
     !> Register the commands.  Not a port.
-    subroutine init_page()
-        commands%forward_page%execute => cmd_forward_page
-        commands%backward_page%execute => cmd_backward_page
-        commands%mark_page%execute => cmd_mark_page
-        commands%narrow_to_page%execute => cmd_narrow_to_page
+    subroutine initialize_page()
+        commands%forward_page%execute => execute_forward_page
+        commands%backward_page%execute => execute_backward_page
+        commands%mark_page%execute => execute_mark_page
+        commands%narrow_to_page%execute => execute_narrow_to_page
         commands%narrow_to_page%disabled = .true.
         commands%count_lines_page%execute => count_lines_page
         commands%what_page%execute => what_page
-    end subroutine init_page
+    end subroutine initialize_page
 end module page_mod

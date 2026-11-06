@@ -36,26 +36,26 @@ module test_interval_tree_mod
     use value_mod, only: list, value_type
     use data_mod, only: value_eq
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, resolve_buffer, is_buffer_live
-    use insert_delete_mod, only: insert, del_range, replace_range
+    use insert_delete_mod, only: insert, delete_range, replace_range
     use hooks_mod, only: property_function_type
-    use editing_functions_mod, only: goto_char
+    use editing_functions_mod, only: goto_character
     use interval_tree_mod, only: make_overlay, move_overlay, delete_overlay, destroy_overlay, overlay_start, overlay_end, &
                                  overlay_buffer, overlay_get, overlay_put, overlays_at, overlays_in, next_overlay_change, &
                                  previous_overlay_change, is_overlay, delete_all_overlays, overlay_lists, overlay_recenter
     use glyph_matrices_mod, only: DEFAULT_FACE_ID
-    use faces_mod, only: init_faces
+    use faces_mod, only: initialize_faces
     use frame_mod, only: frame_type
-    use face_realization_mod, only: init_frame_faces, face_at_buffer_position
+    use face_realization_mod, only: initialize_frame_faces, face_at_buffer_position
     implicit none(type, external)
     private
 
     public :: collect_interval_tree_mod
 
-    ! Recorded overlay hook calls: the hook, AFTER, BEGINNING, END and OLD_LEN
+    ! Recorded overlay hook calls: the hook, AFTER, BEGINNING, END and OLD_LENGTH
     ! (-1 for none).
     character(len=24) :: rec_hook(16)
     logical :: rec_after(16)
-    integer(int64) :: rec_args(3, 16)
+    integer(int64) :: rec_arguments(3, 16)
     integer :: nrec = 0
     logical :: check_point = .false.
     type(property_function_type), target :: rec_in_front_fn, rec_modification_fn, rec_behind_fn, set_check_point_fn, &
@@ -136,13 +136,13 @@ contains
         call make_overlay(b, 3_int64, 6_int64, st, front_advance=.true., rear_advance=.true.)
         call make_overlay(c, 5_int64, 5_int64, st, front_advance=.true.)
         call make_overlay(e, 5_int64, 5_int64, st, front_advance=.true., rear_advance=.true.)
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call insert("xx", st)
         call check(error, overlay_start(a) == 3 .and. overlay_end(a) == 8, "insert at start, no front-advance")
         if (allocated(error)) return
         call check(error, overlay_start(b) == 5 .and. overlay_end(b) == 8, "insert at start, front-advance")
         if (allocated(error)) return
-        call goto_char(8_int64)
+        call goto_character(8_int64)
         call insert("y", st)
         call check(error, overlay_end(a) == 8, "insert at end, no rear-advance")
         if (allocated(error)) return
@@ -151,7 +151,7 @@ contains
         ! C and E are at 7 now.
         call check(error, overlay_start(c) == 7 .and. overlay_end(c) == 7, "empty overlays moved")
         if (allocated(error)) return
-        call goto_char(7_int64)
+        call goto_character(7_int64)
         call insert("z", st)
         call check(error, overlay_start(c) == 7 .and. overlay_end(c) == 7, "empty, front-advance only: stays")
         if (allocated(error)) return
@@ -173,7 +173,7 @@ contains
         call make_overlay(a, 3_int64, 6_int64, st)
         call make_overlay(b, 4_int64, 6_int64, st)
         call overlay_put(b, "evaporate", value_type(.true.), st)
-        call del_range(4_int64, 8_int64, st)
+        call delete_range(4_int64, 8_int64, st)
         call check(error, overlay_start(a) == 3 .and. overlay_end(a) == 4, "contracted")
         if (allocated(error)) return
         call check(error, overlay_start(b) == 0, "evaporated")
@@ -190,7 +190,7 @@ contains
     subroutine test_queries(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, a, b, e
-        type(handle_type), allocatable :: vec(:)
+        type(handle_type), allocatable :: vector(:)
         type(status_type) :: st
 
         call fresh(h, "0123456789")
@@ -198,19 +198,19 @@ contains
         call make_overlay(b, 4_int64, 8_int64, st)
         call make_overlay(e, 9_int64, 9_int64, st)
         call overlay_put(a, "priority", value_type(10_int64), st)
-        call overlays_at(5_int64, vec, sorted=.true.)
-        call check(error, size(vec) == 2, "two overlays at 5")
+        call overlays_at(5_int64, vector, sorted=.true.)
+        call check(error, size(vector) == 2, "two overlays at 5")
         if (allocated(error)) return
-        call check(error, vec(1)%index == a%index, "highest priority first")
+        call check(error, vector(1)%index == a%index, "highest priority first")
         if (allocated(error)) return
-        call overlays_at(9_int64, vec)
-        call check(error, size(vec) == 0, "an empty overlay is not at its position")
+        call overlays_at(9_int64, vector)
+        call check(error, size(vector) == 0, "an empty overlay is not at its position")
         if (allocated(error)) return
-        call overlays_in(9_int64, 9_int64, vec)
-        call check(error, size(vec) == 1, "overlays-in includes it")
+        call overlays_in(9_int64, 9_int64, vector)
+        call check(error, size(vector) == 1, "overlays-in includes it")
         if (allocated(error)) return
-        call overlays_in(1_int64, 3_int64, vec)
-        call check(error, size(vec) == 1, "overlays-in 1-3")
+        call overlays_in(1_int64, 3_int64, vector)
+        call check(error, size(vector) == 1, "overlays-in 1-3")
         if (allocated(error)) return
         call check(error, next_overlay_change(1_int64) == 2 .and. next_overlay_change(2_int64) == 4 .and. &
                    next_overlay_change(4_int64) == 6 .and. next_overlay_change(6_int64) == 8 .and. &
@@ -250,8 +250,8 @@ contains
         integer(int64) :: bi, endpos
         integer(int32) :: id
 
-        call init_faces()
-        call init_frame_faces(f, "dumb")
+        call initialize_faces()
+        call initialize_frame_faces(f, "dumb")
         call fresh(h, "abcdefgh")
         call resolve_buffer(h, bi, st)
         call make_overlay(a, 3_int64, 6_int64, st)
@@ -260,7 +260,7 @@ contains
         call check(error, id == DEFAULT_FACE_ID .and. endpos == 3, "up to the overlay")
         if (allocated(error)) return
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64)
-        call check(error, f%faces(id)%tty_bold_p .and. endpos == 6, "the overlay's face to its end")
+        call check(error, f%faces(id)%terminal_bold_p .and. endpos == 6, "the overlay's face to its end")
         if (allocated(error)) return
         ! A higher priority overlay wins over a lower one.
         call make_overlay(b, 4_int64, 6_int64, st)
@@ -268,22 +268,22 @@ contains
         call overlay_put(a, "face", list(value_type(name=":inverse_video"), value_type()), st)
         call overlay_put(a, "priority", value_type(10_int64), st)
         id = face_at_buffer_position(f, bi, 4_int64, endpos, 100_int64)
-        call check(error,.not. f%faces(id)%tty_reverse_p, "priority 10 over 0")
+        call check(error,.not. f%faces(id)%terminal_reverse_p, "priority 10 over 0")
         if (allocated(error)) return
         call overlay_put(a, "priority", value_type(), st)
         id = face_at_buffer_position(f, bi, 4_int64, endpos, 100_int64)
-        call check(error, f%faces(id)%tty_reverse_p, "equal priority: the one not covering the other")
+        call check(error, f%faces(id)%terminal_reverse_p, "equal priority: the one not covering the other")
         if (allocated(error)) return
         ! The region, priority (nil . 100), over a priority-0 overlay with
         ! the same bounds, under a priority-1000 one.
         call delete_overlay(b)
         call move_overlay(a, 3_int64, 6_int64, st)
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64, 3_int64, 6_int64)
-        call check(error, f%faces(id)%tty_reverse_p, "the region over priority 0")
+        call check(error, f%faces(id)%terminal_reverse_p, "the region over priority 0")
         if (allocated(error)) return
         call overlay_put(a, "priority", value_type(1000_int64), st)
         id = face_at_buffer_position(f, bi, 3_int64, endpos, 100_int64, 3_int64, 6_int64)
-        call check(error,.not. f%faces(id)%tty_reverse_p, "priority 1000 over the region")
+        call check(error,.not. f%faces(id)%terminal_reverse_p, "priority 1000 over the region")
         call destroy_overlay(a)
         call destroy_overlay(b)
         call close_buffer(h, st)
@@ -294,82 +294,82 @@ contains
     ! ------------------------------------------------------------------
 
     !> Record a call of an overlay hook named NAME.
-    subroutine record_call(name, after, beginning, end, old_len)
+    subroutine record_call(name, after, beginning, end, old_length)
         character(len=*), intent(in) :: name
         logical, intent(in) :: after
         integer(int64), intent(in) :: beginning, end
-        integer(int64), intent(in), optional :: old_len
+        integer(int64), intent(in), optional :: old_length
 
         nrec = nrec + 1
         if (nrec > size(rec_hook)) return
         rec_hook(nrec) = name
         rec_after(nrec) = after
-        rec_args(:, nrec) = [beginning, end, -1_int64]
-        if (present(old_len)) rec_args(3, nrec) = old_len
+        rec_arguments(:, nrec) = [beginning, end, -1_int64]
+        if (present(old_length)) rec_arguments(3, nrec) = old_length
     end subroutine record_call
 
     ! The recording functions of the three properties.
-    subroutine record_in_front(overlay, after, beginning, end, status, old_len)
+    subroutine record_in_front(overlay, after, beginning, end, status, old_length)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: old_len
+        integer(int64), intent(in), optional :: old_length
 
         status = status_type()
         if (overlay%index == 0) return
-        call record_call("insert_in_front_hooks", after, beginning, end, old_len)
+        call record_call("insert_in_front_hooks", after, beginning, end, old_length)
     end subroutine record_in_front
 
     ! See `record_in_front'.
-    subroutine record_modification(overlay, after, beginning, end, status, old_len)
+    subroutine record_modification(overlay, after, beginning, end, status, old_length)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: old_len
+        integer(int64), intent(in), optional :: old_length
 
         status = status_type()
         if (overlay%index == 0) return
-        call record_call("modification_hooks", after, beginning, end, old_len)
+        call record_call("modification_hooks", after, beginning, end, old_length)
     end subroutine record_modification
 
     ! See `record_in_front'.
-    subroutine record_behind(overlay, after, beginning, end, status, old_len)
+    subroutine record_behind(overlay, after, beginning, end, status, old_length)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: old_len
+        integer(int64), intent(in), optional :: old_length
 
         status = status_type()
         if (overlay%index == 0) return
-        call record_call("insert_behind_hooks", after, beginning, end, old_len)
+        call record_call("insert_behind_hooks", after, beginning, end, old_length)
     end subroutine record_behind
 
     ! Set the check point after the change (bug#30823).
-    subroutine set_check_point(overlay, after, beginning, end, status, old_len)
+    subroutine set_check_point(overlay, after, beginning, end, status, old_length)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: old_len
+        integer(int64), intent(in), optional :: old_length
 
         status = status_type()
-        if (present(old_len) .or. beginning > end) continue
+        if (present(old_length) .or. beginning > end) continue
         if (overlay%index /= 0 .and. after) check_point = .true.
     end subroutine set_check_point
 
     ! Delete the overlay before the change (bug#30823).
-    subroutine delete_before(overlay, after, beginning, end, status, old_len)
+    subroutine delete_before(overlay, after, beginning, end, status, old_length)
         type(handle_type), intent(in) :: overlay
         logical, intent(in) :: after
         integer(int64), intent(in) :: beginning, end
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: old_len
+        integer(int64), intent(in), optional :: old_length
 
         status = status_type()
-        if (present(old_len) .or. beginning > end) continue
+        if (present(old_length) .or. beginning > end) continue
         if (.not. after) call delete_overlay(overlay)
     end subroutine delete_before
 
@@ -443,7 +443,7 @@ contains
                 nrec = 0
 
                 if (insert_at(c) > 0) then
-                    call goto_char(insert_at(c))
+                    call goto_character(insert_at(c))
                     call insert("x", st)
                 else
                     from = index("1234", trim(replace(c)))
@@ -468,12 +468,12 @@ contains
             s = ""
 
             do k = 1, min(nrec, size(rec_hook))
-                if (rec_args(3, k) >= 0) then
+                if (rec_arguments(3, k) >= 0) then
                     write (part, "(a,a,i0,',',i0,',',i0)") merge("T", "F", rec_after(k)), code(rec_hook(k)), &
-                        rec_args(1, k), rec_args(2, k), rec_args(3, k)
+                        rec_arguments(1, k), rec_arguments(2, k), rec_arguments(3, k)
                 else
                     write (part, "(a,a,i0,',',i0)") merge("T", "F", rec_after(k)), code(rec_hook(k)), &
-                        rec_args(1, k), rec_args(2, k)
+                        rec_arguments(1, k), rec_arguments(2, k)
                 end if
 
                 if (len(s) > 0) s = s//" "
@@ -504,7 +504,7 @@ contains
         call overlay_put(ov_set, "modification_hooks", list(value_type(name="set_check_point")), st)
         call make_overlay(ov_delete, 1_int64, 3_int64, st)
         call overlay_put(ov_delete, "modification_hooks", list(value_type(name="delete_before")), st)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call insert("1", st)
         call destroy_overlay(ov_set)
         call destroy_overlay(ov_delete)
@@ -517,25 +517,25 @@ contains
     subroutine test_overlay_lists_1(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, ovs(10)
-        type(handle_type), allocatable :: vec(:)
+        type(handle_type), allocatable :: vector(:)
         type(status_type) :: st
         integer :: i
         logical :: all_overlays
 
         call fresh(h, "")
-        call overlay_lists(vec)
-        call check(error, size(vec) == 0, "no overlays")
+        call overlay_lists(vector)
+        call check(error, size(vector) == 0, "no overlays")
         if (allocated(error)) return
 
         do i = 1, 10
             call make_overlay(ovs(i), 1_int64, int(i - 1, int64), st)
         end do
 
-        call overlay_lists(vec)
-        all_overlays = size(vec) == 10
+        call overlay_lists(vector)
+        all_overlays = size(vector) == 10
 
-        do i = 1, size(vec)
-            all_overlays = all_overlays .and. is_overlay(vec(i))
+        do i = 1, size(vector)
+            all_overlays = all_overlays .and. is_overlay(vector(i))
         end do
 
         do i = 1, 10

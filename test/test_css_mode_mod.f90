@@ -31,23 +31,23 @@ module test_css_mode_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer, close_buffer
     use insert_delete_mod, only: insert
     use value_mod, only: value_type, vtag, V_ARRAY, V_NAME, xsymbol, list_elements, xstring, symbols
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, widen, buffer_substring, line_end_position
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, widen, buffer_substring, line_end_position
     use simple_mod, only: backward_word
     use indent_mod, only: indent_region
     use fill_mod, only: fill_paragraph
     use text_properties_mod, only: get_text_property
     use font_lock_mod, only: font_lock_ensure
     use modes_mod, only: minor_modes
-    use minibuffer_reading_tables_mod, only: capf_data_type
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type
     use minibuffer_reading_mod, only: all_completions
-    use bindings_mod, only: init_bindings
-    use terminal_colors_mod, only: tty_register_default_colors, tty_color_clear
-    use css_mode_mod, only: css_mode, scss_mode, css_property_values, css_value_class_lookup, &
-                            css_property_value_cache_get, css_current_rule_name, css_completion_at_point, &
-                            css_foreign_completions, css_class_list_function, css_id_list_function, css_color_to_4_dpc, &
-                            css_format_hex, css_named_color_to_hex, css_format_rgba_alpha, css_hex_to_rgb, &
-                            css_rgb_to_named_color_or_hex, css_cycle_color_format, css_join_nested_selectors, &
-                            css_mdn_find_symbol, css_rgb_color, css_hsl_color, css_hex_color, css_hex_alpha, css_named_color
+    use bindings_mod, only: initialize_bindings
+    use terminal_colors_mod, only: terminal_register_default_colors, terminal_color_clear
+    use css_mode_mod, only: css_mode, scss_mode, css_property_values, css_value_class_lookup, css_property_value_cache_get, &
+                            css_current_rule_name, css_completion_at_point, css_foreign_completions, css_class_list_function, &
+                            css_id_list_function, css_color_to_4_dpc, css_format_hexadecimal, css_named_color_to_hexadecimal, &
+                            css_format_rgba_alpha, css_hexadecimal_to_rgb, css_rgb_to_named_color_or_hexadecimal, &
+                            css_cycle_color_format, css_join_nested_selectors, css_mdn_find_symbol, css_rgb_color, css_hsl_color, &
+                            css_hexadecimal_color, css_hexadecimal_alpha, css_named_color
     implicit none(type, external)
     private
 
@@ -255,18 +255,18 @@ contains
                      new_unittest("css-test-complete-nested-selector", test_complete_nested_selector), &
                      new_unittest("scss-test-complete-nested-selector", test_scss_complete_nested_selector), &
                      new_unittest("css-test-color-to-4-dpc", test_color_to_4_dpc), &
-                     new_unittest("css-test-format-hex", test_format_hex), &
-                     new_unittest("css-test-named-color-to-hex", test_named_color_to_hex), &
+                     new_unittest("css-test-format-hex", test_format_hexadecimal), &
+                     new_unittest("css-test-named-color-to-hex", test_named_color_to_hexadecimal), &
                      new_unittest("css-test-format-rgba-alpha", test_format_rgba_alpha), &
-                     new_unittest("css-test-hex-to-rgb", test_hex_to_rgb), &
-                     new_unittest("css-test-rgb-to-named-color-or-hex", test_rgb_to_named_color_or_hex), &
+                     new_unittest("css-test-hex-to-rgb", test_hexadecimal_to_rgb), &
+                     new_unittest("css-test-rgb-to-named-color-or-hex", test_rgb_to_named_color_or_hexadecimal), &
                      new_unittest("css-test-cycle-color-format", test_cycle_color_format), &
                      new_unittest("css-test-join-nested-selectors", test_join_nested_selectors), &
                      new_unittest("css-mdn-symbol-guessing", test_mdn_symbol_guessing), &
                      new_unittest("css-test-rgb-parser", test_rgb_parser), &
                      new_unittest("css-test-hsl-parser", test_hsl_parser), &
-                     new_unittest("css-test-hex-color", test_hex_color), &
-                     new_unittest("css-test-hex-alpha", test_hex_alpha), &
+                     new_unittest("css-test-hex-color", test_hexadecimal_color), &
+                     new_unittest("css-test-hex-alpha", test_hexadecimal_alpha), &
                      new_unittest("css-test-named-color", test_named_color), &
                      new_unittest("css-mode-test-indent", test_indent), &
                      new_unittest("css-mode-test-selectors", test_selectors), &
@@ -282,12 +282,12 @@ contains
 
     ! A temporary buffer, in CSS mode (SCSS mode if SCSS; Fundamental mode
     ! if PLAIN).
-    subroutine temp_buffer(scss, plain)
+    subroutine temporary_buffer(scss, plain)
         logical, intent(in), optional :: scss, plain
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *css-test*", buffer, st)
         call set_buffer(buffer, st)
         call close_buffer(buffer, st)
@@ -308,13 +308,13 @@ contains
         end if
 
         call css_mode(st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     ! The text of the current buffer.
     function buffer_string() result(s)
         character(len=:), allocatable :: s
 
-        s = text_between(point_min(), point_max())
+        s = text_between(point_minimum(), point_maximum())
     end function buffer_string
 
     ! The text from START to END.
@@ -377,22 +377,22 @@ contains
     ! The completions at point (css-mode-tests--completions).
     function completions() result(names)
         character(len=64), allocatable :: names(:)
-        type(capf_data_type) :: data
+        type(completion_at_point_function_data_type) :: data
         type(status_type) :: st
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: i
 
         allocate (names(0))
         call css_completion_at_point(data, st)
         if (.not. data%found) return
         call all_completions(text_between(data%start, data%end), data%table, v, st)
-        call list_elements(v, elts)
+        call list_elements(v, elements)
         deallocate (names)
-        allocate (names(size(elts)))
+        allocate (names(size(elements)))
 
-        do i = 1, size(elts)
-            names(i) = xstring(elts(i))
+        do i = 1, size(elements)
+            names(i) = xstring(elements(i))
         end do
     end function completions
 
@@ -400,15 +400,15 @@ contains
     function face() result(name)
         character(len=:), allocatable :: name
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
 
         name = ""
         call get_text_property(point(), value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
-            call list_elements(v, elts)
-            v = elts(1)
+            call list_elements(v, elements)
+            v = elements(1)
         end if
 
         if (.not. allocated(v%a)) return
@@ -452,7 +452,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=36), allocatable :: a(:)
 
-        call init_bindings()
+        call initialize_bindings()
         ! The `float' property has a flat value list.
         call check(error, same_sorted(css_property_values("float"), [character(len=5) :: "left", "none", "right"]))
         if (allocated(error)) return
@@ -496,7 +496,7 @@ contains
         character(len=36), allocatable :: values(:), cached(:)
         logical :: found
 
-        call init_bindings()
+        call initialize_bindings()
         call css_property_value_cache_get("word-wrap", cached, found)
         call check(error,.not. found)
         if (allocated(error)) return
@@ -511,7 +511,7 @@ contains
     subroutine test_property_values_no_duplicates(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         ! The `flex' property is prone to duplicate values; if they aren't
         ! removed, it'll contain at least two instances of `auto'.
         call check(error, same_sorted(css_property_values("flex"), &
@@ -521,7 +521,7 @@ contains
     subroutine test_value_class_lookup(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call check(error, same_sorted(css_value_class_lookup("position"), &
                                       [character(len=6) :: "bottom", "calc()", "center", "left", "right", "top"]))
     end subroutine test_value_class_lookup
@@ -529,30 +529,30 @@ contains
     subroutine test_current_subprogram_name(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer(plain=.true.)
+        call temporary_buffer(plain=.true.)
         call ins("body { top: 0; }")
-        call goto_char(7_int64)
+        call goto_character(7_int64)
         call check(error, subprogram_name(), "body")
         if (allocated(error)) return
-        call goto_char(15_int64)
+        call goto_character(15_int64)
         call check(error, subprogram_name(), "body")
     end subroutine test_current_subprogram_name
 
     subroutine test_current_subprogram_name_nested(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer(plain=.true.)
+        call temporary_buffer(plain=.true.)
         call ins("body > .main a { top: 0; }")
-        call goto_char(20_int64)
+        call goto_character(20_int64)
         call check(error, subprogram_name(), "body > .main a")
     end subroutine test_current_subprogram_name_nested
 
     subroutine test_current_subprogram_name_complex(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer(plain=.true.)
+        call temporary_buffer(plain=.true.)
         call ins("input[type=submit]:hover { color: red; }")
-        call goto_char(30_int64)
+        call goto_character(30_int64)
         call check(error, subprogram_name(), "input[type=submit]:hover")
     end subroutine test_current_subprogram_name_complex
 
@@ -560,7 +560,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("body { left: 0 !")
         c = completions()
         call check(error, any(c == "important"))
@@ -573,7 +573,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer(scss=.true.)
+        call temporary_buffer(scss=.true.)
         call ins("body { left: 0 !")
         c = completions()
         call check(error, any(c == "important"))
@@ -584,7 +584,7 @@ contains
     subroutine test_complete_property_value(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("body { position: ")
         call check(error, same_sorted(completions(), [character(len=8) :: "absolute", "fixed", "inherit", "initial", &
                                                       "relative", "static", "unset"]))
@@ -594,7 +594,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("body:a")
         c = completions()
         call check(error, any(c == ":active"))
@@ -609,7 +609,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("body::a")
         c = completions()
         call check(error, any(c == "::after"))
@@ -624,7 +624,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("@m")
         c = completions()
         call check(error, any(c == "media"))
@@ -639,7 +639,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer(scss=.true.)
+        call temporary_buffer(scss=.true.)
         call ins("@m")
         c = completions()
         call check(error, any(c == "media"))
@@ -653,7 +653,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("body { f")
         c = completions()
         call check(error, any(c == "filter"))
@@ -661,7 +661,7 @@ contains
         call check(error,.not. any(c == "position"))
         if (allocated(error)) return
         ! Bug#27392
-        call temp_buffer()
+        call temporary_buffer()
         call ins("html { grid")
         c = completions()
         call check(error, size(c) > 0)
@@ -673,7 +673,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: c(:)
 
-        call temp_buffer(plain=.true.)
+        call temporary_buffer(plain=.true.)
         call get_or_make_buffer(" *css-test*", saved, st)
         call get_or_make_buffer(" *css-1*", b1, st)
         call get_or_make_buffer(" *css-2*", b2, st)
@@ -694,7 +694,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("b")
         c = completions()
         call check(error, any(c == "body"))
@@ -708,11 +708,11 @@ contains
         type(status_type) :: st
         character(len=64), allocatable :: c(:)
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *css-other*", other, st)
         call set_buffer(other, st)
         call css_class_list_function%set_local(foo_bar)
-        call temp_buffer()
+        call temporary_buffer()
         call ins(".f")
         c = completions()
         call close_buffer(other, st)
@@ -727,11 +727,11 @@ contains
         type(status_type) :: st
         character(len=64), allocatable :: c(:)
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *css-other*", other, st)
         call set_buffer(other, st)
         call css_id_list_function%set_local(foo_bar)
-        call temp_buffer()
+        call temporary_buffer()
         call ins("#b")
         c = completions()
         call close_buffer(other, st)
@@ -743,7 +743,7 @@ contains
     subroutine test_complete_nested_selector(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("body {")
         call check(error,.not. any(completions() == "body"))
     end subroutine test_complete_nested_selector
@@ -752,7 +752,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=64), allocatable :: c(:)
 
-        call temp_buffer(scss=.true.)
+        call temporary_buffer(scss=.true.)
         call ins("body { b")
         c = completions()
         call check(error, any(c == "body"))
@@ -772,39 +772,39 @@ contains
         call check(error, css_color_to_4_dpc("#fafbfc"), "#fafafbfbfcfc")
     end subroutine test_color_to_4_dpc
 
-    subroutine test_format_hex(error)
+    subroutine test_format_hexadecimal(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, css_format_hex("#fff"), "#fff")
+        call check(error, css_format_hexadecimal("#fff"), "#fff")
         if (allocated(error)) return
-        call check(error, css_format_hex("#ffffff"), "#fff")
+        call check(error, css_format_hexadecimal("#ffffff"), "#fff")
         if (allocated(error)) return
-        call check(error, css_format_hex("#aabbcc"), "#abc")
+        call check(error, css_format_hexadecimal("#aabbcc"), "#abc")
         if (allocated(error)) return
-        call check(error, css_format_hex("#12ff34"), "#12ff34")
+        call check(error, css_format_hexadecimal("#12ff34"), "#12ff34")
         if (allocated(error)) return
-        call check(error, css_format_hex("#aabbccdd"), "#abcd")
+        call check(error, css_format_hexadecimal("#aabbccdd"), "#abcd")
         if (allocated(error)) return
-        call check(error, css_format_hex("#aabbccde"), "#aabbccde")
+        call check(error, css_format_hexadecimal("#aabbccde"), "#aabbccde")
         if (allocated(error)) return
-        call check(error, css_format_hex("#abcdef"), "#abcdef")
-    end subroutine test_format_hex
+        call check(error, css_format_hexadecimal("#abcdef"), "#abcdef")
+    end subroutine test_format_hexadecimal
 
-    subroutine test_named_color_to_hex(error)
+    subroutine test_named_color_to_hexadecimal(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=6), parameter :: NAMES(3) = [character(len=6) :: "black", "white", "salmon"]
-        character(len=7), parameter :: HEX(3) = [character(len=7) :: "#000", "#fff", "#fa8072"]
+        character(len=7), parameter :: HEXADECIMAL(3) = [character(len=7) :: "#000", "#fff", "#fa8072"]
         logical :: done
         integer :: i
 
         do i = 1, 3
-            call temp_buffer()
+            call temporary_buffer()
             call ins(trim(NAMES(i)))
-            done = css_named_color_to_hex()
-            call check(error, buffer_string(), trim(HEX(i)))
+            done = css_named_color_to_hexadecimal()
+            call check(error, buffer_string(), trim(HEXADECIMAL(i)))
             if (allocated(error)) return
         end do
-    end subroutine test_named_color_to_hex
+    end subroutine test_named_color_to_hexadecimal
 
     subroutine test_format_rgba_alpha(error)
         type(error_type), allocatable, intent(out) :: error
@@ -824,7 +824,7 @@ contains
         call check(error, css_format_rgba_alpha(0.2524334_real64), "0.25")
     end subroutine test_format_rgba_alpha
 
-    subroutine test_hex_to_rgb(error)
+    subroutine test_hexadecimal_to_rgb(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=9), parameter :: INPUTS(8) = [character(len=9) :: "#000", "#000000", "#fff", "#ffffff", &
                                                                                              "#ffffff80", "#fff0", "#fff8", "#ffff"]
@@ -836,20 +836,20 @@ contains
         integer :: i
 
         ! (The colors of the initial terminal frame in batch mode.)
-        call tty_register_default_colors()
+        call terminal_register_default_colors()
 
         do i = 1, 8
-            call temp_buffer()
+            call temporary_buffer()
             call ins(trim(INPUTS(i)))
-            done = css_hex_to_rgb()
+            done = css_hexadecimal_to_rgb()
             call check(error, buffer_string(), trim(OUTPUTS(i)))
             if (allocated(error)) return
         end do
 
-        call tty_color_clear()
-    end subroutine test_hex_to_rgb
+        call terminal_color_clear()
+    end subroutine test_hexadecimal_to_rgb
 
-    subroutine test_rgb_to_named_color_or_hex(error)
+    subroutine test_rgb_to_named_color_or_hexadecimal(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=25), parameter :: INPUTS(7) = [character(len=25) :: "rgb(0, 0, 0)", "rgb(255, 255, 255)", &
                                                                  "rgb(255, 255, 240)", "rgb(18, 52, 86)", "rgba(18, 52, 86, 0.5)", &
@@ -860,20 +860,20 @@ contains
         integer :: i
 
         do i = 1, 7
-            call temp_buffer()
+            call temporary_buffer()
             call ins(trim(INPUTS(i)))
-            done = css_rgb_to_named_color_or_hex()
+            done = css_rgb_to_named_color_or_hexadecimal()
             call check(error, buffer_string(), trim(OUTPUTS(i)))
             if (allocated(error)) return
         end do
-    end subroutine test_rgb_to_named_color_or_hex
+    end subroutine test_rgb_to_named_color_or_hexadecimal
 
     subroutine test_cycle_color_format(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call tty_register_default_colors()
-        call temp_buffer()
+        call terminal_register_default_colors()
+        call temporary_buffer()
         call ins("black")
         call css_cycle_color_format(st)
         call check(error, buffer_string(), "#000")
@@ -883,7 +883,7 @@ contains
         if (allocated(error)) return
         call css_cycle_color_format(st)
         call check(error, buffer_string(), "black")
-        call tty_color_clear()
+        call terminal_color_clear()
     end subroutine test_cycle_color_format
 
     subroutine test_join_nested_selectors(error)
@@ -916,7 +916,7 @@ contains
         integer :: i
 
         do i = 1, 9
-            call temp_buffer()
+            call temporary_buffer()
 
             ! (The trailing blanks of "@keyframes " and "  border-collapse "
             ! are significant.)
@@ -930,7 +930,7 @@ contains
 
             here = point()
             call ins(trim(AFTER(i)))
-            call goto_char(here)
+            call goto_character(here)
             call css_mdn_find_symbol(symbol, found)
             call check(error, found)
             if (allocated(error)) return
@@ -950,9 +950,9 @@ contains
         integer :: i
 
         do i = 1, 9
-            call temp_buffer()
+            call temporary_buffer()
             call ins(trim(INPUTS(i))//")")
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call css_rgb_color(color, found)
             call check(error, color, "#ff0080")
             if (allocated(error)) return
@@ -971,44 +971,44 @@ contains
         integer :: i
 
         do i = 1, 10
-            call temp_buffer()
+            call temporary_buffer()
             call ins(trim(INPUTS(i))//")")
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call css_hsl_color(color, found)
             call check(error, color, "#ff0000")
             if (allocated(error)) return
         end do
     end subroutine test_hsl_parser
 
-    subroutine test_hex_color(error)
+    subroutine test_hexadecimal_color(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, css_hex_color("#abc"), "#abc")
+        call check(error, css_hexadecimal_color("#abc"), "#abc")
         if (allocated(error)) return
-        call check(error, css_hex_color("#abcd"), "#abc")
+        call check(error, css_hexadecimal_color("#abcd"), "#abc")
         if (allocated(error)) return
-        call check(error, css_hex_color("#aabbcc"), "#aabbcc")
+        call check(error, css_hexadecimal_color("#aabbcc"), "#aabbcc")
         if (allocated(error)) return
-        call check(error, css_hex_color("#aabbccdd"), "#aabbcc")
-    end subroutine test_hex_color
+        call check(error, css_hexadecimal_color("#aabbccdd"), "#aabbcc")
+    end subroutine test_hexadecimal_color
 
-    subroutine test_hex_alpha(error)
+    subroutine test_hexadecimal_alpha(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: alpha
         logical :: found
 
-        call css_hex_alpha("#abcd", alpha, found)
+        call css_hexadecimal_alpha("#abcd", alpha, found)
         call check(error, alpha, "d")
         if (allocated(error)) return
-        call css_hex_alpha("#abc", alpha, found)
+        call css_hexadecimal_alpha("#abc", alpha, found)
         call check(error,.not. found)
         if (allocated(error)) return
-        call css_hex_alpha("#aabbccdd", alpha, found)
+        call css_hexadecimal_alpha("#aabbccdd", alpha, found)
         call check(error, alpha, "dd")
         if (allocated(error)) return
-        call css_hex_alpha("#aabbcc", alpha, found)
+        call css_hexadecimal_alpha("#aabbcc", alpha, found)
         call check(error,.not. found)
-    end subroutine test_hex_alpha
+    end subroutine test_hexadecimal_alpha
 
     subroutine test_named_color(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1019,12 +1019,12 @@ contains
         integer :: i
 
         do i = 1, 2
-            call temp_buffer(plain=.true.)
+            call temporary_buffer(plain=.true.)
             call ins(trim(TEXTS(i)))
             here = point()
             call backward_word(1_int64)
             start = point()
-            call goto_char(here)
+            call goto_character(here)
             call css_named_color(start, "black", color, found)
             call check(error,.not. found)
             if (allocated(error)) return
@@ -1035,9 +1035,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins(TEST_INDENT_CSS)
-        call indent_region(point_min(), point_max(), st)
+        call indent_region(point_minimum(), point_maximum(), st)
         call check(error, buffer_string() == TEST_INDENT_CSS, "test-indent.css changed when reindented")
     end subroutine test_indent
 
@@ -1045,7 +1045,7 @@ contains
     ! selector.
     logical function selector_at_start()
         call fontify()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         selector_at_start = face() == "css_selector"
     end function selector_at_start
 
@@ -1058,7 +1058,7 @@ contains
         n = size(CSS_SELECTORS)
 
         do i = 1, n
-            call temp_buffer()
+            call temporary_buffer()
             call ins(trim(CSS_SELECTORS(i))//" {"//LF//"}"//LF)
             call check(error, selector_at_start(), "Didn't recognize "//trim(CSS_SELECTORS(i))//" as a selector")
             if (allocated(error)) return
@@ -1066,7 +1066,7 @@ contains
 
         ! Test many selectors.
         do i = 1, n
-            call temp_buffer()
+            call temporary_buffer()
             call ins(trim(CSS_SELECTORS(i))//" ")
 
             do j = 1, mod(i, 5)
@@ -1076,14 +1076,14 @@ contains
             end do
 
             call ins("{"//LF//"}"//LF)
-            call check(error, selector_at_start(), "Didn't recognize "//text_between(point_min(), &
+            call check(error, selector_at_start(), "Didn't recognize "//text_between(point_minimum(), &
                                                                                      line_end_position())//" as a selector")
             if (allocated(error)) return
         end do
 
         ! Test wrong separators.
         do i = 1, n
-            call temp_buffer()
+            call temporary_buffer()
             call ins(trim(CSS_SELECTORS(i))//" ")
 
             do j = 1, mod(i, 5) + 1
@@ -1097,7 +1097,7 @@ contains
             end do
 
             call ins("{"//LF//"}"//LF)
-            call check(error,.not. selector_at_start(), "Recognized "//text_between(point_min(), line_end_position()) &
+            call check(error,.not. selector_at_start(), "Recognized "//text_between(point_minimum(), line_end_position()) &
                        //" as a selector")
             if (allocated(error)) return
         end do
@@ -1110,7 +1110,7 @@ contains
         integer :: i
 
         do i = 1, size(SCSS_SELECTORS)
-            call temp_buffer(scss=.true.)
+            call temporary_buffer(scss=.true.)
             call ins(trim(SCSS_SELECTORS(i))//" {"//LF//"}"//LF)
             call check(error, selector_at_start(), "Didn't recognize "//trim(SCSS_SELECTORS(i))//" as a selector")
             if (allocated(error)) return
@@ -1121,18 +1121,18 @@ contains
     subroutine test_fontify_colors(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("p { color: #ff0000; }")
         call fontify()
-        call goto_char(13_int64)
+        call goto_character(13_int64)
         call get_text_property(point(), value_type(name="face"), v, st)
         call check(error, vtag(v) == V_ARRAY, "no anonymous face on the color")
         if (allocated(error)) return
-        call list_elements(v, elts)
-        call check(error, xstring(elts(2)), "#ff0000")
+        call list_elements(v, elements)
+        call check(error, xstring(elements(2)), "#ff0000")
     end subroutine test_fontify_colors
 
     ! Own: M-q reformats a declaration block (the results of Emacs 31.1).
@@ -1140,9 +1140,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("a { b: c; d: e; }")
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call fill_paragraph(st)
         call check(error, buffer_string(), "a { "//LF//"    b: c; "//LF//"    d: e; "//LF//"}")
     end subroutine test_fill_block
@@ -1152,9 +1152,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call temp_buffer()
+        call temporary_buffer()
         call ins("/* aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq rrr sss ttt uuu vvv */")
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call fill_paragraph(st)
         call check(error, buffer_string(), "/* aaa bbb ccc ddd eee fff ggg hhh iii jjj kkk lll mmm nnn ooo ppp qqq"//LF &
                    //"   rrr sss ttt uuu vvv */")

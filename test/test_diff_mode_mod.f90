@@ -39,21 +39,21 @@ module test_diff_mode_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, &
                           get_buffer, get_file_buffer, is_buffer_live, restore_buffer_modified
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point, point_min, point_max, buffer_string, narrow_to_region, widen
-    use search_mod, only: re_search_forward, re_search_backward, match_beginning
+    use editing_functions_mod, only: goto_character, point, point_minimum, point_maximum, buffer_string, narrow_to_region, widen
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, match_beginning
     use text_properties_mod, only: get_text_property
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, expand_file_name, file_name_as_directory, is_file_directory, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, expand_file_name, file_name_as_directory, is_file_directory, &
                                      create_directory_internal, write_region
     use files_mod, only: find_file_noselect, delete_directory
-    use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop
+    use keyboard_mod, only: discard_input, keyboard_store_bytes, command_loop
     use process_mod, only: accept_process_output, get_buffer_process
     use modes_mod, only: minor_modes
     use font_lock_mod, only: font_lock_ensure
-    use bindings_mod, only: init_bindings
-    use directory_editor_mode_mod, only: dired, dired_goto_file, dired_buffers_for_dir
+    use bindings_mod, only: initialize_bindings
+    use directory_editor_mode_mod, only: directory_editor, directory_editor_goto_file, directory_editor_buffers_for_directory
     use diff_mode_mod, only: diff_mode, diff_hunk_text, diff_text_type, diff_fixup_modifs, diff_hunk_file_names, &
                              diff_apply_hunk, diff_hunk_next, diff_beginning_of_hunk, diff_end_of_hunk, &
-                             diff_buffer_type, DIFF_BUFFER_PLAIN, DIFF_BUFFER_GIT, DIFF_BUFFER_HG
+                             diff_buffer_type, DIFF_BUFFER_PLAIN, DIFF_BUFFER_GIT, DIFF_BUFFER_MERCURIAL
     use diff_mod, only: diff_no_select, diff_operand_type
     use string_type_mod, only: string_type
     implicit none(type, external)
@@ -62,7 +62,7 @@ module test_diff_mode_mod
     public :: collect_diff_mode_mod
 
     !> The test directory, under the build directory.
-    character(len=*), parameter :: subdir = "build/test-diff-mode"
+    character(len=*), parameter :: subdirectory = "build/test-diff-mode"
 
     character, parameter :: LF = achar(10), CR = achar(13)
 
@@ -149,7 +149,7 @@ contains
     !> an absolute file name).
     logical function on_path(program) result(found)
         character(len=*), intent(in) :: program
-        character(len=:), allocatable :: path, dir
+        character(len=:), allocatable :: path, directory
         integer :: n, st, k
 
         found = .false.
@@ -167,7 +167,7 @@ contains
         do while (len(path) > 0)
             k = index(path, ":")
             if (k == 0) k = len(path) + 1
-            dir = path(1:k - 1)
+            directory = path(1:k - 1)
 
             if (k > len(path)) then
                 path = ""
@@ -175,8 +175,8 @@ contains
                 path = path(k + 1:)
             end if
 
-            if (len(dir) == 0) cycle
-            inquire (file=dir//"/"//program, exist=found)
+            if (len(directory) == 0) cycle
+            inquire (file=directory//"/"//program, exist=found)
             if (found) return
         end do
     end function on_path
@@ -200,23 +200,23 @@ contains
                     new_unittest("diff-mode-test-bottommost-addition-undo", test_bottommost_addition_undo), &
                     new_unittest("diff-mode-test-setup-buffer-type", test_setup_buffer_type), &
                     new_unittest("diff-files", test_diff_files), &
-                    new_unittest("dired-diff", test_dired_diff) &
+                    new_unittest("dired-diff", test_directory_editor_diff) &
                     ]
     end subroutine collect_diff_mode_mod
 
     !> The absolute name of the test directory, as a directory.
-    function tdir() result(dir)
-        character(len=:), allocatable :: dir
+    function tdir() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
     end function tdir
 
     !> A fresh, empty test directory; *scratch* current and shown alone.
     subroutine setup()
         type(status_type) :: st
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call discard_input()
         call scratch()
         if (is_file_directory(tdir())) call delete_directory(tdir(), st, .true.)
@@ -226,14 +226,14 @@ contains
     !> Remove the test directory.
     subroutine teardown()
         type(status_type) :: st
-        type(handle_type), allocatable :: bufs(:)
+        type(handle_type), allocatable :: buffers(:)
         integer :: k
 
         call discard_input()
-        bufs = dired_buffers_for_dir(tdir())
+        buffers = directory_editor_buffers_for_directory(tdir())
 
-        do k = 1, size(bufs)
-            call close_buffer(bufs(k), st)
+        do k = 1, size(buffers)
+            call close_buffer(buffers(k), st)
         end do
 
         call scratch()
@@ -295,41 +295,41 @@ contains
         call close_buffer(h, st)
     end subroutine discard
 
-    !> A fresh buffer NAME holding TEXT, current, in DIR (the test
+    !> A fresh buffer NAME holding TEXT, current, in DIRECTORY (the test
     !> directory if absent), as with-temp-buffer and cd do.
-    subroutine temp_buffer(name, text, h, dir)
+    subroutine temporary_buffer(name, text, h, directory)
         character(len=*), intent(in) :: name, text
         type(handle_type), intent(out) :: h
-        character(len=*), intent(in), optional :: dir
+        character(len=*), intent(in), optional :: directory
         type(status_type) :: st
 
         call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
 
-        if (present(dir)) then
-            buffers(current)%directory = dir
+        if (present(directory)) then
+            buffers(current)%directory = directory
         else
             buffers(current)%directory = tdir()
         end if
 
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
-    !> The name of the face at POS ("" if none; the first of a list).
-    function face_at(pos) result(name)
-        integer(int64), intent(in) :: pos
+    !> The name of the face at POSITION ("" if none; the first of a list).
+    function face_at(position) result(name)
+        integer(int64), intent(in) :: position
         character(len=:), allocatable :: name
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
 
         name = ""
-        call get_text_property(pos, value_type(name="face"), v, st)
+        call get_text_property(position, value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
-            call list_elements(v, elts)
-            v = elts(1)
+            call list_elements(v, elements)
+            v = elements(1)
         end if
 
         if (.not. allocated(v%a)) return
@@ -346,16 +346,16 @@ contains
         ok = .true.
 
         do k = from, to - 1
-            if (face_at(point_min() + k) /= face) then
+            if (face_at(point_minimum() + k) /= face) then
                 ok = .false.
                 return
             end if
         end do
     end function face_over
 
-    !> (re-search-forward RE) then the face at its match beginning.
-    function face_after_search(regexp, backward) result(name)
-        character(len=*), intent(in) :: regexp
+    !> (re-search-forward REGULAR_EXPRESSION) then the face at its match beginning.
+    function face_after_search(regular_expression, backward) result(name)
+        character(len=*), intent(in) :: regular_expression
         logical, intent(in), optional :: backward
         character(len=:), allocatable :: name
         integer(int64) :: p
@@ -366,9 +366,9 @@ contains
         if (present(backward)) back = backward
 
         if (back) then
-            call re_search_backward(regexp, p, st)
+            call regular_expression_search_backward(regular_expression, p, st)
         else
-            call re_search_forward(regexp, p, st)
+            call regular_expression_search_forward(regular_expression, p, st)
         end if
 
         name = "<not found>"
@@ -484,7 +484,7 @@ contains
                                        "withstanding"//LF//"woolgathering"//LF//"workstations"//LF// &
                                        "worthlessness"//LF//"wretchedness"//LF//"wristwatches"//LF// &
                                        "wrongheadedly"//LF//"wrongheadedness"//LF//"youthfulness"//LF
-        type(handle_type) :: buffer, buf2, tmp
+        type(handle_type) :: buffer, buf2, temporary
         type(status_type) :: st
         integer :: k
 
@@ -495,8 +495,8 @@ contains
         call find_file_noselect(tdir()//"fil2", buf2, st)
 
         body: block
-            call temp_buffer("*diff-test*", patch, tmp)
-            call goto_char(point_min())
+            call temporary_buffer("*diff-test*", patch, temporary)
+            call goto_character(point_minimum())
 
             do k = 1, 3
                 call diff_apply_hunk(st)
@@ -509,7 +509,7 @@ contains
             call check(error, text_of(buf2), fil2_after)
         end block body
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call discard(buffer)
         call discard(buf2)
         call teardown()
@@ -592,25 +592,25 @@ contains
         integer(int64), intent(out) :: diff_beginning
         type(status_type), intent(out) :: status
         type(diff_operand_type) :: o, n
-        type(handle_type) :: res, old_buf
+        type(handle_type) :: res, old_buffer
         integer(int64) :: e
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        call expand_file_name("test/diff-mode-resources/", dir, status, fortmacs_wd)
+        call expand_file_name("test/diff-mode-resources/", directory, status, fortmacs_wd)
         if (.not. status%ok()) return
-        old_buf = current_buffer()
-        buffers(current)%directory = dir
+        old_buffer = current_buffer()
+        buffers(current)%directory = directory
         call get_or_make_buffer("*Diff*", h, status)
         o%file = old
         n%file = new
         call diff_no_select(o, n, res, status, "-u", .true., h)
-        call set_buffer(old_buf, status)
+        call set_buffer(old_buffer, status)
         buffers(current)%directory = file_name_as_directory(fortmacs_wd)
         if (.not. status%ok()) return
         call set_buffer(h, status)
         call minor_modes%font_lock_mode%enable(status)
         call font_lock_ensure(status)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call diff_hunk_next(status)
         if (.not. status%ok()) return
         diff_beginning = diff_beginning_of_hunk(status)
@@ -628,8 +628,8 @@ contains
         integer(int64) :: diff_beginning
 
         if (.not. has_diff(error)) return
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call scratch()
         call resource_diff("hello_world.c", "hello_emacs.c", h, diff_beginning, st)
 
@@ -646,7 +646,7 @@ contains
                        "   return 0;"//LF// &
                        " }"//LF)
             if (allocated(error)) exit body
-            call check(error, face_over(0, 15, "diff_hunk_header") .and. face_at(point_min() + 15) == "" .and. &
+            call check(error, face_over(0, 15, "diff_hunk_header") .and. face_at(point_minimum() + 15) == "" .and. &
                        face_over(16, 51, "diff_context") .and. face_over(51, 52, "diff_indicator_removed") .and. &
                        face_over(52, 81, "diff_removed") .and. face_over(81, 82, "diff_indicator_added") .and. &
                        face_over(82, 111, "diff_added") .and. face_over(111, 127, "diff_context"), "faces")
@@ -667,8 +667,8 @@ contains
         integer(int64) :: diff_beginning
 
         if (.not. has_diff(error)) return
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call scratch()
         call resource_diff("hello_world_1.c", "hello_emacs_1.c", h, diff_beginning, st)
 
@@ -682,7 +682,7 @@ contains
                        "+int main() { printf(""Hello, Emacs!\n""); return 0; }"//LF// &
                        "\ No newline at end of file"//LF)
             if (allocated(error)) exit body
-            call check(error, face_over(0, 11, "diff_hunk_header") .and. face_at(point_min() + 11) == "" .and. &
+            call check(error, face_over(0, 11, "diff_hunk_header") .and. face_at(point_minimum() + 11) == "" .and. &
                        face_over(12, 13, "diff_indicator_removed") .and. face_over(13, 65, "diff_removed") .and. &
                        face_over(65, 93, "diff_context") .and. face_over(93, 94, "diff_indicator_added") .and. &
                        face_over(94, 146, "diff_added") .and. face_over(146, 174, "diff_context"), "faces")
@@ -700,8 +700,8 @@ contains
         type(status_type) :: st
         type(string_type), allocatable :: names(:)
 
-        call temp_buffer("*diff-test*", "diff -c /tmp/ange-ftp13518wvE.el /tmp/ange-ftp1351895K.el"//LF, h, "/tmp/")
-        call goto_char(point_min())
+        call temporary_buffer("*diff-test*", "diff -c /tmp/ange-ftp13518wvE.el /tmp/ange-ftp1351895K.el"//LF, h, "/tmp/")
+        call goto_character(point_minimum())
         call diff_hunk_file_names(names)
         call check(error, size(names) == 2, "two names")
         if (allocated(error)) return
@@ -709,10 +709,10 @@ contains
         if (allocated(error)) return
         call check(error, names(2)%text, "/tmp/ange-ftp13518wvE.el")
         if (allocated(error)) return
-        call temp_buffer("*diff-test*", "diff -c -L /ftp:slbhao:/home/albinus/src/tramp/lisp/tramp.el -L "// &
-                         "/ftp:slbhao:/home/albinus/src/emacs/lisp/net/tramp.el /tmp/ange-ftp13518wvE.el "// &
-                         "/tmp/ange-ftp1351895K.el"//LF, h, "/tmp/")
-        call goto_char(point_min())
+        call temporary_buffer("*diff-test*", "diff -c -L /ftp:slbhao:/home/albinus/src/tramp/lisp/tramp.el -L "// &
+                              "/ftp:slbhao:/home/albinus/src/emacs/lisp/net/tramp.el /tmp/ange-ftp13518wvE.el "// &
+                              "/tmp/ange-ftp1351895K.el"//LF, h, "/tmp/")
+        call goto_character(point_minimum())
         call diff_hunk_file_names(names)
         call check(error, size(names) == 2, "two names with labels")
         if (allocated(error)) return
@@ -729,8 +729,8 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer("*diff-test*", patch, h, "/tmp/")
-        call diff_fixup_modifs(point_min(), point_max(), st)
+        call temporary_buffer("*diff-test*", patch, h, "/tmp/")
+        call diff_fixup_modifs(point_minimum(), point_maximum(), st)
         call check(error, st%ok(), "fixup: "//format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), fixed)
         call close_buffer(h, st)
@@ -773,12 +773,12 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer("*diff-test*", git_patch, h, "/tmp/")
+        call initialize_bindings()
+        call temporary_buffer("*diff-test*", git_patch, h, "/tmp/")
         call diff_mode(st)
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine git_patch_buffer
 
     subroutine test_git_patch(error)
@@ -812,7 +812,7 @@ contains
         type(status_type) :: st
 
         call git_patch_buffer(h)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call check(error, face_after_search("^-- $", .true.), "diff_context")
         call close_buffer(h, st)
     end subroutine test_git_patch_signature
@@ -822,7 +822,7 @@ contains
     subroutine check_addition_undo(error, patch, before, after)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: patch, before, after
-        type(handle_type) :: buffer_after, tmp
+        type(handle_type) :: buffer_after, temporary
         type(status_type) :: st
 
         call setup()
@@ -830,8 +830,8 @@ contains
         call find_file_noselect(tdir()//"fruits", buffer_after, st)
 
         body: block
-            call temp_buffer("*diff-test*", patch, tmp)
-            call goto_char(point_min())
+            call temporary_buffer("*diff-test*", patch, temporary)
+            call goto_character(point_minimum())
             call diff_hunk_next(st)
             ! Undo hunk by true REVERSE argument (C-u C-c C-a)
             call diff_apply_hunk(st, reverse=.true.)
@@ -839,22 +839,22 @@ contains
             if (allocated(error)) exit body
             call check(error, text_of(buffer_after), before)
             if (allocated(error)) exit body
-            call close_buffer(tmp, st)
+            call close_buffer(temporary, st)
             call set_buffer(buffer_after, st)
             call erase_buffer(st)
             call insert(after, st)
-            call temp_buffer("*diff-test*", patch, tmp)
-            call goto_char(point_min())
+            call temporary_buffer("*diff-test*", patch, temporary)
+            call goto_character(point_minimum())
             call diff_hunk_next(st)
             ! Undo hunk by dwim behavior
-            call kbd_store_bytes("y")
+            call keyboard_store_bytes("y")
             call diff_apply_hunk(st)
             call check(error, st%ok(), "dwim: "//format_error(st))
             if (allocated(error)) exit body
             call check(error, text_of(buffer_after), before)
         end block body
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call discard(buffer_after)
         call teardown()
     end subroutine check_addition_undo
@@ -883,18 +883,18 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
-        call temp_buffer("*diff-test*", "diff --git a/foo b/foo"//LF//"--- a/foo"//LF//"+++ b/foo"//LF, h, "/tmp/")
+        call initialize_bindings()
+        call temporary_buffer("*diff-test*", "diff --git a/foo b/foo"//LF//"--- a/foo"//LF//"+++ b/foo"//LF, h, "/tmp/")
         call diff_mode(st)
         call check(error, diff_buffer_type() == DIFF_BUFFER_GIT, "git")
         call close_buffer(h, st)
         if (allocated(error)) return
-        call temp_buffer("*diff-test*", "diff -r 0123456789ab foo"//LF//"--- a/foo"//LF//"+++ b/foo"//LF, h, "/tmp/")
+        call temporary_buffer("*diff-test*", "diff -r 0123456789ab foo"//LF//"--- a/foo"//LF//"+++ b/foo"//LF, h, "/tmp/")
         call diff_mode(st)
-        call check(error, diff_buffer_type() == DIFF_BUFFER_HG, "hg")
+        call check(error, diff_buffer_type() == DIFF_BUFFER_MERCURIAL, "hg")
         call close_buffer(h, st)
         if (allocated(error)) return
-        call temp_buffer("*diff-test*", "--- foo"//LF//"+++ foo"//LF//"@@ -1 +1 @@"//LF//"-a"//LF//"+b"//LF, h, "/tmp/")
+        call temporary_buffer("*diff-test*", "--- foo"//LF//"+++ foo"//LF//"@@ -1 +1 @@"//LF//"-a"//LF//"+b"//LF, h, "/tmp/")
         call diff_mode(st)
         call check(error, diff_buffer_type() == DIFF_BUFFER_PLAIN, "plain")
         call close_buffer(h, st)
@@ -913,7 +913,7 @@ contains
         call make_file("old.txt", "one"//LF//"two"//LF)
         call make_file("new.txt", "one"//LF//"three"//LF)
         buffers(current)%directory = tdir()
-        call kbd_store_bytes(achar(27)//"xdiff"//CR//"new.txt"//CR//"old.txt"//CR)
+        call keyboard_store_bytes(achar(27)//"xdiff"//CR//"new.txt"//CR//"old.txt"//CR)
         call command_loop(st)
         h = get_buffer("*Diff*")
 
@@ -936,7 +936,7 @@ contains
     end subroutine test_diff_files
 
     !> Dired's = compares the file at point with its backup.
-    subroutine test_dired_diff(error)
+    subroutine test_directory_editor_diff(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -947,10 +947,10 @@ contains
         call setup()
         call make_file("a.txt", "alpha2"//LF)
         call make_file("a.txt~", "alpha"//LF)
-        call dired(tdir(), st)
+        call directory_editor(tdir(), st)
         call show_alone()
-        p = dired_goto_file(tdir()//"a.txt", st)
-        call kbd_store_bytes("="//CR)
+        p = directory_editor_goto_file(tdir()//"a.txt", st)
+        call keyboard_store_bytes("="//CR)
         call command_loop(st)
         h = get_buffer("*Diff*")
 
@@ -966,5 +966,5 @@ contains
 
         if (is_buffer_live(h)) call close_buffer(h, st)
         call teardown()
-    end subroutine test_dired_diff
+    end subroutine test_directory_editor_diff
 end module test_diff_mode_mod

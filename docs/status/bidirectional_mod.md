@@ -6,15 +6,15 @@
 
 ## Ported
 
-every function: the bidi types and categories (`bidi_get_type`, `bidi_get_category`, `bidi_check_type`, `bidi_mirror_char`, `bidi_paired_bracket_type`, `bidi_explicit_dir_char`, `bidi_isolate_fmt_char`; tables in unicode_bidirectional_mod, so `bidi_initialize` has nothing to load),
-the directional status stack (`bidi_push_embedding_level`, `bidi_pop_embedding_level`, `bidi_set_sos_type`, `bidi_remember_char`, `bidi_copy_it`),
-the cache of iterator states (`bidi_cache_reset(_to)`, `bidi_cache_shrink`, `bidi_cache_fetch_state`, `bidi_cache_search`, `bidi_cache_find_level_change`, `bidi_level_start`, `bidi_cache_ensure_space`, `bidi_cache_iterator_state`, `bidi_cache_find`, `bidi_peek_at_next_level`, `bidi_push_it`, `bidi_pop_it`, `bidi_shelve_cache`, `bidi_unshelve_cache`),
-initialization (`bidi_init_it`, `bidi_set_paragraph_end`, `bidi_line_init`),
-fetching characters of the buffer or a string (`bidi_fetch_char`, `bidi_fetch_char_skip_isolates`, `bidi_char_at_pos`, `bidi_count_bytes`),
-paragraphs (`bidi_at_paragraph_end`, `bidi_find_paragraph_start`, `find_first_strong_char`, `bidi_paragraph_init`),
-the UBA (`bidi_resolve_explicit`, `bidi_resolve_weak`, `bidi_resolve_neutral_1`, `bidi_find_bracket_pairs` with a bracket stack as deep as upstream's on a 64-bit system, `bidi_record_type_for_neutral`, `bidi_resolve_brackets`, `bidi_resolve_neutral`, `bidi_type_of_next_char`, `bidi_level_of_next_char`),
-visual order (`bidi_find_other_level_edge`, `bidi_move_to_visually_next`),
-`bidi_find_first_overridden`
+every function: the bidi types and categories (`bidirectional_get_type`, `bidirectional_get_category`, `bidi_check_type`, `bidirectional_mirror_character`, `bidirectional_paired_bracket_type`, `bidirectional_explicit_directory_character`, `bidirectional_isolate_fmt_character`; tables in unicode_bidirectional_mod, so `bidi_initialize` has nothing to load),
+the directional status stack (`bidirectional_push_embedding_level`, `bidirectional_pop_embedding_level`, `bidirectional_set_sos_type`, `bidirectional_remember_character`, `bidirectional_copy_it`),
+the cache of iterator states (`bidirectional_cache_reset(_to)`, `bidirectional_cache_shrink`, `bidirectional_cache_fetch_state`, `bidirectional_cache_search`, `bidirectional_cache_find_level_change`, `bidirectional_level_start`, `bidirectional_cache_ensure_space`, `bidirectional_cache_iterator_state`, `bidirectional_cache_find`, `bidirectional_peek_at_next_level`, `bidirectional_push_it`, `bidirectional_pop_it`, `bidirectional_shelve_cache`, `bidirectional_unshelve_cache`),
+initialization (`bidirectional_initialize_iterator`, `bidirectional_set_paragraph_end`, `bidirectional_line_initialize`),
+fetching characters of the buffer or a string (`bidirectional_fetch_character`, `bidirectional_fetch_character_skip_isolates`, `bidirectional_character_at_position`, `bidi_count_bytes`),
+paragraphs (`bidirectional_at_paragraph_end`, `bidirectional_find_paragraph_start`, `find_first_strong_character`, `bidirectional_paragraph_initialize`),
+the UBA (`bidirectional_resolve_explicit`, `bidirectional_resolve_weak`, `bidirectional_resolve_neutral_1`, `bidirectional_find_bracket_pairs` with a bracket stack as deep as upstream's on a 64-bit system, `bidirectional_record_type_for_neutral`, `bidirectional_resolve_brackets`, `bidirectional_resolve_neutral`, `bidirectional_type_of_next_character`, `bidirectional_level_of_next_character`),
+visual order (`bidirectional_find_other_level_edge`, `bidirectional_move_to_visually_next`),
+`bidirectional_find_first_overridden`
 
 ## Deferred
 

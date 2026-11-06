@@ -24,13 +24,13 @@
 module test_configuration_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, get_homedir, write_region, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, get_homedir, write_region, &
                                      delete_file_internal, delete_directory_internal, set_file_modes
     use files_mod, only: create_directory
     use environment_mod, only: getenv, setenv
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
-    use configuration_mod, only: config_directory, state_directory, cache_directory, init_file_name, &
+    use configuration_mod, only: configuration_directory, state_directory, cache_directory, initialization_file_name, &
                                  generations_directory, current_build_name, running_executable, install_prefix, &
                                  driver_source, recompile, generation_numbers, current_generation, generation_of, &
                                  switch_generation, rollback, list_generations
@@ -80,10 +80,10 @@ contains
 
     subroutine test_directories(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: config, state, cache, home
-        logical :: has_config, has_state, has_cache
+        character(len=:), allocatable :: configuration, state, cache, home
+        logical :: has_configuration, has_state, has_cache
 
-        call getenv("XDG_CONFIG_HOME", config, has_config)
+        call getenv("XDG_CONFIG_HOME", configuration, has_configuration)
         call getenv("XDG_STATE_HOME", state, has_state)
         call getenv("XDG_CACHE_HOME", cache, has_cache)
         home = file_name_as_directory(get_homedir())
@@ -92,13 +92,13 @@ contains
             call setenv("XDG_CONFIG_HOME", "/xdg/config")
             call setenv("XDG_STATE_HOME", "/xdg/state/")
             call setenv("XDG_CACHE_HOME", "/xdg/cache")
-            call check(error, config_directory(), "/xdg/config/fortmacs/")
+            call check(error, configuration_directory(), "/xdg/config/fortmacs/")
             if (allocated(error)) exit body
             call check(error, state_directory(), "/xdg/state/fortmacs/")
             if (allocated(error)) exit body
             call check(error, cache_directory(), "/xdg/cache/fortmacs/")
             if (allocated(error)) exit body
-            call check(error, init_file_name(), "/xdg/config/fortmacs/init.f90")
+            call check(error, initialization_file_name(), "/xdg/config/fortmacs/init.f90")
             if (allocated(error)) exit body
             call check(error, generations_directory(), "/xdg/state/fortmacs/generations/")
             if (allocated(error)) exit body
@@ -108,14 +108,14 @@ contains
             call setenv("XDG_CONFIG_HOME")
             call setenv("XDG_STATE_HOME", "")
             call setenv("XDG_CACHE_HOME", "relative")
-            call check(error, config_directory(), home//".config/fortmacs/")
+            call check(error, configuration_directory(), home//".config/fortmacs/")
             if (allocated(error)) exit body
             call check(error, state_directory(), home//".local/state/fortmacs/")
             if (allocated(error)) exit body
             call check(error, cache_directory(), home//".cache/fortmacs/")
         end block body
 
-        call restore("XDG_CONFIG_HOME", config, has_config)
+        call restore("XDG_CONFIG_HOME", configuration, has_configuration)
         call restore("XDG_STATE_HOME", state, has_state)
         call restore("XDG_CACHE_HOME", cache, has_cache)
     end subroutine test_directories
@@ -136,7 +136,7 @@ contains
         call install_prefix("/opt/fortmacs-test/libexec/fortmacs", prefix, found)
         call check(error,.not. found .and. prefix == "", "not in a bin directory")
         if (allocated(error)) return
-        call init_fileio()
+        call initialize_fileio()
         call empty_buffer()
         root = file_name_as_directory(fortmacs_wd)//testdir//"/prefix/"
         call create_directory(root//"lib", st, parents=.true.)
@@ -160,7 +160,7 @@ contains
         integer :: b, e
 
         text = driver_source("/usr/local/")
-        call check(error, index(text, "use user_config, only: configure") > 0, "uses user_config")
+        call check(error, index(text, "use user_configuration, only: configure") > 0, "uses user_configuration")
         if (allocated(error)) return
         call check(error, index(text, 'call execute_editor(configure, exit_code, "/usr/local/")') > 0, text)
         if (allocated(error)) return
@@ -186,14 +186,14 @@ contains
 
     subroutine test_recompile_errors(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: config, root, log
-        logical :: has_config
+        character(len=:), allocatable :: configuration, root, log
+        logical :: has_configuration
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call empty_buffer()
         root = file_name_as_directory(fortmacs_wd)//testdir//"/xdg/"
-        call getenv("XDG_CONFIG_HOME", config, has_config)
+        call getenv("XDG_CONFIG_HOME", configuration, has_configuration)
         call setenv("XDG_CONFIG_HOME", root)
 
         body: block
@@ -211,7 +211,7 @@ contains
         call delete_file_internal(root//"fortmacs/init.f90", st)
         call delete_directory_internal(root//"fortmacs", st)
         call delete_directory_internal(root, st)
-        call restore("XDG_CONFIG_HOME", config, has_config)
+        call restore("XDG_CONFIG_HOME", configuration, has_configuration)
     end subroutine test_recompile_errors
 
     !> Generations 1, 2 and 10 (stand-in binaries), switched between and
@@ -225,7 +225,7 @@ contains
         logical :: has_state
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call empty_buffer()
         root = file_name_as_directory(fortmacs_wd)//testdir//"/state/"
         call getenv("XDG_STATE_HOME", state, has_state)

@@ -33,12 +33,13 @@ module test_ibuffer_mod
     use buffer_mod, only: buffers, current_buffer, set_buffer, close_buffer, get_or_make_buffer, get_buffer, &
                           is_buffer_live, generate_new_buffer_name
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point_min, point_max, pos_bol, pos_eol, buffer_substring, buffer_string
+    use editing_functions_mod, only: goto_character, point_minimum, point_maximum, position_beginning_of_line, &
+                                     position_end_of_line, buffer_substring, buffer_string
     use editing_commands_mod, only: beginning_of_line
     use search_mod, only: search_forward
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use ibuffer_mod, only: ibuffer, ibuffer_update, ibuffer_unmark_all_marks, ibuffer_change_marks, &
-                           ibuffer_buffer_names_with_mark, ibuffer_marked_char, ibuffer_save_marks_begin, &
+                           ibuffer_buffer_names_with_mark, ibuffer_marked_character, ibuffer_save_marks_begin, &
                            ibuffer_save_marks_end, ibuffer_mark_forward, ibuffer_mark_for_delete, ibuffer_current_buffer, &
                            ibuffer_current_mark, ibuffer_do_close_on_deletion_marks, ibuffer_expert, ibuffer_switch_format, &
                            ibuffer_toggle_marks, ibuffer_get_marked_buffers, ibuffer_do_sort_by, ibuffer_formats, &
@@ -106,12 +107,12 @@ contains
     subroutine goto_buffer_line(name, found)
         character(len=*), intent(in) :: name
         logical, intent(out) :: found
-        integer(int64) :: pos
+        integer(int64) :: position
         type(status_type) :: st
 
-        call goto_char(point_min())
-        call search_forward(" "//name, pos, st, noerror=1)
-        found = st%ok() .and. pos /= 0
+        call goto_character(point_minimum())
+        call search_forward(" "//name, position, st, noerror=1)
+        found = st%ok() .and. position /= 0
         if (found) call beginning_of_line()
     end subroutine goto_buffer_line
 
@@ -119,7 +120,7 @@ contains
         character(len=:), allocatable :: line
         type(status_type) :: st
 
-        call buffer_substring(pos_bol(), pos_eol(), line, st)
+        call buffer_substring(position_beginning_of_line(), position_end_of_line(), line, st)
     end function current_line
 
     !> Test for https://debbugs.gnu.org/25000 .
@@ -130,7 +131,7 @@ contains
         character(len=256), allocatable :: names(:)
         integer :: n
 
-        call init_bindings()
+        call initialize_bindings()
         buf1 = make_buffer("ibuffer-test-Bug25000-buf1", "")
         buf2 = make_buffer("ibuffer-test-Bug25000-buf2", "")
         call start(old, ib, error)
@@ -138,9 +139,9 @@ contains
         call ibuffer_save_marks_begin(st)
         call ibuffer_unmark_all_marks(st)
         call mark_by_name(buffers(buf1%index)%name, st)
-        call ibuffer_change_marks(ibuffer_marked_char, "L", st)
+        call ibuffer_change_marks(ibuffer_marked_character, "L", st)
         call mark_by_name(buffers(buf2%index)%name, st)
-        call ibuffer_change_marks(ibuffer_marked_char, "l", st)
+        call ibuffer_change_marks(ibuffer_marked_character, "l", st)
         call ibuffer_buffer_names_with_mark("l", names, n, st)
         call check(error, n <= 1, "more than one buffer marked l")
         call ibuffer_save_marks_end(st)
@@ -167,7 +168,7 @@ contains
         character(len=:), allocatable :: text, line
         logical :: found
 
-        call init_bindings()
+        call initialize_bindings()
         a = make_buffer("ibuf-alpha", "12345")
         call start(old, ib, error)
         if (allocated(error)) return
@@ -203,7 +204,7 @@ contains
         type(status_type) :: st
         logical :: found
 
-        call init_bindings()
+        call initialize_bindings()
         a = make_buffer("ibuf-beta", "")
         call start(old, ib, error)
         if (allocated(error)) return
@@ -229,7 +230,7 @@ contains
         end if
 
         if (.not. allocated(error)) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             b = ibuffer_current_buffer(st)
             call ibuffer_get_marked_buffers(marked, st)
             call check(error, size(marked) >= 1, "t marked nothing")
@@ -246,7 +247,7 @@ contains
         type(status_type) :: st
         logical :: found, saved_expert
 
-        call init_bindings()
+        call initialize_bindings()
         saved_expert = ibuffer_expert
         ibuffer_expert = .true.
         a = make_buffer("ibuf-gamma", "")
@@ -281,7 +282,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: text
 
-        call init_bindings()
+        call initialize_bindings()
         a = make_buffer("ibuf-zzz", "")
         b = make_buffer("ibuf-aaa", "")
         call start(old, ib, error)
@@ -309,7 +310,7 @@ contains
         type(ibuffer_formats_type) :: formats
         character(len=:), allocatable :: line
 
-        call init_bindings()
+        call initialize_bindings()
         a = make_buffer("ibuf-delta", "abc")
         call start(old, ib, error)
         if (allocated(error)) return
@@ -317,7 +318,7 @@ contains
         call check(error, st%ok(), format_error(st))
 
         if (.not. allocated(error)) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             line = current_line()
             call check(error, line == "  Name             Filename", line)
         end if
@@ -328,7 +329,7 @@ contains
         call ibuffer(st, formats=formats)
         ib = get_buffer("*Ibuffer*")
         call set_buffer(ib, st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call check(error, index(buffer_string(), LF//"ibuf-delta:    3"//LF) > 0, buffer_string())
         call close_buffer(a, st)
         call finish(old, ib)

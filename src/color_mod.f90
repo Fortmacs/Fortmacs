@@ -19,7 +19,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Color conversions: `color_name_to_rgb', `color_rgb_to_hex' and
+!> Color conversions: `color_name_to_rgb', `color_rgb_to_hexadecimal' and
 !> `color_hsl_to_rgb'.
 !>
 !> Deferred: the rest of color.el (the HSV, CIE XYZ and CIE L*a*b*
@@ -33,7 +33,7 @@ module color_mod
     implicit none(type, external)
     private
 
-    public :: color_name_to_rgb, color_rgb_to_hex, color_hue_to_rgb, color_hsl_to_rgb
+    public :: color_name_to_rgb, color_rgb_to_hexadecimal, color_hue_to_rgb, color_hsl_to_rgb
 
 contains
 
@@ -71,27 +71,27 @@ contains
     !> inclusive.  Optional argument DIGITS_PER_COMPONENT can be either 4
     !> (the default) or 2; use the latter if you need a 24-bit
     !> specification of a color.  Port of color.el:color-rgb-to-hex.
-    function color_rgb_to_hex(red, green, blue, digits_per_component) result(hex)
+    function color_rgb_to_hexadecimal(red, green, blue, digits_per_component) result(hexadecimal)
         real(real64), intent(in) :: red, green, blue
         integer, intent(in), optional :: digits_per_component
-        character(len=:), allocatable :: hex
+        character(len=:), allocatable :: hexadecimal
         character(len=13) :: buffer
-        integer :: digits, max_value
+        integer :: digits, maximum_value
 
         digits = 4
         if (present(digits_per_component)) digits = digits_per_component
-        max_value = 65535
-        if (digits == 2) max_value = 255
+        maximum_value = 65535
+        if (digits == 2) maximum_value = 255
 
         ! (format's %x truncates a float.)
         if (digits == 2) then
-            write (buffer, '("#",3z2.2)') int(red*max_value), int(green*max_value), int(blue*max_value)
-            hex = downcase_ascii(buffer(1:7))
+            write (buffer, '("#",3z2.2)') int(red*maximum_value), int(green*maximum_value), int(blue*maximum_value)
+            hexadecimal = downcase_ascii(buffer(1:7))
         else
-            write (buffer, '("#",3z4.4)') int(red*max_value), int(green*max_value), int(blue*max_value)
-            hex = downcase_ascii(buffer(1:13))
+            write (buffer, '("#",3z4.4)') int(red*maximum_value), int(green*maximum_value), int(blue*maximum_value)
+            hexadecimal = downcase_ascii(buffer(1:13))
         end if
-    end function color_rgb_to_hex
+    end function color_rgb_to_hexadecimal
 
     !> Compute hue from V1 and V2 H.
     !> Used internally by `color_hsl_to_rgb'.  Port of

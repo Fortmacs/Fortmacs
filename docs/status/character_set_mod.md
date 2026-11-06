@@ -7,13 +7,13 @@
 ## Ported
 
 charsets named by strings with aliases;
-the four methods (`CHARSET_METHOD_OFFSET`, `_MAP`, `_SUBSET`, `_SUPERSET`) with code spaces that are not linear,
+the four methods (`CHARACTER_SET_METHOD_OFFSET`, `_MAP`, `_SUBSET`, `_SUPERSET`) with code spaces that are not linear,
 `:min-code`,
 `:max-code`,
 `:invalid-code` and fast maps;
-`charsetp` as `is_charset`,
+`charsetp` as `is_character_set`,
 `charset-list`,
-`charset_attributes` (`charset-plist` as `charset_attributes_type`, typed components),
+`character_set_attributes` (`charset-plist` as `character_set_attributes_type`, typed components),
 `decode-char`,
 `encode-char`,
 `make-char`,
@@ -23,7 +23,7 @@ the four methods (`CHARSET_METHOD_OFFSET`, `_MAP`, `_SUBSET`, `_SUPERSET`) with 
 `iso-charset`,
 `get-unused-iso-final-char`,
 `declare-equiv-charset`,
-`charset-priority-list` (HIGHESTP as `charset_priority_highest`),
+`charset-priority-list` (HIGHESTP as `character_set_priority_highest`),
 `set-charset-priority` (with the non-preferred head, the ISO-2022 and emacs-mule orders and the unibyte charset),
 `sort-charsets`,
 `charset-id-internal`,
@@ -33,9 +33,9 @@ the four methods (`CHARSET_METHOD_OFFSET`, `_MAP`, `_SUBSET`, `_SUPERSET`) with 
 `find-charset-string`;
 all the maps built in (character_set_maps_mod) and loaded on first use (a map that is not, for a charset defined later, is an error on use);
 for coding_mod,
-the charsets by id (`charsets`, protected),
-`find_charset`,
-DECODE_CHAR as `decode_char_id` and char_charset with a charset list as `char_charset_id`;
+the charsets by id (`character_sets`, protected),
+`find_character_set`,
+DECODE_CHARACTER as `decode_character_id` and character_character_set with a charset list as `character_character_set_id`;
 `current-iso639-language` (set by `set_language_environment`);
 which attributes a charset was given,
 for `describe-character-set` (`code_space_count`, the number of elements of `:code-space`; `has_code_offset`, `has_invalid_code`; `internal` for charset.c's own charsets)

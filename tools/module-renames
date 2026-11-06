@@ -17,7 +17,7 @@ callint execute_interactively
 callproc execute_process
 callproc_execute execute_process_execute
 casetab case_table
-cc_align c_mode_align
+cc_align cc_mode_align
 charscript character_script
 charset character_set
 charset_maps character_set_maps
@@ -84,7 +84,7 @@ mule_conf_charsets multilingual_environment_configuration_character_sets
 mule_util multilingual_environment_utilities
 paren parenthesis
 pcomplete programmable_completion
-pcvs_util pcvs_utilities
+pcvs_util parallel_concurrent_versions_system_utilities
 prog_mode programming_mode
 project_xref project_cross_reference
 recentf recent_files

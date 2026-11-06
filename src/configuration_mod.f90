@@ -17,7 +17,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The user's configuration is a Fortran module, `user_config', in
+!> The user's configuration is a Fortran module, `user_configuration', in
 !> init.f90.  `fortmacs --recompile' compiles it with gfortran together
 !> with a small main program against the installed library
 !> (PREFIX/lib/libfortmacs.a and the module files in PREFIX/include) into a
@@ -38,7 +38,7 @@
 !> Not a port: upstream loads its init file at startup instead.
 module configuration_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xfixnum, xstring, list_elements, vtag, V_INTEGER
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, current_buffer
@@ -48,7 +48,7 @@ module configuration_mod
                                      file_name_nondirectory, is_file_name_absolute, get_homedir, file_exists, &
                                      is_file_readable, is_file_executable, rename_file, report_file_errno, &
                                      delete_file_internal, delete_directory_internal, copy_file, &
-                                     create_symbolic_link, file_attributes, file_stat_type
+                                     create_symbolic_link, file_attributes, file_status_type
     use directory_editor_mod, only: directory_files
     use files_mod, only: create_directory
     use execute_process_mod, only: execute_process
@@ -57,7 +57,7 @@ module configuration_mod
     implicit none(type, external)
     private
 
-    public :: config_directory, state_directory, cache_directory, data_directory, init_file_name
+    public :: configuration_directory, state_directory, cache_directory, data_directory, initialization_file_name
     public :: generations_directory, current_build_name, generation_numbers, current_generation, &
               generation_of, switch_generation, rollback, list_generations
     public :: running_executable, install_prefix, driver_source, recompile
@@ -75,9 +75,9 @@ contains
 
     !> $VARIABLE/fortmacs/ if VARIABLE is set to an absolute directory,
     !> else ~/FALLBACK/fortmacs/ (the XDG base directory rule).
-    function xdg_directory(variable, fallback) result(dir)
+    function xdg_directory(variable, fallback) result(directory)
         character(len=*), intent(in) :: variable, fallback
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         character(len=:), allocatable :: value
         logical :: found
 
@@ -85,55 +85,55 @@ contains
 
         if (found .and. len(value) > 0) then
             if (is_file_name_absolute(value)) then
-                dir = file_name_as_directory(value)//"fortmacs/"
+                directory = file_name_as_directory(value)//"fortmacs/"
                 return
             end if
         end if
 
-        dir = file_name_as_directory(get_homedir())//fallback//"/fortmacs/"
+        directory = file_name_as_directory(get_homedir())//fallback//"/fortmacs/"
     end function xdg_directory
 
     !> The directory of init.f90.
-    function config_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function configuration_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = xdg_directory("XDG_CONFIG_HOME", ".config")
-    end function config_directory
+        directory = xdg_directory("XDG_CONFIG_HOME", ".config")
+    end function configuration_directory
 
     !> The directory of the built binary.
-    function state_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function state_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = xdg_directory("XDG_STATE_HOME", ".local/state")
+        directory = xdg_directory("XDG_STATE_HOME", ".local/state")
     end function state_directory
 
     !> The directory `--recompile' builds in.
-    function cache_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function cache_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = xdg_directory("XDG_CACHE_HOME", ".cache")
+        directory = xdg_directory("XDG_CACHE_HOME", ".cache")
     end function cache_directory
 
     !> The directory of the files the user writes and Fortmacs reads, such
     !> as the diary (where upstream uses `user-emacs-directory').
-    function data_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function data_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = xdg_directory("XDG_DATA_HOME", ".local/share")
+        directory = xdg_directory("XDG_DATA_HOME", ".local/share")
     end function data_directory
 
     !> The user's init file.
-    function init_file_name() result(name)
+    function initialization_file_name() result(name)
         character(len=:), allocatable :: name
 
-        name = config_directory()//"init.f90"
-    end function init_file_name
+        name = configuration_directory()//"init.f90"
+    end function initialization_file_name
 
     !> The directory of the generations.
-    function generations_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function generations_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = state_directory()//"generations/"
+        directory = state_directory()//"generations/"
     end function generations_directory
 
     !> The binary of the current generation.
@@ -172,19 +172,19 @@ contains
     function driver_source(prefix) result(text)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable :: text
-        character(len=*), parameter :: nl = new_line("a")
+        character(len=*), parameter :: newline = new_line("a")
 
-        text = "! Written by fortmacs --recompile."//nl// &
-               "program fortmacs_user"//nl// &
-               "    use fortmacs_mod, only: execute_editor"//nl// &
-               "    use user_config, only: configure"//nl// &
-               "    implicit none(type, external)"//nl// &
-               nl// &
-               "    integer :: exit_code"//nl// &
-               nl// &
-               "    call execute_editor(configure, exit_code, "//fortran_string(prefix)//")"//nl// &
-               "    if (exit_code /= 0) stop exit_code, quiet = .true."//nl// &
-               "end program fortmacs_user"//nl
+        text = "! Written by fortmacs --recompile."//newline// &
+               "program fortmacs_user"//newline// &
+               "    use fortmacs_mod, only: execute_editor"//newline// &
+               "    use user_configuration, only: configure"//newline// &
+               "    implicit none(type, external)"//newline// &
+               newline// &
+               "    integer :: exit_code"//newline// &
+               newline// &
+               "    call execute_editor(configure, exit_code, "//fortran_string(prefix)//")"//newline// &
+               "    if (exit_code /= 0) stop exit_code, quiet = .true."//newline// &
+               "end program fortmacs_user"//newline
     end function driver_source
 
     !> `s' as a Fortran string literal, split over continuation lines so
@@ -232,27 +232,27 @@ contains
         character(len=:), allocatable, intent(out) :: log
         type(status_type), intent(out) :: status
         integer, intent(out), optional :: generation
-        character(len=:), allocatable :: init, cache, built, driver, library, gen
+        character(len=:), allocatable :: initialize, cache, built, driver, library, gen
         character(len=12) :: number
         integer, allocatable :: numbers(:)
         integer :: n
-        type(value_type) :: args(14), result
+        type(value_type) :: arguments(14), result
         type(handle_type) :: old, buffer
         type(status_type) :: ignore
         integer :: unit, ios
 
         log = ""
-        init = init_file_name()
+        initialize = initialization_file_name()
 
-        if (.not. is_file_readable(init)) then
-            call report_file_errno("Opening init file", init, ENOENT, status)
+        if (.not. is_file_readable(initialize)) then
+            call report_file_errno("Opening init file", initialize, ENOENT, status)
             return
         end if
 
         library = prefix//"lib/libfortmacs.a"
 
         if (.not. file_exists(library)) then
-            call set_error(status, FM_GENERIC_ERROR, "Can't find "//library// &
+            call set_error(status, GENERIC_ERROR_CODE, "Can't find "//library// &
                            "; install Fortmacs with `fpm install`")
             return
         end if
@@ -275,27 +275,27 @@ contains
         if (ios == 0) close (unit, iostat=ios)
 
         if (ios /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Can't write "//driver)
+            call set_error(status, GENERIC_ERROR_CODE, "Can't write "//driver)
             return
         end if
 
-        ! gfortran -O2 -J CACHE -I PREFIX/include INIT DRIVER
+        ! gfortran -O2 -J CACHE -I PREFIX/include INITIALIZE DRIVER
         !     -L PREFIX/lib -lfortmacs -o GENERATION/fortmacs
         built = gen//"fortmacs"
-        args(1) = value_type(text="-O2")
-        args(2) = value_type(text="-J")
-        args(3) = value_type(text=cache)
-        args(4) = value_type(text="-I")
-        args(5) = value_type(text=prefix//"include")
-        args(6) = value_type(text="-o")
-        args(7) = value_type(text=built)
-        args(8) = value_type(text=init)
-        args(9) = value_type(text=driver)
-        args(10) = value_type(text="-L")
-        args(11) = value_type(text=prefix//"lib")
-        args(12) = value_type(text="-lfortmacs")
-        args(13) = value_type(text="-fdiagnostics-plain-output")
-        args(14) = value_type(text="-fno-diagnostics-color")
+        arguments(1) = value_type(text="-O2")
+        arguments(2) = value_type(text="-J")
+        arguments(3) = value_type(text=cache)
+        arguments(4) = value_type(text="-I")
+        arguments(5) = value_type(text=prefix//"include")
+        arguments(6) = value_type(text="-o")
+        arguments(7) = value_type(text=built)
+        arguments(8) = value_type(text=initialize)
+        arguments(9) = value_type(text=driver)
+        arguments(10) = value_type(text="-L")
+        arguments(11) = value_type(text=prefix//"lib")
+        arguments(12) = value_type(text="-lfortmacs")
+        arguments(13) = value_type(text="-fdiagnostics-plain-output")
+        arguments(14) = value_type(text="-fno-diagnostics-color")
         ! The compiler's output goes to a buffer, made in the cache
         ! directory so the compiler runs there.
         old = current_buffer()
@@ -304,7 +304,7 @@ contains
         call set_buffer(buffer, status)
         if (.not. status%ok()) return
         buffers(current)%directory = cache
-        call execute_process(compiler, result, status, destination=value_type(.true.), args=make_list(args))
+        call execute_process(compiler, result, status, destination=value_type(.true.), arguments=make_list(arguments))
         log = buffer_string()
         call close_buffer(buffer, ignore)
         if (old%index /= 0) call set_buffer(old, ignore)
@@ -315,9 +315,9 @@ contains
         end if
 
         if (vtag(result) /= V_INTEGER) then
-            call set_error(status, FM_GENERIC_ERROR, compiler//" was killed: "//xstring(result))
+            call set_error(status, GENERIC_ERROR_CODE, compiler//" was killed: "//xstring(result))
         else if (xfixnum(result) /= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Compiling "//init//" failed")
+            call set_error(status, GENERIC_ERROR_CODE, "Compiling "//initialize//" failed")
         end if
 
         if (.not. status%ok()) then
@@ -327,7 +327,7 @@ contains
         end if
 
         ! The init file it was built from stays with it.
-        call copy_file(init, gen//"init.f90", status)
+        call copy_file(initialize, gen//"init.f90", status)
         if (.not. status%ok()) return
         call switch_generation(n, status)
         if (present(generation)) generation = n
@@ -396,12 +396,12 @@ contains
     !> The generation `executable' belongs to (GENERATIONS/N/fortmacs), or 0.
     integer function generation_of(executable) result(n)
         character(len=*), intent(in) :: executable
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
         n = 0
-        dir = file_name_directory(executable)
-        if (index(dir, generations_directory()) /= 1) return
-        n = number_of(directory_file_name(dir(len(generations_directory()) + 1:)))
+        directory = file_name_directory(executable)
+        if (index(directory, generations_directory()) /= 1) return
+        n = number_of(directory_file_name(directory(len(generations_directory()) + 1:)))
     end function generation_of
 
     !> Make generation `n' the current one: `current' is replaced in one
@@ -409,22 +409,22 @@ contains
     subroutine switch_generation(n, status)
         integer, intent(in) :: n
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         character(len=11) :: number
         character(len=40) :: text
 
-        dir = generations_directory()
+        directory = generations_directory()
         write (number, "(i0)") n
 
-        if (n <= 0 .or. .not. is_file_executable(dir//trim(number)//"/fortmacs")) then
+        if (n <= 0 .or. .not. is_file_executable(directory//trim(number)//"/fortmacs")) then
             write (text, '("There is no generation ", i0)') n
-            call set_error(status, FM_GENERIC_ERROR, trim(text))
+            call set_error(status, GENERIC_ERROR_CODE, trim(text))
             return
         end if
 
-        call create_symbolic_link(trim(number), dir//"current.new", status, ok_if_already_exists=.true.)
+        call create_symbolic_link(trim(number), directory//"current.new", status, ok_if_already_exists=.true.)
         if (.not. status%ok()) return
-        call rename_file(dir//"current.new", dir//"current", status, ok_if_already_exists=.true.)
+        call rename_file(directory//"current.new", directory//"current", status, ok_if_already_exists=.true.)
     end subroutine switch_generation
 
     !> Go back to the generation before the current one: `from' was
@@ -440,7 +440,7 @@ contains
         from = current_generation()
 
         if (from == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "There are no generations yet; run fortmacs --recompile")
+            call set_error(status, GENERIC_ERROR_CODE, "There are no generations yet; run fortmacs --recompile")
             return
         end if
 
@@ -453,7 +453,7 @@ contains
 
         if (to == 0) then
             write (text, '("There is no generation before generation ", i0)') from
-            call set_error(status, FM_GENERIC_ERROR, trim(text))
+            call set_error(status, GENERIC_ERROR_CODE, trim(text))
             return
         end if
 
@@ -466,7 +466,7 @@ contains
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
         integer, allocatable :: numbers(:)
-        type(file_stat_type) :: st
+        type(file_status_type) :: st
         character(len=20) :: when
         character(len=11) :: number
         integer :: k, current
@@ -483,7 +483,7 @@ contains
             when = ""
 
             if (found) then
-                when = format_time_string("%b %d %Y %H:%M:%S", time_type(st%mtime_sec))
+                when = format_time_string("%b %d %Y %H:%M:%S", time_type(st%mtime_second))
             end if
 
             text = text//"Generation "//trim(number)//achar(9)//trim(when)

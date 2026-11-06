@@ -9,7 +9,7 @@
 `vc-deduce-fileset` (file buffers, Dired, Diff mode, directories),
 `vc-deduce-backend`,
 `vc-root-dir`,
-`vc-switches` (vc-BACKEND-OP-switches for diff and register) and the `vc-*-switches` options,
+`vc-switches` (vc-BACKEND-OP-switches for diff and register) and the `version_control-*-switches` options,
 `vc-next-action` (C-x v v: register, mark resolved, check out, commit; patches deferred),
 `vc-checkin` (the log buffer or COMMENT, `vc-checkin-hook`, version backups deleted),
 `vc-register` (C-x v i),
@@ -49,12 +49,12 @@ tags and branches (version_control_branches_mod): `vc-create-tag` (C-x v s; C-u 
 `vc-retrieve-tag-hook`;
 `vc-pull` (C-x v +, and its alias `vc-update`),
 `vc-push` (C-x v P),
-`vc--incoming-revision` (remembered per repository, forgotten after a pull or push);
+`version_control--incoming-revision` (remembered per repository, forgotten after a pull or push);
 the logs (version_control_log_mod): `vc-print-fileset-branch-log` (C-x v b l),
 `vc-print-root-branch-log` (C-x v b L, and its obsolete alias `vc-print-branch-log`),
-`vc--read-branch-to-log`,
+`version_control--read-branch-to-log`,
 `vc-root-log-incoming` (C-x v I) and `vc-root-log-outgoing` (C-x v O, C-x v E L) with their obsolete aliases `vc-log-incoming` and `vc-log-outgoing`,
-`vc--maybe-read-upstream-location`,
+`version_control--maybe-read-upstream-location`,
 `vc-incoming-outgoing-internal`,
 `vc-default-log-incoming`,
 `vc-default-log-outgoing`
@@ -69,7 +69,7 @@ search logs (`vc-log-search`),
 `vc-log-mergebase` and `vc-diff-mergebase`,
 the incoming and outgoing diffs (`vc-diff-incoming`, `vc-diff-outgoing`, `vc-root-diff-incoming`, `vc-root-diff-outgoing`, `vc-diff-outgoing-and-edited`),
 unintegrated changes (C-x v T),
-`vc--count-outgoing`,
+`version_control--count-outgoing`,
 the backends' own `log-incoming` and `log-outgoing` (deprecated upstream; no ported backend has them),
 `vc-pull` on backends with `merge-news` or the locking model,
 `vc-pull-and-push`,

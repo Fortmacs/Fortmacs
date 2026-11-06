@@ -33,13 +33,13 @@ module test_simple_set_variable_mod
     use window_mod, only: delete_other_windows, switch_to_buffer, resize_window_tree
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use replace_mod, only: case_replace
     use compile_mod, only: compile_command, compilation_scroll_output, COMPILATION_SCROLL_OUTPUT_FIRST_ERROR
-    use display_engine_mod, only: message_log_max, message_log_max_choice_setting_type
+    use display_engine_mod, only: message_log_maximum, message_log_maximum_choice_setting_type
     use files_mod, only: require_final_newline, REQUIRE_FINAL_NEWLINE_VISIT
     use simple_mod, only: set_variable, copy_region_blink_delay
-    use parenthesis_mod, only: show_paren_style, SHOW_PAREN_STYLE_PARENTHESIS
+    use parenthesis_mod, only: show_parenthesis_style, SHOW_PARENTHESIS_STYLE_PARENTHESIS
     implicit none(type, external)
     private
 
@@ -73,7 +73,7 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -113,7 +113,7 @@ contains
     end function spelled
 
     !> M-x set_variable RET NAME RET VALUE RET, after `prefix' keys.
-    subroutine set_var(name, value, prefix)
+    subroutine set_test_variable(name, value, prefix)
         character(len=*), intent(in) :: name, value
         character(len=*), intent(in), optional :: prefix
         type(status_type) :: st
@@ -125,7 +125,7 @@ contains
         if (len(value) > 0) keys = keys//" "//spelled(value)
         call type_keys(keys//" RET")
         call command_loop(st)
-    end subroutine set_var
+    end subroutine set_test_variable
 
     !> fill_column is automatically buffer-local: setting it gives the
     !> buffer its own value.
@@ -135,7 +135,7 @@ contains
 
         call fresh()
         call switch_to_buffer("*setvar*", st)
-        call set_var("fill_column", "72")
+        call set_test_variable("fill_column", "72")
         call check(error, fill_column%value == 72_int64 .and. is_local_variable(value_type(name="fill_column")), last_message)
         if (allocated(error)) return
         call switch_to_buffer("*scratch*", st)
@@ -146,11 +146,11 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh()
-        call set_var("case_replace", ".false.")
+        call set_test_variable("case_replace", ".false.")
         call check(error,.not. case_replace, last_message)
         if (allocated(error)) return
         ! Fortran is case-insensitive.
-        call set_var("case_replace", ".TRUE.")
+        call set_test_variable("case_replace", ".TRUE.")
         call check(error, case_replace, last_message)
     end subroutine test_logical
 
@@ -158,10 +158,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh()
-        call set_var("compile_command", '"make ""all"""')
+        call set_test_variable("compile_command", '"make ""all"""')
         call check(error, compile_command%value, 'make "all"')
         if (allocated(error)) return
-        call set_var("compile_command", "'make -k'")
+        call set_test_variable("compile_command", "'make -k'")
         call check(error, compile_command%value, "make -k")
     end subroutine test_string
 
@@ -171,18 +171,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh()
-        call set_var("require_final_newline", "require_final_newline_visit")
+        call set_test_variable("require_final_newline", "require_final_newline_visit")
         call check(error, require_final_newline%choice == REQUIRE_FINAL_NEWLINE_VISIT, last_message)
         if (allocated(error)) return
-        call set_var("require_final_newline", "7")
+        call set_test_variable("require_final_newline", "7")
         call check(error, last_message, "Wrong type argument: expected .true., .false., "// &
                    "REQUIRE_FINAL_NEWLINE_VISIT, REQUIRE_FINAL_NEWLINE_VISIT_SAVE or REQUIRE_FINAL_NEWLINE_ASK, got 7")
         if (allocated(error)) return
-        call set_var("require_final_newline", "visit")
+        call set_test_variable("require_final_newline", "visit")
         call check(error, index(last_message, "Wrong type argument: expected .true., .false.") == 1 .and. &
                    index(last_message, ", got visit") > 0, last_message)
         if (allocated(error)) return
-        call set_var("require_final_newline", ".false.")
+        call set_test_variable("require_final_newline", ".false.")
         call check(error, require_final_newline%is_off(), last_message)
     end subroutine test_choice
 
@@ -192,17 +192,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh()
-        call set_var("compilation_scroll_output", ".TRUE.")
+        call set_test_variable("compilation_scroll_output", ".TRUE.")
         call check(error, compilation_scroll_output%value, last_message)
         if (allocated(error)) return
-        call set_var("compilation_scroll_output", "compilation_scroll_output_first_error")
+        call set_test_variable("compilation_scroll_output", "compilation_scroll_output_first_error")
         call check(error, compilation_scroll_output%choice == COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, last_message)
         if (allocated(error)) return
-        call set_var("compilation_scroll_output", "7")
+        call set_test_variable("compilation_scroll_output", "7")
         call check(error, last_message, "Wrong type argument: expected .true., .false. or "// &
                    "COMPILATION_SCROLL_OUTPUT_FIRST_ERROR, got 7")
         if (allocated(error)) return
-        call set_var("compilation_scroll_output", ".false.")
+        call set_test_variable("compilation_scroll_output", ".false.")
         call check(error, compilation_scroll_output%is_off(), last_message)
     end subroutine test_on_off_choice
 
@@ -211,19 +211,20 @@ contains
     !> and any `=' clears it.
     subroutine test_number_kind(error)
         type(error_type), allocatable, intent(out) :: error
-        type(message_log_max_choice_setting_type) :: saved
+        type(message_log_maximum_choice_setting_type) :: saved
 
-        saved = message_log_max
-        message_log_max%lines = 5
-        call check(error,.not. message_log_max%is_off() .and. message_log_max%other_value() == "%lines = 5", "a number")
+        saved = message_log_maximum
+        message_log_maximum%lines = 5
+        call check(error,.not. message_log_maximum%is_off() .and. message_log_maximum%other_value() == "%lines = 5", "a number")
         if (allocated(error)) return
-        message_log_max = .true.
-        call check(error, message_log_max%lines < 0 .and. message_log_max%value .and. len(message_log_max%other_value()) == 0, &
+        message_log_maximum = .true.
+        call check(error, &
+                  message_log_maximum%lines < 0 .and. message_log_maximum%value .and. len(message_log_maximum%other_value()) == 0, &
                    "cleared by =")
         if (allocated(error)) return
-        message_log_max = .false.
-        call check(error, message_log_max%is_off(), "off")
-        message_log_max = saved
+        message_log_maximum = .false.
+        call check(error, message_log_maximum%is_off(), "off")
+        message_log_maximum = saved
     end subroutine test_number_kind
 
     !> A value the choice setting does not accept is an error, as in the
@@ -232,10 +233,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh()
-        call set_var("show_paren_style", ".true.")
-        call check(error, last_message, "Wrong type argument: show_paren_style: .true. is not a value of this option")
+        call set_test_variable("show_parenthesis_style", ".true.")
+        call check(error, last_message, "Wrong type argument: show_parenthesis_style: .true. is not a value of this option")
         if (allocated(error)) return
-        call check(error, show_paren_style%choice == SHOW_PAREN_STYLE_PARENTHESIS, "value kept")
+        call check(error, show_parenthesis_style%choice == SHOW_PARENTHESIS_STYLE_PARENTHESIS, "value kept")
     end subroutine test_rejected_choice
 
     subroutine test_real(error)
@@ -244,7 +245,7 @@ contains
 
         call fresh()
         saved = copy_region_blink_delay
-        call set_var("copy_region_blink_delay", "0.5e0")
+        call set_test_variable("copy_region_blink_delay", "0.5e0")
         call check(error, abs(copy_region_blink_delay - 0.5) < 1e-6, last_message)
         copy_region_blink_delay = saved
     end subroutine test_real
@@ -253,17 +254,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh()
-        call set_var("fill_column", "abc")
+        call set_test_variable("fill_column", "abc")
         call check(error, last_message, "Value "//LQ//"abc"//RQ//" does not match type integer of fill_column")
         if (allocated(error)) return
-        call set_var("case_replace", "1")
+        call set_test_variable("case_replace", "1")
         call check(error, last_message, "Value "//LQ//"1"//RQ//" does not match type logical of case_replace")
         if (allocated(error)) return
-        call set_var("compile_command", "make")
+        call set_test_variable("compile_command", "make")
         call check(error, last_message, "Value "//LQ//"make"//RQ//" does not match type character of compile_command")
         if (allocated(error)) return
         ! Not an expression evaluator.
-        call set_var("fill_column", "70+2")
+        call set_test_variable("fill_column", "70+2")
         call check(error, last_message, "Value "//LQ//"70+2"//RQ//" does not match type integer of fill_column")
         if (allocated(error)) return
         call check(error, fill_column%value == 70_int64, "unchanged")
@@ -275,10 +276,10 @@ contains
         type(error_type), allocatable, intent(out) :: error
 
         call fresh()
-        call set_var("case_replace", ".true. x")
+        call set_test_variable("case_replace", ".true. x")
         call check(error, last_message, 'Invalid read syntax: "Trailing garbage following expression"')
         if (allocated(error)) return
-        call set_var("compile_command", '"make')
+        call set_test_variable("compile_command", '"make')
         call check(error, last_message, "End of file during parsing")
     end subroutine test_read_errors
 
@@ -289,7 +290,7 @@ contains
 
         call fresh()
         compile_command = "make -k"
-        call set_var("compile_command", "")
+        call set_test_variable("compile_command", "")
         call check(error, compile_command%value, "make -k")
         if (allocated(error)) return
         ! M-n leaves point at the start of the value (goto-history-element).
@@ -307,10 +308,10 @@ contains
 
         call fresh()
         call switch_to_buffer("*setvar-prefix*", st)
-        call set_var("case_fold_search", ".false.", "C-u")
+        call set_test_variable("case_fold_search", ".false.", "C-u")
         call check(error, is_local_variable(value_type(name="case_fold_search")), last_message)
         if (allocated(error)) return
-        call set_var("case_replace", ".false.", "C-u")
+        call set_test_variable("case_replace", ".false.", "C-u")
         call check(error, last_message, "Symbol case_replace may not be buffer-local")
         if (allocated(error)) return
         call check(error, case_replace, "unchanged")

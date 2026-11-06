@@ -23,7 +23,7 @@
 !> major mode: `info_lookup_name' (C-h S), `info_lookup_file' and
 !> `info_lookup_reset'.  The manuals of each mode are help
 !> specifications added with `info_lookup_add_help' (the modes of
-!> upstream's info-look.el are added by `init_info_look'): the index
+!> upstream's info-look.el are added by `initialize_info_look'): the index
 !> nodes to read the documented items from, and how to find an item in
 !> the text of its node.
 !>
@@ -33,24 +33,24 @@
 module info_lookup_mod
     use, intrinsic :: iso_fortran_env, only: int64, int32
     use execute_interactively_mod, only: PREFIX_NONE
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: xsymbol, symbols, value_type, make_list, vtag, V_NULL, V_NAME
     use casefiddle_mod, only: downcase_string
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live
-    use editing_functions_mod, only: point, point_min, goto_char, line_beginning_position, line_end_position
-    use search_mod, only: looking_at, string_match, search_forward, re_search_forward, re_search_backward, &
-                          match_beginning, match_end, regexp_quote, case_fold_search, SEARCH_NOERROR, &
-                          string_index_to_offset
+    use editing_functions_mod, only: point, point_minimum, goto_character, line_beginning_position, line_end_position
+    use search_mod, only: looking_at, string_match, search_forward, regular_expression_search_forward, &
+                          regular_expression_search_backward, match_beginning, match_end, regular_expression_quote, &
+                          case_fold_search, SEARCH_NOERROR, string_index_to_offset
     use basic_subprograms_mod, only: match_string_no_properties
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward, skip_syntax_backward
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward, skip_syntax_backward
     use text_properties_mod, only: get_text_property
     use interval_tree_mod, only: make_overlay, move_overlay, overlay_put, is_overlay
     use data_mod, only: logical_setting_type, append_locals_clearer
     use file_input_output_mod, only: file_name_nondirectory
     use derived_mod, only: major_mode_named, major_mode_type
     use font_core_mod, only: major_mode_of_current
-    use execute_interactively_mod, only: current_prefix_arg
+    use execute_interactively_mod, only: current_prefix_argument
     use commands_mod, only: commands
     use keyboard_mod, only: sit_for
     use display_engine_mod, only: message
@@ -63,14 +63,14 @@ module info_lookup_mod
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use info_mod, only: info, info_mode, info_goto_node, info_follow_nearest_node, info_find_file, info_current_file, &
                         info_current_node, info_history_variable, set_info_history_variable, info_history_entry_type, &
-                        info_history_nodes, info_node_ref_type, info_fontify_maximum_menu_size, &
+                        info_history_nodes, info_node_reference_type, info_fontify_maximum_menu_size, &
                         INFO_FONTIFY_MAXIMUM_MENU_SIZE_NONE
     implicit none(type, external)
     private
 
     public :: info_lookup_add_help, info_lookup_maybe_add_help, info_lookup_name, info_lookup_file, &
               info_lookup_reset, info_lookup, info_lookup_guess_default, info_lookup_guess_c_name, &
-              info_lookup_guess_gdb_script_name, info_lookup_mode, init_info_look
+              info_lookup_guess_gdb_script_name, info_lookup_mode, initialize_info_look
 
     abstract interface
         !> A TRANS-FUNC of a documentation specification: the help item of
@@ -100,30 +100,30 @@ module info_lookup_mod
     !> matching the mode's regexp are taken.  If `prefix' or `suffix' is
     !> allocated, the help item's node is searched for the first
     !> occurrence of the regular expression `PREFIX ITEM SUFFIX'.
-    type, public :: info_lookup_doc_spec_type
+    type, public :: info_lookup_doc_specification_type
         character(len=:), allocatable :: node, trans_prefix, prefix, suffix
         procedure(info_lookup_trans_procedure), pointer, nopass :: trans => null()
-    end type info_lookup_doc_spec_type
+    end type info_lookup_doc_specification_type
 
     !> A list of documentation specifications, built with `add'.
-    type, public :: info_lookup_doc_specs_type
-        type(info_lookup_doc_spec_type), allocatable :: specs(:)
+    type, public :: info_lookup_doc_specifications_type
+        type(info_lookup_doc_specification_type), allocatable :: specifications(:)
     contains
         !> Add the specification of the index NODE.
-        procedure :: append => doc_specs_append
-    end type info_lookup_doc_specs_type
+        procedure :: append => doc_specifications_append
+    end type info_lookup_doc_specifications_type
 
     abstract interface
-        !> A `doc_spec_function': the documentation specifications of a
+        !> A `doc_specification_function': the documentation specifications of a
         !> mode, computed when the user asks for help in it.  Not a port.
-        recursive subroutine info_lookup_doc_spec_procedure(specs)
-            import :: info_lookup_doc_specs_type
+        recursive subroutine info_lookup_doc_specification_procedure(specifications)
+            import :: info_lookup_doc_specifications_type
             implicit none(type, external)
-            type(info_lookup_doc_specs_type), intent(out) :: specs
-        end subroutine info_lookup_doc_spec_procedure
+            type(info_lookup_doc_specifications_type), intent(out) :: specifications
+        end subroutine info_lookup_doc_specification_procedure
     end interface
 
-    public :: info_lookup_doc_spec_procedure
+    public :: info_lookup_doc_specification_procedure
 
     ! A help mode: a mode's name, with the prefix of the symbols it
     ! documents (upstream's (HELP-MODE . SYMBOL-PREFIX)).
@@ -131,19 +131,19 @@ module info_lookup_mod
         character(len=:), allocatable :: mode, prefix
     end type help_mode_type
 
-    ! The help data of a mode (HELP-MODE REGEXP IGNORE-CASE DOC-SPEC
+    ! The help data of a mode (HELP-MODE REGULAR_EXPRESSION IGNORE-CASE DOC-SPEC
     ! PARSE-RULE OTHER-MODES DOC-SPEC-FUNCTION).  An unallocated
     ! `parse_rule' and null `parse_fn' are nil.
     type :: mode_value_type
         type(help_mode_type) :: mode
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         logical :: ignore_case = .false.
-        logical :: has_doc_spec = .false.
-        type(info_lookup_doc_specs_type) :: doc_spec
+        logical :: has_doc_specification = .false.
+        type(info_lookup_doc_specifications_type) :: doc_specification
         character(len=:), allocatable :: parse_rule
         procedure(info_lookup_parse_procedure), pointer, nopass :: parse_fn => null()
         type(help_mode_type), allocatable :: other_modes(:)
-        procedure(info_lookup_doc_spec_procedure), pointer, nopass :: doc_spec_fn => null()
+        procedure(info_lookup_doc_specification_procedure), pointer, nopass :: doc_specification_fn => null()
     end type mode_value_type
 
     ! A help topic (HELP-TOPIC . HELP-DATA), the newest mode first.
@@ -163,14 +163,14 @@ module info_lookup_mod
 
     ! Whether a mode's cache is initialized: nil, t, or 0 (initialized
     ! but void).
-    integer, parameter :: INIT_PENDING = 0, INIT_DONE = 1, INIT_VOID = 2
+    integer, parameter :: INITIALIZE_PENDING = 0, INITIALIZE_DONE = 1, INITIALIZE_VOID = 2
 
     ! The cached data of a mode (HELP-MODE INITIALIZED COMPLETIONS
     ! REFER-MODES).
     type :: mode_cache_type
         character(len=:), allocatable :: topic
         type(help_mode_type) :: mode
-        integer :: initialized = INIT_PENDING
+        integer :: initialized = INITIALIZE_PENDING
         type(completion_type), allocatable :: completions(:)
         type(help_mode_type), allocatable :: refer_modes(:)
     end type mode_cache_type
@@ -198,10 +198,10 @@ module info_lookup_mod
     character(len=:), allocatable, public :: info_lookup_highlight_face
 
     !> Table of file names handled specially.  If a file name matches
-    !> `regexp', then use help mode `mode' instead of the buffer's major
+    !> `regular_expression', then use help mode `mode' instead of the buffer's major
     !> mode.  Port of info-look.el info-lookup-file-name-alist.
     type, public :: info_lookup_file_name_type
-        character(len=64) :: regexp = ""
+        character(len=64) :: regular_expression = ""
         character(len=64) :: mode = ""
     end type info_lookup_file_name_type
 
@@ -215,7 +215,7 @@ module info_lookup_mod
     character(len=*), parameter :: TAB = achar(9), LF = achar(10)
     ! The characters of a Lisp symbol's name in the regexps of the Lisp
     ! modes ("[^][()`'‘’,\" \t\n]+").
-    character(len=*), parameter :: LISP_SYMBOL_REGEXP = "[^][()`'‘’,"" "//TAB//LF//"]+"
+    character(len=*), parameter :: LISP_SYMBOL_REGULAR_EXPRESSION = "[^][()`'‘’,"" "//TAB//LF//"]+"
 
 contains
 
@@ -224,71 +224,75 @@ contains
     ! ------------------------------------------------------------------
 
     !> Add the documentation specification of the Info index NODE: see
-    !> `info_lookup_doc_spec_type' for TRANS_PREFIX, TRANS, PREFIX and
+    !> `info_lookup_doc_specification_type' for TRANS_PREFIX, TRANS, PREFIX and
     !> SUFFIX.  Not a port.
-    subroutine doc_specs_append(self, node, trans_prefix, trans, prefix, suffix)
-        class(info_lookup_doc_specs_type), intent(inout) :: self
+    subroutine doc_specifications_append(self, node, trans_prefix, trans, prefix, suffix)
+        class(info_lookup_doc_specifications_type), intent(inout) :: self
         character(len=*), intent(in) :: node
         character(len=*), intent(in), optional :: trans_prefix, prefix, suffix
         procedure(info_lookup_trans_procedure), optional :: trans
-        type(info_lookup_doc_spec_type) :: spec
+        type(info_lookup_doc_specification_type) :: specification
 
-        if (.not. allocated(self%specs)) allocate (self%specs(0))
-        spec%node = node
-        if (present(trans_prefix)) spec%trans_prefix = trans_prefix
-        if (present(trans)) spec%trans => trans
-        if (present(prefix)) spec%prefix = prefix
-        if (present(suffix)) spec%suffix = suffix
-        self%specs = [self%specs, spec]
-    end subroutine doc_specs_append
+        if (.not. allocated(self%specifications)) allocate (self%specifications(0))
+        specification%node = node
+        if (present(trans_prefix)) specification%trans_prefix = trans_prefix
+        if (present(trans)) specification%trans => trans
+        if (present(prefix)) specification%prefix = prefix
+        if (present(suffix)) specification%suffix = suffix
+        self%specifications = [self%specifications, specification]
+    end subroutine doc_specifications_append
 
     !> Add or update a help specification.
     !> The arguments are the parts of the help data of a mode: help is
     !> about TOPIC (default "symbol") in MODE (default the current major
     !> mode), for the names beginning with SYMBOL_PREFIX and a dash if
-    !> present; the help items match REGEXP (default "\w+"), case is
-    !> ignored if IGNORE_CASE; DOC_SPEC lists the Info indexes to read,
-    !> or DOC_SPEC_FUNCTION computes it when the user asks for info on
+    !> present; the help items match REGULAR_EXPRESSION (default "\w+"), case is
+    !> ignored if IGNORE_CASE; DOC_SPECIFICATION lists the Info indexes to read,
+    !> or DOC_SPECIFICATION_FUNCTION computes it when the user asks for info on
     !> the mode in question; PARSE_RULE (a regexp) or PARSE_FUNCTION guess
     !> the help item at point; OTHER_MODES are cross references to other
     !> help modes.  Port of info-look.el:info-lookup-add-help.
-    subroutine info_lookup_add_help(topic, mode, symbol_prefix, regexp, ignore_case, doc_spec, doc_spec_function, &
+    subroutine info_lookup_add_help(topic, mode, symbol_prefix, regular_expression, ignore_case, doc_specification, &
+                                    doc_specification_function, &
                                     parse_rule, parse_function, other_modes)
-        character(len=*), intent(in), optional :: topic, mode, symbol_prefix, regexp, parse_rule
+        character(len=*), intent(in), optional :: topic, mode, symbol_prefix, regular_expression, parse_rule
         logical, intent(in), optional :: ignore_case
-        type(info_lookup_doc_specs_type), intent(in), optional :: doc_spec
-        procedure(info_lookup_doc_spec_procedure), optional :: doc_spec_function
+        type(info_lookup_doc_specifications_type), intent(in), optional :: doc_specification
+        procedure(info_lookup_doc_specification_procedure), optional :: doc_specification_function
         procedure(info_lookup_parse_procedure), optional :: parse_function
         character(len=*), intent(in), optional :: other_modes(:)
 
-        call append_help_star(.false., topic, mode, symbol_prefix, regexp, ignore_case, doc_spec, doc_spec_function, &
+        call append_help_star(.false., topic, mode, symbol_prefix, regular_expression, ignore_case, doc_specification, &
+                              doc_specification_function, &
                               parse_rule, parse_function, other_modes)
     end subroutine info_lookup_add_help
 
     !> Add a help specification if none is defined.  See the
     !> documentation of the function `info_lookup_add_help' for more
     !> details.  Port of info-look.el:info-lookup-maybe-add-help.
-    subroutine info_lookup_maybe_add_help(topic, mode, symbol_prefix, regexp, ignore_case, doc_spec, &
-                                          doc_spec_function, parse_rule, parse_function, other_modes)
-        character(len=*), intent(in), optional :: topic, mode, symbol_prefix, regexp, parse_rule
+    subroutine info_lookup_maybe_add_help(topic, mode, symbol_prefix, regular_expression, ignore_case, doc_specification, &
+                                          doc_specification_function, parse_rule, parse_function, other_modes)
+        character(len=*), intent(in), optional :: topic, mode, symbol_prefix, regular_expression, parse_rule
         logical, intent(in), optional :: ignore_case
-        type(info_lookup_doc_specs_type), intent(in), optional :: doc_spec
-        procedure(info_lookup_doc_spec_procedure), optional :: doc_spec_function
+        type(info_lookup_doc_specifications_type), intent(in), optional :: doc_specification
+        procedure(info_lookup_doc_specification_procedure), optional :: doc_specification_function
         procedure(info_lookup_parse_procedure), optional :: parse_function
         character(len=*), intent(in), optional :: other_modes(:)
 
-        call append_help_star(.true., topic, mode, symbol_prefix, regexp, ignore_case, doc_spec, doc_spec_function, &
+        call append_help_star(.true., topic, mode, symbol_prefix, regular_expression, ignore_case, doc_specification, &
+                              doc_specification_function, &
                               parse_rule, parse_function, other_modes)
     end subroutine info_lookup_maybe_add_help
 
     ! Port of info-look.el:info-lookup-add-help*.
-    subroutine append_help_star(maybe, topic, mode, symbol_prefix, regexp, ignore_case, doc_spec, doc_spec_function, &
+    subroutine append_help_star(maybe, topic, mode, symbol_prefix, regular_expression, ignore_case, doc_specification, &
+                                doc_specification_function, &
                                 parse_rule, parse_function, other_modes)
         logical, intent(in) :: maybe
-        character(len=*), intent(in), optional :: topic, mode, symbol_prefix, regexp, parse_rule
+        character(len=*), intent(in), optional :: topic, mode, symbol_prefix, regular_expression, parse_rule
         logical, intent(in), optional :: ignore_case
-        type(info_lookup_doc_specs_type), intent(in), optional :: doc_spec
-        procedure(info_lookup_doc_spec_procedure), optional :: doc_spec_function
+        type(info_lookup_doc_specifications_type), intent(in), optional :: doc_specification
+        procedure(info_lookup_doc_specification_procedure), optional :: doc_specification_function
         procedure(info_lookup_parse_procedure), optional :: parse_function
         character(len=*), intent(in), optional :: other_modes(:)
         type(mode_value_type) :: data
@@ -308,16 +312,16 @@ contains
         end if
 
         if (present(symbol_prefix)) data%mode%prefix = symbol_prefix
-        data%regexp = "\w+"
-        if (present(regexp)) data%regexp = regexp
+        data%regular_expression = "\w+"
+        if (present(regular_expression)) data%regular_expression = regular_expression
         if (present(ignore_case)) data%ignore_case = ignore_case
 
-        if (present(doc_spec)) then
-            data%has_doc_spec = .true.
-            data%doc_spec = doc_spec
+        if (present(doc_specification)) then
+            data%has_doc_specification = .true.
+            data%doc_specification = doc_specification
         end if
 
-        if (present(doc_spec_function)) data%doc_spec_fn => doc_spec_function
+        if (present(doc_specification_function)) data%doc_specification_fn => doc_specification_function
         if (present(parse_rule)) data%parse_rule = parse_rule
         if (present(parse_function)) data%parse_fn => parse_function
         allocate (data%other_modes(0))
@@ -420,18 +424,18 @@ contains
     recursive subroutine expand_info(topic, mode)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
-        type(info_lookup_doc_specs_type) :: specs
+        type(info_lookup_doc_specifications_type) :: specifications
         integer :: ti, mi
 
         call find_mode_value(topic, mode, ti, mi)
         if (mi == 0) return
 
         associate (v => info_lookups(ti)%modes(mi))
-            if (.not. v%has_doc_spec .and. associated(v%doc_spec_fn)) then
-                call v%doc_spec_fn(specs)
-                v%doc_spec = specs
-                v%has_doc_spec = .true.
-                v%doc_spec_fn => null()
+            if (.not. v%has_doc_specification .and. associated(v%doc_specification_fn)) then
+                call v%doc_specification_fn(specifications)
+                v%doc_specification = specifications
+                v%has_doc_specification = .true.
+                v%doc_specification_fn => null()
             end if
         end associate
     end subroutine expand_info
@@ -448,22 +452,22 @@ contains
     end function ignore_case_of
 
     ! Port of info-look.el:info-lookup->doc-spec (none if not HAS).
-    subroutine doc_spec_of(topic, mode, specs, has)
+    subroutine doc_specification_of(topic, mode, specifications, has)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
-        type(info_lookup_doc_specs_type), intent(out) :: specs
+        type(info_lookup_doc_specifications_type), intent(out) :: specifications
         logical, intent(out) :: has
         integer :: ti, mi
 
         call find_mode_value(topic, mode, ti, mi)
         has = .false.
-        allocate (specs%specs(0))
+        allocate (specifications%specifications(0))
         if (mi == 0) return
-        if (.not. info_lookups(ti)%modes(mi)%has_doc_spec) return
+        if (.not. info_lookups(ti)%modes(mi)%has_doc_specification) return
         has = .true.
-        specs = info_lookups(ti)%modes(mi)%doc_spec
-        if (.not. allocated(specs%specs)) allocate (specs%specs(0))
-    end subroutine doc_spec_of
+        specifications = info_lookups(ti)%modes(mi)%doc_specification
+        if (.not. allocated(specifications%specifications)) allocate (specifications%specifications(0))
+    end subroutine doc_specification_of
 
     ! Port of info-look.el:info-lookup->other-modes.
     subroutine other_modes_of(topic, mode, others)
@@ -510,7 +514,7 @@ contains
         integer :: k
 
         k = mode_cache(topic, mode)
-        initialized = INIT_PENDING
+        initialized = INITIALIZE_PENDING
         if (k > 0) initialized = info_lookup_cache(k)%initialized
     end function initialized
 
@@ -520,9 +524,9 @@ contains
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
         type(completion_type), allocatable, intent(out) :: completions(:)
-        integer :: k, init
+        integer :: k, initialize
 
-        if (initialized(topic, mode) == INIT_PENDING) init = info_lookup_setup_mode(topic, mode)
+        if (initialized(topic, mode) == INITIALIZE_PENDING) initialize = info_lookup_setup_mode(topic, mode)
         k = mode_cache(topic, mode)
 
         if (k > 0) then
@@ -542,9 +546,9 @@ contains
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
         type(help_mode_type), allocatable, intent(out) :: modes(:)
-        integer :: k, init, i, n
+        integer :: k, initialize, i, n
 
-        if (initialized(topic, mode) == INIT_PENDING) init = info_lookup_setup_mode(topic, mode)
+        if (initialized(topic, mode) == INITIALIZE_PENDING) initialize = info_lookup_setup_mode(topic, mode)
         k = mode_cache(topic, mode)
         n = 0
 
@@ -686,29 +690,29 @@ contains
         call info_lookup("file", file, status, mode)
     end subroutine info_lookup_file
 
-    recursive subroutine cmd_info_lookup_name(status)
+    recursive subroutine execute_info_lookup_name(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
-        call interactive_arguments("symbol", current_prefix_arg%kind /= PREFIX_NONE, value, mode, status)
+        call interactive_arguments("symbol", current_prefix_argument%kind /= PREFIX_NONE, value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_name(value, status, mode)
-    end subroutine cmd_info_lookup_name
+    end subroutine execute_info_lookup_name
 
-    recursive subroutine cmd_info_lookup_file(status)
+    recursive subroutine execute_info_lookup_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, mode
 
-        call interactive_arguments("file", current_prefix_arg%kind /= PREFIX_NONE, value, mode, status)
+        call interactive_arguments("file", current_prefix_argument%kind /= PREFIX_NONE, value, mode, status)
         if (.not. status%ok()) return
         call info_lookup_file(value, status, mode)
-    end subroutine cmd_info_lookup_file
+    end subroutine execute_info_lookup_file
 
-    subroutine cmd_info_lookup_reset(status)
+    subroutine execute_info_lookup_reset(status)
         type(status_type), intent(out) :: status
 
         call info_lookup_reset(status)
-    end subroutine cmd_info_lookup_reset
+    end subroutine execute_info_lookup_reset
 
     ! Read and return argument VALUE (and help MODE) for help TOPIC.
     ! TOPIC should be any known symbol of a help topic, such as "file" or
@@ -766,16 +770,16 @@ contains
     function items_value(completions) result(v)
         type(completion_type), intent(in) :: completions(:)
         type(value_type) :: v
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer :: i
 
-        allocate (elems(size(completions)))
+        allocate (elements(size(completions)))
 
         do i = 1, size(completions)
-            elems(i) = value_type(text=completions(i)%item)
+            elements(i) = value_type(text=completions(i)%item)
         end do
 
-        v = make_list(elems)
+        v = make_list(elements)
     end function items_value
 
     ! The help mode of the current buffer: the mode of its file name in
@@ -797,7 +801,7 @@ contains
 
             if (allocated(info_lookup_file_names)) then
                 do i = 1, size(info_lookup_file_names)
-                    if (string_match(trim(info_lookup_file_names(i)%regexp), file_name, st) > 0) then
+                    if (string_match(trim(info_lookup_file_names(i)%regular_expression), file_name, st) > 0) then
                         call set_info_lookup_mode(trim(info_lookup_file_names(i)%mode))
                         exit
                     end if
@@ -844,7 +848,7 @@ contains
         character(len=*), intent(in) :: topic
         character(len=:), allocatable, intent(out) :: mode
         type(status_type), intent(out) :: status
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(value_type) :: names
         character(len=:), allocatable :: input
         integer :: ti, mi, i
@@ -852,16 +856,16 @@ contains
         call find_mode_value(topic, plain_mode(""), ti, mi)
 
         if (ti > 0) then
-            allocate (elems(size(info_lookups(ti)%modes)))
+            allocate (elements(size(info_lookups(ti)%modes)))
 
-            do i = 1, size(elems)
-                elems(i) = value_type(text=info_lookups(ti)%modes(i)%mode%mode)
+            do i = 1, size(elements)
+                elements(i) = value_type(text=info_lookups(ti)%modes(i)%mode%mode)
             end do
         else
-            allocate (elems(0))
+            allocate (elements(0))
         end if
 
-        names = make_list(elems)
+        names = make_list(elements)
         call completing_read("Major mode whose manuals to search for this "//topic//": ", &
                              completion_list_table(names), input, status, require_match=REQUIRE_MATCH_YES, &
                              history="info_lookup_history")
@@ -875,14 +879,14 @@ contains
         end if
 
         if (mi == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No manuals available for "//topic)
+            call set_error(status, GENERIC_ERROR_CODE, "No manuals available for "//topic)
             return
         end if
 
         mode = input
 
         if (.not. has_mode_value(topic, plain_mode(mode))) then
-            call set_error(status, FM_GENERIC_ERROR, "The manuals of `"//mode//"' have no "//topic//" help")
+            call set_error(status, GENERIC_ERROR_CODE, "The manuals of `"//mode//"' have no "//topic//" help")
             return
         end if
 
@@ -895,20 +899,20 @@ contains
     function item_to_mode(item, mode) result(m)
         character(len=*), intent(in) :: item, mode
         type(help_mode_type) :: m
-        type(help_mode_type) :: spec
+        type(help_mode_type) :: specification
         integer :: dash
 
-        spec%mode = mode
+        specification%mode = mode
         dash = index(item, "-")
 
         if (dash > 0) then
-            spec%prefix = item(1:dash - 1)
+            specification%prefix = item(1:dash - 1)
         else
-            spec%prefix = item
+            specification%prefix = item
         end if
 
-        if (has_mode_value("symbol", spec)) then
-            m = spec
+        if (has_mode_value("symbol", specification)) then
+            m = specification
         else
             m%mode = mode
         end if
@@ -933,16 +937,16 @@ contains
         type(help_mode_type) :: hmode
         type(help_mode_type), allocatable :: modes(:)
         type(completion_type), allocatable :: completions(:)
-        type(info_lookup_doc_specs_type) :: doc_spec
+        type(info_lookup_doc_specifications_type) :: doc_specification
         type(info_history_entry_type), allocatable :: new_history(:), history(:)
-        type(window_configuration_type) :: config
+        type(window_configuration_type) :: configuration
         type(handle_type) :: window, info_buffer, info_window, old
         type(status_type) :: st
         character(len=:), allocatable :: m, file, node, entry_item, entry_name, prefix, suffix
         logical :: ignore_case, found, doc_found, has_history, has, same, saved_fold, matched
         integer :: e, i, j, saved_size
-        integer(int64) :: pos, start
-        type(info_node_ref_type), allocatable :: saved_nodes(:)
+        integer(int64) :: position, start
+        type(info_node_reference_type), allocatable :: saved_nodes(:)
 
         status = status_type()
 
@@ -978,7 +982,7 @@ contains
         end if
 
         if (e == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Not documented as a "//topic//": "//item)
+            call set_error(status, GENERIC_ERROR_CODE, "Not documented as a "//topic//": "//item)
             return
         end if
 
@@ -1008,7 +1012,7 @@ contains
             allocate (new_history(size(history) + 1))
             new_history(1)%file = file
             new_history(1)%node = node
-            new_history(1)%pos = point()
+            new_history(1)%position = point()
 
             do i = 1, size(history)
                 new_history(i + 1) = history(i)
@@ -1025,9 +1029,9 @@ contains
             if (.not. info_lookup_other_window_flag%value) then
                 call info(status)
             else
-                call current_window_configuration(config)
+                call current_window_configuration(configuration)
                 call info(status)
-                call set_window_configuration(config)
+                call set_window_configuration(configuration)
                 if (.not. status%ok()) return
                 info_buffer = get_buffer("*info*")
 
@@ -1049,11 +1053,11 @@ contains
 
         do j = 1, size(modes)
             if (found) exit
-            call doc_spec_of(topic, modes(j), doc_spec, has)
+            call doc_specification_of(topic, modes(j), doc_specification, has)
 
-            do i = 1, size(doc_spec%specs)
+            do i = 1, size(doc_specification%specifications)
                 if (found) exit
-                node = doc_spec%specs(i)%node
+                node = doc_specification%specifications(i)%node
                 ! Don't need Index menu fontifications here, and they slow
                 ! down the lookup.
                 saved_size = info_fontify_maximum_menu_size
@@ -1079,30 +1083,32 @@ contains
                 ! Don't use Info-menu, it forces case-fold-search to t
                 saved_fold = case_fold_search%value
                 case_fold_search = .false.
-                call re_search_forward("^\* "//regexp_quote(entry_name)//":", pos, st)
+                call regular_expression_search_forward("^\* "//regular_expression_quote(entry_name)//":", position, st)
                 case_fold_search = saved_fold
                 if (.not. st%ok()) cycle
                 call info_follow_nearest_node(st)
                 if (.not. st%ok()) cycle
                 found = .true.
-                if (.not. (allocated(doc_spec%specs(i)%prefix) .or. allocated(doc_spec%specs(i)%suffix))) cycle
+                if (.not. (allocated(doc_specification%specifications(i)%prefix) .or. allocated(doc_specification%specifications( &
+                                                                                                i)%suffix))) cycle
                 prefix = ""
                 suffix = ""
-                if (allocated(doc_spec%specs(i)%prefix)) prefix = doc_spec%specs(i)%prefix
-                if (allocated(doc_spec%specs(i)%suffix)) suffix = doc_spec%specs(i)%suffix
+                if (allocated(doc_specification%specifications(i)%prefix)) prefix = doc_specification%specifications(i)%prefix
+                if (allocated(doc_specification%specifications(i)%suffix)) suffix = doc_specification%specifications(i)%suffix
                 saved_fold = case_fold_search%value
                 case_fold_search = ignore_case_of(topic, modes(j))
-                call goto_char(point_min())
-                call re_search_forward(prefix//regexp_quote(entry_item)//suffix, pos, st)
+                call goto_character(point_minimum())
+                call regular_expression_search_forward(prefix//regular_expression_quote(entry_item)//suffix, position, st)
                 case_fold_search = saved_fold
                 if (.not. st%ok()) cycle
-                call goto_char(match_beginning(0, st))
+                call goto_character(match_beginning(0, st))
 
                 if (is_display_color() .and. len(info_lookup_highlight_face) > 0) then
                     ! Search again for ITEM so that the first occurrence of
                     ! ITEM will be highlighted.
-                    call re_search_forward(regexp_quote(entry_item), pos, st, noerror=SEARCH_NOERROR)
-                    matched = st%ok() .and. pos > 0
+                    call regular_expression_search_forward(regular_expression_quote(entry_item), position, st, &
+                                                           noerror=SEARCH_NOERROR)
+                    matched = st%ok() .and. position > 0
 
                     if (matched) then
                         start = match_beginning(0, st)
@@ -1125,7 +1131,7 @@ contains
         if (found .and. has_history) call set_info_history_variable(new_history)
 
         if (.not. doc_found) then
-            call set_error(status, FM_GENERIC_ERROR, "Info documentation for lookup was not found")
+            call set_error(status, GENERIC_ERROR_CODE, "Info documentation for lookup was not found")
             return
         end if
 
@@ -1136,7 +1142,7 @@ contains
 
     ! Whether the terminal can display colors (display-color-p).  Not a port.
     logical function is_display_color()
-        is_display_color = selected_frame%tty%tn_max_colors > 0
+        is_display_color = selected_frame%terminal%tn_maximum_colors > 0
     end function is_display_color
 
     ! STRING in lower case (downcase).  Not a port.
@@ -1149,19 +1155,19 @@ contains
 
     ! Initialize the internal data structure.  Port of
     ! info-look.el:info-lookup-setup-mode.
-    recursive integer function info_lookup_setup_mode(topic, mode) result(init)
+    recursive integer function info_lookup_setup_mode(topic, mode) result(initialize)
         character(len=*), intent(in) :: topic
         type(help_mode_type), intent(in) :: mode
         type(help_mode_type), allocatable :: others(:), refer(:)
         type(completion_type), allocatable :: completions(:), more(:), joined(:)
-        type(info_node_ref_type), allocatable :: saved_nodes(:)
+        type(info_node_reference_type), allocatable :: saved_nodes(:)
         type(mode_cache_type) :: cache
         type(status_type) :: st
         integer :: i, k, n, sub
 
-        init = initialized(topic, mode)
-        if (init /= INIT_PENDING) return
-        init = INIT_VOID
+        initialize = initialized(topic, mode)
+        if (initialize /= INITIALIZE_PENDING) return
+        initialize = INITIALIZE_VOID
         allocate (refer(0), completions(0))
 
         if (allocated(info_history_nodes)) then
@@ -1177,9 +1183,9 @@ contains
             call other_modes_of(topic, mode, others)
 
             do i = 1, size(others)
-                if (initialized(topic, others(i)) == INIT_PENDING) sub = info_lookup_setup_mode(topic, others(i))
+                if (initialized(topic, others(i)) == INITIALIZE_PENDING) sub = info_lookup_setup_mode(topic, others(i))
 
-                if (initialized(topic, others(i)) == INIT_DONE) then
+                if (initialized(topic, others(i)) == INITIALIZE_DONE) then
                     refer = [refer, others(i)]
                 end if
             end do
@@ -1201,7 +1207,7 @@ contains
                 call move_alloc(joined, completions)
             end do
 
-            init = INIT_DONE
+            initialize = INITIALIZE_DONE
         end if
 
         if (allocated(info_history_nodes)) deallocate (info_history_nodes)
@@ -1217,7 +1223,7 @@ contains
             info_lookup_cache(k)%mode = mode
         end if
 
-        info_lookup_cache(k)%initialized = init
+        info_lookup_cache(k)%initialized = initialize
         call move_alloc(completions, info_lookup_cache(k)%completions)
         call move_alloc(refer, info_lookup_cache(k)%refer_modes)
     end function info_lookup_setup_mode
@@ -1229,21 +1235,21 @@ contains
         type(help_mode_type), intent(in) :: mode
         type(completion_type), allocatable, intent(out) :: result(:)
         type(status_type), intent(out) :: status
-        type(info_lookup_doc_specs_type) :: doc_spec
+        type(info_lookup_doc_specifications_type) :: doc_specification
         type(completion_type) :: completion
         type(handle_type) :: buffer, old
         type(status_type) :: st
-        character(len=:), allocatable :: regexp, node, entry, item, tprefix
+        character(len=:), allocatable :: regular_expression, node, entry, item, tprefix
         integer :: ti, mi, i, n, saved_size, kind
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: has, doc_found, ok, dup, ignore
-        integer, parameter :: TRANS_REGEXP = 0, TRANS_PREFIX = 1, TRANS_FUNCTION = 2
+        integer, parameter :: TRANS_REGULAR_EXPRESSION = 0, TRANS_PREFIX = 1, TRANS_FUNCTION = 2
 
         status = status_type()
         allocate (result(0))
-        call doc_spec_of(topic, mode, doc_spec, has)
+        call doc_specification_of(topic, mode, doc_specification, has)
         call find_mode_value(topic, mode, ti, mi)
-        regexp = "^\("//info_lookups(ti)%modes(mi)%regexp//"\)\([ "//TAB//"].*\)?$"
+        regular_expression = "^\("//info_lookups(ti)%modes(mi)%regular_expression//"\)\([ "//TAB//"].*\)?$"
         ignore = ignore_case_of(topic, mode)
         doc_found = .false.
         saved_size = info_fontify_maximum_menu_size
@@ -1253,16 +1259,16 @@ contains
         call set_buffer(buffer, st)
         call info_mode(st)
 
-        do i = 1, size(doc_spec%specs)
-            node = doc_spec%specs(i)%node
+        do i = 1, size(doc_specification%specifications)
+            node = doc_specification%specifications(i)%node
 
-            if (associated(doc_spec%specs(i)%trans)) then
+            if (associated(doc_specification%specifications(i)%trans)) then
                 kind = TRANS_FUNCTION
-            else if (allocated(doc_spec%specs(i)%trans_prefix)) then
+            else if (allocated(doc_specification%specifications(i)%trans_prefix)) then
                 kind = TRANS_PREFIX
-                tprefix = doc_spec%specs(i)%trans_prefix
+                tprefix = doc_specification%specifications(i)%trans_prefix
             else
-                kind = TRANS_REGEXP
+                kind = TRANS_REGULAR_EXPRESSION
             end if
 
             call message("Processing Info node `"//node//"'...")
@@ -1273,23 +1279,23 @@ contains
                 call sit_for(1000)
             else
                 doc_found = .true.
-                call goto_char(point_min())
-                call search_forward(LF//"* Menu:", pos, st, noerror=SEARCH_NOERROR)
+                call goto_character(point_minimum())
+                call search_forward(LF//"* Menu:", position, st, noerror=SEARCH_NOERROR)
 
-                if (st%ok() .and. pos > 0) then
+                if (st%ok() .and. position > 0) then
                     do
-                        call re_search_forward(LF//"\* \(.*\): ", pos, st, noerror=SEARCH_NOERROR)
-                        if (.not. st%ok() .or. pos == 0) exit
+                        call regular_expression_search_forward(LF//"\* \(.*\): ", position, st, noerror=SEARCH_NOERROR)
+                        if (.not. st%ok() .or. position == 0) exit
                         entry = match_string_no_properties(1)
 
                         select case (kind)
                         case (TRANS_FUNCTION)
-                            call doc_spec%specs(i)%trans(entry, item, ok)
+                            call doc_specification%specifications(i)%trans(entry, item, ok)
                         case (TRANS_PREFIX)
                             ok = string_match("^\([^: "//TAB//LF//"]+\)", entry, st, inhibit_modify=.false.) > 0
                             if (ok) item = tprefix//match_string_no_properties(1, entry)
                         case default
-                            ok = string_match(regexp, entry, st, inhibit_modify=.false.) > 0
+                            ok = string_match(regular_expression, entry, st, inhibit_modify=.false.) > 0
                             if (ok) item = match_string_no_properties(1, entry)
                         end select
 
@@ -1322,7 +1328,7 @@ contains
 
         call set_buffer(old, st)
         info_fontify_maximum_menu_size = saved_size
-        if (.not. doc_found) call set_error(status, FM_GENERIC_ERROR, "Info documentation for lookup was not found")
+        if (.not. doc_found) call set_error(status, GENERIC_ERROR_CODE, "Info documentation for lookup was not found")
     end subroutine info_lookup_make_completions
 
     ! ------------------------------------------------------------------
@@ -1339,7 +1345,7 @@ contains
         logical, intent(out) :: found
         type(help_mode_type), allocatable :: modes(:)
         type(status_type) :: st
-        integer(int64) :: pos, b
+        integer(int64) :: position, b
         integer :: i
 
         found = .false.
@@ -1352,12 +1358,12 @@ contains
 
         ! Collapse whitespace characters.
         if (found) then
-            pos = 0
+            position = 0
 
             do
-                b = string_match("[ "//TAB//LF//"]+", guess, st, start=pos, inhibit_modify=.false.)
+                b = string_match("[ "//TAB//LF//"]+", guess, st, start=position, inhibit_modify=.false.)
                 if (b == 0) exit
-                pos = b
+                position = b
                 guess = replace_match_in(guess, b, match_end(0, st))
             end do
         end if
@@ -1384,9 +1390,9 @@ contains
         type(help_mode_type), intent(in) :: mode
         character(len=:), allocatable, intent(out) :: result
         logical, intent(out) :: found
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         type(status_type) :: st
-        integer(int64) :: start, end, pos, moved
+        integer(int64) :: start, end, position, moved
         integer :: ti, mi, subexp
         logical :: saved_fold
 
@@ -1402,9 +1408,9 @@ contains
                 call v%parse_fn(result, found)
             else
                 if (allocated(v%parse_rule)) then
-                    regexp = v%parse_rule
+                    regular_expression = v%parse_rule
                 else
-                    regexp = v%regexp
+                    regular_expression = v%regular_expression
                 end if
 
                 subexp = 0
@@ -1412,25 +1418,25 @@ contains
                 ! If at start of symbol, don't go back to end of previous
                 ! one.
                 if (looking_at("[ "//TAB//LF//"]", st, inhibit_modify=.true.)) then
-                    moved = skip_chars_backward(" "//TAB//LF, st)
+                    moved = skip_characters_backward(" "//TAB//LF, st)
                 end if
 
                 end = point()
 
                 do
-                    call re_search_backward(regexp, pos, st, noerror=SEARCH_NOERROR)
-                    if (.not. st%ok() .or. pos == 0) exit
-                    if (.not. looking_at(regexp, st)) exit
+                    call regular_expression_search_backward(regular_expression, position, st, noerror=SEARCH_NOERROR)
+                    if (.not. st%ok() .or. position == 0) exit
+                    if (.not. looking_at(regular_expression, st)) exit
                     if (match_end(0, st) < end) exit
                     result = match_string_no_properties(subexp)
                     found = .true.
                 end do
 
                 if (.not. found) then
-                    call goto_char(start)
-                    moved = skip_chars_forward(" "//TAB//LF, st)
+                    call goto_character(start)
+                    moved = skip_characters_forward(" "//TAB//LF, st)
 
-                    if (looking_at(regexp, st)) then
+                    if (looking_at(regular_expression, st)) then
                         result = match_string_no_properties(subexp)
                         found = .true.
                     end if
@@ -1438,7 +1444,7 @@ contains
             end if
         end associate
 
-        call goto_char(start)
+        call goto_character(start)
         case_fold_search = saved_fold
     end subroutine guess_default_star
 
@@ -1459,8 +1465,8 @@ contains
         ! ignore names like `foo_struct'.
         has_prefix = .false.
 
-        if (skip_chars_backward(" "//TAB//LF, st) < 0) then
-            if (skip_chars_backward("_a-zA-Z0-9", st) < 0) then
+        if (skip_characters_backward(" "//TAB//LF, st) < 0) then
+            if (skip_characters_backward("_a-zA-Z0-9", st) < 0) then
                 if (looking_at("\(struct\|union\|enum\)\s ", st)) then
                     prefix = match_string_no_properties(1)//" "
                     has_prefix = .true.
@@ -1468,7 +1474,7 @@ contains
             end if
         end if
 
-        call goto_char(start)
+        call goto_character(start)
         has_name = .false.
 
         if (looking_at("[_a-zA-Z][_a-zA-Z0-9]*", st)) then
@@ -1538,7 +1544,7 @@ contains
             end do
         end if
 
-        call goto_char(start)
+        call goto_character(start)
 
     contains
 
@@ -1599,10 +1605,10 @@ contains
     ! The translations of index entries of the modes
     ! ------------------------------------------------------------------
 
-    ! Whether REGEXP matches STRING (case-sensitively if EXACT), setting the
+    ! Whether REGULAR_EXPRESSION matches STRING (case-sensitively if EXACT), setting the
     ! match data.  Not a port.
-    logical function smatch(regexp, string, exact)
-        character(len=*), intent(in) :: regexp, string
+    logical function smatch(regular_expression, string, exact)
+        character(len=*), intent(in) :: regular_expression, string
         logical, intent(in), optional :: exact
         type(status_type) :: st
         logical :: saved
@@ -1613,7 +1619,7 @@ contains
             if (exact) case_fold_search = .false.
         end if
 
-        smatch = string_match(regexp, string, st, inhibit_modify=.false.) > 0
+        smatch = string_match(regular_expression, string, st, inhibit_modify=.false.) > 0
         case_fold_search = saved
     end function smatch
 
@@ -1772,7 +1778,7 @@ contains
     ! gawk for sh mode: there's no plain "awk" or "gawk" index entries,
     ! mung other hopefully unique ones to get to the command line options.
     ! Not a port.
-    recursive subroutine trans_gawk_sh(entry, item, found)
+    recursive subroutine trans_gawk_shell(entry, item, found)
         character(len=*), intent(in) :: entry
         character(len=:), allocatable, intent(out) :: item
         logical, intent(out) :: found
@@ -1786,7 +1792,7 @@ contains
         else
             found = .false.
         end if
-    end subroutine trans_gawk_sh
+    end subroutine trans_gawk_shell
 
     ! cfengine: index entries may be like `IsPlain()'.  Not a port.
     recursive subroutine trans_cfengine(entry, item, found)
@@ -1806,8 +1812,8 @@ contains
     ! Python: Debian includes Python info files, but they're
     ! version-named instead of having a symlink.  Python is released
     ! annually (PEP 602).  Not a port.
-    recursive subroutine python_doc_spec(specs)
-        type(info_lookup_doc_specs_type), intent(out) :: specs
+    recursive subroutine python_doc_specification(specifications)
+        type(info_lookup_doc_specifications_type), intent(out) :: specifications
         character(len=:), allocatable :: manual, found
         character(len=16) :: name
         type(status_type) :: st
@@ -1827,9 +1833,9 @@ contains
             end if
         end do
 
-        call specs%append("("//manual//")Index")
-        call specs%append("("//manual//")Python Module Index")
-    end subroutine python_doc_spec
+        call specifications%append("("//manual//")Index")
+        call specifications%append("("//manual//")Python Module Index")
+    end subroutine python_doc_specification
 
     ! ------------------------------------------------------------------
     ! Initialization
@@ -1838,57 +1844,58 @@ contains
     !> Register the commands and add the help specifications of upstream's
     !> common modes ("Initialize some common modes" in info-look.el).
     !> Not a port.
-    subroutine init_info_look()
-        type(info_lookup_doc_specs_type) :: s
+    subroutine initialize_info_look()
+        type(info_lookup_doc_specifications_type) :: s
         character(len=:), allocatable :: latex_node, found
         type(status_type) :: st
 
-        commands%info_lookup_name%execute => cmd_info_lookup_name
+        commands%info_lookup_name%execute => execute_info_lookup_name
         commands%info_lookup_name%info_file = "fortmacs"
-        commands%info_lookup_file%execute => cmd_info_lookup_file
+        commands%info_lookup_file%execute => execute_info_lookup_file
         commands%info_lookup_file%info_file = "fortmacs"
-        commands%info_lookup_reset%execute => cmd_info_lookup_reset
+        commands%info_lookup_reset%execute => execute_info_lookup_reset
         call append_locals_clearer(clear_info_look_locals)
         if (.not. allocated(info_lookup_highlight_face)) info_lookup_highlight_face = "match"
 
         if (.not. allocated(info_lookup_file_names)) then
             allocate (info_lookup_file_names(1))
-            info_lookup_file_names(1) = info_lookup_file_name_type(regexp="\`ac\(local\|site\|include\)\.m4\'", &
+            info_lookup_file_names(1) = info_lookup_file_name_type(regular_expression="\`ac\(local\|site\|include\)\.m4\'", &
                                                                    mode="autoconf_mode")
         end if
 
         if (allocated(info_lookups)) return
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         call s%append("(libc)Function Index", prefix="^[ "//TAB//"]+-+ \(Function\|Macro\): .*\<", suffix="\>")
         ! prefix/suffix has to match things like
         !   " -- Macro: int F_DUPFD"
         !   " -- Variable: char * tzname [2]"
-        !   "`DBL_MAX'"    (texinfo @table)
-        ! suffix "\\>" is not used because that sends DBL_MAX to
-        ! DBL_MAX_EXP ("_" is a non-word char)
+        !   "`DBL_MAXIMUM'"    (texinfo @table)
+        ! suffix "\\>" is not used because that sends DBL_MAXIMUM to
+        ! DBL_MAXIMUM_EXP ("_" is a non-word char)
         call s%append("(libc)Variable Index", prefix="^\([ "//TAB//"]+-+ \(Variable\|Macro\): .*\<\|['`‘]\)", &
                       suffix="\( \|['’]?$\)")
         call s%append("(libc)Type Index", prefix="^[ "//TAB//"]+-+ Data Type: \<", suffix="\>")
         call s%append("(termcap)Var Index", prefix="^[ "//TAB//"]*['`‘]", suffix="['’]")
         call info_lookup_maybe_add_help(mode="c_mode", topic="symbol", &
-                                        regexp="\(struct \|union \|enum \)?[_a-zA-Z][_a-zA-Z0-9]*", doc_spec=s, &
+                                        regular_expression="\(struct \|union \|enum \)?[_a-zA-Z][_a-zA-Z0-9]*", &
+                                        doc_specification=s, &
                                         parse_function=info_lookup_guess_c_name)
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         call s%append("(libc)File Index")
-        call info_lookup_maybe_add_help(mode="c_mode", topic="file", regexp="[_a-zA-Z0-9./+-]+", doc_spec=s)
-        s = info_lookup_doc_specs_type()
+        call info_lookup_maybe_add_help(mode="c_mode", topic="file", regular_expression="[_a-zA-Z0-9./+-]+", doc_specification=s)
+        s = info_lookup_doc_specifications_type()
         call s%append("(bison)Index", prefix="['`‘]", suffix="['’]")
-        call info_lookup_maybe_add_help(mode="bison_mode", regexp="[:;|]\|%\([%{}]\|[_a-z]+\)\|YY[_A-Z]+\|yy[_a-z]+", &
-                                        doc_spec=s, parse_rule="[:;|]\|%\([%{}]\|[_a-zA-Z][_a-zA-Z0-9]*\)", &
+        call info_lookup_maybe_add_help(mode="bison_mode", regular_expression="[:;|]\|%\([%{}]\|[_a-z]+\)\|YY[_A-Z]+\|yy[_a-z]+", &
+                                        doc_specification=s, parse_rule="[:;|]\|%\([%{}]\|[_a-zA-Z][_a-zA-Z0-9]*\)", &
                                         other_modes=[character(len=16) :: "c_mode"])
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         call s%append("(make)Name Index", prefix="^[ "//TAB//"]*['`‘]", suffix="['’]")
-        call info_lookup_maybe_add_help(mode="makefile_mode", regexp="\$[^({]\|\.[_A-Z]*\|[_a-zA-Z][_a-zA-Z0-9-]*", &
-                                        doc_spec=s, parse_rule="\$[^({]\|\.[_A-Z]*\|[_a-zA-Z0-9-]+")
+        call info_lookup_maybe_add_help(mode="makefile_mode", regular_expression="\$[^({]\|\.[_A-Z]*\|[_a-zA-Z][_a-zA-Z0-9-]*", &
+                                        doc_specification=s, parse_rule="\$[^({]\|\.[_A-Z]*\|[_a-zA-Z0-9-]+")
         ! similar regexp/parse-rule as makefile-mode, but also the
         ! following (which have index entries), "##" special automake
         ! comment, "+=" append operator, separate from the GNU make one
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         ! "(automake)Macro Index" is autoconf macros used in configure.ac,
         ! not Makefile.am, so don't have that here.
         call s%append("(automake)Variable Index", prefix="^[ "//TAB//"]*['`‘]", suffix="['’]")
@@ -1901,18 +1908,18 @@ contains
         ! In automake 1.3 there was just a single "Index" node.
         call s%append("(automake)Index", prefix="['`‘]", suffix="['’]")
         call info_lookup_maybe_add_help(topic="symbol", mode="makefile_automake_mode", &
-                                        regexp="\$[^({]\|\.[_A-Z]*\|[_a-zA-Z][_a-zA-Z0-9-]*\|##\|\+=", &
-                                        parse_rule="\$[^({]\|\.[_A-Z]*\|[_a-zA-Z0-9-]+\|##\|\+=", doc_spec=s, &
+                                        regular_expression="\$[^({]\|\.[_A-Z]*\|[_a-zA-Z][_a-zA-Z0-9-]*\|##\|\+=", &
+                                        parse_rule="\$[^({]\|\.[_A-Z]*\|[_a-zA-Z0-9-]+\|##\|\+=", doc_specification=s, &
                                         other_modes=[character(len=16) :: "makefile_mode"])
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         ! Ignore Emacs commands and prepend a `@'.
         call s%append("(texinfo)Command and Variable Index", trans=trans_texinfo, prefix="['`‘]", suffix="['’ ]")
-        call info_lookup_maybe_add_help(mode="texinfo_mode", regexp="@\([a-zA-Z]+\|[^a-zA-Z]\)", doc_spec=s)
-        s = info_lookup_doc_specs_type()
+        call info_lookup_maybe_add_help(mode="texinfo_mode", regular_expression="@\([a-zA-Z]+\|[^a-zA-Z]\)", doc_specification=s)
+        s = info_lookup_doc_specifications_type()
         call s%append("(m4)Macro index")
-        call info_lookup_maybe_add_help(mode="m4_mode", regexp="[_a-zA-Z][_a-zA-Z0-9]*", doc_spec=s, &
+        call info_lookup_maybe_add_help(mode="m4_mode", regular_expression="[_a-zA-Z][_a-zA-Z0-9]*", doc_specification=s, &
                                         parse_rule="[_a-zA-Z0-9]+")
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         call s%append("(autoconf)Autoconf Macro Index", trans=trans_autoconf_macro, &
                       prefix="^[ "//TAB//"]+-+ \(Macro\|Variable\): .*\<", suffix="\>")
         call s%append("(autoconf)M4 Macro Index", trans=trans_autoconf_m4, prefix="^[ "//TAB//"]+-+ Macro: .*\<", &
@@ -1924,34 +1931,36 @@ contains
         call s%append("(autoconf)Macro Index", trans_prefix="AC_", &
                       prefix="^[ "//TAB//"]+-+ \(Macro\|Variable\): .*\<", suffix="\>")
         ! Automake has index entries for its notes on various autoconf
-        ! macros (eg. AC_PROG_CC).  Ensure this is after the autoconf
+        ! macros (eg. AC_PROGRAMMING_CC).  Ensure this is after the autoconf
         ! index, so as to prefer the autoconf docs.
         call s%append("(automake)Macro and Variable Index", prefix="^[ "//TAB//"]*['`‘]", suffix="['’]")
         ! Autoconf symbols are M4 macros.  Thus use M4's parser.
-        call info_lookup_maybe_add_help(mode="autoconf_mode", regexp="A[CM]_[_A-Z0-9]+", doc_spec=s, &
+        call info_lookup_maybe_add_help(mode="autoconf_mode", regular_expression="A[CM]_[_A-Z0-9]+", doc_specification=s, &
                                         parse_function=parse_ignore, other_modes=[character(len=16) :: "m4_mode"])
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         call s%append("(gawk)Index", trans=trans_awk, prefix="['`‘]", suffix="\([ "//TAB//"]*([^)]*)\)?['’]")
-        call info_lookup_maybe_add_help(mode="awk_mode", regexp="[_a-zA-Z]+", doc_spec=s)
-        s = info_lookup_doc_specs_type()
+        call info_lookup_maybe_add_help(mode="awk_mode", regular_expression="[_a-zA-Z]+", doc_specification=s)
+        s = info_lookup_doc_specifications_type()
         call s%append("(perl5)Function Index", trans=trans_perl_function, prefix="^", suffix="\b")
         call s%append("(perl5)Variable Index", trans=trans_perl_variable, prefix="^", suffix="\b")
-        call info_lookup_maybe_add_help(mode="perl_mode", regexp="[$@%][^a-zA-Z]\|\$\^[A-Z]\|[$@%]?[a-zA-Z][_a-zA-Z0-9]*", &
-                                        doc_spec=s, parse_rule="[$@%]?\([_a-zA-Z0-9]+\|[^a-zA-Z]\)")
-        call info_lookup_maybe_add_help(mode="python_mode", doc_spec_function=python_doc_spec)
-        call info_lookup_maybe_add_help(mode="perl_mode", regexp="[$@%][^a-zA-Z]\|\$\^[A-Z]\|[$@%]?[a-zA-Z][_a-zA-Z0-9]*")
-        s = info_lookup_doc_specs_type()
+        call info_lookup_maybe_add_help(mode="perl_mode", &
+                                        regular_expression="[$@%][^a-zA-Z]\|\$\^[A-Z]\|[$@%]?[a-zA-Z][_a-zA-Z0-9]*", &
+                                        doc_specification=s, parse_rule="[$@%]?\([_a-zA-Z0-9]+\|[^a-zA-Z]\)")
+        call info_lookup_maybe_add_help(mode="python_mode", doc_specification_function=python_doc_specification)
+        call info_lookup_maybe_add_help(mode="perl_mode", &
+                                        regular_expression="[$@%][^a-zA-Z]\|\$\^[A-Z]\|[$@%]?[a-zA-Z][_a-zA-Z0-9]*")
+        s = info_lookup_doc_specifications_type()
         ! From CTAN's https://ctan.org/pkg/latex2e-help-texinfo and
         ! https://puszcza.gnu.org.ua/projects/latexrefman/, else from
         ! https://savannah.nongnu.org/projects/latex-manual/.
         call info_find_file("latex2e", found, st, noerror=.true.)
         latex_node = "(latex-manual)Command Index"
         if (st%ok() .and. allocated(found)) latex_node = "(latex2e)Index"
-        ! \frac{NUM}{DEN} etc can have more than one {xx} argument.
+        ! \frac{NUMBER}{DEN} etc can have more than one {xx} argument.
         ! \sqrt[ROOT]{num} and others can have square brackets.
         call s%append(latex_node, prefix="[`'‘]", suffix="\({[^}]*}|\[[^]]*\]\)*['’]")
-        call info_lookup_maybe_add_help(mode="latex_mode", regexp="\\\([a-zA-Z]+\|[^a-zA-Z]\)", doc_spec=s)
-        s = info_lookup_doc_specs_type()
+        call info_lookup_maybe_add_help(mode="latex_mode", regular_expression="\\\([a-zA-Z]+\|[^a-zA-Z]\)", doc_specification=s)
+        s = info_lookup_doc_specifications_type()
         ! Commands with key sequences appear in nodes as `foo' and those
         ! without as `M-x foo'.
         call s%append("(fortmacs)Command Index", prefix="['`‘]\(M-x[ "//TAB//LF//"]+\)?", suffix="['’]")
@@ -1967,12 +1976,14 @@ contains
         call s%append("(elisp)Index", prefix="^ -+ .*: ", suffix="\( \|$\)")
         call s%append("(cl)Function Index", prefix="^ -+ .*: ", suffix="\( \|$\)")
         call s%append("(cl)Variable Index", prefix="^ -+ .*: ", suffix="\( \|$\)")
-        call info_lookup_maybe_add_help(mode="emacs_lisp_mode", regexp=LISP_SYMBOL_REGEXP, doc_spec=s)
-        s = info_lookup_doc_specs_type()
+        call info_lookup_maybe_add_help(mode="emacs_lisp_mode", regular_expression=LISP_SYMBOL_REGULAR_EXPRESSION, &
+                                        doc_specification=s)
+        s = info_lookup_doc_specifications_type()
         call s%append("(elisp)Index", prefix="^ -+ .*: ", suffix="\( \|$\)")
         call s%append("(cl)Function Index", prefix="^ -+ .*: ", suffix="\( \|$\)")
         call s%append("(cl)Variable Index", prefix="^ -+ .*: ", suffix="\( \|$\)")
-        call info_lookup_maybe_add_help(mode="emacs_lisp_only", regexp=LISP_SYMBOL_REGEXP, doc_spec=s)
+        call info_lookup_maybe_add_help(mode="emacs_lisp_only", regular_expression=LISP_SYMBOL_REGULAR_EXPRESSION, &
+                                        doc_specification=s)
         ! Below we have a list of prefixes (used to match on symbols in
         ! `emacs_lisp_mode') and the nodes where the function/variable
         ! indices live.  If the prefix is different than the name of the
@@ -2025,41 +2036,43 @@ contains
         call lisp_prefix("woman", [character(len=32) :: "Variable Index", "Command Index"])
         ! docstrings talk about elisp, so have apropos-mode follow
         ! emacs-lisp-mode
-        call info_lookup_maybe_add_help(mode="apropos_mode", regexp=LISP_SYMBOL_REGEXP, &
+        call info_lookup_maybe_add_help(mode="apropos_mode", regular_expression=LISP_SYMBOL_REGULAR_EXPRESSION, &
                                         other_modes=[character(len=16) :: "emacs_lisp_mode"])
-        call info_lookup_maybe_add_help(mode="lisp_interaction_mode", regexp=LISP_SYMBOL_REGEXP, &
+        call info_lookup_maybe_add_help(mode="lisp_interaction_mode", regular_expression=LISP_SYMBOL_REGULAR_EXPRESSION, &
                                         parse_function=parse_ignore, other_modes=[character(len=16) :: "emacs_lisp_mode"])
         call info_lookup_maybe_add_help(mode="inferior_emacs_lisp_mode", &
-                                        regexp="[^][()`'‘’,:"" "//TAB//LF//"]+", &
+                                        regular_expression="[^][()`'‘’,:"" "//TAB//LF//"]+", &
                                         other_modes=[character(len=16) :: "emacs_lisp_mode"])
-        call info_lookup_maybe_add_help(mode="lisp_mode", regexp="[^()`'‘’,"" "//TAB//LF//"]+", &
+        call info_lookup_maybe_add_help(mode="lisp_mode", regular_expression="[^()`'‘’,"" "//TAB//LF//"]+", &
                                         parse_function=parse_ignore, other_modes=[character(len=16) :: "emacs_lisp_mode"])
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         ! Aubrey Jaffer's rendition from
         ! <https://people.csail.mit.edu/jaffer/SCM>
         call s%append("(r5rs)Index", prefix="^[ "//TAB//"]+-+ [^:]+:[ "//TAB//"]*", suffix="\b")
-        call info_lookup_maybe_add_help(mode="scheme_mode", regexp="[^()`'‘’,"" "//TAB//LF//"]+", ignore_case=.true., &
-                                        doc_spec=s)
-        s = info_lookup_doc_specs_type()
+        call info_lookup_maybe_add_help(mode="scheme_mode", regular_expression="[^()`'‘’,"" "//TAB//LF//"]+", &
+                                        ignore_case=.true., &
+                                        doc_specification=s)
+        s = info_lookup_doc_specifications_type()
         call s%append("(octave)Function Index", prefix="^ -+ [^:]+:[ ]+\(\[[^=]*=[ ]+\)?")
         call s%append("(octave)Variable Index", prefix="^ -+ [^:]+:[ ]+")
         call s%append("(octave)Operator Index")
         ! Catch lines of the form "xyz statement"
         call s%append("(octave)Concept Index", trans=trans_octave_concept)
         call info_lookup_maybe_add_help(mode="octave_mode", &
-                                        regexp="[_a-zA-Z0-9]+\|\s.+\|[-!=^|*/.\,><~&+]\{1,3\}\|[][();,""']", &
-                                        doc_spec=s)
-        s = info_lookup_doc_specs_type()
+                                        regular_expression="[_a-zA-Z0-9]+\|\s.+\|[-!=^|*/.\,><~&+]\{1,3\}\|[][();,""']", &
+                                        doc_specification=s)
+        s = info_lookup_doc_specifications_type()
         call s%append("(maxima)Function and Variable Index", prefix="^ -+ [^:]+:[ ]+\(\[[^=]*=[ ]+\)?")
-        call info_lookup_maybe_add_help(mode="maxima_mode", ignore_case=.true., regexp="[a-zA-Z0-9_%]+", doc_spec=s)
-        call info_lookup_maybe_add_help(mode="inferior_maxima_mode", regexp="[a-zA-Z0-9_%]+", &
+        call info_lookup_maybe_add_help(mode="maxima_mode", ignore_case=.true., regular_expression="[a-zA-Z0-9_%]+", &
+                                        doc_specification=s)
+        call info_lookup_maybe_add_help(mode="inferior_maxima_mode", regular_expression="[a-zA-Z0-9_%]+", &
                                         other_modes=[character(len=16) :: "maxima_mode"])
         ! coreutils and bash builtins overlap in places, eg. printf, so
         ! there's a question which should come first.  Some of the
         ! coreutils descriptions are more detailed, but if bash is usually
         ! /bin/sh on a GNU system then the builtins will be what's
         ! normally run.
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         call s%append("(bash)Builtin Index", prefix="^['`‘]", suffix="[ .'’]")
         call s%append("(bash)Reserved Word Index", prefix="^['`‘]", suffix="[ .'’]")
         call s%append("(bash)Variable Index", prefix="^['`‘]", suffix="[ .'’]")
@@ -2078,28 +2091,28 @@ contains
         call s%append("(sed)Concept Index", trans=trans_sed)
         ! there's no plain "awk" or "gawk" index entries, mung other
         ! hopefully unique ones to get to the command line options
-        call s%append("(gawk)Index", trans=trans_gawk_sh)
+        call s%append("(gawk)Index", trans=trans_gawk_shell)
         ! bash has "." and ":" in its index, but those chars will probably
         ! never work in info, so don't bother matching them in the regexp.
-        call info_lookup_maybe_add_help(mode="sh_mode", topic="symbol", &
-                                        regexp="\([a-zA-Z0-9_-]+\|[!{}@*#?$]\|\[\[?\|]]?\)", doc_spec=s)
+        call info_lookup_maybe_add_help(mode="shell_script_mode", topic="symbol", &
+                                        regular_expression="\([a-zA-Z0-9_-]+\|[!{}@*#?$]\|\[\[?\|]]?\)", doc_specification=s)
         ! This misses some things which occur as node names but not in
         ! the index.  Unfortunately it also picks up the wrong one of
         ! multiple entries for the same term in some cases.  --fx
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         ! This gets functions in evaluated classes.  Other possible
         ! patterns don't seem to work too well.
         call s%append("(cfengine-Reference)Variable Index", trans=trans_cfengine, prefix="['`‘]", suffix="(")
-        call info_lookup_maybe_add_help(mode="cfengine_mode", regexp="[[:alnum:]_]+\(?:()\)?", doc_spec=s)
+        call info_lookup_maybe_add_help(mode="cfengine_mode", regular_expression="[[:alnum:]_]+\(?:()\)?", doc_specification=s)
         call info_lookup_maybe_add_help(mode="Custom_mode", ignore_case=.true., &
-                                        regexp="[^][()`'‘’,:"" "//TAB//LF//"]+", parse_function=parse_custom, &
+                                        regular_expression="[^][()`'‘’,:"" "//TAB//LF//"]+", parse_function=parse_custom, &
                                         other_modes=[character(len=16) :: "emacs_lisp_mode"])
-        call info_lookup_maybe_add_help(mode="help_mode", regexp="[^][()`'‘’,:"" "//TAB//LF//"]+", &
+        call info_lookup_maybe_add_help(mode="help_mode", regular_expression="[^][()`'‘’,:"" "//TAB//LF//"]+", &
                                         other_modes=[character(len=16) :: "emacs_lisp_mode"])
-        s = info_lookup_doc_specs_type()
+        s = info_lookup_doc_specifications_type()
         call s%append("(gdb)Command and Variable Index")
         call info_lookup_maybe_add_help(mode="gdb_script_mode", ignore_case=.false., &
-                                        regexp="\([-a-z]+\(\s-+[-a-z]+\)*\)", doc_spec=s, &
+                                        regular_expression="\([-a-z]+\(\s-+[-a-z]+\)*\)", doc_specification=s, &
                                         parse_function=info_lookup_guess_gdb_script_name)
 
     contains
@@ -2109,21 +2122,22 @@ contains
         subroutine lisp_prefix(prefix, nodes)
             character(len=*), intent(in) :: prefix
             character(len=*), intent(in) :: nodes(:)
-            type(info_lookup_doc_specs_type) :: specs
+            type(info_lookup_doc_specifications_type) :: specifications
             integer :: k
 
-            specs = info_lookup_doc_specs_type()
+            specifications = info_lookup_doc_specifications_type()
 
             do k = 1, size(nodes)
                 if (nodes(k) (1:1) == "(") then
-                    call specs%append(trim(nodes(k)), prefix="^ -+ .*: ", suffix="\( \|$\)")
+                    call specifications%append(trim(nodes(k)), prefix="^ -+ .*: ", suffix="\( \|$\)")
                 else
-                    call specs%append("("//prefix//")"//trim(nodes(k)), prefix="^ -+ .*: ", suffix="\( \|$\)")
+                    call specifications%append("("//prefix//")"//trim(nodes(k)), prefix="^ -+ .*: ", suffix="\( \|$\)")
                 end if
             end do
 
             call info_lookup_add_help(mode="emacs_lisp_mode", symbol_prefix=prefix, &
-                                      regexp="\b"//prefix//"-"//LISP_SYMBOL_REGEXP, doc_spec=specs)
+                                      regular_expression="\b"//prefix//"-"//LISP_SYMBOL_REGULAR_EXPRESSION, &
+                                      doc_specification=specifications)
         end subroutine lisp_prefix
-    end subroutine init_info_look
+    end subroutine initialize_info_look
 end module info_lookup_mod

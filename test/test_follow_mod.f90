@@ -27,23 +27,23 @@
 module test_follow_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NUMBER
-    use error_mod, only: status_type, FM_END_OF_BUFFER
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NUMBER
+    use error_mod, only: status_type, END_OF_BUFFER_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, buffers, current
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point, point_max
+    use editing_functions_mod, only: goto_character, point, point_maximum
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, command_loop, discard_input, last_message
-    use execute_interactively_mod, only: prefix_arg
+    use execute_interactively_mod, only: prefix_argument
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use frame_mod, only: selected_frame, ensure_frame_windows
     use display_engine_mod, only: pre_redisplay_function
     use window_mod, only: windows, window_start, window_end, window_leaves, same_window, delete_window_tree, &
                           resize_window_tree, set_window_buffer, select_window, set_window_start, window_point, &
-                          set_window_point, is_pos_visible_in_window, window_body_lines
+                          set_window_point, is_position_visible_in_window, window_body_lines
     use follow_mod, only: follow_all_followers, follow_post_command_hook, scroll_follow_up, scroll_follow_down, &
                           follow_delete_other_windows_and_split, follow_mode
     implicit none(type, external)
@@ -83,8 +83,8 @@ contains
         integer :: k
 
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
         call get_or_make_buffer("follow-test", h, st)
         call set_buffer(h, st)
 
@@ -93,7 +93,7 @@ contains
             call insert(text, st)
         end do
 
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         selected_frame%minibuffer_selected = .false.
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
@@ -132,30 +132,30 @@ contains
     subroutine split_and_follow()
         type(status_type) :: st
 
-        call follow_delete_other_windows_and_split(prefix_arg_type(), st)
+        call follow_delete_other_windows_and_split(prefix_argument_type(), st)
         call follow_post_command_hook()
         call record_window_ends()
     end subroutine split_and_follow
 
     !> Record where each window's display ends, as redisplay does
-    !> (window.h window_end_pos), and move the point of another window
+    !> (window.h window_end_position), and move the point of another window
     !> that does not show it to the middle of the window, as redisplay does
     !> for a forced start (the test's lines are all 7 characters).  Not a
     !> port.
     subroutine record_window_ends()
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         type(status_type) :: st
         integer :: k
 
-        call window_leaves(selected_frame%root_window, ws)
+        call window_leaves(selected_frame%root_window, leaf_windows)
 
-        do k = 1, size(ws)
-            associate (w => windows(ws(k)%index))
-                w%window_end_pos = buffers(current)%text%z - window_end(ws(k), st, update=.true.)
+        do k = 1, size(leaf_windows)
+            associate (w => windows(leaf_windows(k)%index))
+                w%window_end_position = buffers(current)%text%z - window_end(leaf_windows(k), st, update=.true.)
 
-                if (.not. same_window(ws(k), selected_frame%selected_window) .and. &
-                    .not. is_pos_visible_in_window(window_point(w), ws(k))) then
-                    call set_window_point(w, min(point_max(), window_start(w) + 7*(window_body_lines(w)/2 - 1)), st)
+                if (.not. same_window(leaf_windows(k), selected_frame%selected_window) .and. &
+                    .not. is_position_visible_in_window(window_point(w), leaf_windows(k))) then
+                    call set_window_point(w, min(point_maximum(), window_start(w) + 7*(window_body_lines(w)/2 - 1)), st)
                 end if
             end associate
         end do
@@ -180,28 +180,28 @@ contains
     subroutine test_split(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:), chain(:)
+        type(handle_type), allocatable :: leaf_windows(:), chain(:)
 
         call enter(h)
         call split_and_follow()
-        ws = leaves()
-        call check(error, size(ws) == 2, "two windows")
+        leaf_windows = leaves()
+        call check(error, size(leaf_windows) == 2, "two windows")
         if (allocated(error)) return
-        call check(error, windows(ws(2)%index)%left_col == 40 .and. minor_modes%follow_mode%enabled(), &
+        call check(error, windows(leaf_windows(2)%index)%left_column == 40 .and. minor_modes%follow_mode%enabled(), &
                    "side by side, Follow mode")
         if (allocated(error)) return
         call check(error, associated(pre_redisplay_function), "pre_redisplay_function")
         if (allocated(error)) return
-        call check(error, window_start(windows(ws(1)%index)) == 1 .and. &
-                   window_start(windows(ws(2)%index)) == line(11), "aligned")
+        call check(error, window_start(windows(leaf_windows(1)%index)) == 1 .and. &
+                   window_start(windows(leaf_windows(2)%index)) == line(11), "aligned")
         if (allocated(error)) return
-        call check(error, same_window(selected_frame%selected_window, ws(1)), "left window selected")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(1)), "left window selected")
         if (allocated(error)) return
         ! The chain, top and left first.
         call check(error, size(follow_all_followers()) == 2, "followers")
         if (allocated(error)) return
-        chain = follow_all_followers(ws(2))
-        call check(error, same_window(chain(1), ws(1)) .and. same_window(chain(2), ws(2)), "the chain")
+        chain = follow_all_followers(leaf_windows(2))
+        call check(error, same_window(chain(1), leaf_windows(1)) .and. same_window(chain(2), leaf_windows(2)), "the chain")
         call leave(h)
     end subroutine test_split
 
@@ -210,29 +210,29 @@ contains
     subroutine test_point_moves(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
 
         call enter(h)
         call split_and_follow()
-        ws = leaves()
+        leaf_windows = leaves()
         call execute_keys("C-u 14 C-n")
-        call check(error, same_window(selected_frame%selected_window, ws(2)) .and. point() == line(15), &
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(2)) .and. point() == line(15), &
                    "second window")
         if (allocated(error)) return
-        call check(error, window_start(windows(ws(1)%index)) == 1 .and. &
-                   window_start(windows(ws(2)%index)) == line(11), "still aligned")
+        call check(error, window_start(windows(leaf_windows(1)%index)) == 1 .and. &
+                   window_start(windows(leaf_windows(2)%index)) == line(11), "still aligned")
         if (allocated(error)) return
         call execute_keys("C-u 10 C-p")
-        call check(error, same_window(selected_frame%selected_window, ws(1)) .and. point() == line(5), &
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(1)) .and. point() == line(5), &
                    "first window")
         if (allocated(error)) return
         ! M->: the end of the buffer shows in the last window, the first
         ! one before it.
         call execute_keys("M->")
-        call check(error, point() == point_max() .and. same_window(selected_frame%selected_window, ws(2)), "M->")
+        call check(error, point() == point_maximum() .and. same_window(selected_frame%selected_window, leaf_windows(2)), "M->")
         if (allocated(error)) return
-        call check(error, window_start(windows(ws(1)%index)) == line(44) .and. &
-                   window_start(windows(ws(2)%index)) == line(54), "M-> windows")
+        call check(error, window_start(windows(leaf_windows(1)%index)) == line(44) .and. &
+                   window_start(windows(leaf_windows(2)%index)) == line(54), "M-> windows")
         call leave(h)
     end subroutine test_point_moves
 
@@ -240,41 +240,41 @@ contains
     subroutine test_scroll(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         type(status_type) :: st
 
         call enter(h)
         call split_and_follow()
-        ws = leaves()
+        leaf_windows = leaves()
         ! The last window ends at line 21: the first starts two lines
         ! before (next_screen_context_lines).
         call execute_keys("C-c . C-v")
-        call check(error, window_start(windows(ws(1)%index)) == line(19), "first window scrolled")
+        call check(error, window_start(windows(leaf_windows(1)%index)) == line(19), "first window scrolled")
         if (allocated(error)) return
-        call check(error, window_start(windows(ws(2)%index)) == line(29) .and. &
-                   same_window(selected_frame%selected_window, ws(1)), "second follows")
+        call check(error, window_start(windows(leaf_windows(2)%index)) == line(29) .and. &
+                   same_window(selected_frame%selected_window, leaf_windows(1)), "second follows")
         if (allocated(error)) return
         call execute_keys("C-c . M-v")
-        call check(error, window_start(windows(ws(1)%index)) == 1 .and. &
-                   window_start(windows(ws(2)%index)) == line(11), "back")
+        call check(error, window_start(windows(leaf_windows(1)%index)) == 1 .and. &
+                   window_start(windows(leaf_windows(2)%index)) == line(11), "back")
         if (allocated(error)) return
         ! At the top: an error condition occurs.
         call execute_keys("C-c . M-v")
-        call check(error, window_start(windows(ws(1)%index)) == 1, "at the top")
+        call check(error, window_start(windows(leaf_windows(1)%index)) == 1, "at the top")
         if (allocated(error)) return
         ! The end shows in the last window: an error condition occurs.
-        call select_window(ws(1), st)
-        call set_window_start(windows(ws(1)%index), line(51), st)
-        call goto_char(line(55))
+        call select_window(leaf_windows(1), st)
+        call set_window_start(windows(leaf_windows(1)%index), line(51), st)
+        call goto_character(line(55))
         call follow_post_command_hook()
         call record_window_ends()
-        call check(error, window_start(windows(ws(2)%index)) == point_max(), "the end in the last window")
+        call check(error, window_start(windows(leaf_windows(2)%index)) == point_maximum(), "the end in the last window")
         if (allocated(error)) return
-        call scroll_follow_up(prefix_arg_type(), st)
-        call check(error, st%code == FM_END_OF_BUFFER, "end_of_buffer")
+        call scroll_follow_up(prefix_argument_type(), st)
+        call check(error, st%code == END_OF_BUFFER_CODE, "end_of_buffer")
         if (allocated(error)) return
         ! With an argument: by lines.
-        call scroll_follow_down(prefix_arg_type(PREFIX_NUMBER, 3_int64), st)
+        call scroll_follow_down(prefix_argument_type(PREFIX_NUMBER, 3_int64), st)
         call check(error, st%ok() .and. window_start(windows(selected_frame%selected_window%index)) == line(48), &
                    "scroll down by 3")
         call leave(h)
@@ -284,31 +284,31 @@ contains
     subroutine test_window_commands(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
 
         call enter(h)
         call split_and_follow()
-        ws = leaves()
+        leaf_windows = leaves()
         call execute_keys("C-c . n")
-        call check(error, same_window(selected_frame%selected_window, ws(2)), "next window: "//last_message)
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(2)), "next window: "//last_message)
         if (allocated(error)) return
         call execute_keys("C-c . p")
-        call check(error, same_window(selected_frame%selected_window, ws(1)), "previous window")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(1)), "previous window")
         if (allocated(error)) return
         call execute_keys("C-c . >")
-        call check(error, same_window(selected_frame%selected_window, ws(2)), "last window")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(2)), "last window")
         if (allocated(error)) return
         call execute_keys("C-c . <")
-        call check(error, same_window(selected_frame%selected_window, ws(1)), "first window")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(1)), "first window")
         if (allocated(error)) return
         ! C-l: the middle window (of two, the first) recentered on point,
         ! the other following.
-        call goto_char(line(30))
+        call goto_character(line(30))
         call execute_keys("C-c . C-l")
-        call check(error, same_window(selected_frame%selected_window, ws(1)) .and. &
-                   window_start(windows(ws(1)%index)) == line(25), "recenter")
+        call check(error, same_window(selected_frame%selected_window, leaf_windows(1)) .and. &
+                   window_start(windows(leaf_windows(1)%index)) == line(25), "recenter")
         if (allocated(error)) return
-        call check(error, window_start(windows(ws(2)%index)) == line(35), "recenter: second follows")
+        call check(error, window_start(windows(leaf_windows(2)%index)) == line(35), "recenter: second follows")
         call leave(h)
     end subroutine test_window_commands
 

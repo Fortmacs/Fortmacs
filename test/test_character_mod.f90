@@ -25,16 +25,16 @@
 module test_character_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_GENERIC_ERROR
-    use character_mod, only: byte8_to_char, bytes_by_char_head, is_char_byte8_head, char_bytes, &
-                             char_ctl, char_hexdigit, char_leading_code, char_meta, &
-                             char_resolve_modifier_mask, char_shift, char_string, is_char_surrogate, &
-                             char_to_byte8, char_to_byte_safe, is_char_valid, &
+    use error_mod, only: status_type, GENERIC_ERROR_CODE
+    use character_mod, only: byte8_to_character, bytes_by_character_head, is_character_byte8_head, character_bytes, &
+                             character_control, character_hexdigit, character_leading_code, character_meta, &
+                             character_resolve_modifier_mask, character_shift, character_string, is_character_surrogate, &
+                             character_to_byte8, character_to_byte_safe, is_character_valid, &
                              variation_selector_number, count_size_as_multibyte, is_leading_code, &
-                             max_char, max_multibyte_length, multibyte_chars_in_text, &
-                             multibyte_length, parse_str_as_multibyte, raw_prev_char_len, &
-                             str_as_multibyte, str_as_unibyte, str_to_multibyte, string_char, &
-                             string_char_and_length, is_trailing_code, unibyte_to_char
+                             maximum_character, maximum_multibyte_length, multibyte_characters_in_text, &
+                             multibyte_length, parse_string_as_multibyte, raw_previous_character_length, &
+                             string_as_multibyte, string_as_unibyte, string_to_multibyte, string_character, &
+                             string_character_and_length, is_trailing_code, unibyte_to_character
     implicit none(type, external)
     private
 
@@ -52,9 +52,9 @@ contains
                     new_unittest("raw-bytes", test_raw_bytes), &
                     new_unittest("invalid-sequences", test_invalid), &
                     new_unittest("invalid-char-code", test_invalid_code), &
-                    new_unittest("chars-in-text", test_chars_in_text), &
+                    new_unittest("chars-in-text", test_characters_in_text), &
                     new_unittest("unibyte-multibyte-conversion", test_conversion), &
-                    new_unittest("raw-prev-char-len", test_prev_len), &
+                    new_unittest("raw-prev-char-len", test_previous_length), &
                     new_unittest("modifier-resolution", test_modifiers), &
                     new_unittest("small-predicates", test_is_functions) &
                     ]
@@ -75,11 +75,11 @@ contains
     function enc(c) result(s)
         integer(int32), intent(in) :: c
         character(len=:), allocatable :: s
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: n
         type(status_type) :: st
 
-        call char_string(c, buffer, n, st)
+        call character_string(c, buffer, n, st)
         s = buffer(1:n)
     end function enc
 
@@ -92,7 +92,7 @@ contains
         if (allocated(error)) return
         call check(error, enc(int(z'1F600', int32)) == bytes([240, 159, 152, 128]), "U+1F600")
         if (allocated(error)) return
-        call check(error, string_char(bytes([226, 130, 172]), 1_int64), int(z'20AC', int32))
+        call check(error, string_character(bytes([226, 130, 172]), 1_int64), int(z'20AC', int32))
     end subroutine test_known
 
     subroutine test_roundtrip(error)
@@ -109,15 +109,15 @@ contains
             s = enc(codes(i))
             call check(error, len(s), lengths(i))
             if (allocated(error)) return
-            call check(error, char_bytes(codes(i)), lengths(i))
+            call check(error, character_bytes(codes(i)), lengths(i))
             if (allocated(error)) return
-            call check(error, ichar(s(1:1), int32), char_leading_code(codes(i)))
+            call check(error, ichar(s(1:1), int32), character_leading_code(codes(i)))
             if (allocated(error)) return
             call check(error, multibyte_length(s, 1_int64, .true.), lengths(i))
             if (allocated(error)) return
-            call check(error, bytes_by_char_head(ichar(s(1:1), int32)), lengths(i))
+            call check(error, bytes_by_character_head(ichar(s(1:1), int32)), lengths(i))
             if (allocated(error)) return
-            call string_char_and_length(s, 1_int64, c, n)
+            call string_character_and_length(s, 1_int64, c, n)
             call check(error, c, codes(i))
             if (allocated(error)) return
             call check(error, n, lengths(i))
@@ -128,20 +128,20 @@ contains
     subroutine test_raw_bytes(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, byte8_to_char(int(z'FF', int32)), int(z'3FFFFF', int32))
+        call check(error, byte8_to_character(int(z'FF', int32)), int(z'3FFFFF', int32))
         if (allocated(error)) return
-        call check(error, char_to_byte8(int(z'3FFF80', int32)), int(z'80', int32))
+        call check(error, character_to_byte8(int(z'3FFF80', int32)), int(z'80', int32))
         if (allocated(error)) return
-        call check(error, unibyte_to_char(65_int32), 65_int32)
+        call check(error, unibyte_to_character(65_int32), 65_int32)
         if (allocated(error)) return
-        call check(error, char_to_byte_safe(int(z'E9', int32)), -1_int32)
+        call check(error, character_to_byte_safe(int(z'E9', int32)), -1_int32)
         if (allocated(error)) return
-        call check(error, enc(byte8_to_char(int(z'FF', int32))) == bytes([193, 191]), "raw FF form")
+        call check(error, enc(byte8_to_character(int(z'FF', int32))) == bytes([193, 191]), "raw FF form")
         if (allocated(error)) return
         ! Raw-byte forms are only valid when allow_8bit is set.
         call check(error, multibyte_length(bytes([193, 191]), 1_int64, .false.), 0_int32)
         if (allocated(error)) return
-        call check(error, is_char_byte8_head(193_int32), "C1 not a byte8 head")
+        call check(error, is_character_byte8_head(193_int32), "C1 not a byte8 head")
     end subroutine test_raw_bytes
 
     subroutine test_invalid(error)
@@ -165,124 +165,126 @@ contains
 
     subroutine test_invalid_code(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=MAX_MULTIBYTE_LENGTH) :: buffer
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: buffer
         integer(int32) :: n
         type(status_type) :: st
 
-        ! Like upstream, MAX_CHAR + 1 is the CHAR_ALT bit, which is dropped.
-        call char_string(MAX_CHAR + 1, buffer, n, st)
+        ! Like upstream, MAXIMUM_CHARACTER + 1 is the CHARACTER_ALT bit, which is dropped.
+        call character_string(MAXIMUM_CHARACTER + 1, buffer, n, st)
         call check(error, st%ok() .and. n == 1 .and. buffer(1:1) == char(0), "alt bit not dropped")
         if (allocated(error)) return
         ! Bits above the modifier mask cannot be dropped: invalid.
-        call char_string(int(z'10000000', int32), buffer, n, st)
-        call check(error, st%code, FM_GENERIC_ERROR)
+        call character_string(int(z'10000000', int32), buffer, n, st)
+        call check(error, st%code, GENERIC_ERROR_CODE)
         if (allocated(error)) return
         call check(error, st%detail, "Invalid character: 10000000")
         if (allocated(error)) return
-        call char_string(-1_int32, buffer, n, st)
+        call character_string(-1_int32, buffer, n, st)
         call check(error,.not. st%ok(), "negative code accepted")
         if (allocated(error)) return
         ! %x of the code after the modifier bits are dropped, in lower
         ! case; a negative code is a huge unsigned one.
         call check(error, st%detail, "Invalid character: f03fffff")
         if (allocated(error)) return
-        call char_string(ior(int(z'1000ABCD', int32), int(z'4000000', int32)), buffer, n, st)
+        call character_string(ior(int(z'1000ABCD', int32), int(z'4000000', int32)), buffer, n, st)
         call check(error, st%detail, "Invalid character: 1000abcd")
     end subroutine test_invalid_code
 
-    subroutine test_chars_in_text(error)
+    subroutine test_characters_in_text(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: nchars, nbytes
         type(status_type) :: st
 
-        call multibyte_chars_in_text("a"//bytes([195, 169, 226, 130, 172, 193, 191]), nchars, st)
+        call multibyte_characters_in_text("a"//bytes([195, 169, 226, 130, 172, 193, 191]), nchars, st)
         call check(error, st%ok(), "valid text rejected")
         if (allocated(error)) return
         call check(error, nchars, 4_int64)
         if (allocated(error)) return
-        call multibyte_chars_in_text("a"//bytes([128]), nchars, st)
+        call multibyte_characters_in_text("a"//bytes([128]), nchars, st)
         call check(error,.not. st%ok(), "invalid text accepted")
         if (allocated(error)) return
         ! a, raw FF (2 bytes once converted), é
-        call parse_str_as_multibyte("a"//bytes([255, 195, 169]), nchars, nbytes)
+        call parse_string_as_multibyte("a"//bytes([255, 195, 169]), nchars, nbytes)
         call check(error, nchars, 3_int64)
         if (allocated(error)) return
         call check(error, nbytes, 5_int64)
-    end subroutine test_chars_in_text
+    end subroutine test_characters_in_text
 
     subroutine test_conversion(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: nchars
         character(len=:), allocatable :: s
 
-        call str_as_multibyte("a"//bytes([255, 195, 169]), s, nchars)
-        call check(error, s == "a"//bytes([193, 191, 195, 169]), "str_as_multibyte")
+        call string_as_multibyte("a"//bytes([255, 195, 169]), s, nchars)
+        call check(error, s == "a"//bytes([193, 191, 195, 169]), "string_as_multibyte")
         if (allocated(error)) return
         call check(error, nchars, 3_int64)
         if (allocated(error)) return
         call check(error, count_size_as_multibyte("a"//bytes([233])), 3_int64)
         if (allocated(error)) return
-        call check(error, str_to_multibyte("a"//bytes([233])) == "a"//bytes([193, 169]), &
-                   "str_to_multibyte")
+        call check(error, string_to_multibyte("a"//bytes([233])) == "a"//bytes([193, 169]), &
+                   "string_to_multibyte")
         if (allocated(error)) return
-        call check(error, str_as_unibyte(bytes([193, 169])//"a"//bytes([195, 169])) == &
-                   bytes([233])//"a"//bytes([195, 169]), "str_as_unibyte")
+        call check(error, string_as_unibyte(bytes([193, 169])//"a"//bytes([195, 169])) == &
+                   bytes([233])//"a"//bytes([195, 169]), "string_as_unibyte")
     end subroutine test_conversion
 
-    subroutine test_prev_len(error)
+    subroutine test_previous_length(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: s
 
         s = "a"//bytes([226, 130, 172])//"b"
-        call check(error, raw_prev_char_len(s, 5_int64), 3_int32)
+        call check(error, raw_previous_character_length(s, 5_int64), 3_int32)
         if (allocated(error)) return
-        call check(error, raw_prev_char_len(s, 6_int64), 1_int32)
+        call check(error, raw_previous_character_length(s, 6_int64), 1_int32)
         if (allocated(error)) return
-        call check(error, raw_prev_char_len(s, 2_int64), 1_int32)
-    end subroutine test_prev_len
+        call check(error, raw_previous_character_length(s, 2_int64), 1_int32)
+    end subroutine test_previous_length
 
     subroutine test_modifiers(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, char_resolve_modifier_mask(CHAR_CTL + iachar("a")), 1_int32)
+        call check(error, character_resolve_modifier_mask(CHARACTER_CONTROL + iachar("a")), 1_int32)
         if (allocated(error)) return
-        call check(error, char_resolve_modifier_mask(CHAR_CTL + iachar("A")), 1_int32)
+        call check(error, character_resolve_modifier_mask(CHARACTER_CONTROL + iachar("A")), 1_int32)
         if (allocated(error)) return
-        call check(error, char_resolve_modifier_mask(CHAR_CTL + iachar("[")), 27_int32)
+        call check(error, character_resolve_modifier_mask(CHARACTER_CONTROL + iachar("[")), 27_int32)
         if (allocated(error)) return
-        call check(error, char_resolve_modifier_mask(CHAR_CTL + iachar(" ")), 0_int32)
+        call check(error, character_resolve_modifier_mask(CHARACTER_CONTROL + iachar(" ")), 0_int32)
         if (allocated(error)) return
-        call check(error, char_resolve_modifier_mask(CHAR_CTL + iachar("?")), 127_int32)
+        call check(error, character_resolve_modifier_mask(CHARACTER_CONTROL + iachar("?")), 127_int32)
         if (allocated(error)) return
-        call check(error, char_resolve_modifier_mask(CHAR_SHIFT + iachar("a")), int(iachar("A"), int32))
+        call check(error, character_resolve_modifier_mask(CHARACTER_SHIFT + iachar("a")), int(iachar("A"), int32))
         if (allocated(error)) return
         ! C-% has no ASCII control equivalent: the modifier stays.
-        call check(error, char_resolve_modifier_mask(CHAR_CTL + iachar("%")), CHAR_CTL + iachar("%"))
+        call check(error, character_resolve_modifier_mask(CHARACTER_CONTROL + iachar("%")), CHARACTER_CONTROL + iachar("%"))
         if (allocated(error)) return
         ! M-C-a keeps meta, resolves control.
-        call check(error, char_resolve_modifier_mask(CHAR_META + CHAR_CTL + iachar("a")), CHAR_META + 1_int32)
+        call check(error, character_resolve_modifier_mask(CHARACTER_META + CHARACTER_CONTROL + iachar("a")), &
+                   CHARACTER_META + 1_int32)
         if (allocated(error)) return
         ! Non-ASCII base: untouched.
-        call check(error, char_resolve_modifier_mask(CHAR_CTL + 233_int32), CHAR_CTL + 233_int32)
+        call check(error, character_resolve_modifier_mask(CHARACTER_CONTROL + 233_int32), CHARACTER_CONTROL + 233_int32)
         if (allocated(error)) return
-        ! char_string drops what cannot be folded.
-        call check(error, enc(CHAR_META + iachar("a")) == "a", "M-a not stored as a")
+        ! character_string drops what cannot be folded.
+        call check(error, enc(CHARACTER_META + iachar("a")) == "a", "M-a not stored as a")
     end subroutine test_modifiers
 
     subroutine test_is_functions(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, char_hexdigit(int(iachar("f"), int32)), 15_int32)
+        call check(error, character_hexdigit(int(iachar("f"), int32)), 15_int32)
         if (allocated(error)) return
-        call check(error, char_hexdigit(int(iachar("G"), int32)), -1_int32)
+        call check(error, character_hexdigit(int(iachar("G"), int32)), -1_int32)
         if (allocated(error)) return
-        call check(error, is_char_surrogate(int(z'DABC', int32)), "surrogate")
+        call check(error, is_character_surrogate(int(z'DABC', int32)), "surrogate")
         if (allocated(error)) return
         call check(error, variation_selector_number(int(z'FE0F', int32)), 16_int32)
         if (allocated(error)) return
         call check(error, variation_selector_number(int(z'E0100', int32)), 17_int32)
         if (allocated(error)) return
-        call check(error, is_char_valid(MAX_CHAR) .and. .not. is_char_valid(MAX_CHAR + 1), "is_char_valid")
+        call check(error, is_character_valid(MAXIMUM_CHARACTER) .and. .not. is_character_valid(MAXIMUM_CHARACTER + 1), &
+                   "is_character_valid")
         if (allocated(error)) return
         call check(error, is_leading_code(195_int32) .and. is_trailing_code(169_int32), "lead/trail")
     end subroutine test_is_functions

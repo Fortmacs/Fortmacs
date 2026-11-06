@@ -27,14 +27,15 @@
 module test_timer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER
     use timer_mod, only: execute_with_idle_timer, execute_with_timer, execute_at_time, cancel_timer, destroy_timer, is_timer, &
                          timer_check, timer_start_idle, timer_stop_idle, is_timer_active, is_timer_triggered, &
                          cancel_function_timers, current_idle_time
     use keyboard_mod, only: read_event, set_input_fd, sit_for, discard_input, last_message
-    use system_dependent_mod, only: fortmacs_tty_type, open_pty, close_fd, init_sys_modes, reset_sys_modes, fortmacs_write
+    use system_dependent_mod, only: fortmacs_terminal_type, open_pty, close_fd, initialize_system_modes, reset_system_modes, &
+                                    fortmacs_write
     implicit none(type, external)
     private
 
@@ -91,14 +92,14 @@ contains
         type(status_type) :: st
 
         call fortmacs_write(master, "x", st)
-        call set_error(status, FM_GENERIC_ERROR, "boom")
+        call set_error(status, GENERIC_ERROR_CODE, "boom")
     end subroutine fail_call
 
     !> Fail without typing anything.
     subroutine fail_quiet(status)
         type(status_type), intent(out) :: status
 
-        call set_error(status, FM_GENERIC_ERROR, "boom")
+        call set_error(status, GENERIC_ERROR_CODE, "boom")
     end subroutine fail_quiet
 
     !> Whether no event comes within SECONDS.
@@ -114,7 +115,7 @@ contains
 
     !> Set up a raw pty as the terminal.
     subroutine pty_open(old, ok)
-        type(fortmacs_tty_type), intent(out) :: old
+        type(fortmacs_terminal_type), intent(out) :: old
         logical, intent(out) :: ok
         integer(int32) :: slave
         type(status_type) :: st
@@ -123,7 +124,7 @@ contains
         call discard_input()
         call open_pty(master, slave, st)
         if (.not. st%ok()) return
-        call init_sys_modes(slave, old, st)
+        call initialize_system_modes(slave, old, st)
         if (.not. st%ok()) return
         call set_input_fd(slave)
         slave_fd = slave
@@ -131,10 +132,10 @@ contains
     end subroutine pty_open
 
     subroutine pty_close(old)
-        type(fortmacs_tty_type), intent(in) :: old
+        type(fortmacs_terminal_type), intent(in) :: old
         type(status_type) :: st
 
-        call reset_sys_modes(slave_fd, old, st)
+        call reset_system_modes(slave_fd, old, st)
         call set_input_fd(-1_int32)
         call close_fd(slave_fd)
         call close_fd(master)
@@ -143,27 +144,27 @@ contains
     end subroutine pty_close
 
     !> The next character read from the terminal, or -1.
-    integer function next_char()
+    integer function next_character()
         type(value_type) :: ev
         type(status_type) :: st
         logical :: have
 
-        next_char = -1
+        next_character = -1
         call read_event(ev, have, st)
-        if (have .and. vtag(ev) == V_INTEGER) next_char = int(xfixnum(ev))
-    end function next_char
+        if (have .and. vtag(ev) == V_INTEGER) next_character = int(xfixnum(ev))
+    end function next_character
 
     !> An idle timer runs once Emacs has been idle long enough while
     !> waiting for input, and the wait ends when it is due (no busy
     !> waiting: the wait's timeout is the time to the timer).
     subroutine test_idle_fires(error)
         type(error_type), allocatable, intent(out) :: error
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(handle_type) :: idle, fallback
         type(status_type) :: st
         integer(int32) :: ms
         logical :: ok, idle_p
-        real(real64) :: secs
+        real(real64) :: seconds
 
         call pty_open(old, ok)
         call check(error, ok, "pty")
@@ -176,16 +177,16 @@ contains
         if (allocated(error)) return
         call timer_start_idle()
         ms = timer_check()
-        call current_idle_time(idle_p, secs)
+        call current_idle_time(idle_p, seconds)
         call check(error, ms >= 1 .and. ms <= 50 .and. idle_p, "wait for the idle timer")
         call timer_stop_idle()
         if (allocated(error)) return
         call execute_with_timer(fallback, 5.0_real64, write_z, st)
-        call check(error, next_char() == iachar("x"), "the idle timer ended the wait")
+        call check(error, next_character() == iachar("x"), "the idle timer ended the wait")
         if (allocated(error)) return
         call check(error, is_timer_triggered(idle) .and. .not. is_timer_active(idle), "a one-shot timer is done")
         if (allocated(error)) return
-        call current_idle_time(idle_p, secs)
+        call current_idle_time(idle_p, seconds)
         call check(error,.not. idle_p, "not idle after input")
         call destroy_timer(fallback)
         call destroy_timer(idle)
@@ -195,7 +196,7 @@ contains
     !> A repeated idle timer runs once in each idle period.
     subroutine test_idle_repeat(error)
         type(error_type), allocatable, intent(out) :: error
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(handle_type) :: idle, ordinary, fallback
         type(status_type) :: st
         logical :: ok
@@ -207,13 +208,13 @@ contains
         call execute_with_idle_timer(idle, 0.01_real64, .true., count_call, st)
         call execute_with_timer(ordinary, 0.15_real64, write_y, st)
         call execute_with_timer(fallback, 5.0_real64, write_z, st)
-        call check(error, next_char() == iachar("y"), "first wait")
+        call check(error, next_character() == iachar("y"), "first wait")
         if (allocated(error)) return
         call check(error, calls == 1 .and. is_timer_active(idle), "once in the first idle period")
         if (allocated(error)) return
         call destroy_timer(ordinary)
         call execute_with_timer(ordinary, 0.1_real64, write_y, st)
-        call check(error, next_char() == iachar("y"), "second wait")
+        call check(error, next_character() == iachar("y"), "second wait")
         if (allocated(error)) return
         call check(error, calls == 2, "once more in the second idle period")
         call destroy_timer(idle)
@@ -226,7 +227,7 @@ contains
     !> (Emacs is not idle during a command).
     subroutine test_sit_for(error)
         type(error_type), allocatable, intent(out) :: error
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(handle_type) :: ordinary, idle
         type(status_type) :: st
         logical :: ok
@@ -275,7 +276,7 @@ contains
     !> (timer-event-handler's message) and the command loop goes on.
     subroutine test_error(error)
         type(error_type), allocatable, intent(out) :: error
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(handle_type) :: a, fallback
         type(status_type) :: st
         logical :: ok
@@ -285,7 +286,7 @@ contains
         if (allocated(error)) return
         call execute_with_timer(a, 0.01_real64, fail_call, st)
         call execute_with_timer(fallback, 5.0_real64, write_z, st)
-        call check(error, next_char() == iachar("x"), "the failing timer ran")
+        call check(error, next_character() == iachar("x"), "the failing timer ran")
         if (allocated(error)) return
         ! Reading the key wiped the echo area; a failing timer that types
         ! nothing leaves its message.

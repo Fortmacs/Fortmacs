@@ -19,44 +19,52 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The Subversion backend of VC: whether a file is registered and its
+!> The Subversion backend of VERSION_CONTROL: whether a file is registered and its
 !> state (from `svn status -v'), its working revision, the root of a
 !> working copy, creating a repository (svnadmin create and a checkout),
 !> registering, checking out, reverting, deleting and renaming files,
 !> diffs, other revisions (svn cat), the previous revision, revision
-!> completion, committing, logs (`vc_svn_log_view_mode') and the VC-Dir
+!> completion, committing, logs (`version_control_subversion_log_view_mode') and the VC-Dir
 !> states (`svn status -u') and headers.
 !>
 !> Deferred: see docs/status/version_control_subversion_mod.md.
 module version_control_subversion_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use data_mod, only: string_to_number
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, &
                           generate_new_buffer_name, is_buffer_live, get_file_buffer
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_substring, line_end_position, &
-                                     line_beginning_position, char_after
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_substring, line_end_position, &
+                                     line_beginning_position, character_after
     use insert_delete_mod, only: insert
-    use search_mod, only: re_search_forward, search_forward, match_beginning, SEARCH_NOERROR
+    use search_mod, only: regular_expression_search_forward, search_forward, match_beginning, SEARCH_NOERROR
     use basic_subprograms_mod, only: match_string
     use file_input_output_mod, only: expand_file_name, file_name_directory, file_exists, is_file_accessible_directory, &
-                                     file_attributes, file_stat_type
+                                     file_attributes, file_status_type
     use files_mod, only: file_relative_name
     use display_engine_mod, only: message
     use window_mod, only: pop_to_buffer, shrink_window_if_larger_than_buffer
-    use version_control_hooks_mod, only: vc_backends, vc_switches_type, register_vc_backend, &
-                                         vc_find_root, vc_backend_named, vc_working_revision, vc_mode_line, vc_dir_entry_type, &
-                                      vc_dir_update_procedure, vc_file_set_state, vc_file_get_state, vc_file_set_working_revision, &
-                                         vc_file_get_working_revision, vc_file_set_checkout_time, vc_log_limit_type, &
-                                         VC_SWITCHES_NONE, VC_SWITCHES_UNSPECIFIED, VC_SWITCHES_LIST, VC_LIMIT_NUMBER, &
-                                         VC_LIMIT_REVISION, VC_MODEL_IMPLICIT, VC_STATE_UNKNOWN, VC_UP_TO_DATE, VC_EDITED, &
-                                         VC_NEEDS_UPDATE, VC_NEEDS_MERGE, VC_ADDED, VC_REMOVED, VC_CONFLICT, VC_IGNORED, &
-                                         VC_UNREGISTERED
-    use version_control_dispatcher_mod, only: vc_do_command, vc_setup_buffer, vc_exec_after, vc_action_type, &
-                                              VC_OKSTATUS_UNLESS_SIGNAL, VC_OKSTATUS_ASYNC, VC_DEST_CURRENT
-    use version_control_mod, only: vc_switches, vc_log_view_type, VC_LOG_VIEW_WITH_DIFF
-    use fortmacs_widget_for_object_collections_mod, only: ewoc_part_type
+    use version_control_hooks_mod, only: version_control_backends, version_control_switches_type, &
+                                         register_version_control_backend, version_control_find_root, &
+                                         version_control_backend_named, version_control_working_revision, &
+                                         version_control_mode_line, version_control_directory_entry_type, &
+                                         version_control_directory_update_procedure, version_control_file_set_state, &
+                                         version_control_file_get_state, version_control_file_set_working_revision, &
+                                         version_control_file_get_working_revision, version_control_file_set_checkout_time, &
+                                         version_control_log_limit_type, VERSION_CONTROL_SWITCHES_NONE, &
+                                         VERSION_CONTROL_SWITCHES_UNSPECIFIED, VERSION_CONTROL_SWITCHES_LIST, &
+                                         VERSION_CONTROL_LIMIT_NUMBER, VERSION_CONTROL_LIMIT_REVISION, &
+                                         VERSION_CONTROL_MODEL_IMPLICIT, VERSION_CONTROL_STATE_UNKNOWN, &
+                                         VERSION_CONTROL_UP_TO_DATE, VERSION_CONTROL_EDITED, VERSION_CONTROL_NEEDS_UPDATE, &
+                                         VERSION_CONTROL_NEEDS_MERGE, VERSION_CONTROL_ADDED, VERSION_CONTROL_REMOVED, &
+                                         VERSION_CONTROL_CONFLICT, VERSION_CONTROL_IGNORED, VERSION_CONTROL_UNREGISTERED
+    use version_control_dispatcher_mod, only: version_control_do_command, version_control_setup_buffer, &
+                                              version_control_exec_after, version_control_action_type, &
+                                              VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, &
+                                              VERSION_CONTROL_DESTINATION_CURRENT
+    use version_control_mod, only: version_control_switches, version_control_log_view_type, VERSION_CONTROL_LOG_VIEW_WITH_DIFF
+    use fortmacs_widget_for_object_collections_mod, only: fortmacs_widget_for_object_collections_part_type
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: major_modes
@@ -65,53 +73,57 @@ module version_control_subversion_mod
     implicit none(type, external)
     private
 
-    public :: init_vc_svn, vc_svn_registered, vc_svn_state, vc_svn_parse_status, vc_svn_working_revision, &
-              vc_svn_root, vc_svn_command, vc_svn_previous_revision, vc_svn_revision_table, vc_svn_log_view_mode
+    public :: initialize_version_control_subversion, version_control_subversion_registered, version_control_subversion_state, &
+              version_control_subversion_parse_status, version_control_subversion_working_revision, &
+              version_control_subversion_root, version_control_subversion_command, version_control_subversion_previous_revision, &
+              version_control_subversion_revision_table, version_control_subversion_log_view_mode
 
-    !> Name of the SVN executable.  Port of vc-svn.el vc-svn-program.
-    character(len=:), allocatable, public :: vc_svn_program
+    !> Name of the SUBVERSION executable.  Port of vc-svn.el vc-svn-program.
+    character(len=:), allocatable, public :: version_control_subversion_program
 
-    !> Global switches to pass to any SVN command.
-    !> The option "--non-interactive" is often needed to prevent SVN
+    !> Global switches to pass to any SUBVERSION command.
+    !> The option "--non-interactive" is often needed to prevent SUBVERSION
     !> hanging while prompting for authorization.  Port of vc-svn.el
-    !> vc-svn-global-switches (VC_SWITCHES_LIST: the switches; any other
+    !> vc-svn-global-switches (VERSION_CONTROL_SWITCHES_LIST: the switches; any other
     !> kind: none).
-    type(vc_switches_type), public :: vc_svn_global_switches
+    type(version_control_switches_type), public :: version_control_subversion_global_switches
 
-    !> Switches for registering a file into SVN.
+    !> Switches for registering a file into SUBVERSION.
     !> A string or list of strings passed to the checkin program by
-    !> \[vc_register].  If VC_SWITCHES_UNSPECIFIED, use the value of `vc_register_switches'.
-    !> If VC_SWITCHES_NONE, use no switches.  Port of vc-svn.el vc-svn-register-switches.
-    type(vc_switches_type), target, public :: vc_svn_register_switches
+    !> \[version_control_register].  If VERSION_CONTROL_SWITCHES_UNSPECIFIED, use the value of `version_control_register_switches'.
+    !> If VERSION_CONTROL_SWITCHES_NONE, use no switches.  Port of vc-svn.el vc-svn-register-switches.
+    type(version_control_switches_type), target, public :: version_control_subversion_register_switches
 
-    !> String or list of strings specifying extra switches for svn diff under VC.
-    !> If VC_SWITCHES_UNSPECIFIED, use the value of `vc_diff_switches' (or `diff_switches'),
+    !> String or list of strings specifying extra switches for svn diff under VERSION_CONTROL.
+    !> If VERSION_CONTROL_SWITCHES_UNSPECIFIED, use the value of `version_control_diff_switches' (or `diff_switches'),
     !> together with "-x --diff-cmd="`diff_command' (since `svn diff'
     !> does not support the default "-c" value of `diff_switches').
-    !> If you want to force an empty list of arguments, use VC_SWITCHES_NONE.  Port of
+    !> If you want to force an empty list of arguments, use VERSION_CONTROL_SWITCHES_NONE.  Port of
     !> vc-svn.el vc-svn-diff-switches.
-    type(vc_switches_type), target, public :: vc_svn_diff_switches = vc_switches_type(kind=VC_SWITCHES_NONE)
+    type(version_control_switches_type), target, public :: version_control_subversion_diff_switches = &
+                                                           version_control_switches_type(kind=VERSION_CONTROL_SWITCHES_NONE)
 
     !> The name of the ".svn" subdirectory or its equivalent.  Port of
     !> vc-svn.el vc-svn-admin-directory.
-    character(len=*), parameter, public :: vc_svn_admin_directory = ".svn"
+    character(len=*), parameter, public :: version_control_subversion_admin_directory = ".svn"
 
     !> Hook run after entering SVN-Log-View mode.
-    type(hook_type), target, public :: vc_svn_log_view_mode_hook = hook_type(name="vc_svn_log_view_mode_hook")
+    type(hook_type), target, public :: version_control_subversion_log_view_mode_hook = hook_type( &
+                                       name="version_control_subversion_log_view_mode_hook")
 
-    !> The keymap of `vc_svn_log_view_mode'.
-    type(handle_type), public :: vc_svn_log_view_mode_map
+    !> The keymap of `version_control_subversion_log_view_mode'.
+    type(handle_type), public :: version_control_subversion_log_view_mode_map
 
-    ! A `dir_status_files' computation in progress: its update function
+    ! A `directory_status_files' computation in progress: its update function
     ! (vc-svn-after-dir-status's CALLBACK) and VC-Dir buffer.
-    type :: dir_status_state_type
+    type :: directory_status_state_type
         logical :: live = .false.
-        procedure(vc_dir_update_procedure), pointer, nopass :: update_function => null()
+        procedure(version_control_directory_update_procedure), pointer, nopass :: update_function => null()
         type(handle_type) :: buffer
-    end type dir_status_state_type
+    end type directory_status_state_type
 
-    ! The computations of `vc_svn_dir_status_files' in progress.
-    type(dir_status_state_type), allocatable :: dir_states(:)
+    ! The computations of `version_control_subversion_directory_status_files' in progress.
+    type(directory_status_state_type), allocatable :: directory_states(:)
 
     character, parameter :: LF = achar(10)
 
@@ -121,12 +133,12 @@ contains
     ! Internal functions
     ! ------------------------------------------------------------------
 
-    !> A wrapper around `vc_do_command' for use in version_control_subversion_mod.
-    !> The difference to `vc_do_command' is that this function always invokes `svn',
-    !> and that it passes `vc_svn_global_switches' to it before FLAGS.
+    !> A wrapper around `version_control_do_command' for use in version_control_subversion_mod.
+    !> The difference to `version_control_do_command' is that this function always invokes `subversion',
+    !> and that it passes `version_control_subversion_global_switches' to it before FLAGS.
     !> BUFFER is the output buffer (*vc* if absent and CURRENT false; the
     !> current buffer with CURRENT).  Port of vc-svn.el:vc-svn-command.
-    recursive subroutine vc_svn_command(okstatus, files, flags, status, buffer, current, exit_status, process)
+    recursive subroutine version_control_subversion_command(okstatus, files, flags, status, buffer, current, exit_status, process)
         integer, intent(in) :: okstatus
         type(string_type), intent(in) :: files(:), flags(:)
         type(status_type), intent(out) :: status
@@ -141,8 +153,8 @@ contains
         status = status_type()
         allocate (all(0))
 
-        if (vc_svn_global_switches%kind == VC_SWITCHES_LIST) then
-            if (allocated(vc_svn_global_switches%list)) all = vc_svn_global_switches%list
+        if (version_control_subversion_global_switches%kind == VERSION_CONTROL_SWITCHES_LIST) then
+            if (allocated(version_control_subversion_global_switches%list)) all = version_control_subversion_global_switches%list
         end if
 
         call append_all(all, flags)
@@ -150,8 +162,9 @@ contains
         if (present(current)) in_current = current
 
         if (in_current) then
-            call vc_do_command(VC_DEST_CURRENT, okstatus, vc_svn_program, files, all, status, exit_status=exit_status, &
-                               process=process)
+            call version_control_do_command(VERSION_CONTROL_DESTINATION_CURRENT, okstatus, version_control_subversion_program, &
+                                            files, all, status, exit_status=exit_status, &
+                                            process=process)
         else
             if (present(buffer)) then
                 buffer_handle = buffer
@@ -160,10 +173,11 @@ contains
                 if (.not. status%ok()) return
             end if
 
-            call vc_do_command(VC_DEST_CURRENT, okstatus, vc_svn_program, files, all, status, buffer=buffer_handle, &
-                               exit_status=exit_status, process=process)
+            call version_control_do_command(VERSION_CONTROL_DESTINATION_CURRENT, okstatus, version_control_subversion_program, &
+                                            files, all, status, buffer=buffer_handle, &
+                                            exit_status=exit_status, process=process)
         end if
-    end subroutine vc_svn_command
+    end subroutine version_control_subversion_command
 
     !> Append the strings MORE to LIST.  Not a port.
     subroutine append_all(list, more)
@@ -191,50 +205,50 @@ contains
     end function strings
 
     !> The current buffer's `default_directory'.  Not a port.
-    function buffer_directory() result(dir)
-        character(len=:), allocatable :: dir
+    function buffer_directory() result(directory)
+        character(len=:), allocatable :: directory
 
-        dir = "./"
+        directory = "./"
         if (current == 0) return
-        if (allocated(buffers(current)%directory)) dir = buffers(current)%directory
+        if (allocated(buffers(current)%directory)) directory = buffers(current)%directory
     end function buffer_directory
 
-    !> Make a temporary buffer current (with-temp-buffer), with DIR as its
+    !> Make a temporary buffer current (with-temp-buffer), with DIRECTORY as its
     !> `default_directory'; OLD is the buffer to go back to.  Not a port.
-    subroutine temp_begin(old, tmp, dir)
-        type(handle_type), intent(out) :: old, tmp
-        character(len=*), intent(in) :: dir
+    subroutine temporary_begin(old, temporary, directory)
+        type(handle_type), intent(out) :: old, temporary
+        character(len=*), intent(in) :: directory
         type(status_type) :: st
 
         old = current_buffer()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, st)
-        call set_buffer(tmp, st)
-        buffers(current)%directory = dir
-    end subroutine temp_begin
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, st)
+        call set_buffer(temporary, st)
+        buffers(current)%directory = directory
+    end subroutine temporary_begin
 
-    !> Kill the temporary buffer TMP and make OLD current again.  Not a port.
-    subroutine temp_end(old, tmp)
-        type(handle_type), intent(in) :: old, tmp
+    !> Kill the temporary buffer TEMPORARY and make OLD current again.  Not a port.
+    subroutine temporary_end(old, temporary)
+        type(handle_type), intent(in) :: old, temporary
         type(status_type) :: st
 
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call set_buffer(old, st)
-    end subroutine temp_end
+    end subroutine temporary_end
 
-    !> The index of the SVN backend.  Not a port.
-    integer function svn_backend_index() result(b)
-        b = vc_backend_named("SVN")
-    end function svn_backend_index
+    !> The index of the SUBVERSION backend.  Not a port.
+    integer function subversion_backend_index() result(b)
+        b = version_control_backend_named("SVN")
+    end function subversion_backend_index
 
     ! ------------------------------------------------------------------
     ! State-querying functions
     ! ------------------------------------------------------------------
 
-    !> Check if FILE is SVN registered.  Port of vc-svn.el:vc-svn-registered.
-    logical function vc_svn_registered(file) result(registered)
+    !> Check if FILE is SUBVERSION registered.  Port of vc-svn.el:vc-svn-registered.
+    logical function version_control_subversion_registered(file) result(registered)
         character(len=*), intent(in) :: file
-        character(len=:), allocatable :: abs, root, dir
-        type(handle_type) :: old, tmp
+        character(len=:), allocatable :: abs, root, directory
+        type(handle_type) :: old, temporary
         type(status_type) :: st
         logical :: found
         integer :: code, parsed
@@ -242,61 +256,63 @@ contains
         registered = .false.
         call expand_file_name(file, abs, st)
         if (.not. st%ok()) return
-        call vc_svn_root(abs, root, found)
+        call version_control_subversion_root(abs, root, found)
         if (.not. found) return
-        dir = file_name_directory(abs)
-        if (.not. is_file_accessible_directory(dir)) return
-        call temp_begin(old, tmp, dir)
+        directory = file_name_directory(abs)
+        if (.not. is_file_accessible_directory(directory)) return
+        call temporary_begin(old, temporary, directory)
         ! Ignore all errors.
-        call vc_svn_command(VC_OKSTATUS_UNLESS_SIGNAL, strings(abs), strings("status", "-v"), st, current=.true., &
-                            exit_status=code)
+        call version_control_subversion_command(VERSION_CONTROL_OKSTATUS_UNLESS_SIGNAL, strings(abs), strings("status", "-v"), st, &
+                                                current=.true., &
+                                                exit_status=code)
 
-        ! Some problem happened.  E.g. We can't find an `svn' executable.
+        ! Some problem happened.  E.g. We can't find an `subversion' executable.
         if (st%ok() .and. code == 0) then
-            parsed = vc_svn_parse_status(abs)
-            registered = parsed /= VC_STATE_UNKNOWN .and. parsed /= VC_IGNORED .and. parsed /= VC_UNREGISTERED
+            parsed = version_control_subversion_parse_status(abs)
+            registered = parsed /= VERSION_CONTROL_STATE_UNKNOWN .and. parsed /= VERSION_CONTROL_IGNORED .and. parsed &
+                         /= VERSION_CONTROL_UNREGISTERED
         end if
 
-        call temp_end(old, tmp)
-    end function vc_svn_registered
+        call temporary_end(old, temporary)
+    end function version_control_subversion_registered
 
-    !> SVN-specific version of `vc_state'.  Port of vc-svn.el:vc-svn-state.
-    integer function vc_svn_state(file) result(state)
+    !> SVN-specific version of `version_control_state'.  Port of vc-svn.el:vc-svn-state.
+    integer function version_control_subversion_state(file) result(state)
         character(len=*), intent(in) :: file
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
-        dir = file_name_directory(file)
-        if (len(dir) == 0) dir = buffer_directory()
-        call temp_begin(old, tmp, dir)
-        call vc_svn_command(0, strings(file), strings("status", "-v"), st, current=.true.)
-        state = vc_svn_parse_status(file)
-        call temp_end(old, tmp)
-    end function vc_svn_state
+        directory = file_name_directory(file)
+        if (len(directory) == 0) directory = buffer_directory()
+        call temporary_begin(old, temporary, directory)
+        call version_control_subversion_command(0, strings(file), strings("status", "-v"), st, current=.true.)
+        state = version_control_subversion_parse_status(file)
+        call temporary_end(old, temporary)
+    end function version_control_subversion_state
 
     !> Parse output of "svn status" command in the current buffer.
     !> Set file properties accordingly.  If FILENAME is present, return its
-    !> status (VC_STATE_UNKNOWN otherwise).  Port of
+    !> status (VERSION_CONTROL_STATE_UNKNOWN otherwise).  Port of
     !> vc-svn.el:vc-svn-parse-status (Svn's own status, the
     !> `vc-svn-status' property, is not kept: only the deferred
     !> `vc-svn-find-file-hook' reads it).
-    integer function vc_svn_parse_status(filename) result(state)
+    integer function version_control_subversion_parse_status(filename) result(state)
         character(len=*), intent(in), optional :: filename
         character(len=:), allocatable :: file, rest
-        type(file_stat_type) :: attr
+        type(file_status_type) :: attribute
         type(status_type) :: st
         integer(int64) :: found
         integer(int32) :: status, propstat, flag
-        logical :: multifile, has, has_attr
+        logical :: multifile, has, has_attribute
 
-        state = VC_STATE_UNKNOWN
+        state = VERSION_CONTROL_STATE_UNKNOWN
         multifile = .false.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward("^\(?:\?\|[ ACDGIMR!~][ MC][ L][ +][ SX]..\([ *]\) +\([-0-9]+\) +\([0-9?]+\) " &
-                                   //"+\([^ ]+\)\) +", found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("^\(?:\?\|[ ACDGIMR!~][ MC][ L][ +][ SX]..\([ *]\) +\([-0-9]+\) +\([0-9?]+\) " &
+                                                   //"+\([^ ]+\)\) +", found, st, noerror=SEARCH_NOERROR)
             if (found == 0) exit
             ! If the username contains spaces, the output format is ambiguous,
             ! so don't trust the output's filename unless we have to.
@@ -314,183 +330,184 @@ contains
             ! We assume that filename, if supplied, applies to the first
             ! listed file (ie, the directory).  Bug#15322.
             multifile = .true.
-            call char_after(status, has, line_beginning_position())
+            call character_after(status, has, line_beginning_position())
             ! Status of the item's properties ([ MC]).
-            call char_after(propstat, has, line_beginning_position() + 1)
+            call character_after(propstat, has, line_beginning_position() + 1)
 
             if (status == iachar("?")) then
-                call vc_file_set_state(file, VC_UNREGISTERED)
+                call version_control_file_set_state(file, VERSION_CONTROL_UNREGISTERED)
                 cycle
             end if
 
             ! Use the last-modified revision, so that searching in vc-print-log
             ! output works.
-            call vc_file_set_working_revision(file, match_string(3))
-            call char_after(flag, has, match_beginning(1, st))
+            call version_control_file_set_working_revision(file, match_string(3))
+            call character_after(flag, has, match_beginning(1, st))
 
             if (status == iachar(" ") .and. propstat == iachar(" ")) then
                 if (flag == iachar("*")) then
-                    call vc_file_set_state(file, VC_NEEDS_UPDATE)
+                    call version_control_file_set_state(file, VERSION_CONTROL_NEEDS_UPDATE)
                 else
-                    call file_attributes(file, attr, has_attr)
+                    call file_attributes(file, attribute, has_attribute)
 
-                    if (has_attr) then
-                        call vc_file_set_checkout_time(file, attr%mtime_sec, attr%mtime_nsec)
+                    if (has_attribute) then
+                        call version_control_file_set_checkout_time(file, attribute%mtime_second, attribute%mtime_nsec)
                     else
-                        call vc_file_set_checkout_time(file)
+                        call version_control_file_set_checkout_time(file)
                     end if
 
-                    call vc_file_set_state(file, VC_UP_TO_DATE)
+                    call version_control_file_set_state(file, VERSION_CONTROL_UP_TO_DATE)
                 end if
             else if (status == iachar("A")) then
                 ! If the file was actually copied, (match-string 2) is "-".
-                call vc_file_set_working_revision(file, "0")
-                call vc_file_set_checkout_time(file, 0_int64, 0_int32)
-                call vc_file_set_state(file, VC_ADDED)
+                call version_control_file_set_working_revision(file, "0")
+                call version_control_file_set_checkout_time(file, 0_int64, 0_int32)
+                call version_control_file_set_state(file, VERSION_CONTROL_ADDED)
             else if (status == iachar("C") .or. propstat == iachar("C")) then
                 ! Conflict in contents or properties.
-                call vc_file_set_state(file, VC_CONFLICT)
+                call version_control_file_set_state(file, VERSION_CONTROL_CONFLICT)
             else if (status == iachar("M") .or. propstat == iachar("M")) then
                 ! Modified contents or properties.
                 if (flag == iachar("*")) then
-                    call vc_file_set_state(file, VC_NEEDS_MERGE)
+                    call version_control_file_set_state(file, VERSION_CONTROL_NEEDS_MERGE)
                 else
-                    call vc_file_set_state(file, VC_EDITED)
+                    call version_control_file_set_state(file, VERSION_CONTROL_EDITED)
                 end if
             else if (status == iachar("I")) then
-                call vc_file_set_state(file, VC_IGNORED)
+                call version_control_file_set_state(file, VERSION_CONTROL_IGNORED)
             else if (status == iachar("D") .or. status == iachar("R")) then
-                call vc_file_set_state(file, VC_REMOVED)
+                call version_control_file_set_state(file, VERSION_CONTROL_REMOVED)
             else
-                call vc_file_set_state(file, VC_EDITED)
+                call version_control_file_set_state(file, VERSION_CONTROL_EDITED)
             end if
         end do
 
-        if (present(filename)) state = vc_file_get_state(filename)
-    end function vc_svn_parse_status
+        if (present(filename)) state = version_control_file_get_state(filename)
+    end function version_control_subversion_parse_status
 
-    !> SVN-specific version of `vc_working_revision'.  Port of
+    !> SVN-specific version of `version_control_working_revision'.  Port of
     !> vc-svn.el:vc-svn-working-revision.
-    subroutine vc_svn_working_revision(file, rev, found)
+    subroutine version_control_subversion_working_revision(file, revision, found)
         character(len=*), intent(in) :: file
-        character(len=:), allocatable, intent(out) :: rev
+        character(len=:), allocatable, intent(out) :: revision
         logical, intent(out) :: found
         character(len=:), allocatable :: abs
         type(status_type) :: st
         logical :: registered
 
-        ! There is no need to consult RCS headers under SVN, because we
+        ! There is no need to consult RCS headers under SUBVERSION, because we
         ! get the workfile version for free when we recognize that a file
-        ! is registered in SVN.
-        registered = vc_svn_registered(file)
+        ! is registered in SUBVERSION.
+        registered = version_control_subversion_registered(file)
         call expand_file_name(file, abs, st)
         if (.not. st%ok()) abs = file
-        call vc_file_get_working_revision(abs, rev, found)
-    end subroutine vc_svn_working_revision
+        call version_control_file_get_working_revision(abs, revision, found)
+    end subroutine version_control_subversion_working_revision
 
-    !> The revision before REV ("" and FOUND false for none).  Port of
+    !> The revision before REVISION ("" and FOUND false for none).  Port of
     !> vc-svn.el:vc-svn-previous-revision.
-    subroutine vc_svn_previous_revision(file, rev, prev, found)
-        character(len=*), intent(in) :: file, rev
-        character(len=:), allocatable, intent(out) :: prev
+    subroutine version_control_subversion_previous_revision(file, revision, previous, found)
+        character(len=*), intent(in) :: file, revision
+        character(len=:), allocatable, intent(out) :: previous
         logical, intent(out) :: found
         integer(int64) :: newrev
         character(len=20) :: digits
 
-        prev = ""
-        if (len(file) < 0) prev = ""
-        call string_to_number(rev, newrev)
+        previous = ""
+        if (len(file) < 0) previous = ""
+        call string_to_number(revision, newrev)
         newrev = newrev - 1
         found = 0 < newrev
 
         if (found) then
             write (digits, "(i0)") newrev
-            prev = trim(digits)
+            previous = trim(digits)
         end if
-    end subroutine vc_svn_previous_revision
+    end subroutine version_control_subversion_previous_revision
 
     !> The revisions of FILES, from `svn log -q'.  Port of
     !> vc-svn.el:vc-svn-revision-table (as vc-svn-revision-completion-table).
-    subroutine vc_svn_revision_table(files, table)
+    subroutine version_control_subversion_revision_table(files, table)
         type(string_type), intent(in) :: files(:)
         type(string_type), allocatable, intent(out) :: table(:)
-        type(handle_type) :: old, vc
+        type(handle_type) :: old, version_control
         type(status_type) :: st
         integer(int64) :: found
 
         allocate (table(0))
         old = current_buffer()
-        call get_or_make_buffer("*vc*", vc, st)
+        call get_or_make_buffer("*vc*", version_control, st)
         if (.not. st%ok()) return
-        call set_buffer(vc, st)
-        call vc_svn_command(0, files, strings("log", "-q"), st)
-        call set_buffer(vc, st)
-        call goto_char(point_min())
+        call set_buffer(version_control, st)
+        call version_control_subversion_command(0, files, strings("log", "-q"), st)
+        call set_buffer(version_control, st)
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward("^r\([0-9]+\) ", found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("^r\([0-9]+\) ", found, st, noerror=SEARCH_NOERROR)
             if (found == 0) exit
             ! (push (match-string 1 loglines) vc-svn-revisions)
             call prepend_string(table, match_string(1))
         end do
 
         call set_buffer(old, st)
-    end subroutine vc_svn_revision_table
+    end subroutine version_control_subversion_revision_table
 
     !> The root of FILE's working copy (the directory with .svn).  Port of
     !> vc-svn.el:vc-svn-root.
-    subroutine vc_svn_root(file, root, found)
+    subroutine version_control_subversion_root(file, root, found)
         character(len=*), intent(in) :: file
         character(len=:), allocatable, intent(out) :: root
         logical, intent(out) :: found
 
-        call vc_find_root(file, vc_svn_admin_directory, root, found)
-    end subroutine vc_svn_root
+        call version_control_find_root(file, version_control_subversion_admin_directory, root, found)
+    end subroutine version_control_subversion_root
 
-    !> SVN's checkout model: `implicit'.  Port of
+    !> SUBVERSION's checkout model: `implicit'.  Port of
     !> vc-svn.el:vc-svn-checkout-model.
-    integer function vc_svn_checkout_model(files) result(model)
+    integer function version_control_subversion_checkout_model(files) result(model)
         type(string_type), intent(in) :: files(:)
 
-        model = VC_MODEL_IMPLICIT
+        model = VERSION_CONTROL_MODEL_IMPLICIT
         if (size(files) < 0) model = 0
-    end function vc_svn_checkout_model
+    end function version_control_subversion_checkout_model
 
     ! ------------------------------------------------------------------
     ! State-changing functions
     ! ------------------------------------------------------------------
 
-    !> Create a new SVN repository.  Port of vc-svn.el:vc-svn-create-repo.
-    recursive subroutine vc_svn_create_repo(status)
+    !> Create a new SUBVERSION repository.  Port of vc-svn.el:vc-svn-create-repo.
+    recursive subroutine version_control_subversion_create_repository(status)
         type(status_type), intent(out) :: status
         type(string_type) :: none(0)
-        type(handle_type) :: vc
-        character(len=:), allocatable :: defdir, url
+        type(handle_type) :: version_control
+        character(len=:), allocatable :: default_directory, url
 
-        call get_or_make_buffer("*vc*", vc, status)
+        call get_or_make_buffer("*vc*", version_control, status)
         if (.not. status%ok()) return
-        call vc_do_command(VC_DEST_CURRENT, 0, "svnadmin", none, strings("create", "SVN"), status, buffer=vc)
+        call version_control_do_command(VERSION_CONTROL_DESTINATION_CURRENT, 0, "svnadmin", none, strings("create", "SVN"), &
+                                        status, buffer=version_control)
         if (.not. status%ok()) return
         ! Expand default-directory because svn gets confused by eg
         ! file://~/path/to/file.  (Bug#15446).
-        call expand_file_name(buffer_directory(), defdir, status)
+        call expand_file_name(buffer_directory(), default_directory, status)
         if (.not. status%ok()) return
         ! MS-Windows files d:/foo/bar need to begin with 3 leading slashes.
         url = "file:///"
 
-        if (len(defdir) > 0) then
-            if (defdir(1:1) == "/") url = "file://"
+        if (len(default_directory) > 0) then
+            if (default_directory(1:1) == "/") url = "file://"
         end if
 
-        url = url//defdir//"SVN"
-        call vc_svn_command(0, strings("."), strings("checkout", url), status, buffer=vc)
-    end subroutine vc_svn_create_repo
+        url = url//default_directory//"SVN"
+        call version_control_subversion_command(0, strings("."), strings("checkout", url), status, buffer=version_control)
+    end subroutine version_control_subversion_create_repository
 
-    !> Register FILES into the SVN version control system.
+    !> Register FILES into the SUBVERSION version control system.
     !> The COMMENT argument is ignored  This does an add but not a commit.
-    !> Passes either `vc_svn_register_switches' or `vc_register_switches'
-    !> to the SVN command.  Port of vc-svn.el:vc-svn-register.
-    recursive subroutine vc_svn_register(files, status, comment)
+    !> Passes either `version_control_subversion_register_switches' or `version_control_register_switches'
+    !> to the SUBVERSION command.  Port of vc-svn.el:vc-svn-register.
+    recursive subroutine version_control_subversion_register(files, status, comment)
         type(string_type), intent(in) :: files(:)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: comment
@@ -498,46 +515,46 @@ contains
 
         if (present(comment)) continue
         flags = strings("add")
-        call vc_switches(svn_backend_index(), "register", sw)
+        call version_control_switches(subversion_backend_index(), "register", sw)
         call append_all(flags, sw)
-        call vc_svn_command(0, files, flags, status)
-    end subroutine vc_svn_register
+        call version_control_subversion_command(0, files, flags, status)
+    end subroutine version_control_subversion_register
 
-    !> SVN-specific version of `vc_backend_checkin'.  Port of
+    !> SVN-specific version of `version_control_backend_checkin'.  Port of
     !> vc-svn.el:vc-svn-checkin.
-    recursive subroutine vc_svn_checkin(files, comment, status, rev)
+    recursive subroutine version_control_subversion_checkin(files, comment, status, revision)
         use help_mod, only: substitute_command_keys
         type(string_type), intent(in) :: files(:)
         character(len=*), intent(in) :: comment
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: rev
+        character(len=*), intent(in), optional :: revision
         type(log_edit_header_type) :: no_headers(0)
         type(string_type), allocatable :: extracted(:)
         type(string_type), allocatable :: flags(:), sw(:)
-        character(len=:), allocatable :: msg
-        type(handle_type) :: old, vc
+        character(len=:), allocatable :: message
+        type(handle_type) :: old, version_control
         type(status_type) :: st
         integer(int64) :: found
         integer :: code, k
 
-        if (present(rev)) continue
-        call log_edit_extract_headers(no_headers, comment, msg, extracted, status)
+        if (present(revision)) continue
+        call log_edit_extract_headers(no_headers, comment, message, extracted, status)
         if (.not. status%ok()) return
-        flags = strings("ci", "-m", msg)
+        flags = strings("ci", "-m", message)
 
         do k = 1, size(extracted)
             call append_string(flags, extracted(k)%text)
         end do
 
-        call vc_switches(svn_backend_index(), "checkin", sw)
+        call version_control_switches(subversion_backend_index(), "checkin", sw)
         call append_all(flags, sw)
         old = current_buffer()
-        call vc_svn_command(1, files, flags, status, exit_status=code)
+        call version_control_subversion_command(1, files, flags, status, exit_status=code)
         if (.not. status%ok()) return
-        call get_or_make_buffer("*vc*", vc, status)
+        call get_or_make_buffer("*vc*", version_control, status)
         if (.not. status%ok()) return
-        call set_buffer(vc, st)
-        call goto_char(point_min())
+        call set_buffer(version_control, st)
+        call goto_character(point_minimum())
 
         if (code /= 0) then
             ! Check checkin problem.
@@ -545,28 +562,29 @@ contains
 
             if (found /= 0) then
                 do k = 1, size(files)
-                    call vc_file_set_state(files(k)%text, VC_NEEDS_MERGE)
+                    call version_control_file_set_state(files(k)%text, VERSION_CONTROL_NEEDS_MERGE)
                 end do
 
-                call set_error(status, FM_GENERIC_ERROR, &
-                               substitute_command_keys("Up-to-date check failed: type \[vc_next_action] to merge in changes"))
+                call set_error(status, GENERIC_ERROR_CODE, &
+                               substitute_command_keys( &
+                               "Up-to-date check failed: type \[version_control_next_action] to merge in changes"))
             else
                 call pop_to_buffer(current_buffer(), st)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
                 call shrink_window_if_larger_than_buffer()
-                call set_error(status, FM_GENERIC_ERROR, "Check-in failed")
+                call set_error(status, GENERIC_ERROR_CODE, "Check-in failed")
             end if
 
             return
         end if
 
         call set_buffer(old, st)
-    end subroutine vc_svn_checkin
+    end subroutine version_control_subversion_checkin
 
     !> SVN-specific retrieval of a specified version into a buffer.  Port of
     !> vc-svn.el:vc-svn-find-revision.
-    recursive subroutine vc_svn_find_revision(file, rev, buffer, status)
-        character(len=*), intent(in) :: file, rev
+    recursive subroutine version_control_subversion_find_revision(file, revision, buffer, status)
+        character(len=*), intent(in) :: file, revision
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: flags(:), sw(:)
@@ -574,23 +592,23 @@ contains
 
         flags = strings("cat")
 
-        if (len(rev) > 0) then
-            call append_string(flags, "-r"//rev)
+        if (len(revision) > 0) then
+            call append_string(flags, "-r"//revision)
         else
             flags = [flags, empty]
         end if
 
-        call vc_switches(svn_backend_index(), "checkout", sw)
+        call version_control_switches(subversion_backend_index(), "checkout", sw)
         call append_all(flags, sw)
-        call vc_svn_command(0, strings(file), flags, status, buffer=buffer)
-    end subroutine vc_svn_find_revision
+        call version_control_subversion_command(0, strings(file), flags, status, buffer=buffer)
+    end subroutine version_control_subversion_find_revision
 
-    !> Check out REV of FILE (the base revision if absent; the head if "").
+    !> Check out REVISION of FILE (the base revision if absent; the head if "").
     !> Port of vc-svn.el:vc-svn-checkout.
-    recursive subroutine vc_svn_checkout(file, status, rev)
+    recursive subroutine version_control_subversion_checkout(file, status, revision)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: rev
+        character(len=*), intent(in), optional :: revision
         type(string_type), allocatable :: sw(:)
         type(handle_type) :: old, buffer
         type(status_type) :: st
@@ -599,99 +617,101 @@ contains
         old = current_buffer()
         buffer = get_file_buffer(file)
         if (is_buffer_live(buffer)) call set_buffer(buffer, st)
-        call vc_switches(svn_backend_index(), "checkout", sw)
-        call vc_svn_update(file, sw, status, rev)
+        call version_control_switches(subversion_backend_index(), "checkout", sw)
+        call version_control_subversion_update(file, sw, status, revision)
         call set_buffer(old, st)
         if (.not. status%ok()) return
-        call vc_mode_line(file, svn_backend_index())
+        call version_control_mode_line(file, subversion_backend_index())
         call message("Checking out "//file//"...done")
-    end subroutine vc_svn_checkout
+    end subroutine version_control_subversion_checkout
 
-    !> Update FILE to REV with SWITCHES (nothing to do for an existing file
-    !> when REV is absent).  Port of vc-svn.el:vc-svn-update.
-    recursive subroutine vc_svn_update(file, switches, status, rev)
+    !> Update FILE to REVISION with SWITCHES (nothing to do for an existing file
+    !> when REVISION is absent).  Port of vc-svn.el:vc-svn-update.
+    recursive subroutine version_control_subversion_update(file, switches, status, revision)
         character(len=*), intent(in) :: file
         type(string_type), intent(in) :: switches(:)
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: rev
+        character(len=*), intent(in), optional :: revision
         type(string_type), allocatable :: flags(:)
         type(string_type) :: empty
 
         status = status_type()
         ! If no revision was specified, there's nothing to do.
-        if (file_exists(file) .and. .not. present(rev)) return
+        if (file_exists(file) .and. .not. present(revision)) return
         ! Check out a particular version (or recreate the file).
-        call vc_file_set_working_revision(file)
+        call version_control_file_set_working_revision(file)
         flags = strings("update")
 
-        if (.not. present(rev)) then
+        if (.not. present(revision)) then
             call append_string(flags, "-rBASE")
-        else if (len(rev) == 0) then
+        else if (len(revision) == 0) then
             flags = [flags, empty]
         else
-            call append_string(flags, "-r"//rev)
+            call append_string(flags, "-r"//revision)
         end if
 
         call append_all(flags, switches)
-        call vc_svn_command(0, strings(file), flags, status)
-    end subroutine vc_svn_update
+        call version_control_subversion_command(0, strings(file), flags, status)
+    end subroutine version_control_subversion_update
 
     !> Delete FILE with `svn remove'.  Port of vc-svn.el:vc-svn-delete-file.
-    recursive subroutine vc_svn_delete_file(file, status)
+    recursive subroutine version_control_subversion_delete_file(file, status)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
 
-        call vc_svn_command(0, strings(file), strings("remove"), status)
-    end subroutine vc_svn_delete_file
+        call version_control_subversion_command(0, strings(file), strings("remove"), status)
+    end subroutine version_control_subversion_delete_file
 
     !> Rename OLD to NEW with `svn move'.  Port of vc-svn.el:vc-svn-rename-file.
-    recursive subroutine vc_svn_rename_file(old, new, status)
+    recursive subroutine version_control_subversion_rename_file(old, new, status)
         character(len=*), intent(in) :: old, new
         type(status_type), intent(out) :: status
 
-        call vc_svn_command(0, strings(new), strings("move", file_relative_name(old)), status)
-    end subroutine vc_svn_rename_file
+        call version_control_subversion_command(0, strings(new), strings("move", file_relative_name(old)), status)
+    end subroutine version_control_subversion_rename_file
 
     !> Revert FILE to the version it was based on.  Port of
     !> vc-svn.el:vc-svn-revert.
-    recursive subroutine vc_svn_revert(file, status, contents_done)
+    recursive subroutine version_control_subversion_revert(file, status, contents_done)
         character(len=*), intent(in) :: file
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: contents_done
 
         status = status_type()
-        if (.not. present(contents_done)) call vc_svn_command(0, strings(file), strings("revert"), status)
-    end subroutine vc_svn_revert
+        if (.not. present(contents_done)) call version_control_subversion_command(0, strings(file), strings("revert"), status)
+    end subroutine version_control_subversion_revert
 
     ! ------------------------------------------------------------------
     ! History functions
     ! ------------------------------------------------------------------
 
-    !> Major mode for SVN logs.  Port of vc-svn.el:vc-svn-log-view-mode.
-    recursive subroutine vc_svn_log_view_mode(status)
+    !> Major mode for SUBVERSION logs.  Port of vc-svn.el:vc-svn-log-view-mode.
+    recursive subroutine version_control_subversion_log_view_mode(status)
         use log_view_mod, only: set_log_view_per_file_logs
         type(status_type), intent(out) :: status
         logical :: saved
 
-        if (.not. associated(major_modes%vc_svn_log_view_mode%execute)) call define_log_view_mode()
-        call major_modes%vc_svn_log_view_mode%begin(saved, status)
+        if (.not. associated(major_modes%version_control_subversion_log_view_mode%execute)) call define_log_view_mode()
+        call major_modes%version_control_subversion_log_view_mode%begin(saved, status)
         if (.not. status%ok()) return
         call set_log_view_per_file_logs(.false.)
-        call major_modes%vc_svn_log_view_mode%end(saved, status)
-    end subroutine vc_svn_log_view_mode
+        call major_modes%version_control_subversion_log_view_mode%end(saved, status)
+    end subroutine version_control_subversion_log_view_mode
 
-    ! Define SVN's Log View mode.  Not a port.
+    ! Define SUBVERSION's Log View mode.  Not a port.
     subroutine define_log_view_mode()
-        use log_view_mod, only: init_log_view
-        use add_log_mod, only: init_add_log
+        use log_view_mod, only: initialize_log_view
+        use add_log_mod, only: initialize_add_log
 
         ! (require 'add-log)
-        if (.not. associated(major_modes%change_log_mode%execute)) call init_add_log()
-        if (.not. associated(major_modes%log_view_mode%execute)) call init_log_view()
-        call major_modes%vc_svn_log_view_mode%define("vc_svn_log_view_mode", "SVN-Log-View", vc_svn_log_view_mode, &
-                                                     vc_svn_log_view_mode_hook, parent=major_modes%log_view_mode)
-        vc_svn_log_view_mode_map = major_modes%vc_svn_log_view_mode%map
-        commands%vc_svn_log_view_mode%execute => vc_svn_log_view_mode
+        if (.not. associated(major_modes%change_log_mode%execute)) call initialize_add_log()
+        if (.not. associated(major_modes%log_view_mode%execute)) call initialize_log_view()
+        call major_modes%version_control_subversion_log_view_mode%define("version_control_subversion_log_view_mode", &
+                                                                         "SVN-Log-View", version_control_subversion_log_view_mode, &
+                                                                         version_control_subversion_log_view_mode_hook, &
+                                                                         parent=major_modes%log_view_mode)
+        version_control_subversion_log_view_mode_map = major_modes%version_control_subversion_log_view_mode%map
+        commands%version_control_subversion_log_view_mode%execute => version_control_subversion_log_view_mode
     end subroutine define_log_view_mode
 
     !> Print commit log associated with FILES into specified BUFFER.
@@ -699,12 +719,13 @@ contains
     !> If START_REVISION is not "", it is the newest revision to show.
     !> If LIMIT is given, show no more than this many entries.  Port of
     !> vc-svn.el:vc-svn-print-log.
-    recursive subroutine vc_svn_print_log(files, buffer, shortlog, start_revision, limit, status, limit_unsupported)
+    recursive subroutine version_control_subversion_print_log(files, buffer, shortlog, start_revision, limit, status, &
+                                                              limit_unsupported)
         type(string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
         logical, intent(in) :: shortlog
         character(len=*), intent(in) :: start_revision
-        type(vc_log_limit_type), intent(in) :: limit
+        type(version_control_log_limit_type), intent(in) :: limit
         type(status_type), intent(out) :: status
         logical, intent(out) :: limit_unsupported
         type(string_type), allocatable :: flags(:)
@@ -717,12 +738,12 @@ contains
         limit_unsupported = .false.
         if (shortlog) continue
         old = current_buffer()
-        call vc_setup_buffer(buffer, status)
+        call version_control_setup_buffer(buffer, status)
         if (.not. status%ok()) return
         ! Writable meanwhile, as upstream binds inhibit-read-only.
         saved_read_only = buffers(current)%read_only
         buffers(current)%read_only = .false.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (size(files) > 0) then
             do k = 1, size(files)
@@ -740,7 +761,8 @@ contains
                 end if
 
                 call append_options(flags)
-                call vc_svn_command(VC_OKSTATUS_ASYNC, files(k:k), flags, status, buffer=buffer)
+                call version_control_subversion_command(VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, files(k:k), flags, status, &
+                                                        buffer=buffer)
                 if (.not. status%ok()) exit
             end do
         else
@@ -752,7 +774,7 @@ contains
             end if
 
             call append_options(flags)
-            call vc_svn_command(0, none, flags, status, buffer=buffer)
+            call version_control_subversion_command(0, none, flags, status, buffer=buffer)
         end if
 
         buffers(current)%read_only = saved_read_only
@@ -765,31 +787,31 @@ contains
             type(string_type), allocatable, intent(inout) :: list(:)
             character(len=20) :: digits
 
-            if (vc_log_view_type() == VC_LOG_VIEW_WITH_DIFF) call append_string(list, "--diff")
+            if (version_control_log_view_type() == VERSION_CONTROL_LOG_VIEW_WITH_DIFF) call append_string(list, "--diff")
 
-            if (limit%kind == VC_LIMIT_NUMBER) then
+            if (limit%kind == VERSION_CONTROL_LIMIT_NUMBER) then
                 call append_string(list, "--limit")
                 write (digits, "(i0)") limit%n
                 call append_string(list, trim(digits))
-            else if (limit%kind == VC_LIMIT_REVISION) then
+            else if (limit%kind == VERSION_CONTROL_LIMIT_REVISION) then
                 call append_string(list, "--limit")
                 call append_string(list, limit%revision)
             end if
         end subroutine append_options
-    end subroutine vc_svn_print_log
+    end subroutine version_control_subversion_print_log
 
-    !> Get a difference report using SVN between two revisions of fileset FILES.
+    !> Get a difference report using SUBVERSION between two revisions of fileset FILES.
     !> Port of vc-svn.el:vc-svn-diff.
-    recursive subroutine vc_svn_diff(files, buffer, async, status, rev1, rev2)
+    recursive subroutine version_control_subversion_diff(files, buffer, asynchronous, status, rev1, rev2)
         use diff_mod, only: diff_command
         type(string_type), intent(in) :: files(:)
         type(handle_type), intent(in) :: buffer
-        logical, intent(in) :: async
+        logical, intent(in) :: asynchronous
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: rev1, rev2
         type(string_type), allocatable :: flags(:), sw(:)
-        character(len=:), allocatable :: oldvers, rev, joined
-        logical :: has_old, use_async, same, found
+        character(len=:), allocatable :: oldvers, revision, joined
+        logical :: has_old, use_asynchronous, same, found
         integer :: k
 
         has_old = present(rev1)
@@ -799,11 +821,11 @@ contains
             same = .true.
 
             do k = 1, size(files)
-                call vc_working_revision(files(k)%text, rev, found)
+                call version_control_working_revision(files(k)%text, revision, found)
 
                 if (.not. found) then
                     same = .false.
-                else if (rev /= oldvers) then
+                else if (revision /= oldvers) then
                     same = .false.
                 end if
 
@@ -818,14 +840,14 @@ contains
         end if
 
         ! Svn diffs those locally.
-        use_async = async .and. (has_old .or. present(rev2))
+        use_asynchronous = asynchronous .and. (has_old .or. present(rev2))
         flags = strings("diff")
 
-        if (vc_svn_diff_switches%kind /= VC_SWITCHES_UNSPECIFIED) then
-            call vc_switches(svn_backend_index(), "diff", sw)
+        if (version_control_subversion_diff_switches%kind /= VERSION_CONTROL_SWITCHES_UNSPECIFIED) then
+            call version_control_switches(subversion_backend_index(), "diff", sw)
             call append_all(flags, sw)
         else
-            call vc_switches(0, "diff", sw)
+            call version_control_switches(0, "diff", sw)
             joined = ""
 
             do k = 1, size(sw)
@@ -850,14 +872,14 @@ contains
         end if
 
         ! For some reason `svn diff' does not return a useful status
-        ! w.r.t whether the diff was empty or not: `vc_diff_internal' looks
+        ! w.r.t whether the diff was empty or not: `version_control_diff_internal' looks
         ! at the size of BUFFER.
-        if (use_async) then
-            call vc_svn_command(VC_OKSTATUS_ASYNC, files, flags, status, buffer=buffer)
+        if (use_asynchronous) then
+            call version_control_subversion_command(VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, files, flags, status, buffer=buffer)
         else
-            call vc_svn_command(0, files, flags, status, buffer=buffer)
+            call version_control_subversion_command(0, files, flags, status, buffer=buffer)
         end if
-    end subroutine vc_svn_diff
+    end subroutine version_control_subversion_diff
 
     ! ------------------------------------------------------------------
     ! VC-Dir
@@ -866,11 +888,11 @@ contains
     !> Parse the output of `svn status' (REMOTE: `svn status -u') in the
     !> current buffer and pass the states found to the update function of
     !> the computation of ACTION.  Port of vc-svn.el:vc-svn-after-dir-status.
-    recursive subroutine vc_svn_after_dir_status(action, status)
-        type(vc_action_type), intent(in) :: action
+    recursive subroutine version_control_subversion_after_directory_status(action, status)
+        type(version_control_action_type), intent(in) :: action
         type(status_type), intent(out) :: status
-        type(vc_dir_entry_type), allocatable :: result(:), one(:)
-        character(len=:), allocatable :: re, flag
+        type(version_control_directory_entry_type), allocatable :: result(:), one(:)
+        character(len=:), allocatable :: regular_expression, flag
         type(handle_type) :: old
         type(status_type) :: st
         integer(int64) :: found
@@ -880,7 +902,7 @@ contains
         k = action%n
 
         if (.not. is_buffer_live(action%buffer)) then
-            dir_states(k)%live = .false.
+            directory_states(k)%live = .false.
             return
         end if
 
@@ -888,43 +910,44 @@ contains
         call set_buffer(action%buffer, st)
 
         if (action%flag) then
-            re = "^\(.\)\(.\).....? \([ *]\) +\(?:[-0-9]+\)?   \(.*\)$"
+            regular_expression = "^\(.\)\(.\).....? \([ *]\) +\(?:[-0-9]+\)?   \(.*\)$"
         else
             ! Subexp 3 is a dummy in this case, so the numbers match.
-            re = "^\(.\)\(.\)...\(.\).? \(.*\)$"
+            regular_expression = "^\(.\)\(.\)...\(.\).? \(.*\)$"
         end if
 
         allocate (result(0), one(1))
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(re, found, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(regular_expression, found, st, noerror=SEARCH_NOERROR)
             if (found == 0) exit
             state = state_of(match_string(1))
             propstat = state_of(match_string(2))
             flag = match_string(3)
             one(1)%name = match_string(4)
             ! conflict always wins
-            if ((propstat == VC_CONFLICT .or. propstat == VC_EDITED) .and. state /= VC_CONFLICT) state = propstat
+            if ((propstat == VERSION_CONTROL_CONFLICT .or. propstat == VERSION_CONTROL_EDITED) .and. state &
+                /= VERSION_CONTROL_CONFLICT) state = propstat
 
             if (action%flag .and. flag == "*") then
                 ! FIXME are there other possible combinations?
-                if (state == VC_EDITED) then
-                    state = VC_NEEDS_MERGE
-                else if (state == VC_STATE_UNKNOWN) then
-                    state = VC_NEEDS_UPDATE
+                if (state == VERSION_CONTROL_EDITED) then
+                    state = VERSION_CONTROL_NEEDS_MERGE
+                else if (state == VERSION_CONTROL_STATE_UNKNOWN) then
+                    state = VERSION_CONTROL_NEEDS_UPDATE
                 end if
             end if
 
-            if (state /= VC_STATE_UNKNOWN) then
+            if (state /= VERSION_CONTROL_STATE_UNKNOWN) then
                 one(1)%state = state
                 result = [one, result]
             end if
         end do
 
         call set_buffer(old, st)
-        dir_states(k)%live = .false.
-        call dir_states(k)%update_function(result, dir_states(k)%buffer, .false.)
+        directory_states(k)%live = .false.
+        call directory_states(k)%update_function(result, directory_states(k)%buffer, .false.)
 
     contains
 
@@ -934,97 +957,97 @@ contains
 
             select case (c)
             case ("A")
-                s = VC_ADDED
+                s = VERSION_CONTROL_ADDED
             case ("C")
-                s = VC_CONFLICT
+                s = VERSION_CONTROL_CONFLICT
             case ("I")
-                s = VC_IGNORED
+                s = VERSION_CONTROL_IGNORED
             case ("M")
-                s = VC_EDITED
+                s = VERSION_CONTROL_EDITED
             case ("D", "R")
-                s = VC_REMOVED
+                s = VERSION_CONTROL_REMOVED
             case ("!")
-                s = VC_NEEDS_UPDATE
+                s = VERSION_CONTROL_NEEDS_UPDATE
             case ("?")
-                s = VC_UNREGISTERED
+                s = VERSION_CONTROL_UNREGISTERED
             case ("~")
                 ! This is what vc-svn-parse-status does.
-                s = VC_EDITED
+                s = VERSION_CONTROL_EDITED
             case default
-                s = VC_STATE_UNKNOWN
+                s = VERSION_CONTROL_STATE_UNKNOWN
             end select
         end function state_of
-    end subroutine vc_svn_after_dir_status
+    end subroutine version_control_subversion_after_directory_status
 
-    !> Run "svn status" for DIR and update BUFFER via UPDATE.
-    !> UPDATE is called with the entries (FILE, STATE) for directory DIR.
+    !> Run "svn status" for DIRECTORY and update BUFFER via UPDATE.
+    !> UPDATE is called with the entries (FILE, STATE) for directory DIRECTORY.
     !> Port of vc-svn.el:vc-svn-dir-status-files.
-    recursive subroutine vc_svn_dir_status_files(dir, files, update, buffer, status)
-        character(len=*), intent(in) :: dir
+    recursive subroutine version_control_subversion_directory_status_files(directory, files, update, buffer, status)
+        character(len=*), intent(in) :: directory
         type(string_type), intent(in) :: files(:)
-        procedure(vc_dir_update_procedure) :: update
+        procedure(version_control_directory_update_procedure) :: update
         type(handle_type), intent(in) :: buffer
         type(status_type), intent(out) :: status
-        type(dir_status_state_type) :: state
+        type(directory_status_state_type) :: state
         type(string_type), allocatable :: flags(:)
         type(string_type) :: none(0)
-        type(vc_action_type) :: action
+        type(version_control_action_type) :: action
         integer :: k
 
-        if (len(dir) < 0) return
-        if (.not. allocated(dir_states)) allocate (dir_states(0))
+        if (len(directory) < 0) return
+        if (.not. allocated(directory_states)) allocate (directory_states(0))
 
-        do k = 1, size(dir_states)
-            if (.not. dir_states(k)%live) exit
+        do k = 1, size(directory_states)
+            if (.not. directory_states(k)%live) exit
         end do
 
-        if (k > size(dir_states)) dir_states = [dir_states, state]
-        dir_states(k)%live = .true.
-        dir_states(k)%update_function => update
-        dir_states(k)%buffer = buffer
+        if (k > size(directory_states)) directory_states = [directory_states, state]
+        directory_states(k)%live = .true.
+        directory_states(k)%update_function => update
+        directory_states(k)%buffer = buffer
         ! FIXME shouldn't this rather default to all the files in dir?
         flags = strings("status", "-u")
         call append_all(flags, files)
-        call vc_svn_command(VC_OKSTATUS_ASYNC, none, flags, status, current=.true.)
+        call version_control_subversion_command(VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, none, flags, status, current=.true.)
 
         if (.not. status%ok()) then
-            dir_states(k)%live = .false.
+            directory_states(k)%live = .false.
             return
         end if
 
         ! (vc-run-delayed (vc-svn-after-dir-status callback t))
-        action%execute => vc_svn_after_dir_status
+        action%execute => version_control_subversion_after_directory_status
         action%n = k
         action%flag = .true.
         action%buffer = current_buffer()
-        call vc_exec_after(action, status)
-    end subroutine vc_svn_dir_status_files
+        call version_control_exec_after(action, status)
+    end subroutine version_control_subversion_directory_status_files
 
     !> Generate extra status headers for a Subversion working copy.  Port of
     !> vc-svn.el:vc-svn-dir-extra-headers.
-    recursive subroutine vc_svn_dir_extra_headers(dir, parts)
-        type(ewoc_part_type), allocatable, intent(out) :: parts(:)
-        character(len=*), intent(in) :: dir
+    recursive subroutine version_control_subversion_directory_extra_headers(directory, parts)
+        type(fortmacs_widget_for_object_collections_part_type), allocatable, intent(out) :: parts(:)
+        character(len=*), intent(in) :: directory
         type(string_type) :: none(0)
-        type(handle_type) :: old, vc
+        type(handle_type) :: old, version_control
         type(status_type) :: st
-        character(len=:), allocatable :: repo
+        character(len=:), allocatable :: repository
         integer(int64) :: found
 
         allocate (parts(0))
-        if (len(dir) < 0) return
-        call vc_svn_command(0, none, strings("info"), st)
+        if (len(directory) < 0) return
+        call version_control_subversion_command(0, none, strings("info"), st)
         old = current_buffer()
-        call get_or_make_buffer("*vc*", vc, st)
-        call set_buffer(vc, st)
-        call goto_char(point_min())
-        call re_search_forward("Repository Root: *\(.*\)", found, st, noerror=SEARCH_NOERROR)
-        if (found /= 0) repo = match_string(1)
+        call get_or_make_buffer("*vc*", version_control, st)
+        call set_buffer(version_control, st)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward("Repository Root: *\(.*\)", found, st, noerror=SEARCH_NOERROR)
+        if (found /= 0) repository = match_string(1)
         call set_buffer(old, st)
 
-        if (allocated(repo)) then
-            call append_part("Repository : ", "vc_dir_header")
-            call append_part(repo, "vc_dir_header_value")
+        if (allocated(repository)) then
+            call append_part("Repository : ", "version_control_directory_header")
+            call append_part(repository, "version_control_directory_header_value")
         end if
 
     contains
@@ -1032,60 +1055,60 @@ contains
         ! Append TEXT with FACE to PARTS.
         subroutine append_part(text, face)
             character(len=*), intent(in) :: text, face
-            type(ewoc_part_type) :: part
+            type(fortmacs_widget_for_object_collections_part_type) :: part
 
             part%text = text
             part%face = face
             parts = [parts, part]
         end subroutine append_part
-    end subroutine vc_svn_dir_extra_headers
+    end subroutine version_control_subversion_directory_extra_headers
 
     ! ------------------------------------------------------------------
     ! Setup
     ! ------------------------------------------------------------------
 
-    !> Make the SVN backend known to VC.  Not a port.
-    subroutine init_vc_svn()
+    !> Make the SUBVERSION backend known to VERSION_CONTROL.  Not a port.
+    subroutine initialize_version_control_subversion()
         integer :: k
 
-        if (.not. allocated(vc_svn_program)) vc_svn_program = "svn"
+        if (.not. allocated(version_control_subversion_program)) version_control_subversion_program = "svn"
 
-        if (.not. allocated(vc_svn_global_switches%list)) then
-            vc_svn_global_switches%kind = VC_SWITCHES_LIST
-            call append_string(vc_svn_global_switches%list, "--non-interactive")
+        if (.not. allocated(version_control_subversion_global_switches%list)) then
+            version_control_subversion_global_switches%kind = VERSION_CONTROL_SWITCHES_LIST
+            call append_string(version_control_subversion_global_switches%list, "--non-interactive")
         end if
 
         call define_log_view_mode()
-        call register_vc_backend("SVN", k)
+        call register_version_control_backend("SVN", k)
         if (k == 0) return
 
-        associate (b => vc_backends(k))
-            b%registered => vc_svn_registered
-            b%state => vc_svn_state
-            b%working_revision => vc_svn_working_revision
+        associate (b => version_control_backends(k))
+            b%registered => version_control_subversion_registered
+            b%state => version_control_subversion_state
+            b%working_revision => version_control_subversion_working_revision
             ! vc-svn-mode-line-string doesn't exist because the default
             ! implementation works just fine.
-            b%root => vc_svn_root
+            b%root => version_control_subversion_root
             ! (defalias 'vc-svn-responsible-p #'vc-svn-root)
-            b%responsible_p => vc_svn_root
-            b%checkout_model => vc_svn_checkout_model
-            b%create_repo => vc_svn_create_repo
-            b%register => vc_svn_register
-            b%register_switches => vc_svn_register_switches
-            b%checkin => vc_svn_checkin
-            b%find_revision => vc_svn_find_revision
-            b%checkout => vc_svn_checkout
-            b%delete_file => vc_svn_delete_file
-            b%rename_file => vc_svn_rename_file
-            b%revert => vc_svn_revert
-            b%previous_revision => vc_svn_previous_revision
-            b%revision_completion_table => vc_svn_revision_table
-            b%diff => vc_svn_diff
-            b%diff_switches => vc_svn_diff_switches
-            b%print_log => vc_svn_print_log
-            b%log_view_mode => vc_svn_log_view_mode
-            b%dir_status_files => vc_svn_dir_status_files
-            b%dir_extra_headers => vc_svn_dir_extra_headers
+            b%responsible_p => version_control_subversion_root
+            b%checkout_model => version_control_subversion_checkout_model
+            b%create_repository => version_control_subversion_create_repository
+            b%register => version_control_subversion_register
+            b%register_switches => version_control_subversion_register_switches
+            b%checkin => version_control_subversion_checkin
+            b%find_revision => version_control_subversion_find_revision
+            b%checkout => version_control_subversion_checkout
+            b%delete_file => version_control_subversion_delete_file
+            b%rename_file => version_control_subversion_rename_file
+            b%revert => version_control_subversion_revert
+            b%previous_revision => version_control_subversion_previous_revision
+            b%revision_completion_table => version_control_subversion_revision_table
+            b%diff => version_control_subversion_diff
+            b%diff_switches => version_control_subversion_diff_switches
+            b%print_log => version_control_subversion_print_log
+            b%log_view_mode => version_control_subversion_log_view_mode
+            b%directory_status_files => version_control_subversion_directory_status_files
+            b%directory_extra_headers => version_control_subversion_directory_extra_headers
         end associate
-    end subroutine init_vc_svn
+    end subroutine initialize_version_control_subversion
 end module version_control_subversion_mod

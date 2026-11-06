@@ -21,7 +21,7 @@
 !> Mail aliases as abbrevs: reading a .mailrc file (comments,
 !> continuation lines, quoted addresses, "source"), resolving aliases
 !> that refer to others, the alias loop error, the quoting of full names
-!> in `define_mail_abbrev', and expansion in the address fields of a
+!> in `define_mail_abbreviation', and expansion in the address fields of a
 !> Mail mode buffer only.
 module test_mail_abbreviations_mod
     use, intrinsic :: iso_fortran_env, only: int64
@@ -30,15 +30,15 @@ module test_mail_abbreviations_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_buffer, close_buffer, is_buffer_live
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point_max
-    use bindings_mod, only: init_bindings
-    use files_mod, only: create_temp_file, delete_file
+    use editing_functions_mod, only: buffer_string, goto_character, point_maximum
+    use bindings_mod, only: initialize_bindings
+    use files_mod, only: create_temporary_file, delete_file
     use file_input_output_mod, only: file_exists
-    use abbreviation_mod, only: expand_abbrev
+    use abbreviation_mod, only: expand_abbreviation
     use send_mail_mod, only: mail, mail_personal_alias_file, set_up_mail_with_from, mail_signature_variable, &
                              MAIL_NOERASE_NO
-    use mail_abbreviations_mod, only: build_mail_abbrevs, define_mail_abbrev, resolve_all_mail_aliases, set_up_mail_abbrevs, &
-                                      mail_abbrevs, mail_abbrevs_built
+    use mail_abbreviations_mod, only: build_mail_abbreviations, define_mail_abbreviation, resolve_all_mail_aliases, &
+                                      set_up_mail_abbreviations, mail_abbreviations, mail_abbreviations_built
     implicit none(type, external)
     private
 
@@ -70,12 +70,12 @@ contains
         character(len=:), allocatable, intent(out) :: file
         type(status_type) :: st
 
-        call init_bindings()
-        call create_temp_file("mailabbrev-test", file, st)
+        call initialize_bindings()
+        call create_temporary_file("mailabbrev-test", file, st)
         call delete_file(file, st)
         mail_personal_alias_file = file
-        mail_abbrevs_built = .false.
-        call mail_abbrevs%clear()
+        mail_abbreviations_built = .false.
+        call mail_abbreviations%clear()
         set_up_mail_with_from = .false.
         mail_signature_variable = .false.
     end subroutine set_up
@@ -86,8 +86,8 @@ contains
         type(handle_type) :: h
 
         if (file_exists(file)) call delete_file(file, st)
-        mail_abbrevs_built = .false.
-        call mail_abbrevs%clear()
+        mail_abbreviations_built = .false.
+        call mail_abbreviations%clear()
         h = get_buffer("*mail*")
         if (is_buffer_live(h)) call close_buffer(h, st)
     end subroutine leave
@@ -110,9 +110,9 @@ contains
 
         text = ""
 
-        do k = 1, mail_abbrevs%n
-            if (mail_abbrevs%abbrevs(k)%name /= alias) cycle
-            if (allocated(mail_abbrevs%abbrevs(k)%expansion)) text = mail_abbrevs%abbrevs(k)%expansion
+        do k = 1, mail_abbreviations%n
+            if (mail_abbreviations%abbreviations(k)%name /= alias) cycle
+            if (allocated(mail_abbreviations%abbreviations(k)%expansion)) text = mail_abbreviations%abbreviations(k)%expansion
         end do
     end function expansion_of
 
@@ -133,7 +133,7 @@ contains
         type(status_type) :: st
 
         call set_up(file)
-        call create_temp_file("mailabbrev-source", sourced, st)
+        call create_temporary_file("mailabbrev-source", sourced, st)
         call write_file(sourced, "alias src s@x"//LF)
         call write_file(file, "# my aliases"//LF// &
                         "alias joe joe@x"//LF// &
@@ -142,9 +142,9 @@ contains
                         "  carl@w"//LF// &
                         "group g joe"//LF// &
                         "source "//sourced)
-        call build_mail_abbrevs(st)
+        call build_mail_abbreviations(st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) call check(error, mail_abbrevs_built, "not built")
+        if (.not. allocated(error)) call check(error, mail_abbreviations_built, "not built")
         if (.not. allocated(error)) call check_string(error, expansion_of("joe"), "joe@x")
         if (.not. allocated(error)) call check_string(error, expansion_of("team"), "joe@x, ann@y")
         if (.not. allocated(error)) call check_string(error, expansion_of("quoted"), "Ann Lee <ann@y>, bob@z, carl@w")
@@ -160,11 +160,11 @@ contains
         type(status_type) :: st
 
         call set_up(file)
-        call define_mail_abbrev("Pals", "Foo.Bar <f@b>, c@d", st)
+        call define_mail_abbreviation("Pals", "Foo.Bar <f@b>, c@d", st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check_string(error, expansion_of("pals"), '"Foo.Bar" <f@b>, c@d')
         if (allocated(error)) return
-        call define_mail_abbrev("smith", ' "Smith, J" <j@s>, k@l ,', st)
+        call define_mail_abbreviation("smith", ' "Smith, J" <j@s>, k@l ,', st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check_string(error, expansion_of("smith"), '"Smith, J" <j@s>, k@l')
         call leave(file)
@@ -176,8 +176,8 @@ contains
         type(status_type) :: st
 
         call set_up(file)
-        call define_mail_abbrev("a", "b", st)
-        call define_mail_abbrev("b", "a", st)
+        call define_mail_abbreviation("a", "b", st)
+        call define_mail_abbreviation("b", "a", st)
         call resolve_all_mail_aliases(st)
         call check(error,.not. st%ok(), "no error")
         if (.not. allocated(error)) call check(error, index(format_error(st), "Mail alias loop detected: ") > 0, &
@@ -195,19 +195,19 @@ contains
         call mail(st, MAIL_NOERASE_NO)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
-        call set_up_mail_abbrevs(st)
+        call set_up_mail_abbreviations(st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         ! In the To field (point is after "To: ").
         call insert("joe", st)
-        call expand_abbrev(st)
+        call expand_abbreviation(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, index(buffer_string(), "To: joe@x"//LF) == 1, buffer_string())
         if (allocated(error)) return
         ! Not in the text.
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("joe", st)
-        call expand_abbrev(st)
+        call expand_abbreviation(st)
         call check_string(error, buffer_string(), "To: joe@x"//LF//"Subject: "//LF//"--text follows this line--"//LF//"joe")
         call leave(file)
     end subroutine test_expansion

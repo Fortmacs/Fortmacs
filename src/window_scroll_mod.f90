@@ -30,15 +30,15 @@
 submodule(window_mod) window_scroll_mod
     use commands_mod, only: commands
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
-    use error_mod, only: format_message, set_error, FM_GENERIC_ERROR, FM_BEGINNING_OF_BUFFER, FM_END_OF_BUFFER, &
-                         FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: format_message, set_error, GENERIC_ERROR_CODE, BEGINNING_OF_BUFFER_CODE, END_OF_BUFFER_CODE, &
+                         WRONG_TYPE_ARGUMENT_CODE
     use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, buffer_list
-    use editing_functions_mod, only: point, goto_char, is_eob, is_bob, point_min, point_max
+    use editing_functions_mod, only: point, goto_character, is_end_of_buffer, is_beginning_of_buffer, point_minimum, point_maximum
     use editing_commands_mod, only: forward_line, beginning_of_line
     use display_engine_mod, only: truncate_partial_width_windows
     use indent_mod, only: vertical_motion, move_to_column
-    use frame_mod, only: selected_frame, selected_window_ref
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use frame_mod, only: selected_frame, selected_window_reference
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use keyboard_mod, only: this_command, last_command
     use simple_mod, only: goal_column, line_move_visual
     implicit none(type, external)
@@ -61,7 +61,7 @@ contains
     function selected_window() result(w)
         type(window_type), pointer :: w
 
-        w => selected_window_ref()
+        w => selected_window_reference()
     end function selected_window
 
     !> Whether `w' shows the current buffer.  Not a port.
@@ -80,17 +80,18 @@ contains
     logical function is_point_visible(w, ht) result(visible)
         type(window_type), intent(in) :: w
         integer, intent(in) :: ht
-        integer(int64) :: opoint, start, moved
+        integer(int64) :: original_point, start, moved
 
-        opoint = point()
+        original_point = point()
         start = window_start(w)
         visible = .false.
-        if (ht <= 0 .or. opoint < start .or. start < buffers(current)%begv .or. start > buffers(current)%zv) return
-        call goto_char(start)
+        if (ht <= 0 .or. original_point < start .or. start < buffers(current)%beginning_of_accessible_portion &
+            .or. start > buffers(current)%end_of_accessible_portion) return
+        call goto_character(start)
         call vertical_motion(int(ht, int64), moved)
         ! Short of the end: point is on the last line shown.
-        visible = moved < ht .or. opoint < point()
-        call goto_char(opoint)
+        visible = moved < ht .or. original_point < point()
+        call goto_character(original_point)
     end function is_point_visible
 
     !> `next_screen_context_lines' within 0 to 1000000.  Port of
@@ -109,7 +110,7 @@ contains
         integer(int64), intent(in) :: n
         logical, intent(in) :: whole
         type(status_type), intent(out) :: status
-        integer(int64) :: nlines, opoint, startpos, pos, moved, bottom
+        integer(int64) :: nlines, original_point, startpos, position, moved, bottom
         integer :: ht
         logical :: lose
 
@@ -119,7 +120,7 @@ contains
         ! If scrolling screen-fulls, compute the number of lines to
         ! scroll from the window's height.
         if (whole) nlines = n*max(1, ht - sanitize_next_screen_context_lines())
-        opoint = point()
+        original_point = point()
         startpos = window_start(w)
 
         if (.not. is_point_visible(w, ht)) then
@@ -127,50 +128,50 @@ contains
             startpos = point()
         end if
 
-        call goto_char(startpos)
-        lose = nlines < 0 .and. point() == buffers(current)%begv
+        call goto_character(startpos)
+        lose = nlines < 0 .and. point() == buffers(current)%beginning_of_accessible_portion
         call vertical_motion(nlines, moved)
-        pos = point()
-        call goto_char(opoint)
+        position = point()
+        call goto_character(original_point)
 
         if (lose) then
-            call set_error(status, FM_BEGINNING_OF_BUFFER)
+            call set_error(status, BEGINNING_OF_BUFFER_CODE)
             return
         end if
 
-        if (pos >= buffers(current)%zv) then
-            call set_error(status, FM_END_OF_BUFFER)
+        if (position >= buffers(current)%end_of_accessible_portion) then
+            call set_error(status, END_OF_BUFFER_CODE)
             return
         end if
 
         ! Set force_start so that redisplay keeps the new start.
-        call set_window_start(w, pos, status)
+        call set_window_start(w, position, status)
         if (.not. status%ok()) return
 
         if (nlines > 0) then
             ! If we scrolled forward, put point enough lines down that it
             ! is outside the scroll margin.
-            if (pos > opoint) call goto_char(pos)
+            if (position > original_point) call goto_character(position)
         else if (nlines < 0) then
             ! If we scrolled backward, put point near the end of the window
             ! but not within the scroll margin.
-            call goto_char(pos)
+            call goto_character(position)
             call vertical_motion(int(ht, int64), moved)
             bottom = point()
             if (moved /= ht) bottom = bottom + 1
 
-            if (bottom > opoint) then
-                call goto_char(opoint)
+            if (bottom > original_point) then
+                call goto_character(original_point)
             else
                 call vertical_motion(-1_int64, moved)
             end if
         end if
     end subroutine window_scroll
 
-    !> Scroll the selected window by ARG in `direction' (1 up, -1 down).
+    !> Scroll the selected window by ARGUMENT in `direction' (1 up, -1 down).
     !> Port of window.c:scroll_command.
-    subroutine scroll_command(arg, direction, status)
-        type(prefix_arg_type), intent(in) :: arg
+    subroutine scroll_command(argument, direction, status)
+        type(prefix_argument_type), intent(in) :: argument
         integer(int64), intent(in) :: direction
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
@@ -189,37 +190,37 @@ contains
             if (.not. status%ok()) return
         end if
 
-        if (arg%kind == PREFIX_NONE) then
+        if (argument%kind == PREFIX_NONE) then
             call window_scroll(w, direction, .true., status)
-        else if (arg%kind == PREFIX_MINUS) then
+        else if (argument%kind == PREFIX_MINUS) then
             call window_scroll(w, -direction, .true., status)
         else
-            call window_scroll(w, prefix_numeric_value(arg)*direction, .false., status)
+            call window_scroll(w, prefix_numeric_value(argument)*direction, .false., status)
         end if
 
         if (other) call set_buffer(old, st)
     end subroutine scroll_command
 
-    module subroutine scroll_up(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    module subroutine scroll_up(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call scroll_command(arg, 1_int64, status)
+        call scroll_command(argument, 1_int64, status)
     end subroutine scroll_up
 
-    module subroutine scroll_down(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    module subroutine scroll_down(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call scroll_command(arg, -1_int64, status)
+        call scroll_command(argument, -1_int64, status)
     end subroutine scroll_down
 
-    module subroutine recenter(arg, redisplay, status)
-        type(prefix_arg_type), intent(in) :: arg
+    module subroutine recenter(argument, redisplay, status)
+        type(prefix_argument_type), intent(in) :: argument
         logical, intent(in) :: redisplay
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
-        integer(int64) :: iarg, opoint, charpos, moved
+        integer(int64) :: iarg, original_point, character_position, moved
         integer :: ht
         logical :: center_p
 
@@ -227,22 +228,23 @@ contains
         w => selected_window()
 
         if (.not. shows_current_buffer(w)) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("`recenter'ing a window that does not display current_buffer"))
+            call set_error(status, GENERIC_ERROR_CODE, &
+                           format_message("`recenter'ing a window that does not display current_buffer"))
             return
         end if
 
         center_p = .false.
         iarg = 0
 
-        if (arg%kind == PREFIX_NONE) then
-            ! recenter-redisplay is `tty': erase and redraw the frame.
+        if (argument%kind == PREFIX_NONE) then
+            ! recenter-redisplay is `terminal': erase and redraw the frame.
             if (redisplay) selected_frame%needs_redraw = .true.
             center_p = .true.
-        else if (arg%kind == PREFIX_RAW) then
+        else if (argument%kind == PREFIX_RAW) then
             ! Just C-u.
             center_p = .true.
         else
-            iarg = prefix_numeric_value(arg)
+            iarg = prefix_numeric_value(argument)
         end if
 
         ht = window_body_lines(w)
@@ -255,16 +257,16 @@ contains
 
         ! Don't let it get into the margin at either top or bottom.
         iarg = max(0_int64, min(iarg, int(ht - 1, int64)))
-        opoint = point()
+        original_point = point()
         call vertical_motion(-iarg, moved)
-        charpos = point()
-        call goto_char(opoint)
+        character_position = point()
+        call goto_character(original_point)
         ! Set the new window start.
-        call set_window_start(w, charpos, status, noforce=.true.)
+        call set_window_start(w, character_position, status, noforce=.true.)
     end subroutine recenter
 
-    module subroutine move_to_window_line(arg, line, status)
-        type(prefix_arg_type), intent(in) :: arg
+    module subroutine move_to_window_line(argument, line, status)
+        type(prefix_argument_type), intent(in) :: argument
         integer(int64), intent(out) :: line
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
@@ -276,7 +278,7 @@ contains
         w => selected_window()
 
         if (.not. shows_current_buffer(w)) then
-            call set_error(status, FM_GENERIC_ERROR, "move_to_window_line called from unrelated buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "move_to_window_line called from unrelated buffer")
             return
         end if
 
@@ -284,18 +286,18 @@ contains
         lines = window_body_lines(w)
         start = window_start(w)
 
-        if (start < buffers(current)%begv .or. start > buffers(current)%zv) then
+        if (start < buffers(current)%beginning_of_accessible_portion .or. start > buffers(current)%end_of_accessible_portion) then
             call vertical_motion(-int(lines/2, int64), moved)
             call set_window_start(w, point(), status)
             if (.not. status%ok()) return
         else
-            call goto_char(start)
+            call goto_character(start)
         end if
 
-        if (arg%kind == PREFIX_NONE) then
+        if (argument%kind == PREFIX_NONE) then
             iarg = lines/2
         else
-            iarg = prefix_numeric_value(arg)
+            iarg = prefix_numeric_value(argument)
             if (iarg < 0) iarg = iarg + lines
         end if
 
@@ -323,34 +325,34 @@ contains
         end if
     end subroutine goto_goal_column
 
-    recursive module subroutine scroll_up_command(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    recursive module subroutine scroll_up_command(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
 
         if (.not. scroll_error_top_bottom) then
-            call scroll_up(arg, status)
-        else if (arg%kind == PREFIX_MINUS) then
-            call scroll_down_command(prefix_arg_type(), status)
-        else if (prefix_numeric_value(arg) < 0) then
-            call scroll_down_command(prefix_arg_type(PREFIX_NUMBER, -prefix_numeric_value(arg)), status)
-        else if (is_eob()) then
+            call scroll_up(argument, status)
+        else if (argument%kind == PREFIX_MINUS) then
+            call scroll_down_command(prefix_argument_type(), status)
+        else if (prefix_numeric_value(argument) < 0) then
+            call scroll_down_command(prefix_argument_type(PREFIX_NUMBER, -prefix_numeric_value(argument)), status)
+        else if (is_end_of_buffer()) then
             ! Signal error.
-            call scroll_up(arg, status)
+            call scroll_up(argument, status)
         else
-            call scroll_up(arg, status)
+            call scroll_up(argument, status)
 
-            if (status%code == FM_END_OF_BUFFER) then
+            if (status%code == END_OF_BUFFER_CODE) then
                 status = status_type()
 
-                if (arg%kind == PREFIX_NONE) then
-                    ! When ARG is nil for full-screen scrolling, move to the
+                if (argument%kind == PREFIX_NONE) then
+                    ! When ARGUMENT is nil for full-screen scrolling, move to the
                     ! bottom of the buffer.
-                    call goto_char(point_max())
+                    call goto_character(point_maximum())
                 else
-                    ! When scrolling by ARG lines can't be done, move by ARG
+                    ! When scrolling by ARGUMENT lines can't be done, move by ARGUMENT
                     ! lines instead.
-                    shortage = forward_line(prefix_numeric_value(arg))
+                    shortage = forward_line(prefix_numeric_value(argument))
                 end if
             end if
         end if
@@ -358,34 +360,34 @@ contains
         if (status%ok()) call goto_goal_column()
     end subroutine scroll_up_command
 
-    recursive module subroutine scroll_down_command(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    recursive module subroutine scroll_down_command(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: shortage
 
         if (.not. scroll_error_top_bottom) then
-            call scroll_down(arg, status)
-        else if (arg%kind == PREFIX_MINUS) then
-            call scroll_up_command(prefix_arg_type(), status)
-        else if (prefix_numeric_value(arg) < 0) then
-            call scroll_up_command(prefix_arg_type(PREFIX_NUMBER, -prefix_numeric_value(arg)), status)
-        else if (is_bob()) then
+            call scroll_down(argument, status)
+        else if (argument%kind == PREFIX_MINUS) then
+            call scroll_up_command(prefix_argument_type(), status)
+        else if (prefix_numeric_value(argument) < 0) then
+            call scroll_up_command(prefix_argument_type(PREFIX_NUMBER, -prefix_numeric_value(argument)), status)
+        else if (is_beginning_of_buffer()) then
             ! Signal error.
-            call scroll_down(arg, status)
+            call scroll_down(argument, status)
         else
-            call scroll_down(arg, status)
+            call scroll_down(argument, status)
 
-            if (status%code == FM_BEGINNING_OF_BUFFER) then
+            if (status%code == BEGINNING_OF_BUFFER_CODE) then
                 status = status_type()
 
-                if (arg%kind == PREFIX_NONE) then
-                    ! When ARG is nil for full-screen scrolling, move to the
+                if (argument%kind == PREFIX_NONE) then
+                    ! When ARGUMENT is nil for full-screen scrolling, move to the
                     ! top of the buffer.
-                    call goto_char(point_min())
+                    call goto_character(point_minimum())
                 else
-                    ! When scrolling by ARG lines can't be done, move by ARG
+                    ! When scrolling by ARGUMENT lines can't be done, move by ARGUMENT
                     ! lines instead.
-                    shortage = forward_line(-prefix_numeric_value(arg))
+                    shortage = forward_line(-prefix_numeric_value(argument))
                 end if
             end if
         end if
@@ -404,13 +406,13 @@ contains
         end if
     end subroutine next_recenter_op
 
-    module subroutine recenter_top_bottom(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    module subroutine recenter_top_bottom(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        ! Always respect ARG.
-        if (arg%kind /= PREFIX_NONE) then
-            call recenter(arg, .true., status)
+        ! Always respect ARGUMENT.
+        if (argument%kind /= PREFIX_NONE) then
+            call recenter(argument, .true., status)
             return
         end if
 
@@ -419,22 +421,22 @@ contains
 
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
-            call recenter(prefix_arg_type(), .true., status)
+            call recenter(prefix_argument_type(), .true., status)
         case (RECENTER_TOP)
-            call recenter(prefix_arg_type(PREFIX_NUMBER, 0_int64), .true., status)
+            call recenter(prefix_argument_type(PREFIX_NUMBER, 0_int64), .true., status)
         case default
-            call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .true., status)
+            call recenter(prefix_argument_type(PREFIX_NUMBER, -1_int64), .true., status)
         end select
     end subroutine recenter_top_bottom
 
-    module subroutine move_to_window_line_top_bottom(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    module subroutine move_to_window_line_top_bottom(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: line
 
-        ! Always respect ARG.
-        if (arg%kind /= PREFIX_NONE) then
-            call move_to_window_line(arg, line, status)
+        ! Always respect ARGUMENT.
+        if (argument%kind /= PREFIX_NONE) then
+            call move_to_window_line(argument, line, status)
             return
         end if
 
@@ -442,65 +444,65 @@ contains
 
         select case (recenter_positions(recenter_last_op))
         case (RECENTER_MIDDLE)
-            call move_to_window_line(prefix_arg_type(), line, status)
+            call move_to_window_line(prefix_argument_type(), line, status)
         case (RECENTER_TOP)
-            call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, 0_int64), line, status)
+            call move_to_window_line(prefix_argument_type(PREFIX_NUMBER, 0_int64), line, status)
         case default
-            call move_to_window_line(prefix_arg_type(PREFIX_NUMBER, -1_int64), line, status)
+            call move_to_window_line(prefix_argument_type(PREFIX_NUMBER, -1_int64), line, status)
         end select
     end subroutine move_to_window_line_top_bottom
 
-    subroutine cmd_scroll_up(status)
+    subroutine execute_scroll_up(status)
         type(status_type), intent(out) :: status
 
-        call scroll_up(current_prefix_arg, status)
-    end subroutine cmd_scroll_up
+        call scroll_up(current_prefix_argument, status)
+    end subroutine execute_scroll_up
 
-    subroutine cmd_scroll_down(status)
+    subroutine execute_scroll_down(status)
         type(status_type), intent(out) :: status
 
-        call scroll_down(current_prefix_arg, status)
-    end subroutine cmd_scroll_down
+        call scroll_down(current_prefix_argument, status)
+    end subroutine execute_scroll_down
 
-    subroutine cmd_scroll_up_command(status)
+    subroutine execute_scroll_up_command(status)
         type(status_type), intent(out) :: status
 
-        call scroll_up_command(current_prefix_arg, status)
-    end subroutine cmd_scroll_up_command
+        call scroll_up_command(current_prefix_argument, status)
+    end subroutine execute_scroll_up_command
 
-    subroutine cmd_scroll_down_command(status)
+    subroutine execute_scroll_down_command(status)
         type(status_type), intent(out) :: status
 
-        call scroll_down_command(current_prefix_arg, status)
-    end subroutine cmd_scroll_down_command
+        call scroll_down_command(current_prefix_argument, status)
+    end subroutine execute_scroll_down_command
 
-    subroutine cmd_recenter(status)
+    subroutine execute_recenter(status)
         type(status_type), intent(out) :: status
 
-        call recenter(current_prefix_arg, .true., status)
-    end subroutine cmd_recenter
+        call recenter(current_prefix_argument, .true., status)
+    end subroutine execute_recenter
 
-    subroutine cmd_recenter_top_bottom(status)
+    subroutine execute_recenter_top_bottom(status)
         type(status_type), intent(out) :: status
 
-        call recenter_top_bottom(current_prefix_arg, status)
-    end subroutine cmd_recenter_top_bottom
+        call recenter_top_bottom(current_prefix_argument, status)
+    end subroutine execute_recenter_top_bottom
 
-    subroutine cmd_move_to_window_line(status)
+    subroutine execute_move_to_window_line(status)
         type(status_type), intent(out) :: status
         integer(int64) :: line
 
-        call move_to_window_line(current_prefix_arg, line, status)
-    end subroutine cmd_move_to_window_line
+        call move_to_window_line(current_prefix_argument, line, status)
+    end subroutine execute_move_to_window_line
 
-    subroutine cmd_move_to_window_line_top_bottom(status)
+    subroutine execute_move_to_window_line_top_bottom(status)
         type(status_type), intent(out) :: status
 
-        call move_to_window_line_top_bottom(current_prefix_arg, status)
-    end subroutine cmd_move_to_window_line_top_bottom
+        call move_to_window_line_top_bottom(current_prefix_argument, status)
+    end subroutine execute_move_to_window_line_top_bottom
 
-    module logical function is_pos_visible_in_window(pos, window) result(visible)
-        integer(int64), intent(in) :: pos
+    module logical function is_position_visible_in_window(position, window) result(visible)
+        integer(int64), intent(in) :: position
         type(handle_type), intent(in) :: window
         type(handle_type) :: old
         type(status_type) :: status
@@ -513,31 +515,33 @@ contains
         if (.not. status%ok()) return
         start = window_start(windows(window%index))
 
-        if (pos >= start .and. start >= buffers(current)%begv .and. start <= buffers(current)%zv) then
+        if (position >= start .and. start >= buffers(current)%beginning_of_accessible_portion .and. start <= buffers( &
+            current)%end_of_accessible_portion) then
             end = window_end(window, status, update=.true.)
             ! The end of the accessible text shows when the window reaches
             ! it: the cursor can be there.
-            visible = status%ok() .and. (pos < end .or. (pos == end .and. end == buffers(current)%zv))
+            visible = status%ok() .and. (position < end .or. (position == end .and. end == buffers( &
+                                                              current)%end_of_accessible_portion))
         end if
 
         if (is_buffer_live(old)) call set_buffer(old, status)
-    end function is_pos_visible_in_window
+    end function is_position_visible_in_window
 
-    module function window_end(window, status, update) result(pos)
+    module function window_end(window, status, update) result(position)
         type(handle_type), intent(in) :: window
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: update
-        integer(int64) :: pos
+        integer(int64) :: position
         type(handle_type) :: old
         type(status_type) :: st
-        integer(int64) :: bi, opoint, moved
+        integer(int64) :: bi, original_point, moved
         integer :: ht
         logical :: compute
 
-        pos = 0
+        position = 0
 
         if (.not. is_window_live(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected live type(window_type)")
             return
         end if
 
@@ -547,25 +551,26 @@ contains
         if (present(update)) compute = update
 
         if (.not. compute) then
-            pos = buffers(bi)%text%z - windows(window%index)%window_end_pos
+            position = buffers(bi)%text%z - windows(window%index)%window_end_position
             return
         end if
 
         old = current_buffer()
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
-        opoint = point()
+        original_point = point()
         ! In case the window start is out of the range, use something
         ! reasonable.
-        call goto_char(max(buffers(current)%begv, min(window_start(windows(window%index)), buffers(current)%zv)))
+        call goto_character(max(buffers(current)%beginning_of_accessible_portion, min(window_start(windows(window%index)), &
+                                                                                      buffers(current)%end_of_accessible_portion)))
         ht = window_body_lines(windows(window%index))
         ! move_it_vertically by the window's height: to the start of the
         ! line below its last line, or past the end of the last line shown
-        ! when the text ends above the window's bottom (move_it_past_eol).
+        ! when the text ends above the window's bottom (move_it_past_end_of_line).
         call vertical_motion(int(ht, int64), moved, window=windows(window%index))
-        pos = point()
-        if (moved < ht) pos = buffers(current)%zv
-        call goto_char(opoint)
+        position = point()
+        if (moved < ht) position = buffers(current)%end_of_accessible_portion
+        call goto_character(original_point)
         if (is_buffer_live(old)) call set_buffer(old, st)
     end function window_end
 
@@ -578,7 +583,7 @@ contains
         status = status_type()
 
         if (.not. is_window_live(window)) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected live type(window_type)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected live type(window_type)")
             return
         end if
 
@@ -603,7 +608,7 @@ contains
         call set_buffer(windows(window%index)%buffer, status)
         if (.not. status%ok()) return
         w => windows(window%index)
-        call goto_char(window_point(w))
+        call goto_character(window_point(w))
         call window_scroll(w, int(direction, int64), .true., status)
         call set_window_point(w, point(), st)
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -628,7 +633,7 @@ contains
         end do
 
         if (.not. is_window_live(window) .or. same_window(window, selected_frame%selected_window)) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no other window")
+            call set_error(status, GENERIC_ERROR_CODE, "There is no other window")
             window = null_handle()
         end if
     end subroutine other_window_for_scrolling
@@ -638,14 +643,14 @@ contains
     !> Port of window.el:scroll-other-window and
     !> window.el:scroll-other-window-down.
     recursive subroutine scroll_other(lines, direction, status)
-        type(prefix_arg_type), intent(in) :: lines
+        type(prefix_argument_type), intent(in) :: lines
         integer, intent(in) :: direction
         type(status_type), intent(out) :: status
         type(handle_type) :: window, old_window, old_buffer
         type(status_type) :: st
 
         if (selected_frame%minibuffer_selected) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Window commands don't work in the minibuffer yet"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Window commands don't work in the minibuffer yet"))
             return
         end if
 
@@ -667,49 +672,49 @@ contains
     end subroutine scroll_other
 
     recursive module subroutine scroll_other_window(lines, status)
-        type(prefix_arg_type), intent(in) :: lines
+        type(prefix_argument_type), intent(in) :: lines
         type(status_type), intent(out) :: status
 
         call scroll_other(lines, 1, status)
     end subroutine scroll_other_window
 
     recursive module subroutine scroll_other_window_down(lines, status)
-        type(prefix_arg_type), intent(in) :: lines
+        type(prefix_argument_type), intent(in) :: lines
         type(status_type), intent(out) :: status
 
         call scroll_other(lines, -1, status)
     end subroutine scroll_other_window_down
 
     !> Scroll next window upward LINES lines; or near full screen if no
-    !> ARG.  See `scroll_up_command' for details.  Port of
+    !> ARGUMENT.  See `scroll_up_command' for details.  Port of
     !> window.el:scroll-other-window (interactive "P").
-    recursive subroutine cmd_scroll_other_window(status)
+    recursive subroutine execute_scroll_other_window(status)
         type(status_type), intent(out) :: status
 
-        call scroll_other_window(current_prefix_arg, status)
-    end subroutine cmd_scroll_other_window
+        call scroll_other_window(current_prefix_argument, status)
+    end subroutine execute_scroll_other_window
 
     !> Scroll next window downward LINES lines; or near full screen if no
-    !> ARG.  See `scroll_down_command' for details.  Port of
+    !> ARGUMENT.  See `scroll_down_command' for details.  Port of
     !> window.el:scroll-other-window-down (interactive "P").
-    recursive subroutine cmd_scroll_other_window_down(status)
+    recursive subroutine execute_scroll_other_window_down(status)
         type(status_type), intent(out) :: status
 
-        call scroll_other_window_down(current_prefix_arg, status)
-    end subroutine cmd_scroll_other_window_down
+        call scroll_other_window_down(current_prefix_argument, status)
+    end subroutine execute_scroll_other_window_down
 
-    module subroutine init_window_commands()
-        commands%scroll_up%execute => cmd_scroll_up
-        commands%scroll_down%execute => cmd_scroll_down
-        commands%scroll_up_command%execute => cmd_scroll_up_command
-        commands%scroll_down_command%execute => cmd_scroll_down_command
-        commands%recenter%execute => cmd_recenter
-        commands%scroll_other_window%execute => cmd_scroll_other_window
-        commands%scroll_other_window_down%execute => cmd_scroll_other_window_down
-        commands%recenter_top_bottom%execute => cmd_recenter_top_bottom
-        commands%move_to_window_line%execute => cmd_move_to_window_line
-        commands%move_to_window_line_top_bottom%execute => cmd_move_to_window_line_top_bottom
-        call init_window_cmds()
-        call init_window_display()
-    end subroutine init_window_commands
+    module subroutine initialize_window_commands()
+        commands%scroll_up%execute => execute_scroll_up
+        commands%scroll_down%execute => execute_scroll_down
+        commands%scroll_up_command%execute => execute_scroll_up_command
+        commands%scroll_down_command%execute => execute_scroll_down_command
+        commands%recenter%execute => execute_recenter
+        commands%scroll_other_window%execute => execute_scroll_other_window
+        commands%scroll_other_window_down%execute => execute_scroll_other_window_down
+        commands%recenter_top_bottom%execute => execute_recenter_top_bottom
+        commands%move_to_window_line%execute => execute_move_to_window_line
+        commands%move_to_window_line_top_bottom%execute => execute_move_to_window_line_top_bottom
+        call initialize_window_commands_submodule()
+        call initialize_window_display()
+    end subroutine initialize_window_commands
 end submodule window_scroll_mod

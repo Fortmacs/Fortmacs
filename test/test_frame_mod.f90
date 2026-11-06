@@ -31,7 +31,7 @@ module test_frame_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, is_buffer_live, record_buffer, &
                           frame_seen_buffers
     use frame_mod, only: frame_type, selected_frame, ensure_frame_windows, make_frame, select_frame, delete_frame, &
@@ -43,7 +43,7 @@ module test_frame_mod
                          frame_right_divider_width, frame_bottom_divider_width, window_right_divider_width, &
                          window_bottom_divider_width, is_window_divider_width_valid
     use window_mod, only: windows, resize_window_tree, set_window_buffer, same_handle, is_window_live, &
-                          switch_to_buffer_other_frame, display_buffer_other_frame, select_window, init_window_display, &
+                          switch_to_buffer_other_frame, display_buffer_other_frame, select_window, initialize_window_display, &
                           window_leaves, delete_window_tree, split_window
     implicit none(type, external)
     private
@@ -78,9 +78,9 @@ contains
         call ensure_frame_windows()
         call delete_other_frames(st)
         ! close_buffer replaces the buffer in windows through its hook.
-        call init_window_display()
-        selected_frame%tty%wcm%cm_rows = 24
-        selected_frame%tty%wcm%cm_cols = 80
+        call initialize_window_display()
+        selected_frame%terminal%wcm%cursor_motion_rows = 24
+        selected_frame%terminal%wcm%cursor_motion_columns = 80
         call resize_window_tree(selected_frame%root_window, 0, 0, 23, 80, 80)
         call resize_window_tree(selected_frame%minibuffer_window, 23, 0, 1, 80, 80)
         call get_or_make_buffer("frame-test", h, st)
@@ -140,7 +140,7 @@ contains
         call select_frame(second, st)
         call check(error, st%ok() .and. same_handle(selected_frame%handle, second), "selected")
         if (allocated(error)) return
-        call check(error, selected_frame%needs_redraw .and. selected_frame%tty%wcm%cm_rows == 24, "shown")
+        call check(error, selected_frame%needs_redraw .and. selected_frame%terminal%wcm%cursor_motion_rows == 24, "shown")
         if (allocated(error)) return
         ! Each frame has its own buffer list.
         call get_or_make_buffer("frame-test-other", other, st)
@@ -307,7 +307,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call window_divider_mode(st)
         call check(error, st%ok() .and. minor_modes%window_divider_mode%enabled(), "on")
         if (allocated(error)) return
@@ -354,12 +354,12 @@ contains
     !> or off.
     subroutine test_divider_widths(error)
         type(error_type), allocatable, intent(out) :: error
-        type(handle_type), allocatable :: ws(:)
+        type(handle_type), allocatable :: leaf_windows(:)
         type(handle_type) :: new
         type(status_type) :: st
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
         call ensure_frame_windows()
@@ -369,11 +369,11 @@ contains
         call check(error, frame_right_divider_width(selected_frame) == 0 .and. &
                    frame_bottom_divider_width(selected_frame) == 0, "frame")
         if (allocated(error)) return
-        call window_leaves(selected_frame%root_window, ws)
+        call window_leaves(selected_frame%root_window, leaf_windows)
 
-        do k = 1, size(ws)
-            call check(error, window_right_divider_width(windows(ws(k)%index)) == 0 .and. &
-                       window_bottom_divider_width(windows(ws(k)%index)) == 0, "window")
+        do k = 1, size(leaf_windows)
+            call check(error, window_right_divider_width(windows(leaf_windows(k)%index)) == 0 .and. &
+                       window_bottom_divider_width(windows(leaf_windows(k)%index)) == 0, "window")
             if (allocated(error)) return
         end do
 
@@ -381,9 +381,9 @@ contains
         ! the right edge, below a window above the minibuffer window.
         selected_frame%right_divider_width = 4
         selected_frame%bottom_divider_width = 2
-        call check(error, window_right_divider_width(windows(ws(1)%index)) == 4 .and. &
-                   window_right_divider_width(windows(ws(2)%index)) == 0 .and. &
-                   window_bottom_divider_width(windows(ws(1)%index)) == 2 .and. &
+        call check(error, window_right_divider_width(windows(leaf_windows(1)%index)) == 4 .and. &
+                   window_right_divider_width(windows(leaf_windows(2)%index)) == 0 .and. &
+                   window_bottom_divider_width(windows(leaf_windows(1)%index)) == 2 .and. &
                    window_bottom_divider_width(windows(selected_frame%minibuffer_window%index)) == 0, "macros")
         selected_frame%right_divider_width = 0
         selected_frame%bottom_divider_width = 0

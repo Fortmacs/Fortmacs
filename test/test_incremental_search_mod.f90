@@ -27,23 +27,24 @@
 !> unless a test says otherwise.
 module test_incremental_search_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
     use error_mod, only: status_type
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, list_length, list_elt, xstring
+    use value_mod, only: value_type, list_length, list_element, xstring
     use data_mod, only: set, symbol_value
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point, mark_position
+    use editing_functions_mod, only: goto_character, point, mark_position
     use simple_mod, only: copy_to_clipboard_history
     use keymap_mod, only: key_parse, overriding_terminal_local_map
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
-    use execute_interactively_mod, only: prefix_arg
-    use bindings_mod, only: init_bindings
-    use incremental_search_mod, only: isearch_done, isearch_update, isearch_active, isearch_string, isearch_regexp, &
-                                      isearch_lax_whitespace
+    use execute_interactively_mod, only: prefix_argument
+    use bindings_mod, only: initialize_bindings
+    use incremental_search_mod, only: incremental_search_done, incremental_search_update, incremental_search_active, &
+                                      incremental_search_string, incremental_search_regular_expression, &
+                                      incremental_search_lax_whitespace
     implicit none(type, external)
     private
 
@@ -68,9 +69,9 @@ contains
                     new_unittest("isearch-nonincremental", test_nonincremental), &
                     new_unittest("isearch-yank", test_paste), &
                     new_unittest("isearch-yank-word-or-char", test_paste_word), &
-                    new_unittest("isearch-regexp", test_regexp), &
-                    new_unittest("isearch-regexp-incomplete-and-fallback", test_regexp_fallback), &
-                    new_unittest("isearch-toggle-regexp", test_toggle_regexp), &
+                    new_unittest("isearch-regexp", test_regular_expression), &
+                    new_unittest("isearch-regexp-incomplete-and-fallback", test_regular_expression_fallback), &
+                    new_unittest("isearch-toggle-regexp", test_toggle_regular_expression), &
                     new_unittest("isearch-lax-whitespace", test_lax_whitespace), &
                     new_unittest("isearch-control-char-message", test_control_message), &
                     new_unittest("isearch-edit-string-at-failure", test_edit_at_failure) &
@@ -82,13 +83,13 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
+        prefix_argument = prefix_argument_type()
         call get_or_make_buffer("isearch-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         last_message = ""
         call set(value_type(name="search_ring"), value_type(), st)
         call show_alone()
@@ -98,7 +99,7 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        if (isearch_active) call isearch_done()
+        if (incremental_search_active) call incremental_search_done()
         call close_buffer(h, st)
     end subroutine leave
 
@@ -120,18 +121,18 @@ contains
         ! Emacs always has a current buffer; give the test its own.
         call enter("", h)
         ! Normal operation.
-        call isearch_update()
-        call isearch_done()
-        call check(error,.not. isearch_active)
+        call incremental_search_update()
+        call incremental_search_done()
+        call check(error,.not. incremental_search_active)
 
         if (allocated(error)) then
             call leave(h)
             return
         end if
 
-        ! Bug #21091: let `isearch_done' work without `isearch-update'.
-        call isearch_done()
-        call check(error,.not. isearch_active .and. overriding_terminal_local_map%index == 0)
+        ! Bug #21091: let `incremental_search_done' work without `isearch-update'.
+        call incremental_search_done()
+        call check(error,.not. incremental_search_active .and. overriding_terminal_local_map%index == 0)
         call leave(h)
     end subroutine test_done
 
@@ -141,12 +142,12 @@ contains
 
         call enter("foo bar foo baz Foo", h)
         call type_keys("C-s f o")
-        call check(error, isearch_active .and. point() == 3, "found as typed")
+        call check(error, incremental_search_active .and. point() == 3, "found as typed")
         if (allocated(error)) return
         call check(error, last_message == "I-search: fo", last_message)
         if (allocated(error)) return
         call type_keys("o RET")
-        call check(error,.not. isearch_active .and. point() == 4, "RET exits")
+        call check(error,.not. incremental_search_active .and. point() == 4, "RET exits")
         call leave(h)
     end subroutine test_typing
 
@@ -169,7 +170,7 @@ contains
         if (allocated(error)) return
         ! From the middle: plain wrapped.
         call type_keys("RET")
-        call goto_char(9_int64)
+        call goto_character(9_int64)
         call type_keys("C-s b a C-s")
         call check(error, point() == 15 .and. last_message == "Failing I-search: ba", last_message)
         if (allocated(error)) return
@@ -183,20 +184,20 @@ contains
         type(handle_type) :: h
 
         call enter("foo bar foo baz Foo", h)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call type_keys("C-s b a DEL")
-        call check(error, isearch_active .and. point() == 6 .and. isearch_string == "b", "DEL")
+        call check(error, incremental_search_active .and. point() == 6 .and. incremental_search_string == "b", "DEL")
         if (allocated(error)) return
         call type_keys("x y")
         call check(error, point() == 6 .and. last_message == "Failing I-search: bxy", last_message)
         if (allocated(error)) return
         ! C-g when failing rubs out the failing part.
         call type_keys("C-g")
-        call check(error, isearch_active .and. isearch_string == "b" .and. point() == 6, "C-g failing")
+        call check(error, incremental_search_active .and. incremental_search_string == "b" .and. point() == 6, "C-g failing")
         if (allocated(error)) return
         ! C-g when successful goes back and quits.
         call type_keys("C-g")
-        call check(error,.not. isearch_active .and. point() == 2 .and. last_message == "Quit", last_message)
+        call check(error,.not. incremental_search_active .and. point() == 2 .and. last_message == "Quit", last_message)
         call leave(h)
     end subroutine test_abort
 
@@ -210,14 +211,14 @@ contains
         call check(error, point() == 18, "F")
         if (allocated(error)) return
         call type_keys("RET")
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         ! M-c toggles: case-sensitive...
         call type_keys("C-s M-c f o o C-s C-s")
         call check(error, point() == 12 .and. last_message == "Failing case-sensitive I-search: foo", &
                    last_message)
         if (allocated(error)) return
         call type_keys("RET")
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         ! ... and insensitive even with an upper-case letter.
         call type_keys("C-s M-c M-c F o o")
         call check(error, point() == 4, "case insensitive")
@@ -229,7 +230,7 @@ contains
         type(handle_type) :: h
 
         call enter("foo bar foo baz Foo", h)
-        call goto_char(20_int64)
+        call goto_character(20_int64)
         call type_keys("C-r f o")
         call check(error, point() == 17 .and. last_message == "I-search backward: fo", last_message)
         if (allocated(error)) return
@@ -248,7 +249,7 @@ contains
 
         call enter("foo bar foo baz Foo", h)
         call type_keys("C-s b a r C-f")
-        call check(error,.not. isearch_active .and. point() == 9, "C-f ends the search and runs")
+        call check(error,.not. incremental_search_active .and. point() == 9, "C-f ends the search and runs")
         if (allocated(error)) return
         ! The search string went into the ring.
         call check(error, ring_first() == "bar", ring_first())
@@ -262,14 +263,14 @@ contains
         call enter("foo bar foo baz Foo", h)
         ! C-u 2 C-s skips a match; the prefix argument doesn't end the search.
         call type_keys("C-s f o o C-u 2 C-s")
-        call check(error, isearch_active .and. point() == 20, "C-u 2 C-s")
+        call check(error, incremental_search_active .and. point() == 20, "C-u 2 C-s")
         if (allocated(error)) return
         call type_keys("RET")
         call leave(h)
         ! A count for a printing character.
         call enter("aaab", h)
         call type_keys("C-s C-u 3 a b")
-        call check(error, isearch_string == "aaab" .and. point() == 5, isearch_string)
+        call check(error, incremental_search_string == "aaab" .and. point() == 5, incremental_search_string)
         call leave(h)
     end subroutine test_prefix
 
@@ -279,10 +280,11 @@ contains
 
         call enter("foo bar foo baz Foo", h)
         call type_keys("C-s b a RET")
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         ! C-s C-s searches for the last string.
         call type_keys("C-s C-s")
-        call check(error, isearch_active .and. isearch_string == "ba" .and. point() == 7, isearch_string)
+        call check(error, incremental_search_active .and. incremental_search_string == "ba" .and. point() == 7, &
+                   incremental_search_string)
         if (allocated(error)) return
         call type_keys("RET")
         call check(error, list_length(ring()) == 1, "no duplicate")
@@ -296,14 +298,15 @@ contains
         call enter("foo bar foo baz Foo", h)
         ! RET at once reads a string and searches for it.
         call type_keys("C-s RET b a z RET")
-        call check(error,.not. isearch_active .and. point() == 16, "nonincremental search")
+        call check(error,.not. incremental_search_active .and. point() == 16, "nonincremental search")
         if (allocated(error)) return
         call check(error, ring_first() == "baz", ring_first())
         if (allocated(error)) return
         ! M-e edits the string.
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call type_keys("C-s b a M-e r RET")
-        call check(error, isearch_active .and. isearch_string == "bar" .and. point() == 8, isearch_string)
+        call check(error, incremental_search_active .and. incremental_search_string == "bar" .and. point() == 8, &
+                   incremental_search_string)
         call leave(h)
     end subroutine test_nonincremental
 
@@ -314,22 +317,22 @@ contains
         call enter("Foo bar"//achar(10)//"foo bar", h)
         ! C-M-y pastes characters, downcased (search-upper-case not-yanks).
         call type_keys("C-s C-M-y C-M-y")
-        call check(error, isearch_string == "fo" .and. point() == 3, isearch_string)
+        call check(error, incremental_search_string == "fo" .and. point() == 3, incremental_search_string)
         if (allocated(error)) return
         ! M-s C-e pastes the rest of the line.
         call type_keys("M-s C-e")
-        call check(error, isearch_string == "foo bar" .and. point() == 8, isearch_string)
+        call check(error, incremental_search_string == "foo bar" .and. point() == 8, incremental_search_string)
         if (allocated(error)) return
         call type_keys("RET")
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         ! C-y pastes the last kill; M-y replaces it with the one before.
         call copy_to_clipboard_history("BAR")
         call copy_to_clipboard_history("oo b")
         call type_keys("C-s C-y")
-        call check(error, isearch_string == "oo b" .and. point() == 6, isearch_string)
+        call check(error, incremental_search_string == "oo b" .and. point() == 6, incremental_search_string)
         if (allocated(error)) return
         call type_keys("M-y")
-        call check(error, isearch_string == "bar" .and. point() == 8, isearch_string)
+        call check(error, incremental_search_string == "bar" .and. point() == 8, incremental_search_string)
         call leave(h)
     end subroutine test_paste
 
@@ -340,15 +343,15 @@ contains
 
         call enter("Foo bar, baz", h)
         call type_keys("C-s C-w")
-        call check(error, isearch_string == "foo" .and. point() == 4, isearch_string)
+        call check(error, incremental_search_string == "foo" .and. point() == 4, incremental_search_string)
         if (allocated(error)) return
         ! A space, then a word: the word comes too.
         call type_keys("C-w")
-        call check(error, isearch_string == "foo bar" .and. point() == 8, isearch_string)
+        call check(error, incremental_search_string == "foo bar" .and. point() == 8, incremental_search_string)
         if (allocated(error)) return
         ! A comma and a space: one character.
         call type_keys("C-w")
-        call check(error, isearch_string == "foo bar," .and. point() == 9, isearch_string)
+        call check(error, incremental_search_string == "foo bar," .and. point() == 9, incremental_search_string)
         call leave(h)
     end subroutine test_paste_word
 
@@ -366,10 +369,10 @@ contains
 
         s = ""
         v = ring()
-        if (list_length(v) > 0) s = xstring(list_elt(v, 1_int64))
+        if (list_length(v) > 0) s = xstring(list_element(v, 1_int64))
     end function ring_first
 
-    subroutine test_regexp(error)
+    subroutine test_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(value_type) :: ring
@@ -377,7 +380,7 @@ contains
 
         call enter("abc 123 x45", h)
         call type_keys("C-M-s [ 0 - 9 ] +")
-        call check(error, isearch_active .and. isearch_regexp .and. point() == 8, "found")
+        call check(error, incremental_search_active .and. incremental_search_regular_expression .and. point() == 8, "found")
         if (allocated(error)) return
         call check(error, last_message == "Regexp I-search: [0-9]+", last_message)
         if (allocated(error)) return
@@ -385,21 +388,21 @@ contains
         call check(error, point() == 12, "repeat")
         if (allocated(error)) return
         call type_keys("RET")
-        call symbol_value(value_type(name="regexp_search_ring"), ring, st)
+        call symbol_value(value_type(name="regular_expression_search_ring"), ring, st)
         call check(error, st%ok() .and. list_length(ring) == 1, "regexp ring")
         if (allocated(error)) return
-        call check(error, xstring(list_elt(ring, 1_int64)) == "[0-9]+", "ring element")
+        call check(error, xstring(list_element(ring, 1_int64)) == "[0-9]+", "ring element")
         if (allocated(error)) return
         ! C-u C-s is a regexp search too; backward with C-M-r.
         call type_keys("C-M-r [ a - c ] + RET")
-        call check(error, point() == 3, "backward regexp: "//isearch_string)
+        call check(error, point() == 3, "backward regexp: "//incremental_search_string)
         if (allocated(error)) return
         call type_keys("C-u C-s x . RET")
         call check(error, point() == 11, "C-u C-s")
         call leave(h)
-    end subroutine test_regexp
+    end subroutine test_regular_expression
 
-    subroutine test_regexp_fallback(error)
+    subroutine test_regular_expression_fallback(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
@@ -413,12 +416,12 @@ contains
         ! * makes the regexp more liberal: go back to where the previous
         ! successful search started.
         call type_keys("*")
-        call check(error, point() == 2 .and. isearch_string == "ab*", "ab*")
+        call check(error, point() == 2 .and. incremental_search_string == "ab*", "ab*")
         call type_keys("RET")
         call leave(h)
-    end subroutine test_regexp_fallback
+    end subroutine test_regular_expression_fallback
 
-    subroutine test_toggle_regexp(error)
+    subroutine test_toggle_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
@@ -427,12 +430,12 @@ contains
         call check(error, point() == 4, "literal f.o")
         if (allocated(error)) return
         call type_keys("M-r C-s")
-        call check(error, isearch_regexp .and. point() == 8, "regexp f.o")
+        call check(error, incremental_search_regular_expression .and. point() == 8, "regexp f.o")
         if (allocated(error)) return
         call check(error, last_message == "Regexp I-search: f.o", last_message)
         call type_keys("RET")
         call leave(h)
-    end subroutine test_toggle_regexp
+    end subroutine test_toggle_regular_expression
 
     subroutine test_lax_whitespace(error)
         type(error_type), allocatable, intent(out) :: error
@@ -443,13 +446,13 @@ contains
         call check(error, point() == 8, "lax: spaces match a run of whitespace")
         if (allocated(error)) return
         call type_keys("M-s SPC")
-        call check(error,.not. isearch_lax_whitespace, "toggled")
+        call check(error,.not. incremental_search_lax_whitespace, "toggled")
         if (allocated(error)) return
         call type_keys("C-s")
         call check(error, point() == 16, "literal space")
         call type_keys("RET M-s SPC")
         call type_keys("C-s M-s SPC RET")
-        call check(error, isearch_lax_whitespace, "toggled back")
+        call check(error, incremental_search_lax_whitespace, "toggled back")
         call leave(h)
     end subroutine test_lax_whitespace
 
@@ -462,7 +465,7 @@ contains
         call type_keys("C-s a C-q C-j")
         call check(error, last_message == "I-search: a^J", last_message)
         if (allocated(error)) return
-        call check(error, isearch_string == "a"//achar(10), "the string has the newline")
+        call check(error, incremental_search_string == "a"//achar(10), "the string has the newline")
         call leave(h)
     end subroutine test_control_message
 
@@ -474,7 +477,7 @@ contains
 
         call enter("abc", h)
         call type_keys("C-s a b x M-e Z RET")
-        call check(error, isearch_string == "abZx", isearch_string)
+        call check(error, incremental_search_string == "abZx", incremental_search_string)
         call leave(h)
     end subroutine test_edit_at_failure
 end module test_incremental_search_mod

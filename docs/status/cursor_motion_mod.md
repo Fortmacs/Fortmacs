@@ -11,7 +11,7 @@
 `cmgoto`,
 `cmcheckmagic`,
 `Wcm_clear`,
-`Wcm_init`,
+`Wcm_initialize`,
 `cmat`,
 `cmplus`,
 `losecursor`

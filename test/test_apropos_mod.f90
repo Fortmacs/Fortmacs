@@ -32,12 +32,12 @@ module test_apropos_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, get_buffer, set_buffer, current_buffer, is_buffer_live
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: windows, delete_other_windows, switch_to_buffer, resize_window_tree
-    use editing_functions_mod, only: buffer_string, goto_char, point_max
+    use editing_functions_mod, only: buffer_string, goto_character, point_maximum
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use search_mod, only: string_match
-    use apropos_mod, only: apropos_words_to_regexp, apropos_parse_pattern, apropos_regexp, &
+    use apropos_mod, only: apropos_words_to_regular_expression, apropos_parse_pattern, apropos_regular_expression, &
                            apropos_calc_scores, apropos_true_hit
     use string_type_mod, only: string_type
     implicit none(type, external)
@@ -54,12 +54,12 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("apropos-tests-words-to-regexp-1", test_words_to_regexp_1), &
-                    new_unittest("apropos-tests-words-to-regexp-2", test_words_to_regexp_2), &
+                    new_unittest("apropos-tests-words-to-regexp-1", test_words_to_regular_expression_1), &
+                    new_unittest("apropos-tests-words-to-regexp-2", test_words_to_regular_expression_2), &
                     new_unittest("apropos-tests-parse-pattern-1", test_parse_pattern_1), &
                     new_unittest("apropos-tests-parse-pattern-2", test_parse_pattern_2), &
                     new_unittest("apropos-tests-parse-pattern-3", test_parse_pattern_3), &
-                    new_unittest("apropos-tests-parse-pattern-single-regexp", test_parse_pattern_regexp), &
+                    new_unittest("apropos-tests-parse-pattern-single-regexp", test_parse_pattern_regular_expression), &
                     new_unittest("apropos-tests-parse-pattern-synonyms", test_parse_pattern_synonyms), &
                     new_unittest("apropos-tests-calc-scores", test_calc_scores), &
                     new_unittest("apropos-tests-true-hit", test_true_hit), &
@@ -87,18 +87,18 @@ contains
         if (present(c)) w(3)%text = c
     end function words
 
-    logical function matches(regexp, s)
-        character(len=*), intent(in) :: regexp, s
+    logical function matches(regular_expression, s)
+        character(len=*), intent(in) :: regular_expression, s
         type(status_type) :: st
 
-        matches = string_match(regexp, s, st) > 0
+        matches = string_match(regular_expression, s, st) > 0
     end function matches
 
     subroutine fresh()
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -150,23 +150,24 @@ contains
         call set_buffer(old, st)
     end function apropos_text
 
-    subroutine test_words_to_regexp_1(error)
+    subroutine test_words_to_regular_expression_1(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
-        regexp = apropos_words_to_regexp(words("foo", "bar"), "baz")
-        call check(error, matches(regexp, "foobazbar") .and. matches(regexp, "barbazfoo") .and. &
-                   .not. matches(regexp, "foo-bar") .and. .not. matches(regexp, "foobazbazbar"), regexp)
-    end subroutine test_words_to_regexp_1
+        regular_expression = apropos_words_to_regular_expression(words("foo", "bar"), "baz")
+        call check(error, matches(regular_expression, "foobazbar") .and. matches(regular_expression, "barbazfoo") .and. &
+                   .not. matches(regular_expression, "foo-bar") .and. .not. matches(regular_expression, "foobazbazbar"), &
+                   regular_expression)
+    end subroutine test_words_to_regular_expression_1
 
-    subroutine test_words_to_regexp_2(error)
+    subroutine test_words_to_regular_expression_2(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
 
-        regexp = apropos_words_to_regexp(words("foo", "bar", "baz"), "-")
-        call check(error,.not. matches(regexp, "foo") .and. .not. matches(regexp, "foobar") .and. &
-                   matches(regexp, "foo-bar") .and. matches(regexp, "foo-baz"), regexp)
-    end subroutine test_words_to_regexp_2
+        regular_expression = apropos_words_to_regular_expression(words("foo", "bar", "baz"), "-")
+        call check(error,.not. matches(regular_expression, "foo") .and. .not. matches(regular_expression, "foobar") .and. &
+                   matches(regular_expression, "foo-bar") .and. matches(regular_expression, "foo-baz"), regular_expression)
+    end subroutine test_words_to_regular_expression_2
 
     subroutine test_parse_pattern_1(error)
         type(error_type), allocatable, intent(out) :: error
@@ -174,9 +175,9 @@ contains
 
         w = words("foo")
         call apropos_parse_pattern("", w, .false.)
-        call check(error, matches(apropos_regexp, "foo") .and. matches(apropos_regexp, "foo-bar") .and. &
-                   matches(apropos_regexp, "bar-foo") .and. matches(apropos_regexp, "foo-foo") .and. &
-                   .not. matches(apropos_regexp, "bar"), apropos_regexp)
+        call check(error, matches(apropos_regular_expression, "foo") .and. matches(apropos_regular_expression, "foo-bar") .and. &
+                   matches(apropos_regular_expression, "bar-foo") .and. matches(apropos_regular_expression, "foo-foo") .and. &
+                   .not. matches(apropos_regular_expression, "bar"), apropos_regular_expression)
     end subroutine test_parse_pattern_1
 
     subroutine test_parse_pattern_2(error)
@@ -185,10 +186,12 @@ contains
 
         w = words("foo", "bar")
         call apropos_parse_pattern("", w, .false.)
-        call check(error, matches(apropos_regexp, "foo-bar") .and. matches(apropos_regexp, "bar-foo") .and. &
-                   .not. matches(apropos_regexp, "foo") .and. .not. matches(apropos_regexp, "bar") .and. &
-                   .not. matches(apropos_regexp, "baz") .and. .not. matches(apropos_regexp, "foo-foo") .and. &
-                   .not. matches(apropos_regexp, "bar-bar"), apropos_regexp)
+        call check(error, matches(apropos_regular_expression, "foo-bar") .and. matches(apropos_regular_expression, &
+                                                                                       "bar-foo") .and. &
+                   .not. matches(apropos_regular_expression, "foo") .and. .not. matches(apropos_regular_expression, "bar") .and. &
+                   .not. matches(apropos_regular_expression, "baz") .and. .not. matches(apropos_regular_expression, &
+                                                                                        "foo-foo") .and. &
+                   .not. matches(apropos_regular_expression, "bar-bar"), apropos_regular_expression)
     end subroutine test_parse_pattern_2
 
     subroutine test_parse_pattern_3(error)
@@ -197,23 +200,27 @@ contains
 
         w = words("foo", "bar", "baz")
         call apropos_parse_pattern("", w, .false.)
-        call check(error, matches(apropos_regexp, "foo-bar") .and. matches(apropos_regexp, "foo-baz") .and. &
-                   matches(apropos_regexp, "bar-foo") .and. matches(apropos_regexp, "bar-baz") .and. &
-                   matches(apropos_regexp, "baz-foo") .and. matches(apropos_regexp, "baz-bar") .and. &
-                   .not. matches(apropos_regexp, "foo") .and. .not. matches(apropos_regexp, "bar") .and. &
-                   .not. matches(apropos_regexp, "baz") .and. .not. matches(apropos_regexp, "foo-foo") .and. &
-                   .not. matches(apropos_regexp, "bar-bar") .and. .not. matches(apropos_regexp, "baz-baz"), &
-                   apropos_regexp)
+        call check(error, matches(apropos_regular_expression, "foo-bar") .and. matches(apropos_regular_expression, &
+                                                                                       "foo-baz") .and. &
+                   matches(apropos_regular_expression, "bar-foo") .and. matches(apropos_regular_expression, "bar-baz") .and. &
+                   matches(apropos_regular_expression, "baz-foo") .and. matches(apropos_regular_expression, "baz-bar") .and. &
+                   .not. matches(apropos_regular_expression, "foo") .and. .not. matches(apropos_regular_expression, "bar") .and. &
+                   .not. matches(apropos_regular_expression, "baz") .and. .not. matches(apropos_regular_expression, &
+                                                                                        "foo-foo") .and. &
+                   .not. matches(apropos_regular_expression, "bar-bar") .and. .not. matches(apropos_regular_expression, &
+                                                                                            "baz-baz"), &
+                   apropos_regular_expression)
     end subroutine test_parse_pattern_3
 
-    subroutine test_parse_pattern_regexp(error)
+    subroutine test_parse_pattern_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
         type(string_type), allocatable :: w(:)
 
         call apropos_parse_pattern("foo+bar", w, .false.)
-        call check(error,.not. matches(apropos_regexp, "fobar") .and. matches(apropos_regexp, "foobar") .and. &
-                   matches(apropos_regexp, "fooobar"), apropos_regexp)
-    end subroutine test_parse_pattern_regexp
+        call check(error,.not. matches(apropos_regular_expression, "fobar") .and. matches(apropos_regular_expression, &
+                                                                                          "foobar") .and. &
+                   matches(apropos_regular_expression, "fooobar"), apropos_regular_expression)
+    end subroutine test_parse_pattern_regular_expression
 
     !> With the standard synonyms, ("find" "open" "edit") among them.
     subroutine test_parse_pattern_synonyms(error)
@@ -222,8 +229,9 @@ contains
 
         w = words("open")
         call apropos_parse_pattern("", w, .false.)
-        call check(error, matches(apropos_regexp, "find-file") .and. matches(apropos_regexp, "open-file") .and. &
-                   matches(apropos_regexp, "edit-file"), apropos_regexp)
+        call check(error, matches(apropos_regular_expression, "find-file") .and. matches(apropos_regular_expression, &
+                                                                                         "open-file") .and. &
+                   matches(apropos_regular_expression, "edit-file"), apropos_regular_expression)
     end subroutine test_parse_pattern_synonyms
 
     subroutine test_calc_scores(error)
@@ -271,7 +279,7 @@ contains
         call command_loop(st)
         text = apropos_text()
         call check(error, index(text, "Type RET on an entry to view its full documentation."//LF//LF// &
-                                "comint_cut_whole_line"//TAB//"      M-x ... RET"//LF// &
+                                "command_interpreter_cut_whole_line M-x ... RET"//LF// &
                                 "  Cut current line, ignoring read-only and field properties."//LF// &
                                 "cut_line"//TAB//TAB//"      C-k, <deleteline>") == 1, text)
         if (allocated(error)) return
@@ -363,7 +371,7 @@ contains
         call set_buffer(old, st)
         call check(error, index(text, "cut_whole_line is an interactive Fortran subroutine") == 1, text)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call type_keys("RET")
         call command_loop(st)
         call check(error, last_message, "There is nothing to follow here")

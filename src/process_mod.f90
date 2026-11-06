@@ -62,24 +62,24 @@
 !> process asks nothing); the query about active processes on exit.
 module process_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, format_error, FM_GENERIC_ERROR, FM_FILE_ERROR, FM_ARGS_OUT_OF_RANGE
+    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE, FILE_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE
     use handle_mod, only: handle_type, slot_table_type, null_handle
     use data_mod, only: logical_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, set_buffer_internal, is_buffer_live, &
                           resolve_buffer, close_buffer_processes_hook, deactivate_mark_variable, BEGINNING, buffer_handle
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker_both, &
-                          set_marker, char_to_byte
+                          set_marker, character_to_byte
     use insert_delete_mod, only: insert, insert_before_markers
-    use editing_functions_mod, only: goto_char, widen, narrow_to_region, set_point_from_marker
-    use character_mod, only: str_as_multibyte, str_as_unibyte
+    use editing_functions_mod, only: goto_character, widen, narrow_to_region, set_point_from_marker
+    use character_mod, only: string_as_multibyte, string_as_unibyte
     use coding_mod, only: default_process_coding_system, coding_system_for_read, coding_system_for_write, &
-                          last_coding_system_used, check_coding_system, coding_system_type, coding_system_eol_type, &
-                          decode_coding_bytes, encode_coding_text, EOL_DOS
+                          last_coding_system_used, check_coding_system, coding_system_type, coding_system_end_of_line_type, &
+                          decode_coding_bytes, encode_coding_text, END_OF_LINE_DOS
     use file_input_output_mod, only: is_file_directory, report_file_errno, expand_file_name
-    use execute_process_mod, only: get_current_directory, locate_program, init_callproc, make_environment_block
-    use system_dependent_mod, only: fortmacs_spawn_async, fortmacs_kill, ignore_sigpipe, fortmacs_full_write, &
-                                   close_fd, fortmacs_strsignal, fortmacs_strerror, fortmacs_dup_cloexec, fortmacs_num_processors, &
-                                    ENOENT, EPIPE, set_tty_size
+    use execute_process_mod, only: get_current_directory, locate_program, initialize_callproc, make_environment_block
+    use system_dependent_mod, only: fortmacs_spawn_asynchronous, fortmacs_kill, ignore_sigpipe, fortmacs_full_write, close_fd, &
+                                    fortmacs_strsignal, fortmacs_strerror, fortmacs_dup_cloexec, fortmacs_number_processors, &
+                                    ENOENT, EPIPE, set_terminal_size
     use system_worker_mod, only: worker_message_type, start_reader, take_worker_messages, worker_wake_fd, &
                                  wait_for_worker_messages, worker_count, WORKER_OUTPUT, WORKER_EXIT
     use display_engine_mod, only: message, mode_line_process_status
@@ -93,14 +93,15 @@ module process_mod
     public :: make_process, start_process, delete_process, destroy_process, is_process, is_process_live, &
               get_process, get_buffer_process, process_list, process_status, process_exit_status, process_id, &
               process_name, process_command, process_buffer, set_process_buffer, process_mark, &
-              set_process_filter, set_process_sentinel, process_tty_name, set_process_window_size, set_process_query_on_exit_flag, &
+              set_process_filter, set_process_sentinel, process_terminal_name, set_process_window_size, &
+              set_process_query_on_exit_flag, &
               process_filter, process_sentinel, &
               process_query_on_exit_flag, interrupt_process, stop_process, quit_process, signal_process, &
               suspend_process, continue_process, &
               process_send_string, set_process_coding_system, &
               process_coding_system, process_send_region, process_send_eof, accept_process_output, &
               internal_default_process_filter, internal_default_process_sentinel, kill_buffer_processes, &
-              status_message, init_process, process_shutdown, dispatch_process_output, num_processors, &
+              status_message, initialize_process, process_shutdown, dispatch_process_output, number_processors, &
               process_running_child
     public :: PROCESS_CONNECTION_DEFAULT, PROCESS_CONNECTION_PIPE, PROCESS_CONNECTION_PTY, PROCESS_RUNNING_CHILD_UNKNOWN
 
@@ -176,7 +177,7 @@ module process_mod
         !> Descriptor for sending input (p->outfd), -1 when closed.
         integer(int32) :: outfd = -1
         logical :: pty = .false.
-        character(len=:), allocatable :: tty_name
+        character(len=:), allocatable :: terminal_name
         logical :: stop_without_query = .false.
         !> In the process list (not deleted).
         logical :: listed = .false.
@@ -205,18 +206,18 @@ module process_mod
     abstract interface
         !> What keeps a process filter or sentinel from changing the match
         !> data (search_mod): one runs before it (OUTER becomes the earlier
-        !> state of running_asynch_code, SAVED what to reinstate), one
+        !> state of running_asynchronous_code, SAVED what to reinstate), one
         !> after it.  Not a port.
-        subroutine asynch_code_procedure(outer, saved)
+        subroutine asynchronous_code_procedure(outer, saved)
             import :: int64
             implicit none(type, external)
             logical, intent(inout) :: outer
             integer(int64), allocatable, intent(inout) :: saved(:)
-        end subroutine asynch_code_procedure
+        end subroutine asynchronous_code_procedure
     end interface
 
-    !> Set by search_mod (search.c's side of process.c's running_asynch_code).
-    procedure(asynch_code_procedure), pointer, public :: begin_asynch_code => null(), end_asynch_code => null()
+    !> Set by search_mod (search.c's side of process.c's running_asynchronous_code).
+    procedure(asynchronous_code_procedure), pointer, public :: begin_asynchronous_code => null(), end_asynchronous_code => null()
 
 contains
 
@@ -295,7 +296,7 @@ contains
         processes(i)%name = name1
         processes(i)%state = ST_RUN
         call make_marker(processes(i)%mark)
-        processes(i)%tty_name = ""
+        processes(i)%terminal_name = ""
         processes(i)%carryover = ""
         processes(i)%decode_coding_system = trim(default_process_coding_system(1))
         processes(i)%encode_coding_system = trim(default_process_coding_system(2))
@@ -396,23 +397,23 @@ contains
 
     !> Return a string describing a process status.  Port of
     !> process.c:status_message.
-    function status_message(process) result(msg)
+    function status_message(process) result(message)
         type(handle_type), intent(in) :: process
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message
         type(status_type) :: st
         integer(int64) :: i
 
-        msg = ""
+        message = ""
         call resolve(process, i, st)
         if (.not. st%ok()) return
-        msg = status_message_1(i)
+        message = status_message_1(i)
     end function status_message
 
     ! Port of process.c:status_message (for slot I).
-    function status_message_1(i) result(msg)
+    function status_message_1(i) result(message)
         integer(int64), intent(in) :: i
-        character(len=:), allocatable :: msg
-        character(len=24) :: num
+        character(len=:), allocatable :: message
+        character(len=24) :: number
         character(len=:), allocatable :: suffix
 
         if (processes(i)%raw_status_new) call update_status(i)
@@ -421,23 +422,23 @@ contains
 
         select case (processes(i)%state)
         case (ST_SIGNAL)
-            msg = fortmacs_strsignal(processes(i)%code)
+            message = fortmacs_strsignal(processes(i)%code)
 
             ! Downcase the first letter (as upstream's c1/c2).
-            if (len(msg) > 0) then
-                if (msg(1:1) >= "A" .and. msg(1:1) <= "Z") msg(1:1) = achar(iachar(msg(1:1)) + 32)
+            if (len(message) > 0) then
+                if (message(1:1) >= "A" .and. message(1:1) <= "Z") message(1:1) = achar(iachar(message(1:1)) + 32)
             end if
 
-            msg = msg//suffix
+            message = message//suffix
         case (ST_EXIT)
             if (processes(i)%code == 0) then
-                msg = "finished"//new_line("a")
+                message = "finished"//new_line("a")
             else
-                write (num, "(i0)") processes(i)%code
-                msg = "exited abnormally with code "//trim(num)//suffix
+                write (number, "(i0)") processes(i)%code
+                message = "exited abnormally with code "//trim(number)//suffix
             end if
         case default
-            msg = "run"
+            message = "run"
         end select
     end function status_message_1
 
@@ -545,7 +546,7 @@ contains
     !> This is the terminal that the process itself reads and writes on,
     !> not the name of the pty that Fortmacs uses to talk with that terminal.
     !> Port of process.c:Fprocess_tty_name.
-    function process_tty_name(process) result(name)
+    function process_terminal_name(process) result(name)
         type(handle_type), intent(in) :: process
         character(len=:), allocatable :: name
         type(status_type) :: st
@@ -553,8 +554,8 @@ contains
 
         name = ""
         call resolve(process, i, st)
-        if (st%ok()) name = processes(i)%tty_name
-    end function process_tty_name
+        if (st%ok()) name = processes(i)%terminal_name
+    end function process_terminal_name
 
     !> Tell PROCESS that it has logical window size WIDTH by HEIGHT.
     !> TOLD is true if PROCESS was successfully told about the window size,
@@ -574,12 +575,12 @@ contains
 
         ! All known platforms store window sizes as `unsigned short'.
         if (any([height, width] < 0) .or. any([height, width] > 65535)) then
-            call set_error(status, FM_ARGS_OUT_OF_RANGE, "Args out of range")
+            call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, "Args out of range")
             return
         end if
 
         if (.not. processes(i)%reading .or. processes(i)%outfd < 0) return
-        call set_tty_size(processes(i)%outfd, int(width, int32), int(height, int32), st)
+        call set_terminal_size(processes(i)%outfd, int(width, int32), int(height, int32), st)
         told = st%ok()
     end subroutine set_process_window_size
 
@@ -609,7 +610,8 @@ contains
         call marker_buffer(processes(i)%mark, mb, st)
         if (mb%index == processes(i)%buffer%index .and. mb%generation == processes(i)%buffer%generation) return
         call resolve_buffer(processes(i)%buffer, b, st)
-        call set_marker_both(processes(i)%mark, processes(i)%buffer, buffers(b)%zv, buffers(b)%zv_byte, st)
+        call set_marker_both(processes(i)%mark, processes(i)%buffer, buffers(b)%end_of_accessible_portion, &
+                             buffers(b)%end_of_accessible_portion_byte, st)
     end subroutine update_process_mark
 
     !> Set buffer associated with PROCESS to BUFFER (a buffer, or a null
@@ -623,7 +625,7 @@ contains
         if (.not. status%ok()) return
 
         if (buffer%index /= 0 .and. .not. is_buffer_live(buffer)) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong type argument: expected type(buffer_type)")
+            call set_error(status, GENERIC_ERROR_CODE, "Wrong type argument: expected type(buffer_type)")
             return
         end if
 
@@ -852,8 +854,8 @@ contains
         !> :coding: the coding systems for decoding and encoding (each ""
         !> for the default).
         character(len=*), intent(in), optional :: coding(2)
-        character(len=:), allocatable :: current_dir, path, tty_name
-        type(string_type), allocatable :: argv(:), env(:), overrides(:)
+        character(len=:), allocatable :: current_directory, path, terminal_name
+        type(string_type), allocatable :: argv(:), environment_variables(:), overrides(:)
         integer(int64) :: i, k
         integer(int32) :: err, to_child, from_child, pid, worker
         logical :: pty
@@ -862,18 +864,18 @@ contains
 
         if (present(buffer)) then
             if (buffer%index /= 0 .and. .not. is_buffer_live(buffer)) then
-                call set_error(status, FM_GENERIC_ERROR, "Selecting deleted buffer")
+                call set_error(status, GENERIC_ERROR_CODE, "Selecting deleted buffer")
                 return
             end if
         end if
 
         ! Make sure that the child will be able to chdir to the current
         ! buffer's current directory.
-        call get_current_directory(current_dir, status)
+        call get_current_directory(current_directory, status)
         if (.not. status%ok()) return
 
         if (size(command) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Starting a process without a program is not supported yet")
+            call set_error(status, GENERIC_ERROR_CODE, "Starting a process without a program is not supported yet")
             return
         end if
 
@@ -914,7 +916,7 @@ contains
 
         ! If program file name is not absolute, search our path for it.
         if (index(command(1)%text, "/") /= 1) then
-            call locate_program(command(1)%text, current_dir, path)
+            call locate_program(command(1)%text, current_directory, path)
 
             if (len(path) == 0) then
                 call report_file_errno("Searching for program", command(1)%text, ENOENT, status)
@@ -923,7 +925,7 @@ contains
             end if
         else
             if (is_file_directory(command(1)%text)) then
-                call set_error(status, FM_GENERIC_ERROR, "Specified program for new process is a directory")
+                call set_error(status, GENERIC_ERROR_CODE, "Specified program for new process is a directory")
                 call start_process_unwind()
                 return
             end if
@@ -947,12 +949,13 @@ contains
                 overrides(k)%text = environment(k)%text
             end do
 
-            call make_environment_block(current_dir, env, overrides)
+            call make_environment_block(current_directory, environment_variables, overrides)
         else
-            call make_environment_block(current_dir, env)
+            call make_environment_block(current_directory, environment_variables)
         end if
 
-        err = fortmacs_spawn_async(path, argv, current_dir, pty, to_child, from_child, pid, tty_name, env)
+        err = fortmacs_spawn_asynchronous(path, argv, current_directory, pty, to_child, from_child, pid, terminal_name, &
+                                          environment_variables)
 
         if (err /= 0) then
             call report_file_errno("Doing vfork", "", err, status)
@@ -963,7 +966,7 @@ contains
         processes(i)%pid = pid
         processes(i)%alive = .true.
         processes(i)%pty = pty
-        processes(i)%tty_name = tty_name
+        processes(i)%terminal_name = terminal_name
         processes(i)%outfd = to_child
 
         if (pty) then
@@ -974,7 +977,7 @@ contains
         call start_reader(pid, from_child, worker, err)
 
         if (err /= 0) then
-            call set_error(status, FM_FILE_ERROR, "Creating thread: "//fortmacs_strerror(err))
+            call set_error(status, FILE_ERROR_CODE, "Creating thread: "//fortmacs_strerror(err))
             call fortmacs_kill_group(i, 9)
             return
         end if
@@ -1011,27 +1014,27 @@ contains
     !>
     !> PROGRAM is the program file name.  It is searched for in `exec_path'
     !> (which see).  If PROGRAM is an empty string, start a process
-    !> without a program (Deferred).  Remaining arguments ARGS are strings
+    !> without a program (Deferred).  Remaining arguments ARGUMENTS are strings
     !> to give the program as arguments.
     !>
     !> The process runs in `default_directory' of the current buffer.
     !> Port of subr.el:start-process.
-    subroutine start_process(name, buffer, program, process, status, args)
+    subroutine start_process(name, buffer, program, process, status, arguments)
         character(len=*), intent(in) :: name, program
         type(handle_type), intent(in) :: buffer
         type(handle_type), intent(out) :: process
         type(status_type), intent(out) :: status
-        type(string_type), intent(in), optional :: args(:)
+        type(string_type), intent(in), optional :: arguments(:)
         type(string_type), allocatable :: command(:)
         integer :: k, n
 
         n = 0
-        if (present(args)) n = size(args)
+        if (present(arguments)) n = size(arguments)
         allocate (command(n + 1))
         command(1)%text = program
 
         do k = 1, n
-            command(k + 1)%text = args(k)%text
+            command(k + 1)%text = arguments(k)%text
         end do
 
         call make_process(name, command, process, status, buffer=buffer)
@@ -1050,18 +1053,18 @@ contains
     recursive subroutine take_output(got, wait_process)
         logical, intent(out) :: got
         integer(int64), intent(in), optional :: wait_process
-        type(worker_message_type), allocatable :: msgs(:)
+        type(worker_message_type), allocatable :: messages(:)
         integer(int64) :: i
         integer :: k
 
         got = .false.
-        call take_worker_messages(msgs)
+        call take_worker_messages(messages)
 
-        do k = 1, size(msgs)
-            i = process_of_worker(msgs(k)%worker)
+        do k = 1, size(messages)
+            i = process_of_worker(messages(k)%worker)
             if (i == 0) cycle
 
-            select case (msgs(k)%kind)
+            select case (messages(k)%kind)
             case (WORKER_OUTPUT)
                 if (present(wait_process)) then
                     if (wait_process == i) got = .true.
@@ -1069,13 +1072,13 @@ contains
                     got = .true.
                 end if
 
-                call read_process_output(i, msgs(k)%bytes, .false.)
+                call read_process_output(i, messages(k)%bytes, .false.)
             case (WORKER_EXIT)
                 ! The decoder's carryover is flushed at the end of the
                 ! output (CODING_MODE_LAST_BLOCK).
                 if (len(processes(i)%carryover) > 0) call read_process_output(i, "", .true.)
                 processes(i)%tick = next_tick()
-                processes(i)%raw_status = msgs(k)%wait_status
+                processes(i)%raw_status = messages(k)%wait_status
                 processes(i)%raw_status_new = .true.
                 processes(i)%alive = .false.
                 ! If process has terminated, stop waiting for its output.
@@ -1146,7 +1149,7 @@ contains
                 n = len(chars, kind=int64)
             end select
 
-            if (coding_system_eol_type(processes(i)%decode_coding_system) == EOL_DOS .and. n > 0) then
+            if (coding_system_end_of_line_type(processes(i)%decode_coding_system) == END_OF_LINE_DOS .and. n > 0) then
                 if (chars(n:n) == achar(13)) n = n - 1
             end if
 
@@ -1165,7 +1168,7 @@ contains
         odeactivate = deactivate_mark_variable
         old = current_buffer()
         process = table%handle_of(i)
-        if (associated(begin_asynch_code)) call begin_asynch_code(outer, saved)
+        if (associated(begin_asynchronous_code)) call begin_asynchronous_code(outer, saved)
 
         if (associated(processes(i)%filter)) then
             call processes(i)%filter(process, text, st)
@@ -1177,7 +1180,7 @@ contains
             call message("error in process filter: "//format_error(st))
         end if
 
-        if (associated(end_asynch_code)) call end_asynch_code(outer, saved)
+        if (associated(end_asynchronous_code)) call end_asynchronous_code(outer, saved)
         ! There's no good reason to let process filters change the current
         ! buffer.
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -1226,7 +1229,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: mb
         type(status_type) :: st
-        integer(int64) :: i, b, opoint, before, old_begv, old_zv, after
+        integer(int64) :: i, b, original_point, before, old_beginning_of_accessible_portion, old_end_of_accessible_portion, after
         logical :: old_read_only
 
         call resolve(process, i, status)
@@ -1235,10 +1238,10 @@ contains
         call set_buffer(processes(i)%buffer, status)
         if (.not. status%ok()) return
         b = current
-        opoint = buffers(b)%pt
+        original_point = buffers(b)%point
         old_read_only = buffers(b)%read_only
-        old_begv = buffers(b)%begv
-        old_zv = buffers(b)%zv
+        old_beginning_of_accessible_portion = buffers(b)%beginning_of_accessible_portion
+        old_end_of_accessible_portion = buffers(b)%end_of_accessible_portion
         buffers(b)%read_only = .false.
         ! Insert new output into buffer at the current end-of-output marker,
         ! thus preserving logical ordering of input and output.
@@ -1247,34 +1250,41 @@ contains
         if (mb%index /= 0) then
             call set_point_from_marker(processes(i)%mark, st)
         else
-            call goto_char(buffers(b)%zv)
+            call goto_character(buffers(b)%end_of_accessible_portion)
         end if
 
-        before = buffers(b)%pt
+        before = buffers(b)%point
+
         ! If the output marker is outside of the visible region, save the
         ! restriction and widen.
-        if (.not. (buffers(b)%begv <= before .and. before <= buffers(b)%zv)) call widen()
+        if (.not. (buffers(b)%beginning_of_accessible_portion <= before .and. before <= buffers(b)%end_of_accessible_portion)) then
+            call widen()
+        end if
 
         ! Insert before markers in case we are inserting where the
         ! buffer's mark is, and the user's next command is Meta-y.
         if (buffers(b)%multibyte) then
             call insert_before_markers(text, status)
         else
-            call insert_before_markers(str_as_unibyte(text), status)
+            call insert_before_markers(string_as_unibyte(text), status)
         end if
 
-        after = buffers(b)%pt
+        after = buffers(b)%point
         ! Make sure the process marker's position is valid.
         call set_marker(processes(i)%mark, after, st, processes(i)%buffer)
         ! Make sure opoint and the old restrictions float ahead of any new
         ! text just as point would.
-        if (opoint >= before) opoint = opoint + (after - before)
-        if (old_begv > before) old_begv = old_begv + (after - before)
-        if (old_zv >= before) old_zv = old_zv + (after - before)
+        if (original_point >= before) original_point = original_point + (after - before)
+        if (old_beginning_of_accessible_portion > before) old_beginning_of_accessible_portion = &
+            old_beginning_of_accessible_portion + (after - before)
+        if (old_end_of_accessible_portion >= before) old_end_of_accessible_portion = old_end_of_accessible_portion + (after &
+                                                                                                                      - before)
         ! If the restriction isn't what it should be, set it.
-        if (old_begv /= buffers(b)%begv .or. old_zv /= buffers(b)%zv) call narrow_to_region(old_begv, old_zv, st)
+        if (old_beginning_of_accessible_portion /= buffers(b)%beginning_of_accessible_portion .or. old_end_of_accessible_portion &
+            /= buffers(b)%end_of_accessible_portion) call narrow_to_region(old_beginning_of_accessible_portion, &
+                                                                           old_end_of_accessible_portion, st)
         buffers(b)%read_only = old_read_only
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine internal_default_process_filter
 
     !> Report all recent events of a change in process status (run the
@@ -1283,7 +1293,7 @@ contains
     recursive subroutine status_notify(deleting)
         integer(int64), intent(in) :: deleting
         type(handle_type), allocatable :: snapshot(:)
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message
         integer(int64) :: i
         integer :: k
 
@@ -1301,7 +1311,7 @@ contains
             ! reporting the exit, and it has been handled; a process being
             ! deleted has none to read.)
             ! Get the text to use for the message.
-            msg = status_message_1(i)
+            message = status_message_1(i)
 
             ! If process is terminated, deactivate it or delete it.
             if (processes(i)%state == ST_SIGNAL .or. processes(i)%state == ST_EXIT) then
@@ -1315,7 +1325,7 @@ contains
             ! The actions above may have further incremented p->tick.
             processes(i)%update_tick = processes(i)%tick
             ! Now output the message suitably.
-            call exec_sentinel(i, msg)
+            call exec_sentinel(i, message)
         end do
     end subroutine status_notify
 
@@ -1333,7 +1343,7 @@ contains
         odeactivate = deactivate_mark_variable
         old = current_buffer()
         process = table%handle_of(i)
-        if (associated(begin_asynch_code)) call begin_asynch_code(outer, saved)
+        if (associated(begin_asynchronous_code)) call begin_asynchronous_code(outer, saved)
 
         if (associated(processes(i)%sentinel)) then
             call processes(i)%sentinel(process, reason, st)
@@ -1342,7 +1352,7 @@ contains
         end if
 
         if (.not. st%ok()) call message("error in process sentinel: "//format_error(st))
-        if (associated(end_asynch_code)) call end_asynch_code(outer, saved)
+        if (associated(end_asynchronous_code)) call end_asynchronous_code(outer, saved)
         if (is_buffer_live(old)) call set_buffer(old, st)
         deactivate_mark_variable = odeactivate
     end subroutine exec_sentinel
@@ -1350,13 +1360,13 @@ contains
     !> Function used as default sentinel for processes.
     !> This inserts a status message into the process's buffer, if there is
     !> one.  Port of process.c:Finternal_default_process_sentinel.
-    recursive subroutine internal_default_process_sentinel(process, msg, status)
+    recursive subroutine internal_default_process_sentinel(process, message, status)
         type(handle_type), intent(in) :: process
-        character(len=*), intent(in) :: msg
+        character(len=*), intent(in) :: message
         type(status_type), intent(out) :: status
         type(handle_type) :: old, mb
         type(status_type) :: st
-        integer(int64) :: i, b, opoint, before, after, mpos
+        integer(int64) :: i, b, original_point, before, after, marked_position
         logical :: tem
 
         call resolve(process, i, status)
@@ -1370,30 +1380,30 @@ contains
         call set_buffer(processes(i)%buffer, status)
         if (.not. status%ok()) return
         b = current
-        opoint = buffers(b)%pt
+        original_point = buffers(b)%point
         ! Insert new output into buffer at the current end-of-output marker,
         ! thus preserving logical ordering of input and output.
         call marker_buffer(processes(i)%mark, mb, st)
 
         if (mb%index /= 0) then
-            call marker_position(processes(i)%mark, mpos, st)
-            call goto_char(mpos)
+            call marker_position(processes(i)%mark, marked_position, st)
+            call goto_character(marked_position)
         else
-            call goto_char(buffers(b)%zv)
+            call goto_character(buffers(b)%end_of_accessible_portion)
         end if
 
-        before = buffers(b)%pt
+        before = buffers(b)%point
         tem = buffers(b)%read_only
         buffers(b)%read_only = .false.
-        call insert(new_line("a")//"Process "//processes(i)%name//" "//msg, status)
+        call insert(new_line("a")//"Process "//processes(i)%name//" "//message, status)
         buffers(b)%read_only = tem
-        after = buffers(b)%pt
+        after = buffers(b)%point
         call set_marker(processes(i)%mark, after, st, processes(i)%buffer)
 
-        if (opoint >= before) then
-            call goto_char(opoint + (after - before))
+        if (original_point >= before) then
+            call goto_character(original_point + (after - before))
         else
-            call goto_char(opoint)
+            call goto_character(original_point)
         end if
 
         if (is_buffer_live(old)) then
@@ -1498,7 +1508,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (.not. status%ok()) return
         processes(i)%raw_status_new = .false.
         if (processes(i)%alive) call record_stop_process(i)
@@ -1518,12 +1528,12 @@ contains
     end subroutine delete_process
 
     !> The command: delete the current buffer's process, saying so.
-    recursive subroutine cmd_delete_process(status)
+    recursive subroutine execute_delete_process(status)
         type(status_type), intent(out) :: status
 
         call delete_process(status=status)
         if (status%ok()) call message("Deleted process")
-    end subroutine cmd_delete_process
+    end subroutine execute_delete_process
 
     !> Stop the process (and its process group) with SIGKILL and stop
     !> treating it as alive.  Port of process.c:record_kill_process.
@@ -1536,17 +1546,17 @@ contains
     end subroutine record_stop_process
 
     ! Not a port.
-    subroutine fortmacs_kill_group(i, sig)
+    subroutine fortmacs_kill_group(i, signal)
         integer(int64), intent(in) :: i
-        integer, intent(in) :: sig
+        integer, intent(in) :: signal
         integer(int32) :: err
 
-        if (processes(i)%pid > 0) err = fortmacs_kill(-processes(i)%pid, int(sig, int32))
+        if (processes(i)%pid > 0) err = fortmacs_kill(-processes(i)%pid, int(signal, int32))
     end subroutine fortmacs_kill_group
 
     !> The process PROCESS stands for: the current buffer's when absent.
     !> Port of process.c:get_process.
-    subroutine get_process_arg(i, status, process)
+    subroutine get_process_argument(i, status, process)
         integer(int64), intent(out) :: i
         type(status_type), intent(out) :: status
         type(handle_type), intent(in), optional :: process
@@ -1560,19 +1570,19 @@ contains
         end if
 
         if (current == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Attempt to get process for a dead buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "Attempt to get process for a dead buffer")
             return
         end if
 
         resolved = get_buffer_process(current_buffer())
 
         if (resolved%index == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Buffer "//buffers(current)%name//" has no process")
+            call set_error(status, GENERIC_ERROR_CODE, "Buffer "//buffers(current)%name//" has no process")
             return
         end if
 
         call resolve(resolved, i, status)
-    end subroutine get_process_arg
+    end subroutine get_process_argument
 
     !> Send signal `signo' to the process group of process `i' (if it has
     !> not been reaped).  With CURRENT_GROUP (only for a pty), send it to
@@ -1581,7 +1591,7 @@ contains
     !> (SIGNALS_VIA_CHARACTERS), other signals to the terminal's foreground
     !> group.  Port of process.c:process_send_signal.
     subroutine process_send_signal(i, signo, status, current_group)
-        use system_dependent_mod, only: fortmacs_get_tty_pgrp, fortmacs_tty_signal_char
+        use system_dependent_mod, only: fortmacs_get_terminal_pgrp, fortmacs_terminal_signal_character
         integer(int64), intent(in) :: i
         integer, intent(in) :: signo
         type(status_type), intent(out) :: status
@@ -1593,7 +1603,7 @@ contains
         status = status_type()
 
         if (.not. processes(i)%reading) then
-            call set_error(status, FM_GENERIC_ERROR, "Process "//processes(i)%name//" is not active")
+            call set_error(status, GENERIC_ERROR_CODE, "Process "//processes(i)%name//" is not active")
             return
         end if
 
@@ -1606,7 +1616,7 @@ contains
         if (group .and. processes(i)%outfd >= 0) then
             ! If possible, send signals to the entire pgrp by sending an
             ! input character to it.
-            c = fortmacs_tty_signal_char(processes(i)%outfd, signo)
+            c = fortmacs_terminal_signal_character(processes(i)%outfd, signo)
 
             if (c >= 0) then
                 call send_process(i, achar(c), status)
@@ -1614,7 +1624,7 @@ contains
             end if
 
             ! Get the current pgrp using the tty itself.
-            gid = fortmacs_get_tty_pgrp(processes(i)%outfd)
+            gid = fortmacs_get_terminal_pgrp(processes(i)%outfd)
             ! If we can't get the information, assume the shell owns the
             ! tty.
             if (gid == -1) gid = processes(i)%pid
@@ -1636,7 +1646,7 @@ contains
     !> the current buffer's process.  Port of
     !> process.c:Fprocess_running_child_p.
     integer(int32) function process_running_child(process, status)
-        use system_dependent_mod, only: fortmacs_get_tty_pgrp
+        use system_dependent_mod, only: fortmacs_get_terminal_pgrp
         type(handle_type), intent(in), optional :: process
         !> Set when PROCESS is not a live subprocess (the result is then
         !> `PROCESS_RUNNING_CHILD_UNKNOWN').
@@ -1646,13 +1656,13 @@ contains
         integer(int32) :: gid
 
         process_running_child = PROCESS_RUNNING_CHILD_UNKNOWN
-        call get_process_arg(i, st, process)
+        call get_process_argument(i, st, process)
 
         if (st%ok()) then
             if (.not. processes(i)%reading) then
-                call set_error(st, FM_GENERIC_ERROR, "Process "//processes(i)%name//" is not active")
+                call set_error(st, GENERIC_ERROR_CODE, "Process "//processes(i)%name//" is not active")
             else
-                gid = fortmacs_get_tty_pgrp(processes(i)%outfd)
+                gid = fortmacs_get_terminal_pgrp(processes(i)%outfd)
 
                 if (gid == processes(i)%pid) then
                     process_running_child = 0
@@ -1680,7 +1690,7 @@ contains
         logical, intent(in), optional :: current_group
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (status%ok()) call process_send_signal(i, 2, status, current_group)
     end subroutine interrupt_process
 
@@ -1693,7 +1703,7 @@ contains
         logical, intent(in), optional :: current_group
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (status%ok()) call process_send_signal(i, 9, status, current_group)
     end subroutine stop_process
 
@@ -1706,7 +1716,7 @@ contains
         logical, intent(in), optional :: current_group
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (status%ok()) call process_send_signal(i, 3, status, current_group)
     end subroutine quit_process
 
@@ -1720,7 +1730,7 @@ contains
         logical, intent(in), optional :: current_group
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (status%ok()) call process_send_signal(i, 20, status, current_group)
     end subroutine suspend_process
 
@@ -1733,7 +1743,7 @@ contains
         logical, intent(in), optional :: current_group
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (status%ok()) call process_send_signal(i, 18, status, current_group)
     end subroutine continue_process
 
@@ -1752,7 +1762,7 @@ contains
         if (.not. status%ok()) return
 
         if (processes(i)%pid <= 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Cannot signal process "//processes(i)%name)
+            call set_error(status, GENERIC_ERROR_CODE, "Cannot signal process "//processes(i)%name)
             return
         end if
 
@@ -1790,7 +1800,7 @@ contains
         type(handle_type), intent(in), optional :: process
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (.not. status%ok()) return
         call send_process(i, encode_for_process(i, string, status), status)
     end subroutine process_send_string
@@ -1806,7 +1816,7 @@ contains
         character(len=:), allocatable :: text
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (.not. status%ok()) return
         call buffer_substring(start, end, text, status)
         if (.not. status%ok()) return
@@ -1822,7 +1832,7 @@ contains
         type(status_type) :: st
 
         call encode_coding_text(text, processes(i)%encode_coding_system, bytes, used, st)
-        if (.not. st%ok()) bytes = str_as_unibyte(text)
+        if (.not. st%ok()) bytes = string_as_unibyte(text)
         last_coding_system_used = used
         if (.not. status%ok()) return
     end function encode_for_process
@@ -1837,7 +1847,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (.not. status%ok()) return
         call check_coding_system(decoding, status)
         if (.not. status%ok()) return
@@ -1860,7 +1870,7 @@ contains
 
         decoding = ""
         encoding = ""
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (.not. status%ok()) return
         decoding = processes(i)%decode_coding_system
         encoding = processes(i)%encode_coding_system
@@ -1880,12 +1890,12 @@ contains
         if (processes(i)%raw_status_new) call update_status(i)
 
         if (processes(i)%state /= ST_RUN) then
-            call set_error(status, FM_GENERIC_ERROR, "Process "//processes(i)%name//" not running: "//status_message_1(i))
+            call set_error(status, GENERIC_ERROR_CODE, "Process "//processes(i)%name//" not running: "//status_message_1(i))
             return
         end if
 
         if (processes(i)%outfd < 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Output file descriptor of "//processes(i)%name//" is closed")
+            call set_error(status, GENERIC_ERROR_CODE, "Output file descriptor of "//processes(i)%name//" is closed")
             return
         end if
 
@@ -1897,7 +1907,7 @@ contains
             processes(i)%code = 256
             processes(i)%tick = next_tick()
             call deactivate_process(i)
-            call set_error(status, FM_GENERIC_ERROR, "Process "//processes(i)%name//" no longer connected to pipe; closed it")
+            call set_error(status, GENERIC_ERROR_CODE, "Process "//processes(i)%name//" no longer connected to pipe; closed it")
         else if (err /= 0) then
             status = wst
         end if
@@ -1915,12 +1925,12 @@ contains
         type(handle_type), intent(in), optional :: process
         integer(int64) :: i
 
-        call get_process_arg(i, status, process)
+        call get_process_argument(i, status, process)
         if (.not. status%ok()) return
         if (processes(i)%raw_status_new) call update_status(i)
 
         if (processes(i)%state /= ST_RUN) then
-            call set_error(status, FM_GENERIC_ERROR, "Process "//processes(i)%name//" not running: "//status_message_1(i))
+            call set_error(status, GENERIC_ERROR_CODE, "Process "//processes(i)%name//" not running: "//status_message_1(i))
             return
         end if
 
@@ -1938,14 +1948,14 @@ contains
     !> overridable via the OMP_NUM_THREADS environment variable.
     !> If CURRENT is true, ignore OMP_NUM_THREADS.  Port of
     !> process.c:Fnum_processors (QUERY `all' is Deferred).
-    integer function num_processors(current)
+    integer function number_processors(current)
         logical, intent(in), optional :: current
         logical :: overridable
 
         overridable = .true.
         if (present(current)) overridable = .not. current
-        num_processors = fortmacs_num_processors(overridable)
-    end function num_processors
+        number_processors = fortmacs_number_processors(overridable)
+    end function number_processors
 
     ! ------------------------------------------------------------------
     ! Setup and shutdown
@@ -1953,12 +1963,12 @@ contains
 
     !> Register the commands and hook into kill-buffer.  Port of
     !> process.c:syms_of_process (the part ported).
-    subroutine init_process()
-        call init_callproc()
-        commands%delete_process%execute => cmd_delete_process
+    subroutine initialize_process()
+        call initialize_callproc()
+        commands%delete_process%execute => execute_delete_process
         close_buffer_processes_hook => kill_buffer_processes
         mode_line_process_status => mode_line_status
-    end subroutine init_process
+    end subroutine initialize_process
 
     !> What %s in a mode line shows for buffer slot BI: the status of its
     !> process, or "no process".  Port of xdisp.c:decode_mode_spec, in
@@ -1977,19 +1987,19 @@ contains
         end if
     end subroutine mode_line_status
 
-    !> Kill every process still running with `sig' (SIGKILL if absent),
+    !> Kill every process still running with `signal' (SIGKILL if absent),
     !> and wait for the workers to finish (for exiting, and for tests).
     !> Statuses are not reported (upstream's inhibit_sentinels on exit).
     !> Not a port.
-    subroutine process_shutdown(sig)
-        integer, intent(in), optional :: sig
-        type(worker_message_type), allocatable :: msgs(:)
+    subroutine process_shutdown(signal)
+        integer, intent(in), optional :: signal
+        type(worker_message_type), allocatable :: messages(:)
         integer(int64) :: i
         integer :: k, signo
         logical :: ready
 
         signo = 9
-        if (present(sig)) signo = sig
+        if (present(signal)) signo = signal
 
         do i = 1, table%capacity()
             if (.not. table%is_live(table%handle_of(i))) cycle
@@ -1998,16 +2008,16 @@ contains
 
         do while (worker_count() > 0)
             ready = wait_for_worker_messages(-1_int32)
-            call take_worker_messages(msgs)
+            call take_worker_messages(messages)
 
-            do k = 1, size(msgs)
-                if (msgs(k)%kind /= WORKER_EXIT) cycle
-                i = process_of_worker(msgs(k)%worker)
+            do k = 1, size(messages)
+                if (messages(k)%kind /= WORKER_EXIT) cycle
+                i = process_of_worker(messages(k)%worker)
 
                 if (i /= 0) then
                     processes(i)%alive = .false.
                     processes(i)%tick = next_tick()
-                    processes(i)%raw_status = msgs(k)%wait_status
+                    processes(i)%raw_status = messages(k)%wait_status
                     processes(i)%raw_status_new = .true.
                     call deactivate_process(i)
                 end if

@@ -543,7 +543,7 @@ END {
         if (key in pdoc) {
             hname = pcite[key]
             if (hname == "") hname = help_name(nm)
-            # Several API procedures can port one function (capitalize_char
+            # Several API procedures can port one function (capitalize_character
             # and capitalize_string): the first by name, whatever order
             # this awk visits the array in.
             if ((hname in fowner) && fowner[hname] < nm) continue
@@ -739,16 +739,20 @@ function oassign(i, val, ind) {
 }
 
 # Fortran expression for docstring d (lines joined by \036), indented.
-function docexpr(d, ind,    n, i, lines, out, line, piece) {
+function docexpr(d, ind,    n, i, lines, out, line, piece, k) {
     if (d == "") return "\"\""
     n = split(d, lines, "\036")
     out = ""
     for (i = 1; i <= n; i++) {
         line = lines[i]
-        # Long lines go in pieces, to stay within 132 columns.
+        # Long lines go in pieces, to stay within 132 columns, each ending
+        # after a character that cannot be part of a name, as lit does.
         while (length(line) > 90) {
-            piece = substr(line, 1, 90)
-            line = substr(line, 91)
+            for (k = 90; k > 1; k--)
+                if (substr(line, k, 1) !~ /[A-Za-z0-9_]/) break
+            if (k == 1) k = 90
+            piece = substr(line, 1, k)
+            line = substr(line, k + 1)
             out = out q(piece) "// &\n" ind
         }
         out = out q(line)
@@ -790,8 +794,8 @@ $1 == "V" {
     if ($5 ~ /function_setting_type\)/ && !named_cmd++)
         mods["execute_interactively_mod.f90"] = mods["execute_interactively_mod.f90"] (mods["execute_interactively_mod.f90"] == "" ? "" : ", ") "command_name_of"
     # A prefix argument is shown as its structure constructor.
-    if ($5 ~ /prefix_arg_type\)/ && !named_prefix++)
-        mods["execute_interactively_mod.f90"] = mods["execute_interactively_mod.f90"] (mods["execute_interactively_mod.f90"] == "" ? "" : ", ") "prefix_arg_text"
+    if ($5 ~ /prefix_argument_type\)/ && !named_prefix++)
+        mods["execute_interactively_mod.f90"] = mods["execute_interactively_mod.f90"] (mods["execute_interactively_mod.f90"] == "" ? "" : ", ") "prefix_argument_text"
     if ($5 ~ /indent_line_setting_type\)/ && !named_indent++)
         mods["indent_mod.f90"] = mods["indent_mod.f90"] (mods["indent_mod.f90"] == "" ? "" : ", ") "indent_line_function_name"
     # A choice setting: the reserved choices, and its named constants
@@ -882,7 +886,7 @@ END {
     print "    public :: function_doc, variable_doc"
     print "    public :: user_option_info, set_user_option_logical, set_user_option_integer, set_user_option_real, &"
     print "              set_user_option_string, set_user_option_choice, user_option_constants"
-    print "    public :: init_choice_values"
+    print "    public :: initialize_choice_values"
     print ""
     print "    !> Kinds of value of a user option, as `set_variable` reads it."
     print "    integer, parameter, public :: OPTION_NONE = 0, OPTION_LOGICAL = 1, OPTION_INTEGER = 2, OPTION_REAL = 3, &"
@@ -1112,8 +1116,8 @@ END {
                     print "                entry%value = \"\""
                 }
                 print "            end if"
-            } else if (vtype[i] ~ /^type\(prefix_arg_type\)/)
-                print "            entry%value = prefix_arg_text(" vfort[i] ")"
+            } else if (vtype[i] ~ /^type\(prefix_argument_type\)/)
+                print "            entry%value = prefix_argument_text(" vfort[i] ")"
             else if (vtype[i] ~ /indent_line_setting_type\)/)
                 print "            entry%value = indent_line_function_name(" vfort[i] "%value)"
             else if (vtype[i] ~ /value_type/ && !varr[i]) print "            entry%value = fortran_text(" vfort[i] ")"
@@ -1335,7 +1339,7 @@ END {
     print "    !> Declare the named constants each choice setting of the config API"
     print "    !> accepts: those of the parameter statement documenting its values"
     print "    !> (none when it has none).  Not a port."
-    print "    subroutine init_choice_values()"
+    print "    subroutine initialize_choice_values()"
     for (i = 1; i <= nv; i++) {
         if (!ochoice(i)) continue
         n = (venum[i] == "") ? 0 : split(venum[i], defs, ",")
@@ -1352,7 +1356,7 @@ END {
         }
         print "        " vfort[i] "%choices_declared = .true."
     }
-    print "    end subroutine init_choice_values"
+    print "    end subroutine initialize_choice_values"
     print ""
     print "    function value_text_logical(v) result(s)"
     print "        logical, intent(in) :: v"

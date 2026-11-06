@@ -31,20 +31,22 @@ module test_fortmacs_diff_utilities_mod
                           get_buffer, is_buffer_live, restore_buffer_modified
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string
-    use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
-    use bindings_mod, only: init_bindings
+    use keyboard_mod, only: discard_input, keyboard_store_bytes, command_loop
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_RAW
+    use bindings_mod, only: initialize_bindings
     use frame_mod, only: selected_frame
     use window_mod, only: window_buffer, is_window_live
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
                                      create_directory_internal, write_region
     use files_mod, only: delete_directory, find_file_noselect
-    use fortmacs_diff_settings_mod, only: ediff_sessions, ediff_session_index, ediff_fortmacs_help_in_control_buffer, &
-                                          EDIFF_BUFFER_TYPE_A, EDIFF_BUFFER_TYPE_B
-    use fortmacs_diff_utilities_mod, only: next_ediff_difference, previous_ediff_difference, jump_to_ediff_difference, &
-                                           copy_ediff_diff_to_diff, restore_ediff_diff, quit_ediff_session, toggle_ediff_help, &
-                                           ediff_unique_buffer_name
-    use fortmacs_diff_mod, only: ediff_buffers, ediff_files
+    use fortmacs_diff_settings_mod, only: fortmacs_diff_sessions, fortmacs_diff_session_index, &
+                                          fortmacs_diff_fortmacs_help_in_control_buffer, FORTMACS_DIFF_BUFFER_TYPE_A, &
+                                          FORTMACS_DIFF_BUFFER_TYPE_B
+    use fortmacs_diff_utilities_mod, only: next_fortmacs_diff_difference, previous_fortmacs_diff_difference, &
+                                           jump_to_fortmacs_diff_difference, copy_fortmacs_diff_diff_to_diff, &
+                                           restore_fortmacs_diff_diff, quit_fortmacs_diff_session, toggle_fortmacs_diff_help, &
+                                           fortmacs_diff_unique_buffer_name
+    use fortmacs_diff_mod, only: fortmacs_diff_buffers, fortmacs_diff_files
     use commands_mod, only: commands
     implicit none(type, external)
     private
@@ -54,7 +56,7 @@ module test_fortmacs_diff_utilities_mod
     character, parameter :: LF = achar(10)
 
     !> The test directory, under the build directory.
-    character(len=*), parameter :: subdir = "build/test-ediff"
+    character(len=*), parameter :: subdirectory = "build/test-ediff"
 
 contains
 
@@ -79,7 +81,7 @@ contains
     !> Whether diff is on PATH, skipping the test if not.
     logical function has_diff(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: path, dir
+        character(len=:), allocatable :: path, directory
         integer :: n, st, k
 
         has_diff = .false.
@@ -92,7 +94,7 @@ contains
             do while (len(path) > 0 .and. .not. has_diff)
                 k = index(path, ":")
                 if (k == 0) k = len(path) + 1
-                dir = path(1:k - 1)
+                directory = path(1:k - 1)
 
                 if (k > len(path)) then
                     path = ""
@@ -100,7 +102,7 @@ contains
                     path = path(k + 1:)
                 end if
 
-                if (len(dir) > 0) inquire (file=dir//"/diff", exist=has_diff)
+                if (len(directory) > 0) inquire (file=directory//"/diff", exist=has_diff)
             end do
         end if
 
@@ -108,7 +110,7 @@ contains
     end function has_diff
 
     !> A fresh buffer NAME holding TEXT.
-    subroutine temp_buffer(name, text, h)
+    subroutine temporary_buffer(name, text, h)
         character(len=*), intent(in) :: name, text
         type(handle_type), intent(out) :: h
         type(handle_type) :: old
@@ -120,7 +122,7 @@ contains
         call erase_buffer(st)
         call insert(text, st)
         call set_buffer(old, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> The text of buffer H.
     function text_of(h) result(s)
@@ -140,7 +142,7 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -157,14 +159,14 @@ contains
         type(handle_type) :: control
 
         call setup()
-        call temp_buffer("ediff-a", "1"//LF//"a"//LF//"3"//LF//"b"//LF//"5"//LF//"c"//LF//"7"//LF, a)
-        call temp_buffer("ediff-b", "1"//LF//"A"//LF//"3"//LF//"B"//LF//"5"//LF//"C"//LF//"7"//LF, b)
-        call ediff_buffers(a, b, status)
+        call temporary_buffer("ediff-a", "1"//LF//"a"//LF//"3"//LF//"b"//LF//"5"//LF//"c"//LF//"7"//LF, a)
+        call temporary_buffer("ediff-b", "1"//LF//"A"//LF//"3"//LF//"B"//LF//"5"//LF//"C"//LF//"7"//LF, b)
+        call fortmacs_diff_buffers(a, b, status)
         k = 0
         if (.not. status%ok()) return
         control = get_buffer("*Ediff Control Panel*")
         call set_buffer(control, status)
-        k = ediff_session_index(control)
+        k = fortmacs_diff_session_index(control)
     end subroutine start_session
 
     !> Quit session K and close A and B.
@@ -178,8 +180,8 @@ contains
 
         if (is_buffer_live(control)) then
             call set_buffer(control, st)
-            k = ediff_session_index(control)
-            if (k > 0) call quit_ediff_session(k, .false., st)
+            k = fortmacs_diff_session_index(control)
+            if (k > 0) call quit_fortmacs_diff_session(k, .false., st)
         end if
 
         call discard(a)
@@ -207,10 +209,10 @@ contains
         type(status_type) :: st
 
         call setup()
-        call check(error, ediff_unique_buffer_name("*ediff-test", "*"), "*ediff-test*")
+        call check(error, fortmacs_diff_unique_buffer_name("*ediff-test", "*"), "*ediff-test*")
         if (allocated(error)) return
         call get_or_make_buffer("*ediff-test*", h, st)
-        call check(error, ediff_unique_buffer_name("*ediff-test", "*"), "*ediff-test<2>*")
+        call check(error, fortmacs_diff_unique_buffer_name("*ediff-test", "*"), "*ediff-test<2>*")
         call close_buffer(h, st)
     end subroutine test_unique_buffer_name
 
@@ -228,19 +230,20 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, is_window_live(ediff_sessions(k)%windows(EDIFF_BUFFER_TYPE_A)), "window A")
+            call check(error, is_window_live(fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_A)), "window A")
             if (allocated(error)) exit body
-            shown = window_buffer(ediff_sessions(k)%windows(EDIFF_BUFFER_TYPE_B), st)
+            shown = window_buffer(fortmacs_diff_sessions(k)%windows(FORTMACS_DIFF_BUFFER_TYPE_B), st)
             call check(error, shown%index, b%index)
             if (allocated(error)) exit body
-            call check(error, selected_frame%selected_window%index, ediff_sessions(k)%control_window%index)
+            call check(error, selected_frame%selected_window%index, fortmacs_diff_sessions(k)%control_window%index)
             if (allocated(error)) exit body
             call check(error, index(text_of(current_buffer()), "Type ? for help") > 0, text_of(current_buffer()))
             if (allocated(error)) exit body
             ! The job name is the command that started the session.
-            call check(error, associated(ediff_sessions(k)%job_name, commands%ediff_buffers), "job ediff_buffers")
+            call check(error, associated(fortmacs_diff_sessions(k)%job_name, commands%fortmacs_diff_buffers), &
+                       "job fortmacs_diff_buffers")
             if (allocated(error)) exit body
-            call check(error,.not. ediff_sessions(k)%three_way_comparison_job, "a 2-way job")
+            call check(error,.not. fortmacs_diff_sessions(k)%three_way_comparison_job, "a 2-way job")
         end block body
 
         call end_session(a, b)
@@ -259,30 +262,30 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, ediff_sessions(k)%current_difference, -1)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, -1)
             if (allocated(error)) exit body
-            call next_ediff_difference(st)
-            call check(error, ediff_sessions(k)%current_difference, 0)
+            call next_fortmacs_diff_difference(st)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 0)
             if (allocated(error)) exit body
-            call next_ediff_difference(st, 2_int64)
-            call check(error, ediff_sessions(k)%current_difference, 2)
+            call next_fortmacs_diff_difference(st, 2_int64)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 2)
             if (allocated(error)) exit body
-            call previous_ediff_difference(st)
-            call check(error, ediff_sessions(k)%current_difference, 1)
+            call previous_fortmacs_diff_difference(st)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 1)
             if (allocated(error)) exit body
-            call jump_to_ediff_difference(3_int64, st)
-            call check(error, ediff_sessions(k)%current_difference, 2)
+            call jump_to_fortmacs_diff_difference(3_int64, st)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 2)
             if (allocated(error)) exit body
-            call jump_to_ediff_difference(-1_int64, st)
-            call check(error, ediff_sessions(k)%current_difference, 2)
+            call jump_to_fortmacs_diff_difference(-1_int64, st)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 2)
             if (allocated(error)) exit body
-            call next_ediff_difference(st)
-            call check(error, ediff_sessions(k)%current_difference, 3)
+            call next_fortmacs_diff_difference(st)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 3)
             if (allocated(error)) exit body
-            call next_ediff_difference(st)
+            call next_fortmacs_diff_difference(st)
             call check(error, format_error(st), "At end of the difference list")
             if (allocated(error)) exit body
-            call jump_to_ediff_difference(9_int64, st)
+            call jump_to_fortmacs_diff_difference(9_int64, st)
             call check(error,.not. st%ok(), "a bad difference number")
         end block body
 
@@ -302,26 +305,26 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call jump_to_ediff_difference(2_int64, st)
-            call copy_ediff_diff_to_diff(prefix_arg_type(PREFIX_NONE, 0_int64), "ab", st)
+            call jump_to_fortmacs_diff_difference(2_int64, st)
+            call copy_fortmacs_diff_diff_to_diff(prefix_argument_type(PREFIX_NONE, 0_int64), "ab", st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, text_of(b), "1"//LF//"A"//LF//"3"//LF//"b"//LF//"5"//LF//"C"//LF//"7"//LF)
             if (allocated(error)) exit body
             ! The replaced region is kept: difference 2 (1 counted from 0) of B.
-            call check(error, size(ediff_sessions(k)%replaced_regions), 1)
+            call check(error, size(fortmacs_diff_sessions(k)%replaced_regions), 1)
             if (allocated(error)) exit body
-            call check(error, ediff_sessions(k)%replaced_regions(1)%n, 1)
+            call check(error, fortmacs_diff_sessions(k)%replaced_regions(1)%n, 1)
             if (allocated(error)) exit body
-            call check(error, ediff_sessions(k)%replaced_regions(1)%text, "B"//LF)
+            call check(error, fortmacs_diff_sessions(k)%replaced_regions(1)%text, "B"//LF)
             if (allocated(error)) exit body
-            call restore_ediff_diff(prefix_arg_type(PREFIX_NONE, 0_int64), "b", st)
+            call restore_fortmacs_diff_diff(prefix_argument_type(PREFIX_NONE, 0_int64), "b", st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, text_of(b), "1"//LF//"A"//LF//"3"//LF//"B"//LF//"5"//LF//"C"//LF//"7"//LF)
             if (allocated(error)) exit body
             ! Nothing is saved any more.
-            call restore_ediff_diff(prefix_arg_type(PREFIX_NONE, 0_int64), "b", st)
+            call restore_fortmacs_diff_diff(prefix_argument_type(PREFIX_NONE, 0_int64), "b", st)
             call check(error, format_error(st), "Nothing saved for diff 2 in buffer B")
         end block body
 
@@ -341,12 +344,12 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call copy_ediff_diff_to_diff(prefix_arg_type(PREFIX_RAW, 4_int64), "ba", st)
+            call copy_fortmacs_diff_diff_to_diff(prefix_argument_type(PREFIX_RAW, 4_int64), "ba", st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, text_of(a), text_of(b))
             if (allocated(error)) exit body
-            call check(error, ediff_sessions(k)%current_difference, 2)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 2)
         end block body
 
         call end_session(a, b)
@@ -365,15 +368,15 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call kbd_store_bytes("nnp")
+            call keyboard_store_bytes("nnp")
             call command_loop(st)
-            call check(error, ediff_sessions(k)%current_difference, 0)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 0)
             if (allocated(error)) exit body
-            call kbd_store_bytes("a")
+            call keyboard_store_bytes("a")
             call command_loop(st)
             call check(error, text_of(b), "1"//LF//"a"//LF//"3"//LF//"B"//LF//"5"//LF//"C"//LF//"7"//LF)
             if (allocated(error)) exit body
-            call kbd_store_bytes("rb")
+            call keyboard_store_bytes("rb")
             call command_loop(st)
             call check(error, text_of(b), "1"//LF//"A"//LF//"3"//LF//"B"//LF//"5"//LF//"C"//LF//"7"//LF)
         end block body
@@ -381,7 +384,7 @@ contains
         call end_session(a, b)
     end subroutine test_keys
 
-    !> With `ediff_fortmacs_help_in_control_buffer' .false., C-h moves to
+    !> With `fortmacs_diff_fortmacs_help_in_control_buffer' .false., C-h moves to
     !> the previous difference.
     subroutine test_help_key(error)
         type(error_type), allocatable, intent(out) :: error
@@ -390,16 +393,16 @@ contains
         integer :: k
 
         if (.not. has_diff(error)) return
-        ediff_fortmacs_help_in_control_buffer = .false.
+        fortmacs_diff_fortmacs_help_in_control_buffer = .false.
         call start_session(a, b, k, st)
-        ediff_fortmacs_help_in_control_buffer = .true.
+        fortmacs_diff_fortmacs_help_in_control_buffer = .true.
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call kbd_store_bytes("nn"//achar(8))
+            call keyboard_store_bytes("nn"//achar(8))
             call command_loop(st)
-            call check(error, ediff_sessions(k)%current_difference, 0)
+            call check(error, fortmacs_diff_sessions(k)%current_difference, 0)
         end block body
 
         call end_session(a, b)
@@ -419,53 +422,54 @@ contains
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             control = current_buffer()
-            call toggle_ediff_help(st)
+            call toggle_fortmacs_diff_help(st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error, index(text_of(control), "-vert/horiz split") > 0, text_of(control))
             if (allocated(error)) exit body
             call set_buffer(control, st)
-            call toggle_ediff_help(st)
+            call toggle_fortmacs_diff_help(st)
             call check(error, index(text_of(control), "Type ? for help") > 0, text_of(control))
         end block body
 
         call end_session(a, b)
     end subroutine test_toggle_help
 
-    !> ediff_files visits both files; the session sees their differences.
+    !> fortmacs_diff_files visits both files; the session sees their differences.
     subroutine test_files(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, control
         type(status_type) :: st
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: k
 
         if (.not. has_diff(error)) return
         call setup()
-        call init_fileio()
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdir)
-        if (is_file_directory(dir)) call delete_directory(dir, st, .true.)
-        call create_directory_internal(dir, st)
-        call make_file(dir//"old.txt", "one"//LF//"two"//LF)
-        call make_file(dir//"new.txt", "one"//LF//"three"//LF)
-        call ediff_files(dir//"old.txt", dir//"new.txt", st)
+        call initialize_fileio()
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//subdirectory)
+        if (is_file_directory(directory)) call delete_directory(directory, st, .true.)
+        call create_directory_internal(directory, st)
+        call make_file(directory//"old.txt", "one"//LF//"two"//LF)
+        call make_file(directory//"new.txt", "one"//LF//"three"//LF)
+        call fortmacs_diff_files(directory//"old.txt", directory//"new.txt", st)
 
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             control = get_buffer("*Ediff Control Panel*")
-            k = ediff_session_index(control)
+            k = fortmacs_diff_session_index(control)
             call check(error, k > 0, "a session")
             if (allocated(error)) exit body
-            call check(error, ediff_sessions(k)%number_of_differences, 1)
+            call check(error, fortmacs_diff_sessions(k)%number_of_differences, 1)
             if (allocated(error)) exit body
-            call check(error, associated(ediff_sessions(k)%job_name, commands%ediff_files), "job ediff_files")
+            call check(error, associated(fortmacs_diff_sessions(k)%job_name, commands%fortmacs_diff_files), &
+                       "job fortmacs_diff_files")
         end block body
 
-        call find_file_noselect(dir//"old.txt", a, st)
-        call find_file_noselect(dir//"new.txt", b, st)
+        call find_file_noselect(directory//"old.txt", a, st)
+        call find_file_noselect(directory//"new.txt", b, st)
         call end_session(a, b)
-        call delete_directory(dir, st, .true.)
+        call delete_directory(directory, st, .true.)
 
     contains
 
@@ -499,8 +503,8 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call next_ediff_difference(st)
-            call quit_ediff_session(k, .false., st)
+            call next_fortmacs_diff_difference(st)
+            call quit_fortmacs_diff_session(k, .false., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. is_buffer_live(get_buffer("*Ediff Control Panel*")), "the control buffer is closed")
@@ -509,7 +513,7 @@ contains
             if (allocated(error)) exit body
             call check(error, is_buffer_live(a) .and. is_buffer_live(b), "buffers A and B are kept")
             if (allocated(error)) exit body
-            call check(error, ediff_session_index(get_buffer("*Ediff Control Panel*")), 0)
+            call check(error, fortmacs_diff_session_index(get_buffer("*Ediff Control Panel*")), 0)
         end block body
 
         call end_session(a, b)

@@ -6,7 +6,7 @@
 
 ## Ported
 
-`split-window-below` and `split-window-right` as functions (`ediff_split_window_function`'s values),
+`split-window-below` and `split-window-right` as functions (`fortmacs_diff_split_window_function`'s values),
 `struct window` (subset: buffer, start and point markers, geometry, cursor, hscroll, prev/next buffers, `quit-restore`/`quit-restore-prev`, dedication),
 `set-window-buffer` (unshow_buffer, last window start),
 `window-start`,
@@ -82,12 +82,12 @@ step 42d (window_info_mod): the accessors of struct window (`window-buffer` with
 `next-window`,
 `previous-window`,
 `window-list`,
-`window-list-1` (`next_window`, `window_list_1`, `window_list`, `add_window_to_list`, `foreach_window`, `is_candidate_window`, `decode_next_window_args`; MINIBUF as MINIBUF_ACTIVE, MINIBUF_YES or MINIBUF_NO; one frame, so ALL-FRAMES makes no difference and is left out),
+`window-list-1` (`next_window`, `window_list_1`, `window_list`, `add_window_to_list`, `foreach_window`, `is_candidate_window`, `decode_next_window_arguments`; MINIBUF as MINIBUF_ACTIVE, MINIBUF_YES or MINIBUF_NO; one frame, so ALL-FRAMES makes no difference and is left out),
 `coordinates-in-window-p` and `window-at` on a terminal frame (`coordinates_in_window`, `window_from_coordinates`, `check_window_containing`),
 `force-window-update` (nothing to mark),
 `window_wants_mode_line`,
 `sanitize_next_screen_context_lines`;
-step 42e: normal sizes (`normal_lines`, `normal_cols`, `window-normal-size`; set by split-window, delete-window, delete-other-windows, window-resize and window configurations, and copied by `replace_window`) and resizing a frame's root window by them for a frame size change (frame_mod's `resize_frame_windows`): window.el's `window--resize-root-window` (`window_resize_root_window`, which window.c's `resize_root_window` calls),
+step 42e: normal sizes (`normal_lines`, `normal_columns`, `window-normal-size`; set by split-window, delete-window, delete-other-windows, window-resize and window configurations, and copied by `replace_window`) and resizing a frame's root window by them for a frame size change (frame_mod's `resize_frame_windows`): window.el's `window--resize-root-window` (`window_resize_root_window`, which window.c's `resize_root_window` calls),
 `window--resize-reset`,
 `window--resize-this-window`,
 `window--resize-child-windows` (the proportional part),

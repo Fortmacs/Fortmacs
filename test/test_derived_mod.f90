@@ -35,11 +35,11 @@ module test_derived_mod
     use keymap_mod, only: current_local_map, keymap_parent, keymap_set, key_binding, key_parse
     use derived_mod, only: major_mode_type, is_derived_mode, provided_mode_derived_p
     use modes_mod, only: major_modes
-    use syntax_mod, only: syntax_table, standard_syntax_table, char_syntax
-    use text_mode_mod, only: text_mode, init_text_mode, text_mode_syntax_table, text_mode_variant, text_mode_hook
-    use programming_mode_mod, only: init_prog_mode
-    use simple_mod, only: fundamental_mode, special_mode, init_simple_modes
-    use files_mod, only: normal_mode, auto_mode_spec, file_name_sans_versions, prepend_auto_mode, require_final_newline, &
+    use syntax_mod, only: syntax_table, standard_syntax_table, character_syntax
+    use text_mode_mod, only: text_mode, initialize_text_mode, text_mode_syntax_table, text_mode_variant, text_mode_hook
+    use programming_mode_mod, only: initialize_programming_mode
+    use simple_mod, only: fundamental_mode, special_mode, initialize_simple_modes
+    use files_mod, only: normal_mode, auto_mode_specification, file_name_sans_versions, prepend_auto_mode, require_final_newline, &
                          mode_require_final_newline
     implicit none(type, external)
     private
@@ -50,7 +50,7 @@ module test_derived_mod
     character(len=:), allocatable :: trace
 
     !> Hooks of the hook tests.
-    type(hook_type), target :: subr_tests_hook, test_hook, test_hook2, child_mode_hook, depth_hook
+    type(hook_type), target :: basic_subprograms_tests_hook, test_hook, test_hook2, child_mode_hook, depth_hook
     type(hook_type), target :: order_hook, order_hook2
 
     !> Modes of the derived-mode tests.
@@ -73,7 +73,7 @@ contains
                     new_unittest("provided-mode-derived-p", test_provided_mode_derived), &
                     new_unittest("special-mode", test_special_mode), &
                     new_unittest("fundamental-mode-kills-locals", test_fundamental), &
-                    new_unittest("auto-mode-spec", test_auto_mode_spec), &
+                    new_unittest("auto-mode-spec", test_auto_mode_specification), &
                     new_unittest("file-name-sans-versions", test_sans_versions), &
                     new_unittest("files-tests--bug75961", test_normal_mode) &
                     ]
@@ -210,31 +210,31 @@ contains
     subroutine test_add_hook_depth(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call subr_tests_hook%prepend(f1)
-        call subr_tests_hook%prepend(f2)
-        call check(error, hook_names(subr_tests_hook), "f2 f1")
+        call basic_subprograms_tests_hook%prepend(f1)
+        call basic_subprograms_tests_hook%prepend(f2)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f2 f1")
         if (allocated(error)) return
-        call subr_tests_hook%append(f3)
-        call check(error, hook_names(subr_tests_hook), "f2 f1 f3")
+        call basic_subprograms_tests_hook%append(f3)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f2 f1 f3")
         if (allocated(error)) return
-        call subr_tests_hook%append(f4, depth=50)
-        call check(error, hook_names(subr_tests_hook), "f2 f1 f4 f3")
+        call basic_subprograms_tests_hook%append(f4, depth=50)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f2 f1 f4 f3")
         if (allocated(error)) return
-        call subr_tests_hook%prepend(f5, depth=-50)
-        call check(error, hook_names(subr_tests_hook), "f5 f2 f1 f4 f3")
+        call basic_subprograms_tests_hook%prepend(f5, depth=-50)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f5 f2 f1 f4 f3")
         if (allocated(error)) return
-        call subr_tests_hook%prepend(f6)
-        call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3")
+        call basic_subprograms_tests_hook%prepend(f6)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f5 f6 f2 f1 f4 f3")
         if (allocated(error)) return
         ! Make sure t is equivalent to 90.
-        call subr_tests_hook%append(f7, depth=90)
-        call subr_tests_hook%append(f8)
-        call check(error, hook_names(subr_tests_hook), "f5 f6 f2 f1 f4 f3 f7 f8")
+        call basic_subprograms_tests_hook%append(f7, depth=90)
+        call basic_subprograms_tests_hook%append(f8)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f5 f6 f2 f1 f4 f3 f7 f8")
         if (allocated(error)) return
         ! Make sure nil is equivalent to 0.
-        call subr_tests_hook%prepend(f9, depth=0)
-        call subr_tests_hook%prepend(f10)
-        call check(error, hook_names(subr_tests_hook), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
+        call basic_subprograms_tests_hook%prepend(f9, depth=0)
+        call basic_subprograms_tests_hook%prepend(f10)
+        call check(error, hook_names(basic_subprograms_tests_hook), "f5 f10 f9 f6 f2 f1 f4 f3 f7 f8")
     end subroutine test_add_hook_depth
 
     !> remove-hook drops a function's depth (hook--depth-alist) with it
@@ -314,7 +314,7 @@ contains
         type(handle_type) :: a
         type(status_type) :: st
 
-        call init_text_mode()
+        call initialize_text_mode()
         call get_or_make_buffer("test-derived-text", a, st)
         call set_buffer(a, st)
         call text_mode(st)
@@ -328,7 +328,7 @@ contains
         if (allocated(error)) return
         call check(error, same(syntax_table(), text_mode_syntax_table), "syntax table")
         if (allocated(error)) return
-        call check(error, char_syntax(iachar("'")) == "w", "' is a word constituent")
+        call check(error, character_syntax(iachar("'")) == "w", "' is a word constituent")
         if (allocated(error)) return
         call check(error, is_derived_mode(major_modes%text_mode), "is_derived_mode")
         if (allocated(error)) return
@@ -357,7 +357,7 @@ contains
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
 
-        call init_text_mode()
+        call initialize_text_mode()
         call child_mode_obj%define("test-derived-child-mode", "Child", child_mode, child_mode_hook, &
                                    parent=major_modes%text_mode)
         call text_mode_hook%prepend(hook_text)
@@ -377,13 +377,13 @@ contains
         if (allocated(error)) return
         call check(error, is_derived_mode(major_modes%text_mode), "derived from text-mode")
         if (allocated(error)) return
-        call check(error, is_derived_mode("text_mode") .and. .not. is_derived_mode("prog_mode"), "by name")
+        call check(error, is_derived_mode("text_mode") .and. .not. is_derived_mode("programming_mode"), "by name")
         if (allocated(error)) return
         ! A key bound in text-mode-map is active in the child.
-        call keymap_set(major_modes%text_mode%map, "C-c t", "forward_char", st)
+        call keymap_set(major_modes%text_mode%map, "C-c t", "forward_character", st)
         call key_parse("C-c t", key, st)
         call key_binding(key, binding, st)
-        call check(error, value_eq(binding, value_type(name="forward_char")), "inherited binding")
+        call check(error, value_eq(binding, value_type(name="forward_character")), "inherited binding")
         call keymap_set(major_modes%text_mode%map, "C-c t", value_type(), st)
         call text_mode_hook%remove(hook_text)
         call child_mode_hook%remove(hook_child)
@@ -395,11 +395,11 @@ contains
     subroutine test_provided_mode_derived(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_prog_mode()
-        call parent_mode_obj%define("subr-tests--parent-mode", "P", empty_mode, parent=major_modes%prog_mode)
-        call derived_mode_1_obj%define("subr-tests--derived-mode-1", "D1", empty_mode, parent=major_modes%prog_mode)
+        call initialize_programming_mode()
+        call parent_mode_obj%define("subr-tests--parent-mode", "P", empty_mode, parent=major_modes%programming_mode)
+        call derived_mode_1_obj%define("subr-tests--derived-mode-1", "D1", empty_mode, parent=major_modes%programming_mode)
         call derived_mode_2_obj%define("subr-tests--derived-mode-2", "D2", empty_mode, parent=parent_mode_obj)
-        call check(error, provided_mode_derived_p("subr-tests--derived-mode-1", [character(len=9) :: "prog_mode"]))
+        call check(error, provided_mode_derived_p("subr-tests--derived-mode-1", [character(len=16) :: "programming_mode"]))
         if (allocated(error)) return
         call check(error, provided_mode_derived_p("subr-tests--parent-mode", &
                                                   [character(len=23) :: "subr-tests--parent-mode"]))
@@ -407,19 +407,19 @@ contains
         call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", &
                                                   [character(len=23) :: "subr-tests--parent-mode"]))
         if (allocated(error)) return
-        call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", [character(len=9) :: "prog_mode"]))
+        call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", [character(len=16) :: "programming_mode"]))
         if (allocated(error)) return
         ! define-derived-mode takes fundamental-mode as no parent.
-        call check(error,.not. provided_mode_derived_p("prog_mode", [character(len=16) :: "fundamental_mode"]))
+        call check(error,.not. provided_mode_derived_p("programming_mode", [character(len=16) :: "fundamental_mode"]))
         if (allocated(error)) return
-        call check(error,.not. provided_mode_derived_p("prog_mode", [character(len=9) :: "text_mode"]))
+        call check(error,.not. provided_mode_derived_p("programming_mode", [character(len=9) :: "text_mode"]))
         if (allocated(error)) return
-        call check(error, derived_mode_2_obj%derived_from(major_modes%prog_mode), "derived_from")
+        call check(error, derived_mode_2_obj%derived_from(major_modes%programming_mode), "derived_from")
         if (allocated(error)) return
         ! MODES can be a single mode.
-        call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", "prog_mode"), "single mode")
+        call check(error, provided_mode_derived_p("subr-tests--derived-mode-2", "programming_mode"), "single mode")
         if (allocated(error)) return
-        call check(error,.not. provided_mode_derived_p("prog_mode", "text_mode"), "single mode, not derived")
+        call check(error,.not. provided_mode_derived_p("programming_mode", "text_mode"), "single mode, not derived")
     end subroutine test_provided_mode_derived
 
     !> special-mode makes the buffer read-only with special-mode-map.
@@ -430,7 +430,7 @@ contains
         type(value_type) :: binding
         type(value_type), allocatable :: key(:)
 
-        call init_simple_modes()
+        call initialize_simple_modes()
         call get_or_make_buffer("test-derived-special", a, st)
         call set_buffer(a, st)
         call special_mode(st)
@@ -450,7 +450,7 @@ contains
         type(handle_type) :: a
         type(status_type) :: st
 
-        call init_simple_modes()
+        call initialize_simple_modes()
         call get_or_make_buffer("test-derived-fundamental", a, st)
         call set_buffer(a, st)
         call fill_column%set_local(60)
@@ -464,24 +464,32 @@ contains
     end subroutine test_fundamental
 
     !> The -*- line.
-    subroutine test_auto_mode_spec(error)
+    subroutine test_auto_mode_specification(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: LF = char(10)
 
-        call check(error, auto_mode_spec("-*- Text -*-"//LF//"body"), "text_mode")
+        call check(error, auto_mode_specification("-*- Text -*-"//LF//"body"), "text_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec(LF//"  ;; -*- mode: Prog; fill-column: 60 -*-"), "prog_mode")
+        call check(error, auto_mode_specification(LF//"  ;; -*- mode: Programming; fill-column: 60 -*-"), "programming_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec("x -*- coding: utf-8; Mode: text -*-"), "text_mode")
+        ! A file written for Emacs: upstream's mode names are read through
+        ! modes_mod's table.
+        call check(error, auto_mode_specification(LF//"  ;; -*- mode: Prog; fill-column: 60 -*-"), "programming_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec("#!/bin/sh"//LF//"# -*- text -*-"), "text_mode")
+        call check(error, auto_mode_specification("# -*- mode: sh -*-"), "shell_script_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec("plain"//LF//"# -*- text -*-"), "")
+        call check(error, auto_mode_specification("# -*- mode: conf-unix -*-"), "configuration_unix_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec("-*- coding: utf-8 -*-"), "")
+        call check(error, auto_mode_specification("x -*- coding: utf-8; Mode: text -*-"), "text_mode")
         if (allocated(error)) return
-        call check(error, auto_mode_spec("-*- unclosed"), "")
-    end subroutine test_auto_mode_spec
+        call check(error, auto_mode_specification("#!/bin/sh"//LF//"# -*- text -*-"), "text_mode")
+        if (allocated(error)) return
+        call check(error, auto_mode_specification("plain"//LF//"# -*- text -*-"), "")
+        if (allocated(error)) return
+        call check(error, auto_mode_specification("-*- coding: utf-8 -*-"), "")
+        if (allocated(error)) return
+        call check(error, auto_mode_specification("-*- unclosed"), "")
+    end subroutine test_auto_mode_specification
 
     !> file-name-sans-versions.
     subroutine test_sans_versions(error)
@@ -501,7 +509,7 @@ contains
         type(handle_type) :: a
         type(status_type) :: st
 
-        call init_text_mode()
+        call initialize_text_mode()
         call get_or_make_buffer("test-derived-normal", a, st)
         call set_buffer(a, st)
         buffers(current)%filename = "/tmp/foo.text"
@@ -515,11 +523,11 @@ contains
         call text_mode_hook%remove(hook_text)
         call check(error, trace, "T", "hook ran (case-insensitive match)")
         if (allocated(error)) return
-        call prepend_auto_mode("\.prog\'", "prog_mode")
-        call init_prog_mode()
+        call prepend_auto_mode("\.prog\'", "programming_mode")
+        call initialize_programming_mode()
         buffers(current)%filename = "/tmp/foo.prog"
         call normal_mode(st)
-        call check(error, buffers(current)%major_mode, "prog_mode")
+        call check(error, buffers(current)%major_mode, "programming_mode")
         if (allocated(error)) return
         buffers(current)%filename = "/tmp/foo.other"
         call normal_mode(st)

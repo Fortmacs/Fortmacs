@@ -37,15 +37,15 @@ module test_smtpmail_mod
     use buffer_mod, only: get_buffer, set_buffer, close_buffer, is_buffer_live, get_or_make_buffer
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string, system_name
-    use bindings_mod, only: init_bindings
-    use file_input_output_mod, only: file_exists, init_fileio
-    use files_mod, only: create_temp_file, delete_file
+    use bindings_mod, only: initialize_bindings
+    use file_input_output_mod, only: file_exists, initialize_fileio
+    use files_mod, only: create_temporary_file, delete_file
     use startup_mod, only: user_mail_address
     use send_mail_mod, only: mail_from_style, mail_specify_envelope_from, mail_envelope_from, MAIL_FROM_STYLE_SIMPLE, &
                              MAIL_ENVELOPE_FROM_HEADER
     use smtpmail_mod, only: send_mail_with_smtp, send_queued_mail_with_smtp, smtpmail_smtp_server, smtpmail_smtp_service, &
-                            smtpmail_debug_info, smtpmail_queue_mail, smtpmail_queue_dir, &
-                            smtpmail_servers_requiring_authorization, smtpmail_smtp_user, smtpmail_auth_supported
+                            smtpmail_debug_info, smtpmail_queue_mail, smtpmail_queue_directory, &
+                            smtpmail_servers_requiring_authorization, smtpmail_smtp_user, smtpmail_authentication_supported
     use system_dependent_mod, only: close_fd, fortmacs_read, fortmacs_creat, fortmacs_full_write, wait_for_termination
     use system_socket_mod, only: fortmacs_listen_loopback, fortmacs_accept, fortmacs_send, fortmacs_fork, fortmacs_exit_now
     use string_type_mod, only: string_type
@@ -76,9 +76,9 @@ contains
         testsuite = [ &
                     new_unittest("smtpmail-send", test_send), &
                     new_unittest("smtpmail-helo", test_helo), &
-                    new_unittest("smtpmail-auth-plain-trace", test_auth_plain_trace), &
-                    new_unittest("smtpmail-auth-cram-md5", test_auth_cram_md5), &
-                    new_unittest("smtpmail-auth-failed", test_auth_failed), &
+                    new_unittest("smtpmail-auth-plain-trace", test_authentication_plain_trace), &
+                    new_unittest("smtpmail-auth-cram-md5", test_authentication_cram_md5), &
+                    new_unittest("smtpmail-auth-failed", test_authentication_failed), &
                     new_unittest("smtpmail-recipient-refused", test_recipient_refused), &
                     new_unittest("smtpmail-greeting-refused", test_greeting_refused), &
                     new_unittest("smtpmail-transient-retry", test_transient_retry), &
@@ -99,8 +99,8 @@ contains
     !> The editor with known settings: a known address and From style, the
     !> envelope address from it, the trace buffer killed.
     subroutine set_up()
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         user_mail_address = "king@grassland.com"
         mail_from_style = MAIL_FROM_STYLE_SIMPLE
         mail_specify_envelope_from = .false.
@@ -110,7 +110,7 @@ contains
         smtpmail_queue_mail = .false.
         if (allocated(smtpmail_servers_requiring_authorization)) deallocate (smtpmail_servers_requiring_authorization)
         if (allocated(smtpmail_smtp_user)) deallocate (smtpmail_smtp_user)
-        smtpmail_auth_supported = [character(len=8) :: "cram-md5", "plain", "login"]
+        smtpmail_authentication_supported = [character(len=8) :: "cram-md5", "plain", "login"]
     end subroutine set_up
 
     !> Make the *mail* buffer current with HEADER, the separator and BODY.
@@ -160,7 +160,7 @@ contains
         integer(int32) :: fd, port, err
         type(status_type) :: st
 
-        call create_temp_file("smtpmail-test", server%log, st)
+        call create_temporary_file("smtpmail-test", server%log, st)
         call fortmacs_listen_loopback(fd, port, err)
         if (err /= 0) return
         smtpmail_smtp_server = "127.0.0.1"
@@ -259,12 +259,12 @@ contains
     subroutine finish_server(server, received)
         type(server_type), intent(inout) :: server
         character(len=:), allocatable, intent(out) :: received
-        integer(int32) :: code, sig, err
+        integer(int32) :: code, signal, err
         type(status_type) :: st
 
         received = ""
         if (server%pid <= 0) return
-        err = wait_for_termination(server%pid, code, sig)
+        err = wait_for_termination(server%pid, code, signal)
         received = file_text(server%log)
         if (file_exists(server%log)) call delete_file(server%log, st)
     end subroutine finish_server
@@ -399,7 +399,7 @@ contains
     !> With `smtpmail_servers_requiring_authorization' matching, the user
     !> name and password are asked for and sent with AUTH PLAIN; the trace
     !> buffer kept by `smtpmail_debug_info' omits them and holds the data.
-    subroutine test_auth_plain_trace(error)
+    subroutine test_authentication_plain_trace(error)
         type(error_type), allocatable, intent(out) :: error
         type(server_type) :: server
         type(status_type) :: st
@@ -442,10 +442,10 @@ contains
         end if
 
         call leave()
-    end subroutine test_auth_plain_trace
+    end subroutine test_authentication_plain_trace
 
     !> CRAM-MD5 answers the challenge of RFC 2195's example.
-    subroutine test_auth_cram_md5(error)
+    subroutine test_authentication_cram_md5(error)
         type(error_type), allocatable, intent(out) :: error
         type(server_type) :: server
         type(status_type) :: st
@@ -469,11 +469,11 @@ contains
         end if
 
         call leave()
-    end subroutine test_auth_cram_md5
+    end subroutine test_authentication_cram_md5
 
     !> When every mechanism fails, sending fails with the server's answer,
     !> the credentials removed from the message.
-    subroutine test_auth_failed(error)
+    subroutine test_authentication_failed(error)
         type(error_type), allocatable, intent(out) :: error
         type(server_type) :: server
         type(status_type) :: st
@@ -491,7 +491,7 @@ contains
         call check(error, format_error(st), "Sending failed: 535 bad credentials in response to AUTH")
         if (.not. allocated(error)) call check(error, index(received, "QUIT"//CRLF) > 0, received)
         call leave()
-    end subroutine test_auth_failed
+    end subroutine test_authentication_failed
 
     !> A refused recipient fails with the server's answer.
     subroutine test_recipient_refused(error)
@@ -590,17 +590,17 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(server_type) :: server
         type(status_type) :: st
-        character(len=:), allocatable :: dir, index_text, data_file, received
+        character(len=:), allocatable :: directory_name, index_text, data_file, received
 
         call set_up()
-        call create_temp_file("smtpmail-queue", dir, st, directory=.true.)
-        smtpmail_queue_dir = dir//"/"
+        call create_temporary_file("smtpmail-queue", directory_name, st, directory=.true.)
+        smtpmail_queue_directory = directory_name//"/"
         smtpmail_queue_mail = .true.
         call make_mail("To: a@example.com"//LF, "queued"//LF)
         call send_mail_with_smtp(st)
         call check(error, st%ok(), format_error(st))
-        if (.not. allocated(error)) index_text = file_text(dir//"/index")
-        if (.not. allocated(error)) call check(error, index(index_text, dir//"/") == 1, index_text)
+        if (.not. allocated(error)) index_text = file_text(directory_name//"/index")
+        if (.not. allocated(error)) call check(error, index(index_text, directory_name//"/") == 1, index_text)
 
         if (.not. allocated(error)) then
             data_file = index_text(:len(index_text) - 1)
@@ -623,8 +623,8 @@ contains
         if (.not. allocated(error)) call check(error, index(received, CRLF//"queued"//CRLF//"."//CRLF) > 0, received)
         if (.not. allocated(error)) call check(error,.not. file_exists(data_file), "queued file kept")
         if (.not. allocated(error)) call check(error,.not. file_exists(data_file//".nml"), "variables file kept")
-        if (.not. allocated(error)) call check(error, file_text(dir//"/index"), "")
-        call delete_file(dir//"/index", st)
+        if (.not. allocated(error)) call check(error, file_text(directory_name//"/index"), "")
+        call delete_file(directory_name//"/index", st)
         call leave()
     end subroutine test_queue
 

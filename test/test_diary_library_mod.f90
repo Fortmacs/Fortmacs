@@ -32,14 +32,14 @@ module test_diary_library_mod
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, get_buffer, &
                           is_buffer_live, restore_buffer_modified
-    use editing_functions_mod, only: buffer_string, point_min, point_max
+    use editing_functions_mod, only: buffer_string, point_minimum, point_maximum
     use interval_tree_mod, only: overlays_in, overlay_get
     use value_mod, only: value_type
     use display_engine_mod, only: current_message
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: delete_window_tree, resize_window_tree
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio, delete_file_internal, &
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio, delete_file_internal, &
                                      create_directory_internal
     use calendar_mod, only: calendar_date_type, operator(==), calendar_mode, calendar_generate, calendar_unmark, &
                             calendar_goto_date, calendar_set_mark, calendar_date_style, diary_file, &
@@ -55,7 +55,7 @@ module test_diary_library_mod
 
     public :: collect_diary_library_mod
 
-    character(len=*), parameter :: NL = achar(10)
+    character(len=*), parameter :: NEWLINE = achar(10)
 
     ! The diary file of the tests: calendar.el's sample entries, a
     ! date-only entry and expression entries.
@@ -134,13 +134,13 @@ contains
     ! 80-column frame, as the frame of `emacs --batch' that made the
     ! expected text; the American date style.
     subroutine setup()
-        call init_bindings()
+        call initialize_bindings()
         selected_frame%minibuffer_selected = .false.
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
         call ensure_frame_windows()
         call resize_window_tree(selected_frame%root_window, 0, 0, 24, 80, 80)
-        selected_frame%tty%wcm%cm_cols = 80
+        selected_frame%terminal%wcm%cursor_motion_columns = 80
         calendar_date_style = CALENDAR_DATE_STYLE_AMERICAN
         diary_date_forms = diary_american_date_forms
     end subroutine setup
@@ -154,7 +154,7 @@ contains
         text = ""
 
         do k = 1, size(lines)
-            if (k > 1) text = text//NL
+            if (k > 1) text = text//NEWLINE
             text = text//trim(lines(k))
         end do
     end function joined
@@ -168,7 +168,7 @@ contains
         type(status_type) :: st
         integer :: u
 
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("build/test-diary", path, st, fortmacs_wd)
         call create_directory_internal(path, st)
         path = path//"/"//name
@@ -183,7 +183,7 @@ contains
 
         call delete_file_internal(path, st)
         open (newunit=u, file=path, access="stream", form="unformatted", status="replace", action="write")
-        write (u) text//NL
+        write (u) text//NEWLINE
         close (u)
     end subroutine write_diary
 
@@ -198,7 +198,7 @@ contains
 
         do k = 1, size(entries)
             write (date, '(i0, "/", i0, "/", i0)') entries(k)%date%month, entries(k)%date%day, entries(k)%date%year
-            text = text//trim(date)//" "//entries(k)%string//" | "//entries(k)%specifier//NL
+            text = text//trim(date)//" "//entries(k)%string//" | "//entries(k)%specifier//NEWLINE
         end do
     end function entry_lines
 
@@ -256,17 +256,17 @@ contains
         call setup()
         call write_diary("diary-list", joined(DIARY_LINES))
         call list_diary_entries(calendar_date_type(11, 5, 2026), st, 1, .true., entries)
-        expected = "11/5/2026 Vacation | %%(diary-block 11 1 2026 11 10 2026)"//NL// &
-                   "11/5/2026 Fifth | %%(diary-date t 5 t ""*"")"//NL// &
-                   "11/5/2026  2pm Committee meeting"//NL//" 4:00pm Jamie | "//NL//NL// &
-                   "11/5/2026 4pm squash game with Lloyd. | &thu"//NL
+        expected = "11/5/2026 Vacation | %%(diary-block 11 1 2026 11 10 2026)"//NEWLINE// &
+                   "11/5/2026 Fifth | %%(diary-date t 5 t ""*"")"//NEWLINE// &
+                   "11/5/2026  2pm Committee meeting"//NEWLINE//" 4:00pm Jamie | "//NEWLINE//NEWLINE// &
+                   "11/5/2026 4pm squash game with Lloyd. | &thu"//NEWLINE
         call check(error, st%ok() .and. entry_lines(entries) == expected, "November 5: "//entry_lines(entries))
         if (allocated(error)) return
         call list_diary_entries(calendar_date_type(11, 10, 2026), st, 2, .true., entries)
-        expected = "11/10/2026 Vacation | %%(diary-block 11 1 2026 11 10 2026)"//NL// &
-                   "11/10/2026 -weekly meeting with grad students at 10am"//NL// &
-                   "         Supowit, Shen, Bitner, and Kapoor to attend. | Tuesday"//NL// &
-                   "11/11/2026 Lunch | 11/11"//NL
+        expected = "11/10/2026 Vacation | %%(diary-block 11 1 2026 11 10 2026)"//NEWLINE// &
+                   "11/10/2026 -weekly meeting with grad students at 10am"//NEWLINE// &
+                   "         Supowit, Shen, Bitner, and Kapoor to attend. | Tuesday"//NEWLINE// &
+                   "11/11/2026 Lunch | 11/11"//NEWLINE
         call check(error, st%ok() .and. entry_lines(entries) == expected, "November 10: "//entry_lines(entries))
     end subroutine test_list_entries
 
@@ -279,19 +279,19 @@ contains
         call setup()
         call write_diary("diary-expressions", joined(DIARY_LINES))
         call list_diary_entries(calendar_date_type(11, 17, 2026), st, 3, .true., entries)
-        expected = "11/17/2026 Reminder: Only 3 days until Dentist | %%(diary-remind '(diary-date 11 20 2026) 3)"//NL// &
-                   "11/17/2026 -weekly meeting with grad students at 10am"//NL// &
-                   "         Supowit, Shen, Bitner, and Kapoor to attend. | Tuesday"//NL// &
-                   "11/19/2026 4pm squash game with Lloyd. | &thu"//NL
+        expected = "11/17/2026 Reminder: Only 3 days until Dentist | %%(diary-remind '(diary-date 11 20 2026) 3)"//NEWLINE// &
+                   "11/17/2026 -weekly meeting with grad students at 10am"//NEWLINE// &
+                   "         Supowit, Shen, Bitner, and Kapoor to attend. | Tuesday"//NEWLINE// &
+                   "11/19/2026 4pm squash game with Lloyd. | &thu"//NEWLINE
         call check(error, st%ok() .and. entry_lines(entries) == expected, "remind: "//entry_lines(entries))
         if (allocated(error)) return
         call list_diary_entries(calendar_date_type(10, 31, 2026), st, 1, .true., entries)
-        expected = "10/31/2026 Arthur's 78th birthday | %%(diary-anniversary 10 31 1948)"//NL
+        expected = "10/31/2026 Arthur's 78th birthday | %%(diary-anniversary 10 31 1948)"//NEWLINE
         call check(error, st%ok() .and. entry_lines(entries) == expected, "anniversary: "//entry_lines(entries))
         if (allocated(error)) return
         call list_diary_entries(calendar_date_type(11, 6, 2026), st, 1, .true., entries)
-        expected = "11/6/2026 Vacation | %%(diary-block 11 1 2026 11 10 2026)"//NL// &
-                   "11/6/2026 Renew medication (5) | &%%(diary-cyclic 50 3 1 2026)"//NL
+        expected = "11/6/2026 Vacation | %%(diary-block 11 1 2026 11 10 2026)"//NEWLINE// &
+                   "11/6/2026 Renew medication (5) | &%%(diary-cyclic 50 3 1 2026)"//NEWLINE
         call check(error, st%ok() .and. entry_lines(entries) == expected, "cyclic: "//entry_lines(entries))
         if (allocated(error)) return
         call list_diary_entries(calendar_date_type(11, 12, 2026), st, 1, .true., entries)
@@ -304,7 +304,8 @@ contains
         type(status_type) :: st
 
         call setup()
-        call write_diary("diary-sort", "11/5/2026 4pm tea"//NL//"11/5/2026 9:30 coffee"//NL//"11/5/2026 lunch"//NL// &
+        call write_diary("diary-sort", "11/5/2026 4pm tea"//NEWLINE//"11/5/2026 9:30 coffee"//NEWLINE// &
+                         "11/5/2026 lunch"//NEWLINE// &
                          "11/5/2026 9:30 breakfast")
         call list_diary_entries(calendar_date_type(11, 5, 2026), st, 1, .true.)
         call sort_diary_entries(st)
@@ -362,7 +363,7 @@ contains
         buffers(current)%read_only = .true.
         call mark_diary_entries(.false., st)
         call set_buffer(h, st)
-        call overlays_in(point_min(), point_max(), ovs)
+        call overlays_in(point_minimum(), point_maximum(), ovs)
         displays = 0
 
         do k = 1, size(ovs)
@@ -376,7 +377,7 @@ contains
 
         if (.not. allocated(error)) then
             call calendar_unmark(st)
-            call overlays_in(point_min(), point_max(), ovs)
+            call overlays_in(point_minimum(), point_maximum(), ovs)
             call check(error,.not. calendar_mark_diary_entries .and. size(ovs) == 0, "u")
         end if
 
@@ -391,9 +392,10 @@ contains
         type(status_type) :: st
 
         call setup()
-        call write_diary("diary-bad", "11/5/2026 Good"//NL//"%%(diary-moon 1) Bad"//NL//"%%(diary-cyclic 0 1 1 2026) Zero")
+        call write_diary("diary-bad", "11/5/2026 Good"//NEWLINE//"%%(diary-moon 1) Bad"//NEWLINE// &
+                         "%%(diary-cyclic 0 1 1 2026) Zero")
         call list_diary_entries(calendar_date_type(11, 5, 2026), st, 1, .true., entries)
-        call check(error, st%ok() .and. entry_lines(entries) == "11/5/2026 Good | 1/5/2026"//NL, entry_lines(entries))
+        call check(error, st%ok() .and. entry_lines(entries) == "11/5/2026 Good | 1/5/2026"//NEWLINE, entry_lines(entries))
         if (allocated(error)) return
         call current_message(text)
         call check(error, allocated(text), "a message")
@@ -446,8 +448,8 @@ contains
         call insert_anniversary_diary_entry(.false., st)
         call set_buffer(h, st)
         call insert_block_diary_entry(.false., st)
-        expected = "1/1 New year"//NL//"11/5/2026 "//NL//"&Thursday "//NL//"* 5 "//NL//"Nov 5 "//NL// &
-                   "%%(diary-anniversary 11 5 2026) "//NL//"%%(diary-block 11 2 2026 11 5 2026) "
+        expected = "1/1 New year"//NEWLINE//"11/5/2026 "//NEWLINE//"&Thursday "//NEWLINE//"* 5 "//NEWLINE//"Nov 5 "//NEWLINE// &
+                   "%%(diary-anniversary 11 5 2026) "//NEWLINE//"%%(diary-block 11 2 2026 11 5 2026) "
         call check(error, st%ok() .and. diary_text() == expected, diary_text())
         call set_buffer(diary_file_buffer(), st)
         call restore_buffer_modified(.false.)
@@ -464,14 +466,15 @@ contains
         call setup()
         calendar_date_style = CALENDAR_DATE_STYLE_EUROPEAN
         diary_date_forms = diary_european_date_forms
-        call write_diary("diary-european", "5/11/2026 Slash"//NL//"5 Nov 2026 Name year"//NL//"5 november Name"//NL// &
-                         "5 Nov 10:00 Time"//NL//"%%(diary-block 1 11 2026 10 11 2026) Block")
+        call write_diary("diary-european", "5/11/2026 Slash"//NEWLINE//"5 Nov 2026 Name year"//NEWLINE// &
+                         "5 november Name"//NEWLINE// &
+                         "5 Nov 10:00 Time"//NEWLINE//"%%(diary-block 1 11 2026 10 11 2026) Block")
         call list_diary_entries(calendar_date_type(11, 5, 2026), st, 1, .true., entries)
-        expected = "11/5/2026 Block | %%(diary-block 1 11 2026 10 11 2026)"//NL// &
-                   "11/5/2026 Slash | /11/2026"//NL// &
-                   "11/5/2026 Name | 5 november"//NL// &
-                   "11/5/2026 10:00 Time | 5 Nov"//NL// &
-                   "11/5/2026 Name year | 5 Nov 2026"//NL
+        expected = "11/5/2026 Block | %%(diary-block 1 11 2026 10 11 2026)"//NEWLINE// &
+                   "11/5/2026 Slash | /11/2026"//NEWLINE// &
+                   "11/5/2026 Name | 5 november"//NEWLINE// &
+                   "11/5/2026 10:00 Time | 5 Nov"//NEWLINE// &
+                   "11/5/2026 Name year | 5 Nov 2026"//NEWLINE
         call check(error, st%ok() .and. entry_lines(entries) == expected, entry_lines(entries))
         calendar_date_style = CALENDAR_DATE_STYLE_AMERICAN
         diary_date_forms = diary_american_date_forms

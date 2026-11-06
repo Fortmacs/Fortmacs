@@ -41,39 +41,40 @@
 !> not ported), overwrite mode and the cc-mode syntax-ppss workaround.
 module electric_pair_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER
-    use error_mod, only: status_type, FM_SCAN_ERROR
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER
+    use error_mod, only: status_type, SCAN_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, vtag, V_INTEGER, choice_type
     use data_mod, only: default_value, set_default, clear_local_variable, choice_setting_type, choice_state
     use commands_mod, only: commands
-    use hooks_mod, only: hook_type, hook_current_prefix_arg
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use hooks_mod, only: hook_type, hook_current_prefix_argument
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_modified, restore_buffer_modified, &
                           barf_if_buffer_read_only
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_bob, char_after, char_before, delete_region, &
-                                     buffer_substring, line_beginning_position, char_to_string
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_beginning_of_buffer, character_after, &
+                                     character_before, delete_region, buffer_substring, line_beginning_position, &
+                                     character_to_string
     use insert_delete_mod, only: insert
-    use editing_commands_mod, only: post_self_insert_hook, self_insert_command, delete_char, forward_char
+    use editing_commands_mod, only: post_self_insert_hook, self_insert_command, delete_character, forward_character
     use keyboard_mod, only: last_command_event
-    use syntax_mod, only: char_syntax, matching_paren, syntax_ppss, parse_partial_expression, parse_state_type, &
-                          scan_expressions, scan_error_data, skip_chars_forward, skip_syntax_forward, skip_syntax_backward, &
+    use syntax_mod, only: character_syntax, matching_parenthesis, syntax_parser_state, parse_partial_expression, parse_state_type, &
+                          scan_expressions, scan_error_data, skip_characters_forward, skip_syntax_forward, skip_syntax_backward, &
                           forward_comment, ST_STRING_STYLE
     use basic_subprograms_mod, only: looking_back
-    use simple_mod, only: blink_matching_paren, is_use_region, mark, newline, &
-                          backward_delete_char_untabify
+    use simple_mod, only: blink_matching_parenthesis, is_use_region, mark, newline, &
+                          backward_delete_character_untabify
     use modes_mod, only: minor_modes
-    use electric_mod, only: electric_after_char_pos
+    use electric_mod, only: electric_after_character_position
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use character_mod, only: string_char_and_length
+    use character_mod, only: string_character_and_length
     implicit none(type, external)
     private
 
-    public :: init_elec_pair, electric_pair_mode, electric_pair_local_mode, electric_pair_syntax_info, &
+    public :: initialize_electric_pair, electric_pair_mode, electric_pair_local_mode, electric_pair_syntax_info, &
               electric_pair_post_self_insert_function, electric_pair_open_newline_between_pairs_psif, &
               electric_pair_delete_pair, electric_pair_default_skip_self, electric_pair_default_inhibit, &
               electric_pair_conservative_inhibit, electric_pair_inhibit_if_helps_balance, &
-              electric_pair_skip_if_helps_balance, electric_pair_skip_whitespace_default, electric_pair_char_procedure, &
+              electric_pair_skip_if_helps_balance, electric_pair_skip_whitespace_default, electric_pair_character_procedure, &
               electric_pair_position_procedure
 
     !> One pair: the characters OPEN and CLOSE, or, when OPEN_STRING is
@@ -115,10 +116,10 @@ module electric_pair_mod
     abstract interface
         !> A test on a character (`electric_pair_skip_self',
         !> `electric_pair_inhibit_test_function').  Not a port.
-        logical function electric_pair_char_procedure(char)
+        logical function electric_pair_character_procedure(char)
             implicit none(type, external)
             integer, intent(in) :: char
-        end function electric_pair_char_procedure
+        end function electric_pair_character_procedure
 
         !> A function giving a buffer position (`electric_pair_string_bound_function').
         !> Not a port.
@@ -131,7 +132,7 @@ module electric_pair_mod
     !> The setting `electric_pair_skip_self': a choice setting whose value
     !> can also be a procedure (R6-37), set with `=>'.  Not a port.
     type, extends(choice_setting_type), public :: electric_pair_skip_self_choice_setting_type
-        procedure(electric_pair_char_procedure), pointer, nopass :: procedure => null()
+        procedure(electric_pair_character_procedure), pointer, nopass :: procedure => null()
     contains
         procedure :: clear_kinds => electric_pair_skip_self_clear_kinds
         procedure :: other_value => electric_pair_skip_self_other_value
@@ -185,7 +186,7 @@ module electric_pair_mod
     !> typing `(' and `)' results in "()" rather than "())".
     !>
     !> This can be convenient for people who find it easier to type `)' than
-    !> \[forward_char].
+    !> \[forward_character].
     !>
     !> .true. always skips, .false. never, and ELECTRIC_PAIR_SKIP_SELF_HELP_BALANCE
     !> skips when that helps balance the delimiters.  A procedure of your
@@ -201,7 +202,7 @@ module electric_pair_mod
     !> inserted).  If it returns true, then `electric_pair_mode' will not
     !> insert a matching closing delimiter.  Port of elec-pair.el
     !> electric-pair-inhibit-predicate.
-    procedure(electric_pair_char_procedure), pointer, public :: electric_pair_inhibit_test_function => null()
+    procedure(electric_pair_character_procedure), pointer, public :: electric_pair_inhibit_test_function => null()
 
     !> Whether to keep matching delimiters balanced.
     !> When true, typing a delimiter inserts only this character if there is
@@ -238,14 +239,14 @@ module electric_pair_mod
     !> inserts it at point.
     !>
     !> The specific kind of whitespace skipped is given by the variable
-    !> `electric_pair_skip_whitespace_chars'.  Port of elec-pair.el
+    !> `electric_pair_skip_whitespace_characters'.  Port of elec-pair.el
     !> electric-pair-skip-whitespace (no function form).
     type(choice_setting_type), public :: electric_pair_skip_whitespace = &
                                          choice_setting_type(name="electric_pair_skip_whitespace", value=.true.)
 
     !> Whitespace characters considered by `electric_pair_skip_whitespace'.
     !> Port of elec-pair.el electric-pair-skip-whitespace-chars.
-    integer, allocatable, public :: electric_pair_skip_whitespace_chars(:)
+    integer, allocatable, public :: electric_pair_skip_whitespace_characters(:)
 
     !> Function to use to move point forward over whitespace.
     !> Before attempting a skip, if `electric_pair_skip_whitespace' is
@@ -261,7 +262,7 @@ module electric_pair_mod
     !> within text marked as a comment or enclosed within quotes.  If lookup
     !> fails here, `electric_pair_text_pairs' will be considered.  Port of
     !> elec-pair.el electric-pair-text-syntax-table (the null handle is the
-    !> standard syntax table, which is what prog_mode_syntax_table, not
+    !> standard syntax table, which is what programming_mode_syntax_table, not
     !> ported, inherits everything from).
     type(handle_type), public :: electric_pair_text_syntax_table
 
@@ -301,7 +302,7 @@ contains
 
     !> Define Electric Pair mode and its local mode, with their variables'
     !> defaults (as loading elec-pair.el does).  Not a port.
-    subroutine init_elec_pair()
+    subroutine initialize_electric_pair()
         call minor_modes%electric_pair_mode%define("electric_pair_mode", global=.true., keymap=.true., &
                                                    body=electric_pair_mode_body, hook=electric_pair_mode_hook)
         commands%electric_pair_mode%execute => electric_pair_mode
@@ -310,11 +311,11 @@ contains
                                                          hook=electric_pair_local_mode_hook, &
                                                          getter=is_electric_pair_local_mode)
         commands%electric_pair_local_mode%execute => electric_pair_local_mode
-        commands%electric_pair_delete_pair%execute => cmd_electric_pair_delete_pair
+        commands%electric_pair_delete_pair%execute => execute_electric_pair_delete_pair
         ! (?\" . ?\") and electric-quote-chars' single and double quotes.
         if (.not. allocated(electric_pair_pairs)) call default_pairs(electric_pair_pairs)
         if (.not. allocated(electric_pair_text_pairs)) call default_pairs(electric_pair_text_pairs)
-        if (.not. allocated(electric_pair_skip_whitespace_chars)) electric_pair_skip_whitespace_chars = [9, 32, 10]
+        if (.not. allocated(electric_pair_skip_whitespace_characters)) electric_pair_skip_whitespace_characters = [9, 32, 10]
 
         if (.not. associated(electric_pair_inhibit_test_function)) then
             electric_pair_inhibit_test_function => electric_pair_default_inhibit
@@ -325,7 +326,7 @@ contains
         end if
 
         if (.not. associated(electric_pair_string_bound_function)) then
-            electric_pair_string_bound_function => string_bound_point_max
+            electric_pair_string_bound_function => string_bound_point_maximum
         end if
 
     contains
@@ -341,67 +342,67 @@ contains
             pairs(3)%open = int(z'201C')
             pairs(3)%close = int(z'201D')
         end subroutine default_pairs
-    end subroutine init_elec_pair
+    end subroutine initialize_electric_pair
 
-    !> The default `electric_pair_string_bound_function': `point_max'.
+    !> The default `electric_pair_string_bound_function': `point_maximum'.
     !> Not a port.
-    integer(int64) function string_bound_point_max()
-        string_bound_point_max = point_max()
-    end function string_bound_point_max
+    integer(int64) function string_bound_point_maximum()
+        string_bound_point_maximum = point_maximum()
+    end function string_bound_point_maximum
 
     ! ------------------------------------------------------------------
     ! Helpers
     ! ------------------------------------------------------------------
 
     !> The character `last_command_event' is, or -1.  Not a port.
-    integer function event_char()
-        event_char = -1
-        if (vtag(last_command_event) == V_INTEGER) event_char = int(xfixnum(last_command_event))
-    end function event_char
+    integer function event_character()
+        event_character = -1
+        if (vtag(last_command_event) == V_INTEGER) event_character = int(xfixnum(last_command_event))
+    end function event_character
 
     !> (prefix-numeric-value current-prefix-arg) as a post-self-insert
     !> function sees it.  Not a port.
-    integer(int64) function psi_num()
-        psi_num = prefix_numeric_value(hook_current_prefix_arg)
-    end function psi_num
+    integer(int64) function psi_number()
+        psi_number = prefix_numeric_value(hook_current_prefix_argument)
+    end function psi_number
 
-    !> The character after POS (default point), or -1 for none.  Not a port.
-    integer function after(pos)
-        integer(int64), intent(in), optional :: pos
+    !> The character after POSITION (default point), or -1 for none.  Not a port.
+    integer function after(position)
+        integer(int64), intent(in), optional :: position
         integer(int32) :: c
         logical :: found
 
-        call char_after(c, found, pos)
+        call character_after(c, found, position)
         after = -1
         if (found) after = int(c)
     end function after
 
-    !> The character before POS (default point), or -1 for none.  Not a port.
-    integer function before(pos)
-        integer(int64), intent(in), optional :: pos
+    !> The character before POSITION (default point), or -1 for none.  Not a port.
+    integer function before(position)
+        integer(int64), intent(in), optional :: position
         integer(int32) :: c
         logical :: found
 
-        call char_before(c, found, pos)
+        call character_before(c, found, position)
         before = -1
         if (found) before = int(c)
     end function before
 
     !> The syntax descriptor character of C in the current syntax table.
     !> Not a port.
-    character function syntax_char(c)
+    character function syntax_character(c)
         integer, intent(in) :: c
 
-        syntax_char = " "
-        if (c >= 0) syntax_char = char_syntax(c)
-    end function syntax_char
+        syntax_character = " "
+        if (c >= 0) syntax_character = character_syntax(c)
+    end function syntax_character
 
     !> (matching-paren C): -1 for none.  Not a port.
     integer function matching(c)
         integer, intent(in) :: c
 
         matching = -1
-        if (c >= 0) matching = matching_paren(c)
+        if (c >= 0) matching = matching_parenthesis(c)
     end function matching
 
     !> Run with the `electric_pair_text_syntax_table' when
@@ -440,17 +441,17 @@ contains
         integer(int64) :: p
 
         call marker_position(here, p, st)
-        call goto_char(p)
+        call goto_character(p)
         call destroy_marker(here, st)
     end subroutine save_excursion_end
 
-    !> (syntax-ppss POS): the state at POS; point moves to POS.  Not a port.
-    subroutine ppss_at(pos, state)
-        integer(int64), intent(in) :: pos
+    !> (syntax-ppss POSITION): the state at POSITION; point moves to POSITION.  Not a port.
+    subroutine parser_state_at(position, state)
+        integer(int64), intent(in) :: position
         type(parse_state_type), intent(out) :: state
 
-        call syntax_ppss(state, pos)
-    end subroutine ppss_at
+        call syntax_parser_state(state, position)
+    end subroutine parser_state_at
 
     ! ------------------------------------------------------------------
     ! Syntax
@@ -468,19 +469,19 @@ contains
 
         status = status_type()
         saved = point()
-        call ppss_at(saved, state)
+        call parser_state_at(saved, state)
         string_or_comment = state%comstr_start
         chars = ""
 
-        do k = 1, size(electric_pair_skip_whitespace_chars)
-            call char_to_string(int(electric_pair_skip_whitespace_chars(k), int32), text, status)
+        do k = 1, size(electric_pair_skip_whitespace_characters)
+            call character_to_string(int(electric_pair_skip_whitespace_characters(k), int32), text, status)
             if (.not. status%ok()) return
             chars = chars//text
         end do
 
-        moved = skip_chars_forward(chars, status)
-        call ppss_at(point(), state)
-        if (string_or_comment /= state%comstr_start) call goto_char(saved)
+        moved = skip_characters_forward(chars, status)
+        call parser_state_at(point(), state)
+        if (string_or_comment /= state%comstr_start) call goto_character(saved)
     end subroutine electric_pair_skip_whitespace_default
 
     !> Calculate SYNTAX PAIR UNCONDITIONAL STRING_OR_COMMENT_START.
@@ -497,21 +498,21 @@ contains
         type(electric_pair_type), allocatable :: fallback(:)
         type(handle_type) :: saved
         type(status_type) :: st
-        integer(int64) :: opoint, pre_string_or_comment, post_string_or_comment, string_or_comment
+        integer(int64) :: original_point, pre_string_or_comment, post_string_or_comment, string_or_comment
         integer :: k, table_syntax, table_pair, direct, reverse
         logical :: pre_t
 
-        opoint = point()
-        pre_t = is_bob()
+        original_point = point()
+        pre_t = is_beginning_of_buffer()
         pre_string_or_comment = 0
 
         if (.not. pre_t) then
-            call ppss_at(opoint - 1, state)
+            call parser_state_at(original_point - 1, state)
             pre_string_or_comment = state%comstr_start
-            call goto_char(opoint)
+            call goto_character(original_point)
         end if
 
-        call ppss_at(opoint, state)
+        call parser_state_at(original_point, state)
         post_string_or_comment = state%comstr_start
         string_or_comment = 0
 
@@ -520,7 +521,7 @@ contains
         end if
 
         call with_syntax_begin(string_or_comment, saved)
-        table_syntax = iachar(syntax_char(command_event))
+        table_syntax = iachar(syntax_character(command_event))
         table_pair = matching(command_event)
         if (table_pair < 0) table_pair = command_event
         call with_syntax_end(saved)
@@ -585,49 +586,49 @@ contains
         logical :: saved_mode
 
         saved_event = last_command_event
-        saved_blink = choice_state(blink_matching_paren)
+        saved_blink = choice_state(blink_matching_parenthesis)
         saved_mode = minor_modes%electric_pair_mode%state%value
         last_command_event = value_type(int(char, int64))
-        blink_matching_paren = .false.
+        blink_matching_parenthesis = .false.
         minor_modes%electric_pair_mode%state%value = .false.
         call self_insert_command(times, int(char, int64), status)
         last_command_event = saved_event
-        blink_matching_paren = saved_blink
+        blink_matching_parenthesis = saved_blink
         minor_modes%electric_pair_mode%state%value = saved_mode
     end subroutine electric_pair_insert
 
-    !> Like `syntax_ppss', but maybe fall back to `parse_partial_expression'.
+    !> Like `syntax_parser_state', but maybe fall back to `parse_partial_expression'.
     !>
     !> IN_STRINGS and IN_COMMENTS (upstream's WHERE, by default both) say
     !> when to fall back to `parse_partial_expression'.  Port of
     !> elec-pair.el:electric-pair--syntax-ppss.
-    subroutine electric_pair_syntax_ppss(state, pos, comments_only)
+    subroutine electric_pair_syntax_parser_state(state, position, comments_only)
         type(parse_state_type), intent(out) :: state
-        integer(int64), intent(in), optional :: pos
+        integer(int64), intent(in), optional :: position
         logical, intent(in), optional :: comments_only
-        type(parse_state_type) :: quick_ppss
+        type(parse_state_type) :: quick_parser_state
         type(handle_type) :: saved
         type(status_type) :: st
         integer(int64) :: p, s_or_c_start, moved
         logical :: in_string, in_comment, found
 
         p = point()
-        if (present(pos)) p = pos
-        call ppss_at(p, quick_ppss)
-        in_string = quick_ppss%instring >= 0
+        if (present(position)) p = position
+        call parser_state_at(p, quick_parser_state)
+        in_string = quick_parser_state%instring >= 0
 
         if (present(comments_only)) then
             if (comments_only) in_string = .false.
         end if
 
-        in_comment = quick_ppss%incomment /= 0
+        in_comment = quick_parser_state%incomment /= 0
         s_or_c_start = 0
 
         if (in_string) then
-            s_or_c_start = quick_ppss%comstr_start + 1
+            s_or_c_start = quick_parser_state%comstr_start + 1
         else if (in_comment) then
-            call goto_char(quick_ppss%comstr_start)
-            found = forward_comment(-point_max())
+            call goto_character(quick_parser_state%comstr_start)
+            found = forward_comment(-point_maximum())
             moved = skip_syntax_forward(" >!")
             s_or_c_start = point()
         end if
@@ -637,9 +638,9 @@ contains
             call parse_partial_expression(s_or_c_start, p, state, st)
             call with_syntax_end(saved)
         else
-            state = quick_ppss
+            state = quick_parser_state
         end if
-    end subroutine electric_pair_syntax_ppss
+    end subroutine electric_pair_syntax_parser_state
 
     !> Examine lists forward or backward according to DIRECTION's sign.
     !>
@@ -660,16 +661,16 @@ contains
         type(handle_type) :: saved
         type(status_type) :: st
         type(parse_state_type) :: state
-        character(len=:), allocatable :: msg
-        integer(int64) :: opoint, pos, beginning, end, count, r
+        character(len=:), allocatable :: message
+        integer(int64) :: original_point, position, beginning, end, count, r
 
-        opoint = point()
+        original_point = point()
 
         do while (.not. outermost%set)
             if (direction > 0) then
-                count = point_max()
+                count = point_maximum()
             else
-                count = -point_max()
+                count = -point_maximum()
             end if
 
             call with_syntax_begin(string_or_comment, saved)
@@ -678,28 +679,28 @@ contains
 
             if (st%ok()) then
                 call at_top_level_or_equivalent()
-            else if (st%code /= FM_SCAN_ERROR) then
+            else if (st%code /= SCAN_ERROR_CODE) then
                 exit
             else
-                call scan_error_data(st, msg, beginning, end)
-                pos = point()
-                call ppss_at(pos, state)
-                call goto_char(pos)
+                call scan_error_data(st, message, beginning, end)
+                position = point()
+                call parser_state_at(position, state)
+                call goto_character(position)
 
-                if (index(msg, "ends prematurely") == 0 .or. (string_or_comment /= 0 .and. state%comstr_start == 0)) then
+                if (index(message, "ends prematurely") == 0 .or. (string_or_comment /= 0 .and. state%comstr_start == 0)) then
                     ! Some error happened and it is not of the "ended
                     ! prematurely" kind, or we were in a comment and just
                     ! came out of it.
                     call at_top_level_or_equivalent()
                 else
                     ! Exit the expression.
-                    call goto_char(end)
+                    call goto_character(end)
                     call ended_prematurely()
                 end if
             end if
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
 
     contains
 
@@ -716,7 +717,7 @@ contains
         !> character, the idea is to travel one expression in the opposite
         !> direction looking for a matching delimiter.
         subroutine ended_prematurely()
-            type(parse_state_type) :: ppss
+            type(parse_state_type) :: parser_state
             type(status_type) :: st2
             type(handle_type) :: saved2
             integer(int64) :: p, q, start
@@ -738,13 +739,14 @@ contains
                 end if
             else
                 ! In this case, no need to use `scan_expressions', we can use
-                ! some `electric_pair_syntax_ppss' in this case (which
-                ! uses the quicker `syntax_ppss' in some cases).
-                call electric_pair_syntax_ppss(ppss, point() - 1)
+                ! some `electric_pair_syntax_parser_state' in this case (which
+                ! uses the quicker `syntax_parser_state' in some cases).
+                call electric_pair_syntax_parser_state(parser_state, point() - 1)
                 start = 0
 
-                if (allocated(ppss%open_parens)) then
-                    if (size(ppss%open_parens) > 0) start = ppss%open_parens(size(ppss%open_parens))
+                if (allocated(parser_state%open_parentheses)) then
+                    if (size(parser_state%open_parentheses) > 0) start = parser_state%open_parentheses(size( &
+                                                                                                     parser_state%open_parentheses))
                 end if
 
                 if (start /= 0) then
@@ -757,7 +759,7 @@ contains
                 end if
             end if
 
-            call goto_char(p)
+            call goto_character(p)
 
             if (direction > 0) then
                 actual_pair = before()
@@ -774,25 +776,25 @@ contains
     !> elec-pair.el:electric-pair--unbalanced-strings-p.
     logical function is_unbalanced_strings(char)
         integer, intent(in) :: char
-        type(parse_state_type) :: selector_ppss, relevant_ppss
-        integer(int64) :: opoint, moved
+        type(parse_state_type) :: selector_parser_state, relevant_parser_state
+        integer(int64) :: original_point, moved
         logical :: found
 
-        opoint = point()
-        call ppss_at(opoint, selector_ppss)
+        original_point = point()
+        call parser_state_at(original_point, selector_parser_state)
 
-        if (selector_ppss%incomment /= 0) then
+        if (selector_parser_state%incomment /= 0) then
             ! A comment.
-            call goto_char(selector_ppss%comstr_start)
-            found = forward_comment(point_max())
+            call goto_character(selector_parser_state%comstr_start)
+            found = forward_comment(point_maximum())
             moved = skip_syntax_backward(" >!")
-            call electric_pair_syntax_ppss(relevant_ppss, point())
+            call electric_pair_syntax_parser_state(relevant_parser_state, point())
         else
-            call ppss_at(electric_pair_string_bound_function(), relevant_ppss)
+            call parser_state_at(electric_pair_string_bound_function(), relevant_parser_state)
         end if
 
-        call goto_char(opoint)
-        is_unbalanced_strings = relevant_ppss%instring == ST_STRING_STYLE .or. relevant_ppss%instring == char
+        call goto_character(original_point)
+        is_unbalanced_strings = relevant_parser_state%instring == ST_STRING_STYLE .or. relevant_parser_state%instring == char
     end function is_unbalanced_strings
 
     !> Return true if point is inside a string started by CHAR.
@@ -802,10 +804,10 @@ contains
     !> strings.  Port of elec-pair.el:electric-pair--inside-string-p.
     logical function is_inside_string(char)
         integer, intent(in) :: char
-        type(parse_state_type) :: ppss
+        type(parse_state_type) :: parser_state
 
-        call electric_pair_syntax_ppss(ppss, point(), comments_only=.true.)
-        is_inside_string = ppss%instring == ST_STRING_STYLE .or. ppss%instring == char
+        call electric_pair_syntax_parser_state(parser_state, point(), comments_only=.true.)
+        is_inside_string = parser_state%instring == ST_STRING_STYLE .or. parser_state%instring == char
     end function is_inside_string
 
     !> Return true if auto-pairing of CHAR unbalances delimiters.
@@ -821,19 +823,19 @@ contains
         type(balance_type) :: innermost, outermost
         type(status_type) :: st
         character(len=:), allocatable :: text
-        integer(int64) :: opoint, beginning
+        integer(int64) :: original_point, beginning
         logical :: modified, undo_enabled
 
         inhibit = .false.
         info = electric_pair_syntax_info(char)
         if (.not. info%found) return
-        opoint = point()
-        beginning = opoint - psi_num()
+        original_point = point()
+        beginning = original_point - psi_number()
         call is_buffer_modified(current_buffer(), modified, st)
         undo_enabled = buffers(current)%undo_enabled
         buffers(current)%undo_enabled = .false.
-        call buffer_substring(beginning, opoint, text, st)
-        call delete_region(beginning, opoint, st)
+        call buffer_substring(beginning, original_point, text, st)
+        call delete_region(beginning, original_point, st)
 
         if (info%syntax == iachar("(")) then
             call electric_pair_balance_info(1_int64, info%string_or_comment, innermost, outermost)
@@ -847,11 +849,11 @@ contains
             inhibit = is_unbalanced_strings(char)
         end if
 
-        call goto_char(beginning)
+        call goto_character(beginning)
         call insert(text, st)
         buffers(current)%undo_enabled = undo_enabled
         call restore_buffer_modified(modified)
-        call goto_char(opoint)
+        call goto_character(original_point)
     end function electric_pair_inhibit_if_helps_balance
 
     !> Return true if skipping CHAR preserves balance of delimiters.
@@ -863,17 +865,17 @@ contains
         type(electric_pair_info_type) :: info
         type(balance_type) :: innermost, outermost
         type(status_type) :: st
-        integer(int64) :: num, k
+        integer(int64) :: number, k
         character(len=:), allocatable :: text
 
         skip = .false.
-        num = psi_num()
+        number = psi_number()
         info = electric_pair_syntax_info(char)
         if (.not. info%found) return
-        call delete_char(-num, st)
+        call delete_character(-number, st)
 
         if (info%syntax == iachar(")")) then
-            call electric_pair_balance_info(-num, info%string_or_comment, innermost, outermost)
+            call electric_pair_balance_info(-number, info%string_or_comment, innermost, outermost)
 
             if (outermost%matched) then
                 skip = innermost%matched
@@ -884,9 +886,9 @@ contains
             skip = is_inside_string(char)
         end if
 
-        call char_to_string(int(char, int32), text, st)
+        call character_to_string(int(char, int32), text, st)
 
-        do k = 1, num
+        do k = 1, number
             call insert(text, st)
         end do
     end function electric_pair_skip_if_helps_balance
@@ -929,7 +931,7 @@ contains
         ! I also find it often preferable not to pair next to a word.
         fc = after()
         if (fc < 0) fc = 0
-        if (.not. inhibit) inhibit = syntax_char(fc) == "w"
+        if (.not. inhibit) inhibit = syntax_character(fc) == "w"
     end function electric_pair_conservative_inhibit
 
     ! ------------------------------------------------------------------
@@ -964,26 +966,26 @@ contains
     recursive subroutine electric_pair_post_self_insert_function(status)
         type(status_type), intent(out) :: status
         type(electric_pair_info_type) :: info
-        integer(int64) :: pos, num, beginning, m, opoint, saved_point, moved
+        integer(int64) :: position, number, beginning, m, original_point, saved_point, moved
         integer :: ev, syntax
         logical :: skip_whitespace, chomp
         logical :: skip, ok, inhibited
-        type(prefix_arg_type) :: saved_arg
+        type(prefix_argument_type) :: saved_argument
         type(handle_type) :: here
         type(status_type) :: st
 
         status = status_type()
-        pos = 0
-        if (minor_modes%electric_pair_mode%state%value) pos = electric_after_char_pos()
-        num = 0
-        if (pos /= 0) num = psi_num()
-        beginning = pos - num
-        ev = event_char()
+        position = 0
+        if (minor_modes%electric_pair_mode%state%value) position = electric_after_character_position()
+        number = 0
+        if (position /= 0) number = psi_number()
+        beginning = position - number
+        ev = event_character()
         info = electric_pair_syntax_info(ev)
         if (.not. info%found) return
         syntax = info%syntax
-        if (pos == 0) return
-        if (num == 0) return
+        if (position == 0) return
+        if (number == 0) return
 
         if (is_any(syntax, '()"$') .and. is_use_region()) then
             ! Wrap a pair around the active region.
@@ -992,33 +994,33 @@ contains
             if (syntax == iachar('"') .or. (syntax == iachar(")") .and. point() >= m) .or. &
                 (syntax /= iachar(")") .and. m >= point())) then
                 call save_excursion_begin(here)
-                call goto_char(m)
-                call electric_pair_insert(info%pair, num, status)
+                call goto_character(m)
+                call electric_pair_insert(info%pair, number, status)
                 call save_excursion_end(here)
             else
-                call delete_region(beginning, pos, status)
+                call delete_region(beginning, position, status)
                 if (.not. status%ok()) return
-                call electric_pair_insert(info%pair, num, status)
+                call electric_pair_insert(info%pair, number, status)
                 if (.not. status%ok()) return
                 call mark(m, st)
-                call goto_char(m)
-                call electric_pair_insert(ev, num, status)
+                call goto_character(m)
+                call electric_pair_insert(ev, number, status)
             end if
 
             return
         end if
 
         ! Backslash-escaped: no pairing, no skipping.
-        opoint = point()
-        call goto_char(beginning)
+        original_point = point()
+        call goto_character(beginning)
         moved = skip_syntax_backward("\")
-        call goto_char(opoint)
+        call goto_character(original_point)
 
         if (modulo(moved, 2_int64) /= 0) then
-            saved_arg = hook_current_prefix_arg
-            hook_current_prefix_arg = prefix_arg_type(PREFIX_NUMBER, num - 1)
+            saved_argument = hook_current_prefix_argument
+            hook_current_prefix_argument = prefix_argument_type(PREFIX_NUMBER, number - 1)
             call electric_pair_post_self_insert_function(status)
-            hook_current_prefix_arg = saved_arg
+            hook_current_prefix_argument = saved_argument
             return
         end if
 
@@ -1031,7 +1033,7 @@ contains
 
             if (.not. ok) then
                 saved_point = point()
-                call goto_char(pos)
+                call goto_character(position)
 
                 if (associated(electric_pair_skip_self%procedure)) then
                     ok = electric_pair_skip_self%procedure(ev)
@@ -1041,11 +1043,11 @@ contains
                     ok = electric_pair_skip_self%value
                 end if
 
-                call goto_char(saved_point)
+                call goto_character(saved_point)
             end if
 
             if (ok) then
-                opoint = point()
+                original_point = point()
 
                 if (.not. (info%unconditional .and. syntax == iachar('"'))) then
                     skip_whitespace = .not. electric_pair_skip_whitespace%is_off()
@@ -1055,7 +1057,7 @@ contains
                 end if
 
                 skip = after() == ev
-                call goto_char(opoint)
+                call goto_character(original_point)
 
                 if (skip) then
                     ! This is too late: rather than insert&delete we'd want
@@ -1066,10 +1068,10 @@ contains
                     if (chomp) then
                         call delete_region(beginning, point(), status)
                     else
-                        call delete_region(beginning, pos, status)
+                        call delete_region(beginning, position, status)
                     end if
 
-                    if (status%ok()) call forward_char(status, num)
+                    if (status%ok()) call forward_character(status, number)
                     return
                 end if
             end if
@@ -1089,14 +1091,14 @@ contains
 
             if (.not. info%unconditional .and. associated(electric_pair_inhibit_test_function)) then
                 saved_point = point()
-                call goto_char(pos)
+                call goto_character(position)
                 inhibited = electric_pair_inhibit_test_function(ev)
-                call goto_char(saved_point)
+                call goto_character(saved_point)
             end if
 
             if (.not. inhibited) then
                 call save_excursion_begin(here)
-                call electric_pair_insert(info%pair, num, status)
+                call electric_pair_insert(info%pair, number, status)
                 call save_excursion_end(here)
             end if
         end if
@@ -1123,18 +1125,18 @@ contains
     !> elec-pair.el:electric-pair-open-newline-between-pairs-psif.
     recursive subroutine electric_pair_open_newline_between_pairs_psif(status)
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
         integer :: b, m
         type(handle_type) :: here
 
         status = status_type()
         if (.not. electric_pair_open_newline_between_pairs) return
-        if (event_char() /= 10) return
-        if (.not. (point_min() + 1 < point() .and. point() < point_max())) return
-        opoint = point()
-        moved = skip_chars_backward_tabs()
-        b = before(point() - psi_num())
-        call goto_char(opoint)
+        if (event_character() /= 10) return
+        if (.not. (point_minimum() + 1 < point() .and. point() < point_maximum())) return
+        original_point = point()
+        moved = skip_characters_backward_tabs()
+        b = before(point() - psi_number())
+        call goto_character(original_point)
         m = matching(after())
         if (b /= m) return
         call save_excursion_begin(here)
@@ -1144,46 +1146,46 @@ contains
     contains
 
         !> (skip-chars-backward "\t\s").
-        integer(int64) function skip_chars_backward_tabs() result(n)
+        integer(int64) function skip_characters_backward_tabs() result(n)
             integer(int64) :: p
 
             p = point()
 
-            do while (p > point_min())
+            do while (p > point_minimum())
                 if (before(p) /= 9 .and. before(p) /= 32) exit
                 p = p - 1
             end do
 
             n = p - point()
-            call goto_char(p)
-        end function skip_chars_backward_tabs
+            call goto_character(p)
+        end function skip_characters_backward_tabs
     end subroutine electric_pair_open_newline_between_pairs_psif
 
     !> When between adjacent paired delimiters, delete both of them.
-    !> ARG and CUT are passed directly to
-    !> `backward_delete_char_untabify', which see.  Port of
+    !> ARGUMENT and CUT are passed directly to
+    !> `backward_delete_character_untabify', which see.  Port of
     !> elec-pair.el:electric-pair-delete-pair.
-    subroutine electric_pair_delete_pair(arg, status, cut)
-        integer(int64), intent(in) :: arg
+    subroutine electric_pair_delete_pair(argument, status, cut)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: cut
 
-        call delete_char(arg, status)
-        if (status%ok()) call backward_delete_char_untabify(arg, status, cut)
+        call delete_character(argument, status)
+        if (status%ok()) call backward_delete_character_untabify(argument, status, cut)
     end subroutine electric_pair_delete_pair
 
     !> When between adjacent paired delimiters, delete both of them.
-    !> ARG and CUT are passed directly to
-    !> `backward_delete_char_untabify', which see.  Port of
+    !> ARGUMENT and CUT are passed directly to
+    !> `backward_delete_character_untabify', which see.  Port of
     !> elec-pair.el:electric-pair-delete-pair (the command, "*p\nP").
-    subroutine cmd_electric_pair_delete_pair(status)
+    subroutine execute_electric_pair_delete_pair(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
-        call electric_pair_delete_pair(prefix_numeric_value(current_prefix_arg), status, &
-                                       current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_electric_pair_delete_pair
+        call electric_pair_delete_pair(prefix_numeric_value(current_prefix_argument), status, &
+                                       current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_electric_pair_delete_pair
 
     ! ------------------------------------------------------------------
     ! The modes
@@ -1241,17 +1243,17 @@ contains
         on = minor_modes%electric_pair_mode%state%value
     end function is_electric_pair_local_mode
 
-    !> The body of Electric Pair Local mode with its new state VAL: the
-    !> setter (`electric_pair_mode' set locally to VAL), then the body.  Port of
+    !> The body of Electric Pair Local mode with its new state VALUE: the
+    !> setter (`electric_pair_mode' set locally to VALUE), then the body.  Port of
     !> elec-pair.el:electric-pair-local-mode (its body).
-    subroutine electric_pair_local_mode_body(val, status)
-        logical, intent(in) :: val
+    subroutine electric_pair_local_mode_body(value, status)
+        logical, intent(in) :: value
         type(status_type), intent(out) :: status
         type(value_type) :: default
         type(status_type) :: st
 
         status = status_type()
-        call minor_modes%electric_pair_mode%state%set_local(val)
+        call minor_modes%electric_pair_mode%state%set_local(value)
         call default_value(value_type(name="electric_pair_mode"), default, st)
 
         if (minor_modes%electric_pair_mode%state%value .eqv. allocated(default%a)) then

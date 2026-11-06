@@ -7,7 +7,7 @@
 ## Ported
 
 completion tables (`completion_table_type`: lists, the obarray, functions; `completion-boundaries`' actions; the table's category),
-`capf_data_type` (START, END, COLLECTION, `:test`, `:exclusive`)
+`completion_at_point_function_data_type` (START, END, COLLECTION, `:test`, `:exclusive`)
 
 ## Deferred
 

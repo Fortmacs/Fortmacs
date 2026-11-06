@@ -38,28 +38,28 @@
 !> runs `jump_to_register', as there is no alias `register_to_point'.
 module view_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_ARGS_OUT_OF_RANGE, format_message
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE, format_message
     use handle_mod, only: handle_type
     use value_mod, only: list
     use data_mod, only: append_locals_clearer
     use hooks_mod, only: hook_type, change_major_mode_hook
     use buffer_mod, only: buffers, current, current_buffer, is_buffer_live, buffer_serial_live, resolve_buffer, buffer_handle, &
                           is_buffer_modified, close_buffer, get_file_buffer
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_eob, line_end_position
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_end_of_buffer, line_end_position
     use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
-    use search_mod, only: re_search_forward, looking_at, SEARCH_NOERROR
+    use search_mod, only: regular_expression_search_forward, looking_at, SEARCH_NOERROR
     use file_input_output_mod, only: file_exists, expand_file_name
     use files_mod, only: find_file_noselect, view_read_only
     use window_mod, only: windows, is_window_live, window_leaves, window_body_lines, scroll_up_command, &
-                          scroll_down_command, recenter, is_pos_visible_in_window, quit_window, switch_to_buffer, &
+                          scroll_down_command, recenter, is_position_visible_in_window, quit_window, switch_to_buffer, &
                           pop_to_buffer, display_action_parameters_type, next_screen_context_lines, scroll_error_top_bottom, &
                           other_buffer, same_handle, QR_NONE
     use frame_mod, only: selected_frame, selected_window
     use keymap_mod, only: keymap_set
     use keyboard_mod, only: this_command, sit_for
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use display_engine_mod, only: message
     use display_update_mod, only: ding
     use simple_mod, only: push_mark, pop_mark, mark
@@ -72,7 +72,7 @@ module view_mod
     implicit none(type, external)
     private
 
-    public :: init_view, view_mode, view_mode_enter, view_mode_exit, view_file, view_file_other_window, &
+    public :: initialize_view, view_mode, view_mode_enter, view_mode_exit, view_file, view_file_other_window, &
               view_buffer, view_buffer_other_window, close_buffer_if_not_modified, view_exit_action_procedure, &
               view_mode_enabled, view_exit_and_edit, view_read_only_value, set_view_read_only_local, view_search
 
@@ -132,8 +132,8 @@ module view_mod
         logical :: has_page_size = .false., has_half_page_size = .false.
         integer(int64) :: page_size = 0, half_page_size = 0
         !> view-last-regexp: none, a string, or (if last_no) a list of it
-        logical :: has_last_regexp = .false., last_no = .false.
-        character(len=:), allocatable :: last_regexp
+        logical :: has_last_regular_expression = .false., last_no = .false.
+        character(len=:), allocatable :: last_regular_expression
         !> view-exit-action
         procedure(view_exit_action_procedure), pointer, nopass :: exit_action => null()
         !> The buffer-local value of `view_read_only'.
@@ -266,7 +266,7 @@ contains
         status = status_type()
 
         if (.not. file_exists(file)) then
-            call set_error(status, FM_GENERIC_ERROR, file//" does not exist")
+            call set_error(status, GENERIC_ERROR_CODE, file//" does not exist")
             return
         end if
 
@@ -292,14 +292,14 @@ contains
     !>
     !> This command runs the normal hook `view_mode_hook'.  Port of
     !> view.el:view-file (interactive).
-    recursive subroutine cmd_view_file(status)
+    recursive subroutine execute_view_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_file_name("View file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call view_file(file, status)
-    end subroutine cmd_view_file
+    end subroutine execute_view_file
 
     !> View FILE in View mode in another window.
     !> When done, return that window to its previous buffer, and kill the
@@ -314,7 +314,7 @@ contains
         status = status_type()
 
         if (.not. file_exists(file)) then
-            call set_error(status, FM_GENERIC_ERROR, file//" does not exist")
+            call set_error(status, GENERIC_ERROR_CODE, file//" does not exist")
             return
         end if
 
@@ -347,14 +347,14 @@ contains
     !> the user options `split_height_threshold' and `split_width_threshold',
     !> when it decides whether to split the window horizontally or vertically.
     !> Port of view.el:view-file-other-window (interactive).
-    recursive subroutine cmd_view_file_other_window(status)
+    recursive subroutine execute_view_file_other_window(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_file_name("In other window view file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
         call view_file_other_window(file, status)
-    end subroutine cmd_view_file_other_window
+    end subroutine execute_view_file_other_window
 
     !> View BUFFER in View mode, returning to previous buffer when done.
     !> EXIT_ACTION, if present, is called with the buffer when finished
@@ -394,7 +394,7 @@ contains
     !> This function does not enable View mode if the buffer's major mode
     !> has a `special' mode-class, because such modes usually have their
     !> own View-like bindings.  Port of view.el:view-buffer (interactive).
-    recursive subroutine cmd_view_buffer(status)
+    recursive subroutine execute_view_buffer(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
         character(len=:), allocatable :: name
@@ -413,7 +413,7 @@ contains
 
         if (.not. status%ok()) return
         call view_buffer(buffer_by_name(name), status)
-    end subroutine cmd_view_buffer
+    end subroutine execute_view_buffer
 
     !> The live buffer named NAME (the null handle if none).  Not a port.
     function buffer_by_name(name) result(h)
@@ -473,7 +473,7 @@ contains
     !> the user options `split_height_threshold' and `split_width_threshold',
     !> when it decides whether to split the window horizontally or vertically.
     !> Port of view.el:view-buffer-other-window (interactive).
-    recursive subroutine cmd_view_buffer_other_window(status)
+    recursive subroutine execute_view_buffer_other_window(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
         character(len=:), allocatable :: name
@@ -493,7 +493,7 @@ contains
 
         if (.not. status%ok()) return
         call view_buffer_other_window(buffer_by_name(name), status)
-    end subroutine cmd_view_buffer_other_window
+    end subroutine execute_view_buffer_other_window
 
     !> Toggle View mode, a minor mode for viewing text but not editing it.
     !>
@@ -544,12 +544,12 @@ contains
     !> '        go to position saved in character register.
     !> s        do forward incremental search.
     !> r        do reverse incremental search.
-    !> \[view_search_regexp_forward]        searches forward for regular expression, starting after current page.
+    !> \[view_search_regular_expression_forward]        searches forward for regular expression, starting after current page.
     !>           ! and @ have a special meaning at the beginning of the regexp.
     !>           ! means search for a line with no match for regexp.  @ means start
     !>           search at beginning (end for backward search) of buffer.
     !> \        searches backward for regular expression, starting before current page.
-    !> \[view_search_last_regexp_forward]        searches forward for last regular expression.
+    !> \[view_search_last_regular_expression_forward]        searches forward for last regular expression.
     !> p        searches backward for last regular expression.
     !> \[view_quit]        quit View mode, restoring this window and buffer to previous state.
     !>           \[view_quit] is the normal way to leave view mode.
@@ -688,7 +688,7 @@ contains
         logical, intent(in), optional :: exit_only, all_windows
         procedure(view_exit_action_procedure), optional :: exit_action
         type(handle_type) :: buffer
-        type(handle_type), allocatable :: wins(:)
+        type(handle_type), allocatable :: windows(:)
         logical :: only, all, old_read_only
         integer :: k
 
@@ -712,10 +712,10 @@ contains
 
         if (.not. only) then
             if (all .or. view_exits_all_viewing_windows) then
-                wins = buffer_window_list(current_buffer())
+                windows = buffer_window_list(current_buffer())
 
-                do k = 1, size(wins)
-                    if (is_window_live(wins(k))) call quit_window(.false., status, wins(k))
+                do k = 1, size(windows)
+                    if (is_window_live(windows(k))) call quit_window(.false., status, windows(k))
                     if (.not. status%ok()) return
                 end do
             else if (same_handle(window_buffer(selected_window()), current_buffer())) then
@@ -903,7 +903,7 @@ contains
     subroutine view_recenter()
         type(status_type) :: st
 
-        call recenter(prefix_arg_type(PREFIX_RAW, 1_int64), .false., st)
+        call recenter(prefix_argument_type(PREFIX_RAW, 1_int64), .false., st)
     end subroutine view_recenter
 
     !> If LINES (HAS_LINES .false. for none) is absent, 0, or larger than
@@ -964,8 +964,8 @@ contains
         logical, intent(out) :: has
         integer(int64), intent(out) :: n
 
-        has = current_prefix_arg%kind /= PREFIX_NONE
-        n = prefix_numeric_value(current_prefix_arg)
+        has = current_prefix_argument%kind /= PREFIX_NONE
+        n = prefix_numeric_value(current_prefix_argument)
     end subroutine raw_prefix
 
     ! ------------------------------------------------------------------
@@ -986,10 +986,10 @@ contains
         call push_mark()
 
         if (has) then
-            call goto_char(point_min() + floor(real(point_max() - point_min(), real64)*0.01_real64* &
-                                               real(max(0_int64, min(100_int64, percent)), real64), int64))
+            call goto_character(point_minimum() + floor(real(point_maximum() - point_minimum(), real64)*0.01_real64* &
+                                                        real(max(0_int64, min(100_int64, percent)), real64), int64))
         else
-            call goto_char(point_max())
+            call goto_character(point_maximum())
         end if
 
         call view_recenter()
@@ -1004,9 +1004,9 @@ contains
         integer(int64) :: line, shortage
 
         status = status_type()
-        line = prefix_numeric_value(current_prefix_arg)
+        line = prefix_numeric_value(current_prefix_argument)
         call push_mark()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         shortage = forward_line(line - 1)
         call view_recenter()
     end subroutine view_goto_line
@@ -1019,12 +1019,12 @@ contains
     subroutine view_back_to_mark(status)
         type(status_type), intent(out) :: status
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         status = status_type()
-        call mark(pos, st, force=.true.)
-        if (.not. st%ok() .or. pos <= 0) pos = point_min()
-        call goto_char(pos)
+        call mark(position, st, force=.true.)
+        if (.not. st%ok() .or. position <= 0) position = point_minimum()
+        call goto_character(position)
         call pop_mark()
         call view_recenter()
     end subroutine view_back_to_mark
@@ -1042,7 +1042,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: has_lines, backward
         integer(int64) :: lines
-        type(prefix_arg_type) :: arg
+        type(prefix_argument_type) :: argument
 
         has_lines = has_lines_in
         lines = lines_in
@@ -1061,13 +1061,13 @@ contains
         if (maxdefault .and. has_lines .and. lines > view_window_size()) has_lines = .false.
 
         if (has_lines) then
-            arg = prefix_arg_type(PREFIX_NUMBER, lines)
+            argument = prefix_argument_type(PREFIX_NUMBER, lines)
         else
-            arg = prefix_arg_type()
+            argument = prefix_argument_type()
         end if
 
         if (backward) then
-            call scroll_down_command(arg, status)
+            call scroll_down_command(argument, status)
         else if (view_really_at_end()) then
             if (view_scroll_auto_exit) then
                 call view_quit(status)
@@ -1077,7 +1077,7 @@ contains
                 call view_end_message()
             end if
         else
-            call scroll_up_command(arg, status)
+            call scroll_up_command(argument, status)
             if (.not. status%ok()) return
             if (view_really_at_end()) call view_end_message()
         end if
@@ -1088,8 +1088,8 @@ contains
     !> deferred: false).
     logical function view_really_at_end()
         view_really_at_end = .false.
-        if (.not. (.not. scroll_error_top_bottom .or. is_eob())) return
-        view_really_at_end = is_pos_visible_in_window(point_max(), selected_window())
+        if (.not. (.not. scroll_error_top_bottom .or. is_end_of_buffer())) return
+        view_really_at_end = is_position_visible_in_window(point_maximum(), selected_window())
     end function view_really_at_end
 
     !> Tell that we are at end of buffer.  Port of
@@ -1098,7 +1098,7 @@ contains
         type(handle_type) :: w
         logical :: quit_restore
 
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         w = selected_window()
         quit_restore = .false.
         if (is_window_live(w)) quit_restore = windows(w%index)%quit_restore%kind /= QR_NONE
@@ -1122,11 +1122,11 @@ contains
         integer(int64) :: p
         logical :: visible
 
-        visible = is_pos_visible_in_window(point_max(), selected_window())
+        visible = is_position_visible_in_window(point_maximum(), selected_window())
         p = point()
-        call goto_char(point_max())
-        call recenter(prefix_arg_type(PREFIX_NUMBER, -1_int64), .false., status)
-        if (visible) call goto_char(p)
+        call goto_character(point_maximum())
+        call recenter(prefix_argument_type(PREFIX_NUMBER, -1_int64), .false., status)
+        if (visible) call goto_character(p)
     end subroutine view_scroll_to_buffer_end
 
     !> Scroll "page size" or prefix LINES lines forward in View mode.
@@ -1254,89 +1254,89 @@ contains
     ! Searching
     ! ------------------------------------------------------------------
 
-    !> Search forward for first (or prefix Nth) occurrence of REGEXP in View mode.
+    !> Search forward for first (or prefix Nth) occurrence of REGULAR_EXPRESSION in View mode.
     !>
     !> Displays line found at center of window.  Sets mark at starting position and
     !> pushes mark ring.
     !>
-    !> Characters @ and ! are special at the beginning of REGEXP.  They modify
+    !> Characters @ and ! are special at the beginning of REGULAR_EXPRESSION.  They modify
     !> the search rather than become part of the pattern searched for.
     !> @ means search all the buffer i.e. start search at the beginning of buffer.
     !> ! means search for a line that contains no match for the pattern.
-    !> If REGEXP is empty or only consist of these control characters, then
-    !> an earlier remembered REGEXP is used, otherwise REGEXP is remembered
+    !> If REGULAR_EXPRESSION is empty or only consist of these control characters, then
+    !> an earlier remembered REGULAR_EXPRESSION is used, otherwise REGULAR_EXPRESSION is remembered
     !> for use by later search commands.  Port of
     !> view.el:View-search-regexp-forward (the match is not highlighted).
-    recursive subroutine view_search_regexp_forward(status)
+    recursive subroutine view_search_regular_expression_forward(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
-        call read_string("Search forward (regexp): ", regexp, status)
+        n = prefix_numeric_value(current_prefix_argument)
+        call read_string("Search forward (regexp): ", regular_expression, status)
         if (.not. status%ok()) return
-        call view_search(n, status, regexp)
-    end subroutine view_search_regexp_forward
+        call view_search(n, status, regular_expression)
+    end subroutine view_search_regular_expression_forward
 
-    !> Search backward for first (or prefix Nth) occurrence of REGEXP in View mode.
+    !> Search backward for first (or prefix Nth) occurrence of REGULAR_EXPRESSION in View mode.
     !>
     !> Displays line found at center of window.  Sets mark at starting position and
     !> pushes mark ring.
     !>
-    !> Characters @ and ! are special at the beginning of REGEXP.  They modify
+    !> Characters @ and ! are special at the beginning of REGULAR_EXPRESSION.  They modify
     !> the search rather than become part of the pattern searched for.
     !> @ means search all the buffer i.e. start search at the end of buffer.
     !> ! means search for a line that contains no match for the pattern.
-    !> If REGEXP is empty or only consist of these control characters, then
-    !> an earlier remembered REGEXP is used, otherwise REGEXP is remembered
+    !> If REGULAR_EXPRESSION is empty or only consist of these control characters, then
+    !> an earlier remembered REGULAR_EXPRESSION is used, otherwise REGULAR_EXPRESSION is remembered
     !> for use by later search commands.  Port of
     !> view.el:View-search-regexp-backward (the match is not highlighted).
-    recursive subroutine view_search_regexp_backward(status)
+    recursive subroutine view_search_regular_expression_backward(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
-        call read_string("Search backward (regexp): ", regexp, status)
+        n = prefix_numeric_value(current_prefix_argument)
+        call read_string("Search backward (regexp): ", regular_expression, status)
         if (.not. status%ok()) return
-        call view_search(-n, status, regexp)
-    end subroutine view_search_regexp_backward
+        call view_search(-n, status, regular_expression)
+    end subroutine view_search_regular_expression_backward
 
     !> Search forward for first (or prefix Nth) instance of last regexp in View mode.
     !> Displays line found at center of window.  Sets mark at starting position and
     !> pushes mark ring.  Port of view.el:View-search-last-regexp-forward
     !> (the match is not highlighted).
-    recursive subroutine view_search_last_regexp_forward(status)
+    recursive subroutine view_search_last_regular_expression_forward(status)
         type(status_type), intent(out) :: status
 
-        call view_search(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine view_search_last_regexp_forward
+        call view_search(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine view_search_last_regular_expression_forward
 
     !> Search backward for first (or prefix Nth) instance of last regexp in View mode.
     !> Displays line found at center of window.  Sets mark at starting position and
     !> pushes mark ring.  Port of view.el:View-search-last-regexp-backward
     !> (the match is not highlighted).
-    recursive subroutine view_search_last_regexp_backward(status)
+    recursive subroutine view_search_last_regular_expression_backward(status)
         type(status_type), intent(out) :: status
 
-        call view_search(-prefix_numeric_value(current_prefix_arg), status)
-    end subroutine view_search_last_regexp_backward
+        call view_search(-prefix_numeric_value(current_prefix_argument), status)
+    end subroutine view_search_last_regular_expression_backward
 
     !> This function does the job for all the View-search- commands.
-    !> Search for the TIMESth match for REGEXP.  If TIMES is negative
-    !> search backwards.  If REGEXP is absent use `view_last_regexp'.
+    !> Search for the TIMESth match for REGULAR_EXPRESSION.  If TIMES is negative
+    !> search backwards.  If REGULAR_EXPRESSION is absent use `view_last_regular_expression'.
     !> Characters "!" and "@" have a special meaning at the beginning of
-    !> REGEXP and are removed from REGEXP before the search "!" means
-    !> search for lines with no match for REGEXP.  "@" means search in
+    !> REGULAR_EXPRESSION and are removed from REGULAR_EXPRESSION before the search "!" means
+    !> search for lines with no match for REGULAR_EXPRESSION.  "@" means search in
     !> the whole buffer, don't start searching from the present point.
     !> Port of view.el:view-search (no overlay highlighting).
-    recursive subroutine view_search(times, status, regexp_in)
+    recursive subroutine view_search(times, status, regular_expression_in)
         integer(int64), intent(in) :: times
         type(status_type), intent(out) :: status
-        character(len=*), intent(in), optional :: regexp_in
-        character(len=:), allocatable :: regexp
+        character(len=*), intent(in), optional :: regular_expression_in
+        character(len=:), allocatable :: regular_expression
         character(len=24) :: timestr
-        integer(int64) :: where, opoint, found
+        integer(int64) :: where, original_point, found
         type(status_type) :: st
         logical :: no, end, have, first
         integer :: k, ln
@@ -1347,30 +1347,30 @@ contains
         call make_local_entry(k)
         first = .false.
 
-        if (present(regexp_in)) then
-            regexp = regexp_in
+        if (present(regular_expression_in)) then
+            regular_expression = regular_expression_in
 
-            if (len(regexp) > 0) then
-                if (regexp(1:1) /= "!" .and. regexp(1:1) /= "@") then
+            if (len(regular_expression) > 0) then
+                if (regular_expression(1:1) /= "!" .and. regular_expression(1:1) /= "@") then
                     first = .true.
                 else
-                    if (len(regexp) < 2) then
-                        call set_error(status, FM_ARGS_OUT_OF_RANGE, fortran_string(regexp)//", 0, 2")
+                    if (len(regular_expression) < 2) then
+                        call set_error(status, ARGUMENTS_OUT_OF_RANGE_CODE, fortran_string(regular_expression)//", 0, 2")
                         return
                     end if
 
-                    if (regexp(1:2) == "!@" .or. regexp(1:2) == "@!") then
+                    if (regular_expression(1:2) == "!@" .or. regular_expression(1:2) == "@!") then
                         end = .true.
                         no = .true.
                         ln = 2
                     else
-                        end = regexp(1:1) == "@"
+                        end = regular_expression(1:1) == "@"
                         no = .not. end
                         ln = 1
                     end if
 
-                    regexp = regexp(ln + 1:)
-                    first = len(regexp) > 0
+                    regular_expression = regular_expression(ln + 1:)
+                    first = len(regular_expression) > 0
                 end if
             end if
         end if
@@ -1378,33 +1378,33 @@ contains
         have = .true.
 
         if (first) then
-            locals(k)%has_last_regexp = .true.
-            locals(k)%last_regexp = regexp
+            locals(k)%has_last_regular_expression = .true.
+            locals(k)%last_regular_expression = regular_expression
             locals(k)%last_no = no
-        else if (locals(k)%has_last_regexp .and. locals(k)%last_no) then
-            regexp = locals(k)%last_regexp
+        else if (locals(k)%has_last_regular_expression .and. locals(k)%last_no) then
+            regular_expression = locals(k)%last_regular_expression
             no = .not. no
             if (.not. no) locals(k)%last_no = .false.
-        else if (locals(k)%has_last_regexp) then
-            regexp = locals(k)%last_regexp
+        else if (locals(k)%has_last_regular_expression) then
+            regular_expression = locals(k)%last_regular_expression
             if (no) locals(k)%last_no = .true.
         else
             have = .false.
         end if
 
         if (.not. have) then
-            call set_error(status, FM_GENERIC_ERROR, "No previous View-mode search")
+            call set_error(status, GENERIC_ERROR_CODE, "No previous View-mode search")
             return
         end if
 
         where = 0
-        opoint = point()
+        original_point = point()
 
         if (end) then
             if (times < 0) then
-                call goto_char(point_max())
+                call goto_character(point_maximum())
             else
-                call goto_char(point_min())
+                call goto_character(point_minimum())
             end if
         else if (times < 0) then
             call beginning_of_line()
@@ -1413,13 +1413,13 @@ contains
         end if
 
         if (no) then
-            if (view_search_no_match_lines(times, regexp, st)) where = point()
+            if (view_search_no_match_lines(times, regular_expression, st)) where = point()
         else
-            call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR, count=times)
+            call regular_expression_search_forward(regular_expression, found, st, noerror=SEARCH_NOERROR, count=times)
             if (st%ok() .and. found /= 0) where = point()
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
 
         if (.not. st%ok()) then
             status = st
@@ -1428,29 +1428,29 @@ contains
 
         if (where /= 0) then
             call push_mark()
-            call goto_char(where)
+            call goto_character(where)
             call beginning_of_line()
             call view_recenter()
         else
             write (timestr, "(i0)") times
 
             if (no) then
-                call message("Can't find occurrence "//trim(timestr)//" of no "//regexp)
+                call message("Can't find occurrence "//trim(timestr)//" of no "//regular_expression)
             else
-                call message("Can't find occurrence "//trim(timestr)//" of "//regexp)
+                call message("Can't find occurrence "//trim(timestr)//" of "//regular_expression)
             end if
 
             call sit_for(4000)
         end if
     end subroutine view_search
 
-    !> Search for the TIMESth occurrence of a line with no match for REGEXP.
+    !> Search for the TIMESth occurrence of a line with no match for REGULAR_EXPRESSION.
     !> If such a line is found, return true and set the match data to that line.
     !> If TIMES is negative, search backwards.  Port of
     !> view.el:view-search-no-match-lines.
-    recursive logical function view_search_no_match_lines(times_in, regexp, status) result(found_line)
+    recursive logical function view_search_no_match_lines(times_in, regular_expression, status) result(found_line)
         integer(int64), intent(in) :: times_in
-        character(len=*), intent(in) :: regexp
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64) :: times, step, found
 
@@ -1469,10 +1469,11 @@ contains
             if (forward_line(step) /= 0) exit
 
             ! (forward-line 1) returns 0 on moving within the last line.
-            if (is_eob()) then
+            if (is_end_of_buffer()) then
                 times = -1
             else
-                call re_search_forward(regexp, found, status, bound=line_end_position(), noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward(regular_expression, found, status, bound=line_end_position(), &
+                                                       noerror=SEARCH_NOERROR)
 
                 if (.not. status%ok()) then
                     found_line = .false.
@@ -1496,7 +1497,7 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define View mode, its keymap and commands.  Not a port.
-    subroutine init_view()
+    subroutine initialize_view()
         type(status_type) :: st
         integer :: d
         character(len=1) :: digit
@@ -1507,10 +1508,10 @@ contains
         call register_keymap_name("view_mode_map", view_mode_map)
         call append_locals_clearer(clear_view_locals)
         commands%view_mode%execute => view_mode
-        commands%view_file%execute => cmd_view_file
-        commands%view_file_other_window%execute => cmd_view_file_other_window
-        commands%view_buffer%execute => cmd_view_buffer
-        commands%view_buffer_other_window%execute => cmd_view_buffer_other_window
+        commands%view_file%execute => execute_view_file
+        commands%view_file_other_window%execute => execute_view_file_other_window
+        commands%view_buffer%execute => execute_view_buffer
+        commands%view_buffer_other_window%execute => execute_view_buffer_other_window
         commands%view_exit%execute => view_exit
         commands%view_exit_and_edit%execute => view_exit_and_edit
         commands%view_leave%execute => view_leave
@@ -1529,22 +1530,22 @@ contains
         commands%view_scroll_line_backward%execute => view_scroll_line_backward
         commands%view_scroll_half_page_forward%execute => view_scroll_half_page_forward
         commands%view_scroll_half_page_backward%execute => view_scroll_half_page_backward
-        commands%view_search_regexp_forward%execute => view_search_regexp_forward
-        commands%view_search_regexp_backward%execute => view_search_regexp_backward
-        commands%view_search_last_regexp_forward%execute => view_search_last_regexp_forward
-        commands%view_search_last_regexp_backward%execute => view_search_last_regexp_backward
+        commands%view_search_regular_expression_forward%execute => view_search_regular_expression_forward
+        commands%view_search_regular_expression_backward%execute => view_search_regular_expression_backward
+        commands%view_search_last_regular_expression_forward%execute => view_search_last_regular_expression_forward
+        commands%view_search_last_regular_expression_backward%execute => view_search_last_regular_expression_backward
         call keymap_set(view_mode_map, "C", "view_close_and_leave", st)
         call keymap_set(view_mode_map, "c", "view_leave", st)
         call keymap_set(view_mode_map, "Q", "view_quit_all", st)
         call keymap_set(view_mode_map, "E", "view_exit_and_edit", st)
         call keymap_set(view_mode_map, "e", "view_exit", st)
         call keymap_set(view_mode_map, "q", "view_quit", st)
-        call keymap_set(view_mode_map, "p", "view_search_last_regexp_backward", st)
-        call keymap_set(view_mode_map, "n", "view_search_last_regexp_forward", st)
-        call keymap_set(view_mode_map, "\", "view_search_regexp_backward", st)
-        call keymap_set(view_mode_map, "/", "view_search_regexp_forward", st)
-        call keymap_set(view_mode_map, "r", "isearch_backward", st)
-        call keymap_set(view_mode_map, "s", "isearch_forward", st)
+        call keymap_set(view_mode_map, "p", "view_search_last_regular_expression_backward", st)
+        call keymap_set(view_mode_map, "n", "view_search_last_regular_expression_forward", st)
+        call keymap_set(view_mode_map, "\", "view_search_regular_expression_backward", st)
+        call keymap_set(view_mode_map, "/", "view_search_regular_expression_forward", st)
+        call keymap_set(view_mode_map, "r", "incremental_search_backward", st)
+        call keymap_set(view_mode_map, "s", "incremental_search_forward", st)
         call keymap_set(view_mode_map, "m", "point_to_register", st)
         call keymap_set(view_mode_map, "'", "jump_to_register", st)
         call keymap_set(view_mode_map, "x", "exchange_point_and_mark", st)
@@ -1572,5 +1573,5 @@ contains
             write (digit, "(i1)") d
             call keymap_set(view_mode_map, digit, "digit_argument", st)
         end do
-    end subroutine init_view
+    end subroutine initialize_view
 end module view_mod

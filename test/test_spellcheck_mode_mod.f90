@@ -36,23 +36,24 @@ module test_spellcheck_mode_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, restore_buffer_modified, buffers, &
                           current, current_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, buffer_string, point, point_min, point_max
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio
+    use editing_functions_mod, only: goto_character, buffer_string, point, point_minimum, point_maximum
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio
     use keyboard_mod, only: discard_input, last_message, last_command, post_command_hook, pre_command_hook
-    use execute_interactively_mod, only: prefix_arg_type, prefix_arg, current_prefix_arg
+    use execute_interactively_mod, only: prefix_argument_type, prefix_argument, current_prefix_argument
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: fundamental_mode
     use interval_tree_mod, only: overlays_in, overlay_get, overlay_start, overlay_end
     use text_properties_mod, only: put_text_property
-    use spellcheck_mod, only: ispell_kill_ispell, ispell_program_name, ispell_dictionary, ispell_pdict_modified, &
-                              ispell_words_keyword
-    use spellcheck_mode_mod, only: flyspell_word, flyspell_buffer, flyspell_region, goto_next_flyspell_error, &
-                                   auto_correct_flyspell_word, flyspell_post_command_hook, flyspell_pre_command_hook, &
-                                   is_flyspell_overlay, is_flyspell_prog_text, flyspell_large_region_variable, &
-                                   flyspell_highlight_flag, flyspell_issue_message_flag, flyspell_mark_duplications_flag, &
-                                   flyspell_sort_corrections, flyspell_incorrect, flyspell_duplicate, flyspell_mode_line_string
+    use spellcheck_mod, only: spellcheck_kill_spellcheck, spellcheck_program_name, spellcheck_dictionary, &
+                              spellcheck_pdict_modified, spellcheck_words_keyword
+    use spellcheck_mode_mod, only: spellcheck_word_highlight, spellcheck_buffer_highlight, spellcheck_region_highlight, &
+                                   goto_next_spellcheck_error, auto_correct_spellcheck_word, spellcheck_post_command_hook, &
+                                   spellcheck_pre_command_hook, is_spellcheck_overlay, is_spellcheck_programming_text, &
+                                   spellcheck_large_region_variable, spellcheck_highlight_flag, spellcheck_issue_message_flag, &
+                                   spellcheck_mark_duplications_flag, spellcheck_sort_corrections, spellcheck_incorrect, &
+                                   spellcheck_duplicate, spellcheck_mode_line_string
     implicit none(type, external)
     private
 
@@ -82,7 +83,7 @@ contains
                     new_unittest("flyspell-mode", test_mode), &
                     new_unittest("flyspell-mode/post-command", test_post_command), &
                     new_unittest("flyspell-mode/lighter", test_lighter), &
-                    new_unittest("flyspell-generic-progmode-verify", test_prog_text) &
+                    new_unittest("flyspell-generic-progmode-verify", test_programming_text) &
                     ]
     end subroutine collect_spellcheck_mode_mod
 
@@ -95,7 +96,7 @@ contains
         character(len=:), allocatable :: path
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("test/flyspell-resources/fake-speller.sh", path, st, fortmacs_wd)
     end function fake_speller
 
@@ -107,24 +108,24 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        current_prefix_arg = prefix_arg_type()
-        ispell_program_name = fake_speller()
-        ispell_dictionary = ""
-        ispell_pdict_modified = .false.
-        flyspell_highlight_flag = .true.
-        flyspell_issue_message_flag = .true.
-        flyspell_mark_duplications_flag = .true.
-        flyspell_sort_corrections = .false.
-        flyspell_large_region_variable%characters = 1000
+        prefix_argument = prefix_argument_type()
+        current_prefix_argument = prefix_argument_type()
+        spellcheck_program_name = fake_speller()
+        spellcheck_dictionary = ""
+        spellcheck_pdict_modified = .false.
+        spellcheck_highlight_flag = .true.
+        spellcheck_issue_message_flag = .true.
+        spellcheck_mark_duplications_flag = .true.
+        spellcheck_sort_corrections = .false.
+        spellcheck_large_region_variable%characters = 1000
         call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call restore_buffer_modified(.false.)
         call erase_buffer(st)
         call fundamental_mode(st)
-        call ispell_kill_ispell(st, no_error=.true., clear=.true.)
+        call spellcheck_kill_spellcheck(st, no_error=.true., clear=.true.)
         call show_alone()
         call insert(text, st)
         last_message = ""
@@ -135,9 +136,9 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call ispell_kill_ispell(st, no_error=.true., clear=.true.)
+        call spellcheck_kill_spellcheck(st, no_error=.true., clear=.true.)
         call set_buffer(h, st)
-        if (minor_modes%flyspell_mode%enabled()) call minor_modes%flyspell_mode%disable(st)
+        if (minor_modes%spellcheck_mode%enabled()) call minor_modes%spellcheck_mode%disable(st)
         call restore_buffer_modified(.false.)
         call close_buffer(h, st)
     end subroutine finish
@@ -162,14 +163,14 @@ contains
         integer :: k, best
 
         text = ""
-        call overlays_in(point_min(), point_max(), found)
+        call overlays_in(point_minimum(), point_maximum(), found)
         last = 0
 
         do
             best = 0
 
             do k = 1, size(found)
-                if (.not. is_flyspell_overlay(found(k))) cycle
+                if (.not. is_spellcheck_overlay(found(k))) cycle
                 if (overlay_start(found(k)) <= last) cycle
 
                 if (best == 0) then
@@ -201,14 +202,14 @@ contains
         logical :: correct
 
         call fresh("flyspell-test", "hello world", h)
-        call flyspell_word(st, correct=correct)
-        call check(error, st%ok(), "flyspell_word: "//detail(st))
+        call spellcheck_word_highlight(st, correct=correct)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, correct)
         if (.not. allocated(error)) call check(error, highlights(), "")
         call finish(h)
     end subroutine test_word_correct
 
-    !> A misspelled word is highlighted with `flyspell_incorrect'; point
+    !> A misspelled word is highlighted with `spellcheck_incorrect'; point
     !> does not move.
     subroutine test_word_incorrect(error)
         type(error_type), allocatable, intent(out) :: error
@@ -217,55 +218,55 @@ contains
         logical :: correct
 
         call fresh("flyspell-test", "this helo there", h)
-        call goto_char(10_int64)
-        call flyspell_word(st, correct=correct)
-        call check(error, st%ok(), "flyspell_word: "//detail(st))
+        call goto_character(10_int64)
+        call spellcheck_word_highlight(st, correct=correct)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error,.not. correct)
-        if (.not. allocated(error)) call check(error, highlights(), "6-10:"//trim(flyspell_incorrect%name)//" ")
+        if (.not. allocated(error)) call check(error, highlights(), "6-10:"//trim(spellcheck_incorrect%name)//" ")
         if (.not. allocated(error)) call check(error, point() == 10_int64)
         call finish(h)
     end subroutine test_word_incorrect
 
     !> A word repeated right after itself is highlighted with
-    !> `flyspell_duplicate'.
+    !> `spellcheck_duplicate'.
     subroutine test_word_duplicate(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("flyspell-test", "see the the cat", h)
-        call goto_char(12_int64)
-        call flyspell_word(st)
-        call check(error, st%ok(), "flyspell_word: "//detail(st))
-        if (.not. allocated(error)) call check(error, highlights(), "9-12:"//trim(flyspell_duplicate%name)//" ")
+        call goto_character(12_int64)
+        call spellcheck_word_highlight(st)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
+        if (.not. allocated(error)) call check(error, highlights(), "9-12:"//trim(spellcheck_duplicate%name)//" ")
         call finish(h)
     end subroutine test_word_duplicate
 
-    !> The words of `flyspell_mark_duplications_exceptions' may repeat.
+    !> The words of `spellcheck_mark_duplications_exceptions' may repeat.
     subroutine test_word_exception(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("flyspell-test", "so that that is", h)
-        call goto_char(13_int64)
-        call flyspell_word(st)
-        call check(error, st%ok(), "flyspell_word: "//detail(st))
+        call goto_character(13_int64)
+        call spellcheck_word_highlight(st)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "")
         call finish(h)
     end subroutine test_word_exception
 
     !> A misspelled word found elsewhere in the buffer is highlighted with
-    !> `flyspell_duplicate'.
+    !> `spellcheck_duplicate'.
     subroutine test_word_duplicate_misspelling(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("flyspell-test", "helo you, helo", h)
-        call flyspell_word(st)
-        call check(error, st%ok(), "flyspell_word: "//detail(st))
-        if (.not. allocated(error)) call check(error, highlights(), "11-15:"//trim(flyspell_duplicate%name)//" ")
+        call spellcheck_word_highlight(st)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
+        if (.not. allocated(error)) call check(error, highlights(), "11-15:"//trim(spellcheck_duplicate%name)//" ")
         call finish(h)
     end subroutine test_word_duplicate_misspelling
 
@@ -277,9 +278,9 @@ contains
         character(len=*), parameter :: LQ = char(226)//char(128)//char(152), RQ = char(226)//char(128)//char(153)
 
         call fresh("flyspell-test", "a helo", h)
-        flyspell_highlight_flag = .false.
-        call flyspell_word(st)
-        call check(error, st%ok(), "flyspell_word: "//detail(st))
+        spellcheck_highlight_flag = .false.
+        call spellcheck_word_highlight(st)
+        call check(error, st%ok(), "spellcheck_word_highlight: "//detail(st))
         if (.not. allocated(error)) call check(error, highlights(), "")
         if (.not. allocated(error)) call check(error, last_message, "misspelling "//LQ//"helo"//RQ//"  [""hello"", ""help""]")
         call finish(h)
@@ -296,10 +297,10 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "helo big wrld ok", h)
-        call flyspell_buffer(st)
-        call check(error, st%ok(), "flyspell_buffer: "//detail(st))
-        if (.not. allocated(error)) call check(error, highlights(), "1-5:"//trim(flyspell_incorrect%name)//" 10-14:"// &
-                                               trim(flyspell_incorrect%name)//" ")
+        call spellcheck_buffer_highlight(st)
+        call check(error, st%ok(), "spellcheck_buffer_highlight: "//detail(st))
+        if (.not. allocated(error)) call check(error, highlights(), "1-5:"//trim(spellcheck_incorrect%name)//" 10-14:"// &
+                                               trim(spellcheck_incorrect%name)//" ")
         if (.not. allocated(error)) call check(error, last_message, "Spell Checking completed.")
         call finish(h)
     end subroutine test_buffer_small
@@ -311,11 +312,11 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "helo big wrld ok badworddd", h)
-        flyspell_large_region_variable%characters = 5
-        call flyspell_buffer(st)
-        call check(error, st%ok(), "flyspell_buffer: "//detail(st))
-        if (.not. allocated(error)) call check(error, highlights(), "1-5:"//trim(flyspell_incorrect%name)//" 10-14:"// &
-                                               trim(flyspell_incorrect%name)//" 18-27:"//trim(flyspell_incorrect%name)//" ")
+        spellcheck_large_region_variable%characters = 5
+        call spellcheck_buffer_highlight(st)
+        call check(error, st%ok(), "spellcheck_buffer_highlight: "//detail(st))
+        if (.not. allocated(error)) call check(error, highlights(), "1-5:"//trim(spellcheck_incorrect%name)//" 10-14:"// &
+                                               trim(spellcheck_incorrect%name)//" 18-27:"//trim(spellcheck_incorrect%name)//" ")
         call finish(h)
     end subroutine test_buffer_large
 
@@ -325,11 +326,11 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call fresh("flyspell-test", "helo big wrld"//LF//ispell_words_keyword//"helo"//LF, h)
-        flyspell_large_region_variable%characters = 5
-        call flyspell_buffer(st)
-        call check(error, st%ok(), "flyspell_buffer: "//detail(st))
-        if (.not. allocated(error)) call check(error, highlights(), "10-14:"//trim(flyspell_incorrect%name)//" ")
+        call fresh("flyspell-test", "helo big wrld"//LF//spellcheck_words_keyword//"helo"//LF, h)
+        spellcheck_large_region_variable%characters = 5
+        call spellcheck_buffer_highlight(st)
+        call check(error, st%ok(), "spellcheck_buffer_highlight: "//detail(st))
+        if (.not. allocated(error)) call check(error, highlights(), "10-14:"//trim(spellcheck_incorrect%name)//" ")
         call finish(h)
     end subroutine test_buffer_large_localwords
 
@@ -341,20 +342,20 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "ok helo big wrld ok", h)
-        call flyspell_buffer(st)
-        call goto_char(1_int64)
-        call goto_next_flyspell_error(st)
+        call spellcheck_buffer_highlight(st)
+        call goto_character(1_int64)
+        call goto_next_spellcheck_error(st)
         call check(error, point() == 4_int64, "first error")
         if (allocated(error)) return
-        call goto_next_flyspell_error(st)
+        call goto_next_spellcheck_error(st)
         call check(error, point() == 13_int64, "second error")
         if (allocated(error)) return
-        call goto_next_flyspell_error(st)
-        call check(error, point() == point_max(), "end")
+        call goto_next_spellcheck_error(st)
+        call check(error, point() == point_maximum(), "end")
         if (.not. allocated(error)) call check(error, last_message, "No more miss-spelled words")
 
         if (.not. allocated(error)) then
-            call goto_next_flyspell_error(st, previous=.true.)
+            call goto_next_spellcheck_error(st, previous=.true.)
             call check(error, point() == 13_int64, "previous error")
         end if
 
@@ -370,7 +371,7 @@ contains
 
         call fresh("flyspell-test", "say helo", h)
         last_command => null()
-        call auto_correct_flyspell_word(st)
+        call auto_correct_spellcheck_word(st)
         call check(error, st%ok(), "auto-correct: "//detail(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "say hello")
         if (.not. allocated(error)) call check(error, last_message, "Corrections: hello hello help helo hello help helo "// &
@@ -381,17 +382,17 @@ contains
             return
         end if
 
-        last_command => commands%auto_correct_flyspell_word
-        call auto_correct_flyspell_word(st)
+        last_command => commands%auto_correct_spellcheck_word
+        call auto_correct_spellcheck_word(st)
         call check(error, buffer_string(), "say help")
 
         if (.not. allocated(error)) then
-            call auto_correct_flyspell_word(st)
+            call auto_correct_spellcheck_word(st)
             call check(error, buffer_string(), "say helo")
         end if
 
         if (.not. allocated(error)) then
-            call auto_correct_flyspell_word(st)
+            call auto_correct_spellcheck_word(st)
             call check(error, buffer_string(), "say hello")
         end if
 
@@ -411,22 +412,22 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "a helo", h)
-        call minor_modes%flyspell_mode%enable(st)
+        call minor_modes%spellcheck_mode%enable(st)
         call check(error, st%ok(), "enable: "//detail(st))
-        if (.not. allocated(error)) call check(error, minor_modes%flyspell_mode%enabled(), "enabled")
-        if (.not. allocated(error)) call check(error, post_command_hook%member(flyspell_post_command_hook), "post hook")
-        if (.not. allocated(error)) call check(error, pre_command_hook%member(flyspell_pre_command_hook), "pre hook")
+        if (.not. allocated(error)) call check(error, minor_modes%spellcheck_mode%enabled(), "enabled")
+        if (.not. allocated(error)) call check(error, post_command_hook%member(spellcheck_post_command_hook), "post hook")
+        if (.not. allocated(error)) call check(error, pre_command_hook%member(spellcheck_pre_command_hook), "pre hook")
 
         if (allocated(error)) then
             call finish(h)
             return
         end if
 
-        call flyspell_word(st)
+        call spellcheck_word_highlight(st)
         call check(error, highlights() /= "", "highlighted")
-        call minor_modes%flyspell_mode%disable(st)
+        call minor_modes%spellcheck_mode%disable(st)
         if (.not. allocated(error)) call check(error, highlights(), "")
-        if (.not. allocated(error)) call check(error,.not. post_command_hook%member(flyspell_post_command_hook), &
+        if (.not. allocated(error)) call check(error,.not. post_command_hook%member(spellcheck_post_command_hook), &
                                                "post hook removed")
         call finish(h)
     end subroutine test_mode
@@ -439,7 +440,7 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "a helo is here", h)
-        call minor_modes%flyspell_mode%enable(st)
+        call minor_modes%spellcheck_mode%enable(st)
         call check(error, st%ok(), "enable: "//detail(st))
 
         if (allocated(error)) then
@@ -447,16 +448,16 @@ contains
             return
         end if
 
-        call goto_char(7_int64)
-        call flyspell_pre_command_hook(st)
-        call goto_char(point_max())
-        call flyspell_post_command_hook(st)
+        call goto_character(7_int64)
+        call spellcheck_pre_command_hook(st)
+        call goto_character(point_maximum())
+        call spellcheck_post_command_hook(st)
         call check(error, st%ok(), "post: "//detail(st))
-        if (.not. allocated(error)) call check(error, highlights(), "3-7:"//trim(flyspell_incorrect%name)//" ")
+        if (.not. allocated(error)) call check(error, highlights(), "3-7:"//trim(spellcheck_incorrect%name)//" ")
         call finish(h)
     end subroutine test_post_command
 
-    !> The mode line shows `flyspell_mode_line_string' and the
+    !> The mode line shows `spellcheck_mode_line_string' and the
     !> dictionary's first two characters ("--" for the default one).
     subroutine test_lighter(error)
         use display_engine_mod, only: mode_line_modes
@@ -465,29 +466,29 @@ contains
         type(status_type) :: st
 
         call fresh("flyspell-test", "", h)
-        call minor_modes%flyspell_mode%enable(st)
-        call check(error, index(mode_line_modes(current), flyspell_mode_line_string//"/--") > 0, &
+        call minor_modes%spellcheck_mode%enable(st)
+        call check(error, index(mode_line_modes(current), spellcheck_mode_line_string//"/--") > 0, &
                    "lighter: "//mode_line_modes(current))
         call finish(h)
     end subroutine test_lighter
 
     !> In programming modes only text in the string, comment and doc faces
     !> is checked.
-    subroutine test_prog_text(error)
+    subroutine test_programming_text(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("flyspell-test", "code ""text""", h)
         call put_text_property(6_int64, 12_int64, value_type(name=P_FACE), value_type(name=STRING_FACE), st)
-        call goto_char(3_int64)
-        call check(error,.not. is_flyspell_prog_text(), "code")
+        call goto_character(3_int64)
+        call check(error,.not. is_spellcheck_programming_text(), "code")
 
         if (.not. allocated(error)) then
-            call goto_char(8_int64)
-            call check(error, is_flyspell_prog_text(), "string")
+            call goto_character(8_int64)
+            call check(error, is_spellcheck_programming_text(), "string")
         end if
 
         call finish(h)
-    end subroutine test_prog_text
+    end subroutine test_programming_text
 end module test_spellcheck_mode_mod

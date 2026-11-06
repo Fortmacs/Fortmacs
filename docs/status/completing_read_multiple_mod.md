@@ -15,7 +15,7 @@
 
 ## Deferred
 
-`crm-separator`'s `:separator` property (the description and the inserted separator are the variables `crm_separator_description` and `crm_separator_string`)
+`crm-separator`'s `:separator` property (the description and the inserted separator are the variables `completing_read_multiple_separator_description` and `completing_read_multiple_separator_string`)
 
 ## Tests
 

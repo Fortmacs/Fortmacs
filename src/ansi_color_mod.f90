@@ -28,7 +28,7 @@
 !> `ansi_color_apply' and `ansi_color_filter_apply' work on strings,
 !> `ansi_color_apply_on_region' and `ansi_color_filter_region' on the
 !> buffer; `ansi_color_process_output' is on
-!> `comint_output_filter_functions' and `ansi_color_compilation_filter'
+!> `command_interpreter_output_filter_functions' and `ansi_color_compilation_filter'
 !> can be put on `compilation_filter_hook'.
 !>
 !> Deferred: the obsolete
@@ -46,30 +46,31 @@ module ansi_color_mod
     use buffer_mod, only: buffers, current, current_buffer
     use marker_mod, only: make_marker, destroy_marker, marker_position, set_marker, detach_marker, copy_marker_at, &
                           marker_buffer
-    use editing_functions_mod, only: point, point_min, goto_char, delete_region, buffer_substring
-    use search_mod, only: string_match, re_search_forward, match_beginning, match_end, SEARCH_NOERROR
+    use editing_functions_mod, only: point, point_minimum, goto_character, delete_region, buffer_substring
+    use search_mod, only: string_match, regular_expression_search_forward, match_beginning, match_end, SEARCH_NOERROR
     use text_properties_mod, only: put_text_property, string_put_text_property, propertized_substring, propertized_concat
     use interval_tree_mod, only: make_overlay, overlay_put, move_overlay, overlay_start, overlay_end
     use hooks_mod, only: property_function_type
-    use faces_mod, only: named_face_type, face_attrs, face_box, display_when, face_attributes_type, face_named
+    use faces_mod, only: named_face_type, face_attributes, face_box, display_when, face_attributes_type, face_named
     use commands_mod, only: commands
     use process_mod, only: get_buffer_process, process_mark
-    use command_interpreter_mod, only: comint_output_filter_functions, comint_last_output_start
+    use command_interpreter_mod, only: command_interpreter_output_filter_functions, command_interpreter_last_output_start
     use compile_mod, only: compilation_filter_start
     implicit none(type, external)
     private
 
     public :: ansi_color_filter_apply, ansi_color_apply, ansi_color_filter_region, ansi_color_apply_on_region, &
               ansi_color_apply_overlay_face, ansi_color_apply_text_property_face, ansi_color_make_extent, &
-              ansi_color_process_output, ansi_color_compilation_filter, ansi_color_for_comint_mode_on, &
-              ansi_color_for_comint_mode_off, ansi_color_for_comint_mode_filter, ansi_color_code_as_hex, &
-              init_ansi_color, ansi_color_face_procedure, reset_ansi_color_context, ansi_color_face_value
+              ansi_color_process_output, ansi_color_compilation_filter, ansi_color_for_command_interpreter_mode_on, &
+              ansi_color_for_command_interpreter_mode_off, ansi_color_for_command_interpreter_mode_filter, &
+              ansi_color_code_as_hexadecimal, &
+              initialize_ansi_color, ansi_color_face_procedure, reset_ansi_color_context, ansi_color_face_value
 
     !> A pointer to a named face, an element of
     !> `ansi_color_face_type%faces'.  Not a port.
-    type, public :: ansi_color_face_ref_type
+    type, public :: ansi_color_face_reference_type
         type(named_face_type), pointer :: face => null()
-    end type ansi_color_face_ref_type
+    end type ansi_color_face_reference_type
 
     !> The face of text after ANSI escape sequences: its named faces (a
     !> null pointer for an entry of `ansi_color_basic_faces' that is "")
@@ -77,7 +78,7 @@ module ansi_color_mod
     !> that has no color).  Empty (no faces, colors unallocated) means no
     !> face.  Not a port.
     type, public :: ansi_color_face_type
-        type(ansi_color_face_ref_type), allocatable :: faces(:)
+        type(ansi_color_face_reference_type), allocatable :: faces(:)
         character(len=:), allocatable :: foreground, background
     contains
         !> Whether it is empty (no face).
@@ -240,17 +241,17 @@ module ansi_color_mod
 
     !> Regexp matching an ANSI control sequence.  Port of ansi-color.el
     !> ansi-color-control-seq-regexp.
-    character(len=*), parameter, public :: ansi_color_control_seq_regexp = achar(27)//"\[[0-?]*[ -/]*[@-~]"
+    character(len=*), parameter, public :: ansi_color_control_seq_regular_expression = achar(27)//"\[[0-?]*[ -/]*[@-~]"
 
     ! Regexp matching a partial ANSI control sequence
     ! (ansi-color--control-seq-fragment-regexp).
-    character(len=*), parameter :: control_seq_fragment_regexp = achar(27)//"\[[0-?]*[ -/]*\|"//achar(27)
+    character(len=*), parameter :: control_seq_fragment_regular_expression = achar(27)//"\[[0-?]*[ -/]*\|"//achar(27)
 
     !> Regexp that matches SGR control sequence parameters.  Port of
     !> ansi-color.el ansi-color-parameter-regexp.
-    character(len=*), parameter, public :: ansi_color_parameter_regexp = "\([0-9]*\)[m;]"
+    character(len=*), parameter, public :: ansi_color_parameter_regular_expression = "\([0-9]*\)[m;]"
 
-    !> Values of `ansi_color_for_comint_mode' and
+    !> Values of `ansi_color_for_command_interpreter_mode' and
     !> `ansi_color_for_compilation_mode' besides .true. and .false.
     integer, parameter, public :: ANSI_COLOR_FILTER = 2
 
@@ -261,16 +262,17 @@ module ansi_color_mod
     !> control sequences into text properties.
     !>
     !> In order for this to have any effect, `ansi_color_process_output'
-    !> must be in `comint_output_filter_functions'.
+    !> must be in `command_interpreter_output_filter_functions'.
     !>
     !> This can be used to enable colorized ls --color=yes output
     !> in shell buffers.  You set this variable by calling one of:
-    !> \[ansi_color_for_comint_mode_on]
-    !> \[ansi_color_for_comint_mode_off]
-    !> \[ansi_color_for_comint_mode_filter]
+    !> \[ansi_color_for_command_interpreter_mode_on]
+    !> \[ansi_color_for_command_interpreter_mode_off]
+    !> \[ansi_color_for_command_interpreter_mode_filter]
     !> Port of ansi-color.el ansi-color-for-comint-mode.
-    type(choice_setting_type), public :: ansi_color_for_comint_mode = choice_setting_type(name="ansi_color_for_comint_mode", &
-                                                                                          value=.true.)
+    type(choice_setting_type), public :: ansi_color_for_command_interpreter_mode = choice_setting_type( &
+                                         name="ansi_color_for_command_interpreter_mode", &
+                                         value=.true.)
 
     !> Determines what to do with compilation output.
     !> If .false., do nothing.
@@ -314,20 +316,20 @@ module ansi_color_mod
 
     ! The state of the faces (FACE-VEC): the basic faces and the
     ! foreground and background color codes (-1 for nil).
-    type :: face_vec_type
+    type :: face_state_type
         logical :: basic(0:7) = .false.
-        integer(int64) :: fg = -1, bg = -1
-    end type face_vec_type
+        integer(int64) :: foreground = -1, background = -1
+    end type face_state_type
 
     ! A buffer's ansi-color-context (FACE-VEC FRAGMENT) and
     ! ansi-color-context-region (FACE-VEC MARKER).
     type :: context_type
         integer(int64) :: serial = 0
         logical :: has_string = .false.
-        type(face_vec_type) :: string_face_vec
+        type(face_state_type) :: string_face_state
         character(len=:), allocatable :: fragment
         logical :: has_region = .false.
-        type(face_vec_type) :: region_face_vec
+        type(face_state_type) :: region_face_state
         type(handle_type) :: region_marker
     end type context_type
 
@@ -430,45 +432,45 @@ contains
     ! Convenience functions for comint modes (eg. shell-mode)
     ! ------------------------------------------------------------------
 
-    !> Set `ansi_color_for_comint_mode' to .true.  Port of
+    !> Set `ansi_color_for_command_interpreter_mode' to .true.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-on.
-    subroutine ansi_color_for_comint_mode_on(status)
+    subroutine ansi_color_for_command_interpreter_mode_on(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = .true.
-    end subroutine ansi_color_for_comint_mode_on
+        ansi_color_for_command_interpreter_mode = .true.
+    end subroutine ansi_color_for_command_interpreter_mode_on
 
-    !> Set `ansi_color_for_comint_mode' to .false.  Port of
+    !> Set `ansi_color_for_command_interpreter_mode' to .false.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-off.
-    subroutine ansi_color_for_comint_mode_off(status)
+    subroutine ansi_color_for_command_interpreter_mode_off(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = .false.
-    end subroutine ansi_color_for_comint_mode_off
+        ansi_color_for_command_interpreter_mode = .false.
+    end subroutine ansi_color_for_command_interpreter_mode_off
 
-    !> Set `ansi_color_for_comint_mode' to ANSI_COLOR_FILTER.  Port of
+    !> Set `ansi_color_for_command_interpreter_mode' to ANSI_COLOR_FILTER.  Port of
     !> ansi-color.el:ansi-color-for-comint-mode-filter.
-    subroutine ansi_color_for_comint_mode_filter(status)
+    subroutine ansi_color_for_command_interpreter_mode_filter(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        ansi_color_for_comint_mode = ANSI_COLOR_FILTER
-    end subroutine ansi_color_for_comint_mode_filter
+        ansi_color_for_command_interpreter_mode = ANSI_COLOR_FILTER
+    end subroutine ansi_color_for_command_interpreter_mode_filter
 
     !> Maybe translate SGR control sequences of comint output into text
     !> properties.
     !>
-    !> Depending on variable `ansi_color_for_comint_mode' the comint
+    !> Depending on variable `ansi_color_for_command_interpreter_mode' the comint
     !> output is either not processed, SGR control sequences are filtered
     !> using `ansi_color_filter_region', or SGR control sequences are
     !> translated into text properties using `ansi_color_apply_on_region'.
     !>
     !> The comint output is assumed to lie between the marker
-    !> `comint_last_output_start' and the process-mark.
+    !> `command_interpreter_last_output_start' and the process-mark.
     !>
-    !> This is a good function to put in `comint_output_filter_functions'.
+    !> This is a good function to put in `command_interpreter_output_filter_functions'.
     !> Port of ansi-color.el:ansi-color-process-output.
     recursive subroutine ansi_color_process_output(ignored, status)
         character(len=*), intent(in) :: ignored
@@ -480,8 +482,8 @@ contains
         if (len(ignored) < 0) return
         process = get_buffer_process(current_buffer())
         if (process%index == 0) return
-        start = comint_last_output_start()
-        if (start <= 0) start = point_min()
+        start = command_interpreter_last_output_start()
+        if (start <= 0) start = point_minimum()
         call marker_position(process_mark(process), end, status)
 
         if (.not. status%ok()) then
@@ -489,9 +491,9 @@ contains
             return
         end if
 
-        if (ansi_color_for_comint_mode%is_off()) return
+        if (ansi_color_for_command_interpreter_mode%is_off()) return
 
-        select case (ansi_color_for_comint_mode%choice)
+        select case (ansi_color_for_command_interpreter_mode%choice)
         case (ANSI_COLOR_FILTER)
             call ansi_color_filter_region(start, end)
         case default
@@ -535,7 +537,7 @@ contains
 
         if (.not. contexts(k)%has_string) then
             contexts(k)%has_string = .true.
-            contexts(k)%string_face_vec = face_vec_type()
+            contexts(k)%string_face_state = face_state_type()
             contexts(k)%fragment = ""
         end if
     end function ensure_string_context
@@ -554,25 +556,25 @@ contains
 
     ! The characters FROM to TO (0-based, TO exclusive; -1 for the end)
     ! of TEXT.  Not a port.
-    function char_range(text, from, to) result(s)
+    function character_range(text, from, to) result(s)
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: from, to
         character(len=:), allocatable :: s
         integer(int64) :: b, e
 
-        b = char_byte_offset(text, from)
+        b = character_byte_offset(text, from)
 
         if (to < 0) then
             e = len(text)
         else
-            e = char_byte_offset(text, to)
+            e = character_byte_offset(text, to)
         end if
 
         s = text(b + 1:e)
-    end function char_range
+    end function character_range
 
     ! The byte offset of character N (0-based) of TEXT.  Not a port.
-    integer(int64) function char_byte_offset(text, n) result(off)
+    integer(int64) function character_byte_offset(text, n) result(off)
         character(len=*), intent(in) :: text
         integer(int64), intent(in) :: n
         integer(int64) :: count
@@ -590,7 +592,7 @@ contains
 
             count = count + 1
         end do
-    end function char_byte_offset
+    end function character_byte_offset
 
     !> Filter out all ANSI control sequences from STRING.
     !>
@@ -600,14 +602,14 @@ contains
     !> `ansi_color_apply'.  Set `ansi_color_context' to empty if you don't
     !> want this.
     !>
-    !> This function can be added to `comint_preoutput_filter_functions'.
+    !> This function can be added to `command_interpreter_preoutput_filter_functions'.
     !> Port of ansi-color.el:ansi-color-filter-apply.
     function ansi_color_filter_apply(string) result(res)
         character(len=*), intent(in) :: string
         character(len=:), allocatable :: res
         character(len=:), allocatable :: text, fragment
         type(status_type) :: st
-        integer(int64) :: start, end, pos
+        integer(int64) :: start, end, position
         integer :: k
 
         k = ensure_string_context()
@@ -619,22 +621,22 @@ contains
 
         ! find the next escape sequence
         do
-            end = string_match(ansi_color_control_seq_regexp, text, st, start=start + 1)
+            end = string_match(ansi_color_control_seq_regular_expression, text, st, start=start + 1)
             if (end == 0) exit
-            res = res//char_range(text, start, end - 1)
+            res = res//character_range(text, start, end - 1)
             start = match_end(0, st) - 1
         end do
 
         ! save context, add the remainder of the string to the result
         fragment = ""
-        pos = string_match("\(?:"//control_seq_fragment_regexp//"\)\'", text, st, start=start + 1)
+        position = string_match("\(?:"//control_seq_fragment_regular_expression//"\)\'", text, st, start=start + 1)
 
-        if (pos > 0) then
-            pos = pos - 1
-            fragment = char_range(text, pos, -1_int64)
-            res = res//char_range(text, start, pos)
+        if (position > 0) then
+            position = position - 1
+            fragment = character_range(text, position, -1_int64)
+            res = res//character_range(text, start, position)
         else
-            res = res//char_range(text, start, -1_int64)
+            res = res//character_range(text, start, -1_int64)
         end if
 
         k = ensure_string_context()
@@ -653,21 +655,21 @@ contains
     !> call to `ansi_color_apply'.  Set `ansi_color_context' to empty if you
     !> don't want this.
     !>
-    !> This function can be added to `comint_preoutput_filter_functions'.
+    !> This function can be added to `command_interpreter_preoutput_filter_functions'.
     !> Port of ansi-color.el:ansi-color-apply.
     function ansi_color_apply(string) result(res)
         type(value_type), intent(in) :: string
         type(value_type) :: res
         type(value_type) :: text, face
-        type(face_vec_type) :: face_vec
+        type(face_state_type) :: face_state
         character(len=:), allocatable :: raw, seq
         integer(int64), allocatable :: codes(:)
         type(status_type) :: st
-        integer(int64) :: start, end, esc_end, pos, nchars
+        integer(int64) :: start, end, escape_end, position, nchars
         integer :: k
 
         k = ensure_string_context()
-        face_vec = contexts(k)%string_face_vec
+        face_state = contexts(k)%string_face_state
         ! If context was saved and is a string, prepend it.
         text = propertized_concat(value_type(text=contexts(k)%fragment), string)
         contexts(k)%fragment = ""
@@ -678,60 +680,60 @@ contains
 
         ! Find the next escape sequence.
         do
-            end = string_match(ansi_color_control_seq_regexp, raw, st, start=start + 1)
+            end = string_match(ansi_color_control_seq_regular_expression, raw, st, start=start + 1)
             if (end == 0) exit
             end = end - 1
-            esc_end = match_end(0, st) - 1
+            escape_end = match_end(0, st) - 1
             ! Colorize the old block from start to end using old face.
-            face = ansi_color_face_value(face_vec_face(face_vec))
+            face = ansi_color_face_value(face_state_face(face_state))
             if (allocated(face%a)) call string_put_text_property(start, end, value_type(name="font_lock_face"), face, text, st)
             res = propertized_concat(res, propertized_substring(text, start, end))
-            start = esc_end
+            start = escape_end
             ! If this is a color escape sequence,
-            seq = char_range(raw, end, esc_end)
+            seq = character_range(raw, end, escape_end)
 
             if (seq(len(seq):len(seq)) == "m") then
                 ! create a new face from it.
                 call parse_codes(seq, codes)
-                call update_face_vec(face_vec, codes)
+                call update_face_state(face_state, codes)
             end if
         end do
 
         ! if the rest of the string should have a face, put it there
-        face = ansi_color_face_value(face_vec_face(face_vec))
+        face = ansi_color_face_value(face_state_face(face_state))
         if (allocated(face%a)) call string_put_text_property(start, nchars, value_type(name="font_lock_face"), face, text, st)
         ! save context, add the remainder of the string to the result
         k = ensure_string_context()
-        contexts(k)%string_face_vec = face_vec
-        pos = string_match("\(?:"//control_seq_fragment_regexp//"\)\'", raw, st, start=start + 1)
+        contexts(k)%string_face_state = face_state
+        position = string_match("\(?:"//control_seq_fragment_regular_expression//"\)\'", raw, st, start=start + 1)
 
-        if (pos > 0) then
-            pos = pos - 1
-            contexts(k)%fragment = char_range(raw, pos, -1_int64)
-            res = propertized_concat(res, propertized_substring(text, start, pos))
+        if (position > 0) then
+            position = position - 1
+            contexts(k)%fragment = character_range(raw, position, -1_int64)
+            res = propertized_concat(res, propertized_substring(text, start, position))
         else
             res = propertized_concat(res, propertized_substring(text, start, nchars))
         end if
     end function ansi_color_apply
 
     ! The codes of the SGR sequence SEQ (from ESC to its final `m'): the
-    ! numbers the iterator over `ansi_color_parameter_regexp' yields.
+    ! numbers the iterator over `ansi_color_parameter_regular_expression' yields.
     ! Not a port.
     subroutine parse_codes(seq, codes)
         character(len=*), intent(in) :: seq
         integer(int64), allocatable, intent(out) :: codes(:)
         type(status_type) :: st
-        integer(int64) :: pos, index, n, mb, me
+        integer(int64) :: position, index, n, mb, me
         integer :: ios
         character(len=:), allocatable :: digits
 
         allocate (codes(0))
-        pos = 0
+        position = 0
 
         do
-            index = string_match(ansi_color_parameter_regexp, seq, st, start=pos + 1)
+            index = string_match(ansi_color_parameter_regular_expression, seq, st, start=position + 1)
             if (index == 0) exit
-            pos = match_end(0, st) - 1
+            position = match_end(0, st) - 1
             mb = match_beginning(1, st) - 1
             me = match_end(1, st) - 1
             digits = seq(mb + 1:me)
@@ -748,42 +750,42 @@ contains
 
     ! Return the face corresponding to FACE-VEC (nil for none).  Port of
     ! ansi-color.el:ansi-color--face-vec-face.
-    function face_vec_face(face_vec) result(face)
-        type(face_vec_type), intent(in) :: face_vec
+    function face_state_face(face_state) result(face)
+        type(face_state_type), intent(in) :: face_state
         type(ansi_color_face_type) :: face
         integer :: n, i
         logical :: bright
 
-        bright = ansi_color_bold_is_bright%value .and. face_vec%basic(1)
-        n = count(face_vec%basic)
+        bright = ansi_color_bold_is_bright%value .and. face_state%basic(1)
+        n = count(face_state%basic)
         allocate (face%faces(n))
         n = 0
 
         do i = 0, 7
-            if (face_vec%basic(i)) then
+            if (face_state%basic(i)) then
                 n = n + 1
                 if (len_trim(ansi_color_basic_faces(i)) > 0) face%faces(n)%face => face_named(trim(ansi_color_basic_faces(i)))
             end if
         end do
 
-        if (face_vec%bg >= 0) face%background = color_value(face_vec%bg, .false.)
-        if (face_vec%fg >= 0) face%foreground = color_value(face_vec%fg, .true.)
+        if (face_state%background >= 0) face%background = color_value(face_state%background, .false.)
+        if (face_state%foreground >= 0) face%foreground = color_value(face_state%foreground, .true.)
 
     contains
 
-        ! The color of CODE: its hex form, or the foreground (FG) or
+        ! The color of CODE: its hex form, or the foreground (FOREGROUND) or
         ! background of its face.
-        function color_value(code, fg) result(v)
+        function color_value(code, foreground) result(v)
             integer(int64), intent(in) :: code
-            logical, intent(in) :: fg
+            logical, intent(in) :: foreground
             character(len=:), allocatable :: v
-            character(len=:), allocatable :: hex, name
+            character(len=:), allocatable :: hexadecimal, name
             type(named_face_type), pointer :: f
 
-            hex = ansi_color_code_as_hex(code)
+            hexadecimal = ansi_color_code_as_hexadecimal(code)
 
-            if (len(hex) > 0) then
-                v = hex
+            if (len(hexadecimal) > 0) then
+                v = hexadecimal
                 return
             end if
 
@@ -797,13 +799,13 @@ contains
             f => face_named(name)
             if (.not. associated(f)) return
 
-            if (fg) then
+            if (foreground) then
                 if (allocated(f%lface%foreground)) v = f%lface%foreground
             else
                 if (allocated(f%lface%background)) v = f%lface%background
             end if
         end function color_value
-    end function face_vec_face
+    end function face_state_face
 
     ! Not a port.
     logical function ansi_color_face_is_empty(self)
@@ -821,37 +823,37 @@ contains
     function ansi_color_face_value(face) result(v)
         type(ansi_color_face_type), intent(in) :: face
         type(value_type) :: v
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer :: n, k
 
         n = 0
         if (allocated(face%faces)) n = size(face%faces)
         if (allocated(face%background)) n = n + 1
         if (allocated(face%foreground)) n = n + 1
-        allocate (elems(n))
+        allocate (elements(n))
         n = 0
 
         if (allocated(face%faces)) then
             do k = 1, size(face%faces)
                 n = n + 1
-                if (associated(face%faces(k)%face)) elems(n) = value_type(name=trim(face%faces(k)%face%name))
+                if (associated(face%faces(k)%face)) elements(n) = value_type(name=trim(face%faces(k)%face%name))
             end do
         end if
 
         if (allocated(face%background)) then
             n = n + 1
-            elems(n) = list(value_type(name=":background"), color_string(face%background))
+            elements(n) = list(value_type(name=":background"), color_string(face%background))
         end if
 
         if (allocated(face%foreground)) then
             n = n + 1
-            elems(n) = list(value_type(name=":foreground"), color_string(face%foreground))
+            elements(n) = list(value_type(name=":foreground"), color_string(face%foreground))
         end if
 
         if (n == 1) then
-            v = elems(1)
+            v = elements(1)
         else if (n > 1) then
-            v = make_list(elems)
+            v = make_list(elements)
         end if
 
     contains
@@ -873,14 +875,14 @@ contains
     !>
     !> Return a hexadecimal string, specifying the color, or "", if COLOR
     !> is less than 16.  Port of ansi-color.el:ansi-color--code-as-hex.
-    function ansi_color_code_as_hex(color) result(hex)
+    function ansi_color_code_as_hexadecimal(color) result(hexadecimal)
         integer(int64), intent(in) :: color
-        character(len=:), allocatable :: hex
+        character(len=:), allocatable :: hexadecimal
         character(len=8) :: buffer
-        integer(int64) :: c, res, frac, color_num
+        integer(int64) :: c, res, frac, color_number
 
         if (color < 16) then
-            hex = ""
+            hexadecimal = ""
             return
         end if
 
@@ -898,15 +900,15 @@ contains
             do while (frac >= 1)
                 ! Repeat 3 times
                 res = res*int(z'000100', int64)
-                color_num = modulo(c/frac, 6_int64)
-                if (color_num /= 0) res = res + int(z'37', int64) + int(z'28', int64)*color_num
+                color_number = modulo(c/frac, 6_int64)
+                if (color_number /= 0) res = res + int(z'37', int64) + int(z'28', int64)*color_number
                 frac = frac/6
             end do
         end if
 
         write (buffer, "(a,z6.6)") "#", res
-        hex = trim(buffer)
-    end function ansi_color_code_as_hex
+        hexadecimal = trim(buffer)
+    end function ansi_color_code_as_hexadecimal
 
     ! ------------------------------------------------------------------
     ! Working with regions
@@ -925,7 +927,7 @@ contains
 
         if (.not. contexts(k)%has_region) then
             contexts(k)%has_region = .true.
-            contexts(k)%region_face_vec = face_vec_type()
+            contexts(k)%region_face_state = face_state_type()
             call copy_marker_at(position, contexts(k)%region_marker, .false., st)
         else
             call marker_buffer(contexts(k)%region_marker, mb, st)
@@ -934,12 +936,12 @@ contains
     end function ensure_region_context
 
     ! The position of marker M.  Not a port.
-    integer(int64) function mpos(m)
+    integer(int64) function marked_position(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, mpos, st)
-    end function mpos
+        call marker_position(m, marked_position, st)
+    end function marked_position
 
     !> Filter out all ANSI control sequences from region BEGIN to END.
     !>
@@ -954,19 +956,20 @@ contains
         integer(int64), intent(in) :: begin, end
         type(handle_type) :: end_marker, start
         type(status_type) :: st
-        integer(int64) :: opoint, pos, last_mb
+        integer(int64) :: original_point, position, last_mb
         integer :: k
 
         call copy_marker_at(end, end_marker, .false., st)
         k = ensure_region_context(begin)
         start = contexts(k)%region_marker
-        opoint = point()
-        call goto_char(mpos(start))
+        original_point = point()
+        call goto_character(marked_position(start))
 
         ! Delete escape sequences.
         do
-            call re_search_forward(ansi_color_control_seq_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
-            if (.not. st%ok() .or. pos == 0) exit
+            call regular_expression_search_forward(ansi_color_control_seq_regular_expression, position, st, &
+                                                   bound=marked_position(end_marker), noerror=SEARCH_NOERROR)
+            if (.not. st%ok() .or. position == 0) exit
             call delete_region(match_beginning(0, st), match_end(0, st), st)
         end do
 
@@ -975,18 +978,19 @@ contains
         last_mb = 0
 
         do
-            call re_search_forward(control_seq_fragment_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
-            if (.not. st%ok() .or. pos == 0) exit
+            call regular_expression_search_forward(control_seq_fragment_regular_expression, position, st, &
+                                                   bound=marked_position(end_marker), noerror=SEARCH_NOERROR)
+            if (.not. st%ok() .or. position == 0) exit
             last_mb = match_beginning(0, st)
         end do
 
-        if (point() /= mpos(start) .and. point() == mpos(end_marker)) then
+        if (point() /= marked_position(start) .and. point() == marked_position(end_marker)) then
             call set_marker(start, last_mb, st)
         else
             call detach_marker(start, st)
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call destroy_marker(end_marker, st)
     end subroutine ansi_color_filter_region
 
@@ -1013,12 +1017,12 @@ contains
         logical, intent(in), optional :: preserve_sequences
         procedure(ansi_color_face_procedure), pointer :: apply
         type(handle_type) :: start_marker, end_marker, ov
-        type(face_vec_type) :: face_vec
+        type(face_state_type) :: face_state
         type(ansi_color_face_type) :: faces
         type(status_type) :: st
         character(len=:), allocatable :: seq
         integer(int64), allocatable :: codes(:)
-        integer(int64) :: opoint, pos, esc_beginning, esc_end, old_start, last_mb
+        integer(int64) :: original_point, position, escape_beginning, escape_end, old_start, last_mb
         logical :: preserve
         integer :: k
 
@@ -1026,60 +1030,62 @@ contains
         if (present(preserve_sequences)) preserve = preserve_sequences
         apply => ansi_color_apply_face_function%current()
         k = ensure_region_context(begin)
-        face_vec = contexts(k)%region_face_vec
+        face_state = contexts(k)%region_face_state
         start_marker = contexts(k)%region_marker
         call copy_marker_at(end, end_marker, .false., st)
-        opoint = point()
-        call goto_char(mpos(start_marker))
+        original_point = point()
+        call goto_character(marked_position(start_marker))
 
         ! Find the next escape sequence.
         do
-            call re_search_forward(ansi_color_control_seq_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
-            if (.not. st%ok() .or. pos == 0) exit
+            call regular_expression_search_forward(ansi_color_control_seq_regular_expression, position, st, &
+                                                   bound=marked_position(end_marker), noerror=SEARCH_NOERROR)
+            if (.not. st%ok() .or. position == 0) exit
             ! Extract escape sequence.
-            esc_beginning = match_beginning(0, st)
-            esc_end = point()
+            escape_beginning = match_beginning(0, st)
+            escape_end = point()
             ! Colorize the old block from start to end using old face.
-            old_start = mpos(start_marker)
+            old_start = marked_position(start_marker)
             ! Store new start position.
-            call set_marker(start_marker, esc_end, st)
-            call apply(old_start, esc_beginning, face_vec_face(face_vec))
+            call set_marker(start_marker, escape_end, st)
+            call apply(old_start, escape_beginning, face_state_face(face_state))
             ! If this is a color sequence,
-            call buffer_substring(esc_beginning, esc_end, seq, st)
+            call buffer_substring(escape_beginning, escape_end, seq, st)
 
             if (seq(len(seq):len(seq)) == "m") then
                 call parse_codes(seq, codes)
-                call update_face_vec(face_vec, codes)
+                call update_face_state(face_state, codes)
             end if
 
             if (preserve) then
                 ! Make the escape sequence transparent.
-                call make_overlay(ov, esc_beginning, esc_end, st)
+                call make_overlay(ov, escape_beginning, escape_end, st)
                 call overlay_put(ov, "invisible", value_type(.true.), st)
             else
                 ! Otherwise, strip.
-                call delete_region(esc_beginning, esc_end, st)
+                call delete_region(escape_beginning, escape_end, st)
             end if
 
-            call goto_char(mpos(start_marker))
+            call goto_character(marked_position(start_marker))
         end do
 
         ! search for the possible start of a new escape sequence
         last_mb = 0
 
         do
-            call re_search_forward(control_seq_fragment_regexp, pos, st, bound=mpos(end_marker), noerror=SEARCH_NOERROR)
-            if (.not. st%ok() .or. pos == 0) exit
+            call regular_expression_search_forward(control_seq_fragment_regular_expression, position, st, &
+                                                   bound=marked_position(end_marker), noerror=SEARCH_NOERROR)
+            if (.not. st%ok() .or. position == 0) exit
             last_mb = match_beginning(0, st)
         end do
 
-        if (point() /= mpos(start_marker) .and. point() == mpos(end_marker)) then
-            call goto_char(last_mb)
-            call apply(mpos(start_marker), point(), face_vec_face(face_vec))
+        if (point() /= marked_position(start_marker) .and. point() == marked_position(end_marker)) then
+            call goto_character(last_mb)
+            call apply(marked_position(start_marker), point(), face_state_face(face_state))
             call set_marker(start_marker, point(), st)
         else
-            faces = face_vec_face(face_vec)
-            call apply(mpos(start_marker), mpos(end_marker), faces)
+            faces = face_state_face(face_state)
+            call apply(marked_position(start_marker), marked_position(end_marker), faces)
 
             ! Save a restart position when there are codes active.  It's
             ! convenient for man.el's process filter to pass `begin'
@@ -1089,13 +1095,13 @@ contains
             if (faces%is_empty()) then
                 call detach_marker(start_marker, st)
             else
-                call set_marker(start_marker, mpos(end_marker), st)
+                call set_marker(start_marker, marked_position(end_marker), st)
             end if
         end if
 
         call make_context_slot(k)
-        contexts(k)%region_face_vec = face_vec
-        call goto_char(opoint)
+        contexts(k)%region_face_state = face_state
+        call goto_character(original_point)
         ! Clean up our temporary marker.
         call destroy_marker(end_marker, st)
     end subroutine ansi_color_apply_on_region
@@ -1160,16 +1166,16 @@ contains
     ! background color and the correct color mode; any other code will
     ! unset all properties and colors.  Port of
     ! ansi-color.el:ansi-color--update-face-vec.
-    subroutine update_face_vec(face_vec, codes)
-        type(face_vec_type), intent(inout) :: face_vec
+    subroutine update_face_state(face_state, codes)
+        type(face_state_type), intent(inout) :: face_state
         integer(int64), intent(in) :: codes(:)
-        integer(int64) :: new, q, r, red, green, blue, val
+        integer(int64) :: new, q, r, red, green, blue, value
         integer :: i
-        logical :: do_clear, fg_cell, got_red, got_green, got_blue, got
+        logical :: do_clear, foreground_cell, got_red, got_green, got_blue, got
 
         i = 0
         do_clear = .false.
-        fg_cell = .true.
+        foreground_cell = .true.
 
         do
             call next(new, got)
@@ -1181,7 +1187,7 @@ contains
                 if (new == 0 .or. new == 8 .or. new == 9) then
                     do_clear = .true.
                 else
-                    face_vec%basic(new) = .true.
+                    face_state%basic(new) = .true.
                 end if
             case (2)
                 if (new == 20 .or. new == 26 .or. new == 28 .or. new == 29) then
@@ -1190,26 +1196,26 @@ contains
                     ! The standard says `21 doubly underlined' while
                     ! https://en.wikipedia.org/wiki/ANSI_escape_code claims
                     ! `21 Bright/Bold: off or Underline: Double'.
-                    face_vec%basic(new - 20) = .false.
+                    face_state%basic(new - 20) = .false.
 
                     select case (new)
                     case (22)
-                        face_vec%basic(1) = .false.
+                        face_state%basic(1) = .false.
                     case (25)
-                        face_vec%basic(6) = .false.
+                        face_state%basic(6) = .false.
                     case default
-                        face_vec%basic(0) = .false.
+                        face_state%basic(0) = .false.
                     end select
                 end if
             case (3, 4, 9, 10)
                 r = modulo(new, 10_int64)
-                fg_cell = q == 3 .or. q == 9
+                foreground_cell = q == 3 .or. q == 9
 
                 select case (r)
                 case (8)
-                    call next(val, got)
+                    call next(value, got)
 
-                    if (got .and. val == 5) then
+                    if (got .and. value == 5) then
                         call next(new, got)
 
                         if (got) then
@@ -1219,7 +1225,7 @@ contains
                             call set_cell(-1_int64)
                             do_clear = .true.
                         end if
-                    else if (got .and. val == 2) then
+                    else if (got .and. value == 2) then
                         call next(red, got_red)
                         call next(green, got_green)
                         call next(blue, got_blue)
@@ -1253,7 +1259,7 @@ contains
 
             if (do_clear) then
                 do_clear = .false.
-                face_vec = face_vec_type()
+                face_state = face_state_type()
             end if
         end do
 
@@ -1275,13 +1281,13 @@ contains
         subroutine set_cell(v)
             integer(int64), intent(in) :: v
 
-            if (fg_cell) then
-                face_vec%fg = v
+            if (foreground_cell) then
+                face_state%foreground = v
             else
-                face_vec%bg = v
+                face_state%background = v
             end if
         end subroutine set_cell
-    end subroutine update_face_vec
+    end subroutine update_face_state
 
     ! ------------------------------------------------------------------
     ! Setup
@@ -1308,68 +1314,70 @@ contains
 
     !> Define the faces, commands and property functions of ansi-color, and put
     !> `ansi_color_process_output' first in
-    !> `comint_output_filter_functions' (as its default value lists it).
+    !> `command_interpreter_output_filter_functions' (as its default value lists it).
     !> Not a port.
-    subroutine init_ansi_color()
-        type(face_attributes_type) :: attrs
+    subroutine initialize_ansi_color()
+        type(face_attributes_type) :: attributes
 
         ansi_color_freeze_overlay_function = property_function_type("ansi_color_freeze_overlay", &
                                                                     overlay_change=ansi_color_freeze_overlay)
         call ansi_color_freeze_overlay_function%define()
         call ansi_color_bold%define("ansi_color_bold", "Face used to render bold text.")
-        call ansi_color_bold%spec_entry(display_when(), face_attrs(inherit="bold"))
+        call ansi_color_bold%specification_entry(display_when(), face_attributes(inherit="bold"))
         call ansi_color_faint%define("ansi_color_faint", "Face used to render faint text.")
-        call ansi_color_faint%spec_entry(display_when(), face_attrs(weight="light"))
+        call ansi_color_faint%specification_entry(display_when(), face_attributes(weight="light"))
         call ansi_color_italic%define("ansi_color_italic", "Face used to render italic text.")
-        call ansi_color_italic%spec_entry(display_when(), face_attrs(inherit="italic"))
+        call ansi_color_italic%specification_entry(display_when(), face_attributes(inherit="italic"))
         call ansi_color_underline%define("ansi_color_underline", "Face used to render underlined text.")
-        call ansi_color_underline%spec_entry(display_when(), face_attrs(inherit="underline"))
+        call ansi_color_underline%specification_entry(display_when(), face_attributes(inherit="underline"))
         call ansi_color_slow_blink%define("ansi_color_slow_blink", "Face used to render slowly blinking text.")
-        attrs = face_attrs()
-        attrs%box = face_box(line_width=-1)
-        call ansi_color_slow_blink%spec_entry(display_when(), attrs)
+        attributes = face_attributes()
+        attributes%box = face_box(line_width=-1)
+        call ansi_color_slow_blink%specification_entry(display_when(), attributes)
         call ansi_color_fast_blink%define("ansi_color_fast_blink", "Face used to render rapidly blinking text.")
-        attrs = face_attrs()
-        attrs%box = face_box(line_width=-1)
-        call ansi_color_fast_blink%spec_entry(display_when(), attrs)
+        attributes = face_attributes()
+        attributes%box = face_box(line_width=-1)
+        call ansi_color_fast_blink%specification_entry(display_when(), attributes)
         call ansi_color_inverse%define("ansi_color_inverse", "Face used to render inverted video text.")
-        call ansi_color_inverse%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call ansi_color_inverse%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call ansi_color_black%define("ansi_color_black", "Face used to render black color code.")
-        call ansi_color_black%spec_entry(display_when(), face_attrs(foreground="black", background="black"))
+        call ansi_color_black%specification_entry(display_when(), face_attributes(foreground="black", background="black"))
         call ansi_color_red%define("ansi_color_red", "Face used to render red color code.")
-        call ansi_color_red%spec_entry(display_when(), face_attrs(foreground="red3", background="red3"))
+        call ansi_color_red%specification_entry(display_when(), face_attributes(foreground="red3", background="red3"))
         call ansi_color_green%define("ansi_color_green", "Face used to render green color code.")
-        call ansi_color_green%spec_entry(display_when(), face_attrs(foreground="green3", background="green3"))
+        call ansi_color_green%specification_entry(display_when(), face_attributes(foreground="green3", background="green3"))
         call ansi_color_yellow%define("ansi_color_yellow", "Face used to render yellow color code.")
-        call ansi_color_yellow%spec_entry(display_when(), face_attrs(foreground="yellow3", background="yellow3"))
+        call ansi_color_yellow%specification_entry(display_when(), face_attributes(foreground="yellow3", background="yellow3"))
         call ansi_color_blue%define("ansi_color_blue", "Face used to render blue color code.")
-        call ansi_color_blue%spec_entry(display_when(), face_attrs(foreground="blue2", background="blue2"))
+        call ansi_color_blue%specification_entry(display_when(), face_attributes(foreground="blue2", background="blue2"))
         call ansi_color_magenta%define("ansi_color_magenta", "Face used to render magenta color code.")
-        call ansi_color_magenta%spec_entry(display_when(), face_attrs(foreground="magenta3", background="magenta3"))
+        call ansi_color_magenta%specification_entry(display_when(), face_attributes(foreground="magenta3", background="magenta3"))
         call ansi_color_cyan%define("ansi_color_cyan", "Face used to render cyan color code.")
-        call ansi_color_cyan%spec_entry(display_when(), face_attrs(foreground="cyan3", background="cyan3"))
+        call ansi_color_cyan%specification_entry(display_when(), face_attributes(foreground="cyan3", background="cyan3"))
         call ansi_color_white%define("ansi_color_white", "Face used to render white color code.")
-        call ansi_color_white%spec_entry(display_when(), face_attrs(foreground="grey90", background="gray90"))
+        call ansi_color_white%specification_entry(display_when(), face_attributes(foreground="grey90", background="gray90"))
         call ansi_color_bright_black%define("ansi_color_bright_black", "Face used to render bright black color code.")
-        call ansi_color_bright_black%spec_entry(display_when(), face_attrs(foreground="gray30", background="gray30"))
+        call ansi_color_bright_black%specification_entry(display_when(), face_attributes(foreground="gray30", background="gray30"))
         call ansi_color_bright_red%define("ansi_color_bright_red", "Face used to render bright red color code.")
-        call ansi_color_bright_red%spec_entry(display_when(), face_attrs(foreground="red2", background="red2"))
+        call ansi_color_bright_red%specification_entry(display_when(), face_attributes(foreground="red2", background="red2"))
         call ansi_color_bright_green%define("ansi_color_bright_green", "Face used to render bright green color code.")
-        call ansi_color_bright_green%spec_entry(display_when(), face_attrs(foreground="green2", background="green2"))
+        call ansi_color_bright_green%specification_entry(display_when(), face_attributes(foreground="green2", background="green2"))
         call ansi_color_bright_yellow%define("ansi_color_bright_yellow", "Face used to render bright yellow color code.")
-        call ansi_color_bright_yellow%spec_entry(display_when(), face_attrs(foreground="yellow2", background="yellow2"))
+        call ansi_color_bright_yellow%specification_entry(display_when(), face_attributes(foreground="yellow2", &
+                                                                                          background="yellow2"))
         call ansi_color_bright_blue%define("ansi_color_bright_blue", "Face used to render bright blue color code.")
-        call ansi_color_bright_blue%spec_entry(display_when(), face_attrs(foreground="blue1", background="blue1"))
+        call ansi_color_bright_blue%specification_entry(display_when(), face_attributes(foreground="blue1", background="blue1"))
         call ansi_color_bright_magenta%define("ansi_color_bright_magenta", "Face used to render bright magenta color code.")
-        call ansi_color_bright_magenta%spec_entry(display_when(), face_attrs(foreground="magenta2", background="magenta2"))
+        call ansi_color_bright_magenta%specification_entry(display_when(), face_attributes(foreground="magenta2", &
+                                                                                           background="magenta2"))
         call ansi_color_bright_cyan%define("ansi_color_bright_cyan", "Face used to render bright cyan color code.")
-        call ansi_color_bright_cyan%spec_entry(display_when(), face_attrs(foreground="cyan2", background="cyan2"))
+        call ansi_color_bright_cyan%specification_entry(display_when(), face_attributes(foreground="cyan2", background="cyan2"))
         call ansi_color_bright_white%define("ansi_color_bright_white", "Face used to render bright white color code.")
-        call ansi_color_bright_white%spec_entry(display_when(), face_attrs(foreground="white", background="white"))
-        commands%ansi_color_for_comint_mode_on%execute => ansi_color_for_comint_mode_on
-        commands%ansi_color_for_comint_mode_off%execute => ansi_color_for_comint_mode_off
-        commands%ansi_color_for_comint_mode_filter%execute => ansi_color_for_comint_mode_filter
+        call ansi_color_bright_white%specification_entry(display_when(), face_attributes(foreground="white", background="white"))
+        commands%ansi_color_for_command_interpreter_mode_on%execute => ansi_color_for_command_interpreter_mode_on
+        commands%ansi_color_for_command_interpreter_mode_off%execute => ansi_color_for_command_interpreter_mode_off
+        commands%ansi_color_for_command_interpreter_mode_filter%execute => ansi_color_for_command_interpreter_mode_filter
         call append_locals_clearer(clear_ansi_color_locals)
-        call comint_output_filter_functions%prepend(ansi_color_process_output)
-    end subroutine init_ansi_color
+        call command_interpreter_output_filter_functions%prepend(ansi_color_process_output)
+    end subroutine initialize_ansi_color
 end module ansi_color_mod

@@ -65,28 +65,28 @@ name	ediff_merge_metajob	is_ediff_merge_metajob
 name	ediff_metajob3	is_ediff_metajob3
 name	ediff_comparison_metajob3	is_ediff_comparison_metajob3
 # The new names contain the old runs: kept whole.
-keep	is_ediff_safe_to_quit
-keep	is_ediff_ancestor_metajob
-keep	is_ediff_collect_diffs_metajob
-keep	is_ediff_merge_metajob
-keep	is_ediff_metajob3
-keep	is_ediff_comparison_metajob3
+name	is_ediff_safe_to_quit	is_fortmacs_diff_safe_to_quit
+name	is_ediff_ancestor_metajob	is_fortmacs_diff_ancestor_metajob
+name	is_ediff_collect_diffs_metajob	is_fortmacs_diff_collect_diffs_metajob
+name	is_ediff_merge_metajob	is_fortmacs_diff_merge_metajob
+name	is_ediff_metajob3	is_fortmacs_diff_metajob3
+name	is_ediff_comparison_metajob3	is_fortmacs_diff_comparison_metajob3
 # The meta-action commands take execute_, the verb for running something
 # (R6-40, CLAUDE.md "One word per meaning"; as run_action is execute_action).
 name	ediff_filegroup_action	execute_ediff_filegroup_action
 name	ediff_registry_action	execute_ediff_registry_action
-keep	execute_ediff_filegroup_action
-keep	execute_ediff_registry_action
+name	execute_ediff_filegroup_action	execute_fortmacs_diff_filegroup_action
+name	execute_ediff_registry_action	execute_fortmacs_diff_registry_action
 # ediff-same-contents and ediff-same-file-contents ask (y-or-n) and can
 # fail, so they are subroutines with a logical result: compare_.
 name	ediff_same_contents	compare_ediff_contents
 name	ediff_same_file_contents	compare_ediff_file_contents
 # Hooks keep their names (hooks, not the commands quit_ediff and
 # show_ediff_registry).
-keep	ediff_quit_session_group_hook
-keep	ediff_show_registry_hook
+name	ediff_quit_session_group_hook	fortmacs_diff_quit_session_group_hook
+name	ediff_show_registry_hook	fortmacs_diff_show_registry_hook
 # Owner rule (CLAUDE.md, #287): no abbreviations in any name, Emacs's own
 # included: dir is directory, pos is position, info is information.
 name	ediff_last_merge_autostore_dir	ediff_last_merge_autostore_directory
-keep	ediff_last_merge_autostore_directory
+name	ediff_last_merge_autostore_directory	fortmacs_diff_last_merge_autostore_directory
 name	ediff_dir_diffs_buffer_map	ediff_directory_diffs_buffer_map

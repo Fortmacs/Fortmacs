@@ -29,12 +29,13 @@ module test_buffer_menu_mod
     use buffer_mod, only: buffers, current_buffer, set_buffer, close_buffer, get_or_make_buffer, get_buffer, &
                           is_buffer_live, rename_buffer, restore_buffer_modified
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point_min, pos_bol, pos_eol, buffer_substring
+    use editing_functions_mod, only: goto_character, point_minimum, position_beginning_of_line, position_end_of_line, &
+                                     buffer_substring
     use editing_commands_mod, only: beginning_of_line
     use search_mod, only: search_forward
-    use files_mod, only: create_temp_file, delete_file, find_file_noselect
+    use files_mod, only: create_temporary_file, delete_file, find_file_noselect
     use window_mod, only: switch_to_buffer
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use tabulated_list_mod, only: tabulated_list_entry_type
     use buffer_menu_mod, only: list_buffers, list_buffers_noselect, buffer_menu_buffer, buffer_menu_delete, &
                                buffer_menu_execute, buffer_menu_save, buffer_menu_mark, buffer_menu_unmark_all, &
@@ -79,12 +80,12 @@ contains
     subroutine goto_entry(name, found)
         character(len=*), intent(in) :: name
         logical, intent(out) :: found
-        integer(int64) :: pos
+        integer(int64) :: position
         type(status_type) :: st
 
-        call goto_char(point_min())
-        call search_forward(" "//name//" ", pos, st, noerror=1)
-        found = st%ok() .and. pos /= 0
+        call goto_character(point_minimum())
+        call search_forward(" "//name//" ", position, st, noerror=1)
+        found = st%ok() .and. position /= 0
         if (found) call beginning_of_line()
     end subroutine goto_entry
 
@@ -92,7 +93,7 @@ contains
         character(len=:), allocatable :: line
         type(status_type) :: st
 
-        call buffer_substring(pos_bol(), pos_eol(), line, st)
+        call buffer_substring(position_beginning_of_line(), position_end_of_line(), line, st)
     end function current_line
 
     !> Test for https://debbugs.gnu.org/24962 .
@@ -102,9 +103,9 @@ contains
         type(handle_type) :: buffer, old, list, b
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         old = current_buffer()
-        call create_temp_file("foo", file, st)
+        call create_temporary_file("foo", file, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call find_file_noselect(file, buffer, st)
@@ -119,7 +120,7 @@ contains
         if (.not. allocated(error)) then
             list = get_buffer("*Buffer List*")
             call set_buffer(list, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             b = buffer_menu_buffer(st)
             call check(error, b%index /= 0, "no buffer on the first line")
             if (.not. allocated(error)) call check(error, buffers(b%index)%name == " foo", buffers(b%index)%name)
@@ -139,7 +140,7 @@ contains
         character(len=:), allocatable :: line
         logical :: found
 
-        call init_bindings()
+        call initialize_bindings()
         old = current_buffer()
         a = make_buffer("bm-alpha", "12345")
         internal = make_buffer(" bm-internal", "")
@@ -187,7 +188,7 @@ contains
         type(status_type) :: st
         logical :: found
 
-        call init_bindings()
+        call initialize_bindings()
         old = current_buffer()
         a = make_buffer("bm-beta", "text")
         call list_buffers_noselect(list, st)
@@ -239,7 +240,7 @@ contains
         type(status_type) :: st
         logical :: found
 
-        call init_bindings()
+        call initialize_bindings()
         old = current_buffer()
         a = make_buffer("bm-gamma", "")
         b = make_buffer("bm-delta", "")
@@ -277,7 +278,7 @@ contains
         type(status_type) :: st
         logical :: found
 
-        call init_bindings()
+        call initialize_bindings()
         old = current_buffer()
         internal = make_buffer(" bm-hidden", "")
         call list_buffers_noselect(list, st)
@@ -301,23 +302,23 @@ contains
         type(tabulated_list_entry_type) :: a, b
         integer :: k
 
-        allocate (a%cols(7), b%cols(7))
+        allocate (a%columns(7), b%columns(7))
 
         do k = 1, 7
-            a%cols(k)%text = ""
-            a%cols(k)%face = ""
-            b%cols(k)%text = ""
-            b%cols(k)%face = ""
+            a%columns(k)%text = ""
+            a%columns(k)%face = ""
+            b%columns(k)%text = ""
+            b%columns(k)%face = ""
         end do
 
-        a%cols(5)%text = "120"
-        b%cols(5)%text = "9"
+        a%columns(5)%text = "120"
+        b%columns(5)%text = "9"
         call check(error, tabulated_list_entry_size_greater(a, b), "120 > 9")
         if (allocated(error)) return
         call check(error,.not. tabulated_list_entry_size_greater(b, a), "9 > 120")
         if (allocated(error)) return
-        a%cols(5)%text = "1.5k"
-        b%cols(5)%text = "900"
+        a%columns(5)%text = "1.5k"
+        b%columns(5)%text = "900"
         call check(error,.not. tabulated_list_entry_size_greater(a, b), "1.5k > 900 (string-to-number)")
     end subroutine test_size_test
 end module test_buffer_menu_mod

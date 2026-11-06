@@ -24,9 +24,9 @@
 module test_directory_editor_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, format_error, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, list_length, list_elements, xstring, list_elt
+    use value_mod, only: value_type, list_length, list_elements, xstring, list_element
     use buffer_mod, only: get_or_make_buffer, set_buffer, erase_buffer
     use file_input_output_mod, only: write_region, delete_file_internal, delete_directory_internal, &
                                      create_directory_internal
@@ -107,11 +107,11 @@ contains
             call directory_files(testdir, files, st, nosort=.true.)
             call check(error, list_length(files) == 6 .and. list_length(one) == 1, "nosort")
             if (allocated(error)) exit body
-            call check(error, xstring(list_elt(files, 6_int64)) == xstring(list_elt(one, 1_int64)), "reversed")
+            call check(error, xstring(list_element(files, 6_int64)) == xstring(list_element(one, 1_int64)), "reversed")
             if (allocated(error)) exit body
             ! A negative COUNT is an error.
             call directory_files(testdir, files, st, count=-1_int64)
-            call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "expected integer (>= 0)")
+            call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "expected integer (>= 0)")
             if (allocated(error)) exit body
             call directory_files(testdir//"/missing", files, st)
             call check(error, format_error(st), "Opening directory: No such file or directory, "// &

@@ -30,8 +30,9 @@ module test_case_table_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
-    use character_table_mod, only: make_char_table, char_table_ref, char_table_set, char_table_extra_table, &
-                                   set_char_table_extra_table, copy_char_table, destroy_char_table
+    use character_table_mod, only: make_character_table, character_table_reference, character_table_set, &
+                                   character_table_extra_table, set_character_table_extra_table, copy_character_table, &
+                                   destroy_character_table
     use case_table_mod, only: downcase, upcase, case_canon, is_uppercase, is_lowercase, is_case_table, current_case_table, &
                               standard_case_table, set_case_table
     use unicode_case_mod, only: canon_count, canon_keys, canon_values
@@ -48,7 +49,7 @@ contains
 
         testsuite = [ &
                     new_unittest("casefiddle-tests-case-table", test_case_table), &
-                    new_unittest("casefiddle-tests-char-casing", test_char_casing), &
+                    new_unittest("casefiddle-tests-char-casing", test_character_casing), &
                     new_unittest("case-canon", test_canon), &
                     new_unittest("case-canon-standard-table", test_canon_table), &
                     new_unittest("case-table-p", test_is_case_table), &
@@ -70,17 +71,17 @@ contains
         type(status_type) :: st
 
         down = current_case_table()
-        up = char_table_extra_table(down, 0, st)
+        up = character_table_extra_table(down, 0, st)
 
         do k = 1, size(tests, 2)
-            call check(error, char_table_ref(up, tests(1, k)) == tests(2, k), "uppercase")
+            call check(error, character_table_reference(up, tests(1, k)) == tests(2, k), "uppercase")
             if (allocated(error)) return
-            call check(error, char_table_ref(down, tests(1, k)) == tests(3, k), "lowercase")
+            call check(error, character_table_reference(down, tests(1, k)) == tests(3, k), "lowercase")
             if (allocated(error)) return
         end do
     end subroutine test_case_table
 
-    subroutine test_char_casing(error)
+    subroutine test_character_casing(error)
         type(error_type), allocatable, intent(out) :: error
         ! input, upcase, downcase.  We char-upcase ß to ẞ; see bug #11309.
         integer(int32), parameter :: tests(3, 11) = reshape([ &
@@ -95,7 +96,7 @@ contains
             call check(error, upcase(tests(1, k)) == tests(2, k) .and. downcase(tests(1, k)) == tests(3, k))
             if (allocated(error)) return
         end do
-    end subroutine test_char_casing
+    end subroutine test_character_casing
 
     subroutine test_canon(error)
         type(error_type), allocatable, intent(out) :: error
@@ -122,7 +123,7 @@ contains
         integer :: c, k, expected
 
         down = standard_case_table()
-        canon = char_table_extra_table(down, 1, st)
+        canon = character_table_extra_table(down, 1, st)
         k = 1
 
         do c = 128, int(z'1FFFF')
@@ -135,7 +136,7 @@ contains
                 end if
             end if
 
-            v = char_table_ref(canon, c)
+            v = character_table_reference(canon, c)
             if (v < 0) v = c
             call check(error, v == expected .and. case_canon(c) == expected, "canon")
             if (allocated(error)) return
@@ -149,17 +150,17 @@ contains
 
         call check(error, is_case_table(standard_case_table()))
         if (allocated(error)) return
-        call make_char_table(tbl, "case_table", st)
+        call make_character_table(tbl, "case_table", st)
         call check(error, is_case_table(tbl))
         if (allocated(error)) return
-        call make_char_table(other, "foo", st)
+        call make_character_table(other, "foo", st)
         call check(error,.not. is_case_table(other))
         if (allocated(error)) return
         ! An EQUIVALENCES table without a CANONICALIZE table.
-        call set_char_table_extra_table(tbl, 2, other, st)
+        call set_character_table_extra_table(tbl, 2, other, st)
         call check(error,.not. is_case_table(tbl))
-        call destroy_char_table(other, st)
-        call destroy_char_table(tbl, st)
+        call destroy_character_table(other, st)
+        call destroy_character_table(tbl, st)
     end subroutine test_is_case_table
 
     subroutine test_set_case_table(error)
@@ -170,9 +171,9 @@ contains
         call get_or_make_buffer(" *casetab-test*", h, st)
         call set_buffer(h, st)
         ! A table where a and b are one case pair (b is a's upper case).
-        call make_char_table(tbl, "case_table", st)
-        call char_table_set(tbl, iachar("a"), int(iachar("a"), int64), st)
-        call char_table_set(tbl, iachar("b"), int(iachar("a"), int64), st)
+        call make_character_table(tbl, "case_table", st)
+        call character_table_set(tbl, iachar("a"), int(iachar("a"), int64), st)
+        call character_table_set(tbl, iachar("b"), int(iachar("a"), int64), st)
         call set_case_table(tbl, st)
         call check(error, st%ok())
         if (allocated(error)) return

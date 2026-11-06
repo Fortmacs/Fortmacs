@@ -42,14 +42,14 @@ module test_minibuffer_mod
                                       completion_ignore_case
     use minibuffer_mod, only: completion_try_completion, completion_all_completions, try_result_type, TRY_STRING, &
                               TRY_NONE, completion_styles, internal_complete_buffer, completion_at_point_functions
-    use minibuffer_reading_tables_mod, only: capf_data_type
+    use minibuffer_reading_tables_mod, only: completion_at_point_function_data_type
     use test_support_mod, only: show_alone
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, command_loop
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use buffer_mod, only: set_buffer, buffers, current
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point, goto_char
+    use editing_functions_mod, only: buffer_string, point, goto_character
     use modes_mod, only: minor_modes
     use window_mod, only: get_buffer_window, is_window_live
     use buffer_mod, only: get_buffer
@@ -65,16 +65,16 @@ contains
         type(unittest_type), allocatable, intent(out) :: testsuite(:)
 
         testsuite = [ &
-                    new_unittest("completion-test--pcm-bug38458", test_pcm_bug38458), &
-                    new_unittest("completion-pcm-test-1", test_pcm_1), &
-                    new_unittest("completion-pcm-test-2", test_pcm_2), &
-                    new_unittest("completion-pcm-test-3", test_pcm_3), &
-                    new_unittest("completion-pcm-test-4", test_pcm_4), &
-                    new_unittest("completion-pcm-test-6", test_pcm_6), &
-                    new_unittest("completion-pcm-test-7", test_pcm_7), &
-                    new_unittest("completion-pcm-test-8", test_pcm_8), &
-                    new_unittest("completion-pcm-test-anydelim", test_pcm_anydelim), &
-                    new_unittest("completion-pcm-bug4219", test_pcm_bug4219), &
+                    new_unittest("completion-test--pcm-bug38458", test_partial_completion_mode_bug38458), &
+                    new_unittest("completion-pcm-test-1", test_partial_completion_mode_1), &
+                    new_unittest("completion-pcm-test-2", test_partial_completion_mode_2), &
+                    new_unittest("completion-pcm-test-3", test_partial_completion_mode_3), &
+                    new_unittest("completion-pcm-test-4", test_partial_completion_mode_4), &
+                    new_unittest("completion-pcm-test-6", test_partial_completion_mode_6), &
+                    new_unittest("completion-pcm-test-7", test_partial_completion_mode_7), &
+                    new_unittest("completion-pcm-test-8", test_partial_completion_mode_8), &
+                    new_unittest("completion-pcm-test-anydelim", test_partial_completion_mode_anydelim), &
+                    new_unittest("completion-pcm-bug4219", test_partial_completion_mode_bug4219), &
                     new_unittest("completion-substring-test-1", test_substring_1), &
                     new_unittest("completion-substring-test-2", test_substring_2), &
                     new_unittest("completion-substring-test-3", test_substring_3), &
@@ -85,7 +85,7 @@ contains
                     new_unittest("default-styles-pcm", test_default_styles), &
                     new_unittest("buffer-category-substring", test_buffer_category), &
                     new_unittest("completion-at-point", test_completion_at_point), &
-                    new_unittest("completion-at-point-non-exclusive", test_capf_non_exclusive) &
+                    new_unittest("completion-at-point-non-exclusive", test_completion_at_point_function_non_exclusive) &
                     ]
     end subroutine collect_minibuffer_mod
 
@@ -93,16 +93,16 @@ contains
     function table_of(names) result(table)
         character(len=*), intent(in) :: names(:)
         type(completion_table_type) :: table
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        allocate (elts(size(names)))
+        allocate (elements(size(names)))
 
         do k = 1, size(names)
-            elts(k) = value_type(text=trim(names(k)))
+            elements(k) = value_type(text=trim(names(k)))
         end do
 
-        table = completion_list_table(make_list(elts))
+        table = completion_list_table(make_list(elements))
     end function table_of
 
     !> STYLE's try-completion of STRING with point at POINT over NAMES.
@@ -135,7 +135,7 @@ contains
         character(len=:), allocatable, intent(out) :: first
         character(len=24), allocatable :: saved(:)
         type(value_type) :: all
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer(int64) :: base_size
 
         call completion_all_defaults()
@@ -143,10 +143,10 @@ contains
         completion_styles = [character(len=24) :: style]
         call completion_all_completions(string, table_of(names), point, all, base_size)
         completion_styles = saved
-        call list_elements(all, elts)
-        n = size(elts)
+        call list_elements(all, elements)
+        n = size(elements)
         first = ""
-        if (n > 0) first = xstring(elts(1))
+        if (n > 0) first = xstring(elements(1))
     end subroutine style_all
 
     !> Make sure `completion_styles' has its default.
@@ -174,15 +174,15 @@ contains
         call check(error, res%point == point, what//": point")
     end subroutine check_try
 
-    subroutine test_pcm_bug38458(error)
+    subroutine test_partial_completion_mode_bug38458(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
         call style_try("partial-completion", "tes", [character(len=7) :: "Testing", "testing"], 3_int64, res, .true.)
         call check_try(error, res, "testing", 7_int64, "tes")
-    end subroutine test_pcm_bug38458
+    end subroutine test_partial_completion_mode_bug38458
 
-    subroutine test_pcm_1(error)
+    subroutine test_partial_completion_mode_1(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
@@ -191,9 +191,9 @@ contains
         call style_all("partial-completion", "foo", [character(len=9) :: "hello", "world", "barfoobar"], 3_int64, &
                        n, first)
         call check(error, n == 0, "no match")
-    end subroutine test_pcm_1
+    end subroutine test_partial_completion_mode_1
 
-    subroutine test_pcm_2(error)
+    subroutine test_partial_completion_mode_2(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
@@ -202,18 +202,18 @@ contains
         call style_all("partial-completion", "foo", [character(len=9) :: "hello", "world", "barfoobar"], 0_int64, &
                        n, first)
         call check(error, first == "barfoobar", "got "//first)
-    end subroutine test_pcm_2
+    end subroutine test_partial_completion_mode_2
 
-    subroutine test_pcm_3(error)
+    subroutine test_partial_completion_mode_3(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
 
         call style_all("partial-completion", "R", [character(len=5) :: "R", "hello"], 1_int64, n, first)
         call check(error, n > 0, "a match")
-    end subroutine test_pcm_3
+    end subroutine test_partial_completion_mode_3
 
-    subroutine test_pcm_4(error)
+    subroutine test_partial_completion_mode_4(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
@@ -221,9 +221,9 @@ contains
         ! No match due to point being at the end.
         call style_all("partial-completion", "RO", [character(len=4) :: "RaOb"], 2_int64, n, first)
         call check(error, n == 0, "no match")
-    end subroutine test_pcm_4
+    end subroutine test_partial_completion_mode_4
 
-    subroutine test_pcm_6(error)
+    subroutine test_partial_completion_mode_6(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: first
         integer :: n
@@ -235,9 +235,9 @@ contains
         call style_all("partial-completion", "li-pac*", [character(len=20) :: "do-not-list-packages"], 7_int64, &
                        n, first)
         call check(error, n == 0, "anchored")
-    end subroutine test_pcm_6
+    end subroutine test_partial_completion_mode_6
 
-    subroutine test_pcm_7(error)
+    subroutine test_partial_completion_mode_7(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
@@ -249,9 +249,9 @@ contains
         call style_try("partial-completion", "*/minibuf", [character(len=18) :: "lisp/minibuffer.el", "src/minibuf.c"], &
                        9_int64, res)
         call check_try(error, res, "*/minibuf", 9_int64, "*/minibuf")
-    end subroutine test_pcm_7
+    end subroutine test_partial_completion_mode_7
 
-    subroutine test_pcm_8(error)
+    subroutine test_partial_completion_mode_8(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
@@ -262,9 +262,9 @@ contains
         ! Even if point is at the end of the minibuffer.
         call style_try("partial-completion", "", [character(len=7) :: "fooxbar", "fooybar"], 0_int64, res)
         call check_try(error, res, "foobar", 3_int64, "empty")
-    end subroutine test_pcm_8
+    end subroutine test_partial_completion_mode_8
 
-    subroutine test_pcm_anydelim(error)
+    subroutine test_partial_completion_mode_anydelim(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
@@ -272,9 +272,9 @@ contains
         ! sequence of delimiters.
         call style_try("partial-completion", "-x", [character(len=4) :: "-_.x", "-__x"], 2_int64, res)
         call check_try(error, res, "-_x", 3_int64, "-x")
-    end subroutine test_pcm_anydelim
+    end subroutine test_partial_completion_mode_anydelim
 
-    subroutine test_pcm_bug4219(error)
+    subroutine test_partial_completion_mode_bug4219(error)
         type(error_type), allocatable, intent(out) :: error
         type(try_result_type) :: res
 
@@ -300,7 +300,7 @@ contains
         ! case.
         call style_try("partial-completion", "Ab", [character(len=3) :: "abc", "ABD"], 1_int64, res, .true.)
         call check_try(error, res, "Ab", 2_int64, "Ab mixed")
-    end subroutine test_pcm_bug4219
+    end subroutine test_partial_completion_mode_bug4219
 
     subroutine test_substring_1(error)
         type(error_type), allocatable, intent(out) :: error
@@ -405,8 +405,8 @@ contains
 
     !> A completion-at-point function completing the letters and digits
     !> before point from foo1, foo2 and bar.
-    recursive subroutine test_capf(data, status)
-        type(capf_data_type), intent(out) :: data
+    recursive subroutine test_completion_at_point_function(data, status)
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
         integer(int64) :: start
@@ -424,18 +424,18 @@ contains
         data%start = start
         data%end = point()
         data%table = table_of([character(len=4) :: "foo1", "foo2", "bar"])
-    end subroutine test_capf
+    end subroutine test_completion_at_point_function
 
     !> A non-exclusive completion-at-point function offering zzz.
-    recursive subroutine test_capf_zzz(data, status)
-        type(capf_data_type), intent(out) :: data
+    recursive subroutine test_completion_at_point_function_zzz(data, status)
+        type(completion_at_point_function_data_type), intent(out) :: data
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call test_capf(data, status)
+        call test_completion_at_point_function(data, status)
         data%table = table_of([character(len=3) :: "zzz"])
         data%exclusive = .false.
-    end subroutine test_capf_zzz
+    end subroutine test_completion_at_point_function_zzz
 
     subroutine type_keys(keys)
         character(len=*), intent(in) :: keys
@@ -446,18 +446,18 @@ contains
         call unread_command_events(evs)
     end subroutine type_keys
 
-    subroutine capf_buffer(buffer, text)
+    subroutine completion_at_point_function_buffer(buffer, text)
         type(handle_type), intent(out) :: buffer
         character(len=*), intent(in) :: text
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("capf-test", buffer, st)
         call set_buffer(buffer, st)
         call show_alone()
         call insert(text, st)
-    end subroutine capf_buffer
+    end subroutine completion_at_point_function_buffer
 
     !> C-M-i completes the text before point, then shows *Completions*
     !> in completion-in-region-mode, which ends once point leaves the
@@ -467,8 +467,8 @@ contains
         type(handle_type) :: buffer, comp
         type(status_type) :: st
 
-        call capf_buffer(buffer, "x fo")
-        call completion_at_point_functions%prepend(test_capf, local=.true.)
+        call completion_at_point_function_buffer(buffer, "x fo")
+        call completion_at_point_functions%prepend(test_completion_at_point_function, local=.true.)
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x foo", buffer_string())
@@ -493,14 +493,14 @@ contains
 
     !> A non-exclusive function whose table does not match lets the next
     !> one complete.
-    subroutine test_capf_non_exclusive(error)
+    subroutine test_completion_at_point_function_non_exclusive(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call capf_buffer(buffer, "x b")
-        call completion_at_point_functions%prepend(test_capf, local=.true.)
-        call completion_at_point_functions%prepend(test_capf_zzz, local=.true.)
+        call completion_at_point_function_buffer(buffer, "x b")
+        call completion_at_point_functions%prepend(test_completion_at_point_function, local=.true.)
+        call completion_at_point_functions%prepend(test_completion_at_point_function_zzz, local=.true.)
         call type_keys("C-M-i")
         call command_loop(st)
         call check(error, buffer_string() == "x bar", buffer_string())
@@ -521,5 +521,5 @@ contains
 
             call erase_buffer(st2)
         end subroutine erase_all
-    end subroutine test_capf_non_exclusive
+    end subroutine test_completion_at_point_function_non_exclusive
 end module test_minibuffer_mod

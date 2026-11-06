@@ -14,7 +14,7 @@ src/ansi_color_mod.f90	get-by-name	1
 src/ansi_color_mod.f90	name-value	10
 src/ansi_color_mod.f90	set-by-name	2
 src/apropos_print_mod.f90	name-value	1
-src/auth_source_mod.f90	name-value	3
+src/authentication_source_mod.f90	name-value	3
 src/autorevert_mod.f90	get-by-name	1
 src/autorevert_mod.f90	name-value	7
 src/autorevert_mod.f90	set-by-name	2
@@ -56,8 +56,8 @@ src/fortmacs_widget_for_object_collections_mod.f90	set-by-name	6
 src/f90_mod.f90	name-value	2
 src/faces_mod.f90	name-dispatch	2
 src/file_input_output_mod.f90	name-value	1
-src/files_dir_mod.f90	name-value	3
-src/files_dir_mod.f90	set-by-name	2
+src/files_directory_mod.f90	name-value	3
+src/files_directory_mod.f90	set-by-name	2
 src/files_mod.f90	name-value	7
 src/files_read_mod.f90	name-value	3
 src/fill_mod.f90	name-dispatch	1

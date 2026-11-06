@@ -6,9 +6,8 @@
 
 ## Ported
 
-`js-mode`,
-`js-base-mode`,
-`javascript-mode` and `js-json-mode` (the syntax table, `js-syntax-propertize` for regexp literals and `#!`, `js-font-lock-syntactic-face-function` with doc comments, the three Font Lock levels with `cpp-font-lock-keywords`, the class declarations of `js-enabled-frameworks` through `js--class-decl-matcher` (and the parent class trick), the Dojo matchers, `js--variable-decl-matcher` with destructuring, formal parameters),
+`js-mode` with its alias `javascript-mode` (one command, `javascript_mode`: the alias's name is the mode's spelled-out name),
+`js-base-mode` and `js-json-mode` (the syntax table, `js-syntax-propertize` for regexp literals and `#!`, `js-font-lock-syntactic-face-function` with doc comments, the three Font Lock levels with `cpp-font-lock-keywords`, the class declarations of `js-enabled-frameworks` through `js--class-decl-matcher` (and the parent class trick), the Dojo matchers, `js--variable-decl-matcher` with destructuring, formal parameters),
 the parse cache (`js--ensure-cache` with its pitems in `js--pstate`/`js--pend` text properties, `js--flush-caches` in `before-change-functions`, `js--update-quick-match-re`),
 `js-syntactic-context`,
 `js-beginning-of-defun` and `js-end-of-defun` (nested and `js-flat-functions`),

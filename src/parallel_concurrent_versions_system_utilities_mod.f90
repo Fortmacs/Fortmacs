@@ -1,4 +1,4 @@
-! pcvs_utilities_mod.f90 -- utility functions for PCL-CVS.
+! parallel_concurrent_versions_system_utilities_mod.f90 -- utility functions for PCL-CVS.
 ! Ported from GNU Emacs 31.1 lisp/vc/pcvs-util.el.
 !
 ! Copyright (C) 1991-2026 Free Software Foundation, Inc.
@@ -19,31 +19,31 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> What Log Edit mode uses of pcvs-util.el: `cvs_insert_strings'.
+!> What Log Edit mode uses of pcvs-util.el: `concurrent_versions_system_insert_strings'.
 !>
 !> Deferred: the rest of pcvs-util.el (the buffer and string utilities
 !> of PCL-CVS, which is not ported).
-module pcvs_utilities_mod
+module parallel_concurrent_versions_system_utilities_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use error_mod, only: status_type
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: is_bol, delete_region, point
+    use editing_functions_mod, only: is_beginning_of_line, delete_region, point
     use indent_mod, only: current_column
     use display_engine_mod, only: tab_width
-    use frame_mod, only: frame_selected_window_ref
-    use window_mod, only: window_type, window_text_cols
+    use frame_mod, only: frame_selected_window_reference
+    use window_mod, only: window_type, window_text_columns
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
-    public :: cvs_insert_strings
+    public :: concurrent_versions_system_insert_strings
 
 contains
 
     !> Insert a list of STRINGS into the current buffer.
     !> Uses columns to keep the listing readable but compact.  Port of
     !> pcvs-util.el:cvs-insert-strings.
-    subroutine cvs_insert_strings(strings, status)
+    subroutine concurrent_versions_system_insert_strings(strings, status)
         type(string_type), intent(in) :: strings(:)
         type(status_type), intent(out) :: status
         type(window_type), pointer :: w
@@ -57,8 +57,8 @@ contains
             length = max(length, nchars(strings(k)%text))
         end do
 
-        w => frame_selected_window_ref()
-        wwidth = window_text_cols(w) - 1
+        w => frame_selected_window_reference()
+        wwidth = window_text_columns(w) - 1
         ! At least 2 columns; at least 2 spaces between columns.
         ! Don't allocate more columns than we can fill.
         ! Windows can't show less than 3 lines anyway.
@@ -69,7 +69,7 @@ contains
 
         ! The insertion should be "sensible" no matter what choices were made.
         do k = 1, size(strings)
-            if (.not. is_bol()) then
+            if (.not. is_beginning_of_line()) then
                 call insert(" "//achar(9), status)
                 if (.not. status%ok()) return
 
@@ -84,7 +84,7 @@ contains
             call insert(strings(k)%text, status)
             if (.not. status%ok()) return
         end do
-    end subroutine cvs_insert_strings
+    end subroutine concurrent_versions_system_insert_strings
 
     ! The number of characters of the UTF-8 string S (its `length').
     ! Not a port.
@@ -98,4 +98,4 @@ contains
             if (iand(ichar(s(i:i)), 192) /= 128) nchars = nchars + 1
         end do
     end function nchars
-end module pcvs_utilities_mod
+end module parallel_concurrent_versions_system_utilities_mod

@@ -27,7 +27,7 @@
 module test_filenotify_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, condition_matches, FM_WRONG_TYPE_ARGUMENT, FM_FILE_NOTIFY_ERROR
+    use error_mod, only: status_type, format_error, condition_matches, WRONG_TYPE_ARGUMENT_CODE, FILE_NOTIFY_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer, generate_new_buffer_name
@@ -35,7 +35,7 @@ module test_filenotify_mod
     use file_input_output_mod, only: write_region, is_file_directory, file_exists, directory_file_name, create_directory_internal, &
                                      rename_file, copy_file, set_file_modes, set_file_times
     use time_functions_mod, only: time_type
-    use files_mod, only: create_temp_file, delete_file, delete_directory
+    use files_mod, only: create_temporary_file, delete_file, delete_directory
     use keyboard_mod, only: read_event
     use inotify_mod, only: watch_descriptor_type, operator(==)
     use filenotify_mod, only: file_notify_event_type, file_notify_add_watch, file_notify_rm_watch, &
@@ -55,7 +55,7 @@ module test_filenotify_mod
     !> -tmpfile and -tmpfile1).
     character(len=:), allocatable :: tmpdir, tmpfile, tmpfile1
     !> The watch descriptors (file-notify--test-desc, -desc1).
-    type(watch_descriptor_type) :: desc, desc1
+    type(watch_descriptor_type) :: description, desc1
     !> The file the handler's watch is for (file-notify--test-file).
     character(len=:), allocatable :: watched
     !> The actions received (file-notify--test-events), and whether an
@@ -67,7 +67,7 @@ module test_filenotify_mod
     integer :: results(10)
     integer :: nresults = 0
     !> The most actions expected.
-    integer :: max_length = 0
+    integer :: maximum_length = 0
 
     abstract interface
         logical function test_procedure()
@@ -87,7 +87,7 @@ contains
                     new_unittest("file-notify-test02-rm-watch", test02_rm_watch), &
                     new_unittest("file-notify-test03-events", test03_events), &
                     new_unittest("file-notify-test05-file-validity", test05_file_validity), &
-                    new_unittest("file-notify-test06-dir-validity", test06_dir_validity) &
+                    new_unittest("file-notify-test06-dir-validity", test06_directory_validity) &
                     ]
     end subroutine collect_filenotify_mod
 
@@ -100,34 +100,34 @@ contains
         character(len=*), intent(in) :: file, text
         type(handle_type) :: old, h
         type(status_type) :: st
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message_text
 
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *filenotify-test*"), h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call write_region(file, .false., st, message=msg)
+        call write_region(file, .false., st, message=message_text)
         call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_file
 
     !> A temporary file name with PREFIX (made, then deleted).
-    function temp_name(prefix) result(name)
+    function temporary_name(prefix) result(name)
         character(len=*), intent(in) :: prefix
         character(len=:), allocatable :: name
         type(status_type) :: st
 
-        call create_temp_file(prefix, name, st)
+        call create_temporary_file(prefix, name, st)
         call delete_file(name, st)
-    end function temp_name
+    end function temporary_name
 
     !> with-file-notify-test: a fresh directory and a file in it.
     subroutine setup()
         type(status_type) :: st
 
-        tmpdir = temp_name("file-notify-test-parent")
+        tmpdir = temporary_name("file-notify-test-parent")
         call create_directory_internal(tmpdir, st)
-        call create_temp_file(tmpdir//"/file-notify-test", tmpfile, st)
+        call create_temporary_file(tmpdir//"/file-notify-test", tmpfile, st)
         tmpfile1 = ""
         nactions = 0
         nresults = 0
@@ -146,7 +146,7 @@ contains
         end if
 
         if (is_file_directory(tmpdir)) call delete_directory(tmpdir, st, .true.)
-        desc = watch_descriptor_type()
+        description = watch_descriptor_type()
         desc1 = watch_descriptor_type()
     end subroutine cleanup
 
@@ -193,7 +193,7 @@ contains
 
         status = status_type()
         file = directory_file_name(watched)
-        if (event%action /= STOPPED .and. .not. (event%descriptor == desc)) bad_event = "descriptor"
+        if (event%action /= STOPPED .and. .not. (event%descriptor == description)) bad_event = "descriptor"
         if (index(event%file, file) /= 1) bad_event = "file "//event%file
 
         if (event%action == RENAMED) then
@@ -241,7 +241,7 @@ contains
     end subroutine start_actions
 
     logical function actions_done()
-        actions_done = nactions >= max_length .or. any(actions(1:nactions) == STOPPED)
+        actions_done = nactions >= maximum_length .or. any(actions(1:nactions) == STOPPED)
     end function actions_done
 
     !> Wait for the actions and check them against EXPECTED (and
@@ -253,8 +253,8 @@ contains
         logical :: ok
         character(len=200) :: got
 
-        max_length = size(expected)
-        if (present(alternative)) max_length = max(max_length, size(alternative))
+        maximum_length = size(expected)
+        if (present(alternative)) maximum_length = max(maximum_length, size(alternative))
         call wait_for_events(3.0, actions_done)
 
         if (allocated(bad_event)) then
@@ -287,9 +287,9 @@ contains
         type(status_type) :: st
 
         call setup()
-        call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
+        call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, description, st)
         call check(error, st%ok(), format_error(st))
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
     end subroutine test00_availability
@@ -305,32 +305,32 @@ contains
 
         body: block
             ! Check, that different valid parameters are accepted.
-            call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
+            call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, description, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call file_notify_rm_watch(desc)
-            call file_notify_add_watch(tmpdir, FILE_NOTIFY_ATTRIBUTE_CHANGE, ignore, desc, st)
+            call file_notify_rm_watch(description)
+            call file_notify_add_watch(tmpdir, FILE_NOTIFY_ATTRIBUTE_CHANGE, ignore, description, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call file_notify_rm_watch(desc)
-            call file_notify_add_watch(tmpdir, ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE), ignore, desc, st)
+            call file_notify_rm_watch(description)
+            call file_notify_add_watch(tmpdir, ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE), ignore, description, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call file_notify_rm_watch(desc)
-            call file_notify_add_watch(tmpfile, ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE), ignore, desc, st)
+            call file_notify_rm_watch(description)
+            call file_notify_add_watch(tmpfile, ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE), ignore, description, st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call file_notify_rm_watch(desc)
+            call file_notify_rm_watch(description)
             ! Check error handling.
-            call file_notify_add_watch(tmpdir, 0, ignore, desc, st)
-            call check(error, condition_matches(st%code, FM_WRONG_TYPE_ARGUMENT), "flags 0")
+            call file_notify_add_watch(tmpdir, 0, ignore, description, st)
+            call check(error, condition_matches(st%code, WRONG_TYPE_ARGUMENT_CODE), "flags 0")
             if (allocated(error)) exit body
-            call file_notify_add_watch(tmpdir, 8, ignore, desc, st)
-            call check(error, condition_matches(st%code, FM_WRONG_TYPE_ARGUMENT), "flags 8")
+            call file_notify_add_watch(tmpdir, 8, ignore, description, st)
+            call check(error, condition_matches(st%code, WRONG_TYPE_ARGUMENT_CODE), "flags 8")
             if (allocated(error)) exit body
             ! The upper directory of a file must exist.
-            call file_notify_add_watch(tmpfile1, ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE), ignore, desc, st)
-            call check(error, st%code == FM_FILE_NOTIFY_ERROR, format_error(st))
+            call file_notify_add_watch(tmpfile1, ior(FILE_NOTIFY_CHANGE, FILE_NOTIFY_ATTRIBUTE_CHANGE), ignore, description, st)
+            call check(error, st%code == FILE_NOTIFY_ERROR_CODE, format_error(st))
             if (allocated(error)) exit body
             call check(error, format_error(st), "Directory does not exist: "//tmpfile)
             if (allocated(error)) exit body
@@ -376,9 +376,9 @@ contains
 
         ! Check, that `file_notify_rm_watch' works.
         call setup()
-        call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
+        call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, description, st)
         call check(error, st%ok(), format_error(st))
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         ! Check, that any parameter is accepted.
         call file_notify_rm_watch(watch_descriptor_type())
         if (.not. allocated(error)) call check_cleanup(error)
@@ -386,15 +386,15 @@ contains
         if (allocated(error)) return
         ! Check, that no error is returned removing a watch descriptor twice.
         call setup()
-        tmpfile1 = temp_name(tmpdir//"/file-notify-test")
+        tmpfile1 = temporary_name(tmpdir//"/file-notify-test")
         call write_file(tmpfile, "any text")
         call write_file(tmpfile1, "any text")
-        call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, ignore, desc, st)
+        call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, ignore, description, st)
         call check(error, st%ok(), format_error(st))
         call file_notify_add_watch(tmpfile1, FILE_NOTIFY_CHANGE, ignore, desc1, st)
         if (.not. allocated(error)) call check(error, st%ok(), format_error(st))
-        call file_notify_rm_watch(desc)
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
+        call file_notify_rm_watch(description)
         call file_notify_rm_watch(desc1)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
@@ -402,12 +402,12 @@ contains
         ! Check, that removing watch descriptors out of order do not harm.
         call setup()
         call write_file(tmpfile, "any text")
-        call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, first_callback, desc, st)
+        call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, first_callback, description, st)
         call check(error, st%ok(), format_error(st))
         call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, second_callback, desc1, st)
         if (.not. allocated(error)) call check(error, st%ok(), format_error(st))
         ! Remove first watch.
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         ! Only the second callback shall run.
         call wait_event()
         call delete_file(tmpfile, st)
@@ -419,10 +419,10 @@ contains
         if (allocated(error)) return
         ! Check `file_notify_rm_all_watches'.
         call setup()
-        tmpfile1 = temp_name(tmpdir//"/file-notify-test")
+        tmpfile1 = temporary_name(tmpdir//"/file-notify-test")
         call write_file(tmpfile, "any text")
         call write_file(tmpfile1, "any text")
-        call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, ignore, desc, st)
+        call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, ignore, description, st)
         call file_notify_add_watch(tmpfile1, FILE_NOTIFY_CHANGE, ignore, desc1, st)
         call file_notify_rm_all_watches()
         call check_cleanup(error)
@@ -437,27 +437,27 @@ contains
         ! Check file creation, change and deletion.
         call setup()
         call delete_file(tmpfile, st)
-        call add_watch(tmpfile, FILE_NOTIFY_CHANGE, desc)
+        call add_watch(tmpfile, FILE_NOTIFY_CHANGE, description)
         call start_actions()
         call write_file(tmpfile, "another text")
         call wait_event()
         call delete_file(tmpfile, st)
         call check_actions(error, [CREATED, CHANGED, DELETED, STOPPED])
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         ! Check file change and deletion.
         call setup()
         call write_file(tmpfile, "any text")
-        call add_watch(tmpfile, FILE_NOTIFY_CHANGE, desc)
+        call add_watch(tmpfile, FILE_NOTIFY_CHANGE, description)
         call start_actions()
         call write_file(tmpfile, "another text")
         call wait_event()
         call delete_file(tmpfile, st)
         ! There could be one or two `changed' events.
         call check_actions(error, [CHANGED, DELETED, STOPPED], [CHANGED, CHANGED, DELETED, STOPPED])
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
@@ -466,21 +466,21 @@ contains
         ! directory.
         call setup()
         call delete_file(tmpfile, st)
-        call add_watch(tmpdir, FILE_NOTIFY_CHANGE, desc)
+        call add_watch(tmpdir, FILE_NOTIFY_CHANGE, description)
         call start_actions()
         call write_file(tmpfile, "any text")
         call wait_event()
         call delete_directory(tmpdir, st, .true.)
         call check_actions(error, [CREATED, CHANGED, DELETED, DELETED, STOPPED])
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         ! Check copy of files inside a directory.
         call setup()
-        tmpfile1 = temp_name(tmpdir//"/file-notify-test")
+        tmpfile1 = temporary_name(tmpdir//"/file-notify-test")
         call delete_file(tmpfile, st)
-        call add_watch(tmpdir, FILE_NOTIFY_CHANGE, desc)
+        call add_watch(tmpdir, FILE_NOTIFY_CHANGE, description)
         call start_actions()
         call write_file(tmpfile, "any text")
         call wait_event()
@@ -493,16 +493,16 @@ contains
         call wait_event()
         call delete_directory(tmpdir, st, .true.)
         call check_actions(error, [CREATED, CHANGED, CREATED, CHANGED, DELETED, DELETED, DELETED, STOPPED])
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         ! Check rename of files inside a directory.
         call setup()
         call delete_file(tmpfile, st)
-        tmpfile = temp_name(tmpdir//"/file-notify-test")
-        tmpfile1 = temp_name(tmpdir//"/file-notify-test")
-        call add_watch(tmpdir, FILE_NOTIFY_CHANGE, desc)
+        tmpfile = temporary_name(tmpdir//"/file-notify-test")
+        tmpfile1 = temporary_name(tmpdir//"/file-notify-test")
+        call add_watch(tmpdir, FILE_NOTIFY_CHANGE, description)
         call start_actions()
         call write_file(tmpfile, "any text")
         call wait_event()
@@ -511,14 +511,14 @@ contains
         call wait_event()
         call delete_directory(tmpdir, st, .true.)
         call check_actions(error, [CREATED, CHANGED, RENAMED, DELETED, DELETED, STOPPED])
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         ! Check attribute change.
         call setup()
         call write_file(tmpfile, "any text")
-        call add_watch(tmpfile, FILE_NOTIFY_ATTRIBUTE_CHANGE, desc)
+        call add_watch(tmpfile, FILE_NOTIFY_ATTRIBUTE_CHANGE, description)
         call start_actions()
         call write_file(tmpfile, "any text")
         call wait_event()
@@ -528,14 +528,14 @@ contains
         call wait_event()
         call delete_file(tmpfile, st)
         call check_actions(error, [ATTRIBUTE_CHANGED, ATTRIBUTE_CHANGED])
-        call file_notify_rm_watch(desc)
+        call file_notify_rm_watch(description)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
     end subroutine test03_events
 
-    logical function desc_invalid()
-        desc_invalid = .not. is_file_notify_valid(desc)
-    end function desc_invalid
+    logical function description_invalid()
+        description_invalid = .not. is_file_notify_valid(description)
+    end function description_invalid
 
     !> Check `is_file_notify_valid' for files.
     subroutine test05_file_validity(error)
@@ -544,19 +544,19 @@ contains
 
         call setup()
         call write_file(tmpfile, "any text")
-        call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, ignore, desc, st)
-        call check(error, is_file_notify_valid(desc), "valid")
+        call file_notify_add_watch(tmpfile, FILE_NOTIFY_CHANGE, ignore, description, st)
+        call check(error, is_file_notify_valid(description), "valid")
         ! After calling `file_notify_rm_watch', the descriptor is not valid
         ! anymore.
-        call file_notify_rm_watch(desc)
-        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after rm")
+        call file_notify_rm_watch(description)
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(description), "invalid after rm")
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         call setup()
         call write_file(tmpfile, "any text")
-        call add_watch(tmpfile, FILE_NOTIFY_CHANGE, desc)
-        call check(error, is_file_notify_valid(desc), "valid")
+        call add_watch(tmpfile, FILE_NOTIFY_CHANGE, description)
+        call check(error, is_file_notify_valid(description), "valid")
 
         if (allocated(error)) then
             call cleanup()
@@ -570,15 +570,15 @@ contains
         call check_actions(error, [CHANGED, DELETED, STOPPED], [CHANGED, CHANGED, DELETED, STOPPED])
         call wait_event()
         ! After deleting the file, the descriptor is not valid anymore.
-        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after delete")
-        call file_notify_rm_watch(desc)
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(description), "invalid after delete")
+        call file_notify_rm_watch(description)
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         call setup()
         call delete_file(tmpfile, st)
-        call add_watch(tmpdir, FILE_NOTIFY_CHANGE, desc)
-        call check(error, is_file_notify_valid(desc), "valid")
+        call add_watch(tmpdir, FILE_NOTIFY_CHANGE, description)
+        call check(error, is_file_notify_valid(description), "valid")
 
         if (allocated(error)) then
             call cleanup()
@@ -592,36 +592,36 @@ contains
         call check_actions(error, [CREATED, CHANGED, DELETED, DELETED, STOPPED])
         ! After deleting the parent directory, the descriptor must not be
         ! valid anymore.
-        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after delete")
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(description), "invalid after delete")
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
     end subroutine test05_file_validity
 
     !> Check `is_file_notify_valid' for directories.
-    subroutine test06_dir_validity(error)
+    subroutine test06_directory_validity(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
         call setup()
-        call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
-        call check(error, is_file_notify_valid(desc), "valid")
+        call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, description, st)
+        call check(error, is_file_notify_valid(description), "valid")
         ! After removing the watch, the descriptor must not be valid
         ! anymore.
-        call file_notify_rm_watch(desc)
-        call wait_for_events(3.0, desc_invalid)
-        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after rm")
+        call file_notify_rm_watch(description)
+        call wait_for_events(3.0, description_invalid)
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(description), "invalid after rm")
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
         if (allocated(error)) return
         call setup()
-        call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, desc, st)
-        call check(error, is_file_notify_valid(desc), "valid")
+        call file_notify_add_watch(tmpdir, FILE_NOTIFY_CHANGE, ignore, description, st)
+        call check(error, is_file_notify_valid(description), "valid")
         ! After deleting the directory, the descriptor must not be valid
         ! anymore.
         call delete_directory(tmpdir, st, .true.)
-        call wait_for_events(3.0, desc_invalid)
-        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(desc), "invalid after delete")
+        call wait_for_events(3.0, description_invalid)
+        if (.not. allocated(error)) call check(error,.not. is_file_notify_valid(description), "invalid after delete")
         if (.not. allocated(error)) call check_cleanup(error)
         call cleanup()
-    end subroutine test06_dir_validity
+    end subroutine test06_directory_validity
 end module test_filenotify_mod

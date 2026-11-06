@@ -25,7 +25,7 @@
 module test_environment_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use environment_mod, only: getenv, setenv, substitute_env_vars
+    use environment_mod, only: getenv, setenv, substitute_environment_variables
     implicit none(type, external)
     private
 
@@ -101,16 +101,16 @@ contains
         call check(error, format_error(st), "Environment variable name ‘A=B’ contains ‘=’")
     end subroutine test_setenv_equals_sign
 
-    !> getenv is what substitute_env_vars sees.
+    !> getenv is what substitute_environment_variables sees.
     subroutine test_setenv_substitute(error)
         type(error_type), allocatable, intent(out) :: error
 
         call setenv("FORTMACS_ENV_TEST", "x y")
-        call check(error, substitute_env_vars("<$FORTMACS_ENV_TEST>", .true.), "<x y>")
+        call check(error, substitute_environment_variables("<$FORTMACS_ENV_TEST>", .true.), "<x y>")
         call setenv("FORTMACS_ENV_TEST")
 
         if (.not. allocated(error)) then
-            call check(error, substitute_env_vars("<$FORTMACS_ENV_TEST>", .true.), "<$FORTMACS_ENV_TEST>")
+            call check(error, substitute_environment_variables("<$FORTMACS_ENV_TEST>", .true.), "<$FORTMACS_ENV_TEST>")
         end if
     end subroutine test_setenv_substitute
 end module test_environment_mod

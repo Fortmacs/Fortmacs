@@ -31,7 +31,7 @@ module startup_mod
     implicit none(type, external)
     private
 
-    public :: init_user_mail_address, user_mail_address_value
+    public :: initialize_user_mail_address, user_mail_address_value
 
     !> The name of this machine, for use in constructing email addresses.
     !> If this is unallocated, Fortmacs uses `system_name'.  Port of
@@ -50,7 +50,7 @@ contains
     !> Give `user_mail_address' its standard value unless it was set (the
     !> custom-initialize-delay of startup.el:command-line).
     !> Port of part of startup.el:command-line.
-    subroutine init_user_mail_address()
+    subroutine initialize_user_mail_address()
         integer :: n, st
 
         if (allocated(user_mail_address)) return
@@ -64,14 +64,14 @@ contains
         else
             user_mail_address = user_login_name()//"@"//system_name()
         end if
-    end subroutine init_user_mail_address
+    end subroutine initialize_user_mail_address
 
     !> The value of `user_mail_address', initializing it first if needed.
     !> Not a port.
     function user_mail_address_value() result(address)
         character(len=:), allocatable :: address
 
-        call init_user_mail_address()
+        call initialize_user_mail_address()
         address = user_mail_address
     end function user_mail_address_value
 end module startup_mod

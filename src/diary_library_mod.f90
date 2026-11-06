@@ -37,28 +37,30 @@
 !> listed in docs/status/diary_library_mod.md.
 module diary_library_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, command_procedure, xfixnum
     use string_type_mod, only: string_type, append_string
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           close_buffer, erase_buffer, restore_buffer_modified, get_file_buffer, generate_new_buffer_name
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_substring, insert, widen, is_bol, &
-                                     is_eob, line_end_position, save_excursion_begin, save_excursion_end, &
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_substring, insert, widen, &
+                                     is_beginning_of_line, &
+                                     is_end_of_buffer, line_end_position, save_excursion_begin, save_excursion_end, &
                                      save_restriction_begin, save_restriction_end, excursion_type, restriction_type, &
-                                     format_message, preceding_char
+                                     format_message, preceding_character
     use editing_commands_mod, only: forward_line
     use indent_mod, only: current_column
     use simple_mod, only: count_lines, special_mode, fundamental_mode
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, search_backward, regexp_quote, string_match, &
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, search_backward, &
+                          regular_expression_quote, string_match, &
                           match_beginning, match_end, case_fold_search, SEARCH_NOERROR
-    use basic_subprograms_mod, only: match_string_no_properties, remove_overlays, add_to_invisibility_spec
+    use basic_subprograms_mod, only: match_string_no_properties, remove_overlays, add_to_invisibility_specification
     use syntax_mod, only: copy_syntax_table, standard_syntax_table, syntax_table, set_syntax_table, modify_syntax_entry
     use expression_motion_mod, only: forward_expression
     use interval_tree_mod, only: make_overlay, overlay_put
     use text_properties_mod, only: put_text_property
     use marker_mod, only: make_marker, set_marker, destroy_marker, marker_buffer, marker_position
-    use regular_expression_optimization_mod, only: regexp_opt
+    use regular_expression_optimization_mod, only: regular_expression_optimization
     use utility_functions_mod, only: is_string_less
     use file_input_output_mod, only: expand_file_name, file_exists, is_file_readable, insert_file_contents, &
                                      is_visited_file_modtime_current
@@ -67,17 +69,17 @@ module diary_library_mod
     use derived_mod, only: is_derived_mode
     use modes_mod, only: major_modes, minor_modes
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE
     use keymap_mod, only: keymap_set
     use help_mod, only: register_keymap_name
     use minibuffer_mod, only: read_file_name, REQUIRE_MATCH_YES
     use display_engine_mod, only: message, current_message
-    use frame_mod, only: selected_window, selected_frame, frame_cols
+    use frame_mod, only: selected_window, selected_frame, frame_columns
     use window_mod, only: windows, display_buffer, pop_to_buffer, select_window, is_window_live, set_window_point, &
                           set_window_start, get_buffer_window, window_body_height, fit_window_to_buffer, window_buffer
     use newcomment_mod, only: comment_start, comment_end
-    use button_mod, only: button_type, button_kind_type, insert_button, init_button
-    use faces_mod, only: named_face_type, face_named, display_when, face_attrs, FACE_CLASS_COLOR
+    use button_mod, only: button_type, button_kind_type, insert_button, initialize_button
+    use faces_mod, only: named_face_type, face_named, display_when, face_attributes, FACE_CLASS_COLOR
     use calendar_mod, only: calendar_date_type, operator(==), calendar_current_date, calendar_cursor_to_date, &
                             calendar_date_string, calendar_day_name, calendar_month_name, calendar_day_of_week, &
                             calendar_absolute_from_gregorian, calendar_gregorian_from_absolute, &
@@ -87,8 +89,8 @@ module diary_library_mod
                             calendar_day_of_year_string, calendar_set_mode_line, calendar_in_read_only_buffer, &
                             calendar_read_expression, calendar_marked_date, calendar_display_type, &
                             set_calendar_display, restore_calendar_display, ensure_diary_date_forms, &
-                            calendar_total_months_local, calendar_mode_map, calendar_day_names, calendar_day_abbrevs, &
-                            calendar_month_names, calendar_month_abbrevs, calendar_date_style, &
+                            calendar_total_months_local, calendar_mode_map, calendar_day_names, calendar_day_abbreviations, &
+                            calendar_month_names, calendar_month_abbreviations, calendar_date_style, &
                             CALENDAR_DATE_STYLE_ISO, CALENDAR_DATE_STYLE_EUROPEAN, diary_file, diary_nonmarking_symbol, &
                             diary_date_forms, diary_show_holidays_flag, diary_fancy_buffer, holiday_buffer, &
                             calendar_mark_diary_entries, calendar_mark_diary_entries_hook, &
@@ -106,7 +108,7 @@ module diary_library_mod
               make_diary_date, diary_ordinal_suffix, insert_diary_entry_string, insert_diary_entry, &
               insert_weekly_diary_entry, insert_monthly_diary_entry, insert_yearly_diary_entry, &
               insert_anniversary_diary_entry, insert_block_diary_entry, insert_cyclic_diary_entry, diary_mode, &
-              diary_fancy_display_mode, redraw_diary_calendar, goto_diary_entry, init_diary_library
+              diary_fancy_display_mode, redraw_diary_calendar, goto_diary_entry, initialize_diary_library
 
     ! ------------------------------------------------------------------
     ! User options
@@ -393,12 +395,12 @@ module diary_library_mod
 
     abstract interface
         ! What the entry function of an expression entry gives for DATE:
-        ! its ARGS as the file writes them, the entry's text ENTRY, and
+        ! its ARGUMENTS as the file writes them, the entry's text ENTRY, and
         ! RESULT.  Not a port.
-        recursive subroutine entry_function_procedure(args, date, entry, result, status)
+        recursive subroutine entry_function_procedure(arguments, date, entry, result, status)
             import :: expression_value_type, calendar_date_type, expression_result_type, status_type
             implicit none(type, external)
-            type(expression_value_type), intent(in) :: args(:)
+            type(expression_value_type), intent(in) :: arguments(:)
             type(calendar_date_type), intent(in) :: date
             character(len=*), intent(in) :: entry
             type(expression_result_type), intent(out) :: result
@@ -417,7 +419,7 @@ module diary_library_mod
     end type entry_function_type
 
     ! The entry functions of expression entries (made in
-    ! `init_diary_library').
+    ! `initialize_diary_library').
     type(entry_function_type) :: entry_functions(8)
 
     ! The kinds of entries `insert_diary_entry_1' inserts.
@@ -440,45 +442,45 @@ contains
         file = diary_file
 
         if (.not. file_exists(diary_file)) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Diary file `"//diary_file//"' does not exist"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Diary file `"//diary_file//"' does not exist"))
         else if (.not. is_file_readable(diary_file)) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Diary file `"//diary_file//"' is not readable"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Diary file `"//diary_file//"' is not readable"))
         end if
     end subroutine check_diary_file
 
-    !> Generate the diary window for ARG days starting with the current date.
+    !> Generate the diary window for ARGUMENT days starting with the current date.
     !> If no argument is provided, the number of days of diary entries is governed
-    !> by the variable `diary_number_of_entries'.  A value of ARG less than 1
+    !> by the variable `diary_number_of_entries'.  A value of ARGUMENT less than 1
     !> does nothing.  This function is suitable for execution in an init file.
     !> Port of diary-lib.el:diary.
-    recursive subroutine diary(status, arg)
+    recursive subroutine diary(status, argument)
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: arg
+        integer, intent(in), optional :: argument
         character(len=:), allocatable :: file
 
         call check_diary_file(file, status)
         if (.not. status%ok()) return
-        call list_diary_entries(calendar_current_date(), status, arg)
+        call list_diary_entries(calendar_current_date(), status, argument)
     end subroutine diary
 
-    ! The command `diary': ARG is the prefix argument.  Not a port.
-    recursive subroutine cmd_diary(status)
+    ! The command `diary': ARGUMENT is the prefix argument.  Not a port.
+    recursive subroutine execute_diary(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call diary(status)
         else
-            call diary(status, int(prefix_numeric_value(current_prefix_arg)))
+            call diary(status, int(prefix_numeric_value(current_prefix_argument)))
         end if
-    end subroutine cmd_diary
+    end subroutine execute_diary
 
     !> Prepare and display a buffer with diary entries.
     !> Searches the file named in `diary_file' for entries that match
-    !> ARG days starting with the date indicated by the cursor position
+    !> ARGUMENT days starting with the date indicated by the cursor position
     !> in the displayed three-month calendar.  Port of
     !> diary-lib.el:diary-view-entries.
-    recursive subroutine view_diary_entries(arg, status)
-        integer, intent(in) :: arg
+    recursive subroutine view_diary_entries(argument, status)
+        integer, intent(in) :: argument
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(calendar_date_type) :: date
@@ -487,16 +489,16 @@ contains
         if (.not. status%ok()) return
         call calendar_cursor_to_date(date, status, .true.)
         if (.not. status%ok()) return
-        call list_diary_entries(date, status, arg)
+        call list_diary_entries(date, status, argument)
     end subroutine view_diary_entries
 
-    ! The command `view_diary_entries': ARG is the numeric prefix
+    ! The command `view_diary_entries': ARGUMENT is the numeric prefix
     ! argument.  Not a port.
-    recursive subroutine cmd_view_diary_entries(status)
+    recursive subroutine execute_view_diary_entries(status)
         type(status_type), intent(out) :: status
 
-        call view_diary_entries(int(prefix_numeric_value(current_prefix_arg)), status)
-    end subroutine cmd_view_diary_entries
+        call view_diary_entries(int(prefix_numeric_value(current_prefix_argument)), status)
+    end subroutine execute_view_diary_entries
 
     ! The diary for the date at the cursor in the calendar, as
     ! `calendar_basic_setup' shows it (upstream's (diary-view-entries)).
@@ -508,34 +510,34 @@ contains
     end subroutine view_diary_entries_initially
 
     !> Prepare and display buffer of diary entries from an alternative diary file.
-    !> Searches for entries that match ARG days, starting with the date indicated
+    !> Searches for entries that match ARGUMENT days, starting with the date indicated
     !> by the cursor position in the displayed three-month calendar.
     !> DFILE specifies the file to use as the diary file.  Port of
     !> diary-lib.el:diary-view-other-diary-entries.
-    recursive subroutine view_other_diary_entries(arg, dfile, status)
-        integer, intent(in) :: arg
+    recursive subroutine view_other_diary_entries(argument, dfile, status)
+        integer, intent(in) :: argument
         character(len=*), intent(in) :: dfile
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: saved
 
         saved = diary_file
         diary_file = dfile
-        call view_diary_entries(arg, status)
+        call view_diary_entries(argument, status)
         diary_file = saved
     end subroutine view_other_diary_entries
 
     ! The command `view_other_diary_entries': reads the file.  Not a port.
-    recursive subroutine cmd_view_other_diary_entries(status)
+    recursive subroutine execute_view_other_diary_entries(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
-        integer :: arg
+        integer :: argument
 
-        arg = int(prefix_numeric_value(current_prefix_arg))
-        call read_file_name("Enter diary file name: ", file, status, dir=buffers(current)%directory, &
+        argument = int(prefix_numeric_value(current_prefix_argument))
+        call read_file_name("Enter diary file name: ", file, status, directory=buffers(current)%directory, &
                             mustmatch=REQUIRE_MATCH_YES)
         if (.not. status%ok()) return
-        call view_other_diary_entries(arg, file, status)
-    end subroutine cmd_view_other_diary_entries
+        call view_other_diary_entries(argument, file, status)
+    end subroutine execute_view_other_diary_entries
 
     !> Show all of the diary entries in the diary file.
     !> This function gets rid of the selective display of the diary file so that
@@ -544,15 +546,15 @@ contains
     recursive subroutine show_all_diary_entries(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
-        type(handle_type) :: win, buffer, old, window
+        type(handle_type) :: calendar_window, buffer, old, window
         integer :: height
         logical :: in_calendar
         type(status_type) :: st
 
         call check_diary_file(file, status)
         if (.not. status%ok()) return
-        win = selected_window()
-        height = window_body_height(win, st)
+        calendar_window = selected_window()
+        height = window_body_height(calendar_window, st)
         old = current_buffer()
         buffer = diary_file_buffer()
 
@@ -567,11 +569,11 @@ contains
         if (status%ok()) call unhide_diary_everything(status)
         if (status%ok()) call display_buffer(buffer, window, status)
 
-        if (status%ok() .and. is_window_live(win)) then
-            if (height /= window_body_height(win, st)) then
-                call set_buffer(window_buffer(win, st), st)
+        if (status%ok() .and. is_window_live(calendar_window)) then
+            if (height /= window_body_height(calendar_window, st)) then
+                call set_buffer(window_buffer(calendar_window, st), st)
                 in_calendar = is_derived_mode(major_modes%calendar_mode)
-                if (in_calendar) call fit_window_to_buffer(win)
+                if (in_calendar) call fit_window_to_buffer(calendar_window)
             end if
         end if
 
@@ -645,7 +647,7 @@ contains
         type(diary_entry_type), allocatable, intent(out), optional :: entries(:)
         type(diary_entry_type), allocatable :: outer(:)
         type(calendar_date_type) :: day, saved_original
-        type(handle_type) :: diary_buffer, temp_buffer, old, saved_table, ov
+        type(handle_type) :: diary_buffer, temporary_buffer, old, saved_table, ov
         type(excursion_type) :: excursion
         type(restriction_type) :: restriction
         character(len=:), allocatable :: text, saved_date_string
@@ -688,7 +690,7 @@ contains
         end if
 
         old = current_buffer()
-        temp_buffer = null_handle()
+        temporary_buffer = null_handle()
 
         prepare: block
             if (is_buffer_live(diary_buffer)) then
@@ -700,9 +702,9 @@ contains
                     if (.not. status%ok()) exit prepare
                 end if
             else if (only) then
-                call get_or_make_buffer(generate_new_buffer_name(" *diary-temp*"), temp_buffer, status)
+                call get_or_make_buffer(generate_new_buffer_name(" *diary-temp*"), temporary_buffer, status)
                 if (.not. status%ok()) exit prepare
-                call set_buffer(temp_buffer, status)
+                call set_buffer(temporary_buffer, status)
                 if (.not. status%ok()) exit prepare
                 ! If including, caller has already verified it is readable.
                 call insert_file_contents(diary_file, .false., inserted, status)
@@ -716,7 +718,7 @@ contains
 
             ! Setup things like the invisibility-spec (the header line is
             ! Deferred).
-            if (.not. is_buffer_live(temp_buffer)) then
+            if (.not. is_buffer_live(temporary_buffer)) then
                 call ensure_diary_mode(status)
                 if (.not. status%ok()) exit prepare
             end if
@@ -729,10 +731,10 @@ contains
             call widen()
             saved_table = syntax_table()
             call set_syntax_table(diary_syntax_table, st)
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             if (.not. only) then
-                call make_overlay(ov, point_min(), point_max(), status, rear_advance=.false., front_advance=.true.)
+                call make_overlay(ov, point_minimum(), point_maximum(), status, rear_advance=.false., front_advance=.true.)
                 if (status%ok()) call overlay_put(ov, INVISIBLE_PROPERTY, value_type(name=DIARY_INVISIBLE), status)
                 if (status%ok()) call overlay_put(ov, EVAPORATE_PROPERTY, value_type(.true.), status)
             end if
@@ -756,7 +758,7 @@ contains
             call set_syntax_table(saved_table, st)
 
             if (status%ok()) then
-                call goto_char(point_min())
+                call goto_character(point_minimum())
                 ! Although it looks like list-entries-hook runs
                 ! every time, include_other_diary_files
                 ! clears it when it runs in included files.
@@ -776,7 +778,7 @@ contains
             call save_excursion_end(excursion)
         end block prepare
 
-        if (is_buffer_live(temp_buffer)) call close_buffer(temp_buffer, st)
+        if (is_buffer_live(temporary_buffer)) call close_buffer(temporary_buffer, st)
         if (is_buffer_live(old)) call set_buffer(old, st)
 
         if (status%ok() .and. .not. incp) then
@@ -854,7 +856,7 @@ contains
         if (diary_file_name_prefix .and. len(dfile) > 0) text = "["//dfile//"] "//text
 
         if (len(diary_comment_start) > 0) then
-            cstart = regexp_quote(diary_comment_start)
+            cstart = regular_expression_quote(diary_comment_start)
 
             if (string_match(cstart, text, st) > 0) then
                 ! Preserve the value with the comments.
@@ -863,13 +865,13 @@ contains
                 ! a single line, and each line has no more than one comment.
                 removed = ""
                 last = 1
-                found = string_match(cstart//".*"//regexp_quote(diary_comment_end), text, st, start=last)
+                found = string_match(cstart//".*"//regular_expression_quote(diary_comment_end), text, st, start=last)
 
                 do while (found > 0 .and. st%ok())
                     removed = removed//substring(text, last, found)
                     last = match_end(0, st)
                     if (last <= found) last = found + 1
-                    found = string_match(cstart//".*"//regexp_quote(diary_comment_end), text, st, start=last)
+                    found = string_match(cstart//".*"//regular_expression_quote(diary_comment_end), text, st, start=last)
                 end do
 
                 text = removed//substring(text, last, huge(1_int64))
@@ -920,7 +922,7 @@ contains
         end if
     end function substring
 
-    !> Find diary entries applying to DATE, by searching from point_min for
+    !> Find diary entries applying to DATE, by searching from point_minimum for
     !> each element of `diary_date_forms'.  MARK indicates an entry is non-marking.
     !> If LIST_ONLY is
     !> true, don't change the buffer, only return a list of entries.
@@ -934,7 +936,7 @@ contains
         logical, intent(in) :: list_only
         logical, intent(out) :: found
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dayname, monthname, month, day, year, regexp, text, specifier
+        character(len=:), allocatable :: dayname, monthname, month, day, year, regular_expression, text, specifier
         character(len=32) :: digits
         integer(int64) :: hit, back, date_start, entry_start, shortage
         integer :: k, j
@@ -968,18 +970,18 @@ contains
         do k = 1, size(diary_date_forms%entries)
             associate (form => diary_date_forms%entries(k))
                 ! date-form uses day etc as set above.
-                regexp = "^"//regexp_quote(mark)//"?\("
+                regular_expression = "^"//regular_expression_quote(mark)//"?\("
 
                 do j = 1, form%count
-                    if (j > 1) regexp = regexp//"\)\(?:"
-                    regexp = regexp//part_pattern(form%parts(j))
+                    if (j > 1) regular_expression = regular_expression//"\)\(?:"
+                    regular_expression = regular_expression//part_pattern(form%parts(j))
                 end do
 
-                regexp = regexp//"\)"
-                call goto_char(point_min())
+                regular_expression = regular_expression//"\)"
+                call goto_character(point_minimum())
 
                 do
-                    call re_search_forward(regexp, hit, st, noerror=SEARCH_NOERROR)
+                    call regular_expression_search_forward(regular_expression, hit, st, noerror=SEARCH_NOERROR)
 
                     if (.not. st%ok()) then
                         status = st
@@ -987,13 +989,13 @@ contains
                     end if
 
                     if (hit == 0) exit
-                    if (form%backup) call re_search_backward("\<", back, st, noerror=SEARCH_NOERROR)
+                    if (form%backup) call regular_expression_search_backward("\<", back, st, noerror=SEARCH_NOERROR)
 
                     ! regexp moves us past the end of date, onto the next line.
                     ! Trailing whitespace after date not allowed (see diary-file).
-                    if (is_bol() .and. .not. looking_at("[ \t]", st)) then
+                    if (is_beginning_of_line() .and. .not. looking_at("[ \t]", st)) then
                         ! Diary entry that consists only of date.
-                        call goto_char(point() - 1)
+                        call goto_character(point() - 1)
                     else
                         ! Found a nonempty diary entry--make it
                         ! visible and add it to the list.
@@ -1009,7 +1011,7 @@ contains
                             shortage = forward_line(1_int64)
                         end do
 
-                        if (.not. (is_eob() .and. .not. is_bol())) call goto_char(point() - 1)
+                        if (.not. (is_end_of_buffer() .and. .not. is_beginning_of_line())) call goto_character(point() - 1)
 
                         if (.not. list_only) then
                             call remove_overlays(date_start, point(), INVISIBLE_PROPERTY, value_type(name=DIARY_INVISIBLE), &
@@ -1062,7 +1064,7 @@ contains
         ! bug#5477
         call save_restriction_begin(restriction)
         call widen()
-        call remove_overlays(point_min(), point_max(), INVISIBLE_PROPERTY, value_type(name=DIARY_INVISIBLE), status)
+        call remove_overlays(point_minimum(), point_maximum(), INVISIBLE_PROPERTY, value_type(name=DIARY_INVISIBLE), status)
         call save_restriction_end(restriction)
         ! (kill-local-variable 'mode-line-format)
         call buffers(current)%mode_line_format%clear()
@@ -1090,24 +1092,25 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward("^"//regexp_quote(diary_include_string)//" ""\([^""]*\)""", hit, st, &
-                                   noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("^"//regular_expression_quote(diary_include_string)//" ""\([^""]*\)""", &
+                                                   hit, st, &
+                                                   noerror=SEARCH_NOERROR)
             if (hit == 0) exit
             after = point()
             file = match_string_no_properties(1)
 
             if (.not. file_exists(file)) then
                 call message(format_message("Can't find included diary file "//file))
-                call goto_char(after)
+                call goto_character(after)
                 cycle
             end if
 
             if (.not. is_file_readable(file)) then
                 call message(format_message("Can't read included diary file "//file))
-                call goto_char(after)
+                call goto_character(after)
                 cycle
             end if
 
@@ -1115,7 +1118,7 @@ contains
 
             do k = 1, size(diary_included_files)
                 if (diary_included_files(k)%text == efile) then
-                    call set_error(status, FM_GENERIC_ERROR, "Recursive diary include for "//file)
+                    call set_error(status, GENERIC_ERROR_CODE, "Recursive diary include for "//file)
                     return
                 end if
             end do
@@ -1153,10 +1156,10 @@ contains
             including = saved_including
             diary_list_include_blanks = saved_blanks
             if (.not. status%ok()) return
-            call goto_char(after)
+            call goto_character(after)
         end do
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
     end subroutine include_diary_files
 
     !> Add diary entries from included diary files to `diary_entries'.
@@ -1194,7 +1197,7 @@ contains
         character(len=:), allocatable, intent(out) :: holiday_string
         type(status_type), intent(out) :: status
         type(holiday_type), allocatable :: holiday_list(:)
-        character(len=:), allocatable :: msg, lines
+        character(len=:), allocatable :: no_entries_message, lines
         type(handle_type) :: old
         integer :: k
         type(status_type) :: st
@@ -1221,7 +1224,7 @@ contains
             lines = lines//holiday_list(k)%string
         end do
 
-        msg = "No diary entries for "//holiday_string
+        no_entries_message = "No diary entries for "//holiday_string
         ! Empty list, or single item with no text.
         ! FIXME multiple items with no text?
         no_entries = size(diary_entries) == 0
@@ -1233,8 +1236,8 @@ contains
         ! Inconsistency: whether or not the holidays are displayed in a
         ! separate buffer depends on if there are diary entries.
         if (no_entries) then
-            if (len(msg) < frame_cols(selected_frame) .or. size(holiday_list) == 0) then
-                call message(msg)
+            if (len(no_entries_message) < frame_columns(selected_frame) .or. size(holiday_list) == 0) then
+                call message(no_entries_message)
             else
                 ! holiday-list which is too wide for a message gets a buffer.
                 old = current_buffer()
@@ -1273,7 +1276,7 @@ contains
             if (status%ok() .and. is_window_live(window)) then
                 ! d-s-p is passed from list_diary_entries.
                 call set_window_point(windows(window%index), saved_point, st)
-                call set_window_start(windows(window%index), point_min(), st)
+                call set_window_start(windows(window%index), point_minimum(), st)
             end if
         end if
 
@@ -1335,7 +1338,7 @@ contains
                 if (status%ok()) then
                     call calendar_set_mode_line("Diary Entries")
                     call insert_fancy_entries(status)
-                    call goto_char(point_min())
+                    call goto_character(point_minimum())
                 end if
 
                 if (is_window_live(old_window)) call select_window(old_window, st, norecord=.true.)
@@ -1406,7 +1409,7 @@ contains
                 end if
 
                 longest = 0
-                first = point() == point_min()
+                first = point() == point_minimum()
                 if (.not. first) call insert(achar(10), status)
                 if (.not. status%ok()) return
                 start = point()
@@ -1478,7 +1481,7 @@ contains
         type(status_type), intent(out) :: status
         type(diary_locator_type) :: locator
         type(handle_type) :: markbuf
-        integer(int64) :: k, pos, found
+        integer(int64) :: k, position, found
         logical :: located
         type(status_type) :: st
 
@@ -1493,10 +1496,10 @@ contains
         if (locator%marker%index /= 0) call marker_buffer(locator%marker, markbuf, st)
 
         if (is_buffer_live(markbuf) .and. st%ok()) then
-            call marker_position(locator%marker, pos, st)
+            call marker_position(locator%marker, position, st)
             call pop_to_buffer(markbuf, status)
             if (.not. status%ok()) return
-            call goto_char(pos)
+            call goto_character(position)
             return
         end if
 
@@ -1509,11 +1512,12 @@ contains
                 if (.not. status%ok()) return
                 call ensure_diary_mode(status)
                 if (.not. status%ok()) return
-                call goto_char(point_min())
+                call goto_character(point_minimum())
                 located = .true.
-                call re_search_forward(regexp_quote(locator%specifier)//".*\("//regexp_quote(locator%literal)//"\)", &
-                                       found, st, noerror=SEARCH_NOERROR)
-                if (found > 0) call goto_char(match_beginning(1, st))
+                call regular_expression_search_forward(regular_expression_quote(locator%specifier)//".*\(" &
+                                                       //regular_expression_quote(locator%literal)//"\)", &
+                                                       found, st, noerror=SEARCH_NOERROR)
+                if (found > 0) call goto_character(match_beginning(1, st))
             end if
         end if
 
@@ -1528,7 +1532,7 @@ contains
     !> If the optional argument ABBREVIATIONS is present, the regular
     !> expression also matches the supplied abbreviations, with or without
     !> final `.' characters.  Port of diary-lib.el:diary-name-pattern (no
-    !> PAREN).
+    !> PARENTHESIS).
     function diary_name_pattern(names, abbreviations) result(pattern)
         character(len=*), intent(in) :: names(:)
         character(len=*), intent(in), optional :: abbreviations(:)
@@ -1548,7 +1552,7 @@ contains
             end do
         end if
 
-        pattern = regexp_opt(strings)
+        pattern = regular_expression_optimization(strings)
     end function diary_name_pattern
 
     !> Mark days in the calendar window that have diary entries.
@@ -1569,7 +1573,7 @@ contains
     recursive subroutine mark_diary_entries(redraw, status)
         logical, intent(in) :: redraw
         type(status_type), intent(out) :: status
-        type(handle_type) :: diary_buffer, temp_buffer, old, saved_table
+        type(handle_type) :: diary_buffer, temporary_buffer, old, saved_table
         type(excursion_type) :: excursion
         type(restriction_type) :: restriction
         character(len=:), allocatable :: file
@@ -1609,16 +1613,16 @@ contains
         end if
 
         old = current_buffer()
-        temp_buffer = null_handle()
+        temporary_buffer = null_handle()
 
         prepare: block
             if (is_buffer_live(diary_buffer)) then
                 call set_buffer(diary_buffer, status)
                 if (.not. status%ok()) exit prepare
             else if (incp) then
-                call get_or_make_buffer(generate_new_buffer_name(" *diary-temp*"), temp_buffer, status)
+                call get_or_make_buffer(generate_new_buffer_name(" *diary-temp*"), temporary_buffer, status)
                 if (.not. status%ok()) exit prepare
-                call set_buffer(temp_buffer, status)
+                call set_buffer(temporary_buffer, status)
                 if (.not. status%ok()) exit prepare
                 ! If including, caller has already verified it is readable.
                 call insert_file_contents(diary_file, .false., inserted, status)
@@ -1632,7 +1636,7 @@ contains
                 if (.not. status%ok()) exit prepare
             end if
 
-            if (.not. is_buffer_live(temp_buffer)) then
+            if (.not. is_buffer_live(temporary_buffer)) then
                 call ensure_diary_mode(status)
                 if (.not. status%ok()) exit prepare
             end if
@@ -1656,7 +1660,7 @@ contains
             call set_syntax_table(saved_table, st)
         end block prepare
 
-        if (is_buffer_live(temp_buffer)) call close_buffer(temp_buffer, st)
+        if (is_buffer_live(temporary_buffer)) call close_buffer(temporary_buffer, st)
         if (is_buffer_live(old)) call set_buffer(old, st)
         diary_marking_entries_flag = saved_flag
         calendar_buffer = saved_calendar_buffer
@@ -1675,11 +1679,11 @@ contains
 
     ! The command `mark_diary_entries': REDRAW is true, as upstream's
     ! (interactive "p").  Not a port.
-    recursive subroutine cmd_mark_diary_entries(status)
+    recursive subroutine execute_mark_diary_entries(status)
         type(status_type), intent(out) :: status
 
         call mark_diary_entries(.true., status)
-    end subroutine cmd_mark_diary_entries
+    end subroutine execute_mark_diary_entries
 
     ! `mark_diary_entries' as the calendar calls it when it is drawn.
     ! Not a port.
@@ -1695,8 +1699,8 @@ contains
     !> MONTHS, SYMBOL and ABSFUNC are Deferred).
     recursive subroutine mark_diary_entries_1(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: dayname, monthname, regexp, dd_name, mm_name, y_string
-        integer :: k, j, d_name_pos, m_name_pos, d_pos, m_pos, y_pos, mm, dd, yy, current_year, offset
+        character(len=:), allocatable :: dayname, monthname, regular_expression, dd_name, mm_name, y_string
+        integer :: k, j, d_name_position, m_name_position, d_position, m_position, y_position, mm, dd, yy, current_year, offset
         integer(int64) :: hit
         type(calendar_date_type) :: today
         logical :: saved_fold
@@ -1705,49 +1709,49 @@ contains
         status = status_type()
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
-        dayname = diary_name_pattern(calendar_day_names, calendar_day_abbrevs)
-        monthname = diary_name_pattern(calendar_month_names, calendar_month_abbrevs)//"\|\*"
+        dayname = diary_name_pattern(calendar_day_names, calendar_day_abbreviations)
+        monthname = diary_name_pattern(calendar_month_names, calendar_month_abbreviations)//"\|\*"
 
         do k = 1, size(diary_date_forms%entries)
             associate (form => diary_date_forms%entries(k))
                 ! The positions of the keywords (the 'backup directive is
                 ! not one of the parts).
-                d_name_pos = 0
-                m_name_pos = 0
-                d_pos = 0
-                m_pos = 0
-                y_pos = 0
-                regexp = "^\("
+                d_name_position = 0
+                m_name_position = 0
+                d_position = 0
+                m_position = 0
+                y_position = 0
+                regular_expression = "^\("
 
                 do j = 1, form%count
-                    if (j > 1) regexp = regexp//"\)\("
+                    if (j > 1) regular_expression = regular_expression//"\)\("
 
                     select case (trim(form%parts(j)))
                     case ("dayname")
-                        if (d_name_pos == 0) d_name_pos = j
-                        regexp = regexp//dayname
+                        if (d_name_position == 0) d_name_position = j
+                        regular_expression = regular_expression//dayname
                     case ("monthname")
-                        if (m_name_pos == 0) m_name_pos = j
-                        regexp = regexp//monthname
+                        if (m_name_position == 0) m_name_position = j
+                        regular_expression = regular_expression//monthname
                     case ("month")
-                        if (m_pos == 0) m_pos = j
-                        regexp = regexp//"[0-9]+\|\*"
+                        if (m_position == 0) m_position = j
+                        regular_expression = regular_expression//"[0-9]+\|\*"
                     case ("day")
-                        if (d_pos == 0) d_pos = j
-                        regexp = regexp//"[0-9]+\|\*"
+                        if (d_position == 0) d_position = j
+                        regular_expression = regular_expression//"[0-9]+\|\*"
                     case ("year")
-                        if (y_pos == 0) y_pos = j
-                        regexp = regexp//"[0-9]+\|\*"
+                        if (y_position == 0) y_position = j
+                        regular_expression = regular_expression//"[0-9]+\|\*"
                     case default
-                        regexp = regexp//trim(form%parts(j))
+                        regular_expression = regular_expression//trim(form%parts(j))
                     end select
                 end do
 
-                regexp = regexp//"\)"
-                call goto_char(point_min())
+                regular_expression = regular_expression//"\)"
+                call goto_character(point_minimum())
 
                 do
-                    call re_search_forward(regexp, hit, st, noerror=SEARCH_NOERROR)
+                    call regular_expression_search_forward(regular_expression, hit, st, noerror=SEARCH_NOERROR)
 
                     if (.not. st%ok()) then
                         status = st
@@ -1757,16 +1761,16 @@ contains
                     if (hit == 0) exit
                     dd_name = ""
                     mm_name = ""
-                    if (d_name_pos > 0) dd_name = match_string_no_properties(d_name_pos)
-                    if (m_name_pos > 0) mm_name = match_string_no_properties(m_name_pos)
+                    if (d_name_position > 0) dd_name = match_string_no_properties(d_name_position)
+                    if (m_name_position > 0) mm_name = match_string_no_properties(m_name_position)
                     mm = 0
                     dd = 0
-                    if (m_pos > 0) mm = leading_number(match_string_no_properties(m_pos))
-                    if (d_pos > 0) dd = leading_number(match_string_no_properties(d_pos))
+                    if (m_position > 0) mm = leading_number(match_string_no_properties(m_position))
+                    if (d_position > 0) dd = leading_number(match_string_no_properties(d_position))
                     yy = 0
 
-                    if (y_pos > 0) then
-                        y_string = match_string_no_properties(y_pos)
+                    if (y_position > 0) then
+                        y_string = match_string_no_properties(y_position)
 
                         if (len(y_string) == 2 .and. diary_abbreviated_year_flag) then
                             today = calendar_current_date()
@@ -1790,10 +1794,10 @@ contains
 
                     ! Only mark all days of a given name if the pattern
                     ! contains no more specific elements.
-                    if (d_name_pos > 0 .and. .not. (d_pos > 0 .or. m_pos > 0 .or. y_pos > 0)) then
+                    if (d_name_position > 0 .and. .not. (d_position > 0 .or. m_position > 0 .or. y_position > 0)) then
                         call mark_calendar_days_named(day_number(dd_name), status)
                     else
-                        if (m_name_pos > 0) then
+                        if (m_name_position > 0) then
                             if (mm_name == "*") then
                                 mm = 0
                             else
@@ -1839,8 +1843,8 @@ contains
         day = 0
 
         do k = 0, 6
-            if (is_same_name(name, calendar_day_names(k)) .or. is_same_name(name, calendar_day_abbrevs(k)) &
-                .or. is_same_name(name, trim(calendar_day_abbrevs(k))//".")) then
+            if (is_same_name(name, calendar_day_names(k)) .or. is_same_name(name, calendar_day_abbreviations(k)) &
+                .or. is_same_name(name, trim(calendar_day_abbreviations(k))//".")) then
                 day = k
                 return
             end if
@@ -1857,8 +1861,8 @@ contains
         month = 0
 
         do k = 1, 12
-            if (is_same_name(name, calendar_month_names(k)) .or. is_same_name(name, calendar_month_abbrevs(k)) &
-                .or. is_same_name(name, trim(calendar_month_abbrevs(k))//".")) then
+            if (is_same_name(name, calendar_month_names(k)) .or. is_same_name(name, calendar_month_abbreviations(k)) &
+                .or. is_same_name(name, trim(calendar_month_abbreviations(k))//".")) then
                 month = k
                 return
             end if
@@ -1907,30 +1911,31 @@ contains
         type(status_type) :: st
 
         status = status_type()
-        s_entry = "^\("//regexp_quote(diary_expression_entry_symbol)//"(\)\|\("//regexp_quote(diary_nonmarking_symbol) &
-                  //regexp_quote(diary_expression_entry_symbol)//"(diary-remind\)"
+        s_entry = "^\("//regular_expression_quote(diary_expression_entry_symbol)//"(\)\|\(" &
+                  //regular_expression_quote(diary_nonmarking_symbol) &
+                  //regular_expression_quote(diary_expression_entry_symbol)//"(diary-remind\)"
         old = current_buffer()
         call set_buffer(calendar_get_buffer(), st)
         call calendar_get_date_range(first, last, .true.)
         call set_buffer(old, st)
         first_date = calendar_absolute_from_gregorian(first)
         last_date = calendar_absolute_from_gregorian(last)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(s_entry, hit, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(s_entry, hit, st, noerror=SEARCH_NOERROR)
             if (hit == 0) exit
-            diary_marking_entry_flag = preceding_char() == iachar("(")
-            call re_search_backward("(", found, st, noerror=SEARCH_NOERROR)
+            diary_marking_entry_flag = preceding_character() == iachar("(")
+            call regular_expression_search_backward("(", found, st, noerror=SEARCH_NOERROR)
             expression_start = point()
             call forward_expression(1_int64, status)
             if (.not. status%ok()) return
             call buffer_substring(expression_start, point(), expression, st)
-            call goto_char(min(point() + 1, point_max()))
+            call goto_character(min(point() + 1, point_maximum()))
 
-            if (is_bol() .and. .not. looking_at("[ \t]", st)) then
+            if (is_beginning_of_line() .and. .not. looking_at("[ \t]", st)) then
                 ! Diary entry consists only of the expression.
-                call goto_char(point() - 1)
+                call goto_character(point() - 1)
                 entry = ""
             else
                 entry_start = point()
@@ -1941,7 +1946,7 @@ contains
                     shortage = forward_line(1_int64)
                 end do
 
-                if (is_bol()) call goto_char(point() - 1)
+                if (is_beginning_of_line()) call goto_character(point() - 1)
                 call buffer_substring(entry_start, point(), entry, st)
             end if
 
@@ -2262,13 +2267,14 @@ contains
 
         status = status_type()
         found = .false.
-        s_entry = "^"//regexp_quote(diary_nonmarking_symbol)//"?"//regexp_quote(diary_expression_entry_symbol)//"("
-        call goto_char(point_min())
+        s_entry = "^"//regular_expression_quote(diary_nonmarking_symbol)//"?" &
+                  //regular_expression_quote(diary_expression_entry_symbol)//"("
+        call goto_character(point_minimum())
 
         do
-            call re_search_forward(s_entry, hit, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(s_entry, hit, st, noerror=SEARCH_NOERROR)
             if (hit == 0) exit
-            call goto_char(point() - 1)
+            call goto_character(point() - 1)
             expression_start = point()
             call forward_expression(1_int64, status)
             if (.not. status%ok()) return
@@ -2276,11 +2282,11 @@ contains
             line_start = line_end_position(0_int64)
             call buffer_substring(line_start + 1, point(), specifier, st)
             entry_start = line_start + 1
-            call goto_char(min(point() + 1, point_max()))
+            call goto_character(min(point() + 1, point_maximum()))
 
-            if (is_bol() .and. .not. looking_at("[ \t]", st)) then
+            if (is_beginning_of_line() .and. .not. looking_at("[ \t]", st)) then
                 ! Diary entry consists only of the expression.
-                call goto_char(point() - 1)
+                call goto_character(point() - 1)
                 entry = ""
             else
                 entry_start = point()
@@ -2290,7 +2296,7 @@ contains
                     shortage = forward_line(1_int64)
                 end do
 
-                if (is_bol()) call goto_char(point() - 1)
+                if (is_beginning_of_line()) call goto_character(point() - 1)
                 call buffer_substring(entry_start, point(), entry, st)
             end if
 
@@ -2325,7 +2331,7 @@ contains
         call evaluate_entry_expression(expression, entry, date, result, status)
 
         if (.not. status%ok()) then
-            write (digits, "(i0)") count_lines(point_min(), point())
+            write (digits, "(i0)") count_lines(point_minimum(), point())
 
             if (allocated(status%detail)) then
                 call message("Bad diary expression at line "//trim(digits)//" in "//diary_file//": "//expression//": " &
@@ -2348,21 +2354,21 @@ contains
         type(expression_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: form_name
-        type(expression_value_type), allocatable :: args(:)
+        type(expression_value_type), allocatable :: arguments(:)
         integer :: k
 
         result = expression_result_type()
-        call read_entry_expression(expression, form_name, args, status)
+        call read_entry_expression(expression, form_name, arguments, status)
         if (.not. status%ok()) return
         ! The form names a function of the diary file, text read at run time.
         k = findloc(entry_functions%name == form_name, .true., dim=1)
 
         if (k == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Unknown diary entry form "//form_name)
-        else if (size(args) < entry_functions(k)%least .or. size(args) > entry_functions(k)%most) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong number of arguments: "//form_name)
+            call set_error(status, GENERIC_ERROR_CODE, "Unknown diary entry form "//form_name)
+        else if (size(arguments) < entry_functions(k)%least .or. size(arguments) > entry_functions(k)%most) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "Wrong number of arguments: "//form_name)
         else
-            call entry_functions(k)%compute(args, date, entry, result, status)
+            call entry_functions(k)%compute(arguments, date, entry, result, status)
         end if
 
         ! (cons mark entry) gives the entry; a string gives itself.
@@ -2372,30 +2378,30 @@ contains
         end if
     end subroutine evaluate_entry_expression
 
-    ! Read the entry form TEXT, "(NAME ARGUMENT...)", into NAME and ARGS.
+    ! Read the entry form TEXT, "(NAME ARGUMENT...)", into NAME and ARGUMENTS.
     ! An argument is an integer, t, nil, a string, a quoted list of
     ! integers, a quoted name or a quoted form.  Not a port.
-    recursive subroutine read_entry_expression(text, name, args, status)
+    recursive subroutine read_entry_expression(text, name, arguments, status)
         character(len=*), intent(in) :: text
         character(len=:), allocatable, intent(out) :: name
-        type(expression_value_type), allocatable, intent(out) :: args(:)
+        type(expression_value_type), allocatable, intent(out) :: arguments(:)
         type(status_type), intent(out) :: status
-        type(expression_value_type) :: arg
+        type(expression_value_type) :: argument
         integer :: k
 
         status = status_type()
-        allocate (args(0))
+        allocate (arguments(0))
         name = ""
         k = 1
         call skip_blanks(text, k)
 
         if (k > len(text)) then
-            call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
+            call set_error(status, GENERIC_ERROR_CODE, "End of file during parsing")
             return
         end if
 
         if (text(k:k) /= "(") then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid diary entry form")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid diary entry form")
             return
         end if
 
@@ -2404,7 +2410,7 @@ contains
         name = read_entry_word(text, k)
 
         if (len(name) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Invalid diary entry form")
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid diary entry form")
             return
         end if
 
@@ -2412,23 +2418,23 @@ contains
             call skip_blanks(text, k)
 
             if (k > len(text)) then
-                call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
+                call set_error(status, GENERIC_ERROR_CODE, "End of file during parsing")
                 return
             end if
 
             if (text(k:k) == ")") exit
-            call read_argument(text, k, arg, status)
+            call read_argument(text, k, argument, status)
             if (.not. status%ok()) return
-            args = [args, arg]
+            arguments = [arguments, argument]
         end do
     end subroutine read_entry_expression
 
-    ! Read the argument of TEXT at K into ARG, leaving K after it.
+    ! Read the argument of TEXT at K into ARGUMENT, leaving K after it.
     ! Not a port.
-    recursive subroutine read_argument(text, k, arg, status)
+    recursive subroutine read_argument(text, k, argument, status)
         character(len=*), intent(in) :: text
         integer, intent(inout) :: k
-        type(expression_value_type), intent(out) :: arg
+        type(expression_value_type), intent(out) :: argument
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: word
         integer :: start, depth
@@ -2439,13 +2445,13 @@ contains
         select case (text(k:k))
         case ('"')
             ! A string, with backslash escapes.
-            arg%kind = VALUE_STRING
-            arg%text = ""
+            argument%kind = VALUE_STRING
+            argument%text = ""
             k = k + 1
 
             do
                 if (k > len(text)) then
-                    call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
+                    call set_error(status, GENERIC_ERROR_CODE, "End of file during parsing")
                     return
                 end if
 
@@ -2456,7 +2462,7 @@ contains
                     if (k > len(text)) cycle
                 end if
 
-                arg%text = arg%text//text(k:k)
+                argument%text = argument%text//text(k:k)
                 k = k + 1
             end do
 
@@ -2466,7 +2472,7 @@ contains
             call skip_blanks(text, k)
 
             if (k > len(text)) then
-                call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
+                call set_error(status, GENERIC_ERROR_CODE, "End of file during parsing")
                 return
             end if
 
@@ -2500,49 +2506,49 @@ contains
                 end do
 
                 if (depth /= 0) then
-                    call set_error(status, FM_GENERIC_ERROR, "End of file during parsing")
+                    call set_error(status, GENERIC_ERROR_CODE, "End of file during parsing")
                     return
                 end if
 
-                call read_quoted_list(text(start:k - 1), arg, status)
+                call read_quoted_list(text(start:k - 1), argument, status)
             else
                 word = read_entry_word(text, k)
 
                 select case (word)
                 case ("nil")
-                    arg%kind = VALUE_NONE
+                    argument%kind = VALUE_NONE
                 case ("t")
-                    arg%kind = VALUE_ALL
+                    argument%kind = VALUE_ALL
                 case ("")
-                    call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax")
+                    call set_error(status, GENERIC_ERROR_CODE, "Invalid read syntax")
                 case default
                     if (is_integer_text(word)) then
-                        arg%kind = VALUE_INTEGER
-                        read (word, *) arg%value
+                        argument%kind = VALUE_INTEGER
+                        read (word, *) argument%value
                     else
-                        arg%kind = VALUE_NAME
-                        arg%text = word
+                        argument%kind = VALUE_NAME
+                        argument%text = word
                     end if
                 end select
             end if
         case ("(")
-            call set_error(status, FM_GENERIC_ERROR, "Unknown diary entry form "//text(k:))
+            call set_error(status, GENERIC_ERROR_CODE, "Unknown diary entry form "//text(k:))
         case default
             word = read_entry_word(text, k)
 
             select case (word)
             case ("nil")
-                arg%kind = VALUE_NONE
+                argument%kind = VALUE_NONE
             case ("t")
-                arg%kind = VALUE_ALL
+                argument%kind = VALUE_ALL
             case ("")
-                call set_error(status, FM_GENERIC_ERROR, "Invalid read syntax")
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid read syntax")
             case default
                 if (is_integer_text(word)) then
-                    arg%kind = VALUE_INTEGER
-                    read (word, *) arg%value
+                    argument%kind = VALUE_INTEGER
+                    read (word, *) argument%value
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Unknown diary entry variable "//word)
+                    call set_error(status, GENERIC_ERROR_CODE, "Unknown diary entry variable "//word)
                 end if
             end select
         end select
@@ -2550,9 +2556,9 @@ contains
 
     ! Read the quoted list TEXT, "(...)": integers, nil for none, or a
     ! form whose first element is a name.  Not a port.
-    recursive subroutine read_quoted_list(text, arg, status)
+    recursive subroutine read_quoted_list(text, argument, status)
         character(len=*), intent(in) :: text
-        type(expression_value_type), intent(out) :: arg
+        type(expression_value_type), intent(out) :: argument
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: word
         integer :: k, value
@@ -2563,29 +2569,29 @@ contains
 
         if (text(k:k) == ")") then
             ! '() is nil.
-            arg%kind = VALUE_NONE
+            argument%kind = VALUE_NONE
             return
         end if
 
         word = read_entry_word(text, k)
 
         if (.not. is_integer_text(word)) then
-            arg%kind = VALUE_EXPRESSION
-            arg%text = text
+            argument%kind = VALUE_EXPRESSION
+            argument%text = text
             return
         end if
 
-        arg%kind = VALUE_INTEGERS
-        allocate (arg%integers(0))
+        argument%kind = VALUE_INTEGERS
+        allocate (argument%integers(0))
 
         do
             if (.not. is_integer_text(word)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected integer, got "//word)
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "Wrong type argument: expected integer, got "//word)
                 return
             end if
 
             read (word, *) value
-            arg%integers = [arg%integers, value]
+            argument%integers = [argument%integers, value]
             call skip_blanks(text, k)
             if (k > len(text)) exit
             if (text(k:k) == ")") exit
@@ -2639,35 +2645,35 @@ contains
         is_integer = verify(text(first:last), "0123456789") == 0
     end function is_integer_text
 
-    ! The integer of ARG; an error condition occurs if it is not one.
+    ! The integer of ARGUMENT; an error condition occurs if it is not one.
     ! Not a port.
-    integer function integer_argument(arg, status) result(value)
-        type(expression_value_type), intent(in) :: arg
+    integer function integer_argument(argument, status) result(value)
+        type(expression_value_type), intent(in) :: argument
         type(status_type), intent(inout) :: status
 
         value = 0
         if (.not. status%ok()) return
 
-        if (arg%kind /= VALUE_INTEGER) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected integer")
+        if (argument%kind /= VALUE_INTEGER) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "Wrong type argument: expected integer")
             return
         end if
 
-        value = arg%value
+        value = argument%value
     end function integer_argument
 
-    ! Whether the integer N matches ARG: an integer, a list of integers or
+    ! Whether the integer N matches ARGUMENT: an integer, a list of integers or
     ! t (upstream's (or (and (listp dd) (memq d dd)) (equal d dd) (eq dd
     ! t))).  Not a port.
-    logical function matches(arg, n)
-        type(expression_value_type), intent(in) :: arg
+    logical function matches(argument, n)
+        type(expression_value_type), intent(in) :: argument
         integer, intent(in) :: n
 
-        select case (arg%kind)
+        select case (argument%kind)
         case (VALUE_INTEGER)
-            matches = arg%value == n
+            matches = argument%value == n
         case (VALUE_INTEGERS)
-            matches = any(arg%integers == n)
+            matches = any(argument%integers == n)
         case (VALUE_ALL)
             matches = .true.
         case default
@@ -2721,15 +2727,15 @@ contains
         end select
     end subroutine order_date_arguments
 
-    ! ARGS(K), or nil if there is no such argument.  Not a port.
-    function argument(args, k) result(arg)
-        type(expression_value_type), intent(in) :: args(:)
+    ! ARGUMENTS(K), or nil if there is no such argument.  Not a port.
+    function optional_argument(arguments, k) result(argument)
+        type(expression_value_type), intent(in) :: arguments(:)
         integer, intent(in) :: k
-        type(expression_value_type) :: arg
+        type(expression_value_type) :: argument
 
-        arg = expression_value_type()
-        if (k <= size(args)) arg = args(k)
-    end function argument
+        argument = expression_value_type()
+        if (k <= size(arguments)) argument = arguments(k)
+    end function optional_argument
 
     ! A date of three integer arguments in the order of
     ! `calendar_date_style'.  Not a port.
@@ -2754,8 +2760,8 @@ contains
     ! An optional parameter MARK specifies a face or single-character string
     ! to use when highlighting the day in the calendar.  Port of
     ! diary-lib.el:diary-date.
-    recursive subroutine diary_date(args, date, entry, result, status)
-        type(expression_value_type), intent(in) :: args(:)
+    recursive subroutine diary_date(arguments, date, entry, result, status)
+        type(expression_value_type), intent(in) :: arguments(:)
         type(calendar_date_type), intent(in) :: date
         character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
@@ -2763,9 +2769,9 @@ contains
         type(expression_value_type) :: mm, dd, yy
 
         status = status_type()
-        call order_date_arguments(args(1), args(2), args(3), mm, dd, yy)
+        call order_date_arguments(arguments(1), arguments(2), arguments(3), mm, dd, yy)
         result%applies = matches(dd, date%day) .and. matches(mm, date%month) .and. matches(yy, date%year)
-        result%mark = argument(args, 4)
+        result%mark = optional_argument(arguments, 4)
     end subroutine diary_date
 
     ! Block diary entry.
@@ -2776,8 +2782,8 @@ contains
     ! An optional parameter MARK specifies a face or single-character string
     ! to use when highlighting the day in the calendar.  Port of
     ! diary-lib.el:diary-block.
-    recursive subroutine diary_block(args, date, entry, result, status)
-        type(expression_value_type), intent(in) :: args(:)
+    recursive subroutine diary_block(arguments, date, entry, result, status)
+        type(expression_value_type), intent(in) :: arguments(:)
         type(calendar_date_type), intent(in) :: date
         character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
@@ -2785,12 +2791,12 @@ contains
         integer :: date1, date2, d
 
         status = status_type()
-        date1 = calendar_absolute_from_gregorian(date_argument(args(1), args(2), args(3), status))
-        date2 = calendar_absolute_from_gregorian(date_argument(args(4), args(5), args(6), status))
+        date1 = calendar_absolute_from_gregorian(date_argument(arguments(1), arguments(2), arguments(3), status))
+        date2 = calendar_absolute_from_gregorian(date_argument(arguments(4), arguments(5), arguments(6), status))
         if (.not. status%ok()) return
         d = calendar_absolute_from_gregorian(date)
         result%applies = date1 <= d .and. d <= date2
-        result%mark = argument(args, 7)
+        result%mark = optional_argument(arguments, 7)
     end subroutine diary_block
 
     ! Diary entry for the Nth DAYNAME after/before MONTH DAY.
@@ -2802,27 +2808,27 @@ contains
     ! Optional MARK specifies a face or single-character string to use when
     ! highlighting the day in the calendar.  Port of
     ! diary-lib.el:diary-float.
-    recursive subroutine diary_float(args, date, entry, result, status)
-        type(expression_value_type), intent(in) :: args(:)
+    recursive subroutine diary_float(arguments, date, entry, result, status)
+        type(expression_value_type), intent(in) :: arguments(:)
         type(calendar_date_type), intent(in) :: date
         character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        type(expression_value_type) :: month, day_arg
+        type(expression_value_type) :: month, day_argument
         type(calendar_date_type) :: first, last
-        integer :: dayname, n, limit, last_abs, first_abs, day
+        integer :: dayname, n, limit, last_absolute, first_absolute, day
         logical :: has_day
 
         status = status_type()
-        month = args(1)
-        dayname = integer_argument(args(2), status)
-        n = integer_argument(args(3), status)
-        day_arg = argument(args, 4)
-        has_day = day_arg%kind /= VALUE_NONE
+        month = arguments(1)
+        dayname = integer_argument(arguments(2), status)
+        n = integer_argument(arguments(3), status)
+        day_argument = optional_argument(arguments, 4)
+        has_day = day_argument%kind /= VALUE_NONE
         day = 0
-        if (has_day) day = integer_argument(day_arg, status)
+        if (has_day) day = integer_argument(day_argument, status)
         if (.not. status%ok()) return
-        result%mark = argument(args, 5)
+        result%mark = optional_argument(arguments, 5)
         ! This is messy because the diary entry may apply, but the date on which it
         ! is based can be in a different month/year.  For example, asking for the
         ! first Monday after December 30.  For large values of |n| the problem is
@@ -2832,15 +2838,15 @@ contains
         limit = calendar_nth_named_absday(-n, dayname, date%month, date%year, date%day)
 
         if (n > 0) then
-            last_abs = limit
-            first_abs = limit - 6
+            last_absolute = limit
+            first_absolute = limit - 6
         else
-            last_abs = limit + 6
-            first_abs = limit
+            last_absolute = limit + 6
+            first_absolute = limit
         end if
 
-        last = calendar_gregorian_from_absolute(last_abs)
-        first = calendar_gregorian_from_absolute(first_abs)
+        last = calendar_gregorian_from_absolute(last_absolute)
+        first = calendar_gregorian_from_absolute(first_absolute)
 
         if (first%month == last%month) then
             ! only possible base dates in one month
@@ -2910,7 +2916,7 @@ contains
             end if
 
             if (k == len(entry)) then
-                call set_error(status, FM_GENERIC_ERROR, "Format string ends in middle of format specifier")
+                call set_error(status, GENERIC_ERROR_CODE, "Format string ends in middle of format specifier")
                 return
             end if
 
@@ -2924,10 +2930,10 @@ contains
                     write (digits, "(i0)") n
                     text = text//trim(digits)
                 else if (used == 2) then
-                    call set_error(status, FM_GENERIC_ERROR, "Format specifier doesn't match argument type")
+                    call set_error(status, GENERIC_ERROR_CODE, "Format specifier doesn't match argument type")
                     return
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Not enough arguments for format string")
+                    call set_error(status, GENERIC_ERROR_CODE, "Not enough arguments for format string")
                     return
                 end if
             case ("s")
@@ -2939,11 +2945,11 @@ contains
                 else if (used == 2) then
                     text = text//trim(diary_ordinal_suffix(n))
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Not enough arguments for format string")
+                    call set_error(status, GENERIC_ERROR_CODE, "Not enough arguments for format string")
                     return
                 end if
             case default
-                call set_error(status, FM_GENERIC_ERROR, "Invalid format operation %"//entry(k + 1:k + 1))
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid format operation %"//entry(k + 1:k + 1))
                 return
             end select
 
@@ -2965,25 +2971,26 @@ contains
     ! An optional parameter MARK specifies a face or single-character
     ! string to use when highlighting the day in the calendar.  Port of
     ! diary-lib.el:diary-anniversary.
-    recursive subroutine diary_anniversary(args, date, entry, result, status)
-        type(expression_value_type), intent(in) :: args(:)
+    recursive subroutine diary_anniversary(arguments, date, entry, result, status)
+        type(expression_value_type), intent(in) :: arguments(:)
         type(calendar_date_type), intent(in) :: date
         character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
         type(status_type), intent(out) :: status
-        type(expression_value_type) :: mm_arg, dd_arg, yy_arg
+        type(expression_value_type) :: mm_argument, dd_argument, yy_argument
         integer :: mm, dd, y, diff
 
         status = status_type()
-        call order_date_arguments(args(1), args(2), argument(args, 3), mm_arg, dd_arg, yy_arg)
-        dd = integer_argument(dd_arg, status)
-        mm = integer_argument(mm_arg, status)
+        call order_date_arguments(arguments(1), arguments(2), optional_argument(arguments, 3), mm_argument, dd_argument, &
+                                  yy_argument)
+        dd = integer_argument(dd_argument, status)
+        mm = integer_argument(mm_argument, status)
         y = date%year
 
-        if (yy_arg%kind == VALUE_NONE) then
+        if (yy_argument%kind == VALUE_NONE) then
             diff = 100
         else
-            diff = y - integer_argument(yy_arg, status)
+            diff = y - integer_argument(yy_argument, status)
         end if
 
         if (.not. status%ok()) return
@@ -2997,7 +3004,7 @@ contains
             result%applies = .true.
             result%has_text = .true.
             call format_entry(entry, diff, result%text, status)
-            result%mark = argument(args, 4)
+            result%mark = optional_argument(arguments, 4)
         end if
     end subroutine diary_anniversary
 
@@ -3012,8 +3019,8 @@ contains
     ! An optional parameter MARK specifies a face or single-character
     ! string to use when highlighting the day in the calendar.  Port of
     ! diary-lib.el:diary-cyclic.
-    recursive subroutine diary_cyclic(args, date, entry, result, status)
-        type(expression_value_type), intent(in) :: args(:)
+    recursive subroutine diary_cyclic(arguments, date, entry, result, status)
+        type(expression_value_type), intent(in) :: arguments(:)
         type(calendar_date_type), intent(in) :: date
         character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
@@ -3021,16 +3028,16 @@ contains
         integer :: n, diff, cycle_number
 
         status = status_type()
-        n = integer_argument(args(1), status)
+        n = integer_argument(arguments(1), status)
         if (.not. status%ok()) return
 
         if (n <= 0) then
-            call set_error(status, FM_USER_ERROR, "Day count must be positive")
+            call set_error(status, USER_ERROR_CODE, "Day count must be positive")
             return
         end if
 
         diff = calendar_absolute_from_gregorian(date) &
-               - calendar_absolute_from_gregorian(date_argument(args(2), args(3), args(4), status))
+               - calendar_absolute_from_gregorian(date_argument(arguments(2), arguments(3), arguments(4), status))
         if (.not. status%ok()) return
         cycle_number = diff/n
 
@@ -3038,15 +3045,15 @@ contains
             result%applies = .true.
             result%has_text = .true.
             call format_entry(entry, cycle_number, result%text, status)
-            result%mark = argument(args, 5)
+            result%mark = optional_argument(arguments, 5)
         end if
     end subroutine diary_cyclic
 
     ! Offsetted diary entry.  Offsets the entry form FORM by DAYS days.
     ! Entry applies if the date is DAYS days after another diary entry
     ! form FORM.  Port of diary-lib.el:diary-offset.
-    recursive subroutine diary_offset(args, date, entry, result, status)
-        type(expression_value_type), intent(in) :: args(:)
+    recursive subroutine diary_offset(arguments, date, entry, result, status)
+        type(expression_value_type), intent(in) :: arguments(:)
         type(calendar_date_type), intent(in) :: date
         character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
@@ -3055,27 +3062,27 @@ contains
 
         status = status_type()
 
-        if (args(2)%kind /= VALUE_INTEGER) then
-            call set_error(status, FM_USER_ERROR, "Days must be an integer")
+        if (arguments(2)%kind /= VALUE_INTEGER) then
+            call set_error(status, USER_ERROR_CODE, "Days must be an integer")
             return
         end if
 
-        days = args(2)%value
+        days = arguments(2)%value
 
-        if (args(1)%kind /= VALUE_EXPRESSION) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected a diary entry form")
+        if (arguments(1)%kind /= VALUE_EXPRESSION) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "Wrong type argument: expected a diary entry form")
             return
         end if
 
-        call evaluate_entry_expression(args(1)%text, entry, &
+        call evaluate_entry_expression(arguments(1)%text, entry, &
                                        calendar_gregorian_from_absolute(calendar_absolute_from_gregorian(date) - days), result, &
                                        status)
     end subroutine diary_offset
 
     ! Day of year and number of days remaining in the year of date diary
     ! entry.  Port of diary-lib.el:diary-day-of-year.
-    recursive subroutine diary_day_of_year(args, date, entry, result, status)
-        type(expression_value_type), intent(in) :: args(:)
+    recursive subroutine diary_day_of_year(arguments, date, entry, result, status)
+        type(expression_value_type), intent(in) :: arguments(:)
         type(calendar_date_type), intent(in) :: date
         character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
@@ -3105,8 +3112,8 @@ contains
     ! parameter MARKING is true then the reminders are marked on the
     ! calendar.  Port of diary-lib.el:diary-remind (with the default
     ! `diary_remind_message'; customizing it is Deferred).
-    recursive subroutine diary_remind(args, date, entry, result, status)
-        type(expression_value_type), intent(in) :: args(:)
+    recursive subroutine diary_remind(arguments, date, entry, result, status)
+        type(expression_value_type), intent(in) :: arguments(:)
         type(calendar_date_type), intent(in) :: date
         character(len=*), intent(in) :: entry
         type(expression_result_type), intent(out) :: result
@@ -3117,24 +3124,24 @@ contains
 
         status = status_type()
 
-        if (args(1)%kind /= VALUE_EXPRESSION) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "Wrong type argument: expected a diary entry form")
+        if (arguments(1)%kind /= VALUE_EXPRESSION) then
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "Wrong type argument: expected a diary entry form")
             return
         end if
 
-        marking = argument(args, 3)
+        marking = optional_argument(arguments, 3)
 
         ! Convert a negative number to a list of days.
-        select case (args(2)%kind)
+        select case (arguments(2)%kind)
         case (VALUE_INTEGER)
-            if (args(2)%value < 0) then
-                days = [(k, k=1, -args(2)%value)]
+            if (arguments(2)%value < 0) then
+                days = [(k, k=1, -arguments(2)%value)]
                 call remind_list(days, result, status)
             else
-                call remind_one(args(2)%value, .true., result, status)
+                call remind_one(arguments(2)%value, .true., result, status)
             end if
         case (VALUE_INTEGERS)
-            call remind_list(args(2)%integers, result, status)
+            call remind_list(arguments(2)%integers, result, status)
         case default
             ! The entry applies on the date only.
             call remind_one(0, .false., result, status)
@@ -3154,7 +3161,7 @@ contains
             character(len=:), allocatable :: text
 
             result = expression_result_type()
-            call evaluate_entry_expression(args(1)%text, entry, date, diary_entry, status)
+            call evaluate_entry_expression(arguments(1)%text, entry, date, diary_entry, status)
             if (.not. status%ok()) return
 
             if (diary_entry%applies .and. (.not. diary_marking_entries_flag .or. diary_marking_entry_flag)) then
@@ -3164,7 +3171,7 @@ contains
                      .and. (.not. diary_marking_entries_flag .or. marking%kind /= VALUE_NONE)) then
                 ! Diary entry may apply to `days' before date.
                 ! Adjust date, and re-evaluate.
-                call evaluate_entry_expression(args(1)%text, entry, &
+                call evaluate_entry_expression(arguments(1)%text, entry, &
                                                calendar_gregorian_from_absolute(calendar_absolute_from_gregorian(date) + days), &
                                                diary_entry, status)
                 if (.not. status%ok()) return
@@ -3249,10 +3256,10 @@ contains
         call widen()
         call unhide_diary_everything(status)
         if (.not. status%ok()) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
-        call search_backward("Local Variables:", found, st, bound=max(point_max() - 3000, point_min()), &
+        call search_backward("Local Variables:", found, st, bound=max(point_maximum() - 3000, point_minimum()), &
                              noerror=SEARCH_NOERROR)
         case_fold_search%value = saved_fold
 
@@ -3264,7 +3271,7 @@ contains
         end if
 
         text = ""
-        if (.not. is_bol()) text = achar(10)
+        if (.not. is_beginning_of_line()) text = achar(10)
 
         if (present(nonmarking)) then
             if (nonmarking) text = text//diary_nonmarking_symbol
@@ -3347,45 +3354,45 @@ contains
     end function diary_date_insertion_string
 
     !> Insert a diary entry for the date indicated by point.
-    !> Prefix argument ARG makes the entry nonmarking.  Port of
+    !> Prefix argument ARGUMENT makes the entry nonmarking.  Port of
     !> diary-lib.el:diary-insert-entry (no EVENT: the mouse is Deferred).
-    recursive subroutine insert_diary_entry(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine insert_diary_entry(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
 
         call calendar_cursor_to_date(date, status, .true.)
         if (.not. status%ok()) return
-        call insert_diary_entry_string(diary_date_insertion_string(date, 0, .false.), status, arg)
+        call insert_diary_entry_string(diary_date_insertion_string(date, 0, .false.), status, argument)
     end subroutine insert_diary_entry
 
-    ! The command `insert_diary_entry': ARG is the prefix argument.
+    ! The command `insert_diary_entry': ARGUMENT is the prefix argument.
     ! Not a port.
-    recursive subroutine cmd_insert_diary_entry(status)
+    recursive subroutine execute_insert_diary_entry(status)
         type(status_type), intent(out) :: status
 
-        call insert_diary_entry(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_insert_diary_entry
+        call insert_diary_entry(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_insert_diary_entry
 
     !> Insert a weekly diary entry for the day of the week indicated by point.
-    !> Prefix argument ARG makes the entry nonmarking.  Port of
+    !> Prefix argument ARGUMENT makes the entry nonmarking.  Port of
     !> diary-lib.el:diary-insert-weekly-entry.
-    recursive subroutine insert_weekly_diary_entry(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine insert_weekly_diary_entry(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
 
         call calendar_cursor_to_date(date, status, .true.)
         if (.not. status%ok()) return
-        call insert_diary_entry_string(calendar_day_name(date), status, arg)
+        call insert_diary_entry_string(calendar_day_name(date), status, argument)
     end subroutine insert_weekly_diary_entry
 
     ! The command `insert_weekly_diary_entry'.  Not a port.
-    recursive subroutine cmd_insert_weekly_diary_entry(status)
+    recursive subroutine execute_insert_weekly_diary_entry(status)
         type(status_type), intent(out) :: status
 
-        call insert_weekly_diary_entry(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_insert_weekly_diary_entry
+        call insert_weekly_diary_entry(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_insert_weekly_diary_entry
 
     ! Subroutine to insert a diary entry related to the date at point.
     ! KIND is the type of entry (ENTRY_MONTHLY or ENTRY_YEARLY).  NOMARK
@@ -3404,65 +3411,65 @@ contains
     end subroutine insert_diary_entry_1
 
     !> Insert a monthly diary entry for the day of the month indicated by point.
-    !> Prefix argument ARG makes the entry nonmarking.  Port of
+    !> Prefix argument ARGUMENT makes the entry nonmarking.  Port of
     !> diary-lib.el:diary-insert-monthly-entry.
-    recursive subroutine insert_monthly_diary_entry(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine insert_monthly_diary_entry(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call insert_diary_entry_1(ENTRY_MONTHLY, arg, status)
+        call insert_diary_entry_1(ENTRY_MONTHLY, argument, status)
     end subroutine insert_monthly_diary_entry
 
     ! The command `insert_monthly_diary_entry'.  Not a port.
-    recursive subroutine cmd_insert_monthly_diary_entry(status)
+    recursive subroutine execute_insert_monthly_diary_entry(status)
         type(status_type), intent(out) :: status
 
-        call insert_monthly_diary_entry(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_insert_monthly_diary_entry
+        call insert_monthly_diary_entry(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_insert_monthly_diary_entry
 
     !> Insert an annual diary entry for the day of the year indicated by point.
-    !> Prefix argument ARG makes the entry nonmarking.  Port of
+    !> Prefix argument ARGUMENT makes the entry nonmarking.  Port of
     !> diary-lib.el:diary-insert-yearly-entry.
-    recursive subroutine insert_yearly_diary_entry(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine insert_yearly_diary_entry(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call insert_diary_entry_1(ENTRY_YEARLY, arg, status)
+        call insert_diary_entry_1(ENTRY_YEARLY, argument, status)
     end subroutine insert_yearly_diary_entry
 
     ! The command `insert_yearly_diary_entry'.  Not a port.
-    recursive subroutine cmd_insert_yearly_diary_entry(status)
+    recursive subroutine execute_insert_yearly_diary_entry(status)
         type(status_type), intent(out) :: status
 
-        call insert_yearly_diary_entry(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_insert_yearly_diary_entry
+        call insert_yearly_diary_entry(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_insert_yearly_diary_entry
 
     !> Insert an anniversary diary entry for the date given by point.
-    !> Prefix argument ARG makes the entry nonmarking.  Port of
+    !> Prefix argument ARGUMENT makes the entry nonmarking.  Port of
     !> diary-lib.el:diary-insert-anniversary-entry.
-    recursive subroutine insert_anniversary_diary_entry(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine insert_anniversary_diary_entry(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
 
         call calendar_cursor_to_date(date, status, .true.)
         if (.not. status%ok()) return
         call insert_diary_entry_string(diary_expression_entry_symbol//"(diary-anniversary " &
-                                       //diary_date_insertion_string(date, 0, .true.)//")", status, arg)
+                                       //diary_date_insertion_string(date, 0, .true.)//")", status, argument)
     end subroutine insert_anniversary_diary_entry
 
     ! The command `insert_anniversary_diary_entry'.  Not a port.
-    recursive subroutine cmd_insert_anniversary_diary_entry(status)
+    recursive subroutine execute_insert_anniversary_diary_entry(status)
         type(status_type), intent(out) :: status
 
-        call insert_anniversary_diary_entry(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_insert_anniversary_diary_entry
+        call insert_anniversary_diary_entry(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_insert_anniversary_diary_entry
 
     !> Insert a block diary entry for the days between the point and marked date.
-    !> Prefix argument ARG makes the entry nonmarking.  Port of
+    !> Prefix argument ARGUMENT makes the entry nonmarking.  Port of
     !> diary-lib.el:diary-insert-block-entry.
-    recursive subroutine insert_block_diary_entry(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine insert_block_diary_entry(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: cursor, mark, start, end
 
@@ -3471,7 +3478,7 @@ contains
         mark = calendar_marked_date()
 
         if (mark%month == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No mark set in this buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "No mark set in this buffer")
             return
         end if
 
@@ -3485,21 +3492,21 @@ contains
 
         call insert_diary_entry_string(diary_expression_entry_symbol//"(diary-block " &
                                        //diary_date_insertion_string(start, 0, .true.)//" " &
-                                       //diary_date_insertion_string(end, 0, .true.)//")", status, arg)
+                                       //diary_date_insertion_string(end, 0, .true.)//")", status, argument)
     end subroutine insert_block_diary_entry
 
     ! The command `insert_block_diary_entry'.  Not a port.
-    recursive subroutine cmd_insert_block_diary_entry(status)
+    recursive subroutine execute_insert_block_diary_entry(status)
         type(status_type), intent(out) :: status
 
-        call insert_block_diary_entry(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_insert_block_diary_entry
+        call insert_block_diary_entry(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_insert_block_diary_entry
 
     !> Insert a cyclic diary entry starting at the date given by point.
-    !> Prefix argument ARG makes the entry nonmarking.  Port of
+    !> Prefix argument ARGUMENT makes the entry nonmarking.  Port of
     !> diary-lib.el:diary-insert-cyclic-entry.
-    recursive subroutine insert_cyclic_diary_entry(arg, status)
-        logical, intent(in) :: arg
+    recursive subroutine insert_cyclic_diary_entry(argument, status)
+        logical, intent(in) :: argument
         type(status_type), intent(out) :: status
         type(calendar_date_type) :: date
         character(len=32) :: digits
@@ -3511,7 +3518,7 @@ contains
         if (.not. status%ok()) return
         write (digits, "(i0)") n
         call insert_diary_entry_string(diary_expression_entry_symbol//"(diary-cyclic "//trim(digits)//" " &
-                                       //diary_date_insertion_string(date, 0, .true.)//")", status, arg)
+                                       //diary_date_insertion_string(date, 0, .true.)//")", status, argument)
 
     contains
 
@@ -3523,11 +3530,11 @@ contains
     end subroutine insert_cyclic_diary_entry
 
     ! The command `insert_cyclic_diary_entry'.  Not a port.
-    recursive subroutine cmd_insert_cyclic_diary_entry(status)
+    recursive subroutine execute_insert_cyclic_diary_entry(status)
         type(status_type), intent(out) :: status
 
-        call insert_cyclic_diary_entry(current_prefix_arg%kind /= PREFIX_NONE, status)
-    end subroutine cmd_insert_cyclic_diary_entry
+        call insert_cyclic_diary_entry(current_prefix_argument%kind /= PREFIX_NONE, status)
+    end subroutine execute_insert_cyclic_diary_entry
 
     ! ------------------------------------------------------------------
     ! The modes
@@ -3562,7 +3569,7 @@ contains
         ! default, no comments; and so for comment-end.
         if (len(diary_comment_start) > 0) call comment_start%set_local(diary_comment_start)
         if (len(diary_comment_end) > 0) call comment_end%set_local(diary_comment_end)
-        call add_to_invisibility_spec(DIARY_INVISIBLE, .false.)
+        call add_to_invisibility_specification(DIARY_INVISIBLE, .false.)
         call after_save_hook%prepend(redraw_diary_calendar, local=.true.)
         ! In case the file was modified externally, refresh the calendar
         ! after refreshing the diary buffer.
@@ -3590,7 +3597,7 @@ contains
 
     !> The diary's options, faces, modes, commands and calendar keys.
     !> Not a port.
-    subroutine init_diary_library()
+    subroutine initialize_diary_library()
         type(named_face_type), pointer :: f
         type(status_type) :: st
 
@@ -3613,13 +3620,13 @@ contains
         call modify_syntax_entry(iachar(":"), iachar(":"), "w", st, diary_syntax_table)
         f => diary_anniversary_face
         call f%define("diary_anniversary", "Face used for anniversaries in the fancy diary display.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_keyword_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_keyword_face"))
         f => diary_time
         call f%define("diary_time", "Face used for times of day in the fancy diary display.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_variable_name_face"))
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_variable_name_face"))
         f => diary_button
         call f%define("diary_button", "Face used for buttons in the fancy diary display.")
-        call init_button()
+        call initialize_button()
         diary_entry_button%face => diary_button
         diary_entry_button%help_echo = "Find this diary entry"
         diary_entry_button%follow_link = .true.
@@ -3645,19 +3652,19 @@ contains
         call keymap_set(calendar_mode_map, "i c", "insert_cyclic_diary_entry", st)
         calendar_mark_diary_entries_hook => mark_diary_entries_quietly
         calendar_view_diary_entries_hook => view_diary_entries_initially
-        commands%diary%execute => cmd_diary
-        commands%view_diary_entries%execute => cmd_view_diary_entries
-        commands%view_other_diary_entries%execute => cmd_view_other_diary_entries
+        commands%diary%execute => execute_diary
+        commands%view_diary_entries%execute => execute_view_diary_entries
+        commands%view_other_diary_entries%execute => execute_view_other_diary_entries
         commands%show_all_diary_entries%execute => show_all_diary_entries
-        commands%mark_diary_entries%execute => cmd_mark_diary_entries
-        commands%insert_diary_entry%execute => cmd_insert_diary_entry
-        commands%insert_weekly_diary_entry%execute => cmd_insert_weekly_diary_entry
-        commands%insert_monthly_diary_entry%execute => cmd_insert_monthly_diary_entry
-        commands%insert_yearly_diary_entry%execute => cmd_insert_yearly_diary_entry
-        commands%insert_anniversary_diary_entry%execute => cmd_insert_anniversary_diary_entry
-        commands%insert_block_diary_entry%execute => cmd_insert_block_diary_entry
-        commands%insert_cyclic_diary_entry%execute => cmd_insert_cyclic_diary_entry
+        commands%mark_diary_entries%execute => execute_mark_diary_entries
+        commands%insert_diary_entry%execute => execute_insert_diary_entry
+        commands%insert_weekly_diary_entry%execute => execute_insert_weekly_diary_entry
+        commands%insert_monthly_diary_entry%execute => execute_insert_monthly_diary_entry
+        commands%insert_yearly_diary_entry%execute => execute_insert_yearly_diary_entry
+        commands%insert_anniversary_diary_entry%execute => execute_insert_anniversary_diary_entry
+        commands%insert_block_diary_entry%execute => execute_insert_block_diary_entry
+        commands%insert_cyclic_diary_entry%execute => execute_insert_cyclic_diary_entry
         commands%diary_mode%execute => diary_mode
         commands%diary_fancy_display_mode%execute => diary_fancy_display_mode
-    end subroutine init_diary_library
+    end subroutine initialize_diary_library
 end module diary_library_mod

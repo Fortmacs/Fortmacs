@@ -28,13 +28,13 @@ module test_minibuffer_reading_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_error, FM_QUIT, FM_USER_ERROR, FM_VOID_VARIABLE, FM_INHIBITED_INTERACTION
-    use minibuffer_reading_mod, only: completion_regexps, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
+    use error_mod, only: status_type, format_error, QUIT_CODE, USER_ERROR_CODE, VOID_VARIABLE_CODE, INHIBITED_INTERACTION_CODE
+    use minibuffer_reading_mod, only: completion_regular_expressions, minibuffer_depth, minibuffer_prompt, minibuffer_exit_hook, &
                                       minibuffer_setup_function, is_minibuffer, assoc_string
     use keyboard_mod, only: inhibit_interaction
     use value_mod, only: list, vtag, V_ARRAY, V_STRING, value_type
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, list_length, list_elt, xstring, make_list, list, list_elements
+    use value_mod, only: value_type, list_length, list_element, xstring, make_list, list, list_elements
     use data_mod, only: value_eq
     use utility_functions_mod, only: value_equal
     use data_mod, only: set, symbol_value, history_setting_type, find_history, HISTORY_LENGTH_UNLIMITED
@@ -42,7 +42,7 @@ module test_minibuffer_reading_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, current_buffer, close_buffer, get_buffer, &
                           erase_buffer, fill_column
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point
+    use editing_functions_mod, only: buffer_string, goto_character, point
     use keymap_mod, only: key_parse, define_key
     use execute_interactively_mod, only: command_type
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop, minibuffer_message_text, &
@@ -52,9 +52,9 @@ module test_minibuffer_reading_mod
                               REQUIRE_MATCH_YES, &
                               last_minibuffer_message
     use directory_editor_mod, only: file_name_completion, file_name_all_completions
-    use frame_mod, only: selected_frame, frame_selected_window_ref
+    use frame_mod, only: selected_frame, frame_selected_window_reference
     use window_mod, only: window_type, get_buffer_window, window_leaves, same_window
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use minibuffer_reading_mod, only: minibuf_level, read_from_minibuffer, read_string, minibuffer_local_map, &
                                       completion_table_type, completion_list_table, completion_obarray_table, &
                                       try_completion, all_completions, is_exact_completion, completion_ignore_case, &
@@ -66,7 +66,7 @@ module test_minibuffer_reading_mod
     use minibuffer_reading_mod, only: COMPLETE_TRY, COMPLETE_ALL, COMPLETE_TEST
     use minibuffer_mod, only: read_buffer, internal_complete_buffer, insert_default_directory, &
                               read_buffer_completion_ignore_case
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, write_region, &
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, write_region, &
                                      create_directory_internal, delete_file_internal, file_exists
     use files_mod, only: set_visited_file_name, write_file
     implicit none(type, external)
@@ -74,8 +74,8 @@ module test_minibuffer_reading_mod
 
     public :: collect_minibuffer_reading_mod
 
-    type(command_type), target :: cmd_test_nested_read, cmd_test_leave_and_read
-    type(command_type), target :: cmd_test_record_completion
+    type(command_type), target :: command_test_nested_read, command_test_leave_and_read
+    type(command_type), target :: command_test_record_completion
     !> What the minibuffer-setup and minibuffer-exit functions saw.
     integer :: seen_depth = -1
     character(len=:), allocatable :: seen_prompt
@@ -154,18 +154,18 @@ contains
                     new_unittest("test-completion-symbol-alist-predicate", test_test_symbol_table_test), &
                     new_unittest("test-completion-string-alist", test_test_string_table), &
                     new_unittest("test-completion-string-alist-predicate", test_test_string_table_test), &
-                    new_unittest("try-completion-string-list-completion-regexp", test_try_regexp_1), &
-                    new_unittest("all-completions-string-list-completion-regexp", test_all_regexp_1), &
-                    new_unittest("test-completion-string-list-completion-regexp", test_test_regexp_1), &
-                    new_unittest("try-completion-symbol-list-completion-regexp", test_try_regexp_2), &
-                    new_unittest("all-completions-symbol-list-completion-regexp", test_all_regexp_2), &
-                    new_unittest("test-completion-symbol-list-completion-regexp", test_test_regexp_2), &
-                    new_unittest("try-completion-symbol-alist-completion-regexp", test_try_regexp_3), &
-                    new_unittest("all-completions-symbol-alist-completion-regexp", test_all_regexp_3), &
-                    new_unittest("test-completion-symbol-alist-completion-regexp", test_test_regexp_3), &
-                    new_unittest("try-completion-string-alist-completion-regexp", test_try_regexp_4), &
-                    new_unittest("all-completions-string-alist-completion-regexp", test_all_regexp_4), &
-                    new_unittest("test-completion-string-alist-completion-regexp", test_test_regexp_4), &
+                    new_unittest("try-completion-string-list-completion-regexp", test_try_regular_expression_1), &
+                    new_unittest("all-completions-string-list-completion-regexp", test_all_regular_expression_1), &
+                    new_unittest("test-completion-string-list-completion-regexp", test_test_regular_expression_1), &
+                    new_unittest("try-completion-symbol-list-completion-regexp", test_try_regular_expression_2), &
+                    new_unittest("all-completions-symbol-list-completion-regexp", test_all_regular_expression_2), &
+                    new_unittest("test-completion-symbol-list-completion-regexp", test_test_regular_expression_2), &
+                    new_unittest("try-completion-symbol-alist-completion-regexp", test_try_regular_expression_3), &
+                    new_unittest("all-completions-symbol-alist-completion-regexp", test_all_regular_expression_3), &
+                    new_unittest("test-completion-symbol-alist-completion-regexp", test_test_regular_expression_3), &
+                    new_unittest("try-completion-string-alist-completion-regexp", test_try_regular_expression_4), &
+                    new_unittest("all-completions-string-alist-completion-regexp", test_all_regular_expression_4), &
+                    new_unittest("test-completion-string-alist-completion-regexp", test_test_regular_expression_4), &
                     new_unittest("completion-obarray", test_obarray), &
                     new_unittest("minibuf-depth-and-prompt", test_depth_prompt), &
                     new_unittest("test-inhibit-interaction", test_inhibit_interaction), &
@@ -225,7 +225,7 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -275,7 +275,7 @@ contains
         if (allocated(error)) return
         call type_keys("x C-g")
         call read_from_minibuffer("Say: ", answer, st)
-        call check(error, st%code == FM_QUIT .and. len(answer) == 0)
+        call check(error, st%code == QUIT_CODE .and. len(answer) == 0)
     end subroutine test_abort
 
     !> C-a stops after the prompt; DEL there doesn't change the prompt.
@@ -381,7 +381,7 @@ contains
         type(history_setting_type), pointer :: h
         type(status_type) :: st
         integer :: i, saved
-        character(len=8) :: num
+        character(len=8) :: number
 
         h => find_history("h-test", create=.true.)
         call check(error, associated(h), "history made")
@@ -397,8 +397,8 @@ contains
         history_length = 3
 
         do i = 1, 5
-            write (num, "(i0)") i
-            call h%append(trim(num))
+            write (number, "(i0)") i
+            call h%append(trim(number))
         end do
 
         history_length = saved
@@ -431,7 +431,7 @@ contains
         if (allocated(error)) return
         ! A name that is no history.
         call add_to_history("h-test-void-variable", "x", status=st)
-        call check(error, st%code == FM_VOID_VARIABLE, "void-variable")
+        call check(error, st%code == VOID_VARIABLE_CODE, "void-variable")
     end subroutine test_add_to_history
 
     subroutine nested_read(status)
@@ -449,13 +449,13 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        cmd_test_nested_read = command_type("test-nested-read", nested_read)
-        call cmd_test_nested_read%define()
+        command_test_nested_read = command_type("test-nested-read", nested_read)
+        call command_test_nested_read%define()
         call key_parse("C-t", key, st)
         call define_key(minibuffer_local_map, key, value_type(name="test-nested-read"), st)
         call type_keys("C-t RET")
         call read_from_minibuffer("Outer: ", answer, st)
-        call check(error, st%ok() .and. nested_status%code == FM_USER_ERROR .and. &
+        call check(error, st%ok() .and. nested_status%code == USER_ERROR_CODE .and. &
                    format_error(nested_status) == "Command attempted to use minibuffer while in minibuffer", &
                    format_error(nested_status))
     end subroutine test_no_recursion
@@ -476,7 +476,7 @@ contains
         if (allocated(error)) return
         call type_keys("C-g")
         call read_yes_or_no("Really? ", answer, st)
-        call check(error, st%code == FM_QUIT)
+        call check(error, st%code == QUIT_CODE)
         if (allocated(error)) return
         ! use-short-answers
         use_short_answers = .true.
@@ -499,7 +499,7 @@ contains
         ! after it is discarded, so here input ends).
         call type_keys("x y")
         call read_y_or_n("Go?", answer, st)
-        call check(error, st%code == FM_QUIT, "input discarded")
+        call check(error, st%code == QUIT_CODE, "input discarded")
         if (allocated(error)) return
         call check(error, last_minibuffer_message == " [Please answer y or n]", last_minibuffer_message)
         if (allocated(error)) return
@@ -517,7 +517,7 @@ contains
         if (allocated(error)) return
         call type_keys("C-g")
         call read_y_or_n("Go?", answer, st)
-        call check(error, st%code == FM_QUIT, "C-g quits")
+        call check(error, st%code == QUIT_CODE, "C-g quits")
         if (allocated(error)) return
         call check(error, minibuf_level == 0 .and. buffers(current)%name == "*scratch*", "back")
     end subroutine test_read_y_or_n_minibuffer
@@ -532,7 +532,7 @@ contains
         read_y_or_n_use_read_key = .true.
         call type_keys("x n")
         call read_y_or_n("Go?", answer, st)
-        call check(error, st%code == FM_QUIT .and. last_message == "Please answer y or n.  Go? (y or n) ", &
+        call check(error, st%code == QUIT_CODE .and. last_message == "Please answer y or n.  Go? (y or n) ", &
                    last_message)
 
         if (allocated(error)) then
@@ -552,7 +552,7 @@ contains
         call type_keys("ESC")
         call read_y_or_n("Go?", answer, st)
         read_y_or_n_use_read_key = .false.
-        call check(error, st%code == FM_QUIT, "ESC quits")
+        call check(error, st%code == QUIT_CODE, "ESC quits")
     end subroutine test_read_y_or_n_read_key
 
     !> read-number reads the answer as the Lisp reader does.
@@ -632,14 +632,14 @@ contains
         call type_keys("RET")
         call read_file_name("File: ", name, st, default_filename="/x/y/z")
         call symbol_value(value_type(name="file_name_history"), h, st)
-        call check(error, name == "/x/y/z" .and. xstring(list_elt(h, 1_int64)) == "/x/y/z", name)
+        call check(error, name == "/x/y/z" .and. xstring(list_element(h, 1_int64)) == "/x/y/z", name)
         if (allocated(error)) return
         ! Typed after the directory: the substituted name.
         call type_text("~/f"//achar(13))
         call read_file_name("File: ", name, st, default_filename="/x/y/z")
         call symbol_value(value_type(name="file_name_history"), h, st)
-        call check(error, name == "~/f" .and. list_length(h) == 2 .and. xstring(list_elt(h, 1_int64)) == "~/f", &
-                   xstring(list_elt(h, 1_int64)))
+        call check(error, name == "~/f" .and. list_length(h) == 2 .and. xstring(list_element(h, 1_int64)) == "~/f", &
+                   xstring(list_element(h, 1_int64)))
         if (allocated(error)) return
         ! The same name again is a repeat: no new element.
         call type_text("~/f"//achar(13))
@@ -653,28 +653,28 @@ contains
         call check(error, st%ok() .and. len(name) == 0, name)
     end subroutine test_read_file_name_history
 
-    !> The minibuffer's default directory is DIR: relative names complete
+    !> The minibuffer's default directory is DIRECTORY: relative names complete
     !> there.
     subroutine test_read_file_name_directory(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: name, dir
+        character(len=:), allocatable :: name, directory
         type(status_type) :: st
         type(handle_type) :: buffer
 
         call fresh_scratch()
-        call init_fileio()
-        dir = file_name_as_directory(fortmacs_wd)//"build/test-rfn-dir/"
-        call create_directory_internal(dir, st)
+        call initialize_fileio()
+        directory = file_name_as_directory(fortmacs_wd)//"build/test-rfn-dir/"
+        call create_directory_internal(directory, st)
         call get_or_make_buffer(" rfn-source", buffer, st)
         call set_buffer(buffer, st)
         call insert("data", st)
-        call write_region(dir//"only-file.txt", .false., st)
+        call write_region(directory//"only-file.txt", .false., st)
         call close_buffer(buffer, st)
         call fresh_scratch()
         buffers(current)%directory = "/"
         insert_default_directory = .false.
         call type_keys("o n TAB RET")
-        call read_file_name("File: ", name, st, dir=dir, mustmatch=REQUIRE_MATCH_YES)
+        call read_file_name("File: ", name, st, directory=directory, mustmatch=REQUIRE_MATCH_YES)
         insert_default_directory = .true.
         call check(error, st%ok() .and. name == "only-file.txt", name)
         if (allocated(error)) return
@@ -685,22 +685,22 @@ contains
     !> makes of the input, keeping the input's text.
     subroutine test_file_name_table_sifn(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         type(value_type) :: result
         type(status_type) :: st
 
         call fresh_scratch()
-        call init_fileio()
-        dir = file_name_as_directory(fortmacs_wd)//"build/test-rfn-dir/"
-        call read_file_name_internal("/nonexistent/"//dir//"only-f", COMPLETE_TRY, result, st)
+        call initialize_fileio()
+        directory = file_name_as_directory(fortmacs_wd)//"build/test-rfn-dir/"
+        call read_file_name_internal("/nonexistent/"//directory//"only-f", COMPLETE_TRY, result, st)
         call check(error, vtag(result) == V_STRING, "a completion")
         if (allocated(error)) return
-        call check(error, xstring(result) == "/nonexistent/"//dir//"only-file.txt", xstring(result))
+        call check(error, xstring(result) == "/nonexistent/"//directory//"only-file.txt", xstring(result))
         if (allocated(error)) return
-        call read_file_name_internal("/nonexistent/"//dir//"only-f", COMPLETE_ALL, result, st)
+        call read_file_name_internal("/nonexistent/"//directory//"only-f", COMPLETE_ALL, result, st)
         call check(error, list_length(result) == 1, "all completions")
         if (allocated(error)) return
-        call check(error, xstring(list_elt(result, 1_int64)) == "only-file.txt", xstring(list_elt(result, 1_int64)))
+        call check(error, xstring(list_element(result, 1_int64)) == "only-file.txt", xstring(list_element(result, 1_int64)))
     end subroutine test_file_name_table_sifn
 
     !> read-buffer-completion-ignore-case.
@@ -727,7 +727,7 @@ contains
     subroutine test_internal_complete_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(value_type) :: result
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
         type(handle_type) :: buffer
         integer :: k
@@ -736,14 +736,14 @@ contains
         call fresh_scratch()
         call get_or_make_buffer(" internal-test", buffer, st)
         call internal_complete_buffer("", COMPLETE_ALL, result, st)
-        call list_elements(result, elts)
+        call list_elements(result, elements)
         internal = .false.
 
-        do k = 1, size(elts)
-            if (xstring(elts(k)) == " internal-test") internal = .true.
+        do k = 1, size(elements)
+            if (xstring(elements(k)) == " internal-test") internal = .true.
         end do
 
-        call check(error, size(elts) > 0 .and. .not. internal, "internal buffers left out")
+        call check(error, size(elements) > 0 .and. .not. internal, "internal buffers left out")
         if (allocated(error)) return
         call internal_complete_buffer(" internal-t", COMPLETE_ALL, result, st)
         call check(error, list_length(result) == 1, "asked for")
@@ -771,8 +771,8 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        cmd_test_leave_and_read = command_type("test-leave-and-read", leave_and_read)
-        call cmd_test_leave_and_read%define()
+        command_test_leave_and_read = command_type("test-leave-and-read", leave_and_read)
+        call command_test_leave_and_read%define()
         call key_parse("C-t", key, st)
         call define_key(minibuffer_local_map, key, value_type(name="test-leave-and-read"), st)
         call type_keys("C-t x RET")
@@ -789,19 +789,19 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(handle_type) :: buffer
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
         call fresh_scratch()
-        call init_fileio()
-        dir = file_name_as_directory(fortmacs_wd)//"build/test-minibuf"
-        call create_directory_internal(dir, st)
+        call initialize_fileio()
+        directory = file_name_as_directory(fortmacs_wd)//"build/test-minibuf"
+        call create_directory_internal(directory, st)
         call get_or_make_buffer(" f-source", buffer, st)
         call set_buffer(buffer, st)
         call insert("data", st)
-        call write_region(dir//"/f.txt", .false., st)
+        call write_region(directory//"/f.txt", .false., st)
         call close_buffer(buffer, st)
         call fresh_scratch()
-        buffers(current)%directory = file_name_as_directory(dir)
+        buffers(current)%directory = file_name_as_directory(directory)
         call type_text(achar(24)//achar(6)//"f.txt"//achar(13))
         call command_loop(st)
         call check(error, buffers(current)%name == "f.txt" .and. buffer_string() == "data", buffers(current)%name)
@@ -813,31 +813,31 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(handle_type) :: buffer
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         logical :: ok
 
         call fresh_scratch()
-        call init_fileio()
-        dir = file_name_as_directory(fortmacs_wd)//"build/test-minibuf/"
-        call create_directory_internal(dir, st)
-        call delete_file_internal(dir//"w1.txt", st)
-        call delete_file_internal(dir//"w2.txt", st)
+        call initialize_fileio()
+        directory = file_name_as_directory(fortmacs_wd)//"build/test-minibuf/"
+        call create_directory_internal(directory, st)
+        call delete_file_internal(directory//"w1.txt", st)
+        call delete_file_internal(directory//"w2.txt", st)
         call get_or_make_buffer("unsaved", buffer, st)
         call set_buffer(buffer, st)
         call insert("text", st)
-        call write_file(dir//"w1.txt", .true., st)
-        call check(error, st%ok() .and. file_exists(dir//"w1.txt"), format_error(st))
+        call write_file(directory//"w1.txt", .true., st)
+        call check(error, st%ok() .and. file_exists(directory//"w1.txt"), format_error(st))
         if (allocated(error)) return
-        call check(error, buffers(current)%name == "w1.txt" .and. buffers(current)%filename == dir//"w1.txt", &
+        call check(error, buffers(current)%name == "w1.txt" .and. buffers(current)%filename == directory//"w1.txt", &
                    buffers(current)%name)
         if (allocated(error)) return
         ! A directory means the same file name there; overwriting asks.
         call type_text("y")
-        call write_file(dir, .true., st)
+        call write_file(directory, .true., st)
         ok = st%ok()
-        call check(error, ok .and. buffers(current)%filename == dir//"w1.txt", format_error(st))
+        call check(error, ok .and. buffers(current)%filename == directory//"w1.txt", format_error(st))
         if (allocated(error)) return
-        call set_visited_file_name(dir//"w2.txt", st)
+        call set_visited_file_name(directory//"w2.txt", st)
         call check(error, buffers(current)%name == "w2.txt" .and. .not. buffers(current)%backed_up .and. &
                    buffers(current)%text%save_modiff < buffers(current)%text%modiff, "renamed and modified")
         call close_buffer(current_buffer(), st)
@@ -853,48 +853,48 @@ contains
         integer, intent(in) :: kind
         character(len=*), intent(in) :: strings(:)
         type(completion_table_type) :: table
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        allocate (elts(size(strings)))
+        allocate (elements(size(strings)))
 
         do k = 1, size(strings)
             select case (kind)
             case (1)
-                elts(k) = value_type(text=trim(strings(k)))
+                elements(k) = value_type(text=trim(strings(k)))
             case (2)
-                elts(k) = value_type(name=trim(strings(k)))
+                elements(k) = value_type(name=trim(strings(k)))
             case (3)
-                elts(k) = list(value_type(name=trim(strings(k))), value_type(int(k, int64)))
+                elements(k) = list(value_type(name=trim(strings(k))), value_type(int(k, int64)))
             case default
-                elts(k) = list(value_type(text=trim(strings(k))), value_type(int(k, int64)))
+                elements(k) = list(value_type(text=trim(strings(k))), value_type(int(k, int64)))
             end select
         end do
 
-        table = completion_list_table(make_list(elts))
+        table = completion_list_table(make_list(elements))
         member_of = table
     end function collection
 
     !> minibuf-tests--memq-of-collection: a member of the last collection.
-    logical function memq_of_collection(elt)
-        type(value_type), intent(in) :: elt
-        type(value_type), allocatable :: elts(:)
+    logical function memq_of_collection(element)
+        type(value_type), intent(in) :: element
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        call list_elements(member_of%list, elts)
+        call list_elements(member_of%list, elements)
         memq_of_collection = .false.
 
-        do k = 1, size(elts)
-            if (value_equal(elts(k), elt)) memq_of_collection = .true.
+        do k = 1, size(elements)
+            if (value_equal(elements(k), element)) memq_of_collection = .true.
         end do
     end function memq_of_collection
 
     !> #'ignore.
-    logical function ignore(elt)
-        type(value_type), intent(in) :: elt
+    logical function ignore(element)
+        type(value_type), intent(in) :: element
 
         ignore = .false.
-        if (.not. allocated(elt%a)) ignore = .false.
+        if (.not. allocated(element%a)) ignore = .false.
     end function ignore
 
     logical function is_string(v, s)
@@ -1267,8 +1267,8 @@ contains
 
         call fresh_scratch()
         nrecorded = 0
-        cmd_test_record_completion = command_type("test-record-completion", record_completion_state)
-        call cmd_test_record_completion%define()
+        command_test_record_completion = command_type("test-record-completion", record_completion_state)
+        call command_test_record_completion%define()
         call key_parse("<f9>", key, st)
         call define_key(current_global_map(), key, value_type(name="test-record-completion"), st)
     end subroutine completion_setup
@@ -1276,16 +1276,16 @@ contains
     function strings(items) result(v)
         character(len=*), intent(in) :: items(:)
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
-        allocate (elts(size(items)))
+        allocate (elements(size(items)))
 
         do k = 1, size(items)
-            elts(k) = value_type(text=trim(items(k)))
+            elements(k) = value_type(text=trim(items(k)))
         end do
 
-        v = make_list(elts)
+        v = make_list(elements)
     end function strings
 
     subroutine is_exact_completion_auto_help(error)
@@ -1390,7 +1390,7 @@ contains
         ! No match: RET doesn't exit.
         call type_keys("x RET <f9> C-g")
         call completing_read("Prompt: ", completion_list_table(foo), answer, st, require_match=REQUIRE_MATCH_YES)
-        call check(error, st%code == FM_QUIT .and. recorded(1)%s == " [No match]", recorded(1)%s)
+        call check(error, st%code == QUIT_CODE .and. recorded(1)%s == " [No match]", recorded(1)%s)
         if (allocated(error)) return
         ! Without REQUIRE-MATCH, RET takes any input; empty gives the default.
         call type_keys("x RET")
@@ -1426,16 +1426,16 @@ contains
 
         call fresh_scratch()
         call insert("abc", st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call type_keys("M-x f o r w a r d _ c TAB RET")
         call command_loop(st)
         call check(error, point() == 2, "ran forward-char")
         if (allocated(error)) return
         call check(error, last_message == "You can run the command "//char(226)//char(128)//char(152)// &
-                   "forward_char"//char(226)//char(128)//char(153)//" with C-f", last_message)
+                   "forward_character"//char(226)//char(128)//char(153)//" with C-f", last_message)
         if (allocated(error)) return
         ! A prefix argument goes to the command.
-        call type_keys("C-u 2 M-x f o r w a r d _ c h a r RET")
+        call type_keys("C-u 2 M-x f o r w a r d _ c h a r a c t e r RET")
         call command_loop(st)
         call check(error, point() == 4, "C-u 2")
         if (allocated(error)) return
@@ -1451,40 +1451,40 @@ contains
         type(status_type) :: st
         type(handle_type) :: buffer
         type(value_type) :: r
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
 
         call fresh_scratch()
-        call init_fileio()
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//"build/test-complete")
-        call create_directory_internal(dir, st)
-        call create_directory_internal(dir//"alpine", st)
+        call initialize_fileio()
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//"build/test-complete")
+        call create_directory_internal(directory, st)
+        call create_directory_internal(directory//"alpine", st)
         call get_or_make_buffer(" c-source", buffer, st)
         call set_buffer(buffer, st)
         call insert("data", st)
-        call write_region(dir//"alpha.txt", .false., st)
-        call write_region(dir//"beta.c", .false., st)
-        call write_region(dir//"beta.o", .false., st)
+        call write_region(directory//"alpha.txt", .false., st)
+        call write_region(directory//"beta.c", .false., st)
+        call write_region(directory//"beta.o", .false., st)
         call close_buffer(buffer, st)
         call fresh_scratch()
-        call file_name_completion("al", dir, r, st)
+        call file_name_completion("al", directory, r, st)
         call check(error, vtag(r) == V_STRING .and. xstring(r) == "alp", "file_name_completion")
         if (allocated(error)) return
         ! completion-ignored-extensions.
-        call file_name_completion("be", dir, r, st)
+        call file_name_completion("be", directory, r, st)
         call check(error, vtag(r) == V_STRING .and. xstring(r) == "beta.c", "ignored .o")
         if (allocated(error)) return
-        call file_name_all_completions("alp", dir, r, st)
+        call file_name_all_completions("alp", directory, r, st)
         call check(error, list_length(r) == 2, "all")
         if (allocated(error)) return
         ! The minibuffer table: the directory part stays.
-        call try_completion(dir//"alpi", completion_function_table(read_file_name_internal), r, st)
-        call check(error, vtag(r) == V_STRING .and. xstring(r) == dir//"alpine/", "read_file_name_internal")
+        call try_completion(directory//"alpi", completion_function_table(read_file_name_internal), r, st)
+        call check(error, vtag(r) == V_STRING .and. xstring(r) == directory//"alpine/", "read_file_name_internal")
         if (allocated(error)) return
-        call check(error, is_exact_completion(dir//"alpha.txt", completion_function_table(read_file_name_internal)), &
+        call check(error, is_exact_completion(directory//"alpha.txt", completion_function_table(read_file_name_internal)), &
                    "exists")
         if (allocated(error)) return
         ! C-x C-f with TAB.
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
         call type_keys("C-x C-f a l p h TAB RET")
         call command_loop(st)
         call check(error, buffers(current)%name == "alpha.txt" .and. buffer_string() == "data", buffers(current)%name)
@@ -1509,9 +1509,9 @@ contains
 
     !> minibuf-tests--try-completion-regexp, --all-completions-regexp and
     !> --test-completion-regexp for collection kind KIND: with
-    !> completion_regexps (".") nothing changes, with ("X") nothing
+    !> completion_regular_expressions (".") nothing changes, with ("X") nothing
     !> matches.
-    subroutine check_regexp(error, kind, fn)
+    subroutine check_regular_expression(error, kind, fn)
         type(error_type), allocatable, intent(out) :: error
         integer, intent(in) :: kind
         character(len=*), intent(in) :: fn
@@ -1521,7 +1521,7 @@ contains
 
         abcdef = collection(kind, [character(len=4) :: "abc", "def"])
         abba = collection(kind, [character(len=4) :: "abc", "abba", "def"])
-        completion_regexps = [character(len=4) :: "."]
+        completion_regular_expressions = [character(len=4) :: "."]
 
         select case (fn)
         case ("try")
@@ -1552,11 +1552,11 @@ contains
         end select
 
         if (allocated(error)) then
-            deallocate (completion_regexps)
+            deallocate (completion_regular_expressions)
             return
         end if
 
-        completion_regexps = [character(len=4) :: "X"]
+        completion_regular_expressions = [character(len=4) :: "X"]
 
         select case (fn)
         case ("try")
@@ -1564,7 +1564,7 @@ contains
             call check(error,.not. allocated(r%a), "a in abcdef")
 
             if (allocated(error)) then
-                deallocate (completion_regexps)
+                deallocate (completion_regular_expressions)
                 return
             end if
 
@@ -1578,80 +1578,80 @@ contains
                        "nothing matches X")
         end select
 
-        deallocate (completion_regexps)
-    end subroutine check_regexp
+        deallocate (completion_regular_expressions)
+    end subroutine check_regular_expression
 
-    subroutine test_try_regexp_1(error)
+    subroutine test_try_regular_expression_1(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 1, "try")
-    end subroutine test_try_regexp_1
+        call check_regular_expression(error, 1, "try")
+    end subroutine test_try_regular_expression_1
 
-    subroutine test_all_regexp_1(error)
+    subroutine test_all_regular_expression_1(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 1, "all")
-    end subroutine test_all_regexp_1
+        call check_regular_expression(error, 1, "all")
+    end subroutine test_all_regular_expression_1
 
-    subroutine test_test_regexp_1(error)
+    subroutine test_test_regular_expression_1(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 1, "test")
-    end subroutine test_test_regexp_1
+        call check_regular_expression(error, 1, "test")
+    end subroutine test_test_regular_expression_1
 
-    subroutine test_try_regexp_2(error)
+    subroutine test_try_regular_expression_2(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 2, "try")
-    end subroutine test_try_regexp_2
+        call check_regular_expression(error, 2, "try")
+    end subroutine test_try_regular_expression_2
 
-    subroutine test_all_regexp_2(error)
+    subroutine test_all_regular_expression_2(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 2, "all")
-    end subroutine test_all_regexp_2
+        call check_regular_expression(error, 2, "all")
+    end subroutine test_all_regular_expression_2
 
-    subroutine test_test_regexp_2(error)
+    subroutine test_test_regular_expression_2(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 2, "test")
-    end subroutine test_test_regexp_2
+        call check_regular_expression(error, 2, "test")
+    end subroutine test_test_regular_expression_2
 
-    subroutine test_try_regexp_3(error)
+    subroutine test_try_regular_expression_3(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 3, "try")
-    end subroutine test_try_regexp_3
+        call check_regular_expression(error, 3, "try")
+    end subroutine test_try_regular_expression_3
 
-    subroutine test_all_regexp_3(error)
+    subroutine test_all_regular_expression_3(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 3, "all")
-    end subroutine test_all_regexp_3
+        call check_regular_expression(error, 3, "all")
+    end subroutine test_all_regular_expression_3
 
-    subroutine test_test_regexp_3(error)
+    subroutine test_test_regular_expression_3(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 3, "test")
-    end subroutine test_test_regexp_3
+        call check_regular_expression(error, 3, "test")
+    end subroutine test_test_regular_expression_3
 
-    subroutine test_try_regexp_4(error)
+    subroutine test_try_regular_expression_4(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 4, "try")
-    end subroutine test_try_regexp_4
+        call check_regular_expression(error, 4, "try")
+    end subroutine test_try_regular_expression_4
 
-    subroutine test_all_regexp_4(error)
+    subroutine test_all_regular_expression_4(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 4, "all")
-    end subroutine test_all_regexp_4
+        call check_regular_expression(error, 4, "all")
+    end subroutine test_all_regular_expression_4
 
-    subroutine test_test_regexp_4(error)
+    subroutine test_test_regular_expression_4(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check_regexp(error, 4, "test")
-    end subroutine test_test_regexp_4
+        call check_regular_expression(error, 4, "test")
+    end subroutine test_test_regular_expression_4
 
     !> minibuffer-depth and minibuffer-prompt inside the minibuffer, and
     !> minibuffer-exit-hook run as it exits.
@@ -1684,7 +1684,7 @@ contains
         inhibit_interaction = .true.
         call read_from_minibuffer("foo: ", answer, st)
         inhibit_interaction = .false.
-        call check(error, st%code == FM_INHIBITED_INTERACTION, "read-from-minibuffer")
+        call check(error, st%code == INHIBITED_INTERACTION_CODE, "read-from-minibuffer")
     end subroutine test_inhibit_interaction
 
     !> assoc-string: strings and symbols, conses and single strings, case
@@ -1713,7 +1713,7 @@ contains
         type(status_type) :: st
 
         call fresh_scratch()
-        call type_text("fill_col"//achar(9)//achar(13))
+        call type_text("fill_column"//achar(9)//achar(13))
         call read_variable("Variable: ", name, st)
         call check(error, st%ok() .and. name == "fill_column", name)
         if (allocated(error)) return

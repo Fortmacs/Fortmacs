@@ -7,9 +7,9 @@
 ## Ported
 
 `vc-annotate` (C-x v g; C-u reads the revision and the span in days; BUFFER, MOVE-POINT-TO and BACKEND),
-the options `vc-annotate-display-mode` (a `vc_annotate_display_mode_type`: color map range, scale, fullscale or days),
+the options `vc-annotate-display-mode` (a `version_control_annotate_display_mode_type`: color map range, scale, fullscale or days),
 `vc-annotate-background-mode`,
-`vc-annotate-color-map` (an array of `vc_annotate_color_type`; the light, dark and 8-color TTY defaults),
+`vc-annotate-color-map` (an array of `version_control_annotate_color_type`; the light, dark and 8-color TTY defaults),
 `vc-annotate-very-old-color`,
 `vc-annotate-background`,
 `vc-annotate-menu-elements`,

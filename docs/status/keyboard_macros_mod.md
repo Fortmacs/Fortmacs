@@ -6,7 +6,7 @@
 
 ## Ported
 
-macros as `kmacro_type` (keys, counter, format; upstream's `kmacro` oclosure) run with their own counter (`kmacro`, funcall on one),
+macros as `keyboard_macro_type` (keys, counter, format; upstream's `kmacro` oclosure) run with their own counter (`keyboard_macro`, funcall on one),
 the counter (`kmacro-counter`, `kmacro-insert-counter` C-x C-k TAB, `kmacro-set-counter` C-x C-k C-c, `kmacro-add-counter` C-x C-k C-a, `kmacro-set-format` C-x C-k C-f, `kmacro-display-counter`, the initial value, value at start and last counter, `kmacro-loop-setup-function`),
 the register counters (`kmacro-reg-load-counter`, `kmacro-reg-save-counter`, `kmacro-reg-add-counter-equal`/`-less`/`-greater` on C-x C-k C-r),
 `kmacro-quit-counter-equal`/`-less`/`-greater` (C-x C-k C-q),
@@ -35,7 +35,7 @@ a key symbol as `kmacro-call-repeat-key`,
 repeat-mode,
 the obsolete functions and list form;
 the repeat key runs a named command,
-`kmacro_execute_macro_repeat` (upstream an anonymous one)
+`keyboard_macro_execute_macro_repeat` (upstream an anonymous one)
 
 ## Tests
 

@@ -42,17 +42,17 @@ module apropos_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, FM_USER_ERROR, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, format_message, USER_ERROR_CODE, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, symbols, nsymbols, list_elements, xstring, vtag, V_STRING
     use buffer_mod, only: buffers, current, current_buffer, get_buffer, set_buffer, is_buffer_live, get_or_make_buffer, &
                           close_buffer, generate_new_buffer_name
-    use editing_functions_mod, only: point_min, point_max, buffer_string, goto_char, line_beginning_position
+    use editing_functions_mod, only: point_minimum, point_maximum, buffer_string, goto_character, line_beginning_position
     use insert_delete_mod, only: insert
     use text_properties_mod, only: put_text_property, get_text_property, next_single_property_change
-    use search_mod, only: string_match, regexp_quote, match_end
+    use search_mod, only: string_match, regular_expression_quote, match_end
     use keymap_mod, only: key_description, where_is_internal, keymap_set, make_sparse_keymap
-    use execute_interactively_mod, only: is_command, current_prefix_arg
+    use execute_interactively_mod, only: is_command, current_prefix_argument
     use minibuffer_reading_mod, only: read_string
     use display_engine_mod, only: message
     use fill_mod, only: fill_region
@@ -64,19 +64,20 @@ module apropos_mod
     use derived_mod, only: major_mode_type
     use modes_mod, only: major_modes
     use hooks_mod, only: hook_type
-    use help_mod, only: with_output_to_temp_buffer, substitute_command_keys, register_keymap_name
+    use help_mod, only: with_output_to_temporary_buffer, substitute_command_keys, register_keymap_name
     use string_type_mod, only: string_type, append_string
     implicit none(type, external)
     private
 
     public :: apropos_command, apropos_documentation, apropos_read_pattern, apropos_parse_pattern, apropos_mode, &
-              apropos_words_to_regexp, apropos_true_hit, apropos_calc_scores, apropos_pattern, apropos_regexp, &
-              apropos_all_words_regexp, init_apropos, apropos_score_doc, apropos_score_name, button_at
-    public :: VAR_NONE, VAR_USER_OPTION, VAR_ANY
+              apropos_words_to_regular_expression, apropos_true_hit, apropos_calc_scores, apropos_pattern, &
+              apropos_regular_expression, &
+              apropos_all_words_regular_expression, initialize_apropos, apropos_score_doc, apropos_score_name, button_at
+    public :: VARIABLE_NONE, VARIABLE_USER_OPTION, VARIABLE_ANY
 
-    !> What `apropos_command' lists: functions (VAR_NONE), user options or
+    !> What `apropos_command' lists: functions (VARIABLE_NONE), user options or
     !> any documented variables (upstream's VAR-PREDICATE).
-    integer, parameter :: VAR_NONE = 0, VAR_USER_OPTION = 1, VAR_ANY = 2
+    integer, parameter :: VARIABLE_NONE = 0, VARIABLE_USER_OPTION = 1, VARIABLE_ANY = 2
 
     !> Keymap used in Apropos mode.  Port of apropos.el apropos-mode-map.
     type(handle_type), public :: apropos_mode_map
@@ -88,17 +89,17 @@ module apropos_mod
     !> apropos-pattern.
     character(len=:), allocatable :: apropos_pattern
 
-    !> Apropos pattern passed through `regexp_quote'.  Port of apropos.el
+    !> Apropos pattern passed through `regular_expression_quote'.  Port of apropos.el
     !> apropos-pattern-quoted.
     character(len=:), allocatable :: apropos_pattern_quoted
 
     !> Regexp used in current apropos run.  Port of apropos.el
     !> apropos-regexp.
-    character(len=:), allocatable :: apropos_regexp
+    character(len=:), allocatable :: apropos_regular_expression
 
     !> Regexp matching `apropos_all_words'.  Port of apropos.el
     !> apropos-all-words-regexp.
-    character(len=:), allocatable :: apropos_all_words_regexp
+    character(len=:), allocatable :: apropos_all_words_regular_expression
 
     !> Current list of apropos words extracted from `apropos_pattern', and
     !> the list of words and synonyms.  Port of apropos.el apropos-words
@@ -117,7 +118,7 @@ module apropos_mod
     type :: apropos_item_type
         character(len=:), allocatable :: name
         integer(int64) :: score = 0
-        character(len=:), allocatable :: fn_doc, var_doc
+        character(len=:), allocatable :: fn_doc, variable_doc
     end type apropos_item_type
 
     character(len=*), parameter :: LF = achar(10), TAB = achar(9)
@@ -131,18 +132,18 @@ module apropos_mod
         !>
         !> With DO_ALL, also show noninteractive functions.
         !>
-        !> If VAR_KIND is not VAR_NONE, show only variables: user options
-        !> (VAR_USER_OPTION) or all documented variables (VAR_ANY).
+        !> If VARIABLE_KIND is not VARIABLE_NONE, show only variables: user options
+        !> (VARIABLE_USER_OPTION) or all documented variables (VARIABLE_ANY).
         !>
         !> When called from a program, PATTERN is used as a regexp unless
         !> WORDS, a word list, is allocated.  Port of
         !> apropos.el:apropos-command.  (In apropos_print_mod.)
-        module subroutine apropos_command(pattern, words, do_all, var_kind, status)
+        module subroutine apropos_command(pattern, words, do_all, variable_kind, status)
             implicit none(type, external)
             character(len=*), intent(in) :: pattern
             type(string_type), allocatable, intent(in) :: words(:)
             logical, intent(in) :: do_all
-            integer, intent(in) :: var_kind
+            integer, intent(in) :: variable_kind
             type(status_type), intent(out) :: status
         end subroutine apropos_command
 
@@ -188,10 +189,10 @@ contains
     !> Return a regexp matching any two of the words in WORDS.
     !> WILD should be a subexpression matching wildcards between matches.
     !> Port of apropos.el:apropos-words-to-regexp.
-    function apropos_words_to_regexp(words, wild) result(regexp)
+    function apropos_words_to_regular_expression(words, wild) result(regular_expression)
         type(string_type), intent(in) :: words(:)
         character(len=*), intent(in) :: wild
-        character(len=:), allocatable :: regexp, others
+        character(len=:), allocatable :: regular_expression, others
         type(string_type), allocatable :: w(:)
         integer :: i, j, n
 
@@ -210,11 +211,11 @@ contains
         end do
 
         if (n == 1) then
-            regexp = w(1)%text
+            regular_expression = w(1)%text
             return
         end if
 
-        regexp = ""
+        regular_expression = ""
 
         do i = 1, n
             others = ""
@@ -225,10 +226,10 @@ contains
                 others = others//w(j)%text
             end do
 
-            if (i > 1) regexp = regexp//"\|"
-            regexp = regexp//"\(?:"//w(i)%text//"\)"//wild//"\(?:"//others//"\)"
+            if (i > 1) regular_expression = regular_expression//"\|"
+            regular_expression = regular_expression//"\(?:"//w(i)%text//"\)"//wild//"\(?:"//others//"\)"
         end do
-    end function apropos_words_to_regexp
+    end function apropos_words_to_regular_expression
 
     !> Read an apropos pattern, either a word list or a regexp.
     !> Returns the user pattern, either a list of words which are matched
@@ -245,10 +246,10 @@ contains
         call read_string("Search for "//subject//" (word list or regexp): ", pattern, status)
         if (.not. status%ok()) return
 
-        if (regexp_quote(pattern) == pattern) then
+        if (regular_expression_quote(pattern) == pattern) then
             ! Split into words.
             call split_words(pattern, words)
-            if (size(words) == 0) call set_error(status, FM_USER_ERROR, "No word list given")
+            if (size(words) == 0) call set_error(status, USER_ERROR_CODE, "No word list given")
         end if
     end subroutine apropos_read_pattern
 
@@ -283,14 +284,14 @@ contains
     !> If WORDS is not allocated, PATTERN is already a regexp.
     !> MULTILINE_P, if true, means produce a regexp that will match the
     !> words even if separated by newlines.  This updates
-    !> `apropos_pattern', `apropos_pattern_quoted', `apropos_regexp',
-    !> `apropos_words' and `apropos_all_words_regexp'.  Port of
+    !> `apropos_pattern', `apropos_pattern_quoted', `apropos_regular_expression',
+    !> `apropos_words' and `apropos_all_words_regular_expression'.  Port of
     !> apropos.el:apropos-parse-pattern.
     subroutine apropos_parse_pattern(pattern, words, multiline_p)
         character(len=*), intent(in) :: pattern
         type(string_type), allocatable, intent(in) :: words(:)
         logical, intent(in) :: multiline_p
-        type(string_type), allocatable :: syn(:)
+        type(string_type), allocatable :: syntax(:)
         character(len=:), allocatable :: s, a
         integer :: i, k, n
 
@@ -306,7 +307,7 @@ contains
                 apropos_pattern = apropos_pattern//words(i)%text
             end do
 
-            apropos_pattern_quoted = regexp_quote(apropos_pattern)
+            apropos_pattern_quoted = regular_expression_quote(apropos_pattern)
             ! The words are consed: the last one comes first.
             allocate (apropos_words(n), apropos_all_words(n))
 
@@ -315,10 +316,10 @@ contains
                 a = words(i)%text
 
                 do k = 1, size(SYNONYMS)
-                    call split_words(trim(SYNONYMS(k)), syn)
-                    if (.not. has_word(words(i)%text, syn, 1)) cycle
-                    a = joined(syn)
-                    if (has_word(words(i)%text, syn, 2)) s = a
+                    call split_words(trim(SYNONYMS(k)), syntax)
+                    if (.not. has_word(words(i)%text, syntax, 1)) cycle
+                    a = joined(syntax)
+                    if (has_word(words(i)%text, syntax, 2)) s = a
                     exit
                 end do
 
@@ -328,17 +329,17 @@ contains
 
             ! The [^b-a] trick matches any character including a newline.
             if (multiline_p) then
-                apropos_all_words_regexp = apropos_words_to_regexp(apropos_all_words, "[^b-a]+?")
-                apropos_regexp = apropos_words_to_regexp(apropos_words, "[^b-a]*?")
+                apropos_all_words_regular_expression = apropos_words_to_regular_expression(apropos_all_words, "[^b-a]+?")
+                apropos_regular_expression = apropos_words_to_regular_expression(apropos_words, "[^b-a]*?")
             else
-                apropos_all_words_regexp = apropos_words_to_regexp(apropos_all_words, ".+")
-                apropos_regexp = apropos_words_to_regexp(apropos_words, ".*?")
+                apropos_all_words_regular_expression = apropos_words_to_regular_expression(apropos_all_words, ".+")
+                apropos_regular_expression = apropos_words_to_regular_expression(apropos_words, ".*?")
             end if
         else
-            apropos_pattern_quoted = regexp_quote(pattern)
-            apropos_all_words_regexp = pattern
+            apropos_pattern_quoted = regular_expression_quote(pattern)
+            apropos_all_words_regular_expression = pattern
             apropos_pattern = pattern
-            apropos_regexp = pattern
+            apropos_regular_expression = pattern
         end if
 
     contains
@@ -467,20 +468,20 @@ contains
         call major_modes%apropos_mode%end(saved, status)
     end subroutine apropos_mode
 
-    !> The apropos button at `pos': its type (`apropos_name' or a
+    !> The apropos button at `position': its type (`apropos_name' or a
     !> label's type, "" for none) and the entry's name.  Not a port.
-    subroutine button_at(pos, type, name)
-        integer(int64), intent(in) :: pos
+    subroutine button_at(position, type, name)
+        integer(int64), intent(in) :: position
         character(len=:), allocatable, intent(out) :: type, name
         type(value_type) :: v
         type(status_type) :: st
 
         type = ""
         name = ""
-        call get_text_property(pos, value_type(name=P_BUTTON), v, st)
+        call get_text_property(position, value_type(name=P_BUTTON), v, st)
         if (.not. allocated(v%a)) return
         type = symbols_name(v)
-        call get_text_property(pos, value_type(name=P_NAME), v, st)
+        call get_text_property(position, value_type(name=P_NAME), v, st)
         if (vtag(v) == V_STRING) name = xstring(v)
     end subroutine button_at
 
@@ -499,7 +500,7 @@ contains
     logical function is_at_name()
         character(len=:), allocatable :: type, name
 
-        call button_at(buffers(current)%pt, type, name)
+        call button_at(buffers(current)%point, type, name)
         is_at_name = type == "apropos_name"
     end function is_at_name
 
@@ -512,7 +513,7 @@ contains
         status = status_type()
         shortage = forward_line(1_int64)
 
-        do while (.not. is_at_name() .and. buffers(current)%pt < point_max())
+        do while (.not. is_at_name() .and. buffers(current)%point < point_maximum())
             shortage = forward_line(1_int64)
         end do
     end subroutine apropos_next_name
@@ -526,7 +527,7 @@ contains
         status = status_type()
         shortage = forward_line(-1_int64)
 
-        do while (.not. is_at_name() .and. buffers(current)%pt > point_min())
+        do while (.not. is_at_name() .and. buffers(current)%point > point_minimum())
             shortage = forward_line(-1_int64)
         end do
     end subroutine apropos_previous_name
@@ -543,13 +544,13 @@ contains
     !>
     !> With \[universal_argument] prefix, also show noninteractive
     !> functions.  Port of apropos.el:apropos-command (the command).
-    recursive subroutine cmd_apropos_command(status)
+    recursive subroutine execute_apropos_command(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(string_type), allocatable :: words(:)
         logical :: do_all
 
-        do_all = current_prefix_arg%kind /= PREFIX_NONE
+        do_all = current_prefix_argument%kind /= PREFIX_NONE
 
         if (do_all) then
             call apropos_read_pattern("command or function", pattern, words, status)
@@ -558,8 +559,8 @@ contains
         end if
 
         if (.not. status%ok()) return
-        call apropos_command(pattern, words, do_all, VAR_NONE, status)
-    end subroutine cmd_apropos_command
+        call apropos_command(pattern, words, do_all, VARIABLE_NONE, status)
+    end subroutine execute_apropos_command
 
     !> Show functions that match PATTERN.
     !>
@@ -570,15 +571,15 @@ contains
     !>
     !> This is the same as running `apropos_command' with a
     !> \[universal_argument] prefix.  Port of apropos.el:apropos-function.
-    recursive subroutine cmd_apropos_function(status)
+    recursive subroutine execute_apropos_function(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(string_type), allocatable :: words(:)
 
         call apropos_read_pattern("function", pattern, words, status)
         if (.not. status%ok()) return
-        call apropos_command(pattern, words, .true., VAR_NONE, status)
-    end subroutine cmd_apropos_function
+        call apropos_command(pattern, words, .true., VARIABLE_NONE, status)
+    end subroutine execute_apropos_function
 
     !> Show user options that match PATTERN.
     !> PATTERN can be a word, a list of words (separated by spaces),
@@ -588,41 +589,41 @@ contains
     !>
     !> With \[universal_argument] prefix, also show variables, not just
     !> user options.  Port of apropos.el:apropos-user-option.
-    recursive subroutine cmd_apropos_user_option(status)
+    recursive subroutine execute_apropos_user_option(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(string_type), allocatable :: words(:)
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             call apropos_read_pattern("variable", pattern, words, status)
             if (.not. status%ok()) return
-            call apropos_command(pattern, words, .true., VAR_ANY, status)
+            call apropos_command(pattern, words, .true., VARIABLE_ANY, status)
         else
             call apropos_read_pattern("user option", pattern, words, status)
             if (.not. status%ok()) return
-            call apropos_command(pattern, words, .false., VAR_USER_OPTION, status)
+            call apropos_command(pattern, words, .false., VARIABLE_USER_OPTION, status)
         end if
-    end subroutine cmd_apropos_user_option
+    end subroutine execute_apropos_user_option
 
     !> Show variables that match PATTERN.
     !> With the prefix \[universal_argument], show user options only,
     !> i.e. behave like `apropos_user_option'.  Port of
     !> apropos.el:apropos-variable.
-    recursive subroutine cmd_apropos_variable(status)
+    recursive subroutine execute_apropos_variable(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(string_type), allocatable :: words(:)
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             call apropos_read_pattern("user option", pattern, words, status)
             if (.not. status%ok()) return
-            call apropos_command(pattern, words, .false., VAR_USER_OPTION, status)
+            call apropos_command(pattern, words, .false., VARIABLE_USER_OPTION, status)
         else
             call apropos_read_pattern("variable", pattern, words, status)
             if (.not. status%ok()) return
-            call apropos_command(pattern, words, .true., VAR_ANY, status)
+            call apropos_command(pattern, words, .true., VARIABLE_ANY, status)
         end if
-    end subroutine cmd_apropos_variable
+    end subroutine execute_apropos_variable
 
     !> Show names whose documentation contains matches for PATTERN.
     !> PATTERN can be a word, a list of words (separated by spaces),
@@ -632,7 +633,7 @@ contains
     !>
     !> Returns list of names and documentation found.  Port of
     !> apropos.el:apropos-documentation (the command).
-    recursive subroutine cmd_apropos_documentation(status)
+    recursive subroutine execute_apropos_documentation(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: pattern
         type(string_type), allocatable :: words(:)
@@ -640,10 +641,10 @@ contains
         call apropos_read_pattern("documentation", pattern, words, status)
         if (.not. status%ok()) return
         call apropos_documentation(pattern, words, status)
-    end subroutine cmd_apropos_documentation
+    end subroutine execute_apropos_documentation
 
     !> Define Apropos mode and its keymap; register the commands.  Not a port.
-    subroutine init_apropos()
+    subroutine initialize_apropos()
         type(status_type) :: st
 
         call major_modes%apropos_mode%define("apropos_mode", "Apropos", apropos_mode, apropos_mode_hook, &
@@ -660,10 +661,10 @@ contains
         commands%apropos_follow%execute => apropos_follow
         commands%apropos_next_name%execute => apropos_next_name
         commands%apropos_previous_name%execute => apropos_previous_name
-        commands%apropos_command%execute => cmd_apropos_command
-        commands%apropos_function%execute => cmd_apropos_function
-        commands%apropos_user_option%execute => cmd_apropos_user_option
-        commands%apropos_variable%execute => cmd_apropos_variable
-        commands%apropos_documentation%execute => cmd_apropos_documentation
-    end subroutine init_apropos
+        commands%apropos_command%execute => execute_apropos_command
+        commands%apropos_function%execute => execute_apropos_function
+        commands%apropos_user_option%execute => execute_apropos_user_option
+        commands%apropos_variable%execute => execute_apropos_variable
+        commands%apropos_documentation%execute => execute_apropos_documentation
+    end subroutine initialize_apropos
 end module apropos_mod

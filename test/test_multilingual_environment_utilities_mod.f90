@@ -55,14 +55,14 @@ contains
         character(len=*), intent(in), optional :: padding, ellipsis
         logical, intent(in), optional :: default_ellipsis
         character(len=:), allocatable :: got
-        character(len=8) :: num
+        character(len=8) :: number
 
         n = n + 1
         if (allocated(error)) return
         got = truncate_string_to_width(string, end_column, start_column, padding, ellipsis, default_ellipsis)
-        write (num, "(i2.2)") n - 1
+        write (number, "(i2.2)") n - 1
         call check(error, got == expected .and. len(got) == len(expected), &
-                   "mule-util-test-truncate-"//trim(num)//": expected '"//expected//"' but got '"//got//"'")
+                   "mule-util-test-truncate-"//trim(number)//": expected '"//expected//"' but got '"//got//"'")
     end subroutine truncate
 
     subroutine test_truncate(error)

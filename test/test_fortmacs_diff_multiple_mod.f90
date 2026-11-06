@@ -32,26 +32,29 @@ module test_fortmacs_diff_multiple_mod
     use buffer_mod, only: buffers, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, current_buffer, get_buffer, &
                           is_buffer_live, restore_buffer_modified
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point_min, goto_char
-    use keyboard_mod, only: discard_input, kbd_store_bytes, command_loop
-    use bindings_mod, only: init_bindings
-    use file_input_output_mod, only: init_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
+    use editing_functions_mod, only: buffer_string, point_minimum, goto_character
+    use keyboard_mod, only: discard_input, keyboard_store_bytes, command_loop
+    use bindings_mod, only: initialize_bindings
+    use file_input_output_mod, only: initialize_fileio, fortmacs_wd, file_name_as_directory, is_file_directory, &
                                      create_directory_internal, write_region, file_exists
     use frame_mod, only: selected_frame
     use window_mod, only: set_window_buffer
     use files_mod, only: delete_directory
     use commands_mod, only: commands
-    use fortmacs_diff_settings_mod, only: ediff_sessions, ediff_session_index, abbreviate_ediff_job_name
-    use fortmacs_diff_utilities_mod, only: quit_ediff_session
-    use fortmacs_diff_mod, only: ediff_directories
-    use fortmacs_diff_multiple_mod, only: ediff_session_group_type, ediff_session_groups, ediff_group_index, &
-                                          intersect_ediff_directories, ediff_session_registry, ediff_registry_buffer, &
-                                          show_ediff_registry, show_ediff_meta_buffer, EDIFF_SESSION_STATUS_MARKED, &
-                                          EDIFF_SESSION_STATUS_HIDE, &
-                                          EDIFF_SESSION_STATUS_HIDDEN, EDIFF_MEMBERSHIP_CODE1, EDIFF_MEMBERSHIP_CODE2, &
-                                          ediff_filtering_regexp_history, ediff_default_filtering_regexp, &
-                                          get_ediff_default_filtering_regexp, get_latest_ediff_filtering_regexp, &
-                                          update_ediff_registry, update_ediff_meta_buffer
+    use fortmacs_diff_settings_mod, only: fortmacs_diff_sessions, fortmacs_diff_session_index, abbreviate_fortmacs_diff_job_name
+    use fortmacs_diff_utilities_mod, only: quit_fortmacs_diff_session
+    use fortmacs_diff_mod, only: fortmacs_diff_directories
+    use fortmacs_diff_multiple_mod, only: fortmacs_diff_session_group_type, fortmacs_diff_session_groups, &
+                                          fortmacs_diff_group_index, intersect_fortmacs_diff_directories, &
+                                          fortmacs_diff_session_registry, fortmacs_diff_registry_buffer, &
+                                          show_fortmacs_diff_registry, show_fortmacs_diff_meta_buffer, &
+                                          FORTMACS_DIFF_SESSION_STATUS_MARKED, FORTMACS_DIFF_SESSION_STATUS_HIDE, &
+                                          FORTMACS_DIFF_SESSION_STATUS_HIDDEN, FORTMACS_DIFF_MEMBERSHIP_CODE1, &
+                                          FORTMACS_DIFF_MEMBERSHIP_CODE2, fortmacs_diff_filtering_regular_expression_history, &
+                                          fortmacs_diff_default_filtering_regular_expression, &
+                                          get_fortmacs_diff_default_filtering_regular_expression, &
+                                          get_latest_fortmacs_diff_filtering_regular_expression, update_fortmacs_diff_registry, &
+                                          update_fortmacs_diff_meta_buffer
     implicit none(type, external)
     private
 
@@ -75,7 +78,7 @@ contains
                     new_unittest("ediff-meta-mark-equal-files", test_mark_equal_files), &
                     new_unittest("ediff-filegroup-action", test_filegroup_action), &
                     new_unittest("ediff-quit-meta-buffer", test_quit_meta_buffer), &
-                    new_unittest("ediff-default-filtering-regexp", test_default_filtering_regexp), &
+                    new_unittest("ediff-default-filtering-regexp", test_default_filtering_regular_expression), &
                     new_unittest("ediff-directory-diff-copy", test_directory_diff_copy) &
                     ]
     end subroutine collect_fortmacs_diff_multiple_mod
@@ -149,8 +152,8 @@ contains
         type(handle_type) :: buffer
         type(status_type) :: st
 
-        call init_bindings()
-        call init_fileio()
+        call initialize_bindings()
+        call initialize_fileio()
         call discard_input()
         call get_or_make_buffer("*scratch*", buffer, st)
         call set_buffer(buffer, st)
@@ -177,13 +180,14 @@ contains
         type(status_type) :: st
         integer :: k
 
-        if (allocated(ediff_session_groups)) then
-            do k = 1, size(ediff_session_groups)
-                if (is_buffer_live(ediff_session_groups(k)%directory_diffs_buffer)) then
-                    call close_buffer(ediff_session_groups(k)%directory_diffs_buffer, st)
+        if (allocated(fortmacs_diff_session_groups)) then
+            do k = 1, size(fortmacs_diff_session_groups)
+                if (is_buffer_live(fortmacs_diff_session_groups(k)%directory_diffs_buffer)) then
+                    call close_buffer(fortmacs_diff_session_groups(k)%directory_diffs_buffer, st)
                 end if
 
-                if (is_buffer_live(ediff_session_groups(k)%buffer)) call close_buffer(ediff_session_groups(k)%buffer, st)
+                if (is_buffer_live(fortmacs_diff_session_groups(k)%buffer)) call close_buffer(fortmacs_diff_session_groups( &
+                                                                                              k)%buffer, st)
             end do
         end if
 
@@ -207,7 +211,7 @@ contains
         call close_buffer(h, st)
     end subroutine discard
 
-    !> Start M-x ediff_directories on A and B; GROUP is its buffer's
+    !> Start M-x fortmacs_diff_directories on A and B; GROUP is its buffer's
     !> group, which is current.
     subroutine start_group(directory, k, status)
         character(len=*), intent(in) :: directory
@@ -215,10 +219,10 @@ contains
         type(status_type), intent(out) :: status
 
         k = 0
-        call ediff_directories(directory//"a", directory//"b", "", status)
+        call fortmacs_diff_directories(directory//"a", directory//"b", "", status)
         if (.not. status%ok()) return
-        k = ediff_group_index(get_buffer("*Ediff Session Group Panel*"))
-        if (k > 0) call set_buffer(ediff_session_groups(k)%buffer, status)
+        k = fortmacs_diff_group_index(get_buffer("*Ediff Session Group Panel*"))
+        if (k > 0) call set_buffer(fortmacs_diff_session_groups(k)%buffer, status)
     end subroutine start_group
 
     !> The files both directories have are the sessions, sorted, a
@@ -226,12 +230,13 @@ contains
     !> with their membership codes.
     subroutine test_intersect(error)
         type(error_type), allocatable, intent(out) :: error
-        type(ediff_session_group_type) :: group
+        type(fortmacs_diff_session_group_type) :: group
         type(status_type) :: st
         character(len=:), allocatable :: directory
 
         call setup(directory)
-        call intersect_ediff_directories(commands%ediff_directories, "", directory//"a", directory//"b", "", "", group, st)
+        call intersect_fortmacs_diff_directories(commands%fortmacs_diff_directories, "", directory//"a", directory//"b", "", "", &
+                                                 group, st)
 
         body: block
             call check(error, st%ok(), format_error(st))
@@ -250,19 +255,20 @@ contains
             if (allocated(error)) exit body
             call check(error, group%directory_differences(1)%file, "only_a")
             if (allocated(error)) exit body
-            call check(error, group%directory_differences(1)%membership, EDIFF_MEMBERSHIP_CODE1)
+            call check(error, group%directory_differences(1)%membership, FORTMACS_DIFF_MEMBERSHIP_CODE1)
             if (allocated(error)) exit body
-            call check(error, group%directory_differences(2)%membership, EDIFF_MEMBERSHIP_CODE2)
+            call check(error, group%directory_differences(2)%membership, FORTMACS_DIFF_MEMBERSHIP_CODE2)
             if (allocated(error)) exit body
             ! A filter keeps the matching names only.
-            call intersect_ediff_directories(commands%ediff_directories, "^f", directory//"a", directory//"b", "", "", group, st)
+            call intersect_fortmacs_diff_directories(commands%fortmacs_diff_directories, "^f", directory//"a", directory//"b", "", &
+                                                     "", group, st)
             call check(error, size(group%sessions), 2)
         end block body
 
         call teardown(directory)
     end subroutine test_intersect
 
-    !> M-x ediff_directories makes the group buffer, lists the sessions,
+    !> M-x fortmacs_diff_directories makes the group buffer, lists the sessions,
     !> registers the group and draws the directory differences.
     subroutine test_directories(error)
         type(error_type), allocatable, intent(out) :: error
@@ -278,34 +284,37 @@ contains
             if (allocated(error)) exit body
             call check(error, k > 0, "a group")
             if (allocated(error)) exit body
-            call check(error, associated(ediff_session_groups(k)%job_name, commands%ediff_directories), "job")
+            call check(error, associated(fortmacs_diff_session_groups(k)%job_name, commands%fortmacs_diff_directories), "job")
             if (allocated(error)) exit body
-            call check(error, abbreviate_ediff_job_name(ediff_session_groups(k)%job_name), "Compare two directories")
+            call check(error, abbreviate_fortmacs_diff_job_name(fortmacs_diff_session_groups(k)%job_name), &
+                       "Compare two directories")
             if (allocated(error)) exit body
-            text = text_of(ediff_session_groups(k)%buffer)
+            text = text_of(fortmacs_diff_session_groups(k)%buffer)
             call check(error, index(text, "Ediff Session Group Panel: Compare two directories") == 1, text)
             if (allocated(error)) exit body
             call check(error, index(text, "  Session 3:"//LF) > 0, text)
             if (allocated(error)) exit body
             call check(error, index(text, "*** Directory A: ") > 0, text)
             if (allocated(error)) exit body
-            call check(error, trim(buffers(ediff_session_groups(k)%buffer%index)%mode_name), "MetaEdiff")
+            call check(error, trim(buffers(fortmacs_diff_session_groups(k)%buffer%index)%mode_name), "MetaEdiff")
             if (allocated(error)) exit body
-            call check(error, any(same_handle(ediff_session_registry, ediff_session_groups(k)%buffer)), "registered")
+            call check(error, any(same_handle(fortmacs_diff_session_registry, fortmacs_diff_session_groups(k)%buffer)), &
+                       "registered")
             if (allocated(error)) exit body
-            call check(error, index(text_of(ediff_session_groups(k)%directory_diffs_buffer), "only_a") > 0, "directory diffs")
+            call check(error, index(text_of(fortmacs_diff_session_groups(k)%directory_diffs_buffer), "only_a") > 0, &
+                       "directory diffs")
             if (allocated(error)) exit body
             ! The registry lists the group.
-            call show_ediff_registry(st)
+            call show_fortmacs_diff_registry(st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call check(error, index(text_of(ediff_registry_buffer), "*group*") > 0, text_of(ediff_registry_buffer))
+            call check(error, index(text_of(fortmacs_diff_registry_buffer), "*group*") > 0, text_of(fortmacs_diff_registry_buffer))
             if (allocated(error)) exit body
             ! ? shows the verbose help.
-            call show_ediff_meta_buffer(st, ediff_session_groups(k)%buffer)
-            call kbd_store_bytes("?")
+            call show_fortmacs_diff_meta_buffer(st, fortmacs_diff_session_groups(k)%buffer)
+            call keyboard_store_bytes("?")
             call command_loop(st)
-            call check(error, index(text_of(ediff_session_groups(k)%buffer), "Useful commands") > 0, "verbose help")
+            call check(error, index(text_of(fortmacs_diff_session_groups(k)%buffer), "Useful commands") > 0, "verbose help")
         end block body
 
         call teardown(directory)
@@ -325,22 +334,22 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call goto_char(point_min())
-            call kbd_store_bytes("nm")
+            call goto_character(point_minimum())
+            call keyboard_store_bytes("nm")
             call command_loop(st)
-            call check(error, ediff_session_groups(k)%sessions(1)%status, EDIFF_SESSION_STATUS_MARKED)
+            call check(error, fortmacs_diff_session_groups(k)%sessions(1)%status, FORTMACS_DIFF_SESSION_STATUS_MARKED)
             if (allocated(error)) exit body
             ! m moved to session 2; h marks it for hiding, x hides it.
-            call kbd_store_bytes("hx")
+            call keyboard_store_bytes("hx")
             call command_loop(st)
-            call check(error, ediff_session_groups(k)%sessions(2)%status, EDIFF_SESSION_STATUS_HIDDEN)
+            call check(error, fortmacs_diff_session_groups(k)%sessions(2)%status, FORTMACS_DIFF_SESSION_STATUS_HIDDEN)
             if (allocated(error)) exit body
-            call check(error, index(text_of(ediff_session_groups(k)%buffer), "Session 2:") == 0, "session 2 hidden")
+            call check(error, index(text_of(fortmacs_diff_session_groups(k)%buffer), "Session 2:") == 0, "session 2 hidden")
             if (allocated(error)) exit body
             ! um unmarks session 1.
-            call kbd_store_bytes("um")
+            call keyboard_store_bytes("um")
             call command_loop(st)
-            call check(error, ediff_session_groups(k)%sessions(1)%status, " ")
+            call check(error, fortmacs_diff_session_groups(k)%sessions(1)%status, " ")
         end block body
 
         call teardown(directory)
@@ -362,15 +371,15 @@ contains
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             ! Comparing the subdirectories asks whether to recurse: n.
-            call kbd_store_bytes("=hn")
+            call keyboard_store_bytes("=hn")
             call command_loop(st)
-            call check(error, ediff_session_groups(k)%sessions(1)%files(1)%is_equal, "f1 equal")
+            call check(error, fortmacs_diff_session_groups(k)%sessions(1)%files(1)%is_equal, "f1 equal")
             if (allocated(error)) exit body
-            call check(error,.not. ediff_session_groups(k)%sessions(2)%files(1)%is_equal, "f2 different")
+            call check(error,.not. fortmacs_diff_session_groups(k)%sessions(2)%files(1)%is_equal, "f2 different")
             if (allocated(error)) exit body
-            call check(error, ediff_session_groups(k)%sessions(1)%status, EDIFF_SESSION_STATUS_HIDE)
+            call check(error, fortmacs_diff_session_groups(k)%sessions(1)%status, FORTMACS_DIFF_SESSION_STATUS_HIDE)
             if (allocated(error)) exit body
-            call check(error, index(text_of(ediff_session_groups(k)%buffer), "=  ") > 0, "the = marker")
+            call check(error, index(text_of(fortmacs_diff_session_groups(k)%buffer), "=  ") > 0, "the = marker")
         end block body
 
         call teardown(directory)
@@ -392,26 +401,26 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            meta = ediff_session_groups(k)%buffer
-            call goto_char(point_min())
-            call kbd_store_bytes("nn"//achar(13))
+            meta = fortmacs_diff_session_groups(k)%buffer
+            call goto_character(point_minimum())
+            call keyboard_store_bytes("nn"//achar(13))
             call command_loop(st)
-            control = ediff_session_groups(k)%sessions(2)%buffer
+            control = fortmacs_diff_session_groups(k)%sessions(2)%buffer
             call check(error, is_buffer_live(control), "session 2 started")
             if (allocated(error)) exit body
-            s = ediff_session_index(control)
+            s = fortmacs_diff_session_index(control)
             call check(error, s > 0, "a session")
             if (allocated(error)) exit body
-            call check(error, same_handle(ediff_sessions(s)%meta_buffer, meta), "its group")
+            call check(error, same_handle(fortmacs_diff_sessions(s)%meta_buffer, meta), "its group")
             if (allocated(error)) exit body
-            call check(error, ediff_sessions(s)%meta_session_number, 2)
+            call check(error, fortmacs_diff_sessions(s)%meta_session_number, 2)
             if (allocated(error)) exit body
-            call check(error, any(same_handle(ediff_session_registry, control)), "registered")
+            call check(error, any(same_handle(fortmacs_diff_session_registry, control)), "registered")
             if (allocated(error)) exit body
             call check(error, index(text_of(meta), "+   Session 2:") > 0, text_of(meta))
             if (allocated(error)) exit body
             call set_buffer(control, st)
-            call quit_ediff_session(s, .false., st)
+            call quit_fortmacs_diff_session(s, .false., st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
             call check(error,.not. is_buffer_live(control), "control buffer closed")
@@ -439,14 +448,14 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            meta = ediff_session_groups(k)%buffer
-            call kbd_store_bytes("qy")
+            meta = fortmacs_diff_session_groups(k)%buffer
+            call keyboard_store_bytes("qy")
             call command_loop(st)
             call check(error,.not. is_buffer_live(meta), "group closed")
             if (allocated(error)) exit body
-            call check(error,.not. any(same_handle(ediff_session_registry, meta)), "unregistered")
+            call check(error,.not. any(same_handle(fortmacs_diff_session_registry, meta)), "unregistered")
             if (allocated(error)) exit body
-            call check(error, same_handle(current_buffer(), ediff_registry_buffer), "the registry")
+            call check(error, same_handle(current_buffer(), fortmacs_diff_registry_buffer), "the registry")
         end block body
 
         call teardown(directory)
@@ -454,19 +463,19 @@ contains
 
     !> The default filter is a regular expression set with = or a
     !> procedure set with =>, such as the last filter typed.
-    subroutine test_default_filtering_regexp(error)
+    subroutine test_default_filtering_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call ediff_filtering_regexp_history%append("^f")
-        ediff_default_filtering_regexp%procedure => get_latest_ediff_filtering_regexp
-        call check(error, get_ediff_default_filtering_regexp(), "^f")
+        call fortmacs_diff_filtering_regular_expression_history%append("^f")
+        fortmacs_diff_default_filtering_regular_expression%procedure => get_latest_fortmacs_diff_filtering_regular_expression
+        call check(error, get_fortmacs_diff_default_filtering_regular_expression(), "^f")
         if (allocated(error)) return
-        ediff_default_filtering_regexp = "\.f90$"
-        call check(error,.not. associated(ediff_default_filtering_regexp%procedure), "= clears the procedure")
+        fortmacs_diff_default_filtering_regular_expression = "\.f90$"
+        call check(error,.not. associated(fortmacs_diff_default_filtering_regular_expression%procedure), "= clears the procedure")
         if (allocated(error)) return
-        call check(error, get_ediff_default_filtering_regexp(), "\.f90$")
-        call ediff_default_filtering_regexp%clear()
-    end subroutine test_default_filtering_regexp
+        call check(error, get_fortmacs_diff_default_filtering_regular_expression(), "\.f90$")
+        call fortmacs_diff_default_filtering_regular_expression%clear()
+    end subroutine test_default_filtering_regular_expression
 
     !> C in the directory difference buffer copies a file to the
     !> directory that lacks it, which makes it a session of the group; q
@@ -485,29 +494,29 @@ contains
         body: block
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            diffs = ediff_session_groups(k)%directory_diffs_buffer
+            diffs = fortmacs_diff_session_groups(k)%directory_diffs_buffer
             call set_window_buffer(selected_frame%selected_window, diffs, st)
             call set_buffer(diffs, st)
             at = index(text_of(diffs), "only_a")
-            call goto_char(int(at, int64))
-            call kbd_store_bytes("Cy")
+            call goto_character(int(at, int64))
+            call keyboard_store_bytes("Cy")
             call command_loop(st)
             call check(error, file_exists(directory//"b/only_a"), "only_a copied to B")
             if (allocated(error)) exit body
-            call check(error, size(ediff_session_groups(k)%sessions), 4)
+            call check(error, size(fortmacs_diff_session_groups(k)%sessions), 4)
             if (allocated(error)) exit body
-            call check(error, size(ediff_session_groups(k)%directory_differences), 1)
+            call check(error, size(fortmacs_diff_session_groups(k)%directory_differences), 1)
             if (allocated(error)) exit body
             call check(error, is_buffer_live(diffs), "still shown")
             if (allocated(error)) exit body
-            call kbd_store_bytes("q")
+            call keyboard_store_bytes("q")
             call command_loop(st)
             call check(error,.not. is_buffer_live(diffs), "q closes it after C")
             if (allocated(error)) exit body
-            call update_ediff_registry(st)
+            call update_fortmacs_diff_registry(st)
             call check(error, st%ok(), format_error(st))
             if (allocated(error)) exit body
-            call update_ediff_meta_buffer(ediff_registry_buffer, st)
+            call update_fortmacs_diff_meta_buffer(fortmacs_diff_registry_buffer, st)
             call check(error,.not. st%ok(), "the registry is no group")
         end block body
 

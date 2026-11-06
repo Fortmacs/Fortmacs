@@ -19,14 +19,15 @@
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 # Usage: tools/build.sh [--generate] [--force] [FPM-ARGUMENTS...]
-#   Writes src/commands_mod.f90, src/modes_mod.f90, src/face_table_mod.f90
-#   and src/docstrings_mod.f90 (tools/gen-commands.sh, gen-modes.sh,
-#   gen-faces.sh and gen-docstrings.sh), which git does not track, then
-#   runs fpm with FPM-ARGUMENTS in the current directory: `build' when
-#   there are none, so `tools/build.sh test --target test_x',
+#   Writes src/commands_mod.f90, src/modes_mod.f90, src/face_table_mod.f90,
+#   src/fortran_completion_table_mod.f90 and src/docstrings_mod.f90
+#   (tools/gen-commands.sh, gen-modes.sh, gen-faces.sh,
+#   gen-completion-table.sh and gen-docstrings.sh), which git does not
+#   track, then runs fpm with FPM-ARGUMENTS in the current directory:
+#   `build' when there are none, so `tools/build.sh test --target test_x',
 #   `tools/build.sh run -- FILE' and `tools/build.sh install --profile
 #   release' work as fpm's own commands do.
-#   The generators run only when one of the four files is missing or one
+#   The generators run only when one of the five files is missing or one
 #   of their inputs (src/, the generators, tools/fortran-names.d,
 #   tools/fortran-names-lib.awk, tools/user-options.d, tools/blank-lines.awk,
 #   .fprettify.rc) changed since the last run, which build/generated.stamp
@@ -50,17 +51,18 @@ done
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 stamp=$root/build/generated.stamp
-outputs="src/commands_mod.f90 src/modes_mod.f90 src/face_table_mod.f90 src/docstrings_mod.f90"
+outputs="src/commands_mod.f90 src/modes_mod.f90 src/face_table_mod.f90 src/fortran_completion_table_mod.f90 \
+    src/docstrings_mod.f90"
 
-# Whether the four files must be generated (again).
+# Whether the five files must be generated (again).
 is_stale() {
     $force && return 0
     [ -f "$stamp" ] || return 0
     for f in $outputs; do
         [ -f "$root/$f" ] || return 0
     done
-    newer=$(cd "$root" && find src tools/gen-commands.sh tools/gen-modes.sh tools/gen-faces.sh tools/gen-docstrings.sh \
-        tools/fortran-names.d tools/fortran-names-lib.awk tools/user-options.d tools/blank-lines.awk .fprettify.rc \
+    newer=$(cd "$root" && find src tools/gen-commands.sh tools/gen-modes.sh tools/gen-faces.sh tools/gen-completion-table.sh \
+        tools/gen-docstrings.sh tools/fortran-names.d tools/fortran-names-lib.awk tools/user-options.d tools/blank-lines.awk .fprettify.rc \
         -newer "$stamp" | sed -n 1p)
     [ -n "$newer" ]
 }
@@ -72,6 +74,7 @@ if is_stale; then
     "$root/tools/gen-commands.sh"
     "$root/tools/gen-modes.sh"
     "$root/tools/gen-faces.sh"
+    "$root/tools/gen-completion-table.sh"
     "$root/tools/gen-docstrings.sh"
     mkdir -p "$root/build"
     touch "$stamp"

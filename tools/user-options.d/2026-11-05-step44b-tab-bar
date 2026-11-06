@@ -13,7 +13,7 @@ tab_bar_new_button_show
 tab_bar_close_button_show
 tab_bar_tab_hints
 tab_bar_tab_name_function
-tab_bar_tab_name_truncated_max
+tab_bar_tab_name_truncated_maximum
 tab_bar_format
 tab_bar_show_inactive_group_tabs
 tab_bar_auto_width

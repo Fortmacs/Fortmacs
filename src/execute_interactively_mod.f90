@@ -25,13 +25,13 @@
 !> are defined with `define'.  Keymaps bind command names; upstream a
 !> command is a function with an `interactive' spec, stored in the
 !> name's function cell, and here a command reads its own arguments
-!> (the prefix argument is `current_prefix_arg').
+!> (the prefix argument is `current_prefix_argument').
 !>
-!>     commands%forward_char%execute => cmd_forward_char
+!>     commands%forward_character%execute => execute_forward_character
 module execute_interactively_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: format_message, status_type, set_error, FM_GENERIC_ERROR, &
-                         FM_VOID_FUNCTION, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, &
+                         VOID_FUNCTION_CODE, WRONG_TYPE_ARGUMENT_CODE
     use value_mod, only: value_type, V_ARRAY, V_STRING, vtag, xsymbol, symbols, V_NULL, &
                          V_NAME
     use names_mod, only: intern
@@ -42,9 +42,9 @@ module execute_interactively_mod
 
     public :: command_procedure, command_type, find_command, is_command, is_command_defined, &
               set_command_disabled, intern_command_names, command_name_of, command_of
-    public :: execute_interactively, find_function, prefix_numeric_value, prefix_arg_text
+    public :: execute_interactively, find_function, prefix_numeric_value, prefix_argument_text
 
-    !> The kinds of a prefix argument (`prefix_arg_type%kind'): none, a
+    !> The kinds of a prefix argument (`prefix_argument_type%kind'): none, a
     !> number (C-u 5, M-5), one or more C-u's alone (value 4, 16, ...), or
     !> a minus sign alone (C-u -, M--).
     integer, parameter, public :: PREFIX_NONE = 0, PREFIX_NUMBER = 1, PREFIX_RAW = 2, PREFIX_MINUS = 3
@@ -52,12 +52,12 @@ module execute_interactively_mod
     !> A raw prefix argument: its kind (PREFIX_NONE, PREFIX_NUMBER,
     !> PREFIX_RAW or PREFIX_MINUS) and, for PREFIX_NUMBER and PREFIX_RAW,
     !> its number (C-u C-u is PREFIX_RAW with 16).
-    type, public :: prefix_arg_type
+    type, public :: prefix_argument_type
         integer :: kind = PREFIX_NONE
         integer(int64) :: value = 0
-    end type prefix_arg_type
+    end type prefix_argument_type
 
-    !> Run command CMD: a command object, or the binding of a key (a name,
+    !> Run command COMMAND: a command object, or the binding of a key (a name,
     !> or a keyboard macro, which is not run here).
     interface execute_interactively
         module procedure execute_interactively_binding, execute_interactively_command
@@ -68,7 +68,7 @@ module execute_interactively_mod
     !> minus sign as arg, PREFIX_RAW for just one or more C-u's (value 4,
     !> 16, ...), or PREFIX_NONE if no argument has been specified.  Port of
     !> callint.c current-prefix-arg.
-    type(prefix_arg_type), public :: current_prefix_arg
+    type(prefix_argument_type), public :: current_prefix_argument
 
     !> The command now being executed.
     !> The command can set this variable; whatever is put here
@@ -82,9 +82,9 @@ module execute_interactively_mod
     !> keyboard.c current-minibuffer-command (bound by
     !> callint.c:Fcall_interactively).
     type(command_type), pointer, public :: current_minibuffer_command => null()
-    !> keyboard.c KVAR prefix_arg: the raw prefix argument for the next
+    !> keyboard.c KVAR prefix_argument: the raw prefix argument for the next
     !> command (set by universal-argument and friends).
-    type(prefix_arg_type), public :: prefix_arg
+    type(prefix_argument_type), public :: prefix_argument
     !> True means you can use the mark even when inactive.
     !> This option makes a difference in Transient Mark mode.
     !> When the option is true, deactivation of the mark
@@ -200,7 +200,7 @@ contains
         if (.not. associated(p)) p => builtin_command(name)
 
         if (.not. associated(p)) then
-            call set_error(status, FM_GENERIC_ERROR, format_message("Invalid command name `")//name//format_message("'"))
+            call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid command name `")//name//format_message("'"))
             return
         end if
 
@@ -208,26 +208,27 @@ contains
         p%disabled_message = ""
     end subroutine set_command_disabled
 
-    !> Run the command that the binding CMD names.  Port of
+    !> Run the command that the binding COMMAND names.  Port of
     !> callint.c:Fcall_interactively (how the command reads its arguments
     !> is the command's own business here).  Recursive: a command may read
     !> the minibuffer, running commands in turn.
-    recursive subroutine execute_interactively_binding(cmd, status)
-        type(value_type), intent(in) :: cmd
+    recursive subroutine execute_interactively_binding(command, status)
+        type(value_type), intent(in) :: command
         type(status_type), intent(out) :: status
         type(command_type), pointer :: p
 
-        p => command_of(cmd)
+        p => command_of(command)
 
         if (associated(p)) then
             if (.not. p%is_command) p => null()
         end if
 
         if (.not. associated(p)) then
-            if ((vtag(cmd) == V_NAME .or. vtag(cmd) == V_NULL)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), got "//symbols(xsymbol(cmd))%name)
+            if ((vtag(command) == V_NAME .or. vtag(command) == V_NULL)) then
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, &
+                               "expected type(command_type), got "//symbols(xsymbol(command))%name)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(command_type)")
             end if
 
             return
@@ -236,22 +237,22 @@ contains
         call execute_interactively_command(p, status)
     end subroutine execute_interactively_binding
 
-    !> Run command CMD.  Port of callint.c:Fcall_interactively (how the
+    !> Run command COMMAND.  Port of callint.c:Fcall_interactively (how the
     !> command reads its arguments is the command's own business here).
     !> Recursive: a command may read the minibuffer, running commands in
     !> turn.
-    recursive subroutine execute_interactively_command(cmd, status)
-        type(command_type), intent(in), target :: cmd
+    recursive subroutine execute_interactively_command(command, status)
+        type(command_type), intent(in), target :: command
         type(status_type), intent(out) :: status
         type(command_type), pointer :: saved
 
         status = status_type()
 
-        if (.not. cmd%is_command .or. .not. associated(cmd%execute)) then
-            if (len_trim(cmd%name) > 0) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type), got "//trim(cmd%name))
+        if (.not. command%is_command .or. .not. associated(command%execute)) then
+            if (len_trim(command%name) > 0) then
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(command_type), got "//trim(command%name))
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(command_type)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(command_type)")
             end if
 
             return
@@ -259,7 +260,7 @@ contains
 
         saved => current_minibuffer_command
         current_minibuffer_command => this_command
-        call cmd%execute(status)
+        call command%execute(status)
         current_minibuffer_command => saved
     end subroutine execute_interactively_command
 
@@ -277,9 +278,9 @@ contains
 
         if (.not. associated(p)) then
             if ((vtag(fn) == V_NAME .or. vtag(fn) == V_NULL)) then
-                call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(fn))%name)
+                call set_error(status, VOID_FUNCTION_CODE, symbols(xsymbol(fn))%name)
             else
-                call set_error(status, FM_GENERIC_ERROR, "Invalid function")
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid function")
             end if
 
             return
@@ -290,7 +291,7 @@ contains
     !> minus sign alone gives -1, C-u's and a number N give N.  Port of
     !> callint.c:Fprefix_numeric_value.
     elemental integer(int64) function prefix_numeric_value(raw) result(n)
-        type(prefix_arg_type), intent(in) :: raw
+        type(prefix_argument_type), intent(in) :: raw
 
         select case (raw%kind)
         case (PREFIX_NUMBER, PREFIX_RAW)
@@ -302,25 +303,25 @@ contains
         end select
     end function prefix_numeric_value
 
-    !> Raw prefix argument ARG as help shows it, a Fortran structure
-    !> constructor: "prefix_arg_type(kind=PREFIX_RAW, value=4)".
+    !> Raw prefix argument ARGUMENT as help shows it, a Fortran structure
+    !> constructor: "prefix_argument_type(kind=PREFIX_RAW, value=4)".
     !> Not a port.
-    function prefix_arg_text(arg) result(text)
-        type(prefix_arg_type), intent(in) :: arg
+    function prefix_argument_text(argument) result(text)
+        type(prefix_argument_type), intent(in) :: argument
         character(len=:), allocatable :: text
         character(len=24) :: buffer
 
-        write (buffer, "(i0)") arg%value
+        write (buffer, "(i0)") argument%value
 
-        select case (arg%kind)
+        select case (argument%kind)
         case (PREFIX_NUMBER)
-            text = "prefix_arg_type(kind=PREFIX_NUMBER, value="//trim(buffer)//")"
+            text = "prefix_argument_type(kind=PREFIX_NUMBER, value="//trim(buffer)//")"
         case (PREFIX_RAW)
-            text = "prefix_arg_type(kind=PREFIX_RAW, value="//trim(buffer)//")"
+            text = "prefix_argument_type(kind=PREFIX_RAW, value="//trim(buffer)//")"
         case (PREFIX_MINUS)
-            text = "prefix_arg_type(kind=PREFIX_MINUS)"
+            text = "prefix_argument_type(kind=PREFIX_MINUS)"
         case default
-            text = "prefix_arg_type(kind=PREFIX_NONE)"
+            text = "prefix_argument_type(kind=PREFIX_NONE)"
         end select
-    end function prefix_arg_text
+    end function prefix_argument_text
 end module execute_interactively_mod

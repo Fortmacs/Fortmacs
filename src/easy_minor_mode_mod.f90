@@ -31,31 +31,32 @@
 module easy_minor_mode_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use character_mod, only: downcase_ascii
-    use execute_interactively_mod, only: prefix_arg_type, PREFIX_NONE, PREFIX_RAW
+    use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_RAW
     use error_mod, only: status_type
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, make_keymap_ref, symbols
+    use value_mod, only: value_type, make_keymap_reference, symbols
     use names_mod, only: intern
     use data_mod, only: set, set_default, symbol_value, make_variable_buffer_local, buffer_local_value, logical_setting_type, &
                         default_value
     use hooks_mod, only: hook_type
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use buffer_mod, only: buffers, current, set_buffer_internal
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, append_minor_mode_map
     use keyboard_mod, only: last_message
     use display_engine_mod, only: message, add_minor_mode_lighter
     use basic_subprograms_mod, only: after_hook_procedure, add_delayed_after_hook, delaying_mode_hooks
-    use error_mod, only: set_error, FM_USER_ERROR
+    use error_mod, only: set_error, USER_ERROR_CODE
     use value_mod, only: make_list, value_type
     use buffer_mod, only: current_buffer
-    use editing_functions_mod, only: point, goto_char, widen, is_buffer_narrowed
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, SEARCH_NOERROR
-    use frame_mod, only: frame_selected_window_ref, selected_window
-    use window_mod, only: window_type, window_start, set_window_start, is_pos_visible_in_window, recenter
+    use editing_functions_mod, only: point, goto_character, widen, is_buffer_narrowed
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, match_beginning, &
+                          match_end, SEARCH_NOERROR
+    use frame_mod, only: frame_selected_window_reference, selected_window
+    use window_mod, only: window_type, window_start, set_window_start, is_position_visible_in_window, recenter
     implicit none(type, external)
     private
 
-    public :: easy_mmode_next, easy_mmode_prev, navigation_end_procedure, navigation_narrow_procedure
+    public :: easy_mmode_next, easy_mmode_previous, navigation_end_procedure, navigation_narrow_procedure
     public :: minor_mode_body_procedure, minor_mode_getter_procedure, easy_mmode_pretty_mode_name, minor_mode_named, &
               minor_mode_index, &
               minor_mode_at, minor_mode_count
@@ -152,19 +153,19 @@ module easy_minor_mode_mod
     end type minor_mode_type
 
     !> A pointer to a minor mode.
-    type :: minor_mode_ref_type
+    type :: minor_mode_reference_type
         type(minor_mode_type), pointer :: p => null()
-    end type minor_mode_ref_type
+    end type minor_mode_reference_type
 
     !> The defined minor modes.
-    type(minor_mode_ref_type), allocatable :: defined(:)
+    type(minor_mode_reference_type), allocatable :: defined(:)
 
     ! Characters of whitespace syntax in the standard syntax table.
     character(len=*), parameter :: WHITESPACE = " "//achar(9)//achar(10)//achar(12)//achar(13)
 
 contains
 
-    !> Go to the next COUNT'th occurrence of RE.
+    !> Go to the next COUNT'th occurrence of REGULAR_EXPRESSION.
     !>
     !> If none, error with NAME.
     !>
@@ -173,50 +174,50 @@ contains
     !> (to make sure all of it is visible, when INTERACTIVE), NARROWFUN,
     !> if present, means to widen before moving and call it after.
     !> Port of easy-mmode.el:easy-mmode--next.
-    recursive subroutine easy_mmode_next(regexp, name, count, status, endfun, narrowfun, interactive)
-        character(len=*), intent(in) :: regexp, name
+    recursive subroutine easy_mmode_next(regular_expression, name, count, status, endfun, narrowfun, interactive)
+        character(len=*), intent(in) :: regular_expression, name
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
         procedure(navigation_end_procedure), optional :: endfun
         procedure(navigation_narrow_procedure), optional :: narrowfun
         logical, intent(in), optional :: interactive
-        integer(int64) :: n, found, endpt, ws, saved
-        logical :: re_narrow, inter
+        integer(int64) :: n, found, endpt, old_window_start, saved
+        logical :: regular_expression_narrow, inter
         type(status_type) :: st
         type(window_type), pointer :: w
 
         status = status_type()
 
         if (count < 0) then
-            call easy_mmode_prev(regexp, name, -count, status, endfun, narrowfun)
+            call easy_mmode_previous(regular_expression, name, -count, status, endfun, narrowfun)
             return
         end if
 
         inter = .false.
         if (present(interactive)) inter = interactive
         n = count
-        if (looking_at(regexp, st)) n = n + 1
-        re_narrow = .false.
+        if (looking_at(regular_expression, st)) n = n + 1
+        regular_expression_narrow = .false.
 
         if (present(narrowfun)) then
-            re_narrow = is_buffer_narrowed()
+            regular_expression_narrow = is_buffer_narrowed()
             call widen()
         end if
 
-        call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR, count=n)
+        call regular_expression_search_forward(regular_expression, found, st, noerror=SEARCH_NOERROR, count=n)
 
         if (found == 0) then
-            if (looking_at(regexp, st)) then
-                endpt = buffers(current)%zv
+            if (looking_at(regular_expression, st)) then
+                endpt = buffers(current)%end_of_accessible_portion
                 if (present(endfun)) endpt = endfun()
-                call goto_char(endpt)
+                call goto_character(endpt)
             else
-                call set_error(status, FM_USER_ERROR, "No next "//name)
+                call set_error(status, USER_ERROR_CODE, "No next "//name)
                 return
             end if
         else
-            call goto_char(match_beginning(0, st))
-            w => frame_selected_window_ref()
+            call goto_character(match_beginning(0, st))
+            w => frame_selected_window_reference()
 
             if (inter .and. w%buffer%index == current_buffer_index()) then
                 saved = point()
@@ -224,22 +225,22 @@ contains
                 if (present(endfun)) then
                     endpt = endfun()
                 else
-                    call re_search_forward(regexp, endpt, st, noerror=SEARCH_NOERROR, count=2_int64)
+                    call regular_expression_search_forward(regular_expression, endpt, st, noerror=SEARCH_NOERROR, count=2_int64)
                 end if
 
-                call goto_char(saved)
-                if (endpt == 0) endpt = buffers(current)%zv
+                call goto_character(saved)
+                if (endpt == 0) endpt = buffers(current)%end_of_accessible_portion
 
-                if (.not. is_pos_visible_in_window(endpt, selected_window())) then
-                    ws = window_start(w)
-                    call recenter(prefix_arg_type(PREFIX_RAW, 0_int64), .false., st)
+                if (.not. is_position_visible_in_window(endpt, selected_window())) then
+                    old_window_start = window_start(w)
+                    call recenter(prefix_argument_type(PREFIX_RAW, 0_int64), .false., st)
                     ! recenter scrolled in the wrong direction!
-                    if (window_start(w) < ws) call set_window_start(w, ws, st)
+                    if (window_start(w) < old_window_start) call set_window_start(w, old_window_start, st)
                 end if
             end if
         end if
 
-        if (re_narrow) call narrowfun(status)
+        if (regular_expression_narrow) call narrowfun(status)
 
     contains
 
@@ -251,52 +252,52 @@ contains
         end function current_buffer_index
     end subroutine easy_mmode_next
 
-    !> Go to the COUNT'th previous occurrence of RE.
+    !> Go to the COUNT'th previous occurrence of REGULAR_EXPRESSION.
     !>
     !> If none, error with NAME.
     !>
     !> ENDFUN and NARROWFUN are treated like in
     !> `easy-mmode-define-navigation'.  Port of
     !> easy-mmode.el:easy-mmode--prev.
-    recursive subroutine easy_mmode_prev(regexp, name, count, status, endfun, narrowfun)
-        character(len=*), intent(in) :: regexp, name
+    recursive subroutine easy_mmode_previous(regular_expression, name, count, status, endfun, narrowfun)
+        character(len=*), intent(in) :: regular_expression, name
         integer(int64), intent(in) :: count
         type(status_type), intent(out) :: status
         procedure(navigation_end_procedure), optional :: endfun
         procedure(navigation_narrow_procedure), optional :: narrowfun
         integer(int64) :: n, found, saved, mb, me
-        logical :: re_narrow, inside
+        logical :: regular_expression_narrow, inside
         type(status_type) :: st
 
         status = status_type()
 
         if (count < 0) then
-            call easy_mmode_next(regexp, name, -count, status, endfun, narrowfun)
+            call easy_mmode_next(regular_expression, name, -count, status, endfun, narrowfun)
             return
         end if
 
         n = count
-        re_narrow = .false.
+        regular_expression_narrow = .false.
 
         if (present(narrowfun)) then
-            re_narrow = is_buffer_narrowed()
+            regular_expression_narrow = is_buffer_narrowed()
             call widen()
         end if
 
-        ! If point is inside a match for RE, move to its beginning like
+        ! If point is inside a match for REGULAR_EXPRESSION, move to its beginning like
         ! `backward-sexp' and other movement commands.
         if (n /= 0) then
             saved = point()
             ! Make sure we're out of the current match if any.
-            call re_search_backward(regexp, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+            call regular_expression_search_backward(regular_expression, found, st, noerror=SEARCH_NOERROR, count=1_int64)
 
             if (found /= 0) then
-                call goto_char(match_end(0, st))
+                call goto_character(match_end(0, st))
             else
-                call goto_char(buffers(current)%begv)
+                call goto_character(buffers(current)%beginning_of_accessible_portion)
             end if
 
-            call re_search_forward(regexp, found, st, noerror=SEARCH_NOERROR, count=1_int64)
+            call regular_expression_search_forward(regular_expression, found, st, noerror=SEARCH_NOERROR, count=1_int64)
             inside = .false.
 
             if (found /= 0) then
@@ -305,23 +306,23 @@ contains
                 inside = mb < saved .and. saved < me
             end if
 
-            call goto_char(saved)
+            call goto_character(saved)
 
             if (inside) then
-                call goto_char(mb)
+                call goto_character(mb)
                 n = n - 1
             end if
         end if
 
-        call re_search_backward(regexp, found, st, noerror=SEARCH_NOERROR, count=n)
+        call regular_expression_search_backward(regular_expression, found, st, noerror=SEARCH_NOERROR, count=n)
 
         if (found == 0 .and. n > 0) then
-            call set_error(status, FM_USER_ERROR, "No previous "//name)
+            call set_error(status, USER_ERROR_CODE, "No previous "//name)
             return
         end if
 
-        if (re_narrow) call narrowfun(status)
-    end subroutine easy_mmode_prev
+        if (regular_expression_narrow) call narrowfun(status)
+    end subroutine easy_mmode_previous
 
     !> Turn the name MODE into a string intended for the user.
     !> If provided, LIGHTER will be used to help choose capitalization by,
@@ -512,7 +513,7 @@ contains
         procedure(minor_mode_getter_procedure), optional :: getter
         type(hook_type), intent(inout), target, optional :: hook
         logical, intent(in), optional :: keymap
-        type(minor_mode_ref_type) :: ref
+        type(minor_mode_reference_type) :: reference
         type(status_type) :: st
         integer(int64) :: id
 
@@ -543,10 +544,10 @@ contains
 
             select type (self)
             type is (minor_mode_type)
-                ref%p => self
+                reference%p => self
             end select
 
-            defined = [defined, ref]
+            defined = [defined, reference]
         end if
 
         ! A mode with another variable makes that variable local when set
@@ -796,10 +797,10 @@ contains
         type(status_type), intent(out) :: status
         logical :: enable
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             enable = .not. self%enabled()
         else
-            enable = prefix_numeric_value(current_prefix_arg) >= 1
+            enable = prefix_numeric_value(current_prefix_argument) >= 1
         end if
 
         call set_mode(self, enable, status, .true.)

@@ -29,19 +29,19 @@ module test_font_lock_mod
     use value_mod, only: value_type, symbols, xsymbol, list_elements, vtag, V_NULL, V_NAME, V_ARRAY
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, resolve_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point_max
+    use editing_functions_mod, only: goto_character, point_maximum
     use text_properties_mod, only: put_text_property, get_text_property
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, &
                              font_lock_highlight_type, FONT_LOCK_OVERRIDE_PREPEND, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_fontify_buffer, font_lock_ensure, &
                              font_lock_add_keywords
-    use just_in_time_lock_mod, only: is_jit_lock_mode, jit_lock_fontify_now
+    use just_in_time_lock_mod, only: is_just_in_time_lock_mode, just_in_time_lock_fontify_now
     use glyph_matrices_mod, only: glyph_row_type, DEFAULT_FACE_ID
     use frame_mod, only: frame_type
-    use faces_mod, only: init_faces
-    use face_realization_mod, only: init_frame_faces
+    use faces_mod, only: initialize_faces
+    use face_realization_mod, only: initialize_frame_faces
     use display_engine_mod, only: layout_window
     implicit none(type, external)
     private
@@ -76,20 +76,20 @@ contains
         call insert(text, st)
     end subroutine buffer_with
 
-    !> The name of the face at POS ("" if none; the first of a list).
-    function face_at(pos) result(name)
-        integer(int64), intent(in) :: pos
+    !> The name of the face at POSITION ("" if none; the first of a list).
+    function face_at(position) result(name)
+        integer(int64), intent(in) :: position
         character(len=:), allocatable :: name
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
         type(status_type) :: st
 
         name = ""
-        call get_text_property(pos, value_type(name="face"), v, st)
+        call get_text_property(position, value_type(name="face"), v, st)
 
         if (vtag(v) == V_ARRAY) then
-            call list_elements(v, elts)
-            v = elts(1)
+            call list_elements(v, elements)
+            v = elements(1)
         end if
 
         if (.not. allocated(v%a)) return
@@ -112,7 +112,7 @@ contains
         type(handle_type) :: h, hidden
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call buffer_with(" *hidden-fl*", "x", hidden)
         call buffer_with("*fl-global*", "x", h)
         call minor_modes%global_font_lock_mode%enable(st)
@@ -134,7 +134,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call buffer_with("*fl-alias*", "abc", h)
         call put_text_property(1_int64, 3_int64, value_type(name="font_lock_face"), value_type(name="bold"), st)
         call check(error, face_at(1_int64) == "", "no alias without Font Lock")
@@ -153,11 +153,11 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call buffer_with("*fl-keywords*", "a foo b foo", h)
         call set_foo_keywords(.true.)
         call minor_modes%font_lock_mode%enable(st)
-        call check(error, st%ok() .and. is_jit_lock_mode(), "jit-lock")
+        call check(error, st%ok() .and. is_just_in_time_lock_mode(), "jit-lock")
         if (allocated(error)) return
         call check(error, face_at(3_int64) == "", "not fontified yet")
         if (allocated(error)) return
@@ -166,7 +166,7 @@ contains
                    .and. face_at(6_int64) == "" .and. face_at(9_int64) == "font_lock_keyword_face", "both foos")
         if (allocated(error)) return
         call minor_modes%font_lock_mode%disable(st)
-        call check(error, face_at(3_int64) == "" .and. .not. is_jit_lock_mode(), "unfontified when off")
+        call check(error, face_at(3_int64) == "" .and. .not. is_just_in_time_lock_mode(), "unfontified when off")
         call close_buffer(h, st)
     end subroutine test_keywords
 
@@ -176,7 +176,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call buffer_with("*fl-syntactic*", 'x "foo" y', h)
         call set_foo_keywords(.false.)
         call minor_modes%font_lock_mode%enable(st)
@@ -195,9 +195,9 @@ contains
         type(font_lock_keyword_type) :: k(2)
         type(font_lock_highlight_type) :: hl(1)
         type(value_type) :: v
-        type(value_type), allocatable :: elts(:)
+        type(value_type), allocatable :: elements(:)
 
-        call init_bindings()
+        call initialize_bindings()
         call buffer_with("*fl-overrides*", "foo bar", h)
         k(1) = font_lock_keyword("foo", face="bold")
         hl(1) = font_lock_highlight(0, "italic", FONT_LOCK_OVERRIDE_PREPEND)
@@ -208,10 +208,10 @@ contains
         call get_text_property(3_int64, value_type(name="face"), v, st)
         call check(error, vtag(v) == V_ARRAY, "a list of faces")
         if (allocated(error)) return
-        call list_elements(v, elts)
-        call check(error, size(elts) == 2, "two faces")
+        call list_elements(v, elements)
+        call check(error, size(elements) == 2, "two faces")
         if (allocated(error)) return
-        call check(error, symbols(xsymbol(elts(1)))%name == "italic" .and. symbols(xsymbol(elts(2)))%name == "bold", &
+        call check(error, symbols(xsymbol(elements(1)))%name == "italic" .and. symbols(xsymbol(elements(2)))%name == "bold", &
                    "italic prepended")
         if (allocated(error)) return
         call check(error, face_at(5_int64) == "italic", "italic alone after foo")
@@ -225,20 +225,20 @@ contains
         type(status_type) :: st
         type(value_type) :: v
 
-        call init_bindings()
+        call initialize_bindings()
         call buffer_with("*fl-change*", "foo"//achar(10)//"bar"//achar(10), h)
         call set_foo_keywords(.true.)
         call minor_modes%font_lock_mode%enable(st)
-        call jit_lock_fontify_now(st)
+        call just_in_time_lock_fontify_now(st)
         call get_text_property(6_int64, value_type(name="fontified"), v, st)
         call check(error, allocated(v%a), "fontified")
         if (allocated(error)) return
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call insert("foo", st)
         call get_text_property(6_int64, value_type(name="fontified"), v, st)
         call check(error,.not. allocated(v%a), "refontify the change")
         if (allocated(error)) return
-        call jit_lock_fontify_now(st)
+        call just_in_time_lock_fontify_now(st)
         call check(error, face_at(6_int64) == "font_lock_keyword_face", "fontified again")
         call close_buffer(h, st)
     end subroutine test_after_change
@@ -250,13 +250,13 @@ contains
         type(status_type) :: st
         type(glyph_row_type) :: rows(2)
         type(frame_type) :: f
-        integer(int64) :: bi, end_pos
+        integer(int64) :: bi, end_position
         integer :: crow, ccol, r
         logical :: at_end
 
-        call init_bindings()
-        call init_faces()
-        call init_frame_faces(f, "dumb")
+        call initialize_bindings()
+        call initialize_faces()
+        call initialize_frame_faces(f, "dumb")
         call buffer_with("*fl-redisplay*", "a foo", h)
         call set_foo_keywords(.true.)
         call minor_modes%font_lock_mode%enable(st)
@@ -266,9 +266,9 @@ contains
             allocate (rows(r)%glyphs(10))
         end do
 
-        call layout_window(bi, 1_int64, point_max(), 10, rows, crow, ccol, end_pos, at_end, f=f)
+        call layout_window(bi, 1_int64, point_maximum(), 10, rows, crow, ccol, end_position, at_end, f=f)
         call check(error, rows(1)%glyphs(1)%face_id == DEFAULT_FACE_ID .and. rows(1)%glyphs(3)%face_id /= DEFAULT_FACE_ID &
-                   .and. f%faces(rows(1)%glyphs(3)%face_id)%tty_bold_p, "foo in bold (mono keyword face)")
+                   .and. f%faces(rows(1)%glyphs(3)%face_id)%terminal_bold_p, "foo in bold (mono keyword face)")
         call close_buffer(h, st)
     end subroutine test_redisplay
 end module test_font_lock_mod

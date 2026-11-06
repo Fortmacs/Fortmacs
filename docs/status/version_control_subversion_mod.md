@@ -43,7 +43,7 @@
 `vc-svn-create-tag` and `vc-svn-retrieve-tag` (tags and branches),
 `vc-svn-merge-file`,
 `vc-svn-merge` and `vc-svn-merge-news` (merging),
-`vc-svn-ignore` and `vc-svn-ignore-completion-table` (no `ignore` backend function yet: `vc_ignore` uses vc-default-ignore, so C-x v G reports `vc_not_supported` under SVN),
+`vc-svn-ignore` and `vc-svn-ignore-completion-table` (no `ignore` backend function yet: `version_control_ignore` uses vc-default-ignore, so C-x v G reports `version_control_not_supported` under SVN),
 `vc-svn-find-file-hook`,
 `vc-svn-resolve-when-done`,
 `vc-svn-resolve-conflicts` and the `vc-svn-status` file property only they read (Smerge mode, step 48),
@@ -61,4 +61,4 @@ the MSYS file names of `vc-svn-create-repo`
 
 ## Tests
 
-test_version_control_subversion_mod (ports vc-tests.el vc-test-svn00-create-repo to -svn06-version-diff (-svn05: `svn remove` of an added file fails without --force, as upstream, so OK-IF-ALREADY-EXISTS gives an error condition); own: parsing `svn status -v`, the previous revision, C-x v l in SVN-Log-View mode, C-x v =, C-x v d; skipped without svn and svnadmin)
+test_version_control_subversion_mod (ports vc-tests.el vc-test-svn00-create-repo to -svn06-version-diff (-svn05: `subversion remove` of an added file fails without --force, as upstream, so OK-IF-ALREADY-EXISTS gives an error condition); own: parsing `subversion status -v`, the previous revision, C-x v l in SVN-Log-View mode, C-x v =, C-x v d; skipped without svn and svnadmin)
