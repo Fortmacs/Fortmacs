@@ -86,6 +86,8 @@ module rmail_mod
     use data_mod, only: clear_all_local_variables, choice_setting_type
     use text_mode_mod, only: text_mode_syntax_table, initialize_text_mode
     use interval_tree_mod, only: make_overlay, overlay_put, move_overlay
+    use text_properties_mod, only: get_text_property
+    use rfc2047_mod, only: decode_rfc2047_region
     use value_mod, only: value_type, make_list, list
     use faces_mod, only: named_face_type, display_when, face_attributes
     use coding_mod, only: coding_system_for_read, buffer_file_coding_system, last_coding_system_used, is_coding_system, &
@@ -116,7 +118,8 @@ module rmail_mod
               keep_rmail_format, ensure_rmail_blank_line, get_rmail_coding_system, is_rmail_text, rmail_buffer, &
               set_rmail_buffer, rmail_state_index, set_rmail_bad_format_error, annotate_rmail_write_region, &
               rmail_summary_procedure, pop_to_rmail_buffer, read_rmail_search, is_rmail_expunge_confirmed, initialize_rmail
-    public :: rmail_states, rmail_state_type
+    public :: rmail_states, rmail_state_type, rmail_show_mime_procedure, rmail_search_mime_message_procedure, &
+              is_rmail_mime_message, copy_rmail_headers
 
     !> The name of the header field that records a message's attributes.
     !> Port of rmail.el rmail-attribute-header.
@@ -362,8 +365,8 @@ module rmail_mod
     character(len=:), allocatable, public :: rmail_file_coding_system
 
     !> True means RMAIL automatically displays decoded MIME messages.
-    !> For this to work, MIME support (rmailmm.el, Deferred) must be
-    !> available.  Port of rmail.el rmail-enable-mime.
+    !> For this to work, `rmail_show_mime_function' (rmail_mime_mod's
+    !> `show_rmail_mime') must be set.  Port of rmail.el rmail-enable-mime.
     logical, public :: rmail_enable_mime = .true.
 
     !> True means use `rmail_insert_mime_forwarded_message_function' to
@@ -428,6 +431,11 @@ module rmail_mod
     !> The keymap of Rmail mode.  Port of rmail.el rmail-mode-map.
     type(handle_type), public :: rmail_mode_map
 
+    !> The text property that holds the MIME entity a part of a message
+    !> shows (rmail_mime_mod).  Not a port: upstream's property
+    !> rmail-mime-entity.
+    character(len=*), parameter, public :: RMAIL_MIME_ENTITY_PROPERTY = "rmail_mime_entity"
+
     abstract interface
         !> A summary operation that `select_rmail_summary' runs in the
         !> summary buffer, for message N.  Not a port.
@@ -437,7 +445,42 @@ module rmail_mod
             integer(int64), intent(in) :: n
             type(status_type), intent(out) :: status
         end subroutine rmail_summary_procedure
+
+        !> Show the current message, a MIME message, in the view buffer.
+        !> Not a port.
+        recursive subroutine rmail_show_mime_procedure(status)
+            import :: status_type
+            implicit none(type, external)
+            type(status_type), intent(out) :: status
+        end subroutine rmail_show_mime_procedure
+
+        !> Search message MESSAGE_NUMBER for REGULAR_EXPRESSION; FOUND is
+        !> true if it matches.  Not a port.
+        recursive subroutine rmail_search_mime_message_procedure(message_number, regular_expression, found, status)
+            import :: int64, status_type
+            implicit none(type, external)
+            integer(int64), intent(in) :: message_number
+            character(len=*), intent(in) :: regular_expression
+            logical, intent(out) :: found
+            type(status_type), intent(out) :: status
+        end subroutine rmail_search_mime_message_procedure
     end interface
+
+    !> Function to show a MIME message.
+    !> This function is called when `rmail_enable_mime' is true.
+    !> It is called with no argument.  Port of rmail.el
+    !> rmail-show-mime-function (rmail_mime_mod sets it to
+    !> `show_rmail_mime').
+    procedure(rmail_show_mime_procedure), pointer, public :: rmail_show_mime_function => null()
+
+    !> Function to check if a regexp matches a MIME message.
+    !> This function is called when `rmail_enable_mime' is true.
+    !> It is called with two arguments MESSAGE_NUMBER and
+    !> REGULAR_EXPRESSION, where MESSAGE_NUMBER is the message number and
+    !> REGULAR_EXPRESSION is the regular expression.  Port of rmail.el
+    !> rmail-search-mime-message-function (rmail_mime_mod sets it to
+    !> `search_rmail_mime_message').
+    procedure(rmail_search_mime_message_procedure), pointer, public :: rmail_search_mime_message_function => null()
 
     ! The summary operations rmail_summary_mod provides (upstream's
     ! declare-function of rmailsum.el's functions).
@@ -511,6 +554,10 @@ module rmail_mod
         integer :: view_header_style = 0
         !> The viewer buffer's `rmail_overlay_list'.
         type(handle_type), allocatable :: overlays(:)
+        !> Whether a message has been processed by
+        !> `rmail_show_mime_function' (`rmail_mime_decoded', a permanent
+        !> local variable).
+        logical :: mime_decoded = .false.
     end type rmail_state_type
 
     !> What `apply_in_rmail_message_begin' saved for `apply_in_rmail_message_end': the
@@ -650,6 +697,21 @@ contains
         k = current_state()
         if (k > 0) swapped = rmail_states(k)%swapped
     end function is_rmail_buffers_swapped
+
+    !> Return true if the current buffer holds a MIME message.  Port of
+    !> rmail.el:rmail-mime-message-p.
+    logical function is_rmail_mime_message() result(is_mime)
+        type(value_type) :: v
+        type(status_type) :: st
+
+        is_mime = .false.
+        if (current == 0) return
+        call get_text_property(point(), value_type(name=RMAIL_MIME_ENTITY_PROPERTY), v, st)
+        is_mime = allocated(v%a)
+        if (is_mime) return
+        call get_text_property(point_minimum(), value_type(name=RMAIL_MIME_ENTITY_PROPERTY), v, st)
+        is_mime = allocated(v%a)
+    end function is_rmail_mime_message
 
     !> Return a reusable buffer suitable for viewing messages.
     !> Create the buffer if necessary.  Port of
@@ -894,8 +956,8 @@ contains
     !> \[rmail_summary_by_regular_expression]   Summarize only messages with particular regexp(s).
     !> \[rmail_summary_by_topic]   Summarize only messages with subject line regexp(s).
     !> \[toggle_rmail_header]        Toggle display of complete header.
-    !> Port of rmail.el:rmail-mode (`rmail_require_mime_maybe' waits for
-    !> rmailmm.el, and making the buffer multibyte for set-buffer-multibyte).
+    !> Port of rmail.el:rmail-mode (making the buffer multibyte waits for
+    !> set-buffer-multibyte).
     recursive subroutine rmail_mode(status)
         type(status_type), intent(out) :: status
         logical :: finding_rmail_file
@@ -1140,8 +1202,7 @@ contains
     !> have a chance to specify a file name with the minibuffer.
     !>
     !> If `rmail_display_summary' is true, make a summary for this RMAIL file.
-    !> Port of rmail.el:rmail (`rmail_require_mime_maybe' waits for
-    !> rmailmm.el, the I/O menus for the menu bar; local variables in the
+    !> Port of rmail.el:rmail (the I/O menus for the menu bar; local variables in the
     !> file are not read as upstream turns enable-local-variables off,
     !> which Fortmacs does not have yet).
     recursive subroutine rmail(status, file_name_argument)
@@ -2983,10 +3044,8 @@ contains
     !> BLURB is text to display in the minibuffer if MESSAGE is out of
     !> range (displaying a reasonable choice as well), unallocated
     !> otherwise.  The current mail message becomes the message displayed.
-    !> Port of rmail.el:rmail-show-message-1 (MIME messages are shown as
-    !> other messages until rmailmm.el is ported: `rmail_show_mime_function'
-    !> is unset; decoding RFC 2047 header fields waits for rfc2047.el,
-    !> and the suspicious From check for textsec.el).
+    !> Port of rmail.el:rmail-show-message-1 (the suspicious From check
+    !> waits for textsec.el).
     recursive subroutine show_rmail_message_1(blurb, status, message_number)
         character(len=:), allocatable, intent(out) :: blurb
         type(status_type), intent(out) :: status
@@ -2994,9 +3053,9 @@ contains
         type(handle_type) :: mbox_buffer, view_buffer, temporary
         character(len=:), allocatable :: coding_system, character_coding, text
         character(len=100) :: line
-        integer(int64) :: n, beginning, end, body_start, found, length, moved
+        integer(int64) :: n, beginning, end, body_start, found, length, moved, header_start
         integer :: header_style, k
-        logical :: modified, is_text_message, showing_message, saved_fold, succeeded
+        logical :: modified, is_text_message, showing_message, saved_fold, succeeded, mime_shown
         type(status_type) :: st
 
         status = status_type()
@@ -3055,104 +3114,133 @@ contains
         ! we reset it here to allow independent dynamic determination of
         ! paragraph direction in every message.
         buffers(view_buffer%index)%bidirectional_paragraph_direction = 0
-        call search_forward(LF//LF, body_start, status, noerror=SEARCH_NOERROR)
-        if (.not. status%ok()) return
-        call narrow_to_region(beginning, point(), status)
-        if (.not. status%ok()) return
-        call goto_character(beginning)
-        saved_fold = case_fold_search%value
-        case_fold_search%value = .true.
-        call regular_expression_search_forward("^X-Coding-System: *\(.*\)$", found, status, noerror=SEARCH_NOERROR)
-        case_fold_search%value = saved_fold
-        if (.not. status%ok()) return
+        mime_shown = .false.
 
-        if (found > 0) then
-            coding_system = match_text(1)
-        else
-            coding_system = get_rmail_coding_system()
+        if (rmail_enable_mime .and. associated(rmail_show_mime_function)) then
+            call regular_expression_search_forward("mime-version: 1.0", found, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok()) return
+
+            if (found > 0) then
+                rmail_states(k)%mime_decoded = .true.
+                call rmail_show_mime_function(status)
+                if (.not. status%ok()) return
+                mime_shown = .true.
+            end if
         end if
 
-        call goto_character(beginning)
-        call get_mail_field("content-transfer-encoding", character_coding, status)
-        if (.not. status%ok()) return
-        is_text_message = is_rmail_text()
-        if (allocated(character_coding)) character_coding = downcase_ascii(character_coding)
-        call narrow_to_region(beginning, end, status)
-        if (.not. status%ok()) return
-        ! Decode the message body into an empty view buffer using a unibyte
-        ! temporary buffer where the character decoding takes place.
-        call set_buffer(view_buffer, status)
-        if (.not. status%ok()) return
-        call erase_buffer(status)
-        if (.not. status%ok()) return
-        call set_buffer(mbox_buffer, status)
-        if (.not. status%ok()) return
-        if (body_start == 0) body_start = end
+        if (.not. mime_shown) then
+            call search_forward(LF//LF, body_start, status, noerror=SEARCH_NOERROR)
+            if (.not. status%ok()) return
+            call narrow_to_region(beginning, point(), status)
+            if (.not. status%ok()) return
+            call goto_character(beginning)
+            saved_fold = case_fold_search%value
+            case_fold_search%value = .true.
+            call regular_expression_search_forward("^X-Coding-System: *\(.*\)$", found, status, noerror=SEARCH_NOERROR)
+            case_fold_search%value = saved_fold
+            if (.not. status%ok()) return
 
-        if (.not. allocated(character_coding)) then
-            ! Do it directly since that is fast.
-            call decode_rmail_region(body_start, end, coding_system, status, view_buffer)
-            if (.not. status%ok()) return
-        else
-            call buffer_substring_no_properties(body_start, end, text, status)
-            if (.not. status%ok()) return
-            call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, status)
-            if (.not. status%ok()) return
-            call set_buffer(temporary, status)
-            buffers(current)%multibyte = .false.
-            if (buffers(mbox_buffer%index)%multibyte) text = string_as_unibyte(text)
-            if (status%ok()) call insert(text, status)
+            if (found > 0) then
+                coding_system = match_text(1)
+            else
+                coding_system = get_rmail_coding_system()
+            end if
 
-            if (status%ok()) then
-                if (character_coding == "quoted-printable") then
-                    call unquote_mail_printable_region(point_minimum(), point_maximum(), st, noerror=.true., unibyte=.true., &
-                                                       succeeded=succeeded)
-                    if (.not. succeeded) call message("Malformed MIME quoted-printable message")
-                else if (character_coding == "base64" .and. is_text_message) then
-                    call base64_decode_region(point_minimum(), point_maximum(), length, st)
-                    if (.not. st%ok()) call message(format_error(st))
+            call goto_character(beginning)
+            call get_mail_field("content-transfer-encoding", character_coding, status)
+            if (.not. status%ok()) return
+            is_text_message = is_rmail_text()
+            if (allocated(character_coding)) character_coding = downcase_ascii(character_coding)
+            call narrow_to_region(beginning, end, status)
+            if (.not. status%ok()) return
+            ! Decode the message body into an empty view buffer using a unibyte
+            ! temporary buffer where the character decoding takes place.
+            call set_buffer(view_buffer, status)
+            if (.not. status%ok()) return
+            call erase_buffer(status)
+            if (.not. status%ok()) return
+            call set_buffer(mbox_buffer, status)
+            if (.not. status%ok()) return
+            if (body_start == 0) body_start = end
+
+            if (.not. allocated(character_coding)) then
+                ! Do it directly since that is fast.
+                call decode_rmail_region(body_start, end, coding_system, status, view_buffer)
+                if (.not. status%ok()) return
+            else
+                call buffer_substring_no_properties(body_start, end, text, status)
+                if (.not. status%ok()) return
+                call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, status)
+                if (.not. status%ok()) return
+                call set_buffer(temporary, status)
+                buffers(current)%multibyte = .false.
+                if (buffers(mbox_buffer%index)%multibyte) text = string_as_unibyte(text)
+                if (status%ok()) call insert(text, status)
+
+                if (status%ok()) then
+                    if (character_coding == "quoted-printable") then
+                        call unquote_mail_printable_region(point_minimum(), point_maximum(), st, noerror=.true., unibyte=.true., &
+                                                           succeeded=succeeded)
+                        if (.not. succeeded) call message("Malformed MIME quoted-printable message")
+                    else if (character_coding == "base64" .and. is_text_message) then
+                        call base64_decode_region(point_minimum(), point_maximum(), length, st)
+                        if (.not. st%ok()) call message(format_error(st))
+                    end if
+
+                    call decode_rmail_region(point_minimum(), point_maximum(), coding_system, status, view_buffer)
                 end if
 
-                call decode_rmail_region(point_minimum(), point_maximum(), coding_system, status, view_buffer)
+                call set_buffer(mbox_buffer, st)
+                call close_buffer(temporary, st)
+                if (.not. status%ok()) return
             end if
 
-            call set_buffer(mbox_buffer, st)
-            call close_buffer(temporary, st)
+            call set_buffer(view_buffer, status)
             if (.not. status%ok()) return
+            ! Prepare the separator (blank line) before the body.
+            call goto_character(point_minimum())
+            call insert(LF, status)
+            if (.not. status%ok()) return
+            ! Unquote quoted From lines.
+            saved_fold = case_fold_search%value
+            case_fold_search%value = .false.
+
+            do
+                if (rmail_mbox_format%choice == RMAIL_MBOX_FORMAT_MBOXRD) then
+                    call regular_expression_search_forward("^>+From ", found, status, noerror=SEARCH_NOERROR)
+                else
+                    call regular_expression_search_forward("^>From ", found, status, noerror=SEARCH_NOERROR)
+                end if
+
+                if (found == 0 .or. .not. status%ok()) exit
+                call beginning_of_line(1_int64)
+                call delete_region(point(), point() + 1, status)
+                if (.not. status%ok()) exit
+                moved = forward_line(1_int64)
+            end do
+
+            case_fold_search%value = saved_fold
+            if (.not. status%ok()) return
+            call goto_character(point_minimum())
+            call set_buffer(mbox_buffer, status)
+            if (.not. status%ok()) return
+            ! Copy the headers to the front of the message view buffer.
+            call copy_rmail_headers(view_buffer, beginning, status)
+            if (.not. status%ok()) return
+
+            ! Decode any RFC2047 encoded message headers.
+            if (rmail_enable_mime) then
+                call set_buffer(view_buffer, status)
+                if (.not. status%ok()) return
+                header_start = point_minimum()
+                call search_forward(LF//LF, found, status, noerror=SEARCH_MOVE)
+                if (status%ok()) call decode_rfc2047_region(header_start, point(), status)
+                if (.not. status%ok()) return
+                call set_buffer(mbox_buffer, status)
+                if (.not. status%ok()) return
+            end if
         end if
 
-        call set_buffer(view_buffer, status)
-        if (.not. status%ok()) return
-        ! Prepare the separator (blank line) before the body.
-        call goto_character(point_minimum())
-        call insert(LF, status)
-        if (.not. status%ok()) return
-        ! Unquote quoted From lines.
-        saved_fold = case_fold_search%value
-        case_fold_search%value = .false.
-
-        do
-            if (rmail_mbox_format%choice == RMAIL_MBOX_FORMAT_MBOXRD) then
-                call regular_expression_search_forward("^>+From ", found, status, noerror=SEARCH_NOERROR)
-            else
-                call regular_expression_search_forward("^>From ", found, status, noerror=SEARCH_NOERROR)
-            end if
-
-            if (found == 0 .or. .not. status%ok()) exit
-            call beginning_of_line(1_int64)
-            call delete_region(point(), point() + 1, status)
-            if (.not. status%ok()) exit
-            moved = forward_line(1_int64)
-        end do
-
-        case_fold_search%value = saved_fold
-        if (.not. status%ok()) return
-        call goto_character(point_minimum())
-        call set_buffer(mbox_buffer, status)
-        if (.not. status%ok()) return
-        ! Copy the headers to the front of the message view buffer.
-        call copy_rmail_headers(k, beginning, status)
-        if (.not. status%ok()) return
         ! Highlight the message.
         call set_buffer(view_buffer, status)
         if (.not. status%ok()) return
@@ -3177,7 +3265,7 @@ contains
         call rmail_show_message_hook%execute(status)
     end subroutine show_rmail_message_1
 
-    !> Copy displayed header fields to the message viewer buffer.
+    !> Copy displayed header fields to the message viewer buffer VIEW.
     !> BEGINNING marks the start position of the message in the mbox
     !> buffer.  If IGNORED_HEADERS is present, ignore all header fields
     !> whose names match that regexp.
@@ -3187,20 +3275,19 @@ contains
     !> `rmail_ignored_headers' (unless they also match
     !> `rmail_nonignored_headers').  Moves point in the message viewer
     !> buffer to the end of the headers.  Port of rmail.el:rmail-copy-headers.
-    recursive subroutine copy_rmail_headers(k, beginning, status, ignored_headers)
-        integer, intent(in) :: k
+    recursive subroutine copy_rmail_headers(view, beginning, status, ignored_headers)
+        type(handle_type), intent(in) :: view
         integer(int64), intent(in) :: beginning
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: ignored_headers
         character(len=*), parameter :: HEADER_START_REGULAR_EXPRESSION = LF//"[^ "//TAB//"]"
         type(restriction_type) :: restriction
-        type(handle_type) :: view, saved
+        type(handle_type) :: saved
         character(len=:), allocatable :: text, ignored
         integer(int64) :: found, limit, length
         logical :: matched, kept
         type(status_type) :: st
 
-        view = rmail_states(k)%view_buffer
         call search_forward(LF//LF, found, status, noerror=SEARCH_NOERROR)
         if (.not. status%ok() .or. found == 0) return
         call goto_character(point() - 1)
@@ -3541,8 +3628,7 @@ contains
     end function get_rmail_message_at
 
     ! Whether regexp REGULAR_EXPRESSION matches in message number MESSAGE; point is moved
-    ! there.  Port of rmail.el:rmail-search-message (the MIME search waits
-    ! for rmailmm.el).
+    ! there.  Port of rmail.el:rmail-search-message.
     logical function search_rmail_message(message, regular_expression, status) result(found)
         integer(int64), intent(in) :: message
         character(len=*), intent(in) :: regular_expression
@@ -3550,6 +3636,13 @@ contains
         integer(int64) :: at
 
         call goto_character(rmail_message_beginning(message))
+
+        if (rmail_enable_mime .and. associated(rmail_search_mime_message_function)) then
+            call rmail_search_mime_message_function(message, regular_expression, found, status)
+            found = found .and. status%ok()
+            return
+        end if
+
         call regular_expression_search_forward(regular_expression, at, status, bound=rmail_message_end(message), &
                                                noerror=SEARCH_NOERROR)
         found = at > 0 .and. status%ok()
@@ -4518,6 +4611,7 @@ contains
         call keymap_set(map, "M-s", "search_rmail", st)
         call keymap_set(map, "t", "toggle_rmail_header", st)
         call keymap_set(map, "u", "undelete_previous_rmail_message", st)
+        call keymap_set(map, "v", "toggle_rmail_mime", st)
         call keymap_set(map, "w", "output_rmail_message_body_to_file", st)
         call keymap_set(map, "C-c C-w", "widen_rmail", st)
         call keymap_set(map, "x", "expunge_rmail", st)
