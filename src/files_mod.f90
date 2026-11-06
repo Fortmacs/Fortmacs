@@ -40,7 +40,7 @@ module files_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use minibuffer_reading_tables_mod, only: completion_test_procedure
-    use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type
+    use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, resolve_buffer, set_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, get_file_buffer, &
                           buffer_list, close_buffer, erase_buffer, set_buffer_read_only, &
@@ -146,9 +146,8 @@ module files_mod
     !> In fact, this means that all read-only buffers normally have
     !> View mode enabled, including buffers that are read-only because
     !> you visit a file you cannot alter, and buffers you make read-only
-    !> using \[read_only_mode].  Port of files.el view-read-only (the
-    !> buffer-local values `read_only_mode' gives it are kept by view_mod).
-    logical, public :: view_read_only = .false.
+    !> using \[read_only_mode].  Port of files.el view-read-only.
+    type(logical_setting_type), target, public :: view_read_only = logical_setting_type(name="view_read_only", value=.false.)
 
     interface
         !> Copy DIRECTORY to NEWNAME.  Both args must be strings.
@@ -2534,6 +2533,7 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: status
 
+        call forward_setting(view_read_only)
         if (.not. allocated(insert_directory_program)) insert_directory_program = "ls"
 
         if (.not. allocated(locate_dominating_stop_directory_regular_expression)) then

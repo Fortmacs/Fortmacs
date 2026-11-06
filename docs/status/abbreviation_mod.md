@@ -10,6 +10,7 @@ abbrev tables as `abbreviation_table_type` (`define` = define-abbrev with :count
 `abbrev-table-name-list`,
 `global-abbrev-table`,
 `fundamental-mode-abbrev-table`,
+`local-abbrev-table` as a buffer-local setting object (`local_abbreviation_table%set_local`, `%get_current`; the global value `table` defaults to `fundamental_mode_abbreviation_table`),
 per-mode tables (text, prog, special, help, edit-abbrevs),
 `abbrev-mode` (minor mode, " Abbrev", first in the mode line),
 `kill-all-abbrevs`,

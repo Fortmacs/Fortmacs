@@ -43,7 +43,7 @@ password prompts (`comint-password-prompt-regexp` from mule-conf.el's words and 
 ANSI colors (`ansi-color-process-output` first in the default `comint-output-filter-functions`) ;
 completion (`comint-completion-at-point` on `completion-at-point-functions`, `comint-dynamic-complete-functions` with `comint-c-a-p-replace-by-expanded-history` and `comint-filename-completion`, `comint-word`, `comint-match-partial-filename`, `comint-quote-filename`, comint--unquote&requote-argument through `completion-table-with-quoting`, `comint-completion-file-name-table` with `comint-file-name-prefix`, the `:exit-function` adding `comint-completion-addsuffix`, `comint-completion-fignore`, `comint-file-name-chars`, `comint-file-name-quote-list`, `comint-dynamic-complete-filename`, `comint-replace-by-expanded-filename`, `comint-dynamic-list-filename-completions`, `comint-complete-input-ring` on C-x <up>),
 `comint-directory`,
-buffer-local `comint-unquote-function` and `comint-requote-function`
+`comint-get-old-input`, `comint-input-sender`, `comint-input-filter`, `comint-password-function`, `comint-unquote-function` and `comint-requote-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`, `%clear_local`), `comint-completion-fignore` as a buffer-local setting object (`=`, `%set_local`, `%get_current`)
 
 ## Deferred
 

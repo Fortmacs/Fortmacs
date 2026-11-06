@@ -22,9 +22,9 @@
 !> Tabulated List mode is a generic major mode for browsing a list of
 !> items, divided into columns labeled in the header line.  A mode
 !> derived from it sets the current buffer's format
-!> (`set_tabulated_list_format': an array of `tabulated_list_column_type'),
-!> its entries (`set_tabulated_list_entries': an array of
-!> `tabulated_list_entry_type', or a function that makes them), maybe its
+!> (`tabulated_list_format%set_local': an array of `tabulated_list_column_type'),
+!> its entries (`tabulated_list_entries%set_local': an array of
+!> `tabulated_list_entry_type', or a procedure that makes them), maybe its
 !> padding and sort key, calls `tabulated_list_initialize_header' and then
 !> `tabulated_list_print'.
 !>
@@ -52,7 +52,8 @@ module tabulated_list_mod
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
     use commands_mod, only: commands
-    use buffer_mod, only: buffers, current, buffer_serial_live, erase_buffer, restore_buffer_modified
+    use buffer_mod, only: buffers, current, erase_buffer, restore_buffer_modified
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, position_beginning_of_line, &
                                      position_end_of_line, delete_region, is_end_of_buffer
@@ -71,10 +72,7 @@ module tabulated_list_mod
     implicit none(type, external)
     private
 
-    public :: tabulated_list_mode, set_tabulated_list_format, tabulated_list_format, set_tabulated_list_entries, &
-              set_tabulated_list_entries_function, tabulated_list_entries, set_tabulated_list_padding, &
-              tabulated_list_padding, set_tabulated_list_sort_key, clear_tabulated_list_sort_key, &
-              tabulated_list_sort_key, set_tabulated_list_use_header_line, set_tabulated_list_printer, &
+    public :: tabulated_list_mode, tabulated_list_entries_procedure, tabulated_list_printer_procedure, &
               tabulated_list_get_id, tabulated_list_get_entry, tabulated_list_put_tag, tabulated_list_clear_all_tags, &
               tabulated_list_initialize_header, tabulated_list_revert, tabulated_list_print, tabulated_list_print_entry, &
               tabulated_list_print_column, tabulated_list_delete_entry, tabulated_list_set_column, tabulated_list_sort, &
@@ -185,31 +183,182 @@ module tabulated_list_mod
     !> tabulated-list.el tabulated-list-mode-map.
     type(handle_type), public :: tabulated_list_mode_map
 
-    !> The buffer-local variables of a Tabulated List buffer.  FORMAT,
-    !> ENTRIES, PADDING and the sort key are permanent-local, so that
-    !> switching to a different major mode and back keeps them.
-    type :: local_type
-        integer(int64) :: serial = 0
-        !> tabulated-list-format.
-        type(tabulated_list_column_type), allocatable :: format(:)
-        !> tabulated-list-entries (a list), or ENTRIES_FUNCTION.
-        type(tabulated_list_entry_type), allocatable :: entries(:)
-        procedure(tabulated_list_entries_procedure), pointer, nopass :: entries_function => null()
-        !> tabulated-list-padding.
-        integer :: padding = 0
-        !> tabulated-list-sort-key: NAME and FLIP, none when SORT_NAME is
-        !> unallocated.
-        character(len=:), allocatable :: sort_name
-        logical :: sort_flip = .false.
-        !> tabulated-list-use-header-line.
-        logical :: use_header_line = .true.
-        !> tabulated-list-printer (null for `tabulated_list_print_entry').
-        procedure(tabulated_list_printer_procedure), pointer, nopass :: printer => null()
-        !> Whether tabulated-list--original-order is set.
-        logical :: original_order = .false.
-    end type local_type
+    !> One buffer's own `tabulated_list_format'.
+    type :: tabulated_list_format_entry_type
+        type(tabulated_list_column_type), allocatable :: columns(:)
+    end type tabulated_list_format_entry_type
 
-    type(local_type), allocatable, target :: locals(:)
+    !> The type of `tabulated_list_format': the global value `columns'
+    !> (empty unless set) and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: tabulated_list_format_setting_type
+        type(tabulated_list_column_type), allocatable :: columns(:)
+        type(tabulated_list_format_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, COLUMNS.
+        procedure :: set_local => set_tabulated_list_format_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_tabulated_list_format_current
+        procedure :: append_local_entry => append_tabulated_list_format_entry
+        procedure :: clear_local_entry => clear_tabulated_list_format_entry
+    end type tabulated_list_format_setting_type
+
+    !> One buffer's own `tabulated_list_entries'.
+    type :: tabulated_list_entries_entry_type
+        !> The entries; while `procedure' is associated, the entries it
+        !> made when the buffer was last printed.
+        type(tabulated_list_entry_type), allocatable :: entries(:)
+        procedure(tabulated_list_entries_procedure), pointer, nopass :: procedure => null()
+        !> Whether tabulated-list--original-order is set: the entries'
+        !> `original_index' gives the order they were first displayed in.
+        logical :: original_order = .false.
+    end type tabulated_list_entries_entry_type
+
+    !> The type of `tabulated_list_entries': the global value (`entries',
+    !> or `procedure' making them; empty unless set) and the buffers' own
+    !> values (`set_local', with an array of entries or a procedure).
+    type, extends(buffer_local_setting_type), public :: tabulated_list_entries_setting_type
+        type(tabulated_list_entry_type), allocatable :: entries(:)
+        procedure(tabulated_list_entries_procedure), pointer, nopass :: procedure => null()
+        type(tabulated_list_entries_entry_type), allocatable :: locals(:)
+    contains
+        procedure, private :: set_tabulated_list_entries_local
+        procedure, private :: set_tabulated_list_entries_procedure_local
+        !> Give the current buffer its own value: an array of entries, or
+        !> a procedure that makes them.
+        generic :: set_local => set_tabulated_list_entries_local, set_tabulated_list_entries_procedure_local
+        !> The current buffer's entries as last printed (or set).
+        procedure :: get_current => get_tabulated_list_entries_current
+        procedure :: append_local_entry => append_tabulated_list_entries_entry
+        procedure :: clear_local_entry => clear_tabulated_list_entries_entry
+    end type tabulated_list_entries_setting_type
+
+    !> One buffer's own `tabulated_list_padding'.
+    type :: tabulated_list_padding_entry_type
+        integer :: width = 0
+    end type tabulated_list_padding_entry_type
+
+    !> The type of `tabulated_list_padding': the global value `width' (0)
+    !> and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: tabulated_list_padding_setting_type
+        integer :: width = 0
+        type(tabulated_list_padding_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, WIDTH.
+        procedure :: set_local => set_tabulated_list_padding_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_tabulated_list_padding_current
+        procedure :: append_local_entry => append_tabulated_list_padding_entry
+        procedure :: clear_local_entry => clear_tabulated_list_padding_entry
+    end type tabulated_list_padding_setting_type
+
+    !> One buffer's own `tabulated_list_sort_key'.
+    type :: tabulated_list_sort_key_entry_type
+        character(len=:), allocatable :: name
+        logical :: flip = .false.
+    end type tabulated_list_sort_key_entry_type
+
+    !> The type of `tabulated_list_sort_key': the global value (`name',
+    !> unallocated for no sort key, and `flip') and the buffers' own
+    !> values (`set_local').
+    type, extends(buffer_local_setting_type), public :: tabulated_list_sort_key_setting_type
+        character(len=:), allocatable :: name
+        logical :: flip = .false.
+        type(tabulated_list_sort_key_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, NAME and FLIP (no sort
+        !> key when NAME is absent).
+        procedure :: set_local => set_tabulated_list_sort_key_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_tabulated_list_sort_key_current
+        procedure :: append_local_entry => append_tabulated_list_sort_key_entry
+        procedure :: clear_local_entry => clear_tabulated_list_sort_key_entry
+    end type tabulated_list_sort_key_setting_type
+
+    !> One buffer's own `tabulated_list_use_header_line'.
+    type :: tabulated_list_use_header_line_entry_type
+        logical :: value = .true.
+    end type tabulated_list_use_header_line_entry_type
+
+    !> The type of `tabulated_list_use_header_line': the global value
+    !> `value' (.true.) and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: tabulated_list_use_header_line_setting_type
+        logical :: value = .true.
+        type(tabulated_list_use_header_line_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, VALUE.
+        procedure :: set_local => set_tabulated_list_use_header_line_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_tabulated_list_use_header_line_current
+        procedure :: append_local_entry => append_tabulated_list_use_header_line_entry
+        procedure :: clear_local_entry => clear_tabulated_list_use_header_line_entry
+    end type tabulated_list_use_header_line_setting_type
+
+    !> One buffer's own `tabulated_list_printer'.
+    type :: tabulated_list_printer_entry_type
+        procedure(tabulated_list_printer_procedure), pointer, nopass :: procedure => null()
+    end type tabulated_list_printer_entry_type
+
+    !> The type of `tabulated_list_printer': the global value `procedure'
+    !> (set with `=>') and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: tabulated_list_printer_setting_type
+        procedure(tabulated_list_printer_procedure), pointer, nopass :: procedure => null()
+        type(tabulated_list_printer_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_tabulated_list_printer_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_tabulated_list_printer_current
+        procedure :: append_local_entry => append_tabulated_list_printer_entry
+        procedure :: clear_local_entry => clear_tabulated_list_printer_entry
+    end type tabulated_list_printer_setting_type
+
+    !> The format of the current Tabulated List mode buffer.
+    !> This should be an array of `tabulated_list_column_type': the NAME
+    !> of each column (the label in the header line; different columns
+    !> must have different names), the WIDTH to reserve for it, and
+    !> whether it can SORT the entries.  Port of tabulated-list.el
+    !> tabulated-list-format (always buffer-local and permanent: a mode
+    !> gives its buffer its own with `%set_local').
+    type(tabulated_list_format_setting_type), public :: tabulated_list_format
+
+    !> Entries displayed in the current Tabulated List buffer.
+    !> This should be either a procedure (`%set_local' with a procedure),
+    !> or an array of `tabulated_list_entry_type' (`%set_local' with the
+    !> array): an ID, which keeps the cursor on the "same" entry when
+    !> rearranging the list, and one column descriptor per column of
+    !> `tabulated_list_format'.  If it is a procedure, it is called with
+    !> no arguments and makes the entries.  Port of tabulated-list.el
+    !> tabulated-list-entries (always buffer-local and permanent).
+    type(tabulated_list_entries_setting_type), public :: tabulated_list_entries
+
+    !> Number of characters preceding each Tabulated List mode entry.
+    !> By default, lines are padded with spaces, but you can use the
+    !> function `tabulated_list_put_tag' to change this.  Port of
+    !> tabulated-list.el tabulated-list-padding (always buffer-local and
+    !> permanent; `%set_local(width)').
+    type(tabulated_list_padding_setting_type), public :: tabulated_list_padding
+
+    !> Sort key for the current Tabulated List mode buffer.
+    !> If no sort key (`name' unallocated), no additional sorting is
+    !> performed.  Otherwise, NAME is one of the column names in
+    !> `tabulated_list_format' (the corresponding SORT entry then
+    !> specifies how to sort), and FLIP true means to invert the
+    !> resulting sort.  Port of tabulated-list.el tabulated-list-sort-key
+    !> (always buffer-local and permanent; `%set_local(name, flip)').
+    type(tabulated_list_sort_key_setting_type), public :: tabulated_list_sort_key
+
+    !> Whether the Tabulated List buffer should use a header line.
+    !> Port of tabulated-list.el tabulated-list-use-header-line (always
+    !> buffer-local; `%set_local(value)'; .false., the fake header, is
+    !> Deferred).
+    type(tabulated_list_use_header_line_setting_type), public :: tabulated_list_use_header_line
+
+    !> Function for inserting a Tabulated List entry at point.
+    !> It is called with one argument, the entry (ID and column
+    !> descriptors), and should insert a line describing it; the default
+    !> is `tabulated_list_print_entry'.  Port of tabulated-list.el
+    !> tabulated-list-printer (always buffer-local; `%set_local').
+    type(tabulated_list_printer_setting_type), public :: tabulated_list_printer
 
     !> tabulated-list--near-rows: the descriptors of the previous, current
     !> and next rows while printing (for the available space of a column
@@ -223,121 +372,146 @@ contains
     ! Buffer-local variables
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `locals' (0 if none).
-    ! Not a port.
-    integer function local_index() result(k)
-        k = 0
-        if (current == 0) return
-        if (.not. allocated(locals)) return
-        k = findloc(locals%serial, buffers(current)%serial, dim=1)
-    end function local_index
-
-    ! Find or make the current buffer's entry in `locals', reusing the
-    ! entry of a closed buffer; K is its index (0 without a current
-    ! buffer).  Not a port.
-    subroutine make_local_entry(k)
-        integer, intent(out) :: k
-        type(local_type) :: entry
-
-        k = local_index()
-        if (k > 0 .or. current == 0) return
-        if (.not. allocated(locals)) allocate (locals(0))
-
-        do k = 1, size(locals)
-            if (.not. buffer_serial_live(locals(k)%serial)) exit
-        end do
-
-        if (k > size(locals)) locals = [locals, entry]
-        locals(k) = local_type(serial=buffers(current)%serial)
-    end subroutine make_local_entry
-
     ! kill-all-local-variables: forget the current buffer's values but
     ! the permanent-local ones.  Not a port.
     subroutine clear_tabulated_list_locals()
         integer :: k
 
-        k = local_index()
-        if (k == 0) return
-        locals(k)%use_header_line = .true.
-        locals(k)%printer => null()
-        locals(k)%original_order = .false.
+        call tabulated_list_use_header_line%clear_local()
+        call tabulated_list_printer%clear_local()
+        k = tabulated_list_entries%get_local_index()
+        if (k > 0) tabulated_list_entries%locals(k)%original_order = .false.
     end subroutine clear_tabulated_list_locals
 
-    !> Set the current buffer's `tabulated_list_format' to COLUMNS, the
-    !> format of the current Tabulated List mode buffer.  Port of
-    !> tabulated-list.el tabulated-list-format (set_local).
-    subroutine set_tabulated_list_format(columns)
-        type(tabulated_list_column_type), intent(in) :: columns(:)
-        integer :: k, j
+    ! Not a port.
+    subroutine copy_columns(from, to)
+        type(tabulated_list_column_type), intent(in) :: from(:)
+        type(tabulated_list_column_type), allocatable, intent(out) :: to(:)
+        integer :: j
 
-        call make_local_entry(k)
-        if (allocated(locals(k)%format)) deallocate (locals(k)%format)
-        allocate (locals(k)%format(size(columns)))
+        allocate (to(size(from)))
 
-        do j = 1, size(columns)
-            locals(k)%format(j) = columns(j)
+        do j = 1, size(from)
+            to(j) = from(j)
         end do
-    end subroutine set_tabulated_list_format
+    end subroutine copy_columns
 
-    !> The current buffer's `tabulated_list_format' (empty when unset).
+    !> Give the current buffer its own `tabulated_list_format', COLUMNS.
     !> Not a port.
-    function tabulated_list_format() result(columns)
+    subroutine set_tabulated_list_format_local(self, columns)
+        class(tabulated_list_format_setting_type), intent(inout) :: self
+        type(tabulated_list_column_type), intent(in) :: columns(:)
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        call copy_columns(columns, self%locals(k)%columns)
+    end subroutine set_tabulated_list_format_local
+
+    !> The current buffer's `tabulated_list_format': its own value, else
+    !> the global one (empty when unset).  Not a port.
+    function get_tabulated_list_format_current(self) result(columns)
+        class(tabulated_list_format_setting_type), intent(in) :: self
         type(tabulated_list_column_type), allocatable :: columns(:)
-        integer :: k, j
+        integer :: k
 
-        k = local_index()
+        k = self%get_local_index()
 
-        if (k == 0) then
-            allocate (columns(0))
+        if (k > 0) then
+            if (allocated(self%locals(k)%columns)) then
+                call copy_columns(self%locals(k)%columns, columns)
+                return
+            end if
+        else if (allocated(self%columns)) then
+            call copy_columns(self%columns, columns)
             return
         end if
 
-        if (.not. allocated(locals(k)%format)) allocate (locals(k)%format(0))
-        allocate (columns(size(locals(k)%format)))
+        allocate (columns(0))
+    end function get_tabulated_list_format_current
 
-        do j = 1, size(columns)
-            columns(j) = locals(k)%format(j)
-        end do
-    end function tabulated_list_format
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_tabulated_list_format_entry(self)
+        class(tabulated_list_format_setting_type), intent(inout) :: self
+        type(tabulated_list_format_entry_type) :: entry
 
-    !> Set the current buffer's `tabulated_list_entries' to ENTRIES, the
-    !> entries displayed in the current Tabulated List buffer.  Port of
-    !> tabulated-list.el tabulated-list-entries (an array; set_local).
-    subroutine set_tabulated_list_entries(entries)
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_tabulated_list_format_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_tabulated_list_format_entry(self, k)
+        class(tabulated_list_format_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%columns)) deallocate (self%locals(k)%columns)
+    end subroutine clear_tabulated_list_format_entry
+
+    !> Give the current buffer its own `tabulated_list_entries', the
+    !> array ENTRIES.  Not a port.
+    subroutine set_tabulated_list_entries_local(self, entries)
+        class(tabulated_list_entries_setting_type), intent(inout) :: self
         type(tabulated_list_entry_type), intent(in) :: entries(:)
         integer :: k
 
-        call make_local_entry(k)
-        call copy_entries(entries, locals(k)%entries)
-        locals(k)%entries_function => null()
-    end subroutine set_tabulated_list_entries
+        call self%make_local_entry(k)
+        if (k == 0) return
+        call copy_entries(entries, self%locals(k)%entries)
+        self%locals(k)%procedure => null()
+    end subroutine set_tabulated_list_entries_local
 
-    !> Make FN the current buffer's `tabulated_list_entries': it is called
-    !> to make the entries.  Port of tabulated-list.el
-    !> tabulated-list-entries (a function).
-    subroutine set_tabulated_list_entries_function(fn)
-        procedure(tabulated_list_entries_procedure) :: fn
+    !> Give the current buffer its own `tabulated_list_entries', the
+    !> procedure LOCAL_PROCEDURE that makes them.  Not a port.
+    subroutine set_tabulated_list_entries_procedure_local(self, local_procedure)
+        class(tabulated_list_entries_setting_type), intent(inout) :: self
+        procedure(tabulated_list_entries_procedure) :: local_procedure
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%entries_function => fn
-    end subroutine set_tabulated_list_entries_function
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => local_procedure
+    end subroutine set_tabulated_list_entries_procedure_local
 
-    !> The current buffer's entries as last printed (or set).  Not a port.
-    function tabulated_list_entries() result(entries)
+    !> The current buffer's `tabulated_list_entries' as last printed (or
+    !> set): its own, else the global array.  Not a port.
+    function get_tabulated_list_entries_current(self) result(entries)
+        class(tabulated_list_entries_setting_type), intent(in) :: self
         type(tabulated_list_entry_type), allocatable :: entries(:)
         integer :: k
 
-        k = local_index()
+        k = self%get_local_index()
 
-        if (k == 0) then
-            allocate (entries(0))
+        if (k > 0) then
+            if (allocated(self%locals(k)%entries)) then
+                call copy_entries(self%locals(k)%entries, entries)
+                return
+            end if
+        else if (allocated(self%entries)) then
+            call copy_entries(self%entries, entries)
             return
         end if
 
-        if (.not. allocated(locals(k)%entries)) allocate (locals(k)%entries(0))
-        call copy_entries(locals(k)%entries, entries)
-    end function tabulated_list_entries
+        allocate (entries(0))
+    end function get_tabulated_list_entries_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_tabulated_list_entries_entry(self)
+        class(tabulated_list_entries_setting_type), intent(inout) :: self
+        type(tabulated_list_entries_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_tabulated_list_entries_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_tabulated_list_entries_entry(self, k)
+        class(tabulated_list_entries_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%entries)) deallocate (self%locals(k)%entries)
+        self%locals(k)%procedure => null()
+        self%locals(k)%original_order = .false.
+    end subroutine clear_tabulated_list_entries_entry
 
     ! Not a port.
     subroutine copy_entries(from, to)
@@ -352,92 +526,189 @@ contains
         end do
     end subroutine copy_entries
 
-    !> Set the current buffer's `tabulated_list_padding' to N: the number
-    !> of characters preceding each Tabulated List mode entry.  By default,
-    !> lines are padded with spaces, but you can use the function
-    !> `tabulated_list_put_tag' to change this.  Port of tabulated-list.el
-    !> tabulated-list-padding (set_local).
-    subroutine set_tabulated_list_padding(n)
-        integer, intent(in) :: n
+    ! The index K of the current buffer's own entry of
+    ! `tabulated_list_entries', made if it has none (0 without a current
+    ! buffer), with its entries allocated.  Not a port.
+    subroutine make_entries_local(k)
+        integer, intent(out) :: k
+
+        call tabulated_list_entries%make_local_entry(k)
+        if (k == 0) return
+        if (.not. allocated(tabulated_list_entries%locals(k)%entries)) allocate (tabulated_list_entries%locals(k)%entries(0))
+    end subroutine make_entries_local
+
+    !> Give the current buffer its own `tabulated_list_padding', WIDTH.
+    !> Not a port.
+    subroutine set_tabulated_list_padding_local(self, width)
+        class(tabulated_list_padding_setting_type), intent(inout) :: self
+        integer, intent(in) :: width
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%padding = n
-    end subroutine set_tabulated_list_padding
+        call self%make_local_entry(k)
+        if (k > 0) self%locals(k)%width = width
+    end subroutine set_tabulated_list_padding_local
 
-    !> The current buffer's `tabulated_list_padding'.  Not a port.
-    integer function tabulated_list_padding() result(n)
+    !> The current buffer's `tabulated_list_padding': its own value, else
+    !> the global one.  Not a port.
+    integer function get_tabulated_list_padding_current(self) result(width)
+        class(tabulated_list_padding_setting_type), intent(in) :: self
         integer :: k
 
-        n = 0
-        k = local_index()
-        if (k > 0) n = locals(k)%padding
-    end function tabulated_list_padding
+        width = self%width
+        k = self%get_local_index()
+        if (k > 0) width = self%locals(k)%width
+    end function get_tabulated_list_padding_current
 
-    !> Set the current buffer's `tabulated_list_sort_key' to (NAME .
-    !> FLIP): NAME is one of the column names in `tabulated_list_format'
-    !> (the corresponding SORT entry then specifies how to sort); FLIP
-    !> true means to invert the resulting sort.  Port of tabulated-list.el
-    !> tabulated-list-sort-key (set_local).
-    subroutine set_tabulated_list_sort_key(name, flip)
-        character(len=*), intent(in) :: name
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_tabulated_list_padding_entry(self)
+        class(tabulated_list_padding_setting_type), intent(inout) :: self
+        type(tabulated_list_padding_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_tabulated_list_padding_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_tabulated_list_padding_entry(self, k)
+        class(tabulated_list_padding_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%width = 0
+    end subroutine clear_tabulated_list_padding_entry
+
+    !> Give the current buffer its own `tabulated_list_sort_key': NAME,
+    !> one of the column names in `tabulated_list_format', and FLIP,
+    !> true to invert the resulting sort; without NAME, no sort key.
+    !> Not a port.
+    subroutine set_tabulated_list_sort_key_local(self, name, flip)
+        class(tabulated_list_sort_key_setting_type), intent(inout) :: self
+        character(len=*), intent(in), optional :: name
         logical, intent(in), optional :: flip
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%sort_name = name
-        locals(k)%sort_flip = .false.
-        if (present(flip)) locals(k)%sort_flip = flip
-    end subroutine set_tabulated_list_sort_key
-
-    !> Make the current buffer's `tabulated_list_sort_key' empty: no
-    !> additional sorting is performed.  Not a port.
-    subroutine clear_tabulated_list_sort_key()
-        integer :: k
-
-        k = local_index()
+        call self%make_local_entry(k)
         if (k == 0) return
-        if (allocated(locals(k)%sort_name)) deallocate (locals(k)%sort_name)
-        locals(k)%sort_flip = .false.
-    end subroutine clear_tabulated_list_sort_key
+        call self%clear_local_entry(k)
+        if (present(name)) self%locals(k)%name = name
+        if (present(flip)) self%locals(k)%flip = flip
+    end subroutine set_tabulated_list_sort_key_local
 
-    !> The current buffer's `tabulated_list_sort_key': its NAME (empty for
-    !> none) and FLIP.  Not a port.
-    subroutine tabulated_list_sort_key(name, flip)
+    !> The current buffer's `tabulated_list_sort_key': its NAME (empty
+    !> for none) and FLIP.  Not a port.
+    subroutine get_tabulated_list_sort_key_current(self, name, flip)
+        class(tabulated_list_sort_key_setting_type), intent(in) :: self
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: flip
         integer :: k
 
         name = ""
-        flip = .false.
-        k = local_index()
+        flip = self%flip
+        if (allocated(self%name)) name = self%name
+        k = self%get_local_index()
         if (k == 0) return
-        if (allocated(locals(k)%sort_name)) name = locals(k)%sort_name
-        flip = locals(k)%sort_flip
-    end subroutine tabulated_list_sort_key
+        name = ""
+        if (allocated(self%locals(k)%name)) name = self%locals(k)%name
+        flip = self%locals(k)%flip
+    end subroutine get_tabulated_list_sort_key_current
 
-    !> Set the current buffer's `tabulated_list_use_header_line': whether
-    !> the Tabulated List buffer should use a header line.  Port of
-    !> tabulated-list.el tabulated-list-use-header-line (false, the fake
-    !> header, is Deferred).
-    subroutine set_tabulated_list_use_header_line(flag)
-        logical, intent(in) :: flag
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_tabulated_list_sort_key_entry(self)
+        class(tabulated_list_sort_key_setting_type), intent(inout) :: self
+        type(tabulated_list_sort_key_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_tabulated_list_sort_key_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_tabulated_list_sort_key_entry(self, k)
+        class(tabulated_list_sort_key_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%name)) deallocate (self%locals(k)%name)
+        self%locals(k)%flip = .false.
+    end subroutine clear_tabulated_list_sort_key_entry
+
+    !> Give the current buffer its own `tabulated_list_use_header_line',
+    !> VALUE.  Not a port.
+    subroutine set_tabulated_list_use_header_line_local(self, value)
+        class(tabulated_list_use_header_line_setting_type), intent(inout) :: self
+        logical, intent(in) :: value
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%use_header_line = flag
-    end subroutine set_tabulated_list_use_header_line
+        call self%make_local_entry(k)
+        if (k > 0) self%locals(k)%value = value
+    end subroutine set_tabulated_list_use_header_line_local
 
-    !> Make FN the current buffer's `tabulated_list_printer': the function
-    !> for inserting a Tabulated List entry at point.  Port of
-    !> tabulated-list.el tabulated-list-printer (set_local).
-    subroutine set_tabulated_list_printer(fn)
-        procedure(tabulated_list_printer_procedure) :: fn
+    !> The current buffer's `tabulated_list_use_header_line': its own
+    !> value, else the global one.  Not a port.
+    logical function get_tabulated_list_use_header_line_current(self) result(value)
+        class(tabulated_list_use_header_line_setting_type), intent(in) :: self
         integer :: k
 
-        call make_local_entry(k)
-        locals(k)%printer => fn
-    end subroutine set_tabulated_list_printer
+        value = self%value
+        k = self%get_local_index()
+        if (k > 0) value = self%locals(k)%value
+    end function get_tabulated_list_use_header_line_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_tabulated_list_use_header_line_entry(self)
+        class(tabulated_list_use_header_line_setting_type), intent(inout) :: self
+        type(tabulated_list_use_header_line_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_tabulated_list_use_header_line_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_tabulated_list_use_header_line_entry(self, k)
+        class(tabulated_list_use_header_line_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%value = .true.
+    end subroutine clear_tabulated_list_use_header_line_entry
+
+    !> Give the current buffer its own `tabulated_list_printer',
+    !> LOCAL_PROCEDURE (null when absent).  Not a port.
+    subroutine set_tabulated_list_printer_local(self, local_procedure)
+        class(tabulated_list_printer_setting_type), intent(inout) :: self
+        procedure(tabulated_list_printer_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_tabulated_list_printer_local
+
+    !> The current buffer's `tabulated_list_printer': its own value, else
+    !> the global one.  Not a port.
+    function get_tabulated_list_printer_current(self) result(current_procedure)
+        class(tabulated_list_printer_setting_type), intent(in) :: self
+        procedure(tabulated_list_printer_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_tabulated_list_printer_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_tabulated_list_printer_entry(self)
+        class(tabulated_list_printer_setting_type), intent(inout) :: self
+        type(tabulated_list_printer_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_tabulated_list_printer_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_tabulated_list_printer_entry(self, k)
+        class(tabulated_list_printer_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_tabulated_list_printer_entry
 
     ! ------------------------------------------------------------------
     ! Entries at positions
@@ -473,8 +744,8 @@ contains
         k = entry_index(position)
         found = k > 0
         if (.not. found) return
-        i = local_index()
-        entry = locals(i)%entries(k)
+        i = tabulated_list_entries%get_local_index()
+        entry = tabulated_list_entries%locals(i)%entries(k)
     end subroutine tabulated_list_get_entry
 
     ! The index in the current buffer's entries of the entry at POSITION
@@ -492,11 +763,11 @@ contains
         if (p < point_minimum() .or. p >= point_maximum()) return
         call get_text_property(p, value_type(name="tabulated_list_entry"), v, st)
         if (.not. st%ok() .or. vtag(v) /= V_INTEGER) return
-        i = local_index()
+        i = tabulated_list_entries%get_local_index()
         if (i == 0) return
-        if (.not. allocated(locals(i)%entries)) return
+        if (.not. allocated(tabulated_list_entries%locals(i)%entries)) return
         k = int(xfixnum(v))
-        if (k < 1 .or. k > size(locals(i)%entries)) k = 0
+        if (k < 1 .or. k > size(tabulated_list_entries%locals(i)%entries)) k = 0
     end function entry_index
 
     !> Put TAG in the padding area of the current line.
@@ -512,7 +783,7 @@ contains
         logical :: ro
 
         status = status_type()
-        padding = tabulated_list_padding()
+        padding = tabulated_list_padding%get_current()
 
         if (.not. (padding > 0)) then
             call set_error(status, GENERIC_ERROR_CODE, "Unable to tag the current line")
@@ -577,7 +848,7 @@ contains
         logical :: ro
 
         status = status_type()
-        padding = tabulated_list_padding()
+        padding = tabulated_list_padding%get_current()
 
         if (.not. (padding > 0)) then
             call set_error(status, GENERIC_ERROR_CODE, "There can be no tags in current buffer")
@@ -615,13 +886,12 @@ contains
         type(header_line_format_type) :: header
         type(tabulated_list_column_type), allocatable :: format(:)
         character(len=:), allocatable :: label, pname, sort_name, indicator
-        integer :: x, n, length_fmt, lablen, next_x, available_space, shift, width, k
+        integer :: x, n, length_fmt, lablen, next_x, available_space, shift, width
         logical :: not_last_column, flip
 
-        call make_local_entry(k)
-        format = tabulated_list_format()
-        call tabulated_list_sort_key(sort_name, flip)
-        x = max(locals(k)%padding, 0)
+        format = tabulated_list_format%get_current()
+        call tabulated_list_sort_key%get_current(sort_name, flip)
+        x = max(tabulated_list_padding%get_current(), 0)
         length_fmt = size(format)
         ! Pre-compute width for available-space computation.
         has_near_rows = .true.
@@ -682,7 +952,7 @@ contains
 
         has_near_rows = .false.
 
-        if (locals(k)%use_header_line) then
+        if (tabulated_list_use_header_line%get_current()) then
             buffers(current)%header_line_format = header
         end if
 
@@ -793,13 +1063,16 @@ contains
         call set_error(status, GENERIC_ERROR_CODE, "No column named "//name)
     end function column_number
 
-    ! Whether entry A sorts before entry B by the sort key of local K.
+    ! Whether entry A sorts before entry B by column N of FORMAT, the
+    ! other way round when FLIP is true.
     ! Port of tabulated-list.el:tabulated-list--get-sorter.
-    logical function sorts_before(k, n, a, b) result(before)
-        integer, intent(in) :: k, n
+    logical function sorts_before(format, flip, n, a, b) result(before)
+        type(tabulated_list_column_type), intent(in) :: format(:)
+        logical, intent(in) :: flip
+        integer, intent(in) :: n
         type(tabulated_list_entry_type), intent(in) :: a, b
 
-        if (locals(k)%sort_flip) then
+        if (flip) then
             before = sorter(b, a)
         else
             before = sorter(a, b)
@@ -810,8 +1083,8 @@ contains
         logical function sorter(x, y)
             type(tabulated_list_entry_type), intent(in) :: x, y
 
-            if (associated(locals(k)%format(n)%test)) then
-                sorter = locals(k)%format(n)%test(x, y)
+            if (associated(format(n)%test)) then
+                sorter = format(n)%test(x, y)
             else
                 ! Default sorter checks column N:
                 sorter = is_string_less(x%columns(n)%text, y%columns(n)%text)
@@ -819,27 +1092,33 @@ contains
         end function sorter
     end function sorts_before
 
-    ! The sort column of local K (0 for no sorter: no sort key, or an
+    ! The sort column in FORMAT of the current buffer's sort key, and
+    ! whether to FLIP the sort (N 0 for no sorter: no sort key, or an
     ! unsortable column).
     ! Port of part of tabulated-list.el:tabulated-list--get-sorter.
-    integer function sort_column(k, status) result(n)
-        integer, intent(in) :: k
+    integer function sort_column(format, flip, status) result(n)
+        type(tabulated_list_column_type), intent(in) :: format(:)
+        logical, intent(out) :: flip
         type(status_type), intent(out) :: status
+        character(len=:), allocatable :: name
 
         n = 0
         status = status_type()
-        if (.not. allocated(locals(k)%sort_name)) return
-        if (.not. allocated(locals(k)%format)) return
-        n = column_number(locals(k)%format, locals(k)%sort_name, status)
+        call tabulated_list_sort_key%get_current(name, flip)
+        if (len(name) == 0) return
+        n = column_number(format, name, status)
 
         if (n > 0) then
-            if (.not. locals(k)%format(n)%sort) n = 0
+            if (.not. format(n)%sort) n = 0
         end if
     end function sort_column
 
-    ! Sort ENTRIES stably by column N of local K.  Not a port.
-    subroutine sort_entries(k, n, entries)
-        integer, intent(in) :: k, n
+    ! Sort ENTRIES stably by column N of FORMAT (the other way round when
+    ! FLIP is true).  Not a port.
+    subroutine sort_entries(format, flip, n, entries)
+        type(tabulated_list_column_type), intent(in) :: format(:)
+        logical, intent(in) :: flip
+        integer, intent(in) :: n
         type(tabulated_list_entry_type), intent(inout) :: entries(:)
         type(tabulated_list_entry_type) :: t
         integer :: i, j
@@ -849,7 +1128,7 @@ contains
             j = i - 1
 
             do while (j >= 1)
-                if (.not. sorts_before(k, n, t, entries(j))) exit
+                if (.not. sorts_before(format, flip, n, t, entries(j))) exit
                 entries(j + 1) = entries(j)
                 j = j - 1
             end do
@@ -881,27 +1160,32 @@ contains
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: remember_position, update
         type(tabulated_list_entry_type), allocatable :: entries(:)
+        type(tabulated_list_column_type), allocatable :: format(:)
+        procedure(tabulated_list_entries_procedure), pointer :: make_entries
+        procedure(tabulated_list_printer_procedure), pointer :: printer
         character(len=:), allocatable :: entry_id
         integer(int64) :: saved_point, saved_column, reached, shortage
         integer :: k, n, i
-        logical :: remember, upd, ro, has_id
+        logical :: remember, upd, ro, has_id, flip
 
-        call make_local_entry(k)
+        call make_entries_local(k)
         remember = .false.
         if (present(remember_position)) remember = remember_position
         upd = .false.
         if (present(update)) upd = update
+        make_entries => tabulated_list_entries%locals(k)%procedure
 
-        if (associated(locals(k)%entries_function)) then
-            call locals(k)%entries_function(entries, status)
+        if (associated(make_entries)) then
+            call make_entries(entries, status)
             if (.not. status%ok()) return
+            ! (The procedure may have given other buffers their own entries.)
+            call make_entries_local(k)
         else
-            if (.not. allocated(locals(k)%entries)) allocate (locals(k)%entries(0))
-            call copy_entries(locals(k)%entries, entries)
+            call copy_entries(tabulated_list_entries%locals(k)%entries, entries)
         end if
 
-        if (.not. allocated(locals(k)%format)) allocate (locals(k)%format(0))
-        n = sort_column(k, status)
+        format = tabulated_list_format%get_current()
+        n = sort_column(format, flip, status)
         if (.not. status%ok()) return
         has_id = .false.
         saved_column = 0
@@ -913,8 +1197,10 @@ contains
         end if
 
         ! Sort the entries, if necessary.
-        if (n > 0) call sort_entries(k, n, entries)
-        call copy_entries(entries, locals(k)%entries)
+        if (n > 0) call sort_entries(format, flip, n, entries)
+        ! (The entries as printed, also when a procedure made them.)
+        call copy_entries(entries, tabulated_list_entries%locals(k)%entries)
+        printer => tabulated_list_printer%get_current()
         ! Without a sorter, we have no way to just update.
         if (upd .and. n == 0) upd = .false.
         ro = buffers(current)%read_only
@@ -960,7 +1246,7 @@ contains
             here = entry_index(position_beginning_of_line(0_int64))
 
             if (here > 0 .and. position_beginning_of_line(0_int64) < point()) then
-                near_rows(1) = locals(k)%entries(here)
+                near_rows(1) = tabulated_list_entries%locals(k)%entries(here)
             else
                 near_rows(1) = entries(i)
             end if
@@ -1000,7 +1286,7 @@ contains
                         exit
                     end if
 
-                    if (sorts_before(k, n, entries(i), locals(k)%entries(entry_index()))) then
+                    if (sorts_before(format, flip, n, entries(i), tabulated_list_entries%locals(k)%entries(entry_index()))) then
                         call print_with_printer(i)
                         exit
                     end if
@@ -1027,8 +1313,8 @@ contains
 
             before = int(point())
 
-            if (associated(locals(k)%printer)) then
-                call locals(k)%printer(entries(i), status)
+            if (associated(printer)) then
+                call printer(entries(i), status)
             else
                 call tabulated_list_print_entry(entries(i), status)
             end if
@@ -1052,8 +1338,8 @@ contains
         logical :: ro, saved_near, changed
 
         beginning = point()
-        format = tabulated_list_format()
-        padding = tabulated_list_padding()
+        format = tabulated_list_format%get_current()
+        padding = tabulated_list_padding%get_current()
         x = max(padding, 0)
         ro = buffers(current)%read_only
         buffers(current)%read_only = .false.
@@ -1135,7 +1421,7 @@ contains
         logical :: not_last_column, right_align
 
         status = status_type()
-        format = tabulated_list_format()
+        format = tabulated_list_format%get_current()
         x = x_in
         width = format(n)%width
         pad_right = format(n)%pad_right
@@ -1284,7 +1570,7 @@ contains
         original_point = point()
         end_of_line = position_end_of_line()
         position = position_beginning_of_line()
-        format = tabulated_list_format()
+        format = tabulated_list_format%get_current()
 
         if (present(column)) then
             c = column
@@ -1337,30 +1623,30 @@ contains
 
         if (status%ok()) then
             call goto_character(position)
-            k = local_index()
+            k = tabulated_list_entries%get_local_index()
             has_near_rows = .true.
             here = entry_index(position_beginning_of_line(0_int64))
 
             if (here > 0 .and. position_beginning_of_line(0_int64) < position_beginning_of_line()) then
-                near_rows(1) = locals(k)%entries(here)
+                near_rows(1) = tabulated_list_entries%locals(k)%entries(here)
             else
-                near_rows(1) = locals(k)%entries(e)
+                near_rows(1) = tabulated_list_entries%locals(k)%entries(e)
             end if
 
-            near_rows(2) = locals(k)%entries(e)
+            near_rows(2) = tabulated_list_entries%locals(k)%entries(e)
             here = entry_index(position_beginning_of_line(2_int64))
 
             if (here > 0) then
-                near_rows(3) = locals(k)%entries(here)
+                near_rows(3) = tabulated_list_entries%locals(k)%entries(here)
             else
-                near_rows(3) = locals(k)%entries(e)
+                near_rows(3) = tabulated_list_entries%locals(k)%entries(e)
             end if
 
             x = tabulated_list_print_column(c, description, int(current_column()), status)
             has_near_rows = .false.
             change = .false.
             if (present(change_entry_data)) change = change_entry_data
-            if (change) locals(k)%entries(e)%columns(c) = description
+            if (change) tabulated_list_entries%locals(k)%entries(e)%columns(c) = description
             if (status%ok()) call put_text_property(position, point(), value_type(name="tabulated_list_id"), id, status)
             if (status%ok()) call put_text_property(position, point(), value_type(name="tabulated_list_entry"), entry_property, &
                                                     status)
@@ -1390,7 +1676,7 @@ contains
         integer :: k, c
 
         status = status_type()
-        format = tabulated_list_format()
+        format = tabulated_list_format%get_current()
 
         if (present(n)) then
             if (n >= size(format) .or. n < -1) then
@@ -1399,19 +1685,18 @@ contains
             end if
         end if
 
-        call make_local_entry(k)
+        call make_entries_local(k)
 
         if (present(n)) then
             if (n == -1) then
                 ! Restore original order.
-                if (.not. locals(k)%original_order) then
+                if (.not. tabulated_list_entries%locals(k)%original_order) then
                     call set_error(status, GENERIC_ERROR_CODE, "Order is already in original order")
                     return
                 end if
 
-                call sort_by_original_index(locals(k)%entries)
-                if (allocated(locals(k)%sort_name)) deallocate (locals(k)%sort_name)
-                locals(k)%sort_flip = .false.
+                call sort_by_original_index(tabulated_list_entries%locals(k)%entries)
+                call tabulated_list_sort_key%set_local()
                 call tabulated_list_initialize_header()
                 call tabulated_list_print(status, remember_position=.true.)
                 return
@@ -1478,32 +1763,30 @@ contains
     recursive subroutine sort_by_column_name(name, status)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
+        character(len=:), allocatable :: sort_name
         integer :: k, i
+        logical :: flip
 
         status = status_type()
         if (len(name) == 0 .or. .not. is_derived_mode("tabulated_list_mode")) return
-        call make_local_entry(k)
+        call make_entries_local(k)
 
-        if (.not. locals(k)%original_order) then
+        if (.not. tabulated_list_entries%locals(k)%original_order) then
             ! Store the original order so that we can restore it later.
-            locals(k)%original_order = .true.
+            tabulated_list_entries%locals(k)%original_order = .true.
 
-            if (allocated(locals(k)%entries)) then
-                do i = 1, size(locals(k)%entries)
-                    locals(k)%entries(i)%original_index = i
-                end do
-            end if
+            do i = 1, size(tabulated_list_entries%locals(k)%entries)
+                tabulated_list_entries%locals(k)%entries(i)%original_index = i
+            end do
         end if
 
         ! Flip the sort order on a second click.
-        if (allocated(locals(k)%sort_name)) then
-            if (same(locals(k)%sort_name, name)) then
-                locals(k)%sort_flip = .not. locals(k)%sort_flip
-            else
-                call set_tabulated_list_sort_key(name)
-            end if
+        call tabulated_list_sort_key%get_current(sort_name, flip)
+
+        if (same(sort_name, name)) then
+            call tabulated_list_sort_key%set_local(name,.not. flip)
         else
-            call set_tabulated_list_sort_key(name)
+            call tabulated_list_sort_key%set_local(name)
         end if
 
         call tabulated_list_initialize_header()
@@ -1517,8 +1800,9 @@ contains
         type(status_type), intent(out) :: status
         integer, intent(in), optional :: n
         type(tabulated_list_entry_type) :: entry
+        type(tabulated_list_column_type), allocatable :: format(:)
         integer(int64) :: start
-        integer :: k, column_nb, total_width, column_width, by
+        integer :: column_nb, total_width, column_width, by
         logical :: found
 
         status = status_type()
@@ -1527,19 +1811,20 @@ contains
         start = current_column()
         call tabulated_list_get_entry(entry, found)
         if (.not. found) return
-        k = local_index()
+        format = tabulated_list_format%get_current()
         column_nb = 1
         total_width = 0
 
-        do while (column_nb <= size(locals(k)%format))
-            column_width = locals(k)%format(column_nb)%width
+        do while (column_nb <= size(format))
+            column_width = format(column_nb)%width
             total_width = total_width + max(column_width, int(string_width(entry%columns(column_nb)%text))) + &
-                          locals(k)%format(column_nb)%pad_right
+                          format(column_nb)%pad_right
 
             if (start >= total_width) then
                 column_nb = column_nb + 1
             else
-                locals(k)%format(column_nb)%width = max(1, column_width + by)
+                format(column_nb)%width = max(1, column_width + by)
+                call tabulated_list_format%set_local(format)
                 call tabulated_list_print(status, remember_position=.true.)
                 call tabulated_list_initialize_header()
                 return
@@ -1672,8 +1957,8 @@ contains
         ! (truncate-lines: not ported.)
         buffers(current)%undo_enabled = .false.
         call revert_buffer_function%set_local(revert_function)
-        call make_local_entry(k)
-        locals(k)%original_order = .false.
+        call tabulated_list_entries%make_local_entry(k)
+        if (k > 0) tabulated_list_entries%locals(k)%original_order = .false.
         call major_modes%tabulated_list_mode%end(saved, status)
     end subroutine tabulated_list_mode
 
@@ -1700,6 +1985,11 @@ contains
         call tabulated_list_fake_header%specification_entry(display_when(), face_attributes(overline=.true., underline=.true., &
                                                                                             weight="bold"))
         call append_locals_clearer(clear_tabulated_list_locals)
+
+        if (.not. associated(tabulated_list_printer%procedure)) then
+            tabulated_list_printer%procedure => tabulated_list_print_entry
+        end if
+
         call major_modes%tabulated_list_mode%define("tabulated_list_mode", "Tabulated", tabulated_list_mode, &
                                                     tabulated_list_mode_hook, parent=major_modes%special_mode)
         tabulated_list_mode_map = major_modes%tabulated_list_mode%map

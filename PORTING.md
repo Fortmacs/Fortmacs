@@ -2168,7 +2168,16 @@ scroll = .not. compilation_scroll_output%is_off()
   (`characters`, set with `=`), `skeleton_pairs` and
   `skeleton_default_pairs` (`pairs`, grown with `%append`).  The free
   procedures `X_set_local`, `current_X` and `X_clear_local` this replaced
-  are gone.
+  are gone.  The per-buffer variables once kept in a module's private
+  record behind free setters follow it too: tabulated-list.el's six
+  (`tabulated_list_entries%set_local` takes an array or a procedure,
+  R6-37; the permanent-local ones are not cleared by `clear_X_locals`),
+  comint.el's procedure variables and `command_interpreter_completion_fignore`,
+  `local_abbreviation_table` and `syntax_parser_state_table`; one of a
+  forwarded kind becomes a forwarded setting (`view_read_only`,
+  `call view_read_only%set_local(.true.)`).  What only the module reads
+  stays private: comint's markers and input ring in its record,
+  tabulated-list--original-order in the entry of `tabulated_list_entries`.
 
 - Shell-dependent settings (sh-script.el's tables read by `sh-feature`)
   are typed feature tables, one per kind of value (`shell_strings_feature_type`,

@@ -92,7 +92,7 @@ module shell_mod
                                        command_interpreter_use_prompt_regular_expression, command_interpreter_read_input_ring, &
                                        command_interpreter_write_input_ring, command_interpreter_beginning_of_line, &
                                        command_interpreter_arguments, command_interpreter_substitute_in_file_name, &
-                                       command_interpreter_input_ring_length, set_command_interpreter_get_old_input, &
+                                       command_interpreter_input_ring_length, command_interpreter_get_old_input, &
                                        command_interpreter_next_prompt, command_interpreter_previous_prompt, &
                                        initialize_command_interpreter
     use compile_mod, only: cd
@@ -119,8 +119,8 @@ module shell_mod
                                        command_interpreter_filename_completion, command_interpreter_completion_at_point, &
                                        command_interpreter_c_a_p_replace_by_expanded_history, &
                                        command_interpreter_match_partial_filename, command_interpreter_quote_filename, &
-                                       command_interpreter_directory, set_command_interpreter_completion_fignore, &
-                                       set_command_interpreter_quote_functions, command_interpreter_completion_addsuffix, &
+                                       command_interpreter_directory, command_interpreter_unquote_function, &
+                                       command_interpreter_requote_function, command_interpreter_completion_addsuffix, &
                                        command_interpreter_input_autoexpand, COMMAND_INTERPRETER_INPUT_AUTOEXPAND_HISTORY, &
                                        COMMAND_INTERPRETER_INPUT_AUTOEXPAND_INPUT, command_interpreter_completion_fignore, &
                                        command_interpreter_line_beginning_position
@@ -831,6 +831,7 @@ contains
         type(string_type), allocatable :: path_directories(:)
         type(value_type), allocatable :: comps(:), names(:), kept(:)
         type(value_type) :: listed
+        character(len=8), allocatable :: fignore(:)
         type(status_type) :: st
         integer :: k, j, n, colon
         logical :: found, dup
@@ -869,13 +870,12 @@ contains
         call expand_file_name(default_directory(), expanded, st)
         current_working_directory = file_name_as_directory(expanded)
         ignored = ""
+        fignore = command_interpreter_completion_fignore%get_current()
 
-        if (allocated(command_interpreter_completion_fignore)) then
-            do k = 1, size(command_interpreter_completion_fignore)
-                if (len(ignored) > 0) ignored = ignored//"\|"
-                ignored = ignored//regular_expression_quote(trim(command_interpreter_completion_fignore(k)))//"\'"
-            end do
-        end if
+        do k = 1, size(fignore)
+            if (len(ignored) > 0) ignored = ignored//"\|"
+            ignored = ignored//regular_expression_quote(trim(fignore(k)))//"\'"
+        end do
 
         allocate (kept(0))
         n = 0
@@ -1359,7 +1359,7 @@ contains
         call font_lock_defaults%set_local(keywords=keywords, keywords_only=.true.)
         call make_current_entry(k)
         call clear_shell_locals()
-        call set_command_interpreter_get_old_input(shell_get_old_input)
+        call command_interpreter_get_old_input%set_local(shell_get_old_input)
         call minor_modes%shell_dirtrack_mode%enable(status)
         if (.not. status%ok()) return
         ! By default, ansi-color applies faces using overlays.  This is
@@ -1457,9 +1457,9 @@ contains
         integer :: k
 
         if (allocated(shell_completion_fignore)) then
-            call set_command_interpreter_completion_fignore(shell_completion_fignore)
+            call command_interpreter_completion_fignore%set_local(shell_completion_fignore)
         else
-            call set_command_interpreter_completion_fignore([character(len=8) ::])
+            call command_interpreter_completion_fignore%set_local([character(len=8) ::])
         end if
 
         call command_interpreter_delimiter_arguments%set_local(shell_delimiter_arguments%value)
@@ -1476,7 +1476,8 @@ contains
             call command_interpreter_dynamic_complete_functions%prepend(functions(k)%fn, local=.true.)
         end do
 
-        call set_command_interpreter_quote_functions(shell_unquote_argument_internal, shell_requote_argument)
+        call command_interpreter_unquote_function%set_local(shell_unquote_argument_internal)
+        call command_interpreter_requote_function%set_local(shell_requote_argument)
         call programmable_completion_parse_arguments_function%set_local(shell_parse_programmable_completion_arguments)
 
         if (allocated(command_interpreter_completion_addsuffix%value)) then

@@ -89,9 +89,9 @@ module bookmark_mod
     use system_dependent_mod, only: file_status_type, fortmacs_clock_realtime
     use files_mod, only: find_file_noselect, abbreviate_file_name, write_file, revert_buffer_function
     use frame_mod, only: selected_frame, selected_window
-    use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
-                                  set_tabulated_list_entries, set_tabulated_list_padding, set_tabulated_list_sort_key, &
-                                  clear_tabulated_list_sort_key, tabulated_list_initialize_header, tabulated_list_print, &
+    use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, tabulated_list_format, &
+                                  tabulated_list_entries, tabulated_list_padding, tabulated_list_sort_key, &
+                                  tabulated_list_initialize_header, tabulated_list_print, &
                                   tabulated_list_get_id, tabulated_list_put_tag, tabulated_list_revert_hook
     use directory_editor_mode_mod, only: directory_editor_directory_of
     use derived_mod, only: is_derived_mode
@@ -2943,15 +2943,15 @@ contains
         ! The value of `bookmark_sort_flag' might have changed since the
         ! last time the buffer contents were generated, so re-check it.
         if (bookmark_sort_flag%value) then
-            call set_tabulated_list_sort_key("Bookmark Name")
-            call set_tabulated_list_entries(entries)
+            call tabulated_list_sort_key%set_local("Bookmark Name")
+            call tabulated_list_entries%set_local(entries)
         else
-            call clear_tabulated_list_sort_key()
+            call tabulated_list_sort_key%set_local()
             ! And since we're not sorting by bookmark name, show bookmarks
             ! according to order of creation, with the most recently
             ! created bookmarks at the top and the least recently created
             ! at the bottom.
-            call set_tabulated_list_entries(entries(n:1:-1))
+            call tabulated_list_entries%set_local(entries(n:1:-1))
         end if
 
         ! Generate the header only after `tabulated_list_sort_key' is
@@ -3125,9 +3125,9 @@ contains
             format(4)%test => bookmark_bookmark_menu_file_test
         end if
 
-        call set_tabulated_list_format(format)
-        call set_tabulated_list_padding(BOOKMARK_BOOKMARK_MENU_MARKS_WIDTH)
-        if (bookmark_sort_flag%value) call set_tabulated_list_sort_key("Bookmark Name")
+        call tabulated_list_format%set_local(format)
+        call tabulated_list_padding%set_local(BOOKMARK_BOOKMARK_MENU_MARKS_WIDTH)
+        if (bookmark_sort_flag%value) call tabulated_list_sort_key%set_local("Bookmark Name")
         call tabulated_list_revert_hook%prepend(bookmark_menu_revert_hook, local=.true.)
         call revert_buffer_function%set_local(bookmark_menu_revert_function)
         call tabulated_list_initialize_header()

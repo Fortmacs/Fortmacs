@@ -72,6 +72,7 @@ module command_interpreter_mod
     use value_mod, only: value_type, list, symbols, xsymbol, list_elements, command_procedure
     use data_mod, only: string_setting_type, logical_setting_type, integer_setting_type, symbol_value, set, &
                         append_locals_clearer, forward_setting, choice_setting_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, is_buffer_live, &
                           barf_if_buffer_read_only
     use marker_mod, only: make_marker, destroy_marker, marker_buffer, marker_position, set_marker, copy_marker_at, &
@@ -193,8 +194,7 @@ module command_interpreter_mod
               command_interpreter_adjust_window_point, &
               command_interpreter_input_ring_item, command_interpreter_input_ring_length, command_interpreter_last_input_start, &
               command_interpreter_last_input_end, &
-              command_interpreter_last_output_start, set_command_interpreter_get_old_input, set_command_interpreter_input_sender, &
-              set_command_interpreter_input_filter, &
+              command_interpreter_last_output_start, &
               is_command_interpreter_pty, command_interpreter_arguments, command_interpreter_delim_argument, &
               command_interpreter_substitute_in_file_name, &
               command_interpreter_previous_input_string, command_interpreter_within_quotes, command_interpreter_how_many_region, &
@@ -213,14 +213,13 @@ module command_interpreter_mod
               command_interpreter_filename_completion, &
               command_interpreter_completion_at_point, command_interpreter_dynamic_complete_filename, &
               command_interpreter_replace_by_expanded_filename, &
-              command_interpreter_dynamic_list_filename_completions, set_command_interpreter_completion_fignore, &
-              set_command_interpreter_quote_functions, &
+              command_interpreter_dynamic_list_filename_completions, &
               command_interpreter_directory
     public :: command_interpreter_input_sender_procedure, command_interpreter_get_old_input_procedure, &
               command_interpreter_input_filter_procedure, &
               command_interpreter_password_procedure
     public :: command_interpreter_send_invisible, command_interpreter_read_noecho, command_interpreter_watch_for_password_prompt, &
-              set_command_interpreter_password_function, command_interpreter_password_prompt_regular_expression_default
+              command_interpreter_password_prompt_regular_expression_default
 
     abstract interface
         !> A `command_interpreter_input_sender': send to PROCESS the input STRING.
@@ -622,13 +621,197 @@ module command_interpreter_mod
     type(named_face_type), target, public :: command_interpreter_highlight_prompt
 
     !> A Comint buffer's own state: upstream's buffer-local variables
+    !> One buffer's own `command_interpreter_get_old_input'.
+    type :: command_interpreter_get_old_input_entry_type
+        procedure(command_interpreter_get_old_input_procedure), pointer, nopass :: procedure => null()
+    end type command_interpreter_get_old_input_entry_type
+
+    !> The type of `command_interpreter_get_old_input': the global value `procedure' (set with `=>')
+    !> and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: command_interpreter_get_old_input_setting_type
+        procedure(command_interpreter_get_old_input_procedure), pointer, nopass :: procedure => null()
+        type(command_interpreter_get_old_input_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_command_interpreter_get_old_input_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_command_interpreter_get_old_input_current
+        procedure :: append_local_entry => append_command_interpreter_get_old_input_entry
+        procedure :: clear_local_entry => clear_command_interpreter_get_old_input_entry
+    end type command_interpreter_get_old_input_setting_type
+
+    !> One buffer's own `command_interpreter_input_sender'.
+    type :: command_interpreter_input_sender_entry_type
+        procedure(command_interpreter_input_sender_procedure), pointer, nopass :: procedure => null()
+    end type command_interpreter_input_sender_entry_type
+
+    !> The type of `command_interpreter_input_sender': the global value `procedure' (set with `=>')
+    !> and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: command_interpreter_input_sender_setting_type
+        procedure(command_interpreter_input_sender_procedure), pointer, nopass :: procedure => null()
+        type(command_interpreter_input_sender_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_command_interpreter_input_sender_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_command_interpreter_input_sender_current
+        procedure :: append_local_entry => append_command_interpreter_input_sender_entry
+        procedure :: clear_local_entry => clear_command_interpreter_input_sender_entry
+    end type command_interpreter_input_sender_setting_type
+
+    !> One buffer's own `command_interpreter_input_filter'.
+    type :: command_interpreter_input_filter_entry_type
+        procedure(command_interpreter_input_filter_procedure), pointer, nopass :: procedure => null()
+    end type command_interpreter_input_filter_entry_type
+
+    !> The type of `command_interpreter_input_filter': the global value `procedure' (set with `=>')
+    !> and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: command_interpreter_input_filter_setting_type
+        procedure(command_interpreter_input_filter_procedure), pointer, nopass :: procedure => null()
+        type(command_interpreter_input_filter_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_command_interpreter_input_filter_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_command_interpreter_input_filter_current
+        procedure :: append_local_entry => append_command_interpreter_input_filter_entry
+        procedure :: clear_local_entry => clear_command_interpreter_input_filter_entry
+    end type command_interpreter_input_filter_setting_type
+
+    !> One buffer's own `command_interpreter_password_function'.
+    type :: command_interpreter_password_entry_type
+        procedure(command_interpreter_password_procedure), pointer, nopass :: procedure => null()
+    end type command_interpreter_password_entry_type
+
+    !> The type of `command_interpreter_password_function': the global value `procedure' (set with `=>')
+    !> and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: command_interpreter_password_setting_type
+        procedure(command_interpreter_password_procedure), pointer, nopass :: procedure => null()
+        type(command_interpreter_password_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_command_interpreter_password_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_command_interpreter_password_current
+        procedure :: append_local_entry => append_command_interpreter_password_entry
+        procedure :: clear_local_entry => clear_command_interpreter_password_entry
+    end type command_interpreter_password_setting_type
+
+    !> One buffer's own `command_interpreter_unquote_function'.
+    type :: command_interpreter_unquote_entry_type
+        procedure(completion_unquote_procedure), pointer, nopass :: procedure => null()
+    end type command_interpreter_unquote_entry_type
+
+    !> The type of `command_interpreter_unquote_function': the global value `procedure' (set with `=>')
+    !> and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: command_interpreter_unquote_setting_type
+        procedure(completion_unquote_procedure), pointer, nopass :: procedure => null()
+        type(command_interpreter_unquote_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_command_interpreter_unquote_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_command_interpreter_unquote_current
+        procedure :: append_local_entry => append_command_interpreter_unquote_entry
+        procedure :: clear_local_entry => clear_command_interpreter_unquote_entry
+    end type command_interpreter_unquote_setting_type
+
+    !> One buffer's own `command_interpreter_requote_function'.
+    type :: command_interpreter_requote_entry_type
+        procedure(completion_requote_procedure), pointer, nopass :: procedure => null()
+    end type command_interpreter_requote_entry_type
+
+    !> The type of `command_interpreter_requote_function': the global value `procedure' (set with `=>')
+    !> and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: command_interpreter_requote_setting_type
+        procedure(completion_requote_procedure), pointer, nopass :: procedure => null()
+        type(command_interpreter_requote_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_command_interpreter_requote_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_command_interpreter_requote_current
+        procedure :: append_local_entry => append_command_interpreter_requote_entry
+        procedure :: clear_local_entry => clear_command_interpreter_requote_entry
+    end type command_interpreter_requote_setting_type
+
+    !> One buffer's own `command_interpreter_completion_fignore'.
+    type :: command_interpreter_completion_fignore_entry_type
+        character(len=8), allocatable :: suffixes(:)
+    end type command_interpreter_completion_fignore_entry_type
+
+    !> The type of `command_interpreter_completion_fignore': the global
+    !> value `suffixes' (set with `=') and the buffers' own values
+    !> (`set_local').
+    type, extends(buffer_local_setting_type), public :: command_interpreter_completion_fignore_setting_type
+        character(len=8), allocatable :: suffixes(:)
+        type(command_interpreter_completion_fignore_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, SUFFIXES.
+        procedure :: set_local => set_command_interpreter_completion_fignore_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_command_interpreter_completion_fignore_current
+        procedure :: append_local_entry => append_command_interpreter_completion_fignore_entry
+        procedure :: clear_local_entry => clear_command_interpreter_completion_fignore_entry
+        procedure, private :: assign_command_interpreter_completion_fignore
+        !> Set the global value.
+        generic :: assignment(=) => assign_command_interpreter_completion_fignore
+    end type command_interpreter_completion_fignore_setting_type
+
+    !> Function that returns old text in Comint mode.
+    !> This function is called when return is typed while the point is in old
+    !> text.  It returns the text to be submitted as process input.  The
+    !> default is `command_interpreter_get_old_input_default', which either grabs the
+    !> current input field or grabs the current line and strips off leading
+    !> text matching `command_interpreter_prompt_regular_expression', depending on the value of
+    !> `command_interpreter_use_prompt_regular_expression'.  Port of comint.el
+    !> comint-get-old-input (`%procedure' is the global value, `%set_local'
+    !> gives a buffer its own).
+    type(command_interpreter_get_old_input_setting_type), public :: command_interpreter_get_old_input
+
+    !> Function to actually send to PROCESS the STRING submitted by user.
+    !> Usually this is just `command_interpreter_simple_send', but if your mode needs to
+    !> massage the input string, put a different function here.
+    !> `command_interpreter_simple_send' just sends the string plus a newline.
+    !> (If `command_interpreter_input_sender_no_newline' is true, it omits the newline.)
+    !> This is called from the user command `command_interpreter_send_input'.  Port of
+    !> comint.el comint-input-sender (`%procedure' is the global value,
+    !> `%set_local' gives a buffer its own).
+    type(command_interpreter_input_sender_setting_type), public :: command_interpreter_input_sender
+
+    !> Test for filtering additions to input history.
+    !> Takes one argument, the input.  If true, the input may be saved on the input
+    !> history list.  Default is to save anything that isn't all whitespace.
+    !> Port of comint.el comint-input-filter (`%procedure' is the global
+    !> value, `%set_local' gives a buffer its own).
+    type(command_interpreter_input_filter_setting_type), public :: command_interpreter_input_filter
+
+    !> Abnormal hook run when prompted for a password.
+    !> This function gets one argument, a string containing the prompt.
+    !> It may return a string containing the password (FOUND .true.), or
+    !> FOUND .false. if normal password prompting should occur.  Port of
+    !> comint.el comint-password-function (always buffer-local:
+    !> `%set_local'; null for none).
+    type(command_interpreter_password_setting_type), public :: command_interpreter_password_function
+
+    !> Function to use for completion of quoted data.
+    !> See `completion_table_with_quoting' and `command_interpreter_requote_function'.
+    !> Port of comint.el comint-unquote-function (`%procedure' is the
+    !> global value, `%set_local' gives a buffer its own).
+    type(command_interpreter_unquote_setting_type), public :: command_interpreter_unquote_function
+
+    !> Function to use for completion of quoted data.
+    !> See `completion_table_with_quoting' and `command_interpreter_unquote_function'.
+    !> Port of comint.el comint-requote-function (`%procedure' is the
+    !> global value, `%set_local' gives a buffer its own).
+    type(command_interpreter_requote_setting_type), public :: command_interpreter_requote_function
+
     !> comint-input-ring, comint-input-ring-index,
     !> comint-save-input-ring-index, comint-ptyp (permanent), and
     !> comint-last-input-start, comint-last-input-end,
     !> comint-last-output-start, comint-accum-marker, comint-last-prompt,
     !> comint-stored-incomplete-input,
-    !> comint-matching-input-from-input-string, comint-get-old-input,
-    !> comint-input-sender and comint-input-filter.
+    !> comint-matching-input-from-input-string.
     type :: command_interpreter_buffer_type
         integer(int64) :: serial = 0
         type(handle_type) :: buffer
@@ -644,9 +827,6 @@ module command_interpreter_mod
         type(handle_type) :: last_prompt_start, last_prompt_end
         character(len=:), allocatable :: stored_incomplete_input
         character(len=:), allocatable :: matching_input_from_input_string
-        procedure(command_interpreter_get_old_input_procedure), pointer, nopass :: get_old_input => null()
-        procedure(command_interpreter_input_sender_procedure), pointer, nopass :: input_sender => null()
-        procedure(command_interpreter_input_filter_procedure), pointer, nopass :: input_filter => null()
         !> comint-insert-previous-argument-last-start-pos and
         !> comint-insert-previous-argument-last-index.
         type(handle_type) :: insert_previous_argument_last_start_position
@@ -654,14 +834,6 @@ module command_interpreter_mod
         logical :: has_insert_previous_argument_last_index = .false.
         !> comint-history-isearch-message-overlay.
         type(handle_type) :: history_incremental_search_message_overlay
-        !> comint-password-function.
-        procedure(command_interpreter_password_procedure), pointer, nopass :: password_function => null()
-        !> comint-completion-fignore.
-        character(len=8), allocatable :: completion_fignore(:)
-        !> comint-unquote-function and comint-requote-function (null for the
-        !> default values).
-        procedure(completion_unquote_procedure), pointer, nopass :: unquote => null()
-        procedure(completion_requote_procedure), pointer, nopass :: requote => null()
     end type command_interpreter_buffer_type
 
     !> Regexp matching prompts for passwords in the inferior process.
@@ -735,8 +907,8 @@ module command_interpreter_mod
     !> Note that this applies to `command_interpreter_dynamic_complete_filename' only.
     !> Port of comint.el comint-completion-fignore (at most as many
     !> suffixes as `completion_ignored_extensions' has entries; a Comint
-    !> buffer's own value is set with `set_command_interpreter_completion_fignore').
-    character(len=8), allocatable, public :: command_interpreter_completion_fignore(:)
+    !> buffer gets its own with `%set_local').
+    type(command_interpreter_completion_fignore_setting_type), public :: command_interpreter_completion_fignore
 
     !> Prefix prepended to absolute file names taken from process input.
     !> This is used by Comint's and shell's completion functions, and by
@@ -770,18 +942,6 @@ module command_interpreter_mod
     type(completion_at_point_function_hook_type), target, public :: command_interpreter_dynamic_complete_functions = &
                                                                     completion_at_point_function_hook_type( &
                                                                     name="command_interpreter_dynamic_complete_functions")
-
-    !> Function to use for completion of quoted data.
-    !> See `completion_table_with_quoting' and `command_interpreter_requote_function'.
-    !> Port of comint.el comint-unquote-function.
-    procedure(completion_unquote_procedure), pointer, public :: command_interpreter_unquote_function => &
-        command_interpreter_unquote_argument
-
-    !> Function to use for completion of quoted data.
-    !> See `completion_table_with_quoting' and `command_interpreter_unquote_function'.
-    !> Port of comint.el comint-requote-function.
-    procedure(completion_requote_procedure), pointer, public :: command_interpreter_requote_function => &
-        command_interpreter_requote_argument
 
 contains
 
@@ -849,9 +1009,6 @@ contains
         call forget_last_prompt(e)
         if (allocated(e%stored_incomplete_input)) deallocate (e%stored_incomplete_input)
         e%matching_input_from_input_string = ""
-        e%get_old_input => null()
-        e%input_sender => null()
-        e%input_filter => null()
 
         if (e%insert_previous_argument_last_start_position%index /= 0) then
             call destroy_marker(e%insert_previous_argument_last_start_position, st)
@@ -860,10 +1017,6 @@ contains
         e%insert_previous_argument_last_start_position = null_handle()
         e%has_insert_previous_argument_last_index = .false.
         e%history_incremental_search_message_overlay = null_handle()
-        if (allocated(e%completion_fignore)) deallocate (e%completion_fignore)
-        e%unquote => null()
-        e%requote => null()
-        e%password_function => null()
         e%local = .false.
     end subroutine clear_local
 
@@ -885,6 +1038,13 @@ contains
 
         k = entry_of(current)
         if (k /= 0) call clear_local(command_interpreter_buffers(k))
+        call command_interpreter_get_old_input%clear_local()
+        call command_interpreter_input_sender%clear_local()
+        call command_interpreter_input_filter%clear_local()
+        call command_interpreter_password_function%clear_local()
+        call command_interpreter_completion_fignore%clear_local()
+        call command_interpreter_unquote_function%clear_local()
+        call command_interpreter_requote_function%clear_local()
     end subroutine clear_command_interpreter_locals
 
     !> Find or make the current buffer's entry with its local variables
@@ -900,6 +1060,9 @@ contains
     !> Make the local variables of entry K, as comint-mode does.  Not a port.
     subroutine make_locals(k)
         integer, intent(in) :: k
+        procedure(command_interpreter_get_old_input_procedure), pointer :: get_old_input
+        procedure(command_interpreter_input_sender_procedure), pointer :: input_sender
+        procedure(command_interpreter_input_filter_procedure), pointer :: input_filter
         type(status_type) :: st
 
         associate (e => command_interpreter_buffers(k))
@@ -909,18 +1072,20 @@ contains
             call make_marker(e%accum_marker)
             e%has_last_prompt = .false.
             e%matching_input_from_input_string = ""
-            e%get_old_input => command_interpreter_get_old_input_default
-            e%input_sender => command_interpreter_simple_send
-
-            if (allocated(command_interpreter_completion_fignore)) then
-                e%completion_fignore = command_interpreter_completion_fignore
-            else
-                allocate (e%completion_fignore(0))
-            end if
-
-            e%input_filter => is_command_interpreter_nonblank
             e%local = .true.
         end associate
+
+        ! (make-local-variable: the global values, unless set already.)
+        get_old_input => command_interpreter_get_old_input%get_current()
+        if (.not. command_interpreter_get_old_input%is_local()) call command_interpreter_get_old_input%set_local(get_old_input)
+        input_sender => command_interpreter_input_sender%get_current()
+        if (.not. command_interpreter_input_sender%is_local()) call command_interpreter_input_sender%set_local(input_sender)
+        input_filter => command_interpreter_input_filter%get_current()
+        if (.not. command_interpreter_input_filter%is_local()) call command_interpreter_input_filter%set_local(input_filter)
+
+        if (.not. command_interpreter_completion_fignore%is_local()) then
+            call command_interpreter_completion_fignore%set_local(command_interpreter_completion_fignore%get_current())
+        end if
     end subroutine make_locals
 
     !> Whether the current buffer has a local input ring (comint-input-ring).
@@ -1011,74 +1176,324 @@ contains
         if (k /= 0) is_command_interpreter_pty = command_interpreter_buffers(k)%ptyp
     end function is_command_interpreter_pty
 
-    !> Give the current buffer its own `command_interpreter_get_old_input': the
-    !> function that returns old text in Comint mode.
-    !> This function is called when return is typed while the point is in
-    !> old text.  It returns the text to be submitted as process input.
-    !> The default is `command_interpreter_get_old_input_default', which either grabs
-    !> the current input field or grabs the current line and strips off
-    !> leading text matching `command_interpreter_prompt_regular_expression', depending on the value
-    !> of `command_interpreter_use_prompt_regular_expression'.  Port of the buffer-local setting of comint.el
-    !> comint-get-old-input.
-    subroutine set_command_interpreter_get_old_input(fn)
-        procedure(command_interpreter_get_old_input_procedure) :: fn
+    !> Give the current buffer its own `command_interpreter_get_old_input', LOCAL_PROCEDURE (null
+    !> when absent).  Not a port.
+    subroutine set_command_interpreter_get_old_input_local(self, local_procedure)
+        class(command_interpreter_get_old_input_setting_type), intent(inout) :: self
+        procedure(command_interpreter_get_old_input_procedure), optional :: local_procedure
         integer :: k
 
-        if (current == 0) return
-        call make_local_entry(k)
-        command_interpreter_buffers(k)%get_old_input => fn
-    end subroutine set_command_interpreter_get_old_input
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_command_interpreter_get_old_input_local
 
-    !> Give the current buffer its own `command_interpreter_input_sender': the
-    !> function to actually send to PROCESS the STRING submitted by user.
-    !> Usually this is just `command_interpreter_simple_send', but if your mode needs
-    !> to massage the input string, put a different function here.
-    !> `command_interpreter_simple_send' just sends the string plus a newline.
-    !> (If `command_interpreter_input_sender_no_newline' is true, it omits the newline.)
-    !> This is called from the user command `command_interpreter_send_input'.  Port of
-    !> the buffer-local setting of comint.el comint-input-sender.
-    subroutine set_command_interpreter_input_sender(fn)
-        procedure(command_interpreter_input_sender_procedure) :: fn
-        integer :: k
-
-        if (current == 0) return
-        call make_local_entry(k)
-        command_interpreter_buffers(k)%input_sender => fn
-    end subroutine set_command_interpreter_input_sender
-
-    !> Give the current buffer its own `command_interpreter_input_filter': the
-    !> test for filtering additions to input history.
-    !> Takes one argument, the input.  If true, the input may be saved on
-    !> the input history list.  Default is to save anything that isn't all
-    !> whitespace.  Port of the buffer-local setting of comint.el comint-input-filter.
-    subroutine set_command_interpreter_input_filter(fn)
-        procedure(command_interpreter_input_filter_procedure) :: fn
-        integer :: k
-
-        if (current == 0) return
-        call make_local_entry(k)
-        command_interpreter_buffers(k)%input_filter => fn
-    end subroutine set_command_interpreter_input_filter
-
-    !> Abnormal hook run when prompted for a password.
-    !> This function gets one argument, a string containing the prompt.
-    !> It may return a string containing the password, or unallocated if normal
-    !> password prompting should occur.  Sets the current buffer's
-    !> comint.el comint-password-function (buffer-local); without FN, null.
+    !> The current buffer's `command_interpreter_get_old_input': its own value, else the global one.
     !> Not a port.
-    subroutine set_command_interpreter_password_function(fn)
-        procedure(command_interpreter_password_procedure), optional :: fn
+    function get_command_interpreter_get_old_input_current(self) result(current_procedure)
+        class(command_interpreter_get_old_input_setting_type), intent(in) :: self
+        procedure(command_interpreter_get_old_input_procedure), pointer :: current_procedure
         integer :: k
 
-        if (current == 0) return
-        call make_local_entry(k)
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_command_interpreter_get_old_input_current
 
-        if (present(fn)) then
-            command_interpreter_buffers(k)%password_function => fn
-        else
-            command_interpreter_buffers(k)%password_function => null()
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_command_interpreter_get_old_input_entry(self)
+        class(command_interpreter_get_old_input_setting_type), intent(inout) :: self
+        type(command_interpreter_get_old_input_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_command_interpreter_get_old_input_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_command_interpreter_get_old_input_entry(self, k)
+        class(command_interpreter_get_old_input_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_command_interpreter_get_old_input_entry
+
+    !> Give the current buffer its own `command_interpreter_input_sender', LOCAL_PROCEDURE (null
+    !> when absent).  Not a port.
+    subroutine set_command_interpreter_input_sender_local(self, local_procedure)
+        class(command_interpreter_input_sender_setting_type), intent(inout) :: self
+        procedure(command_interpreter_input_sender_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_command_interpreter_input_sender_local
+
+    !> The current buffer's `command_interpreter_input_sender': its own value, else the global one.
+    !> Not a port.
+    function get_command_interpreter_input_sender_current(self) result(current_procedure)
+        class(command_interpreter_input_sender_setting_type), intent(in) :: self
+        procedure(command_interpreter_input_sender_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_command_interpreter_input_sender_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_command_interpreter_input_sender_entry(self)
+        class(command_interpreter_input_sender_setting_type), intent(inout) :: self
+        type(command_interpreter_input_sender_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_command_interpreter_input_sender_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_command_interpreter_input_sender_entry(self, k)
+        class(command_interpreter_input_sender_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_command_interpreter_input_sender_entry
+
+    !> Give the current buffer its own `command_interpreter_input_filter', LOCAL_PROCEDURE (null
+    !> when absent).  Not a port.
+    subroutine set_command_interpreter_input_filter_local(self, local_procedure)
+        class(command_interpreter_input_filter_setting_type), intent(inout) :: self
+        procedure(command_interpreter_input_filter_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_command_interpreter_input_filter_local
+
+    !> The current buffer's `command_interpreter_input_filter': its own value, else the global one.
+    !> Not a port.
+    function get_command_interpreter_input_filter_current(self) result(current_procedure)
+        class(command_interpreter_input_filter_setting_type), intent(in) :: self
+        procedure(command_interpreter_input_filter_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_command_interpreter_input_filter_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_command_interpreter_input_filter_entry(self)
+        class(command_interpreter_input_filter_setting_type), intent(inout) :: self
+        type(command_interpreter_input_filter_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_command_interpreter_input_filter_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_command_interpreter_input_filter_entry(self, k)
+        class(command_interpreter_input_filter_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_command_interpreter_input_filter_entry
+
+    !> Give the current buffer its own `command_interpreter_password_function', LOCAL_PROCEDURE (null
+    !> when absent).  Not a port.
+    subroutine set_command_interpreter_password_local(self, local_procedure)
+        class(command_interpreter_password_setting_type), intent(inout) :: self
+        procedure(command_interpreter_password_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_command_interpreter_password_local
+
+    !> The current buffer's `command_interpreter_password_function': its own value, else the global one.
+    !> Not a port.
+    function get_command_interpreter_password_current(self) result(current_procedure)
+        class(command_interpreter_password_setting_type), intent(in) :: self
+        procedure(command_interpreter_password_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_command_interpreter_password_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_command_interpreter_password_entry(self)
+        class(command_interpreter_password_setting_type), intent(inout) :: self
+        type(command_interpreter_password_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_command_interpreter_password_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_command_interpreter_password_entry(self, k)
+        class(command_interpreter_password_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_command_interpreter_password_entry
+
+    !> Give the current buffer its own `command_interpreter_unquote_function', LOCAL_PROCEDURE (null
+    !> when absent).  Not a port.
+    subroutine set_command_interpreter_unquote_local(self, local_procedure)
+        class(command_interpreter_unquote_setting_type), intent(inout) :: self
+        procedure(completion_unquote_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_command_interpreter_unquote_local
+
+    !> The current buffer's `command_interpreter_unquote_function': its own value, else the global one.
+    !> Not a port.
+    function get_command_interpreter_unquote_current(self) result(current_procedure)
+        class(command_interpreter_unquote_setting_type), intent(in) :: self
+        procedure(completion_unquote_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_command_interpreter_unquote_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_command_interpreter_unquote_entry(self)
+        class(command_interpreter_unquote_setting_type), intent(inout) :: self
+        type(command_interpreter_unquote_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_command_interpreter_unquote_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_command_interpreter_unquote_entry(self, k)
+        class(command_interpreter_unquote_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_command_interpreter_unquote_entry
+
+    !> Give the current buffer its own `command_interpreter_requote_function', LOCAL_PROCEDURE (null
+    !> when absent).  Not a port.
+    subroutine set_command_interpreter_requote_local(self, local_procedure)
+        class(command_interpreter_requote_setting_type), intent(inout) :: self
+        procedure(completion_requote_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_command_interpreter_requote_local
+
+    !> The current buffer's `command_interpreter_requote_function': its own value, else the global one.
+    !> Not a port.
+    function get_command_interpreter_requote_current(self) result(current_procedure)
+        class(command_interpreter_requote_setting_type), intent(in) :: self
+        procedure(completion_requote_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_command_interpreter_requote_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_command_interpreter_requote_entry(self)
+        class(command_interpreter_requote_setting_type), intent(inout) :: self
+        type(command_interpreter_requote_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_command_interpreter_requote_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_command_interpreter_requote_entry(self, k)
+        class(command_interpreter_requote_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_command_interpreter_requote_entry
+
+    ! Set the global value of `command_interpreter_completion_fignore' to
+    ! SUFFIXES.  Not a port.
+    subroutine assign_command_interpreter_completion_fignore(self, suffixes)
+        class(command_interpreter_completion_fignore_setting_type), intent(inout) :: self
+        character(len=*), intent(in) :: suffixes(:)
+        integer :: i
+
+        if (allocated(self%suffixes)) deallocate (self%suffixes)
+        allocate (self%suffixes(size(suffixes)))
+
+        do i = 1, size(suffixes)
+            self%suffixes(i) = suffixes(i)
+        end do
+    end subroutine assign_command_interpreter_completion_fignore
+
+    !> Give the current buffer its own `command_interpreter_completion_fignore',
+    !> SUFFIXES.  Not a port.
+    subroutine set_command_interpreter_completion_fignore_local(self, suffixes)
+        class(command_interpreter_completion_fignore_setting_type), intent(inout) :: self
+        character(len=*), intent(in) :: suffixes(:)
+        integer :: k, i
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        if (allocated(self%locals(k)%suffixes)) deallocate (self%locals(k)%suffixes)
+        allocate (self%locals(k)%suffixes(size(suffixes)))
+
+        do i = 1, size(suffixes)
+            self%locals(k)%suffixes(i) = suffixes(i)
+        end do
+    end subroutine set_command_interpreter_completion_fignore_local
+
+    !> The current buffer's `command_interpreter_completion_fignore': its
+    !> own value, else the global one (empty when unset).  Not a port.
+    function get_command_interpreter_completion_fignore_current(self) result(suffixes)
+        class(command_interpreter_completion_fignore_setting_type), intent(in) :: self
+        character(len=8), allocatable :: suffixes(:)
+        integer :: k
+
+        k = self%get_local_index()
+
+        if (k > 0) then
+            if (allocated(self%locals(k)%suffixes)) suffixes = self%locals(k)%suffixes
+        else if (allocated(self%suffixes)) then
+            suffixes = self%suffixes
         end if
-    end subroutine set_command_interpreter_password_function
+
+        if (.not. allocated(suffixes)) allocate (suffixes(0))
+    end function get_command_interpreter_completion_fignore_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_command_interpreter_completion_fignore_entry(self)
+        class(command_interpreter_completion_fignore_setting_type), intent(inout) :: self
+        type(command_interpreter_completion_fignore_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_command_interpreter_completion_fignore_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_command_interpreter_completion_fignore_entry(self, k)
+        class(command_interpreter_completion_fignore_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%suffixes)) deallocate (self%locals(k)%suffixes)
+    end subroutine clear_command_interpreter_completion_fignore_entry
 
     ! ------------------------------------------------------------------
     ! Small helpers
@@ -2006,11 +2421,25 @@ contains
     subroutine execute_get_old_input(input, status)
         character(len=:), allocatable, intent(out) :: input
         type(status_type), intent(out) :: status
+        procedure(command_interpreter_get_old_input_procedure), pointer :: get_old_input
         integer :: k
 
         call make_local_entry(k)
-        call command_interpreter_buffers(k)%get_old_input(input, status)
+        get_old_input => command_interpreter_get_old_input%get_current()
+        call get_old_input(input, status)
     end subroutine execute_get_old_input
+
+    !> Send STRING to PROCESS with the current buffer's
+    !> `command_interpreter_input_sender'.  Not a port.
+    subroutine execute_input_sender(process, string, status)
+        type(handle_type), intent(in) :: process
+        character(len=*), intent(in) :: string
+        type(status_type), intent(out) :: status
+        procedure(command_interpreter_input_sender_procedure), pointer :: input_sender
+
+        input_sender => command_interpreter_input_sender%get_current()
+        call input_sender(process, string, status)
+    end subroutine execute_input_sender
 
     !> Search forwards through input history for match for REGULAR_EXPRESSION.
     !> (Later history elements are more recent commands.)
@@ -2088,6 +2517,7 @@ contains
         type(status_type) :: st
         integer :: k, size
         logical :: add
+        procedure(command_interpreter_input_filter_procedure), pointer :: input_filter
 
         call make_local_entry(k)
 
@@ -2096,7 +2526,8 @@ contains
             command_interpreter_buffers(k)%has_ring = .true.
         end if
 
-        add = command_interpreter_buffers(k)%input_filter(command)
+        input_filter => command_interpreter_input_filter%get_current()
+        add = input_filter(command)
 
         if (add .and. command_interpreter_input_ignoredups%value .and. .not. command_interpreter_buffers(k)%input_ring%empty_p()) &
             then
@@ -2467,7 +2898,7 @@ contains
         if (present(sender)) then
             call sender(process, input, status)
         else
-            call command_interpreter_buffers(k)%input_sender(process, input, status)
+            call execute_input_sender(process, input, status)
         end if
 
         command_interpreter_input_sender_no_newline = .false.
@@ -5126,6 +5557,7 @@ contains
         character(len=*), intent(in), optional :: prompt
         type(handle_type) :: process, wbuf
         character(len=:), allocatable :: prefix, prefix_prompt, string
+        procedure(command_interpreter_password_procedure), pointer :: password_function
         integer :: k
         logical :: found
 
@@ -5153,9 +5585,10 @@ contains
 
         found = .false.
         call make_local_entry(k)
+        password_function => command_interpreter_password_function%get_current()
 
-        if (associated(command_interpreter_buffers(k)%password_function)) then
-            call command_interpreter_buffers(k)%password_function(prefix_prompt, string, found)
+        if (associated(password_function)) then
+            call password_function(prefix_prompt, string, found)
         end if
 
         if (.not. found) then
@@ -5166,7 +5599,7 @@ contains
         if (found) then
             call command_interpreter_snapshot_last_prompt()
             call make_local_entry(k)
-            call command_interpreter_buffers(k)%input_sender(process, string, status)
+            call execute_input_sender(process, string, status)
         else
             call message("Warning: text will be echoed")
             status = status_type()
@@ -5640,7 +6073,7 @@ contains
         procedure(completion_requote_procedure), pointer :: requote
         character(len=8), allocatable :: fignore(:)
         logical :: saved_case
-        integer :: k, n
+        integer :: n
 
         call quote_functions(unquote, requote)
         table = completion_table_with_quoting(command_interpreter_completion_file_name_table, unquote, requote)
@@ -5648,21 +6081,9 @@ contains
         saved_extensions = completion_ignored_extensions
         completion_ignore_case%value = read_file_name_completion_ignore_case
         completion_ignored_extensions = ""
-        k = entry_of(current)
-
-        if (k /= 0) then
-            if (allocated(command_interpreter_buffers(k)%completion_fignore)) fignore = command_interpreter_buffers( &
-                                                                                        k)%completion_fignore
-        end if
-
-        if (.not. allocated(fignore) .and. allocated(command_interpreter_completion_fignore)) fignore = &
-            command_interpreter_completion_fignore
-
-        if (allocated(fignore)) then
-            n = min(size(fignore), size(completion_ignored_extensions))
-            completion_ignored_extensions(1:n) = fignore(1:n)
-        end if
-
+        fignore = command_interpreter_completion_fignore%get_current()
+        n = min(size(fignore), size(completion_ignored_extensions))
+        completion_ignored_extensions(1:n) = fignore(1:n)
         call quoting_table_call(table, string, action, result, status, test, suffix)
         completion_ignore_case%value = saved_case
         completion_ignored_extensions = saved_extensions
@@ -5673,44 +6094,10 @@ contains
     subroutine quote_functions(unquote, requote)
         procedure(completion_unquote_procedure), pointer, intent(out) :: unquote
         procedure(completion_requote_procedure), pointer, intent(out) :: requote
-        integer :: k
 
-        unquote => command_interpreter_unquote_function
-        requote => command_interpreter_requote_function
-        k = entry_of(current)
-        if (k == 0) return
-        if (associated(command_interpreter_buffers(k)%unquote)) unquote => command_interpreter_buffers(k)%unquote
-        if (associated(command_interpreter_buffers(k)%requote)) requote => command_interpreter_buffers(k)%requote
+        unquote => command_interpreter_unquote_function%get_current()
+        requote => command_interpreter_requote_function%get_current()
     end subroutine quote_functions
-
-    !> Give the current buffer its own `command_interpreter_unquote_function' and
-    !> `command_interpreter_requote_function' (set_local), UNQUOTE and REQUOTE.
-    !> Not a port.
-    subroutine set_command_interpreter_quote_functions(unquote, requote)
-        procedure(completion_unquote_procedure) :: unquote
-        procedure(completion_requote_procedure) :: requote
-        integer :: k
-
-        call make_local_entry(k)
-        command_interpreter_buffers(k)%unquote => unquote
-        command_interpreter_buffers(k)%requote => requote
-    end subroutine set_command_interpreter_quote_functions
-
-    !> Give the current buffer its own `command_interpreter_completion_fignore',
-    !> SUFFIXES (set_local).  Not a port.
-    subroutine set_command_interpreter_completion_fignore(suffixes)
-        character(len=*), intent(in) :: suffixes(:)
-        integer :: k, i
-
-        call make_local_entry(k)
-        if (allocated(command_interpreter_buffers(k)%completion_fignore)) deallocate (command_interpreter_buffers( &
-                                                                                      k)%completion_fignore)
-        allocate (command_interpreter_buffers(k)%completion_fignore(size(suffixes)))
-
-        do i = 1, size(suffixes)
-            command_interpreter_buffers(k)%completion_fignore(i) = suffixes(i)
-        end do
-    end subroutine set_command_interpreter_completion_fignore
 
     ! The FILESUFFIX of `command_interpreter_completion_addsuffix'.  Not a port.
     function file_suffix() result(suffix)
@@ -5981,6 +6368,27 @@ contains
 
         commands%command_interpreter_send_invisible%execute => execute_command_interpreter_send_invisible
         call append_locals_clearer(clear_command_interpreter_locals)
+
+        if (.not. associated(command_interpreter_get_old_input%procedure)) then
+            command_interpreter_get_old_input%procedure => command_interpreter_get_old_input_default
+        end if
+
+        if (.not. associated(command_interpreter_input_sender%procedure)) then
+            command_interpreter_input_sender%procedure => command_interpreter_simple_send
+        end if
+
+        if (.not. associated(command_interpreter_input_filter%procedure)) then
+            command_interpreter_input_filter%procedure => is_command_interpreter_nonblank
+        end if
+
+        if (.not. associated(command_interpreter_unquote_function%procedure)) then
+            command_interpreter_unquote_function%procedure => command_interpreter_unquote_argument
+        end if
+
+        if (.not. associated(command_interpreter_requote_function%procedure)) then
+            command_interpreter_requote_function%procedure => command_interpreter_requote_argument
+        end if
+
         ! Keys:
         call keymap_set(command_interpreter_mode_map, "M-p", "command_interpreter_previous_input", st)
         call keymap_set(command_interpreter_mode_map, "M-n", "command_interpreter_next_input", st)

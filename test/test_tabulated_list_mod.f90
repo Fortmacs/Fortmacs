@@ -38,9 +38,11 @@ module test_tabulated_list_mod
     use text_properties_mod, only: get_text_property
     use bindings_mod, only: initialize_bindings
     use tabulated_list_mod, only: tabulated_list_mode, tabulated_list_column_type, tabulated_list_entry_type, &
-                                  set_tabulated_list_format, set_tabulated_list_entries, set_tabulated_list_padding, &
-                                  tabulated_list_entries, tabulated_list_initialize_header, tabulated_list_print, &
-                                  tabulated_list_sort
+                                  tabulated_list_format, tabulated_list_entries, tabulated_list_padding, &
+                                  tabulated_list_initialize_header, tabulated_list_print, &
+                                  tabulated_list_sort, tabulated_list_use_header_line, tabulated_list_printer, &
+                                  tabulated_list_print_entry, tabulated_list_printer_procedure
+    use data_mod, only: clear_all_local_variables
     implicit none(type, external)
     private
 
@@ -57,7 +59,9 @@ contains
         testsuite = [ &
                     new_unittest("tabulated-list-print", test_print), &
                     new_unittest("tabulated-list-sort", test_sort), &
-                    new_unittest("tabulated-list-header", test_header) &
+                    new_unittest("tabulated-list-header", test_header), &
+                    new_unittest("tabulated-list-entries-procedure", test_entries_procedure), &
+                    new_unittest("tabulated-list-permanent-locals", test_permanent_locals) &
                     ]
     end subroutine collect_tabulated_list_mod
 
@@ -130,10 +134,10 @@ contains
         call set_buffer(h, st)
         call tabulated_list_mode(st)
         call test_entries(entries)
-        call set_tabulated_list_entries(entries)
+        call tabulated_list_entries%set_local(entries)
         call test_format(format)
-        call set_tabulated_list_format(format)
-        call set_tabulated_list_padding(7)
+        call tabulated_list_format%set_local(format)
+        call tabulated_list_padding%set_local(7)
         call tabulated_list_initialize_header()
         call tabulated_list_print(st)
     end subroutine with_buffer
@@ -157,8 +161,8 @@ contains
     subroutine pop_entry()
         type(tabulated_list_entry_type), allocatable :: entries(:)
 
-        entries = tabulated_list_entries()
-        call set_tabulated_list_entries(entries(2:))
+        entries = tabulated_list_entries%get_current()
+        call tabulated_list_entries%set_local(entries(2:))
     end subroutine pop_entry
 
     subroutine test_print(error)
@@ -193,13 +197,13 @@ contains
             if (allocated(error)) exit steps
             ! Check the UPDATE argument
             call pop_entry()
-            entries = tabulated_list_entries()
+            entries = tabulated_list_entries%get_current()
             entries(1)%columns(1)%text = "x"
             entries(1)%columns(2)%text = "x"
             entries(1)%columns(3)%text = "944"
             entries(1)%columns(4)%text = "available"
             entries(1)%columns(5)%text = " XX"
-            call set_tabulated_list_entries(entries)
+            call tabulated_list_entries%set_local(entries)
             call tabulated_list_print(st, remember_position=.true., update=.true.)
             call check(error, buffer_string(), &
                        "       x          x          944       available   XX"//LF// &
@@ -304,4 +308,88 @@ contains
 
         call done(old)
     end subroutine test_header
+
+    ! A `tabulated_list_entries' procedure: the first two test entries.
+    recursive subroutine first_two_entries(entries, status)
+        type(tabulated_list_entry_type), allocatable, intent(out) :: entries(:)
+        type(status_type), intent(out) :: status
+        type(tabulated_list_entry_type), allocatable :: test_list(:)
+
+        status = status_type()
+        call test_entries(test_list)
+        allocate (entries(2))
+        entries(1) = test_list(1)
+        entries(2) = test_list(2)
+    end subroutine first_two_entries
+
+    ! A `tabulated_list_printer' that inserts only the ID.
+    recursive subroutine print_id(entry, status)
+        use insert_delete_mod, only: insert
+        type(tabulated_list_entry_type), intent(in) :: entry
+        type(status_type), intent(out) :: status
+
+        call insert(entry%id//LF, status)
+    end subroutine print_id
+
+    !> `tabulated_list_entries' given a procedure is called to make the
+    !> entries; given an array again, the procedure is forgotten (R6-37).
+    subroutine test_entries_procedure(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        type(tabulated_list_entry_type), allocatable :: entries(:)
+        type(status_type) :: st
+
+        call with_buffer(old)
+
+        steps: block
+            call tabulated_list_entries%set_local(first_two_entries)
+            call tabulated_list_print(st)
+            call check(error, size(tabulated_list_entries%get_current()), 2, "made by the procedure")
+            if (allocated(error)) exit steps
+            call check(error, buffer_string(), &
+                       "       zzzz-game  zzzz-game  2113      installed   play zzzz in Emacs"//LF// &
+                       "       4clojure   4clojure   1507      obsolete    Open and evaluate 4clojure.com questions"//LF)
+            if (allocated(error)) exit steps
+            call test_entries(entries)
+            call tabulated_list_entries%set_local(entries(4:4))
+            call tabulated_list_print(st)
+            call check(error, buffer_string(), &
+                       "       mode       mode       1128      installed   A simple mode for editing Actionscript 3 files"//LF)
+        end block steps
+
+        call done(old)
+    end subroutine test_entries_procedure
+
+    !> Killing the local variables keeps the permanent ones (the format,
+    !> the entries and the padding) and resets `tabulated_list_printer'
+    !> and `tabulated_list_use_header_line'.
+    subroutine test_permanent_locals(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: old
+        procedure(tabulated_list_printer_procedure), pointer :: printer
+        type(status_type) :: st
+
+        call with_buffer(old)
+
+        steps: block
+            call tabulated_list_printer%set_local(print_id)
+            call tabulated_list_use_header_line%set_local(.false.)
+            call tabulated_list_print(st)
+            call check(error, buffer_string(), "zzzz-game"//LF//"4clojure"//LF//"abc-mode"//LF//"mode"//LF, "printer")
+            if (allocated(error)) exit steps
+            call clear_all_local_variables()
+            call check(error, tabulated_list_padding%get_current(), 7, "padding")
+            if (allocated(error)) exit steps
+            call check(error, size(tabulated_list_format%get_current()), 5, "format")
+            if (allocated(error)) exit steps
+            call check(error, size(tabulated_list_entries%get_current()), 4, "entries")
+            if (allocated(error)) exit steps
+            call check(error, tabulated_list_use_header_line%get_current(), "use_header_line")
+            if (allocated(error)) exit steps
+            printer => tabulated_list_printer%get_current()
+            call check(error, associated(printer, tabulated_list_print_entry), "printer cleared")
+        end block steps
+
+        call done(old)
+    end subroutine test_permanent_locals
 end module test_tabulated_list_mod

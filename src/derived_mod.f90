@@ -47,7 +47,7 @@ module derived_mod
     use buffer_mod, only: buffers, current
     use keymap_mod, only: make_sparse_keymap, is_keymap_live, keymap_parent, set_keymap_parent, use_local_map
     use basic_subprograms_mod, only: delay_mode_hooks_begin, delay_mode_hooks_end, execute_mode_hooks
-    use abbreviation_mod, only: abbreviation_table_type, local_abbreviation_table, abbreviation_table_set_local
+    use abbreviation_mod, only: abbreviation_table_type, local_abbreviation_table
     implicit none(type, external)
     private
 
@@ -240,7 +240,7 @@ contains
         end if
 
         if (associated(self%parent) .and. associated(self%abbreviation_table)) then
-            local_table => local_abbreviation_table()
+            local_table => local_abbreviation_table%get_current()
 
             if (.not. allocated(self%abbreviation_table%parents)) then
                 ! This can happen if the major mode defines the abbrev-table
@@ -253,7 +253,7 @@ contains
 
         call use_local_map(self%map, status)
         if (self%syntax_table%index /= 0) buffers(current)%syntax_table = self%syntax_table
-        if (associated(self%abbreviation_table)) call abbreviation_table_set_local(self%abbreviation_table)
+        if (associated(self%abbreviation_table)) call local_abbreviation_table%set_local(self%abbreviation_table)
     end subroutine major_mode_begin
 
     !> End the body of the mode: end the delay and run its mode hooks.
