@@ -614,16 +614,28 @@ module directory_editor_mode_mod
     !> dired-compress-directory-default-suffix.
     character(len=:), allocatable, public :: directory_editor_compress_directory_default_suffix
 
+    !> The files a compression command's Fortran format writes, as the
+    !> elements of a rule's `items': the input file(s) (upstream's %i) and
+    !> the output file (%o).  Not a port.
+    integer, parameter, public :: DIRECTORY_EDITOR_COMPRESS_INPUT = 1, DIRECTORY_EDITOR_COMPRESS_OUTPUT = 2
+
     !> A rule of `directory_editor_compress_file_suffixes': (REGULAR_EXPRESSION NEW-SUFFIX
-    !> PROGRAM), PROGRAM empty for none.
+    !> PROGRAM), PROGRAM empty for none.  With `items', PROGRAM is a
+    !> Fortran format writing the files `items' names in order
+    !> (DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT;
+    !> a file twice is in it twice); without, a command and its switches.
     type, public :: directory_editor_compress_suffix_type
         character(len=:), allocatable :: regular_expression, new_suffix, program
+        integer, allocatable :: items(:)
     end type directory_editor_compress_suffix_type
 
-    !> A rule, with `regular_expression' and `command', of `directory_editor_compress_file_commands' and
-    !> `directory_editor_compress_files_commands'.
+    !> A rule, with `regular_expression', `command' and `items', of
+    !> `directory_editor_compress_file_commands' and
+    !> `directory_editor_compress_files_commands': COMMAND is a Fortran
+    !> format writing the files `items' names in order.
     type, public :: directory_editor_compress_rule_type
         character(len=:), allocatable :: regular_expression, command
+        integer, allocatable :: items(:)
     end type directory_editor_compress_rule_type
 
     !> Control changes in file name suffixes for compression and uncompression.
@@ -635,8 +647,9 @@ module directory_editor_mode_mod
     !> If PROGRAM is not empty, the rule is an uncompression rule,
     !> and uncompression is done by running PROGRAM.
     !>
-    !> Within PROGRAM, %i denotes the input file, and %o denotes the
-    !> output file.
+    !> PROGRAM with `items' is a Fortran format writing the input and
+    !> output files in the order `items' gives
+    !> (DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT).
     !>
     !> Otherwise, the rule is a compression rule, and compression is done with gzip.
     !> ARGUMENTS are command switches passed to PROGRAM.  Port of dired-aux.el
@@ -649,8 +662,10 @@ module directory_editor_mode_mod
     !> archive to which you want to compress, and COMMAND is the
     !> corresponding command.
     !>
-    !> Within COMMAND, %i denotes the input file(s), and %o denotes the
-    !> output file.  %i path(s) are relative, while %o is absolute.
+    !> COMMAND is a Fortran format writing, with `a' edit descriptors, the
+    !> input file(s) and the output file in the order `items' gives
+    !> (DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT).
+    !> The input path(s) are relative, while the output is absolute.
     !> Port of dired-aux.el dired-compress-file-alist.
     type(directory_editor_compress_rule_type), allocatable, public :: directory_editor_compress_file_commands(:)
 
@@ -660,8 +675,10 @@ module directory_editor_mode_mod
     !> archive to which you want to compress, and COMMAND is the
     !> corresponding command.
     !>
-    !> Within COMMAND, %i denotes the input file(s), and %o denotes the
-    !> output file.  %i path(s) are relative, while %o is absolute.
+    !> COMMAND is a Fortran format writing, with `a' edit descriptors, the
+    !> input file(s) and the output file in the order `items' gives
+    !> (DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT).
+    !> The input path(s) are relative, while the output is absolute.
     !> Port of dired-aux.el dired-compress-files-alist.
     type(directory_editor_compress_rule_type), allocatable, public :: directory_editor_compress_files_commands(:)
 

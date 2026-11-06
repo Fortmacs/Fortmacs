@@ -418,17 +418,18 @@ contains
         call check(error, buffer_string(), " 9 a"//newline//"10 b"//newline//"11 c")
         if (allocated(error)) return
         call fresh(h, "a"//newline//"b")
-        call rectangle_number_lines(1_int64, 3_int64, 7_int64, st, "%03d: ")
+        call rectangle_number_lines(1_int64, 3_int64, 7_int64, st, '(i3.3, ": ")')
         call check(error, buffer_string(), "007: a"//newline//"008: b")
         if (allocated(error)) return
         call fresh(h, "a"//newline//"b")
-        call rectangle_number_lines(1_int64, 3_int64, 254_int64, st, "%-4x|%1$#o|%1$c|%%")
-        call check(error, buffer_string(), "fe  |0376|"//char(195)//char(190)//"|%a"//newline// &
-                   "ff  |0377|"//char(195)//char(191)//"|%b")
+        call rectangle_number_lines(1_int64, 3_int64, 254_int64, st, '(z0, "|", 1x)')
+        call check(error, buffer_string(), "FE| a"//newline//"FF| b")
         if (allocated(error)) return
         call fresh(h, "a")
-        call rectangle_number_lines(1_int64, 1_int64, 1_int64, st, "%d %d")
-        call check(error, format_error(st), "Not enough arguments for format string")
+        call rectangle_number_lines(1_int64, 1_int64, 1_int64, st, "%d")
+        call check(error, format_error(st), "Invalid format string: %d")
+        if (allocated(error)) return
+        call check(error, buffer_string(), "a")
         call close_buffer(h, st)
     end subroutine test_number_lines
 

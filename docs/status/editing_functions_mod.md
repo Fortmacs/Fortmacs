@@ -59,18 +59,9 @@ step 42f chunk 2: `transpose-regions` (`transpose_markers`; undo through undo.c 
 save-excursion as `save_excursion_begin`/`save_excursion_end` with `type(excursion_type)` (`save_excursion_save`, `save_excursion_restore`: the selected window's point too),
 save-restriction as `save_restriction_begin`/`save_restriction_end` with `type(restriction_type)` (`save_restriction_save(_1)`, `save_restriction_restore(_1)`, `labeled_restrictions_save`/`_restore`: copies of the labeled restrictions with markers of their own),
 the labeled restrictions (`labeled_restrictions` as an array of `labeled_restriction_type` records with a character label and an `outermost` flag; `labeled_restrictions_add`, `_remove`, `_get_bound`, `_peek_label` (the index of the innermost), `_push`, `_pop`, `_remove_in_current_buffer`, `internal--labeled-narrow-to-region`, `internal--labeled-widen`, `labeled_narrow_to_region` as `labeled_narrow_to_region_begin`/`_end` (with fileio.c `restore_point_unwind`), `reset_outermost_restrictions` and `unwind_reset_outermost_restriction` as `reset_outermost_restrictions_begin`/`_end` around redisplay_internal; `narrow-to-region` and `widen` keep within them);
-step 42f chunk 3: `format` (as `format_text`, R6-47: FORMAT is a Fortran statement, and gfortran rejects a local variable named like a use-associated generic; since 2026-11-06 kept only for the format strings users give at run time, keyboard_macros_mod's counter formats and rectangle_mod's line-number format, which await the owner's decision; tools/intrinsics.awk's percent-format rule baselines them): %s %S %d %i %o %x %X %b %B %c %e %f %g %%,
-field width,
-precision,
-the flags # 0 - + and space,
-%N$ field numbers (`str2num`; 0 is the format string itself),
-integers,
-real64 values (%d of a real truncated, %o/%x/%b of reals beyond 64 bits exactly) and values (strings with their text properties, names, lists),
-the text properties of the format string moved to where their text went and those of %s/%S arguments extended over their right padding,
-the arguments as a `format_arguments_type` built with `%append` (an integer, a real64, a string or a value): `call format_text("%d %s", arguments, text, status)`,
-generic over a character format string (the text) and a string value (with text properties);
+`write_with_format`: an integer, or strings in order, written with a Fortran format the user types (skeleton prompts, `completing_read_multiple_prompt`, `css_lookup_url_format`, the dired compression commands, keyboard_macros_mod's counter formats, rectangle_mod's line-number format; a malformed format is an `error` through STATUS; panel, 2026-11-06, not a port);
 `message` (in display_engine_mod) shows its text as it is;
-Not applicable: `format-message` and `message`'s format arguments: text is built with `write` (owner, 2026-11-06; quotes are curved with error_mod's `substitute_quotes`, help.el:substitute-quotes),
+Not applicable: `format`, `format-message` and `message`'s format arguments: text is built with `write` (owner, 2026-11-06; the port of step 42f chunk 3 is gone; quotes are curved with error_mod's `substitute_quotes`, help.el:substitute-quotes),
 `propertize` (text_properties_mod) reports an odd number of properties as `wrong-number-of-arguments` (new error code) through an optional STATUS
 
 ## Deferred
@@ -80,8 +71,6 @@ subr.el `with-restriction` and `without-restriction` (and `internal--with-restri
 buffer.c `erase-buffer` and the other callers of `labeled_restrictions_remove_in_current_buffer` (buffer_mod is below editing_functions_mod),
 long-line optimizations (the labels upstream uses),
 the private save-excursion and save-restriction copies in other modules (to migrate in a follow-up),
-unibyte format strings and arguments ("Invalid format operation char #o%03o"),
-the `composition` property copy between arguments (`make_composition_value_copy`),
 `text-quoting-style` (`substitute_quotes` always curves),
 the message's text properties in the echo area,
 `inhibit-message`,
@@ -95,9 +84,9 @@ the text properties of `buffer-string` (its function form gives the text; `buffe
 
 ## Tests
 
-test_editing_functions_mod (ports find-fields, test-group-name, transpose-ascii-regions-test, transpose-nonascii-regions-test-1 and -2, editfns-tests--transpose-equal-but-not, editfns-tests--transpose-regions (the undo checked on the text: undo records keep no text properties), editfns-tests--bug76124, test-translate-region-internal; own: the insert family, buffer-substring's properties, field-string, compare-buffer-substrings, the character functions, ngettext, emacs-pid, group-real-gid, current-message, transpose errors, string translation tables, save-excursion, save-restriction, labeled restrictions; step 42f chunk 3 ports format-properties (list and string property values as names: properties compare with `eq`), propertize/error-even-number-of-args, format-c-float, format-binary-zero, format-binary-floats, format-binary-nonzero-integers (int64 values), format-sharp-0-x, format-%d-float, format-%d-large-float, format-%x-large-float, format-%o-negative-float, format-with-field, editfns-tests-styled-print (strings for the vector and the unreadable function); own: format-conversions, substitute-quotes),
+test_editing_functions_mod (ports find-fields, test-group-name, transpose-ascii-regions-test, transpose-nonascii-regions-test-1 and -2, editfns-tests--transpose-equal-but-not, editfns-tests--transpose-regions (the undo checked on the text: undo records keep no text properties), editfns-tests--bug76124, test-translate-region-internal; own: the insert family, buffer-substring's properties, field-string, compare-buffer-substrings, the character functions, ngettext, emacs-pid, group-real-gid, current-message, transpose errors, string translation tables, save-excursion, save-restriction, labeled restrictions, write-with-format, substitute-quotes; also ports propertize/error-even-number-of-args),
 test_insert_delete_mod (the change-hook cases),
 test_editing_commands_mod (own);
-format-bignum and the bignum cases are not applicable (no integers beyond int64),
+the format tests (format-properties, format-c-float, format-binary-*, format-sharp-0-x, format-%d-float, format-%d-large-float, format-%x-large-float, format-%o-negative-float, format-with-field, editfns-tests-styled-print, format-bignum) are not applicable (text is built with write),
 delete-region-undo-markers-1 needs the undo marker adjustments,
 the rest `replace-region-contents`

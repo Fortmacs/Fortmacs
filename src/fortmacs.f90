@@ -332,7 +332,8 @@ module fortmacs
                                          directory_editor_compress_directory_default_suffix, &
                                          directory_editor_compress_suffix_type, directory_editor_compress_rule_type, &
                                          directory_editor_compress_file_suffixes, directory_editor_compress_file_commands, &
-                                         directory_editor_compress_files_commands
+                                         directory_editor_compress_files_commands, &
+                                         DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT
     use files_mod, only: copy_directory, copy_directory_create_symlink, view_read_only, find_file_read_only, &
                          find_file_read_only_other_window, create_empty_file, file_modes_symbolic_to_number, &
                          file_modes_number_to_symbolic
@@ -651,7 +652,9 @@ module fortmacs
                             holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, &
                             calendar_holidays, holidays, list_holidays
     use completing_read_multiple_mod, only: completing_read_multiple, completing_read_multiple_separator, &
-                                            completing_read_multiple_prompt, completing_read_multiple_local_completion_map, &
+                                            completing_read_multiple_prompt, COMPLETING_READ_MULTIPLE_PROMPT_DESCRIPTION, &
+                                            COMPLETING_READ_MULTIPLE_PROMPT_SEPARATOR, COMPLETING_READ_MULTIPLE_PROMPT_ORIGINAL, &
+                                            completing_read_multiple_local_completion_map, &
                                             completing_read_multiple_local_must_match_map
     use buffer_menu_mod, only: buffer_menu_marker_character, buffer_menu_delete_character, buffer_menu_use_header_line, &
                                buffer_menu_name_width, buffer_menu_name_width_procedure, &
@@ -1250,6 +1253,8 @@ module fortmacs
               holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, calendar_holidays, holidays, &
               list_holidays
     public :: completing_read_multiple, completing_read_multiple_separator, completing_read_multiple_prompt, &
+              COMPLETING_READ_MULTIPLE_PROMPT_DESCRIPTION, COMPLETING_READ_MULTIPLE_PROMPT_SEPARATOR, &
+              COMPLETING_READ_MULTIPLE_PROMPT_ORIGINAL, &
               completing_read_multiple_local_completion_map, completing_read_multiple_local_must_match_map
     public :: buffer_menu_marker_character, buffer_menu_delete_character, buffer_menu_use_header_line, buffer_menu_name_width, &
               buffer_menu_name_width_procedure, buffer_menu_dynamic_name_width, &
@@ -1341,7 +1346,7 @@ module fortmacs
               directory_editor_compress_suffix_type, &
               directory_editor_compress_rule_type, directory_editor_compress_file_suffixes, &
               directory_editor_compress_file_commands, &
-              directory_editor_compress_files_commands
+              directory_editor_compress_files_commands, DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT
     public :: copy_directory, copy_directory_create_symlink, view_read_only, find_file_read_only, &
               find_file_read_only_other_window, create_empty_file, file_modes_symbolic_to_number, &
               file_modes_number_to_symbolic, copy_file, rename_file, add_name_to_file, create_symbolic_link, &

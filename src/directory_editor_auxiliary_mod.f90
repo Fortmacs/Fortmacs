@@ -74,7 +74,7 @@ submodule(directory_editor_mode_mod) directory_editor_auxiliary_mod
     use print_mod, only: fortran_text
     use diff_mod, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
     use minibuffer_mod, only: REQUIRE_MATCH_YES
-    use editing_functions_mod, only: mark_position, ngettext
+    use editing_functions_mod, only: mark_position, ngettext, write_with_format
     use buffer_mod, only: transient_mark_mode
     use files_mod, only: file_name_sans_versions
     use string_type_mod, only: string_type, append_string, prepend_string
@@ -1467,16 +1467,36 @@ contains
         end if
     end function aux_shell_file_name
 
-    !> COMMAND with every %i replaced by I and every %o by O, literally
-    !> (the replace-regexp-in-string calls of dired-compress-file).
-    !> Not a port.
-    function replace_input_output(command, i, o) result(s)
-        character(len=*), intent(in) :: command, i, o
-        character(len=:), allocatable :: s, t
+    !> COMMAND, the Fortran format of a compression rule, written with the
+    !> files ITEMS name in order: INPUT for DIRECTORY_EDITOR_COMPRESS_INPUT,
+    !> OUTPUT for DIRECTORY_EDITOR_COMPRESS_OUTPUT (upstream's %i and %o).
+    !> Not a port: the replace-regexp-in-string calls of dired-compress-file
+    !> and the format-spec of dired-do-compress-to (panel and owner,
+    !> 2026-11-06).
+    subroutine write_compress_command(command, items, input, output, text, status)
+        character(len=*), intent(in) :: command, input, output
+        integer, allocatable, intent(in) :: items(:)
+        character(len=:), allocatable, intent(out) :: text
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: files(:)
+        integer :: k
 
-        t = replace_all(command, "%i", i)
-        s = replace_all(t, "%o", o)
-    end function replace_input_output
+        if (allocated(items)) then
+            allocate (files(size(items)))
+        else
+            allocate (files(0))
+        end if
+
+        do k = 1, size(files)
+            if (items(k) == DIRECTORY_EDITOR_COMPRESS_INPUT) then
+                files(k)%text = input
+            else
+                files(k)%text = output
+            end if
+        end do
+
+        call write_with_format(command, files, text, status)
+    end subroutine write_compress_command
 
     !> TEXT with every occurrence of FROM replaced by TO, left to right.
     !> Not a port.
@@ -1499,7 +1519,7 @@ contains
     end function replace_all
 
     module procedure directory_editor_compress_file
-    character(len=:), allocatable :: command, suffix, out_name, directory_saved, message
+    character(len=:), allocatable :: command, suffix, out_name, directory_saved, message, written
     type(string_type), allocatable :: arguments(:)
     type(value_type) :: res
     type(status_type) :: st
@@ -1536,14 +1556,19 @@ contains
     if (rule > 0) then
         if (len(directory_editor_compress_file_suffixes(rule)%program) > 0) then
             command = directory_editor_compress_file_suffixes(rule)%program
-            matched = index(command, "%i") > 0 .or. index(command, "%o") > 0
+            matched = .false.
+
+            if (allocated(directory_editor_compress_file_suffixes(rule)%items)) then
+                matched = size(directory_editor_compress_file_suffixes(rule)%items) > 0
+            end if
 
             if (matched) then
                 newname = file_name_as_directory(newname)
                 found = .true.
-                call directory_editor_shell_command(replace_input_output(command, shell_quote_argument(file), &
-                                                                         shell_quote_argument(newname)), &
-                                                    res, status)
+                call write_compress_command(command, directory_editor_compress_file_suffixes(rule)%items, &
+                                            shell_quote_argument(file), shell_quote_argument(newname), written, status)
+                if (.not. status%ok()) return
+                call directory_editor_shell_command(written, res, status)
                 return
             end if
 
@@ -1583,9 +1608,11 @@ contains
         out_name = file//suffix
         directory_saved = aux_default_directory()
         buffers(current)%directory = file_name_directory(file)
-        call directory_editor_shell_command(replace_input_output(directory_editor_compress_files_commands(k)%command, &
-                                                                 shell_quote_argument(file_name_nondirectory(file)), &
-                                                                 shell_quote_argument(out_name)), res, status)
+        call write_compress_command(directory_editor_compress_files_commands(k)%command, &
+                                    directory_editor_compress_files_commands(k)%items, &
+                                    shell_quote_argument(file_name_nondirectory(file)), shell_quote_argument(out_name), written, &
+                                    status)
+        if (status%ok()) call directory_editor_shell_command(written, res, status)
         buffers(current)%directory = directory_saved
 
         if (.not. status%ok()) then
@@ -1618,9 +1645,11 @@ contains
         if (.not. answer) return
     end if
 
-    call directory_editor_shell_command(replace_input_output(directory_editor_compress_file_commands(k)%command, &
-                                                             shell_quote_argument(file), &
-                                                             shell_quote_argument(out_name)), res, status)
+    call write_compress_command(directory_editor_compress_file_commands(k)%command, &
+                                directory_editor_compress_file_commands(k)%items, &
+                                shell_quote_argument(file), shell_quote_argument(out_name), written, status)
+    if (.not. status%ok()) return
+    call directory_editor_shell_command(written, res, status)
 
     if (.not. status%ok()) then
         if (condition_matches(status%code, FILE_ERROR_CODE)) call compress_with_compress()
@@ -1838,113 +1867,6 @@ contains
         call directory_editor_do_compress(kind, n, status)
     end subroutine execute_directory_editor_do_compress
 
-    !> FMT with %o replaced by O and %i by I, as format-spec does with
-    !> the specification ((?o . O) (?i . I)): flags, width and precision
-    !> are honored, %% is a %.  Port of format-spec.el:format-spec (no
-    !> IGNORE-MISSING or SPLIT).
-    subroutine format_specification_input_output(fmt, o, i, result, status)
-        character(len=*), intent(in) :: fmt, o, i
-        character(len=:), allocatable, intent(out) :: result
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: flags, value
-        integer :: k, j, width, precision
-
-        status = status_type()
-        result = ""
-        k = 1
-
-        do while (k <= len(fmt))
-            if (fmt(k:k) /= "%") then
-                result = result//fmt(k:k)
-                k = k + 1
-                cycle
-            end if
-
-            j = k + 1
-
-            if (j <= len(fmt)) then
-                if (fmt(j:j) == "%") then
-                    result = result//"%"
-                    k = j + 1
-                    cycle
-                end if
-            end if
-
-            flags = ""
-
-            do while (j <= len(fmt))
-                if (index("-0 ^_<>", fmt(j:j)) == 0) exit
-                flags = flags//fmt(j:j)
-                j = j + 1
-            end do
-
-            width = -1
-
-            do while (j <= len(fmt))
-                if (index("0123456789", fmt(j:j)) == 0) exit
-                if (width < 0) width = 0
-                width = width*10 + iachar(fmt(j:j)) - iachar("0")
-                j = j + 1
-            end do
-
-            precision = -1
-
-            if (j <= len(fmt)) then
-                if (fmt(j:j) == ".") then
-                    j = j + 1
-                    precision = 0
-
-                    do while (j <= len(fmt))
-                        if (index("0123456789", fmt(j:j)) == 0) exit
-                        precision = precision*10 + iachar(fmt(j:j)) - iachar("0")
-                        j = j + 1
-                    end do
-                end if
-            end if
-
-            if (j > len(fmt)) then
-                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Invalid format string"))
-                return
-            end if
-
-            select case (fmt(j:j))
-            case ("o")
-                value = o
-            case ("i")
-                value = i
-            case default
-                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Invalid format character: `%")//fmt(j:j)// &
-                               substitute_quotes("'"))
-                return
-            end select
-
-            if (precision >= 0 .and. len(value) > precision) value = value(1:precision)
-            if (index(flags, "^") > 0) value = upcase_string(value)
-            if (index(flags, "_") > 0) value = downcase_string(value)
-
-            if (width >= 0 .and. len(value) > width) then
-                if (index(flags, "<") > 0) then
-                    value = value(len(value) - width + 1:)
-                else if (index(flags, ">") > 0) then
-                    value = value(1:width)
-                end if
-            end if
-
-            if (width > len(value)) then
-                if (index(flags, "-") > 0) then
-                    value = value//repeat(" ", width - len(value))
-                else if (index(flags, "0") > 0) then
-                    value = repeat("0", width - len(value))//value
-                else
-                    value = repeat(" ", width - len(value))//value
-                end if
-            end if
-
-            result = result//value
-            k = j + 1
-        end do
-    end subroutine format_specification_input_output
-
     module procedure directory_editor_do_compress_to
     type(string_type), allocatable :: in_files(:)
     character(len=:), allocatable :: out_file, input, ins, command
@@ -1991,8 +1913,10 @@ contains
         ins = ins//shell_quote_argument(file_relative_name(in_files(k)%text))
     end do
 
-    call format_specification_input_output(directory_editor_compress_files_commands(rule)%command, shell_quote_argument(out_file), &
-                                           ins, command, status)
+    call write_compress_command(directory_editor_compress_files_commands(rule)%command, &
+                                directory_editor_compress_files_commands(rule)%items, ins, shell_quote_argument(out_file), &
+                                command, &
+                                status)
     if (.not. status%ok()) return
     call directory_editor_shell_command(command, res, status)
     if (.not. status%ok()) return
@@ -3845,31 +3769,39 @@ contains
         end do
     end function find_on_path
 
-    !> Add a rule to `directory_editor_compress_file_suffixes'.  Not a port.
-    subroutine append_compress_suffix(regular_expression, new_suffix, program)
+    !> Add a rule to `directory_editor_compress_file_suffixes'; with ITEMS,
+    !> PROGRAM is a Fortran format writing those files.  Not a port.
+    subroutine append_compress_suffix(regular_expression, new_suffix, program, items)
         character(len=*), intent(in) :: regular_expression, new_suffix, program
+        integer, intent(in), optional :: items(:)
         type(directory_editor_compress_suffix_type) :: suffix
 
         suffix%regular_expression = regular_expression
         suffix%new_suffix = new_suffix
         suffix%program = program
+        if (present(items)) suffix%items = items
         directory_editor_compress_file_suffixes = [directory_editor_compress_file_suffixes, suffix]
     end subroutine append_compress_suffix
 
-    !> Add a rule with REGULAR_EXPRESSION and COMMAND to TABLE.  Not a port.
-    subroutine append_compress_rule(table, regular_expression, command)
+    !> Add a rule with REGULAR_EXPRESSION, COMMAND (a Fortran format) and
+    !> ITEMS (the files it writes) to TABLE.  Not a port.
+    subroutine append_compress_rule(table, regular_expression, command, items)
         type(directory_editor_compress_rule_type), allocatable, intent(inout) :: table(:)
         character(len=*), intent(in) :: regular_expression, command
+        integer, intent(in) :: items(:)
         type(directory_editor_compress_rule_type) :: rule
 
         rule%regular_expression = regular_expression
         rule%command = command
+        rule%items = items
         table = [table, rule]
     end subroutine append_compress_rule
 
     !> Give the dired-aux.el options that are not set yet their standard
     !> values.  Not a port.
     subroutine initialize_directory_editor_aux_options()
+        integer, parameter :: INPUT = DIRECTORY_EDITOR_COMPRESS_INPUT, OUTPUT = DIRECTORY_EDITOR_COMPRESS_OUTPUT
+
         if (.not. allocated(directory_editor_chown_program)) then
             ! (cond ((executable-find "chown") "chown") ...)
             if (len(find_on_path("chown")) > 0) then
@@ -3895,9 +3827,9 @@ contains
             ! "tar -zxf" isn't used because it's not available on the
             ! Solaris 10 version of tar (obsolete in 2024?).
             ! Same thing on AIX 7.1 (obsolete 2023?) and 7.2 (obsolete 2022?).
-            call append_compress_suffix("\.tar\.gz\'", "", "gzip -dc %i | tar -xf -")
-            call append_compress_suffix("\.tar\.xz\'", "", "xz -dc %i | tar -xf -")
-            call append_compress_suffix("\.tgz\'", "", "gzip -dc %i | tar -xf -")
+            call append_compress_suffix("\.tar\.gz\'", "", '("gzip -dc ", a, " | tar -xf -")', [INPUT])
+            call append_compress_suffix("\.tar\.xz\'", "", '("xz -dc ", a, " | tar -xf -")', [INPUT])
+            call append_compress_suffix("\.tgz\'", "", '("gzip -dc ", a, " | tar -xf -")', [INPUT])
             call append_compress_suffix("\.gz\'", "", "gzip -d")
             call append_compress_suffix("\.lz\'", "", "lzip -d")
             call append_compress_suffix("\.Z\'", "", "uncompress")
@@ -3908,33 +3840,42 @@ contains
             call append_compress_suffix("\.tbz\'", ".tar", "bunzip2")
             call append_compress_suffix("\.bz2\'", "", "bunzip2")
             call append_compress_suffix("\.xz\'", "", "unxz")
-            call append_compress_suffix("\.zip\'", "", "unzip -o -d %o %i")
-            call append_compress_suffix("\.tar\.zst\'", "", "unzstd -c %i | tar -xf -")
-            call append_compress_suffix("\.tzst\'", "", "unzstd -c %i | tar -xf -")
+            call append_compress_suffix("\.zip\'", "", '("unzip -o -d ", a, " ", a)', [OUTPUT, INPUT])
+            call append_compress_suffix("\.tar\.zst\'", "", '("unzstd -c ", a, " | tar -xf -")', [INPUT])
+            call append_compress_suffix("\.tzst\'", "", '("unzstd -c ", a, " | tar -xf -")', [INPUT])
             call append_compress_suffix("\.zst\'", "", "unzstd --rm")
-            call append_compress_suffix("\.7z\'", "", "7z x -aoa -o%o %i")
+            call append_compress_suffix("\.7z\'", "", '("7z x -aoa -o", a, " ", a)', [OUTPUT, INPUT])
             ! This item controls naming for compression.
             call append_compress_suffix("\.tar\'", ".tgz", "")
         end if
 
         if (.not. allocated(directory_editor_compress_file_commands)) then
             allocate (directory_editor_compress_file_commands(0))
-            call append_compress_rule(directory_editor_compress_file_commands, "\.gz\'", "gzip -9f %i")
-            call append_compress_rule(directory_editor_compress_file_commands, "\.bz2\'", "bzip2 -9f %i")
-            call append_compress_rule(directory_editor_compress_file_commands, "\.xz\'", "xz -9f %i")
-            call append_compress_rule(directory_editor_compress_file_commands, "\.zst\'", "zstd -qf -19 --rm -o %o %i")
+            call append_compress_rule(directory_editor_compress_file_commands, "\.gz\'", '("gzip -9f ", a)', [INPUT])
+            call append_compress_rule(directory_editor_compress_file_commands, "\.bz2\'", '("bzip2 -9f ", a)', [INPUT])
+            call append_compress_rule(directory_editor_compress_file_commands, "\.xz\'", '("xz -9f ", a)', [INPUT])
+            call append_compress_rule(directory_editor_compress_file_commands, "\.zst\'", &
+                                      '("zstd -qf -19 --rm -o ", a, " ", a)', [OUTPUT, INPUT])
         end if
 
         if (.not. allocated(directory_editor_compress_files_commands)) then
             allocate (directory_editor_compress_files_commands(0))
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.gz\'", "tar -cf - %i | gzip -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.bz2\'", "tar -cf - %i | bzip2 -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.xz\'", "tar -cf - %i | xz -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.zst\'", "tar -cf - %i | zstd -19 -o %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.lz\'", "tar -cf - %i | lzip -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.lzo\'", "tar -cf - %i | lzop -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.zip\'", "zip %o -r --filesync %i")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.pax\'", "pax -wf %o %i")
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.gz\'", &
+                                      '("tar -cf - ", a, " | gzip -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.bz2\'", &
+                                      '("tar -cf - ", a, " | bzip2 -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.xz\'", &
+                                      '("tar -cf - ", a, " | xz -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.zst\'", &
+                                      '("tar -cf - ", a, " | zstd -19 -o ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.lz\'", &
+                                      '("tar -cf - ", a, " | lzip -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.lzo\'", &
+                                      '("tar -cf - ", a, " | lzop -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.zip\'", &
+                                      '("zip ", a, " -r --filesync ", a)', [OUTPUT, INPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.pax\'", '("pax -wf ", a, " ", a)', [OUTPUT, &
+                                                                                                                       INPUT])
         end if
     end subroutine initialize_directory_editor_aux_options
 

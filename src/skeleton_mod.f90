@@ -39,7 +39,7 @@
 !>
 !>     [skeleton_prompt("condition: "), SKELETON_INDENT, skeleton_text("if "), SKELETON_STRING, &
 !>      skeleton_text("; then"), SKELETON_NEWLINE, SKELETON_INDENT, SKELETON_POINT, SKELETON_NEWLINE, &
-!>      skeleton_prompt("other condition, %s: "), SKELETON_INDENT, skeleton_text("elif "), SKELETON_STRING, &
+!>      skeleton_prompt(format='("other condition, ", a, ": ")'), SKELETON_INDENT, skeleton_text("elif "), SKELETON_STRING, &
 !>      skeleton_text("; then"), SKELETON_INDENT, SKELETON_NEWLINE, SKELETON_INDENT, SKELETON_NEWLINE, SKELETON_END, &
 !>      skeleton_text("else"), SKELETON_INDENT, SKELETON_NEWLINE, SKELETON_INDENT, SKELETON_NEWLINE, SKELETON_RESUME, &
 !>      skeleton_text("fi"), SKELETON_INDENT, SKELETON_NEWLINE]
@@ -69,7 +69,9 @@ module skeleton_mod
     use execute_interactively_mod, only: prefix_argument_type, current_prefix_argument, prefix_numeric_value, PREFIX_NONE, &
                                          PREFIX_NUMBER
     use editing_functions_mod, only: point, goto_character, is_beginning_of_line, is_end_of_line, line_beginning_position, &
-                                     line_end_position, buffer_substring, delete_region, preceding_character, character_to_string
+                                     line_end_position, buffer_substring, delete_region, preceding_character, character_to_string, &
+                                     write_with_format
+    use string_type_mod, only: string_type
     use editing_commands_mod, only: delete_character, end_of_line, self_insert_command
     use insert_delete_mod, only: insert
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
@@ -159,6 +161,9 @@ module skeleton_mod
         !> The characters to delete, or the number of strings.
         integer :: count = 0
         integer :: lengths(SKELETON_STRINGS_MAXIMUM) = 0
+        !> For a prompt: the text is a Fortran format given
+        !> `skeleton_subprompt' as its one `a' item (`skeleton_prompt(format=...)').
+        logical :: prompt_format = .false.
         procedure(skeleton_action_procedure), pointer, nopass :: action => null()
         procedure(skeleton_value_procedure), pointer, nopass :: value => null()
         procedure(skeleton_read_procedure), pointer, nopass :: read => null()
@@ -405,7 +410,8 @@ module skeleton_mod
     !> null for none; `%set_local' gives a buffer its own).
     type(skeleton_further_elements_setting_type), public :: skeleton_further_elements
 
-    !> Replacement for %s in prompts of recursive subskeletons.  Port of
+    !> What the `a' edit descriptor of a prompt format writes in recursive
+    !> subskeletons (`skeleton_prompt(format=...)').  Port of
     !> skeleton.el skeleton-subprompt.
     character(len=:), allocatable, public :: skeleton_subprompt
 
@@ -531,13 +537,21 @@ contains
         element%count = count
     end function skeleton_delete
 
-    !> An interactor reading the string with PROMPT, in which %s stands for
-    !> `skeleton_subprompt'.  Not a port.
-    function skeleton_prompt(prompt) result(element)
-        character(len=*), intent(in) :: prompt
+    !> An interactor reading the string with PROMPT, or with the prompt
+    !> that FORMAT, a Fortran format, writes with `skeleton_subprompt' as
+    !> its one `a' item (`skeleton_prompt(format='("pattern, ", a, ": ")')',
+    !> upstream's "pattern, %s: ").  Not a port.
+    function skeleton_prompt(prompt, format) result(element)
+        character(len=*), intent(in), optional :: prompt, format
         type(skeleton_element_type) :: element
 
-        element = skeleton_text(prompt)
+        if (present(format)) then
+            element = skeleton_text(format)
+            element%prompt_format = .true.
+        else
+            element = skeleton_text(prompt)
+        end if
+
         element%kind = KIND_INTERACTOR
         element%interactor = INTERACTOR_PROMPT
     end function skeleton_prompt
@@ -992,8 +1006,9 @@ contains
     !> The SKELETON is processed as often as the user enters a non-empty
     !> string.  \[keyboard_quit] terminates skeleton insertion, but continues
     !> after SKELETON_RESUME and positions at SKELETON_POINT if any.  If
-    !> INTERACTOR in such a subskeleton is a prompt which contains a ".. %s
-    !> .." it is formatted with `skeleton_subprompt'.  Such an INTERACTOR may
+    !> INTERACTOR in such a subskeleton is a prompt given as a Fortran format
+    !> (`skeleton_prompt(format=...)'), it writes `skeleton_subprompt' with
+    !> its `a' edit descriptor.  Such an INTERACTOR may
     !> also be a list of strings (`skeleton_for_each') with the subskeleton
     !> being repeated once for each string.
     !>
@@ -1201,26 +1216,39 @@ contains
     !> Function for reading a string from the minibuffer within skeletons.
     !>
     !> PROMPT must be a string, or READER a procedure that returns a string.
-    !> PROMPT may contain a `%s' which will be replaced by `skeleton_subprompt'.
+    !> FORMAT, in place of PROMPT, is a Fortran format that writes the
+    !> prompt with `skeleton_subprompt' as its one `a' item.
     !> If INITIAL_INPUT or `skeleton_state%initial_input' is present, it is
     !> inserted before reading.  If RECURSIVE is true, i.e. we are handling the
     !> iterator of a subskeleton, a quit occurs (with the status detail
     !> SKELETON_QUIT_ITERATION) if
     !> the user didn't modify input.  Port of skeleton.el:skeleton-read.
-    recursive subroutine skeleton_read(result, status, prompt, reader, initial_input, recursive)
+    recursive subroutine skeleton_read(result, status, prompt, reader, initial_input, recursive, format)
         character(len=:), allocatable, intent(out) :: result
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: prompt
         procedure(skeleton_read_procedure), optional :: reader
         character(len=*), intent(in), optional :: initial_input
         logical, intent(in), optional :: recursive
-        character(len=:), allocatable :: initial
+        character(len=*), intent(in), optional :: format
+        character(len=:), allocatable :: initial, prompt_text
+        type(string_type) :: subprompt(1)
         logical :: at_end_of_line, quit
         type(status_type) :: st
         type(handle_type) :: original_point
         integer(int64) :: position_value
 
         status = status_type()
+
+        if (present(format)) then
+            if (.not. allocated(skeleton_subprompt)) call initialize_subprompt()
+            subprompt(1)%text = skeleton_subprompt
+            call write_with_format(format, subprompt, prompt_text, status)
+            if (.not. status%ok()) return
+        else if (present(prompt)) then
+            prompt_text = prompt
+        end if
+
         at_end_of_line = is_end_of_line()
 
         ! since Emacs doesn't show main window's cursor, do something noticeable
@@ -1231,7 +1259,7 @@ contains
 
         if (present(initial_input)) initial = initial_input
 
-        if (present(prompt)) then
+        if (allocated(prompt_text)) then
             ! The user may issue commands to move around (like `C-M-v').
             ! Ensure that we insert the skeleton at the correct (initial) point.
             if (.not. allocated(initial)) then
@@ -1242,13 +1270,13 @@ contains
 
             if (allocated(initial)) then
                 if (present(initial_input) .or. skeleton_state%initial_position == 0) then
-                    call read_string(format_subprompt(prompt), result, status, initial_input=initial)
+                    call read_string(prompt_text, result, status, initial_input=initial)
                 else
-                    call read_string(format_subprompt(prompt), result, status, initial_input=initial, &
+                    call read_string(prompt_text, result, status, initial_input=initial, &
                                      position=skeleton_state%initial_position)
                 end if
             else
-                call read_string(format_subprompt(prompt), result, status)
+                call read_string(prompt_text, result, status)
             end if
 
             call marker_position(original_point, position_value, st)
@@ -1274,38 +1302,6 @@ contains
             end if
         end if
     end subroutine skeleton_read
-
-    ! PROMPT with its first %s replaced by `skeleton_subprompt' and %% by
-    ! %, as (format PROMPT skeleton-subprompt).  Not a port.
-    function format_subprompt(prompt) result(out)
-        character(len=*), intent(in) :: prompt
-        character(len=:), allocatable :: out
-        logical :: used
-        integer :: i
-
-        if (.not. allocated(skeleton_subprompt)) call initialize_subprompt()
-        out = ""
-        used = .false.
-        i = 1
-
-        do while (i <= len(prompt))
-            if (prompt(i:i) == "%" .and. i < len(prompt)) then
-                if (prompt(i + 1:i + 1) == "s" .and. .not. used) then
-                    out = out//skeleton_subprompt
-                    used = .true.
-                    i = i + 2
-                    cycle
-                else if (prompt(i + 1:i + 1) == "%") then
-                    out = out//"%"
-                    i = i + 2
-                    cycle
-                end if
-            end if
-
-            out = out//prompt(i:i)
-            i = i + 1
-        end do
-    end function format_subprompt
 
     ! The elements of the list from FIRST to LAST of SKELETON: FIRST is its
     ! interactor.  STRING is the value of string (absent: read according to the
@@ -1691,7 +1687,11 @@ contains
 
         select case (interactor%interactor)
         case (INTERACTOR_PROMPT)
-            call skeleton_read(string, status, prompt=text_of(interactor), recursive=skeleton_state%recursive)
+            if (interactor%prompt_format) then
+                call skeleton_read(string, status, recursive=skeleton_state%recursive, format=text_of(interactor))
+            else
+                call skeleton_read(string, status, prompt=text_of(interactor), recursive=skeleton_state%recursive)
+            end if
         case (INTERACTOR_PROCEDURE)
             call skeleton_read(string, status, reader=interactor%read, recursive=skeleton_state%recursive)
         case default

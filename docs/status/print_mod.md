@@ -10,7 +10,7 @@
 `fortran_text` and `fortran_string` (ours: values as Fortran for help and error messages);
 `prin1-to-string`'s NOESCAPE (`princ` on strings: `readable_text(object, noescape=.true.)`),
 `float_to_string` (real64 values: dtoastr's shortest digits, `1.0e+INF`, `0.0e+NaN`),
-`sprintf_float` (C's %e %f %g with flags, exact digits rounded to even, for `format`)
+`sprintf_real` (C's %e %f %g with flags, exact digits rounded to even, for `float_to_string`; its integer form went with `format`, 2026-11-06)
 
 ## Deferred
 

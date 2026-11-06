@@ -166,7 +166,7 @@ module character_set_maps_mod
     implicit none (type, external)
     private
 
-    public :: charset_map_entries
+    public :: character_set_map_entries
 
 EOF
     for m in $maps; do
@@ -231,7 +231,7 @@ contains
     !> TO_CODES(i) are code points mapped to CHARS(i) and the characters
     !> after it.  FOUND is
     !> false for a map that is not built in.
-    subroutine charset_map_entries(name, from_codes, to_codes, chars, found)
+    subroutine character_set_map_entries(name, from_codes, to_codes, chars, found)
         character(len=*), intent(in) :: name
         integer(int64), allocatable, intent(out) :: from_codes(:), to_codes(:)
         integer(int32), allocatable, intent(out) :: chars(:)
@@ -264,7 +264,7 @@ EOF
             found = .false.
             allocate (from_codes(0), to_codes(0), chars(0))
         end select
-    end subroutine charset_map_entries
+    end subroutine character_set_map_entries
 end module character_set_maps_mod
 EOF
 } >"$root/$out"

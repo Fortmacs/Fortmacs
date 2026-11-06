@@ -631,8 +631,10 @@ in names written in text, never in plain prose, prompts or messages; a
 that name: `part len length` renames `old_len`, not `len(x)`); a `prefix`
 renames the first part of a name of two or more parts (`cmd_x` is
 `execute_x`).
-tools/fortran-names.sh applies it, by default to src, test, app, tools,
-docs/init.f90, fpm.toml, PORTING.md and README.md, or to the paths given:
+tools/fortran-names.sh applies it, by default to the code (src, test,
+app and tools without their Markdown files, docs/init.f90, fpm.toml;
+prose such as PORTING.md, README.md and docs/status is renamed by hand,
+since the renames would mangle it: GUI, PT), or to the paths given:
 it renames files (with `git mv`) and contents, protects citations
 (`FILE.el:NAME`, `FILE.c:NAME`, `FILE.h:NAME`), hyphenated and C names
 (`forward-sexp`, `Fscan_lists`), the word after "upstream" or
@@ -642,7 +644,11 @@ renamed word; an entry's new name that holds another entry's old word is renamed
 tools/fortran-names.awk, which fails with FILE:LINE on an old name in
 Fortran code or in a `!>` docstring, or on a file of an old name, and
 tools/test-fortran-names.sh, which runs the script on the fixture in
-tools/fortran-names-test.  tools/gen-docstrings.sh gives the names it
+tools/fortran-names-test.  To check without changing anything, run
+`tools/fortran-names.sh --check` (it lists what it would rename or
+change and exits 1 if anything would), or tools/check.sh; never run the
+script bare to check, since a bare run rewrites the tree.
+tools/gen-docstrings.sh gives the names it
 derives from citations their Fortran names too.
 The table also holds the names R6-21 gives this program (below):
 
@@ -1056,11 +1062,17 @@ substitution; the parts around a variable piece are passed as separate
 strings (dired-aux.el's `"Change mode of %s to: "` is
 `"Change mode of ", " to: "`).  Quotes are curved with error_mod's
 `substitute_quotes` (help.el:substitute-quotes) and `message` shows its
-text as it is.  tools/intrinsics.awk's percent-format rule checks; its
-baseline lists only the format strings users give at run time
-(keyboard_macro_counter_format, rectangle_number_lines' FORMAT), which
-await the owner's decision.  Mode-line %-constructs are separate, and
-dates are written with `format_date` ("Dates to text").
+text as it is.  tools/intrinsics.awk's percent-format rule checks.  A format the
+user types (C-x C-k C-f, C-u C-x r N) is a Fortran format with edit
+descriptors, written with editing_functions_mod's `write_with_format`
+(`"(i0)"`, `"(i3.3, 1x)"`; a malformed one is an error through STATUS;
+panel, 2026-11-06).  So are the string templates of settings (owner,
+2026-11-06): skeleton prompts (`skeleton_prompt(format='("pattern, ", a,
+": ")')`), `css_lookup_url_format`, and, where upstream's items vary in
+order or repeat, a format with an `items` component naming what its `a`
+edit descriptors write in order (`completing_read_multiple_prompt`, the
+dired compression rules).  Mode-line %-constructs
+are separate; dates are written with `format_date` ("Dates to text").
 data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
 that stood in about 150 places for `write (text, "(i0)") n`, is gone
 (`write-not-number-to-string`, 2026-11-04), with the private copies

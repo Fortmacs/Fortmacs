@@ -106,8 +106,8 @@
 #                formats (%s, %d, %S) are never used; text built from a
 #                format in the source is one internal `write' with edit
 #                descriptors, or a concatenation of strings (owner,
-#                2026-11-06).  The baseline lists the format strings
-#                users give at run time, awaiting the owner's decision.
+#                2026-11-06); a format the user types is a Fortran
+#                format (editing_functions_mod's write_with_format).
 # fortran-names: on
 #   char-loop    a `do K = 1, min(len(A), len(B))' loop that orders the
 #                characters `A(K:K)' and `B(K:K)' with `<' or `>' (also
