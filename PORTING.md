@@ -2008,6 +2008,13 @@ scroll = .not. compilation_scroll_output%is_off()
   `get_kind_value` and `set_kind_value` (the sh_indent_* settings: an
   integer for `%columns`, a name for a named constant), else one global
   value.
+- When a procedure argument or a record field takes the same states as a
+  setting, the setting keeps its own family and the argument an internal
+  one, and code comparing them maps the constants explicitly (panel
+  2026-11-06, #272): `warning_minimum_level` and
+  `warning_minimum_log_level` take WARNING_MINIMUM_EMERGENCY to _DEBUG,
+  `display_warning`'s LEVEL and a `warning_levels` entry take
+  WARNING_LEVEL_EMERGENCY to _DEBUG.
 - A record field with several states stays an integer with named
   constants, since a structure constructor has no defined assignment
   (`FONT_LOCK_OVERRIDE_NONE`, `_REPLACE`, `_KEEP`, `_PREPEND`, `_APPEND`

@@ -639,8 +639,10 @@ module fortmacs
                             holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, &
                             calendar_holidays, holidays, list_holidays
     use warnings_mod, only: display_warning, display_formatted_warning, warn, warning_types_type, warning_level_type, &
-                            warning_prefix_procedure, WARNING_EMERGENCY, WARNING_ERROR, WARNING_WARNING, WARNING_DEBUG, &
-                            warning_levels, warning_minimum_level, warning_minimum_log_level, warning_suppress_log_types, &
+                            warning_prefix_procedure, WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR, WARNING_LEVEL_WARNING, &
+                            WARNING_LEVEL_DEBUG, WARNING_MINIMUM_EMERGENCY, WARNING_MINIMUM_ERROR, WARNING_MINIMUM_WARNING, &
+                            WARNING_MINIMUM_DEBUG, warning_levels, warning_minimum_level, warning_minimum_log_level, &
+                            warning_suppress_log_types, &
                             warning_suppress_types, warning_display_at_bottom, warning_prefix_function, warning_series, &
                             warning_fill_prefix, warning_fill_column, warning_type_format, warning_inhibit_types
     use completing_read_multiple_mod, only: completing_read_multiple, completing_read_multiple_separator, &
@@ -1233,8 +1235,10 @@ module fortmacs
               holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, calendar_holidays, holidays, &
               list_holidays
     public :: display_warning, display_formatted_warning, warn, warning_types_type, warning_level_type, warning_prefix_procedure, &
-              WARNING_EMERGENCY, WARNING_ERROR, WARNING_WARNING, WARNING_DEBUG, warning_levels, warning_minimum_level, &
-              warning_minimum_log_level, warning_suppress_log_types, warning_suppress_types, warning_display_at_bottom, &
+              WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR, WARNING_LEVEL_WARNING, WARNING_LEVEL_DEBUG, &
+              WARNING_MINIMUM_EMERGENCY, WARNING_MINIMUM_ERROR, WARNING_MINIMUM_WARNING, WARNING_MINIMUM_DEBUG, warning_levels, &
+              warning_minimum_level, warning_minimum_log_level, warning_suppress_log_types, &
+              warning_suppress_types, warning_display_at_bottom, &
               warning_prefix_function, warning_series, warning_fill_prefix, warning_fill_column, warning_type_format, &
               warning_inhibit_types
     public :: completing_read_multiple, completing_read_multiple_separator, completing_read_multiple_prompt, &

@@ -23,9 +23,9 @@
 
 !> Warnings: `display_warning', `display_formatted_warning' and `warn'
 !> log a warning in the *Warnings* buffer (in Special mode) and show
-!> that buffer, as the levels (WARNING_EMERGENCY, WARNING_ERROR,
-!> WARNING_WARNING, WARNING_DEBUG), `warning_minimum_level',
-!> `warning_minimum_log_level' and the lists of warning types
+!> that buffer, as the levels (WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR,
+!> WARNING_LEVEL_WARNING, WARNING_LEVEL_DEBUG), `warning_minimum_level' and
+!> `warning_minimum_log_level' (WARNING_MINIMUM_EMERGENCY to _DEBUG) and the lists of warning types
 !> (`warning_suppress_types', `warning_suppress_log_types',
 !> `warning_inhibit_types') say.  A warning type is one name (upstream's
 !> symbol), such as "holidays", or a list of names given as an array of
@@ -67,7 +67,14 @@ module warnings_mod
     !> Values of `warning_minimum_level' and `warning_minimum_log_level',
     !> which take no .true. or .false.: the severity levels of warnings,
     !> from the most severe.
-    integer, parameter, public :: WARNING_EMERGENCY = 2, WARNING_ERROR = 3, WARNING_WARNING = 4, WARNING_DEBUG = 5
+    integer, parameter, public :: WARNING_MINIMUM_EMERGENCY = 2, WARNING_MINIMUM_ERROR = 3, WARNING_MINIMUM_WARNING = 4, &
+                                  WARNING_MINIMUM_DEBUG = 5
+
+    !> The severity levels of a warning (the LEVEL argument of
+    !> `display_warning' and the `level' of a `warning_levels' entry),
+    !> from the most severe.
+    integer, parameter, public :: WARNING_LEVEL_EMERGENCY = 1, WARNING_LEVEL_ERROR = 2, WARNING_LEVEL_WARNING = 3, &
+                                  WARNING_LEVEL_DEBUG = 4
 
     !> A severity level definition of `warning_levels': it defines LEVEL
     !> (a WARNING_* constant) as a severity level.  STRING specifies the
@@ -77,7 +84,7 @@ module warnings_mod
     !> if associated, is called with no arguments, to get the user's
     !> attention.
     type :: warning_level_type
-        integer :: level = WARNING_WARNING
+        integer :: level = WARNING_LEVEL_WARNING
         character(len=:), allocatable :: string
         procedure(command_procedure), pointer, nopass :: procedure => null()
     end type warning_level_type
@@ -158,32 +165,34 @@ module warnings_mod
     !> The optional PROCEDURE, if associated, is a procedure to call with
     !> no arguments, to get the user's attention.
     !>
-    !> The standard levels are WARNING_EMERGENCY, WARNING_ERROR,
-    !> WARNING_WARNING and WARNING_DEBUG.  See `display_warning' for
-    !> documentation of their meanings.  Level WARNING_DEBUG is ignored by
+    !> The standard levels are WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR,
+    !> WARNING_LEVEL_WARNING and WARNING_LEVEL_DEBUG.  See `display_warning' for
+    !> documentation of their meanings.  Level WARNING_LEVEL_DEBUG is ignored by
     !> default (see `warning_minimum_level').  Port of warnings.el
     !> warning-levels (its entries are made by `initialize_warnings'; the
-    !> procedure of WARNING_EMERGENCY is `ding').
+    !> procedure of WARNING_LEVEL_EMERGENCY is `ding').
     type(warning_level_type), public :: warning_levels(4)
 
     !> Minimum severity level for displaying the warning buffer.
     !> If a warning's severity level is lower than this,
     !> the warning is logged in the warnings buffer, but the buffer
     !> is not immediately displayed.  See also `warning_minimum_log_level'.
-    !> Port of warnings.el warning-minimum-level.
+    !> The value is a WARNING_MINIMUM_* constant.  Port of warnings.el
+    !> warning-minimum-level.
     type(choice_setting_type), public :: warning_minimum_level = &
                                          choice_setting_type(name="warning_minimum_level", true_valid=.false., &
-                                                             false_valid=.false., choice=WARNING_WARNING)
+                                                             false_valid=.false., choice=WARNING_MINIMUM_WARNING)
 
     !> Minimum severity level for logging a warning.
     !> If a warning severity level is lower than this,
     !> the warning is completely ignored.
     !> Value must be lower or equal than `warning_minimum_level',
-    !> because warnings not logged aren't displayed either.  Port of
-    !> warnings.el warning-minimum-log-level.
+    !> because warnings not logged aren't displayed either.  The value is
+    !> a WARNING_MINIMUM_* constant.  Port of warnings.el
+    !> warning-minimum-log-level.
     type(choice_setting_type), public :: warning_minimum_log_level = &
                                          choice_setting_type(name="warning_minimum_log_level", true_valid=.false., &
-                                                             false_valid=.false., choice=WARNING_WARNING)
+                                                             false_valid=.false., choice=WARNING_MINIMUM_WARNING)
 
     !> List of warning types that should not be logged.
     !> If any element of this list matches the TYPE argument to `display_warning',
@@ -427,16 +436,16 @@ contains
     !> subcategories, for warning purposes only, and you can use whatever
     !> names you like).
     !>
-    !> LEVEL should be either WARNING_DEBUG, WARNING_WARNING, WARNING_ERROR,
-    !> or WARNING_EMERGENCY (but see `warning_minimum_level' and
-    !> `warning_minimum_log_level').  Default is WARNING_WARNING.
+    !> LEVEL should be either WARNING_LEVEL_DEBUG, WARNING_LEVEL_WARNING, WARNING_LEVEL_ERROR,
+    !> or WARNING_LEVEL_EMERGENCY (but see `warning_minimum_level' and
+    !> `warning_minimum_log_level').  Default is WARNING_LEVEL_WARNING.
     !>
-    !>     WARNING_EMERGENCY -- a problem that will seriously impair Fortmacs operation soon
+    !>     WARNING_LEVEL_EMERGENCY -- a problem that will seriously impair Fortmacs operation soon
     !>                          if you do not attend to it promptly.
-    !>     WARNING_ERROR     -- data or circumstances that are inherently wrong.
-    !>     WARNING_WARNING   -- data or circumstances that are not inherently wrong,
+    !>     WARNING_LEVEL_ERROR     -- data or circumstances that are inherently wrong.
+    !>     WARNING_LEVEL_WARNING   -- data or circumstances that are not inherently wrong,
     !>                          but raise suspicion of a possible problem.
-    !>     WARNING_DEBUG     -- info for debugging only.
+    !>     WARNING_LEVEL_DEBUG     -- info for debugging only.
     !>
     !> BUFFER_NAME, if specified, is the name of the buffer for logging
     !> the warning.  By default, it is `*Warnings*'.  If this function
@@ -507,11 +516,11 @@ contains
             return
         end if
 
-        level_value = WARNING_WARNING
+        level_value = WARNING_LEVEL_WARNING
         if (present(level)) level_value = level
         name = "*Warnings*"
         if (present(buffer_name)) name = buffer_name
-        if (warning_numeric_level(level_value) < warning_numeric_level(warning_minimum_log_level%choice)) return
+        if (warning_numeric_level(level_value) < warning_numeric_level(minimum_level(warning_minimum_log_level))) return
         if (is_type_suppressed(types, is_list, warning_inhibit_types)) return
         if (is_type_suppressed(types, is_list, warning_suppress_log_types)) return
         old = get_buffer(name)
@@ -562,7 +571,7 @@ contains
 
         ! Interactively, decide whether the warning merits immediate
         ! display.
-        if (warning_numeric_level(level_value) < warning_numeric_level(warning_minimum_level%choice)) return
+        if (warning_numeric_level(level_value) < warning_numeric_level(minimum_level(warning_minimum_level))) return
         if (is_type_suppressed(types, is_list, warning_suppress_types)) return
         call display_warning_buffer(buffer, status)
 
@@ -709,7 +718,24 @@ contains
         call fit_window_to_buffer(window, maximum_height=10)
     end subroutine fit_warning_window
 
-    ! Upstream's `ding' as the procedure of WARNING_EMERGENCY.  Not a port.
+    ! The level (WARNING_LEVEL_*) that SETTING, `warning_minimum_level' or
+    ! `warning_minimum_log_level', names (WARNING_MINIMUM_*).  Not a port.
+    integer function minimum_level(setting)
+        type(choice_setting_type), intent(in) :: setting
+
+        select case (setting%choice)
+        case (WARNING_MINIMUM_EMERGENCY)
+            minimum_level = WARNING_LEVEL_EMERGENCY
+        case (WARNING_MINIMUM_ERROR)
+            minimum_level = WARNING_LEVEL_ERROR
+        case (WARNING_MINIMUM_DEBUG)
+            minimum_level = WARNING_LEVEL_DEBUG
+        case default
+            minimum_level = WARNING_LEVEL_WARNING
+        end select
+    end function minimum_level
+
+    ! Upstream's `ding' as the procedure of WARNING_LEVEL_EMERGENCY.  Not a port.
     subroutine ding_adapter(status)
         type(status_type), intent(out) :: status
 
@@ -726,15 +752,15 @@ contains
     !> whose first element is a group name also works, the rest of the
     !> names representing subcategories that can be whatever you like).
     !>
-    !> LEVEL should be either WARNING_DEBUG, WARNING_WARNING, WARNING_ERROR,
-    !> or WARNING_EMERGENCY (but see `warning_minimum_level' and
+    !> LEVEL should be either WARNING_LEVEL_DEBUG, WARNING_LEVEL_WARNING, WARNING_LEVEL_ERROR,
+    !> or WARNING_LEVEL_EMERGENCY (but see `warning_minimum_level' and
     !> `warning_minimum_log_level').
     !>
-    !>     WARNING_EMERGENCY -- a problem that will seriously impair Fortmacs operation soon
+    !>     WARNING_LEVEL_EMERGENCY -- a problem that will seriously impair Fortmacs operation soon
     !>                          if you do not attend to it promptly.
-    !>     WARNING_ERROR     -- invalid data or circumstances.
-    !>     WARNING_WARNING   -- suspicious data or circumstances.
-    !>     WARNING_DEBUG     -- info for debugging only.
+    !>     WARNING_LEVEL_ERROR     -- invalid data or circumstances.
+    !>     WARNING_LEVEL_WARNING   -- suspicious data or circumstances.
+    !>     WARNING_LEVEL_DEBUG     -- info for debugging only.
     !>
     !> STATUS reports an error of the format or of what display_warning
     !> runs.  Port of warnings.el:lwarn.
@@ -771,7 +797,7 @@ contains
     !> ARGUMENTS).
     !> Aside from generating the message with `format_message',
     !> this is equivalent to `display_warning', using
-    !> "fortmacs" as the type and WARNING_WARNING as the level.  Port of
+    !> "fortmacs" as the type and WARNING_LEVEL_WARNING as the level.  Port of
     !> warnings.el:warn.
     recursive subroutine warn(message, arguments, status)
         character(len=*), intent(in) :: message
@@ -953,14 +979,14 @@ contains
     !> Set up warnings: the entries of `warning_levels', `warning_type_format', and
     !> `delayed_warnings_hook''s functions.  Not a port.
     subroutine initialize_warnings()
-        warning_levels(1)%level = WARNING_EMERGENCY
+        warning_levels(1)%level = WARNING_LEVEL_EMERGENCY
         warning_levels(1)%string = "Emergency%s: "
         warning_levels(1)%procedure => ding_adapter
-        warning_levels(2)%level = WARNING_ERROR
+        warning_levels(2)%level = WARNING_LEVEL_ERROR
         warning_levels(2)%string = "Error%s: "
-        warning_levels(3)%level = WARNING_WARNING
+        warning_levels(3)%level = WARNING_LEVEL_WARNING
         warning_levels(3)%string = "Warning%s: "
-        warning_levels(4)%level = WARNING_DEBUG
+        warning_levels(4)%level = WARNING_LEVEL_DEBUG
         warning_levels(4)%string = "Debug%s: "
         if (.not. allocated(warning_type_format)) warning_type_format = " (%s)"
         call delayed_warnings_hook%append(collapse_delayed_warnings)

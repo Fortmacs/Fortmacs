@@ -74,7 +74,7 @@ module diary_library_mod
     use help_mod, only: register_keymap_name
     use minibuffer_mod, only: read_file_name, REQUIRE_MATCH_YES
     use display_engine_mod, only: message, current_message
-    use warnings_mod, only: display_warning, WARNING_ERROR
+    use warnings_mod, only: display_warning, WARNING_LEVEL_ERROR
     use frame_mod, only: selected_window, selected_frame, frame_columns
     use window_mod, only: windows, display_buffer, pop_to_buffer, select_window, is_window_live, set_window_point, &
                           set_window_start, get_buffer_window, window_body_height, fit_window_to_buffer, window_buffer
@@ -1103,7 +1103,7 @@ contains
 
             if (.not. file_exists(file)) then
                 call display_warning("diary", format_message("Can't find included diary file ")//file//achar(10), &
-                                     WARNING_ERROR, status=status)
+                                     WARNING_LEVEL_ERROR, status=status)
                 if (.not. status%ok()) return
                 call goto_character(after)
                 cycle
@@ -1111,7 +1111,7 @@ contains
 
             if (.not. is_file_readable(file)) then
                 call display_warning("diary", format_message("Can't read included diary file ")//file//achar(10), &
-                                     WARNING_ERROR, status=status)
+                                     WARNING_LEVEL_ERROR, status=status)
                 if (.not. status%ok()) return
                 call goto_character(after)
                 cycle
@@ -2336,7 +2336,7 @@ contains
         if (.not. status%ok()) then
             write (digits, "(i0)") count_lines(point_minimum(), point())
             call display_warning("diary", "Bad diary expression at line "//trim(digits)//" in "//diary_file//":"//achar(10)// &
-                                 expression//achar(10)//"Error: "//format_error(status)//achar(10), WARNING_ERROR)
+                                 expression//achar(10)//"Error: "//format_error(status)//achar(10), WARNING_LEVEL_ERROR)
             result = expression_result_type()
         end if
     end subroutine process_diary_expression_entry

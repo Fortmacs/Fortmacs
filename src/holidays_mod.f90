@@ -60,7 +60,7 @@ module holidays_mod
     use casefiddle_mod, only: capitalize_string
     use simple_mod, only: read_variable
     use frame_mod, only: selected_frame, frame_columns
-    use warnings_mod, only: display_warning, WARNING_ERROR
+    use warnings_mod, only: display_warning, WARNING_LEVEL_ERROR
     use search_mod, only: string_characters
     implicit none(type, external)
     private
@@ -492,7 +492,7 @@ contains
 
             if (.not. st%ok()) then
                 call display_warning("holidays", "Bad holiday list item: "//holiday_entry_text(calendar_holidays%entries(k))// &
-                                     achar(10)//"Error: "//format_error(st)//achar(10), WARNING_ERROR, status=warning_status)
+                                     achar(10)//"Error: "//format_error(st)//achar(10), WARNING_LEVEL_ERROR, status=warning_status)
 
                 if (.not. warning_status%ok()) then
                     if (present(status)) status = warning_status

@@ -40,7 +40,8 @@ module test_warnings_mod
     use keyboard_mod, only: delayed_warnings
     use bindings_mod, only: initialize_bindings
     use warnings_mod, only: display_warning, display_formatted_warning, warn, is_warning_suppressed, warning_types_type, &
-                            WARNING_EMERGENCY, WARNING_ERROR, WARNING_WARNING, WARNING_DEBUG, warning_minimum_level, &
+                            WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR, WARNING_LEVEL_WARNING, WARNING_LEVEL_DEBUG, &
+                            WARNING_MINIMUM_EMERGENCY, WARNING_MINIMUM_ERROR, WARNING_MINIMUM_WARNING, warning_minimum_level, &
                             warning_minimum_log_level, warning_suppress_types, warning_suppress_log_types, warning_series, &
                             warning_display_at_bottom, &
                             display_delayed_warnings, collapse_delayed_warnings
@@ -88,8 +89,8 @@ contains
         call show_alone()
         if (allocated(after_initialization_time)) deallocate (after_initialization_time)
         if (allocated(delayed_warnings)) deallocate (delayed_warnings)
-        warning_minimum_level = WARNING_WARNING
-        warning_minimum_log_level = WARNING_WARNING
+        warning_minimum_level = WARNING_MINIMUM_WARNING
+        warning_minimum_log_level = WARNING_MINIMUM_WARNING
         call warning_suppress_types%clear()
         call warning_suppress_log_types%clear()
         warning_series = .false.
@@ -164,7 +165,7 @@ contains
     !> buffer; *Messages* gets it only in batch mode).
     subroutine test_display_warning(error)
         type(error_type), allocatable, intent(out) :: error
-        integer, parameter :: levels(3) = [WARNING_EMERGENCY, WARNING_ERROR, WARNING_WARNING]
+        integer, parameter :: levels(3) = [WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR, WARNING_LEVEL_WARNING]
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
@@ -196,8 +197,8 @@ contains
         type(handle_type) :: w
 
         call enter()
-        warning_minimum_level = WARNING_EMERGENCY
-        call display_warning(type_list("foo"), "baz", WARNING_WARNING, status=st)
+        warning_minimum_level = WARNING_MINIMUM_EMERGENCY
+        call display_warning(type_list("foo"), "baz", WARNING_LEVEL_WARNING, status=st)
         call check(error, index(text_of("*Warnings*"), "baz") > 0, "logged")
 
         if (.not. allocated(error)) then
@@ -215,10 +216,10 @@ contains
         type(status_type) :: st
 
         call enter()
-        warning_minimum_log_level = WARNING_ERROR
+        warning_minimum_log_level = WARNING_MINIMUM_ERROR
         call get_or_make_buffer("warnings-test-temp", h, st)
         call set_buffer(h, st)
-        call display_warning(type_list("foo"), "hello", WARNING_WARNING, "warnings-test-temp", st)
+        call display_warning(type_list("foo"), "hello", WARNING_LEVEL_WARNING, "warnings-test-temp", st)
         call check(error, index(buffer_string(), "hello") == 0, "not logged")
         call close_buffer(h, st)
         call leave()
@@ -226,19 +227,19 @@ contains
 
     !> The *Warnings* buffer: made in Special mode, read-only, one line
     !> per warning with the level's description and the type, shown in a
-    !> window; WARNING_DEBUG is not logged by default.
+    !> window; WARNING_LEVEL_DEBUG is not logged by default.
     subroutine test_warnings_buffer(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(handle_type) :: h, w
 
         call enter()
-        call display_warning("holidays", "Bad holiday list item", WARNING_ERROR, status=st)
+        call display_warning("holidays", "Bad holiday list item", WARNING_LEVEL_ERROR, status=st)
         call check(error, st%ok(), "display_warning")
 
         if (.not. allocated(error)) then
             call display_warning("foo", "second", status=st)
-            call display_warning("foo", "ignored", WARNING_DEBUG, status=st)
+            call display_warning("foo", "ignored", WARNING_LEVEL_DEBUG, status=st)
             call check(error, text_of("*Warnings*") == "Error (holidays): Bad holiday list item"//achar(10)// &
                        "Warning (foo): second"//achar(10), "text: "//text_of("*Warnings*"))
         end if
@@ -267,7 +268,7 @@ contains
         call warn("Can't find `x'", status=st)
         call arguments%append("file")
         call arguments%append(3)
-        call display_formatted_warning("diary", WARNING_ERROR, "Bad %s at line %d", arguments, st)
+        call display_formatted_warning("diary", WARNING_LEVEL_ERROR, "Bad %s at line %d", arguments, st)
         call check(error, text_of("*Warnings*") == "Warning (fortmacs): Can"//char(226)//char(128)//char(153)//"t find "// &
                    char(226)//char(128)//char(152)//"x"//char(226)//char(128)//char(153)//achar(10)// &
                    "Error (diary): Bad file at line 3"//achar(10), "text: "//text_of("*Warnings*"))
@@ -337,7 +338,7 @@ contains
         deallocate (after_initialization_time)
         call display_warning("foo", "early", status=st)
         call display_warning("foo", "early", status=st)
-        call display_warning("bar", "late", WARNING_ERROR, status=st)
+        call display_warning("bar", "late", WARNING_LEVEL_ERROR, status=st)
         call check(error, size(delayed_warnings) == 3 .and. .not. has_buffer("*Warnings*"), "delayed")
 
         if (.not. allocated(error)) then

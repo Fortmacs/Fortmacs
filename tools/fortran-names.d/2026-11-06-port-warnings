@@ -11,5 +11,10 @@ name	after_init_time	after_initialization_time
 name	warning_display_buffer	display_warning_buffer
 # lwarn spells out its abbreviation and is verb first (no abbreviations,
 # owner 2026-11-05; R6-17): what it does is display a warning whose message
-# is formatted.  The spelling is open (owner question).
+# is formatted.
 name	lwarn	display_formatted_warning
+# The levels (panel 2026-11-06, #272): warning-minimum-level and
+# warning-minimum-log-level take WARNING_MINIMUM_EMERGENCY to _DEBUG; the
+# LEVEL argument of display-warning and the level of a warning-levels entry
+# are the internal family WARNING_LEVEL_EMERGENCY to _DEBUG, and code that
+# compares a setting with a warning's level maps them explicitly.
