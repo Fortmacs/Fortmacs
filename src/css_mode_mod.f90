@@ -185,10 +185,10 @@ module css_mode_mod
     !> css-indent-offset.
     type(integer_setting_type), target, public :: css_indent_offset = integer_setting_type(name="css_indent_offset", value=4)
 
-    !> Format for a URL where CSS documentation can be found.
-    !> The format should include a single "%s" substitution.
-    !> The name of the CSS property, @-id, pseudo-class, or pseudo-element
-    !> to look up will be substituted there.  Port of css-mode.el
+    !> Format for a URL where CSS documentation can be found: a Fortran
+    !> format with a single `a' edit descriptor.  The name of the CSS
+    !> property, @-id, pseudo-class, or pseudo-element to look up is
+    !> written there.  Port of css-mode.el
     !> css-lookup-url-format.
     type(string_setting_type), target, public :: css_lookup_url_format = string_setting_type(name="css_lookup_url_format")
 
@@ -3498,7 +3498,7 @@ contains
         call forward_setting(css_lookup_url_format)
 
         if (.not. allocated(css_lookup_url_format%value)) then
-            css_lookup_url_format%value = "https://developer.mozilla.org/en-US/docs/Web/CSS/%s?raw&macros"
+            css_lookup_url_format%value = '("https://developer.mozilla.org/en-US/docs/Web/CSS/", a, "?raw&macros")'
         end if
 
         if (.not. allocated(css_electric_keys)) css_electric_keys = [iachar("}"), iachar(";")]

@@ -10,7 +10,7 @@ skeletons as typed data (`skeleton_element_type` records: `skeleton_text`, `skel
 `skeleton-insert` (regions of words and of the mark ring, interregions, the end newline, `skeleton-end-hook`, recentering),
 `skeleton-internal-list` (string per list, the first `\n` as `>`, quitting to `resume:`, removing a sub-skeleton as far as shown),
 `skeleton-internal-1` (all elements, `> \n`, `skeleton-untabify`, `skeleton-newline-indent-rigidly`, sub-skeletons repeated or once per string),
-`skeleton-read` (`%s` and `skeleton-subprompt`, initial input with a position, the quit on unchanged input),
+`skeleton-read` (a prompt with `skeleton-subprompt` as a Fortran format, `skeleton_prompt(format=...)` writing it with an `a` edit descriptor, owner, 2026-11-06; initial input with a position, the quit on unchanged input),
 `skeleton-proxy-new` (`skeleton-autowrap`, the prefix argument, `skeleton-filter-function` over `skeleton_variants_type`),
 the command of define-skeleton (`skeleton_command`, with subr.el's change groups for atomic-change-group),
 `skeleton-pair-insert-maybe` (`skeleton-pair`, `skeleton-pair-on-word`, `skeleton-pair-filter-function`, `skeleton-pair-alist` as `skeleton_pairs`, `skeleton-pair-default-alist` as `skeleton_default_pairs`),

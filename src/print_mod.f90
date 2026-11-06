@@ -23,8 +23,7 @@
 !> Fortran (`fortran_text'), which help shows for a variable holding a value.
 !>
 !> Floats (real64 values: float values are deferred) are written by
-!> `float_to_string', and `sprintf_float' writes them as C's printf
-!> does for `format_text'.
+!> `float_to_string' (with `sprintf_real', C's printf %g).
 !>
 !> Deferred: print streams, `print_length' and `print_level',
 !> escaping in symbol names, circular structure, the text properties of
@@ -46,14 +45,7 @@ module print_mod
     implicit none(type, external)
     private
 
-    public :: readable_text, quoted_text, marker_text, fortran_text, fortran_string, float_to_string, sprintf_float
-
-    !> C's printf with a conversion %e, %f or %g (`format_text' uses it):
-    !> a real64 value, or an integer written exactly (as upstream writes
-    !> one as a long double).  Not a port.
-    interface sprintf_float
-        module procedure sprintf_real, sprintf_integer
-    end interface sprintf_float
+    public :: readable_text, quoted_text, marker_text, fortran_text, fortran_string, float_to_string
 
 contains
 
@@ -385,28 +377,6 @@ contains
                 sprintf_digits(digits, point, conversion, precision, sharp_flag)
         end if
     end function sprintf_real
-
-    !> The integer N as `sprintf_real' writes a real64, from its exact
-    !> value (upstream formats it as a long double, which holds every
-    !> int64).  Not a port.
-    function sprintf_integer(n, conversion, precision, plus_flag, space_flag, sharp_flag) result(s)
-        integer(int64), intent(in) :: n
-        character, intent(in) :: conversion
-        integer(int64), intent(in) :: precision
-        logical, intent(in) :: plus_flag, space_flag, sharp_flag
-        character(len=:), allocatable :: s
-        character(len=:), allocatable :: digits
-        character(len=24) :: buffer
-        integer(int64) :: point, last
-
-        write (buffer, "(i0)") n
-        digits = trim(adjustl(buffer))
-        if (digits(1:1) == "-") digits = digits(2:)
-        point = len(digits, kind=int64)
-        last = verify(digits, "0", back=.true.)
-        digits = digits(1:last)
-        s = sign_prefix(n < 0, plus_flag, space_flag)//sprintf_digits(digits, point, conversion, precision, sharp_flag)
-    end function sprintf_integer
 
     !> "-" if NEGATIVE, else "+" for PLUS_FLAG, " " for SPACE_FLAG, else
     !> nothing (printf's sign).  Not a port.

@@ -11,6 +11,7 @@ Fortmacs: a rewrite of GNU Emacs 31.1 (tag emacs-31.1) in modern Fortran (2018+,
   - No run-time Lisp: eval-expression, eval-buffer and ielm are "Not applicable"; *scratch* starts in Fundamental mode with no Lisp message.
   - Customize and other setting-saving commands write Fortran assignments into init.f90.
   - Values are shown as Fortran (.true./.false., integers, strings, named constants); docstrings and messages carry no Lisp terms ("non-nil" becomes "true").
+  - Formats a user types or sets (C-x C-k C-f, C-u C-x r N, skeleton prompts, completing_read_multiple_prompt, css_lookup_url_format, the dired compression commands) are Fortran formats with edit descriptors (`"(i0)"`, `'("[", a, "] ", a)'`), not Emacs %-formats; a template whose items vary in order lists them in an `items` component (panel and owner, 2026-11-06).
   - Packages are Fortran modules built in via `fortmacs --recompile`.
   - Help names the Fortran source file (simple_mod.f90).
 - Target: Linux only (x86-64 and aarch64). No macOS/Windows support.

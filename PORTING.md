@@ -1056,11 +1056,17 @@ substitution; the parts around a variable piece are passed as separate
 strings (dired-aux.el's `"Change mode of %s to: "` is
 `"Change mode of ", " to: "`).  Quotes are curved with error_mod's
 `substitute_quotes` (help.el:substitute-quotes) and `message` shows its
-text as it is.  tools/intrinsics.awk's percent-format rule checks; its
-baseline lists only the format strings users give at run time
-(keyboard_macro_counter_format, rectangle_number_lines' FORMAT), which
-await the owner's decision.  Mode-line %-constructs and time formats
-(format-time-string) are separate.
+text as it is.  tools/intrinsics.awk's percent-format rule checks.  A format the
+user types (C-x C-k C-f, C-u C-x r N) is a Fortran format with edit
+descriptors, written with editing_functions_mod's `write_with_format`
+(`"(i0)"`, `"(i3.3, 1x)"`; a malformed one is an error through STATUS;
+panel, 2026-11-06).  So are the string templates of settings (owner,
+2026-11-06): skeleton prompts (`skeleton_prompt(format='("pattern, ", a,
+": ")')`), `css_lookup_url_format`, and, where upstream's items vary in
+order or repeat, a format with an `items` component naming what its `a`
+edit descriptors write in order (`completing_read_multiple_prompt`, the
+dired compression rules).  Mode-line %-constructs and time formats
+(format-time-string) are separate (decided by rule).
 data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
 that stood in about 150 places for `write (text, "(i0)") n`, is gone
 (`write-not-number-to-string`, 2026-11-04), with the private copies
