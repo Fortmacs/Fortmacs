@@ -1002,7 +1002,7 @@ contains
         type(simple_minded_indentation_engine_prec2_type), allocatable :: tables(:)
         type(string_type), allocatable :: ops(:)
         integer :: r, h, i, n, nrules, saved_count, k, j
-        character(len=24) :: count_text
+        character(len=40) :: count_text
 
         status = status_type()
         saved_count = warning_count
@@ -1156,8 +1156,8 @@ contains
         prec2%has_closer_table = .true.
 
         if (warning_count > 0) then
-            write (count_text, "(i0)") warning_count
-            call display_warning("simple_minded_indentation_engine", "Total: "//trim(count_text)//" warnings")
+            write (count_text, "(a, i0, a)") "Total: ", warning_count, " warnings"
+            call display_warning("simple_minded_indentation_engine", trim(count_text))
         end if
 
         warning_count = saved_count

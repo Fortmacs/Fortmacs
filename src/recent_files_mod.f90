@@ -57,7 +57,7 @@ module recent_files_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
                           close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, format_arguments_type
+    use editing_functions_mod, only: buffer_string
     use warnings_mod, only: warn
     use file_input_output_mod, only: is_file_readable, expand_file_name, write_region, insert_file_contents, set_file_modes
     use files_mod, only: find_file, find_file_hook, close_buffer_hook, abbreviate_file_name, file_truename, &
@@ -686,13 +686,7 @@ contains
             if (recent_files_save_file_modes >= 0) call set_file_modes(recent_files_save_file, recent_files_save_file_modes, wst)
         end if
 
-        if (.not. wst%ok()) then
-            block
-                type(format_arguments_type) :: arguments
-                call arguments%append(format_error(wst))
-                call warn("recentf mode: %s", arguments)
-            end block
-        end if
+        if (.not. wst%ok()) call warn("recentf mode: "//format_error(wst))
     end subroutine recent_files_save_list
 
     ! Not a port.

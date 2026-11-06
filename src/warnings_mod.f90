@@ -21,11 +21,11 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> Warnings: `display_warning', `display_formatted_warning' and `warn'
-!> log a warning in the *Warnings* buffer (in Special mode) and show
+!> Warnings: `display_warning' and `warn' log a warning in the *Warnings* buffer (in Special mode) and show
 !> that buffer, as the levels (WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR,
 !> WARNING_LEVEL_WARNING, WARNING_LEVEL_DEBUG), `warning_minimum_level' and
-!> `warning_minimum_log_level' (WARNING_MINIMUM_EMERGENCY to _DEBUG) and the lists of warning types
+!> `warning_minimum_log_level' (WARNING_MINIMUM_EMERGENCY to _DEBUG) and
+!> the lists of warning types
 !> (`warning_suppress_types', `warning_suppress_log_types',
 !> `warning_inhibit_types') say.  A warning type is one name (upstream's
 !> symbol), such as "holidays", or a list of names given as an array of
@@ -35,7 +35,7 @@
 !> What is not ported yet is listed in docs/status/warnings_mod.md.
 module warnings_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle, same_handle
     use string_type_mod, only: string_type, append_string
     use value_mod, only: value_type, command_procedure
@@ -44,8 +44,7 @@ module warnings_mod
                           inhibit_read_only_begin, inhibit_read_only_end, fill_column
     use marker_mod, only: marker_buffer, marker_position, destroy_marker
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_maximum, goto_character, is_beginning_of_line, point_marker, &
-                                     styled_format, format_arguments_type
+    use editing_functions_mod, only: point, point_maximum, goto_character, is_beginning_of_line, point_marker
     use editing_commands_mod, only: forward_line
     use execute_interactively_mod, only: prefix_argument_type, PREFIX_NUMBER
     use simple_mod, only: special_mode, newline, fill_prefix
@@ -60,7 +59,7 @@ module warnings_mod
     implicit none(type, external)
     private
 
-    public :: display_warning, display_formatted_warning, warn, is_warning_suppressed, warning_numeric_level, &
+    public :: display_warning, warn, is_warning_suppressed, warning_numeric_level, &
               delay_warning, display_delayed_warnings, collapse_delayed_warnings, initialize_warnings
     public :: warning_level_type, warning_types_type, warning_series_choice_setting_type, warning_prefix_procedure
 
@@ -77,10 +76,10 @@ module warnings_mod
                                   WARNING_LEVEL_DEBUG = 4
 
     !> A severity level definition of `warning_levels': it defines LEVEL
-    !> (a WARNING_* constant) as a severity level.  STRING specifies the
-    !> description of this level.  STRING should use `%s' to specify
-    !> where to put the warning type information, or it can omit the `%s'
-    !> so as not to include that information.  The optional PROCEDURE,
+    !> (a WARNING_LEVEL_* constant) as a severity level.  STRING specifies
+    !> the description of this level, as a Fortran format: an `a' edit
+    !> descriptor where the warning type information goes, or none so as
+    !> not to include that information.  The optional PROCEDURE,
     !> if associated, is called with no arguments, to get the user's
     !> attention.
     type :: warning_level_type
@@ -138,12 +137,6 @@ module warnings_mod
         module procedure display_warning_of_name, display_warning_of_names
     end interface display_warning
 
-    !> Display a warning message made from (format_message MESSAGE
-    !> ARGUMENTS).  See `display_formatted_warning_of_name'.
-    interface display_formatted_warning
-        module procedure display_formatted_warning_of_name, display_formatted_warning_of_names
-    end interface display_formatted_warning
-
     !> True if a warning with type TYPE should be suppressed.  See
     !> `is_warning_of_name_suppressed'.
     interface is_warning_suppressed
@@ -158,9 +151,9 @@ module warnings_mod
     !> List of severity level definitions for `display_warning'.
     !> Each element is a `warning_level_type' (LEVEL, STRING, PROCEDURE)
     !> and defines LEVEL as a severity level.  STRING specifies the
-    !> description of this level.  STRING should use `%s' to specify
-    !> where to put the warning type information, or it can omit the `%s'
-    !> so as not to include that information.
+    !> description of this level, as a Fortran format: an `a' edit
+    !> descriptor where the warning type information goes, or none so as
+    !> not to include that information.
     !>
     !> The optional PROCEDURE, if associated, is a procedure to call with
     !> no arguments, to get the user's attention.
@@ -263,7 +256,8 @@ module warnings_mod
     !> warnings.el warning-fill-column.
     integer(int64), public :: warning_fill_column = 78
 
-    !> Format for displaying the warning type in the warning message.
+    !> Format for displaying the warning type in the warning message: a
+    !> Fortran format with an `a' edit descriptor for the type.
     !> The result of formatting the type this way gets included in the
     !> message under the control of the string in `warning_levels'.  Port
     !> of warnings.el warning-type-format.
@@ -606,7 +600,6 @@ contains
         ! Insert the warning at point, from START to the end of its line.
         recursive subroutine insert_warning(status)
             type(status_type), intent(out) :: status
-            type(format_arguments_type) :: arguments, type_arguments
             character(len=:), allocatable :: saved_prefix
             integer(int64) :: start, saved_column
             logical :: had_prefix
@@ -620,11 +613,9 @@ contains
 
             start = point()
             if (associated(warning_prefix_function)) call warning_prefix_function(level_value, entry)
-            call type_arguments%append(types(1)%text)
-            call styled_format(warning_type_format, type_arguments, .false., type_string, status)
+            call write_with_type(warning_type_format, types(1)%text, type_string, status)
             if (.not. status%ok()) return
-            call arguments%append(type_string)
-            call styled_format(entry%string, arguments, .false., text, status)
+            call write_with_type(entry%string, type_string, text, status)
             if (.not. status%ok()) return
             call insert(text//message, status)
             if (.not. status%ok()) return
@@ -743,88 +734,62 @@ contains
         call ding(status=status)
     end subroutine ding_adapter
 
-    !> Display a warning message made from (format_message MESSAGE
-    !> ARGUMENTS).
-    !> Aside from generating the message with `format_message',
-    !> this is equivalent to `display_warning'.
-    !>
-    !> TYPE is the warning type: a group name (one name; a list of names
-    !> whose first element is a group name also works, the rest of the
-    !> names representing subcategories that can be whatever you like).
-    !>
-    !> LEVEL should be either WARNING_LEVEL_DEBUG, WARNING_LEVEL_WARNING, WARNING_LEVEL_ERROR,
-    !> or WARNING_LEVEL_EMERGENCY (but see `warning_minimum_level' and
-    !> `warning_minimum_log_level').
-    !>
-    !>     WARNING_LEVEL_EMERGENCY -- a problem that will seriously impair Fortmacs operation soon
-    !>                          if you do not attend to it promptly.
-    !>     WARNING_LEVEL_ERROR     -- invalid data or circumstances.
-    !>     WARNING_LEVEL_WARNING   -- suspicious data or circumstances.
-    !>     WARNING_LEVEL_DEBUG     -- info for debugging only.
-    !>
-    !> STATUS reports an error of the format or of what display_warning
-    !> runs.  Port of warnings.el:lwarn.
-    recursive subroutine display_formatted_warning_of_name(type, level, message, arguments, status)
-        character(len=*), intent(in) :: type, message
-        integer, intent(in) :: level
-        type(format_arguments_type), intent(in), optional :: arguments
-        type(status_type), intent(out), optional :: status
-        type(status_type) :: st
-        character(len=:), allocatable :: text
-
-        call format_warning_message(message, arguments, text, st)
-        if (st%ok()) call display_warning(type, text, level, status=st)
-        if (present(status)) status = st
-    end subroutine display_formatted_warning_of_name
-
-    !> `display_formatted_warning' with the warning type TYPES, a list of
-    !> names.  Port of warnings.el:lwarn.
-    recursive subroutine display_formatted_warning_of_names(types, level, message, arguments, status)
-        type(string_type), intent(in) :: types(:)
-        character(len=*), intent(in) :: message
-        integer, intent(in) :: level
-        type(format_arguments_type), intent(in), optional :: arguments
-        type(status_type), intent(out), optional :: status
-        type(status_type) :: st
-        character(len=:), allocatable :: text
-
-        call format_warning_message(message, arguments, text, st)
-        if (st%ok()) call display_warning(types, text, level, status=st)
-        if (present(status)) status = st
-    end subroutine display_formatted_warning_of_names
-
-    !> Display a warning message made from (format_message MESSAGE
-    !> ARGUMENTS).
-    !> Aside from generating the message with `format_message',
-    !> this is equivalent to `display_warning', using
-    !> "fortmacs" as the type and WARNING_LEVEL_WARNING as the level.  Port of
-    !> warnings.el:warn.
-    recursive subroutine warn(message, arguments, status)
-        character(len=*), intent(in) :: message
-        type(format_arguments_type), intent(in), optional :: arguments
-        type(status_type), intent(out), optional :: status
-        type(status_type) :: st
-        character(len=:), allocatable :: text
-
-        call format_warning_message(message, arguments, text, st)
-        if (st%ok()) call display_warning("fortmacs", text, status=st)
-        if (present(status)) status = st
-    end subroutine warn
-
-    ! (format-message MESSAGE ARGUMENTS...) into TEXT.  Not a port.
-    subroutine format_warning_message(message, arguments, text, status)
-        character(len=*), intent(in) :: message
-        type(format_arguments_type), intent(in), optional :: arguments
+    ! Write ITEM with FORMAT, a Fortran format with an `a' edit
+    ! descriptor for it (or none: then ITEM is left out), into TEXT.
+    ! Not a port (upstream formats the type into the string).
+    subroutine write_with_type(format, item, text, status)
+        character(len=*), intent(in) :: format, item
         character(len=:), allocatable, intent(out) :: text
         type(status_type), intent(out) :: status
-        type(format_arguments_type) :: none
+        ! The end of the written text, a character no format writes.
+        character(len=*), parameter :: SENTINEL = achar(1)
+        character(len=:), allocatable :: marked, buffer
+        character(len=256) :: message
+        integer :: last, k, written
 
-        if (present(arguments)) then
-            call styled_format(message, arguments, .true., text, status)
-        else
-            call styled_format(message, none, .true., text, status)
+        status = status_type()
+        text = ""
+        last = index(format, ")", back=.true.)
+
+        if (last == 0) then
+            call set_error(status, GENERIC_ERROR_CODE, "Not a Fortran format: "//format)
+            return
         end if
-    end subroutine format_warning_message
+
+        marked = format(1:last - 1)//", """//SENTINEL//""")"
+        allocate (character(len=len(format) + len(item) + 256) :: buffer)
+        write (buffer, marked, iostat=written, iomsg=message) item
+        ! A format without an edit descriptor for ITEM.
+        if (written /= 0) write (buffer, marked, iostat=written, iomsg=message)
+
+        if (written /= 0) then
+            call set_error(status, GENERIC_ERROR_CODE, trim(message))
+            return
+        end if
+
+        k = index(buffer, SENTINEL)
+
+        if (k == 0) then
+            call set_error(status, GENERIC_ERROR_CODE, "Not a Fortran format: "//format)
+            return
+        end if
+
+        text = buffer(1:k - 1)
+    end subroutine write_with_type
+
+    !> Display a warning message, MESSAGE (finished text).
+    !> This is equivalent to `display_warning', using
+    !> "fortmacs" as the type and WARNING_LEVEL_WARNING as the level.  Port of
+    !> warnings.el:warn (the message is built by the caller, with an
+    !> internal write).
+    recursive subroutine warn(message, status)
+        character(len=*), intent(in) :: message
+        type(status_type), intent(out), optional :: status
+        type(status_type) :: st
+
+        call display_warning("fortmacs", message, status=st)
+        if (present(status)) status = st
+    end subroutine warn
 
     ! ------------------------------------------------------------------
     ! Delayed warnings
@@ -914,7 +879,7 @@ contains
         type(status_type), intent(out) :: status
         type(delayed_warning_type), allocatable :: collapsed(:)
         type(delayed_warning_type) :: warning
-        character(len=24) :: count_text
+        character(len=40) :: count_text
         integer :: k, count
 
         status = status_type()
@@ -933,8 +898,8 @@ contains
             end if
 
             if (count > 1) then
-                write (count_text, "(i0)") count
-                warning%message = warning%message//" ["//trim(count_text)//" times]"
+                write (count_text, "(a, i0, a)") " [", count, " times]"
+                warning%message = warning%message//trim(count_text)
                 count = 1
             end if
 
@@ -980,15 +945,15 @@ contains
     !> `delayed_warnings_hook''s functions.  Not a port.
     subroutine initialize_warnings()
         warning_levels(1)%level = WARNING_LEVEL_EMERGENCY
-        warning_levels(1)%string = "Emergency%s: "
+        warning_levels(1)%string = "(""Emergency"", a, "": "")"
         warning_levels(1)%procedure => ding_adapter
         warning_levels(2)%level = WARNING_LEVEL_ERROR
-        warning_levels(2)%string = "Error%s: "
+        warning_levels(2)%string = "(""Error"", a, "": "")"
         warning_levels(3)%level = WARNING_LEVEL_WARNING
-        warning_levels(3)%string = "Warning%s: "
+        warning_levels(3)%string = "(""Warning"", a, "": "")"
         warning_levels(4)%level = WARNING_LEVEL_DEBUG
-        warning_levels(4)%string = "Debug%s: "
-        if (.not. allocated(warning_type_format)) warning_type_format = " (%s)"
+        warning_levels(4)%string = "(""Debug"", a, "": "")"
+        if (.not. allocated(warning_type_format)) warning_type_format = "("" ("", a, "")"")"
         call delayed_warnings_hook%append(collapse_delayed_warnings)
         call delayed_warnings_hook%append(display_delayed_warnings)
     end subroutine initialize_warnings

@@ -42,7 +42,6 @@ module window_move_mod
     use data_mod, only: logical_setting_type
     use keymap_mod, only: keymap_set, define_key, where_is_internal, key_modifiers_type, key_parse, key_binding, lookup_key
     use execute_interactively_mod, only: command_of
-    use editing_functions_mod, only: format_arguments_type
     use warnings_mod, only: warn
     use buffer_mod, only: close_buffer
     use minibuffer_reading_mod, only: minibuf_level
@@ -367,12 +366,7 @@ contains
                 binding => command_of(found)
 
                 if (associated(binding, commands%self_insert_command)) then
-                    block
-                        type(format_arguments_type) :: arguments
-                        call arguments%append(trim(commands_to_bind(i)))
-                        call warn("Command %s is shadowing self-insert-key", arguments, status)
-                    end block
-
+                    call warn("Command "//trim(commands_to_bind(i))//" is shadowing self-insert-key", status)
                     if (.not. status%ok()) return
                 end if
 
@@ -380,13 +374,7 @@ contains
                 binding => command_of(found)
 
                 if (associated(binding)) then
-                    block
-                        type(format_arguments_type) :: arguments
-                        call arguments%append(symbols(xsymbol(found))%name)
-                        call arguments%append(trim(commands_to_bind(i)))
-                        call warn("Overriding %s with %s", arguments, status)
-                    end block
-
+                    call warn("Overriding "//symbols(xsymbol(found))%name//" with "//trim(commands_to_bind(i)), status)
                     if (.not. status%ok()) return
                 end if
 

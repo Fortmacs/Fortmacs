@@ -7,8 +7,7 @@
 ## Ported
 
 `display-warning` (a type of one name or a list of names given as an array of `string_type`; the *Warnings* buffer, created in Special mode, read-only and without undo; another buffer by name),
-`lwarn` (`display_formatted_warning`, with optional format arguments),
-`warn` (the type "fortmacs"),
+`warn` (finished text, the type "fortmacs"),
 `warning-levels` (an array of `warning_level_type` records; the WARNING_LEVEL_EMERGENCY entry calls `ding`),
 a warning's level as the named constants WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR, WARNING_LEVEL_WARNING and WARNING_LEVEL_DEBUG,
 `warning-numeric-level`,
@@ -20,7 +19,7 @@ a warning's level as the named constants WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_
 `warning-series` (a choice setting with `%procedure` and `%marker`),
 `warning-fill-prefix`,
 `warning-fill-column`,
-`warning-type-format`,
+`warning-type-format` (a Fortran format with an `a` edit descriptor for the type, as the strings of `warning-levels`),
 `warning--display-buffer` (`display_warning_buffer`);
 `delay-warning`,
 `delayed-warnings-list` (`delayed_warnings`, keyboard_mod; run after `post-command-hook` and at startup after the init file),
@@ -36,8 +35,8 @@ the obsolete `warning-level-aliases` (`display-warning-minimum-level` and `log-w
 a buffer (not its name) as BUFFER-NAME,
 popping up a frame for `pop-up-frames` in `display-buffer--maybe-at-bottom`,
 the `category` entry of the display action (`display-buffer-alist` is not ported);
-Not applicable: the batch-mode output to the echo area and *Messages* and the daemon's first client frame (Fortmacs has no batch mode and no daemon)
+Not applicable: `lwarn` (a message is built with write) and the batch-mode output to the echo area and *Messages* and the daemon's first client frame (Fortmacs has no batch mode and no daemon)
 
 ## Tests
 
-test_warnings_mod (ports test-warning-suppress-p, test-display-warning (the buffer; *Messages* only in batch mode), test-display-warning/warning-minimum-level (interactively) and test-display-warning/warning-minimum-log-level; own tests of the *Warnings* buffer, `warn` and `display_formatted_warning`, the suppression lists, `warning_series` and the delayed warnings)
+test_warnings_mod (ports test-warning-suppress-p, test-display-warning (the buffer; *Messages* only in batch mode), test-display-warning/warning-minimum-level (interactively) and test-display-warning/warning-minimum-log-level; own tests of the *Warnings* buffer, `warn`, a level's Fortran format, the suppression lists, `warning_series` and the delayed warnings)

@@ -22,9 +22,9 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The ported warnings-tests (warning-suppress-p, display-warning and the
-!> minimum levels) and own tests of the *Warnings* buffer, `warn' and
-!> `display_formatted_warning', the suppression lists, `warning_series'
-!> and the delayed warnings.
+!> minimum levels, with messages built by an internal write) and own
+!> tests of the *Warnings* buffer, `warn', a level's Fortran format, the
+!> suppression lists, `warning_series' and the delayed warnings.
 module test_warnings_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -33,15 +33,16 @@ module test_warnings_mod
     use handle_mod, only: handle_type
     use string_type_mod, only: string_type, append_string
     use buffer_mod, only: buffers, get_buffer, get_or_make_buffer, set_buffer, close_buffer, current_buffer
-    use editing_functions_mod, only: buffer_string, point, format_arguments_type
+    use editing_functions_mod, only: buffer_string, point
     use window_mod, only: get_buffer_window
     use time_functions_mod, only: current_time
     use startup_mod, only: after_initialization_time
     use keyboard_mod, only: delayed_warnings
     use bindings_mod, only: initialize_bindings
-    use warnings_mod, only: display_warning, display_formatted_warning, warn, is_warning_suppressed, warning_types_type, &
+    use warnings_mod, only: display_warning, warn, warning_levels, is_warning_suppressed, warning_types_type, &
                             WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR, WARNING_LEVEL_WARNING, WARNING_LEVEL_DEBUG, &
-                            WARNING_MINIMUM_EMERGENCY, WARNING_MINIMUM_ERROR, WARNING_MINIMUM_WARNING, warning_minimum_level, &
+                            WARNING_MINIMUM_EMERGENCY, WARNING_MINIMUM_ERROR, WARNING_MINIMUM_WARNING, WARNING_MINIMUM_DEBUG, &
+                            warning_minimum_level, &
                             warning_minimum_log_level, warning_suppress_types, warning_suppress_log_types, warning_series, &
                             warning_display_at_bottom, &
                             display_delayed_warnings, collapse_delayed_warnings
@@ -62,7 +63,7 @@ contains
                     new_unittest("test-display-warning/warning-minimum-level", test_minimum_level), &
                     new_unittest("test-display-warning/warning-minimum-log-level", test_minimum_log_level), &
                     new_unittest("warnings-buffer", test_warnings_buffer), &
-                    new_unittest("warn-and-display-formatted-warning", test_warn), &
+                    new_unittest("warn-and-level-formats", test_warn), &
                     new_unittest("warning-suppress-types", test_suppress_types), &
                     new_unittest("warning-series", test_series), &
                     new_unittest("delayed-warnings", test_delayed) &
@@ -169,14 +170,16 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text
+        character(len=8) :: message
         integer :: k
 
         call enter()
+        write (message, "(a, i0)") "Hello", 123
 
         do k = 1, size(levels)
             call get_or_make_buffer("warnings-test-temp", h, st)
             call set_buffer(h, st)
-            call display_warning(type_list("foo"), "Hello123", levels(k), "warnings-test-temp", st)
+            call display_warning(type_list("foo"), trim(message), levels(k), "warnings-test-temp", st)
             call check(error, st%ok(), "display_warning")
             if (allocated(error)) exit
             text = buffer_string()
@@ -257,21 +260,22 @@ contains
         call leave()
     end subroutine test_warnings_buffer
 
-    !> `warn' (type fortmacs, curved quotes) and
-    !> `display_formatted_warning' (its format arguments).
+    !> `warn' (finished text, type fortmacs), a message built with an
+    !> internal write, and a level whose Fortran format leaves the type out.
     subroutine test_warn(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(format_arguments_type) :: arguments
+        character(len=40) :: message
 
         call enter()
-        call warn("Can't find `x'", status=st)
-        call arguments%append("file")
-        call arguments%append(3)
-        call display_formatted_warning("diary", WARNING_LEVEL_ERROR, "Bad %s at line %d", arguments, st)
-        call check(error, text_of("*Warnings*") == "Warning (fortmacs): Can"//char(226)//char(128)//char(153)//"t find "// &
-                   char(226)//char(128)//char(152)//"x"//char(226)//char(128)//char(153)//achar(10)// &
-                   "Error (diary): Bad file at line 3"//achar(10), "text: "//text_of("*Warnings*"))
+        call warn("Can't find x", status=st)
+        write (message, "(a, i0)") "Bad file at line ", 3
+        call display_warning("diary", trim(message), WARNING_LEVEL_ERROR, status=st)
+        warning_levels(4)%string = "(""Debug: "")"
+        warning_minimum_log_level = WARNING_MINIMUM_DEBUG
+        call display_warning("diary", "no type", WARNING_LEVEL_DEBUG, status=st)
+        call check(error, text_of("*Warnings*") == "Warning (fortmacs): Can't find x"//achar(10)// &
+                   "Error (diary): Bad file at line 3"//achar(10)//"Debug: no type"//achar(10), "text: "//text_of("*Warnings*"))
         call leave()
     end subroutine test_warn
 

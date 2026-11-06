@@ -9,10 +9,6 @@ name	delayed_warnings_list	delayed_warnings
 name	after_init_time	after_initialization_time
 # warning--display-buffer is verb first (R6-17, R6-40; rule-decided).
 name	warning_display_buffer	display_warning_buffer
-# lwarn spells out its abbreviation and is verb first (no abbreviations,
-# owner 2026-11-05; R6-17): what it does is display a warning whose message
-# is formatted.
-name	lwarn	display_formatted_warning
 # The levels (panel 2026-11-06, #272): warning-minimum-level and
 # warning-minimum-log-level take WARNING_MINIMUM_EMERGENCY to _DEBUG; the
 # LEVEL argument of display-warning and the level of a warning-levels entry

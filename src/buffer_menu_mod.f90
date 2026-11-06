@@ -52,7 +52,7 @@ module buffer_menu_mod
                           buffer_list, frame_buffer_list, buffer_serial_live, close_buffer, is_buffer_modified, &
                           restore_buffer_modified
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_end_of_buffer, &
-                                     is_beginning_of_buffer, buffer_size, following_character, format_arguments_type
+                                     is_beginning_of_buffer, buffer_size, following_character
     use warnings_mod, only: warn
     use editing_commands_mod, only: forward_line, beginning_of_line
     use search_mod, only: regular_expression_search_forward
@@ -858,12 +858,7 @@ contains
                         call set_column(3, " ", status)
                         if (.not. status%ok()) exit
                     else
-                        block
-                            type(format_arguments_type) :: arguments
-                            call arguments%append("#<buffer "//buffers(buffer%index)%name//">")
-                            call warn("Error saving %s", arguments, status)
-                        end block
-
+                        call warn("Error saving #<buffer "//buffers(buffer%index)%name//">", status)
                         if (.not. status%ok()) exit
                     end if
                 end if

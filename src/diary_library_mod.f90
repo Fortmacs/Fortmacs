@@ -1102,7 +1102,7 @@ contains
             file = match_string_no_properties(1)
 
             if (.not. file_exists(file)) then
-                call display_warning("diary", format_message("Can't find included diary file ")//file//achar(10), &
+                call display_warning("diary", "Can't find included diary file "//file//achar(10), &
                                      WARNING_LEVEL_ERROR, status=status)
                 if (.not. status%ok()) return
                 call goto_character(after)
@@ -1110,7 +1110,7 @@ contains
             end if
 
             if (.not. is_file_readable(file)) then
-                call display_warning("diary", format_message("Can't read included diary file ")//file//achar(10), &
+                call display_warning("diary", "Can't read included diary file "//file//achar(10), &
                                      WARNING_LEVEL_ERROR, status=status)
                 if (.not. status%ok()) return
                 call goto_character(after)
@@ -2328,15 +2328,16 @@ contains
         character(len=*), intent(in) :: expression, entry
         type(calendar_date_type), intent(in) :: date
         type(expression_result_type), intent(out) :: result
-        character(len=32) :: digits
+        character(len=:), allocatable :: text
         type(status_type) :: status
 
         call evaluate_entry_expression(expression, entry, date, result, status)
 
         if (.not. status%ok()) then
-            write (digits, "(i0)") count_lines(point_minimum(), point())
-            call display_warning("diary", "Bad diary expression at line "//trim(digits)//" in "//diary_file//":"//achar(10)// &
-                                 expression//achar(10)//"Error: "//format_error(status)//achar(10), WARNING_LEVEL_ERROR)
+            allocate (character(len=len(diary_file) + len(expression) + len(format_error(status)) + 64) :: text)
+            write (text, "(a, i0, 8a)") "Bad diary expression at line ", count_lines(point_minimum(), point()), " in ", &
+                diary_file, ":", achar(10), expression, achar(10), "Error: ", format_error(status)
+            call display_warning("diary", trim(text)//achar(10), WARNING_LEVEL_ERROR)
             result = expression_result_type()
         end if
     end subroutine process_diary_expression_entry

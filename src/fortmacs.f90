@@ -638,7 +638,7 @@ module fortmacs
                             HOLIDAY_ENTRY_PROCEDURE, holiday_general_holidays, holiday_local_holidays, &
                             holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, &
                             calendar_holidays, holidays, list_holidays
-    use warnings_mod, only: display_warning, display_formatted_warning, warn, warning_types_type, warning_level_type, &
+    use warnings_mod, only: display_warning, warn, warning_types_type, warning_level_type, &
                             warning_prefix_procedure, WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR, WARNING_LEVEL_WARNING, &
                             WARNING_LEVEL_DEBUG, WARNING_MINIMUM_EMERGENCY, WARNING_MINIMUM_ERROR, WARNING_MINIMUM_WARNING, &
                             WARNING_MINIMUM_DEBUG, warning_levels, warning_minimum_level, warning_minimum_log_level, &
@@ -1234,7 +1234,7 @@ module fortmacs
               HOLIDAY_ENTRY_ISLAMIC, HOLIDAY_ENTRY_PROCEDURE, holiday_general_holidays, holiday_local_holidays, &
               holiday_other_holidays, holiday_christian_holidays, holiday_islamic_holidays, calendar_holidays, holidays, &
               list_holidays
-    public :: display_warning, display_formatted_warning, warn, warning_types_type, warning_level_type, warning_prefix_procedure, &
+    public :: display_warning, warn, warning_types_type, warning_level_type, warning_prefix_procedure, &
               WARNING_LEVEL_EMERGENCY, WARNING_LEVEL_ERROR, WARNING_LEVEL_WARNING, WARNING_LEVEL_DEBUG, &
               WARNING_MINIMUM_EMERGENCY, WARNING_MINIMUM_ERROR, WARNING_MINIMUM_WARNING, WARNING_MINIMUM_DEBUG, warning_levels, &
               warning_minimum_level, warning_minimum_log_level, warning_suppress_log_types, &
