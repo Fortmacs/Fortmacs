@@ -48,7 +48,7 @@ module tabulated_list_mod
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xstring, xfixnum, string_intervals, vtag, V_INTEGER, V_STRING
     use utility_functions_mod, only: is_string_less
-    use data_mod, only: append_locals_clearer
+    use data_mod, only: append_locals_clearer, forward_setting, integer_setting_type, logical_setting_type
     use hooks_mod, only: hook_type
     use modes_mod, only: major_modes
     use commands_mod, only: commands
@@ -232,25 +232,6 @@ module tabulated_list_mod
         procedure :: clear_local_entry => clear_tabulated_list_entries_entry
     end type tabulated_list_entries_setting_type
 
-    !> One buffer's own `tabulated_list_padding'.
-    type :: tabulated_list_padding_entry_type
-        integer :: width = 0
-    end type tabulated_list_padding_entry_type
-
-    !> The type of `tabulated_list_padding': the global value `width' (0)
-    !> and the buffers' own values (`set_local').
-    type, extends(buffer_local_setting_type), public :: tabulated_list_padding_setting_type
-        integer :: width = 0
-        type(tabulated_list_padding_entry_type), allocatable :: locals(:)
-    contains
-        !> Give the current buffer its own value, WIDTH.
-        procedure :: set_local => set_tabulated_list_padding_local
-        !> The current buffer's value: its own, else the global one.
-        procedure :: get_current => get_tabulated_list_padding_current
-        procedure :: append_local_entry => append_tabulated_list_padding_entry
-        procedure :: clear_local_entry => clear_tabulated_list_padding_entry
-    end type tabulated_list_padding_setting_type
-
     !> One buffer's own `tabulated_list_sort_key'.
     type :: tabulated_list_sort_key_entry_type
         character(len=:), allocatable :: name
@@ -273,25 +254,6 @@ module tabulated_list_mod
         procedure :: append_local_entry => append_tabulated_list_sort_key_entry
         procedure :: clear_local_entry => clear_tabulated_list_sort_key_entry
     end type tabulated_list_sort_key_setting_type
-
-    !> One buffer's own `tabulated_list_use_header_line'.
-    type :: tabulated_list_use_header_line_entry_type
-        logical :: value = .true.
-    end type tabulated_list_use_header_line_entry_type
-
-    !> The type of `tabulated_list_use_header_line': the global value
-    !> `value' (.true.) and the buffers' own values (`set_local').
-    type, extends(buffer_local_setting_type), public :: tabulated_list_use_header_line_setting_type
-        logical :: value = .true.
-        type(tabulated_list_use_header_line_entry_type), allocatable :: locals(:)
-    contains
-        !> Give the current buffer its own value, VALUE.
-        procedure :: set_local => set_tabulated_list_use_header_line_local
-        !> The current buffer's value: its own, else the global one.
-        procedure :: get_current => get_tabulated_list_use_header_line_current
-        procedure :: append_local_entry => append_tabulated_list_use_header_line_entry
-        procedure :: clear_local_entry => clear_tabulated_list_use_header_line_entry
-    end type tabulated_list_use_header_line_setting_type
 
     !> One buffer's own `tabulated_list_printer'.
     type :: tabulated_list_printer_entry_type
@@ -334,9 +296,10 @@ module tabulated_list_mod
     !> Number of characters preceding each Tabulated List mode entry.
     !> By default, lines are padded with spaces, but you can use the
     !> function `tabulated_list_put_tag' to change this.  Port of
-    !> tabulated-list.el tabulated-list-padding (always buffer-local and
-    !> permanent; `%set_local(width)').
-    type(tabulated_list_padding_setting_type), public :: tabulated_list_padding
+    !> tabulated-list.el tabulated-list-padding (local when set and
+    !> permanently local: `%set_local(width)').
+    type(integer_setting_type), target, public :: tabulated_list_padding = &
+                                                  integer_setting_type(name="tabulated_list_padding", permanent_local=.true.)
 
     !> Sort key for the current Tabulated List mode buffer.
     !> If no sort key (`name' unallocated), no additional sorting is
@@ -348,10 +311,10 @@ module tabulated_list_mod
     type(tabulated_list_sort_key_setting_type), public :: tabulated_list_sort_key
 
     !> Whether the Tabulated List buffer should use a header line.
-    !> Port of tabulated-list.el tabulated-list-use-header-line (always
-    !> buffer-local; `%set_local(value)'; .false., the fake header, is
-    !> Deferred).
-    type(tabulated_list_use_header_line_setting_type), public :: tabulated_list_use_header_line
+    !> Port of tabulated-list.el tabulated-list-use-header-line (local
+    !> when set: `%set_local'; .false., the fake header, is Deferred).
+    type(logical_setting_type), target, public :: tabulated_list_use_header_line = &
+                                                  logical_setting_type(name="tabulated_list_use_header_line", value=.true.)
 
     !> Function for inserting a Tabulated List entry at point.
     !> It is called with one argument, the entry (ID and column
@@ -377,7 +340,6 @@ contains
     subroutine clear_tabulated_list_locals()
         integer :: k
 
-        call tabulated_list_use_header_line%clear_local()
         call tabulated_list_printer%clear_local()
         k = tabulated_list_entries%get_local_index()
         if (k > 0) tabulated_list_entries%locals(k)%original_order = .false.
@@ -537,45 +499,6 @@ contains
         if (.not. allocated(tabulated_list_entries%locals(k)%entries)) allocate (tabulated_list_entries%locals(k)%entries(0))
     end subroutine make_entries_local
 
-    !> Give the current buffer its own `tabulated_list_padding', WIDTH.
-    !> Not a port.
-    subroutine set_tabulated_list_padding_local(self, width)
-        class(tabulated_list_padding_setting_type), intent(inout) :: self
-        integer, intent(in) :: width
-        integer :: k
-
-        call self%make_local_entry(k)
-        if (k > 0) self%locals(k)%width = width
-    end subroutine set_tabulated_list_padding_local
-
-    !> The current buffer's `tabulated_list_padding': its own value, else
-    !> the global one.  Not a port.
-    integer function get_tabulated_list_padding_current(self) result(width)
-        class(tabulated_list_padding_setting_type), intent(in) :: self
-        integer :: k
-
-        width = self%width
-        k = self%get_local_index()
-        if (k > 0) width = self%locals(k)%width
-    end function get_tabulated_list_padding_current
-
-    ! Grow `locals' by one entry.  Not a port.
-    subroutine append_tabulated_list_padding_entry(self)
-        class(tabulated_list_padding_setting_type), intent(inout) :: self
-        type(tabulated_list_padding_entry_type) :: entry
-
-        if (.not. allocated(self%locals)) allocate (self%locals(0))
-        self%locals = [self%locals, entry]
-    end subroutine append_tabulated_list_padding_entry
-
-    ! Reset entry K of `locals'.  Not a port.
-    subroutine clear_tabulated_list_padding_entry(self, k)
-        class(tabulated_list_padding_setting_type), intent(inout) :: self
-        integer, intent(in) :: k
-
-        self%locals(k)%width = 0
-    end subroutine clear_tabulated_list_padding_entry
-
     !> Give the current buffer its own `tabulated_list_sort_key': NAME,
     !> one of the column names in `tabulated_list_format', and FLIP,
     !> true to invert the resulting sort; without NAME, no sort key.
@@ -628,45 +551,6 @@ contains
         if (allocated(self%locals(k)%name)) deallocate (self%locals(k)%name)
         self%locals(k)%flip = .false.
     end subroutine clear_tabulated_list_sort_key_entry
-
-    !> Give the current buffer its own `tabulated_list_use_header_line',
-    !> VALUE.  Not a port.
-    subroutine set_tabulated_list_use_header_line_local(self, value)
-        class(tabulated_list_use_header_line_setting_type), intent(inout) :: self
-        logical, intent(in) :: value
-        integer :: k
-
-        call self%make_local_entry(k)
-        if (k > 0) self%locals(k)%value = value
-    end subroutine set_tabulated_list_use_header_line_local
-
-    !> The current buffer's `tabulated_list_use_header_line': its own
-    !> value, else the global one.  Not a port.
-    logical function get_tabulated_list_use_header_line_current(self) result(value)
-        class(tabulated_list_use_header_line_setting_type), intent(in) :: self
-        integer :: k
-
-        value = self%value
-        k = self%get_local_index()
-        if (k > 0) value = self%locals(k)%value
-    end function get_tabulated_list_use_header_line_current
-
-    ! Grow `locals' by one entry.  Not a port.
-    subroutine append_tabulated_list_use_header_line_entry(self)
-        class(tabulated_list_use_header_line_setting_type), intent(inout) :: self
-        type(tabulated_list_use_header_line_entry_type) :: entry
-
-        if (.not. allocated(self%locals)) allocate (self%locals(0))
-        self%locals = [self%locals, entry]
-    end subroutine append_tabulated_list_use_header_line_entry
-
-    ! Reset entry K of `locals'.  Not a port.
-    subroutine clear_tabulated_list_use_header_line_entry(self, k)
-        class(tabulated_list_use_header_line_setting_type), intent(inout) :: self
-        integer, intent(in) :: k
-
-        self%locals(k)%value = .true.
-    end subroutine clear_tabulated_list_use_header_line_entry
 
     !> Give the current buffer its own `tabulated_list_printer',
     !> LOCAL_PROCEDURE (null when absent).  Not a port.
@@ -783,7 +667,7 @@ contains
         logical :: ro
 
         status = status_type()
-        padding = tabulated_list_padding%get_current()
+        padding = int(tabulated_list_padding%value)
 
         if (.not. (padding > 0)) then
             call set_error(status, GENERIC_ERROR_CODE, "Unable to tag the current line")
@@ -848,7 +732,7 @@ contains
         logical :: ro
 
         status = status_type()
-        padding = tabulated_list_padding%get_current()
+        padding = int(tabulated_list_padding%value)
 
         if (.not. (padding > 0)) then
             call set_error(status, GENERIC_ERROR_CODE, "There can be no tags in current buffer")
@@ -891,7 +775,7 @@ contains
 
         call tabulated_list_format%get_current(format)
         call tabulated_list_sort_key%get_current(sort_name, flip)
-        x = max(tabulated_list_padding%get_current(), 0)
+        x = max(int(tabulated_list_padding%value), 0)
         length_fmt = size(format)
         ! Pre-compute width for available-space computation.
         has_near_rows = .true.
@@ -952,7 +836,7 @@ contains
 
         has_near_rows = .false.
 
-        if (tabulated_list_use_header_line%get_current()) then
+        if (tabulated_list_use_header_line%value) then
             buffers(current)%header_line_format = header
         end if
 
@@ -1339,7 +1223,7 @@ contains
 
         beginning = point()
         call tabulated_list_format%get_current(format)
-        padding = tabulated_list_padding%get_current()
+        padding = int(tabulated_list_padding%value)
         x = max(padding, 0)
         ro = buffers(current)%read_only
         buffers(current)%read_only = .false.
@@ -1985,6 +1869,8 @@ contains
         call tabulated_list_fake_header%specification_entry(display_when(), face_attributes(overline=.true., underline=.true., &
                                                                                             weight="bold"))
         call append_locals_clearer(clear_tabulated_list_locals)
+        call forward_setting(tabulated_list_padding, local_if_set=.true.)
+        call forward_setting(tabulated_list_use_header_line, local_if_set=.true.)
 
         if (.not. associated(tabulated_list_printer%procedure)) then
             tabulated_list_printer%procedure => tabulated_list_print_entry

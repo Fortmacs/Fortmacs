@@ -687,15 +687,14 @@ contains
         type(status_type) :: st
 
         call initialize_coding()
-        ! buffer.c: buffer-file-coding-system is local when set, and
-        ! permanently local.
+        ! buffer.c: buffer-file-coding-system is local when set (and
+        ! permanently local: its declaration in coding_mod).
         call forward_setting(buffer_file_coding_system, local_if_set=.true.)
         call forward_setting(current_language_environment)
         call forward_setting(default_input_method)
         call forward_setting(default_transient_input_method)
         if (.not. allocated(current_language_environment%value)) current_language_environment%value = "English"
         if (.not. allocated(default_input_method%value)) default_input_method%value = ""
-        call put(value_type(name="buffer_file_coding_system"), value_type(name="permanent_local"), value_type(.true.), st)
         set_auto_coding_function => set_auto_coding
         after_insert_file_set_coding => after_insert_file_set_coding_1
         select_safe_coding_system_function => select_safe_coding_system

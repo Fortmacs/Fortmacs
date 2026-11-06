@@ -196,6 +196,24 @@ contains
         if (.not. m%global) symbols(id)%local_if_set = .true.
     end subroutine resolve_minor_mode
 
+    !> Whether symbol ID is forwarded to a setting (or a minor mode's
+    !> state) whose `permanent_local' is true.  Not a port.
+    logical function is_permanent_local(id) result(permanent)
+        integer(int64), intent(in) :: id
+        type(minor_mode_type), pointer :: m
+        integer :: k
+
+        permanent = .false.
+        k = resolve(id)
+
+        if (k >= EXT_BASE) then
+            permanent = forwarded(k - EXT_BASE)%p%permanent_local
+        else if (k > NFWD) then
+            m => minor_mode_at(k - NFWD)
+            permanent = m%state%permanent_local
+        end if
+    end function is_permanent_local
+
     !> The kind of symbol ID: 0 for a plain variable.  Not a port.
     integer function kind_of(id) result(kind)
         integer(int64), intent(in) :: id
@@ -1298,6 +1316,8 @@ contains
 
     do i = buffers(current)%nlocal, 1, -1
         if (.not. all) then
+            if (is_permanent_local(buffers(current)%local_ids(i))) cycle
+            ! (A variable of no setting: its `permanent_local' property.)
             call get(make_symbol_reference(buffers(current)%local_ids(i)), value_type(name="permanent_local"), property, st)
             if (allocated(property%a)) cycle
         end if

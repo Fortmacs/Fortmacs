@@ -14,7 +14,7 @@ the buffer-local `tabulated-list-format` (an array of `tabulated_list_column_typ
 `tabulated-list-use-header-line`,
 `tabulated-list-printer`,
 `tabulated-list-revert-hook`;
-the six buffer-local variables as setting objects (`tabulated_list_format`, `tabulated_list_entries`, `tabulated_list_padding`, `tabulated_list_sort_key`, `tabulated_list_use_header_line`, `tabulated_list_printer`: `%set_local`, `%get_current`, `%is_local`, `%clear_local`; `tabulated_list_entries%set_local` takes an array or a procedure, R6-37; format, entries, padding and sort key permanent-local);
+the buffer-local variables as setting objects (`tabulated_list_format`, `tabulated_list_entries`, `tabulated_list_sort_key`, `tabulated_list_printer`: `%set_local`, `%get_current`, `%is_local`, `%clear_local`; `tabulated_list_entries%set_local` takes an array or a procedure, R6-37) and forwarded settings (`tabulated_list_padding`, `tabulated_list_use_header_line`); format, entries, padding and sort key permanent-local;
 `tabulated-list-init-header` (the header line's segments, the sort indicator of the frame),
 `tabulated-list-print` (sorting, REMEMBER-POS, UPDATE),
 `tabulated-list-print-entries`,

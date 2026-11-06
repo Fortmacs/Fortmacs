@@ -322,7 +322,8 @@ module command_interpreter_mod
     !> to set this in a mode hook, rather than customize the default
     !> value.  Port of comint.el comint-input-ring-file-name.
     type(string_setting_type), target, public :: command_interpreter_input_ring_file_name = &
-                                                 string_setting_type(name="command_interpreter_input_ring_file_name")
+                                                 string_setting_type(name="command_interpreter_input_ring_file_name", &
+                                                                     permanent_local=.true.)
 
     !> If allocated, the program to use for pagination of program output.
     !> If unallocated, use the default pager.
@@ -372,7 +373,8 @@ module command_interpreter_mod
     !> This variable is buffer-local in all Comint buffers.  Port of
     !> comint.el comint-move-point-for-output.
     type(choice_setting_type), target, public :: command_interpreter_move_point_for_output = &
-                                                 choice_setting_type(name="command_interpreter_move_point_for_output")
+                                                 choice_setting_type(name="command_interpreter_move_point_for_output", &
+                                                                     permanent_local=.true.)
 
     !> Controls where to place point after matching input.
     !> \<command_interpreter_mode_map>This influences the commands
@@ -404,6 +406,7 @@ module command_interpreter_mod
     !> comint.el comint-scroll-show-maximum-output.
     type(logical_setting_type), target, public :: command_interpreter_scroll_show_maximum_output = &
                                                   logical_setting_type(name="command_interpreter_scroll_show_maximum_output", &
+                                                                       permanent_local=.true., &
                                                                        value=.true.)
 
     !> The maximum size in lines for Comint buffers.
@@ -468,7 +471,8 @@ module command_interpreter_mod
     !> This variable is buffer-local.  Port of comint.el
     !> comint-input-autoexpand.
     type(choice_setting_type), target, public :: command_interpreter_input_autoexpand = &
-                                                 choice_setting_type(name="command_interpreter_input_autoexpand")
+                                                 choice_setting_type(name="command_interpreter_input_autoexpand", &
+                                                                     permanent_local=.true.)
 
     !> Values of `command_interpreter_scroll_to_bottom_on_input' besides .true. and .false.
     integer, parameter, public :: COMMAND_INTERPRETER_SCROLL_TO_BOTTOM_ON_INPUT_ALL = 2, &
@@ -485,7 +489,8 @@ module command_interpreter_mod
     !> See `command_interpreter_preinput_scroll_to_bottom'.  This variable is
     !> buffer-local.  Port of comint.el comint-scroll-to-bottom-on-input.
     type(choice_setting_type), target, public :: command_interpreter_scroll_to_bottom_on_input = &
-                                                 choice_setting_type(name="command_interpreter_scroll_to_bottom_on_input")
+                                                 choice_setting_type(name="command_interpreter_scroll_to_bottom_on_input", &
+                                                                     permanent_local=.true.)
 
     !> If true, `command_interpreter_insert_previous_argument' counts args from the
     !> end.  If this variable is false, the default,

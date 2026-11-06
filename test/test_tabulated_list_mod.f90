@@ -381,7 +381,7 @@ contains
             call check(error, buffer_string(), "zzzz-game"//LF//"4clojure"//LF//"abc-mode"//LF//"mode"//LF, "printer")
             if (allocated(error)) exit steps
             call clear_all_local_variables()
-            call check(error, tabulated_list_padding%get_current(), 7, "padding")
+            call check(error, int(tabulated_list_padding%value), 7, "padding")
             if (allocated(error)) exit steps
             call tabulated_list_format%get_current(format)
             call check(error, size(format), 5, "format")
@@ -389,7 +389,7 @@ contains
             call tabulated_list_entries%get_current(entries)
             call check(error, size(entries), 4, "entries")
             if (allocated(error)) exit steps
-            call check(error, tabulated_list_use_header_line%get_current(), "use_header_line")
+            call check(error, tabulated_list_use_header_line%value, "use_header_line")
             if (allocated(error)) exit steps
             printer => tabulated_list_printer%get_current()
             call check(error, associated(printer, tabulated_list_print_entry), "printer cleared")
