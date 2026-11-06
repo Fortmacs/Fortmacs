@@ -88,7 +88,8 @@ module message_mod
     use minibuffer_mod, only: read_file_name, REQUIRE_MATCH_YES
     use read_multiple_choice_mod, only: read_multiple_choice, read_multiple_choice_choice_type
     use coding_mod, only: buffer_file_coding_system
-    use time_functions_mod, only: format_time_string, current_time, current_time_string, time_type
+    use time_functions_mod, only: format_date, date_format_type, MAIL_DATE, current_time, current_time_string, time_type, &
+                                  DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND
     use startup_mod, only: mail_host_address, user_mail_address_value
     use execute_process_mod, only: execute_process_region
     use undo_mod, only: undo_boundary
@@ -1458,12 +1459,14 @@ contains
     ! ------------------------------------------------------------------
 
     !> Make a valid date header, of the time NOW (by default the current
-    !> time).  Port of message.el:message-make-date.
-    function make_message_date(now) result(date)
+    !> time), or an error condition in STATUS.  Port of
+    !> message.el:message-make-date.
+    function make_message_date(status, now) result(date)
+        type(status_type), intent(out) :: status
         type(time_type), intent(in), optional :: now
         character(len=:), allocatable :: date
 
-        date = format_time_string("%a, %d %b %Y %T %z", now)
+        date = format_date(MAIL_DATE, now, status=status)
     end function make_message_date
 
     !> Make a unique Message-ID in ID.  Port of message.el:message-make-message-id.
@@ -1929,21 +1932,24 @@ contains
         if (allocated(reply%id)) in_reply_to = in_reply_to//")"
     end subroutine make_message_in_reply_to
 
-    !> Return an Expires header based on `message_expires'.  Port of
-    !> message.el:message-make-expires.
-    function make_message_expires() result(expires)
+    !> Return an Expires header based on `message_expires', or an error
+    !> condition in STATUS.  Port of message.el:message-make-expires.
+    function make_message_expires(status) result(expires)
+        type(status_type), intent(out) :: status
         character(len=:), allocatable :: expires
         type(time_type) :: future
 
         future = current_time()
         future%seconds = future%seconds + 60_int64*60*24*message_expires
-        expires = make_message_date(future)
+        expires = make_message_date(status, future)
     end function make_message_expires
 
-    !> Make date string for the Expires header.  Expiry in DAYS days.
-    !> Port of message.el:message-make-expires-date.
-    function make_message_expires_date(days) result(expires)
+    !> Make date string for the Expires header.  Expiry in DAYS days; a
+    !> check of STATUS finds an error condition.  Port of
+    !> message.el:message-make-expires-date.
+    function make_message_expires_date(days, status) result(expires)
         integer(int64), intent(in) :: days
+        type(status_type), intent(out) :: status
         character(len=:), allocatable :: expires
         type(time_type) :: future
 
@@ -1951,7 +1957,7 @@ contains
         ! days later in the local time zone.
         future = current_time()
         future%seconds = future%seconds + 60_int64*60*24*days
-        expires = make_message_date(future)
+        expires = make_message_date(status, future)
     end function make_message_expires_date
 
     !> Return uucp path.  Port of message.el:message-make-path.
@@ -2061,7 +2067,7 @@ contains
 
         select case (header)
         case ("Date")
-            value = make_message_date()
+            value = make_message_date(status)
         case ("Message-ID")
             call make_message_id(value, status)
         case ("Organization")
@@ -2082,7 +2088,7 @@ contains
         case ("Lines")
             value = make_message_lines()
         case ("Expires")
-            value = make_message_expires()
+            value = make_message_expires(status)
         case default
             known = .false.
         end select
@@ -3228,7 +3234,7 @@ contains
     ! itself is Deferred: `buffer_auto_save_file_name' is not set).
     recursive subroutine set_message_auto_save_file_name(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: file
+        character(len=:), allocatable :: file, suffix
 
         status = status_type()
         if (.not. allocated(message_auto_save_directory)) return
@@ -3242,7 +3248,10 @@ contains
         ! regular file in `message_auto_save_directory'.  Append a unique
         ! time-based suffix to the filename to allow multiple drafts to be
         ! saved simultaneously without overwriting each other.
-        call expand_file_name("*message*"//format_time_string("-%Y%m%d-%H%M%S"), file, status, message_auto_save_directory)
+        suffix = format_date(date_format_type('("-", i4.4, 2i2.2, "-", 3i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, &
+                                                                                 TIME_MINUTE, TIME_SECOND]), status=status)
+        if (.not. status%ok()) return
+        call expand_file_name("*message*"//suffix, file, status, message_auto_save_directory)
         if (.not. status%ok()) return
         buffers(current)%filename = file
         ! clear-visited-file-modtime
@@ -5070,10 +5079,16 @@ contains
         integer(int64), intent(in) :: days
         type(status_type), intent(out) :: status
         type(excursion_type) :: excursion
+        character(len=:), allocatable :: expires
 
         call save_excursion_begin(excursion)
         call position_message_on_field("Expires", status, [character(len=12) :: "X-Draft-From"])
-        if (status%ok()) call insert(make_message_expires_date(days), status)
+
+        if (status%ok()) then
+            expires = make_message_expires_date(days, status)
+            if (status%ok()) call insert(expires, status)
+        end if
+
         call save_excursion_end(excursion)
     end subroutine insert_message_expires
 

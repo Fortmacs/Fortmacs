@@ -1,8 +1,9 @@
 ! test_time_functions_mod.f90 -- tests for time_functions_mod.
-! Ports GNU Emacs 31.1 test/src/timefns-tests.el in part; the integer and
-! list ZONE forms of format-time-string and decode-time wait for their
-! Fortran form, and values beyond int64 (bignums, floats such as 1e37, and
-! rates whose least common multiple exceeds huge(0_int64)) have none.
+! Ports GNU Emacs 31.1 test/src/timefns-tests.el in part: the strftime
+! strings of format-time-string are date formats giving the same text
+! (%-N, %-6N and %-:::z, whose digits depend on the value, have none), and
+! values beyond int64 (bignums, floats such as 1e37, and rates whose least
+! common multiple exceeds huge(0_int64)) have none.
 !
 ! Copyright (C) 2019-2026 Free Software Foundation, Inc.
 ! Copyright (C) 2026 The Fortmacs authors
@@ -25,12 +26,23 @@
 module test_time_functions_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type
+    use error_mod, only: status_type, format_error
     use time_functions_mod, only: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, &
                                   DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, current_time, &
                                   current_cpu_time, time_add, time_subtract, is_time_less, is_time_equal, real, time_convert, &
-                                  decode_time, encode_time, format_time_string, current_time_string, current_time_zone, &
-                                  set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM
+                                  decode_time, encode_time, format_date, date_format_type, MAIL_DATE, current_time_string, &
+                                  current_time_zone, set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM, DATE_NONE, DATE_YEAR, &
+                                  DATE_CENTURY, DATE_YEAR_OF_CENTURY, DATE_ISO_WEEK_YEAR, DATE_ISO_WEEK_YEAR_OF_CENTURY, &
+                                  DATE_ISO_WEEK, DATE_QUARTER, DATE_MONTH, DATE_WEEK_STARTING_SUNDAY, DATE_WEEK_STARTING_MONDAY, &
+                                  DATE_DAY, DATE_DAY_OF_YEAR, DATE_WEEKDAY, DATE_ISO_WEEKDAY, TIME_HOUR, &
+                                  TIME_HOUR_OF_TWELVE_HOUR_CLOCK, &
+                                  TIME_MINUTE, TIME_SECOND, TIME_MILLISECOND, TIME_MICROSECOND, TIME_NANOSECOND, &
+                                  TIME_SECONDS_SINCE_EPOCH, ZONE_OFFSET, ZONE_OFFSET_HOURS, ZONE_OFFSET_MINUTES, &
+                                  ZONE_OFFSET_SECONDS, DATE_WEEKDAY_NAME, DATE_WEEKDAY_ABBREVIATION, &
+                                  DATE_WEEKDAY_NAME_UPPER_CASE, DATE_WEEKDAY_ABBREVIATION_UPPER_CASE, DATE_MONTH_NAME, &
+                                  DATE_MONTH_ABBREVIATION, DATE_MONTH_NAME_UPPER_CASE, DATE_MONTH_ABBREVIATION_UPPER_CASE, &
+                                  TIME_MERIDIEM, TIME_MERIDIEM_LOWER_CASE, ZONE_ABBREVIATION, &
+                                  ZONE_ABBREVIATION_LOWER_CASE, ZONE_OFFSET_SIGN
     implicit none(type, external)
     private
 
@@ -64,7 +76,10 @@ contains
                     new_unittest("time-convert-forms", test_convert_forms), &
                     new_unittest("current-time-zone", test_current_time_zone), &
                     new_unittest("current-time-string", test_current_time_string), &
-                    new_unittest("format-time-string-directives", test_directives), &
+                    new_unittest("format-date-parts", test_parts), &
+                    new_unittest("format-date-formats", test_formats), &
+                    new_unittest("format-date-errors", test_format_errors), &
+                    new_unittest("format-date-callers", test_callers), &
                     new_unittest("set-time-zone-rule", test_set_time_zone_rule), &
                     new_unittest("time-zone-rule", test_time_zone_rule), &
                     new_unittest("time-zone-system", test_time_zone_system), &
@@ -92,16 +107,38 @@ contains
                    d%daylight_saving_time == expected%daylight_saving_time .and. d%zone == expected%zone, "decoded "//zone)
     end subroutine check_decode
 
+    ! TIME written with DATE_FORMAT in ZONE by format_date, or "error: "
+    ! and the error message when it fails.
+    function date_text(date_format, time, zone) result(text)
+        type(date_format_type), intent(in) :: date_format
+        type(time_type), intent(in), optional :: time
+        character(len=*), intent(in), optional :: zone
+        character(len=:), allocatable :: text
+        type(status_type) :: st
+
+        text = format_date(date_format, time, zone, st)
+        if (.not. st%ok()) text = "error: "//format_error(st)
+    end function date_text
+
     ! Check format-time-string and decode-time with various TZ settings.
     ! "look" is the timestamp just before the first leap second on
-    ! 1972-06-30 23:59:60 UTC.
+    ! 1972-06-30 23:59:60 UTC.  (The strftime strings of upstream's test
+    ! are date formats here, giving the same text.)
     subroutine test_format_with_zone(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: format = "%Y-%m-%d %H:%M:%S.%3N %z (%Z)"
+        type(date_format_type) :: with_zone, with_abbreviation
         type(time_type) :: looks(2), look, second
         type(decoded_time_type) :: expected
         integer :: k
 
+        ! "%Y-%m-%d %H:%M:%S.%3N %z" and "%Y-%m-%d %H:%M:%S.%3N %z (%Z)".
+        with_zone = date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2, ".", i3.3, 1x, sp, i5.4)', &
+                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, TIME_MILLISECOND, &
+                                      ZONE_OFFSET])
+        with_abbreviation = date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2, ".", i3.3, 1x, sp, ' &
+                                             //'i5.4, " (", a, ")")', [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, &
+                                                                       TIME_SECOND, TIME_MILLISECOND, ZONE_OFFSET, &
+                                                                       ZONE_ABBREVIATION])
         ! (1202 22527 999999 999999), (7879679999900 . 100000) and
         ! (78796799999999999999 . 1000000000000).
         looks(1) = time_type(1202_int64*65536 + 22527, 999999999999_int64, 1000000000000_int64)
@@ -112,31 +149,29 @@ contains
             second = time_add(time_convert(time_type(59), look%count_rate), &
                               time_subtract(look, time_convert(time_type(look%seconds), look%count_rate)))
             ! UTC.
-            call check(error, format_time_string("%Y-%m-%d %H:%M:%S.%3N %z", look, "UTC0") == &
-                       "1972-06-30 23:59:59.999 +0000", "UTC")
+            call check(error, date_text(with_zone, look, "UTC0"), "1972-06-30 23:59:59.999 +0000")
             if (allocated(error)) return
             expected = decoded_time_type(second, 59, 23, 30, 6, 1972_int64, 5, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, 0)
             call check_decode(error, look, "UTC0", expected)
             if (allocated(error)) return
-            call check(error, format_time_string(format, look, "UTC0") == "1972-06-30 23:59:59.999 +0000 (UTC)", "UTC0")
+            call check(error, date_text(with_abbreviation, look, "UTC0"), "1972-06-30 23:59:59.999 +0000 (UTC)")
             if (allocated(error)) return
             ! Positive UTC offset that is not an hour multiple, as a string.
-            call check(error, format_time_string(format, look, "IST-5:30") == "1972-07-01 05:29:59.999 +0530 (IST)", &
-                       "IST-5:30")
+            call check(error, date_text(with_abbreviation, look, "IST-5:30"), "1972-07-01 05:29:59.999 +0530 (IST)")
             if (allocated(error)) return
             expected = decoded_time_type(second, 29, 5, 1, 7, 1972_int64, 6, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, 19800)
             call check_decode(error, look, "IST-5:30", expected)
             if (allocated(error)) return
             ! Negative UTC offset, as an offset and an abbreviation.
-            call check(error, format_time_string(format, look, time_zone_rule(-28800, "PST")) == &
-                       "1972-06-30 15:59:59.999 -0800 (PST)", "(-28800 PST)")
+            call check(error, date_text(with_abbreviation, look, time_zone_rule(-28800, "PST")), &
+                       "1972-06-30 15:59:59.999 -0800 (PST)")
             if (allocated(error)) return
             expected = decoded_time_type(second, 59, 15, 30, 6, 1972_int64, 5, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, -28800)
             call check_decode(error, look, time_zone_rule(-28800, "PST"), expected)
             if (allocated(error)) return
             ! Negative UTC offset, as an integer.
-            call check(error, format_time_string(format, look, time_zone_rule(-28800)) == &
-                       "1972-06-30 15:59:59.999 -0800 (-08)", "-28800")
+            call check(error, date_text(with_abbreviation, look, time_zone_rule(-28800)), &
+                       "1972-06-30 15:59:59.999 -0800 (-08)")
             if (allocated(error)) return
             call check_decode(error, look, time_zone_rule(-28800), expected)
             if (allocated(error)) return
@@ -176,17 +211,23 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: text
 
-        text = format_time_string("%Y-%m-%d %H:%M:%S.%3N %z", zone=repeat("X", 2048)//"0")
+        text = date_text(date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2, ".", i3.3, 1x, sp, i5.4)', &
+                                          [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, &
+                                           TIME_MILLISECOND, ZONE_OFFSET]), zone=repeat("X", 2048)//"0")
         call check(error, len(text) > 0)
     end subroutine test_outlandish_zone
 
     subroutine test_year_2038(error)
         type(error_type), allocatable, intent(out) :: error
+        type(date_format_type) :: date_and_time
         logical :: leap_seconds
 
-        leap_seconds = format_time_string("%Y-%m-%d %H:%M:%S", time_type(78796800), "UTC0") == "1972-06-30 23:59:60"
-        call check(error, format_time_string("%Y-%m-%d %H:%M:%S", time_type(2_int64**31 - 3600), "UTC0") == &
-                   "2038-01-19 02:14:08" .or. leap_seconds)
+        ! "%Y-%m-%d %H:%M:%S".
+        date_and_time = date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2)', &
+                                         [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND])
+        leap_seconds = date_text(date_and_time, time_type(78796800), "UTC0") == "1972-06-30 23:59:60"
+        call check(error, date_text(date_and_time, time_type(2_int64**31 - 3600), "UTC0") == "2038-01-19 02:14:08" &
+                   .or. leap_seconds)
     end subroutine test_year_2038
 
     ! A time made by encode-time from the parts given, in UTC.
@@ -197,18 +238,16 @@ contains
         utc_time = encode_time(decoded_time_type(second=second, day=day, month=month, year=2000), "UTC0")
     end function utc_time
 
+    ! The padding of upstream's padding tests is the width of the edit
+    ! descriptor; the strftime sequences whose digits depend on the value
+    ! (%-N, %-6N and %-:::z) have no date format.
     subroutine test_padding_minimal(error)
         type(error_type), allocatable, intent(out) :: error
         type(time_type) :: reference_time
 
         reference_time = utc_time(time_type(0, 123450, 1000000), 15, 2)
-        call check(error, format_time_string("%-:::z", reference_time, "FJT-12") == "+12", "%-:::z")
-        if (allocated(error)) return
-        call check(error, format_time_string("%-N", reference_time, "UTC0") == "12345", "%-N")
-        if (allocated(error)) return
-        call check(error, format_time_string("%-6N", reference_time, "UTC0") == "12345", "%-6N")
-        if (allocated(error)) return
-        call check(error, format_time_string("%-m", reference_time, "UTC0") == "2", "%-m")
+        ! %-m.
+        call check(error, date_text(date_format_type("(i0)", [DATE_MONTH]), reference_time, "UTC0"), "2")
     end subroutine test_padding_minimal
 
     subroutine test_padding_retains(error)
@@ -216,23 +255,16 @@ contains
         type(time_type) :: reference_time
 
         reference_time = utc_time(time_type(0, 3450, 1000000), 20, 10)
-        call check(error, format_time_string("%-z", reference_time, "IST-5:30") == "+530", "%-z")
+        ! %-z, %-4z and %4z.
+        call check(error, date_text(date_format_type("(sp, i0)", [ZONE_OFFSET]), reference_time, "IST-5:30"), "+530")
         if (allocated(error)) return
-        call check(error, format_time_string("%-4z", reference_time, "IST-5:30") == "+530", "%-4z")
+        call check(error, date_text(date_format_type("(sp, i4)", [ZONE_OFFSET]), reference_time, "IST-5:30"), "+530")
         if (allocated(error)) return
-        call check(error, format_time_string("%4z", reference_time, "IST-5:30") == "+530", "%4z")
+        ! %-3N and %3N.
+        call check(error, date_text(date_format_type("(i3.3)", [TIME_MILLISECOND]), reference_time, "UTC0"), "003")
         if (allocated(error)) return
-        call check(error, format_time_string("%-N", reference_time, "UTC0") == "00345", "%-N")
-        if (allocated(error)) return
-        call check(error, format_time_string("%-3N", reference_time, "UTC0") == "003", "%-3N")
-        if (allocated(error)) return
-        call check(error, format_time_string("%3N", reference_time, "UTC0") == "003", "%3N")
-        if (allocated(error)) return
-        call check(error, format_time_string("%-m", reference_time, "UTC0") == "10", "%-m")
-        if (allocated(error)) return
-        call check(error, format_time_string("%-1m", reference_time, "UTC0") == "10", "%-1m")
-        if (allocated(error)) return
-        call check(error, format_time_string("%1m", reference_time, "UTC0") == "10", "%1m")
+        ! %-m, %-1m and %1m.
+        call check(error, date_text(date_format_type("(i0)", [DATE_MONTH]), reference_time, "UTC0"), "10")
     end subroutine test_padding_retains
 
     subroutine test_padding_spaces(error)
@@ -240,19 +272,22 @@ contains
         type(time_type) :: reference_time
 
         reference_time = utc_time(time_type(0, 123000, 1000000), 10, 12)
-        call check(error, format_time_string("%_7z", reference_time, "CHA-12:45") == "  +1245", "%_7z")
+        ! %_7z.
+        call check(error, date_text(date_format_type("(sp, i7)", [ZONE_OFFSET]), reference_time, "CHA-12:45"), "  +1245")
         if (allocated(error)) return
-        call check(error, format_time_string("%_6N", reference_time, "UTC0") == "123   ", "%_6N")
+        ! %_6N, %_9N and %_12N: the blanks at the end are kept.
+        call check(error, date_text(date_format_type("(i3.3, 3x)", [TIME_MILLISECOND]), reference_time, "UTC0"), "123   ")
         if (allocated(error)) return
-        call check(error, format_time_string("%_9N", reference_time, "UTC0") == "123      ", "%_9N")
+        call check(error, date_text(date_format_type("(i3.3, 6x)", [TIME_MILLISECOND]), reference_time, "UTC0"), &
+                   "123      ")
         if (allocated(error)) return
-        call check(error, format_time_string("%_12N", reference_time, "UTC0") == "123         ", "%_12N")
+        call check(error, date_text(date_format_type('(i3.3, "         ")', [TIME_MILLISECOND]), reference_time, "UTC0"), &
+                   "123         ")
         if (allocated(error)) return
-        call check(error, format_time_string("%_m", reference_time, "UTC0") == "12", "%_m")
+        ! %_m, %_2m and %_3m.
+        call check(error, date_text(date_format_type("(i2)", [DATE_MONTH]), reference_time, "UTC0"), "12")
         if (allocated(error)) return
-        call check(error, format_time_string("%_2m", reference_time, "UTC0") == "12", "%_2m")
-        if (allocated(error)) return
-        call check(error, format_time_string("%_3m", reference_time, "UTC0") == " 12", "%_3m")
+        call check(error, date_text(date_format_type("(i3)", [DATE_MONTH]), reference_time, "UTC0"), " 12")
     end subroutine test_padding_spaces
 
     ! Fractional seconds have a fixed place on the left, and any padding
@@ -263,15 +298,20 @@ contains
         type(time_type) :: reference_time
 
         reference_time = utc_time(time_type(0, 123000, 1000000), 10, 12)
-        call check(error, format_time_string("%3m", reference_time, "UTC0") == "012", "%3m")
+        ! %3m.
+        call check(error, date_text(date_format_type("(i3.3)", [DATE_MONTH]), reference_time, "UTC0"), "012")
         if (allocated(error)) return
-        call check(error, format_time_string("%7z", reference_time, "CHA-12:45") == "+001245", "%7z")
+        ! %7z.
+        call check(error, date_text(date_format_type("(sp, i7.6)", [ZONE_OFFSET]), reference_time, "CHA-12:45"), &
+                   "+001245")
         if (allocated(error)) return
-        call check(error, format_time_string("%12N", reference_time, "UTC0") == "123000000000", "%12N")
+        ! %12N, %9N and %6N.
+        call check(error, date_text(date_format_type('(i9.9, "000")', [TIME_NANOSECOND]), reference_time, "UTC0"), &
+                   "123000000000")
         if (allocated(error)) return
-        call check(error, format_time_string("%9N", reference_time, "UTC0") == "123000000", "%9N")
+        call check(error, date_text(date_format_type("(i9.9)", [TIME_NANOSECOND]), reference_time, "UTC0"), "123000000")
         if (allocated(error)) return
-        call check(error, format_time_string("%6N", reference_time, "UTC0") == "123000", "%6N")
+        call check(error, date_text(date_format_type("(i6.6)", [TIME_MICROSECOND]), reference_time, "UTC0"), "123000")
     end subroutine test_padding_zeros
 
     ! (time-equal-p nil nil): the current time equals itself.
@@ -492,28 +532,180 @@ contains
         call check(error, len(current_time_string()) >= 24, "now")
     end subroutine test_current_time_string
 
-    ! Own test: the other directives, the flags and bad sequences.
-    subroutine test_directives(error)
+    ! Own test: every part, with the text format-time-string gave for the
+    ! strftime sequences named in the comments.
+    subroutine test_parts(error)
         type(error_type), allocatable, intent(out) :: error
         type(time_type) :: t
 
         ! 2000-12-10 (a Sunday) 13:04:05 UTC.
         t = encode_time(decoded_time_type(second=time_type(5), minute=4, hour=13, day=10, month=12, year=2000), "UTC0")
-        call check(error, format_time_string("%c|%x|%X|%D|%F|%R|%T|%r", t, "UTC0") == &
-                   "Sun Dec 10 13:04:05 2000|12/10/00|13:04:05|12/10/00|2000-12-10|13:04|13:04:05|01:04:05 PM", "formats")
+        ! "%c|%x|%X|%D".
+        call check(error, date_text(date_format_type('(a, 1x, a, 1x, i2, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, i4.4, "|", ' &
+                                                     //'i2.2, "/", i2.2, "/", i2.2, "|", i2.2, ":", i2.2, ":", i2.2, "|", ' &
+                                                     //'i2.2, "/", i2.2, "/", i2.2)', &
+                                                     [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, TIME_HOUR, &
+                                                      TIME_MINUTE, TIME_SECOND, DATE_YEAR, DATE_MONTH, DATE_DAY, &
+                                                      DATE_YEAR_OF_CENTURY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, DATE_MONTH, &
+                                                      DATE_DAY, DATE_YEAR_OF_CENTURY]), t, "UTC0"), &
+                   "Sun Dec 10 13:04:05 2000|12/10/00|13:04:05|12/10/00", "formats")
         if (allocated(error)) return
-        call check(error, format_time_string("%a %A %b %h %B %^a %#A %p %P %#p %Z %#Z", t, "UTC0") == &
+        ! "%F|%R|%T|%r".
+        call check(error, date_text(date_format_type('(i4.4, "-", i2.2, "-", i2.2, "|", i2.2, ":", i2.2, "|", 2(i2.2, ":"), ' &
+                                                     //'i2.2, "|", 2(i2.2, ":"), i2.2, 1x, a)', &
+                                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_HOUR, &
+                                                      TIME_MINUTE, TIME_SECOND, TIME_HOUR_OF_TWELVE_HOUR_CLOCK, TIME_MINUTE, &
+                                                      TIME_SECOND, &
+                                                      TIME_MERIDIEM]), t, "UTC0"), &
+                   "2000-12-10|13:04|13:04:05|01:04:05 PM", "more formats")
+        if (allocated(error)) return
+        ! "%a %A %b %h %B %^a %^A %p %P %#p %Z %#Z".
+        call check(error, date_text(date_format_type("(a, 11(1x, a))", &
+                                                     [DATE_WEEKDAY_ABBREVIATION, DATE_WEEKDAY_NAME, DATE_MONTH_ABBREVIATION, &
+                                                      DATE_MONTH_ABBREVIATION, DATE_MONTH_NAME, &
+                                                      DATE_WEEKDAY_ABBREVIATION_UPPER_CASE, DATE_WEEKDAY_NAME_UPPER_CASE, &
+                                                      TIME_MERIDIEM, TIME_MERIDIEM_LOWER_CASE, TIME_MERIDIEM_LOWER_CASE, &
+                                                      ZONE_ABBREVIATION, ZONE_ABBREVIATION_LOWER_CASE]), t, "UTC0"), &
                    "Sun Sunday Dec Dec December SUN SUNDAY PM pm pm UTC utc", "names")
         if (allocated(error)) return
-        call check(error, format_time_string("%C %y %G %g %V %U %W %j %u %w %q %e %k %l %I %s", t, "UTC0") == &
+        ! "%^b %^B".
+        call check(error, date_text(date_format_type("(a, 1x, a)", [DATE_MONTH_ABBREVIATION_UPPER_CASE, &
+                                                                    DATE_MONTH_NAME_UPPER_CASE]), t, "UTC0"), &
+                   "DEC DECEMBER", "upper case month")
+        if (allocated(error)) return
+        ! "%C %y %G %g %V %U %W %j %u %w %q %e %k %l %I %s".
+        call check(error, date_text(date_format_type("(i2.2, 1x, i2.2, 1x, i4.4, 4(1x, i2.2), 1x, i3.3, 3(1x, i1), " &
+                                                     //"3(1x, i2), 1x, i2.2, 1x, i0)", &
+                                                     [DATE_CENTURY, DATE_YEAR_OF_CENTURY, DATE_ISO_WEEK_YEAR, &
+                                                      DATE_ISO_WEEK_YEAR_OF_CENTURY, DATE_ISO_WEEK, DATE_WEEK_STARTING_SUNDAY, &
+                                                      DATE_WEEK_STARTING_MONDAY, DATE_DAY_OF_YEAR, DATE_ISO_WEEKDAY, DATE_WEEKDAY, &
+                                                      DATE_QUARTER, DATE_DAY, TIME_HOUR, TIME_HOUR_OF_TWELVE_HOUR_CLOCK, &
+                                                      TIME_HOUR_OF_TWELVE_HOUR_CLOCK, &
+                                                      TIME_SECONDS_SINCE_EPOCH]), t, "UTC0"), &
                    "20 00 2000 00 49 50 49 345 7 0 4 10 13  1 01 976453445", "numbers")
         if (allocated(error)) return
-        call check(error, format_time_string("%%|%n|%t|%-%|%Q|%Ey|%:z|%::z|%:::z|%::::z|%", t, "UTC0") == &
-                   "%|"//new_line("a")//"|"//achar(9)//"|%-%|%Q|00|+00:00|+00:00:00|+00|%::::z|%", "others")
+        ! "%t|%:z|%::z".
+        call check(error, date_text(date_format_type('("'//achar(9)//'|", a, i2.2, ":", i2.2, "|", a, 2(i2.2, ":"), i2.2)', &
+                                                     [ZONE_OFFSET_SIGN, ZONE_OFFSET_HOURS, ZONE_OFFSET_MINUTES, &
+                                                      ZONE_OFFSET_SIGN, ZONE_OFFSET_HOURS, ZONE_OFFSET_MINUTES, &
+                                                      ZONE_OFFSET_SECONDS]), t, "UTC0"), &
+                   achar(9)//"|+00:00|+00:00:00", "others")
         if (allocated(error)) return
-        call check(error, format_time_string("%10F|%+6Y|%_5d|%05e", t, "UTC0") == &
+        ! "%10F|%+6Y|%_5d|%05e".
+        call check(error, date_text(date_format_type('(i4.4, "-", i2.2, "-", i2.2, "|", sp, i6.5, "|", ss, i5, "|", i5.5)', &
+                                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, DATE_YEAR, DATE_DAY, DATE_DAY]), t, &
+                                    "UTC0"), &
                    "2000-12-10|+02000|   10|00010", "widths")
-    end subroutine test_directives
+        if (allocated(error)) return
+        ! "%:z" west of Greenwich, by half an hour.
+        call check(error, date_text(date_format_type('(a, i2.2, ":", i2.2)', [ZONE_OFFSET_SIGN, ZONE_OFFSET_HOURS, &
+                                                                              ZONE_OFFSET_MINUTES]), t, &
+                                    time_zone_rule(-1800)), "-00:30", "west")
+    end subroutine test_parts
+
+    ! Own test: the Fortran format of a date format: groups, upper case,
+    ! character strings, positions, a format without parts.
+    subroutine test_formats(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(time_type) :: t
+
+        t = encode_time(decoded_time_type(second=time_type(5), minute=4, hour=13, day=10, month=12, year=2000), "UTC0")
+        call check(error, date_text(date_format_type('  (2(I2.2, ":"), I2.2)  ', [TIME_HOUR, TIME_MINUTE, TIME_SECOND]), t, &
+                                    "UTC0"), "13:04:05", "group")
+        if (allocated(error)) return
+        call check(error, date_text(date_format_type("(t5, i2.2, t1, a)", [TIME_HOUR, DATE_WEEKDAY_ABBREVIATION]), t, "UTC0"), &
+                   "Sun 13", "positions")
+        if (allocated(error)) return
+        call check(error, date_text(date_format_type("('it''s ', a5, 1x, g0, tr2, i0, 1x)", &
+                                                     [DATE_MONTH_ABBREVIATION, DATE_MONTH_NAME, DATE_DAY]), t, "UTC0"), &
+                   "it's   Dec December  10 ", "strings")
+        if (allocated(error)) return
+        call check(error, date_text(date_format_type("(b0, 1x, o0, 1x, z0)", [DATE_DAY, DATE_DAY, DATE_DAY]), t, "UTC0"), &
+                   "1010 12 A", "bases")
+        if (allocated(error)) return
+        call check(error, date_text(date_format_type('("now")', [integer ::]), t), "now", "no parts")
+        if (allocated(error)) return
+        call check(error, date_text(date_format_type("()", [integer ::]), t), "", "empty")
+        if (allocated(error)) return
+        call check(error, date_text(date_format_type(), t), "", "default")
+    end subroutine test_formats
+
+    ! Own test: the errors of a date format.
+    subroutine test_format_errors(error)
+        type(error_type), allocatable, intent(out) :: error
+        character(len=*), parameter :: FORMATS(12) = [character(len=24) :: "i2", "(i2", "(i2))", "('x)", "(*(i2))", &
+                                                              "(2hab, i2)", "(f5.2)", "(a)", "(i2, i2)", "(dt)", "(i2, q)", "(0i2)"]
+        integer :: k
+
+        do k = 1, size(FORMATS)
+            call check(error, index(date_text(date_format_type(trim(FORMATS(k)), [TIME_HOUR])), "error: ") == 1, &
+                       trim(FORMATS(k)))
+            if (allocated(error)) return
+        end do
+
+        call check(error, index(date_text(date_format_type("(i2)", [DATE_WEEKDAY_NAME])), "error: ") == 1, "name")
+        if (allocated(error)) return
+        call check(error, index(date_text(date_format_type("(i2)", [99])), "error: ") == 1, "not a part")
+        if (allocated(error)) return
+        call check(error, index(date_text(date_format_type("(17i2)", [(TIME_HOUR, k=1, 17)])), "error: ") == 1, "17 parts")
+        if (allocated(error)) return
+        call check(error, index(date_text(date_format_type("(i2)", [DATE_NONE, TIME_HOUR])), "error: ") == 1, "a gap")
+        if (allocated(error)) return
+        call check(error, index(date_text(date_format_type("(i2, /, i2)", [TIME_HOUR, TIME_MINUTE])), "error: ") == 1, &
+                   "a new record")
+    end subroutine test_format_errors
+
+    ! Own test: the date formats of the callers of format_date give the
+    ! text format-time-string gave for their strftime strings.
+    subroutine test_callers(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(time_type) :: t
+
+        ! 2000-02-05 03:04:05 UTC, a Saturday; 08:34:05 in IST-5:30.
+        t = time_type(949719845)
+        ! add_log_iso8601_time_string, "%Y-%m-%d".
+        call check(error, date_text(date_format_type('(i4.4, "-", i2.2, "-", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY]), t, &
+                                    "IST-5:30"), "2000-02-05", "add-log")
+        if (allocated(error)) return
+        ! list_generations, "%b %d %Y %H:%M:%S".
+        call check(error, date_text(date_format_type('(a, 1x, i2.2, 1x, i4.4, 1x, i2.2, ":", i2.2, ":", i2.2)', &
+                                                     [DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_YEAR, TIME_HOUR, TIME_MINUTE, &
+                                                      TIME_SECOND]), t, "IST-5:30"), "Feb 05 2000 08:34:05", "generations")
+        if (allocated(error)) return
+        ! Dired's touch default, "%Y%m%d%H%M.%S".
+        call check(error, date_text(date_format_type('(i4.4, 4i2.2, ".", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, &
+                                                                                  TIME_MINUTE, TIME_SECOND]), t, "IST-5:30"), &
+                   "200002050834.05", "touch")
+        if (allocated(error)) return
+        ! mail_rfc822_date, "%-d %b %Y %T %z".
+        call check(error, date_text(date_format_type('(i0, 1x, a, 1x, i4.4, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4)', &
+                                                     [DATE_DAY, DATE_MONTH_ABBREVIATION, DATE_YEAR, TIME_HOUR, TIME_MINUTE, &
+                                                      TIME_SECOND, ZONE_OFFSET]), t, "IST-5:30"), &
+                   "5 Feb 2000 08:34:05 +0530", "rfc822")
+        if (allocated(error)) return
+        ! MAIL_DATE, "%a, %d %b %Y %T %z".
+        call check(error, date_text(MAIL_DATE, t, "IST-5:30"), "Sat, 05 Feb 2000 08:34:05 +0530", "mail date")
+        if (allocated(error)) return
+        call check(error, date_text(MAIL_DATE, t, time_zone_rule(-28800, "PST")), "Fri, 04 Feb 2000 19:04:05 -0800", &
+                   "mail date west")
+        if (allocated(error)) return
+        ! The From line of an Fcc, "%a %b %e %T %z %Y".
+        call check(error, date_text(date_format_type( &
+                                    '(a, 1x, a, 1x, i2, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4, 1x, ss, i4.4)', &
+                                    [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, TIME_HOUR, TIME_MINUTE, &
+                                     TIME_SECOND, ZONE_OFFSET, DATE_YEAR]), t, "IST-5:30"), &
+                   "Sat Feb  5 08:34:05 +0530 2000", "from line")
+        if (allocated(error)) return
+        ! The draft file of Message, "-%Y%m%d-%H%M%S".
+        call check(error, date_text(date_format_type('("-", i4.4, 2i2.2, "-", 3i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, &
+                                                                                        TIME_HOUR, TIME_MINUTE, TIME_SECOND]), &
+                                    t, "IST-5:30"), "-20000205-083405", "draft")
+        if (allocated(error)) return
+        ! The queued mail of smtpmail, "%Y-%m-%d_%H:%M:%S".
+        call check(error, date_text(date_format_type('(i4.4, "-", i2.2, "-", i2.2, "_", i2.2, ":", i2.2, ":", i2.2)', &
+                                                     [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND]), &
+                                    t, "IST-5:30"), "2000-02-05_08:34:05", "queue")
+    end subroutine test_callers
 
     ! Own test: the local zone follows set_time_zone_rule.
     subroutine test_set_time_zone_rule(error)
@@ -527,7 +719,9 @@ contains
         allocate (character(len=max(length, 0)) :: saved)
         if (had_rule .and. length > 0) call get_environment_variable("TZ", saved)
         call set_time_zone_rule("IST-5:30")
-        call check(error, format_time_string("%H:%M %Z", time_type(0)) == "05:30 IST", "IST")
+        call check(error, date_text(date_format_type('(i2.2, ":", i2.2, 1x, a)', [TIME_HOUR, TIME_MINUTE, &
+                                                                                  ZONE_ABBREVIATION]), time_type(0)), &
+                   "05:30 IST", "IST")
 
         if (had_rule) then
             call set_time_zone_rule(saved)
@@ -565,7 +759,7 @@ contains
     ! only.
     subroutine test_time_zone_system(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: format = "%Y-%m-%d %H:%M:%S %z"
+        type(date_format_type) :: format
         character(len=:), allocatable :: saved, system, local
         integer :: length, stat
         logical :: had_rule
@@ -573,20 +767,23 @@ contains
         call get_environment_variable("TZ", length=length, status=stat)
         had_rule = stat == 0
         allocate (character(len=max(length, 0)) :: saved)
+        ! "%Y-%m-%d %H:%M:%S %z".
+        format = date_format_type('(i4.4, "-", i2.2, "-", i2.2, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4)', &
+                                  [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND, ZONE_OFFSET])
         if (had_rule .and. length > 0) call get_environment_variable("TZ", saved)
         call set_time_zone_rule()
-        system = format_time_string(format, time_type(0))
+        system = date_text(format, time_type(0))
         call set_time_zone_rule("IST-5:30")
-        local = format_time_string(format, time_type(0), TIME_ZONE_SYSTEM)
+        local = date_text(format, time_type(0), TIME_ZONE_SYSTEM)
         call check(error, local == system, "wall")
 
         if (.not. allocated(error)) then
-            call check(error, format_time_string(format, time_type(0)) == "1970-01-01 05:30:00 +0530", "restored")
+            call check(error, date_text(format, time_type(0)) == "1970-01-01 05:30:00 +0530", "restored")
         end if
 
         if (.not. allocated(error)) then
             call set_time_zone_rule(TIME_ZONE_SYSTEM)
-            call check(error, format_time_string(format, time_type(0)) == system, "set-time-zone-rule wall")
+            call check(error, date_text(format, time_type(0)) == system, "set-time-zone-rule wall")
         end if
 
         if (had_rule) then

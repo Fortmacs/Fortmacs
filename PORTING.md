@@ -1071,8 +1071,8 @@ panel, 2026-11-06).  So are the string templates of settings (owner,
 ": ")')`), `css_lookup_url_format`, and, where upstream's items vary in
 order or repeat, a format with an `items` component naming what its `a`
 edit descriptors write in order (`completing_read_multiple_prompt`, the
-dired compression rules).  Mode-line %-constructs and time formats
-(format-time-string) are separate (decided by rule).
+dired compression rules).  Mode-line %-constructs
+are separate; dates are written with `format_date` ("Dates to text").
 data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
 that stood in about 150 places for `write (text, "(i0)") n`, is gone
 (`write-not-number-to-string`, 2026-11-04), with the private copies
@@ -1104,6 +1104,51 @@ concatenation: `write (digits, "(i0)") total` and then
 run time is itself written first: `write (format, '("(f0.", i0, ")")')
 digits` then `write (buffer, format) x`.  An internal write is allowed in
 a pure procedure.
+
+**Dates to text (owner, 2026-11-06).**  A date and time format is a
+`date_format_type` (time_functions_mod): a Fortran format with edit
+descriptors and the parts of the date it writes, in order, one per data
+edit descriptor (I, B, O, Z or G for a number, A or G for a name).  The
+parts take the stems of the intrinsic date_and_time's arguments: DATE_
+for the calendar, TIME_ for the time of day and ZONE_ for the time zone
+(owner, 2026-11-06, #272).
+`format_date(date_format, time, zone, status)` decodes the time, takes
+each part's value or English name and writes the text; it counts as the
+one `write` of "Text from a format".  Upstream's strftime strings
+(`format-time-string`, not applicable) are never used, in the source or
+in settings; a format used in several places is a named constant
+(`MAIL_DATE`).
+
+```fortran
+! before: format_time_string("%Y-%m-%d")
+s = format_date(date_format_type('(i4.4, "-", i2.2, "-", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY]), status=status)
+if (.not. status%ok()) return
+! a setting, in init.f90 (upstream: "%H:%M")
+display_time_format = date_format_type('(i2.2, ":", i2.2)', [TIME_HOUR, TIME_MINUTE])
+```
+
+- `%d` is `i2.2`, `%e` `i2`, `%-d` `i0`, `%Y` `i4.4`, `%3N` `i3.3` of
+  TIME_MILLISECOND, `%z` `sp, i5.4` of ZONE_OFFSET (`ss` after it
+  if a number follows), `%:z` `a, i2.2, ":", i2.2` of
+  ZONE_OFFSET_SIGN, _HOURS and _MINUTES; `%a` and `%b` are `a` of
+  DATE_WEEKDAY_ABBREVIATION and DATE_MONTH_ABBREVIATION.
+- One `write` cannot take a list of items whose types are chosen at run
+  time, so `format_date` splits the format: each part is written alone
+  with its own data edit descriptor (after the sign edit descriptor in
+  effect there), then one `write` of the whole format, its data edit
+  descriptors turned into A, writes those pieces with the character
+  strings and control edit descriptors between them, so the text is
+  exactly what the format gives.  A character written after the text
+  marks its end, so blanks at the end are kept (not after T or TL).
+- A descriptor that cannot write its part (I for a name, F for any
+  part), a count that differs, a format that is not a Fortran format, an
+  unlimited repeat or a new record (`/`) is an error through the status,
+  found when the format is used; every caller checks it.
+- The constructor `date_format_type(format, parts)` is a generic
+  function taking any number of parts up to DATE_FORMAT_MAXIMUM_PARTS.
+  A named constant cannot call it, so a `parameter` gives `parts` in
+  full: `parts=reshape([...], [DATE_FORMAT_MAXIMUM_PARTS],
+  pad=[DATE_NONE])`, with keyword arguments (MAIL_DATE).
 
 **Lisp functions by hand (R6-45).**  A Lisp function that Fortran has as
 an operator or an intrinsic with the same behavior is not rewritten as a

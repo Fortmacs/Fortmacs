@@ -72,7 +72,8 @@ module smtpmail_mod
     use coding_mod, only: buffer_file_coding_system, coding_system_mime_character_set, coding_system_for_write, &
                           coding_system_for_read, coding_system_change_end_of_line_conversion, encode_coding_string, &
                           decode_coding_string, END_OF_LINE_UNIX
-    use time_functions_mod, only: format_time_string
+    use time_functions_mod, only: format_date, date_format_type, MAIL_DATE, DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, &
+                                  TIME_MINUTE, TIME_SECOND
     use utility_functions_mod, only: base64_encode_string, base64_decode_string, md5, secure_hash, random, SECURE_HASH_MD5
     use simple_mod, only: count_lines
     use startup_mod, only: mail_host_address, user_mail_address_value
@@ -371,7 +372,7 @@ contains
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline
         character(len=:), allocatable :: saved_address, saved_conv, saved_sendmail_coding, conv, failure, character_set, &
                                          message_id, &
-                                         sanitized
+                                         sanitized, date
         logical :: had_address, had_conv, had_sendmail_coding, saved_fold, found, failed
         integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion, moved
         type(status_type) :: st
@@ -514,7 +515,12 @@ contains
             call goto_character(point_minimum())
             call search_regular_expression("^Date:", found, status, marked_position(delimline))
             if (.not. status%ok()) exit body
-            if (.not. found) call insert("Date: "//format_time_string("%a, %d %b %Y %T %z")//LF, status)
+
+            if (.not. found) then
+                date = format_date(MAIL_DATE, status=status)
+                if (status%ok()) call insert("Date: "//date//LF, status)
+            end if
+
             if (.not. status%ok()) exit body
             ! Possibly add a MIME header for the current coding system
             call goto_character(point_minimum())
@@ -798,12 +804,16 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file_data, file_variables, coding, index_file
         character(len=40) :: name
+        character(len=:), allocatable :: date
         type(handle_type) :: buffer_data, temporary
         type(namelist_group_type) :: group
         type(status_type) :: st
 
         smtpmail_queue_counter = smtpmail_queue_counter + 1
-        write (name, "(a, '_', i0)") format_time_string("%Y-%m-%d_%H:%M:%S"), smtpmail_queue_counter
+        date = format_date(date_format_type('(i4.4, "-", i2.2, "-", i2.2, "_", i2.2, ":", i2.2, ":", i2.2)', &
+                                            [DATE_YEAR, DATE_MONTH, DATE_DAY, TIME_HOUR, TIME_MINUTE, TIME_SECOND]), status=status)
+        if (.not. status%ok()) return
+        write (name, "(a, '_', i0)") date, smtpmail_queue_counter
         call expand_file_name(trim(name), file_data, status, smtpmail_queue_directory)
         if (.not. status%ok()) return
         file_variables = file_data//QUEUE_VARIABLES_SUFFIX

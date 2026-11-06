@@ -227,7 +227,9 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: date
 
-        date = mail_rfc822_date()
+        date = mail_rfc822_date(st)
+        call check(error, st%ok(), format_error(st))
+        if (allocated(error)) return
         call check(error, string_match(" 20[0-9][0-9] ", date, st) > 0, date)
     end subroutine test_rfc822_date
 

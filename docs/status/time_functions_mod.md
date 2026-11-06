@@ -17,7 +17,8 @@ time values as one `time_type` (R6-3: `seconds`, `count`/`count_rate`; `TIMESPEC
 `time-convert` (generic: a time value to another count rate, truncating; a real to a time value, `decode_float_time`; FORM `integer` is the `%seconds` component, a real result `real(t)`),
 `decode-time` (FORM t: `%second` keeps TIME's precision; `decoded_time_type`, simple.el's decoded-time, with DECODED_TIME_DAYLIGHT_SAVING_TIME_YES/_NO/_UNKNOWN),
 `encode-time` (a `decoded_time_type`: DST, an integer `zone` applied without daylight saving time through `tzlookup`'s rule "<+HHMM>-HH:MM:SS", or a TZ string; `check_tm_member`),
-`format-time-string` (strftime.c's `__strftime_internal` in Fortran: every conversion, the flags `-` `_` `0` `+` `^` `#`, widths, `%N` digits, `%:z` to `%:::z`, `E`/`O` in the C locale; `emacs_nmemftime`'s NUL bytes),
+dates written with a `date_format_type` (owner, 2026-11-06: a Fortran format and the parts of the date it writes, in order; the generic constructor `date_format_type(format, parts)`; the named constant `MAIL_DATE`) by `format_date` (each part written alone with its own data edit descriptor, then one `write` of the format with those descriptors turned into A; a check of the status finds a format that is not a Fortran format, descriptors that differ from the parts in number or kind, and a time that does not fit),
+the parts of a date (DATE_, TIME_ and ZONE_ constants after the arguments of date_and_time, owner, 2026-11-06, #272: the values and C-locale names of strftime.c's conversions %Y %C %y %G %g %V %q %m %U %W %d %j %w %u %H %I %M %S %N (milli-, micro- and nanoseconds) %s %z (with the sign, hours, minutes and seconds of the offset for %:z and %::z) %A %a %B %b %p %P %Z, and the upper case of the names and the lower case of %p and %Z for the flags ^ and #; `iso_week_days`, `__isleap`),
 `current-time-string`,
 `current-time-zone` (`time_zone_type`: offset and name, the numeric name when there is none),
 `set-time-zone-rule` (absent or `TIME_ZONE_SYSTEM`: wall clock time; `emacs_setenv_TZ` sets TZ for the C library only, leaving the environment subprocesses get alone),
@@ -29,6 +30,7 @@ editing_functions_mod's `current_time_string`,
 compile.el's start and end times,
 dired-aux.el's touch default,
 add-log.el's ISO 8601 date,
+the dates of mail-utils.el, message.el, sendmail.el and smtpmail.el,
 the progress reporter's `float-time`,
 `buffer-display-time` (ibuffer recency) and the generation list now use it
 
@@ -43,7 +45,8 @@ save_history_mod's `modtime_type`,
 bookmark_mod's timestamps,
 vc's checkout times,
 timer_mod's and compile_mod's `system_clock` counts (timer times are time values upstream);
-Not applicable: Lisp's other shapes of a time value and the transition between them (`current-time-list`, FORM `list`, `hi_time`, `lo_time`, `ticks_hz_list4`, `decode_time_components`, `decode_lisp_time`, `decode_ticks_hz`, `lisp_time_argument`, `lisp_seconds_argument`, `make_lisp_time`, `timespec_to_lisp`, `timespec_ticks`, `timespec_mpz`, `mpz_set_time`, `mpz_time`, `ticks_hz_to_timespec`, `ticks_hz_seconds`, `s_ns_to_timespec`, `list4_to_timespec`, `current_time_in_cform`, `lispint_arith`, `trillion_factor`),
+Not applicable: `format-time-string` (dates are formatted with `format_date` and `date_format_type`; its strftime sequences whose digits depend on the value, %-N, %-6N and %:::z, have no date format, and the parts are integers, so %z of a zone written as -00 needs ZONE_OFFSET_SIGN),
+Lisp's other shapes of a time value and the transition between them (`current-time-list`, FORM `list`, `hi_time`, `lo_time`, `ticks_hz_list4`, `decode_time_components`, `decode_lisp_time`, `decode_ticks_hz`, `lisp_time_argument`, `lisp_seconds_argument`, `make_lisp_time`, `timespec_to_lisp`, `timespec_ticks`, `timespec_mpz`, `mpz_set_time`, `mpz_time`, `ticks_hz_to_timespec`, `ticks_hz_seconds`, `s_ns_to_timespec`, `list4_to_timespec`, `current_time_in_cform`, `lispint_arith`, `trillion_factor`),
 encode-time's obsolescent six-or-more-argument convention (the structure constructor `decoded_time_type(second=..., ...)`),
 `tm_diff` and `tm_gmtoff` (glibc has tm_gmtoff),
 `init_timefns`,
@@ -54,5 +57,5 @@ cited elsewhere: `monotonic_coarse_timespec` (timer_mod's `system_clock`),
 
 ## Tests
 
-test_time_functions_mod (ports timefns-tests.el: all 16, with the zones (-28800 "PST") and -28800 of format-time-string-with-zone as `time_zone_rule(-28800, "PST")` and `time_zone_rule(-28800)`, and the values int64 holds; own: current-time-string, the other directives, set-time-zone-rule, `time_zone_rule`, `TIME_ZONE_SYSTEM`, the clocks),
+test_time_functions_mod (ports timefns-tests.el: all 16, with the zones (-28800 "PST") and -28800 of format-time-string-with-zone as `time_zone_rule(-28800, "PST")` and `time_zone_rule(-28800)`, the values int64 holds, and the strftime strings as date formats giving the same text, except %-N, %-6N and %-:::z; own: current-time-string, every part, the Fortran formats, the errors, the date formats of the callers against format-time-string's text, set-time-zone-rule, `time_zone_rule`, `TIME_ZONE_SYSTEM`, the clocks),
 test_file_input_output_mod (modtime)

@@ -37,7 +37,7 @@
 module add_log_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use error_mod, only: status_type
-    use time_functions_mod, only: format_time_string
+    use time_functions_mod, only: format_date, date_format_type, DATE_YEAR, DATE_MONTH, DATE_DAY
     use handle_mod, only: handle_type
     use data_mod, only: string_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
@@ -160,12 +160,15 @@ module add_log_mod
     !> of add-log.el change-log-start-entry-re.
     character(len=*), parameter, public :: change_log_start_entry_regular_expression = "^\sw.........[0-9:+ ]*"
 
-    !> A function giving (in S) the date for a ChangeLog header.
+    !> A function giving (in S) the date for a ChangeLog header, or an
+    !> error condition in STATUS.
     abstract interface
         ! Not a port.
-        subroutine add_log_time_procedure(s)
+        subroutine add_log_time_procedure(s, status)
+            import :: status_type
             implicit none(type, external)
             character(len=:), allocatable, intent(out) :: s
+            type(status_type), intent(out) :: status
         end subroutine add_log_time_procedure
     end interface
 
@@ -573,10 +576,11 @@ contains
     !> Port of add-log.el:add-log-iso8601-time-string (no
     !> `add_log_time_zone_rule'; a subroutine, as `add_log_time_format'
     !> points to it).
-    subroutine add_log_iso8601_time_string(s)
+    subroutine add_log_iso8601_time_string(s, status)
         character(len=:), allocatable, intent(out) :: s
+        type(status_type), intent(out) :: status
 
-        s = format_time_string("%Y-%m-%d")
+        s = format_date(date_format_type('(i4.4, "-", i2.2, "-", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY]), status=status)
     end subroutine add_log_iso8601_time_string
 
     !> Return (system-dependent) default name for a change log file.
@@ -1035,7 +1039,8 @@ contains
         end if
 
         ! Advance into first entry if it is usable; else make new one.
-        call add_log_time_format(time)
+        call add_log_time_format(time, status)
+        if (.not. status%ok()) return
         entry_text = time//"  "//full_name//"  <"//mailing_address//">"
         hit = .false.
 
