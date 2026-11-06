@@ -102,11 +102,12 @@ Fortmacs behaves like Emacs: the same commands, keys and results, with
 Emacs's own tests ported to check it. It is not a 1:1 copy, though: its
 names, help and internals are Fortran-first.
 
-- **Fortran names.** Names use underscores (`M-x find_file`,
-  `C-h v fill_column`, `text_mode_hook`), and Lisp terms take Fortran
-  names: defun, sexp and alist become subprogram, expression and table <!-- fortran-names: keep -->
-  (`C-M-f` is `forward_expression`). PORTING.md, "Fortran names for Lisp
-  terms", has the full list.
+- **Fortran names.** PORTING.md, "Fortran names for Lisp terms", has the
+  full list.
+  - Names use underscores: `M-x find_file`, `C-h v fill_column`,
+    `text_mode_hook`.
+  - Lisp terms take Fortran names: defun, sexp and alist become <!-- fortran-names: keep -->
+    subprogram, expression and table (`C-M-f` is `forward_expression`).
 - **The same keys and mode line.** Keys and the text the mode line shows
   are unchanged; mode-line formats are written in Fortran, never with
   Emacs's %-constructs.
@@ -134,13 +135,15 @@ names, help and internals are Fortran-first.
 - **Fortran in help.** Help shows Fortran values (`.true.`, `8`,
   `"text"`, named constants) and names the Fortran file a definition
   lives in.
-- **Settings that read plainly.** `.true.` and `.false.` mean what the
-  option's name says, with no knowledge of Emacs assumed:
-  `directory_editor_recursive_deletes = .true.` deletes directories
-  recursively, where Emacs's `t` means "ask for each directory"; that
-  state is the named constant `DIRECTORY_EDITOR_RECURSIVE_ASK`. Options
-  whose Emacs values hide their meaning are renamed so that their values
-  read plainly.
+- **Settings that read plainly.**
+  - `.true.` and `.false.` mean what the option's name says, with no
+    knowledge of Emacs assumed:
+    `directory_editor_recursive_deletes = .true.` deletes directories
+    recursively.
+  - Where Emacs's `t` means something else ("ask for each directory"),
+    that state is a named constant: `DIRECTORY_EDITOR_RECURSIVE_ASK`.
+  - Options whose Emacs values hide their meaning are renamed so that
+    their values read plainly.
 - **No Lisp at run time.** There is no `M-:`, `eval-buffer` or `ielm`,
   and `*scratch*` starts in Fundamental mode. Changing the configuration
   means rebuilding.
