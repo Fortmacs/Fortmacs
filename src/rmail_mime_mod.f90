@@ -230,7 +230,7 @@ module rmail_mime_mod
 
     ! The region of an entity's header or body in the mbox buffer
     ! (markers; null when the body is DATA instead) and how it is
-    ! displayed by default.  Port of rmailmm.el's [BEG END DISPLAY-FLAG].
+    ! displayed by default.  Port of rmailmm.el's region vector (beginning, end, display flag).
     type :: region_type
         type(handle_type) :: beginning, end
         character(len=:), allocatable :: data
@@ -365,7 +365,7 @@ contains
     end function entity_at
 
     ! Give the text from BEGINNING to END the property of entity E.
-    ! Not a port: (put-text-property BEG END 'rmail-mime-entity ENTITY).
+    ! Not a port: what rmailmm.el does with put-text-property and the rmail-mime-entity property.
     subroutine put_entity(beginning, end, e, status)
         integer(int64), intent(in) :: beginning, end
         integer, intent(in) :: e
