@@ -2845,9 +2845,9 @@ contains
         call tab_line_tab_inactive%define("tab_line_tab_inactive", "Tab line face for non-selected tab.")
         call tab_line_tab_inactive%specification_entry(display_when(is_default=.true.), face_attributes(inherit="tab_line_tab"))
         call tab_line_tab_inactive%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
-                                              face_attributes(background="grey75"))
+                                                       face_attributes(background="grey75"))
         call tab_line_tab_inactive%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
-                                              face_attributes(background="grey20"))
+                                                       face_attributes(background="grey20"))
         call tab_line_tab_inactive%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call tab_line_tab_inactive_alternate%define("tab_line_tab_inactive_alternate", &
                                                     "Alternate face for inactive tab-line tabs."//achar(10)// &
@@ -2855,13 +2855,13 @@ contains
                                                     "`tab_line_tab_face_functions' includes procedure"//achar(10)// &
                                                     "`get_tab_line_tab_face_inactive_alternating'.")
         call tab_line_tab_inactive_alternate%specification_entry(display_when(), &
-                                                        face_attributes(inherit="tab_line_tab_inactive", background="grey65"))
+                                                              face_attributes(inherit="tab_line_tab_inactive", background="grey65"))
         call tab_line_tab_special%define("tab_line_tab_special", "Face for special (i.e. non-file-backed) tabs."// &
                                          achar(10)//"Applied when option `tab_line_tab_face_functions' includes"// &
                                          achar(10)//"procedure `get_tab_line_tab_face_special'.")
         call tab_line_tab_special%specification_entry(display_when(is_default=.true.), face_attributes(weight="bold"))
         call tab_line_tab_special%specification_entry(display_when(), face_attributes(slant="italic", weight="normal"), &
-                                             supports=face_attributes(slant="italic"))
+                                                      supports=face_attributes(slant="italic"))
         call tab_line_tab_modified%define("tab_line_tab_modified", "Face for modified tabs."//achar(10)// &
                                           "Applied when option `tab_line_tab_face_functions' includes"//achar(10)// &
                                           "procedure `get_tab_line_tab_face_modified'.")
@@ -2874,9 +2874,9 @@ contains
                                          "Tab line face for tab with current buffer in selected window.")
         call tab_line_tab_current%specification_entry(display_when(is_default=.true.), face_attributes(inherit="tab_line_tab"))
         call tab_line_tab_current%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
-                                             face_attributes(background="grey85"))
+                                                      face_attributes(background="grey85"))
         call tab_line_tab_current%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
-                                             face_attributes(background="grey40"))
+                                                      face_attributes(background="grey40"))
         call tab_line_highlight%define("tab_line_highlight", "Tab line face for highlighting.")
         attributes = face_attributes(background="grey85", foreground="black")
         attributes%box = face_box(line_width=1, style=FACE_BOX_RELEASED_BUTTON)
