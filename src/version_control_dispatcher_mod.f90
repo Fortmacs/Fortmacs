@@ -38,9 +38,10 @@ module version_control_dispatcher_mod
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, make_list, make_buffer_reference, xfixnum, xstring, vtag, V_INTEGER
-    use data_mod, only: symbol_value, set, clear_all_local_variables
+    use data_mod, only: symbol_value, set, clear_all_local_variables, string_setting_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, get_buffer, is_buffer_live, &
-                          erase_buffer, close_buffer, get_file_buffer, buffer_list, resolve_buffer
+                          erase_buffer, close_buffer, get_file_buffer, buffer_list, resolve_buffer, buffer_handle
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, widen, buffer_substring, mark_position
     use insert_delete_mod, only: insert
     use marker_mod, only: marker_position, set_marker
@@ -69,11 +70,10 @@ module version_control_dispatcher_mod
               version_control_setup_buffer, version_control_exec_after, version_control_process_filter, &
               version_control_delistify, version_control_resynch_window, version_control_resynch_buffer, &
               version_control_resynch_buffers_in_directory, version_control_buffer_synchronize, &
-              version_control_revert_buffer_internal, version_control_parent_buffer, set_version_control_parent_buffer, &
-              version_control_parent_buffer_name, &
+              version_control_revert_buffer_internal, &
               version_control_mode_line_hook_execute, initialize_version_control_dispatcher, version_control_start_logentry, &
               version_control_finish_logentry, version_control_log_edit, &
-              version_control_log_fileset, set_version_control_log_fileset, version_control_patch_string, &
+              version_control_patch_string, &
               set_version_control_patch_string, set_version_control_log_operation, &
               set_version_control_log_after_operation_hook, version_control_dispatcher_browsing, log_local_index, &
               make_log_local_entry, &
@@ -160,15 +160,62 @@ module version_control_dispatcher_mod
 
     type(version_control_pending_type), allocatable :: pending(:)
 
-    !> A buffer's `version_control_parent_buffer' and `version_control_parent_buffer_name'
-    !> (permanent-local), by serial number.
-    type :: version_control_parent_type
-        integer(int64) :: serial = 0
-        type(handle_type) :: parent
-        character(len=:), allocatable :: name
-    end type version_control_parent_type
+    !> One buffer's own `version_control_parent_buffer'.
+    type :: version_control_parent_buffer_entry_type
+        type(handle_type) :: buffer
+    end type version_control_parent_buffer_entry_type
 
-    type(version_control_parent_type), allocatable :: parents(:)
+    !> The type of `version_control_parent_buffer': the global value
+    !> `buffer' (the null handle for none) and the buffers' own values
+    !> (`set_local').
+    type, extends(buffer_local_setting_type), public :: version_control_parent_buffer_setting_type
+        type(handle_type) :: buffer
+        type(version_control_parent_buffer_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, the buffer PARENT.
+        procedure :: set_local => set_version_control_parent_buffer_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_version_control_parent_buffer_current
+        procedure :: append_local_entry => append_version_control_parent_buffer_entry
+        procedure :: clear_local_entry => clear_version_control_parent_buffer_entry
+    end type version_control_parent_buffer_setting_type
+
+    !> In a log entry buffer, the buffer for which it was made (either a
+    !> file, or a directory buffer).  Port of vc-dispatcher.el
+    !> vc-parent-buffer (permanent-local: kill-all-local-variables keeps
+    !> it; `%set_local(buffer)', `%get_current()').
+    type(version_control_parent_buffer_setting_type), public :: version_control_parent_buffer
+
+    !> The text the mode line shows after the modes of a buffer with a
+    !> `version_control_parent_buffer' (" from NAME").  Port of
+    !> vc-dispatcher.el vc-parent-buffer-name (permanent-local; a buffer
+    !> gets its own with `%set_local').
+    type(string_setting_type), target, public :: version_control_parent_buffer_name = &
+                                                 string_setting_type(name="version_control_parent_buffer_name", &
+                                                                     permanent_local=.true.)
+
+    !> One buffer's own `version_control_log_fileset'.
+    type :: version_control_log_fileset_entry_type
+        type(string_type), allocatable :: files(:)
+    end type version_control_log_fileset_entry_type
+
+    !> The type of `version_control_log_fileset': the global value (no
+    !> files) and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: version_control_log_fileset_setting_type
+        type(version_control_log_fileset_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, FILES.
+        procedure :: set_local => set_version_control_log_fileset_local
+        !> The current buffer's value: its own, else no files.
+        procedure :: get_current => get_version_control_log_fileset_current
+        procedure :: append_local_entry => append_version_control_log_fileset_entry
+        procedure :: clear_local_entry => clear_version_control_log_fileset_entry
+    end type version_control_log_fileset_setting_type
+
+    !> In a log entry buffer, the files of the operation.  Port of
+    !> vc-dispatcher.el vc-log-fileset (none unless the buffer has its own:
+    !> `%is_local', `%set_local(files)', `%get_current(files)').
+    type(version_control_log_fileset_setting_type), public :: version_control_log_fileset
 
     !> A bit of the text around a position: the position, the buffer size
     !> and the text (vc-position-context's list).
@@ -234,15 +281,13 @@ module version_control_dispatcher_mod
     end interface
     public :: version_control_log_operation_procedure
 
-    !> A log entry buffer's `version_control_log_operation', `version_control_log_fileset',
+    !> A log entry buffer's `version_control_log_operation',
     !> `version_control_patch_string' and `version_control_log_after_operation_hook', by serial
     !> number.
     type :: version_control_log_local_type
         integer(int64) :: serial = 0
         logical :: has_operation = .false.
         type(version_control_log_operation_type) :: operation
-        logical :: has_fileset = .false.
-        type(string_type), allocatable :: fileset(:)
         character(len=:), allocatable :: patch_string
         type(hook_type), pointer :: after_hook => null()
     end type version_control_log_local_type
@@ -351,52 +396,45 @@ contains
     ! The parent buffer
     ! ------------------------------------------------------------------
 
-    ! The index of the current buffer's entry in `parents' (0 if none).
-    ! Not a port.
-    integer function parent_index() result(k)
-        k = 0
-        if (current == 0) return
-        if (.not. allocated(parents)) return
-        k = findloc(parents%serial, buffers(current)%serial, dim=1)
-    end function parent_index
-
-    ! Find or make the current buffer's entry in `parents', its index K (0
-    ! without a current buffer).  Not a port.
-    subroutine make_parent_entry(k)
-        integer, intent(out) :: k
-        type(version_control_parent_type) :: entry
-
-        k = parent_index()
-        if (k > 0 .or. current == 0) return
-        if (.not. allocated(parents)) allocate (parents(0))
-        entry%serial = buffers(current)%serial
-        parents = [parents, entry]
-        k = size(parents)
-    end subroutine make_parent_entry
-
-    !> The current buffer's `version_control_parent_buffer': in a log entry or output
-    !> buffer, the buffer for which it was made (a null handle for none).
-    !> Not a port.
-    function version_control_parent_buffer() result(h)
-        type(handle_type) :: h
+    !> Give the current buffer its own `version_control_parent_buffer',
+    !> PARENT.  Not a port.
+    subroutine set_version_control_parent_buffer_local(self, parent)
+        class(version_control_parent_buffer_setting_type), intent(inout) :: self
+        type(handle_type), intent(in) :: parent
         integer :: k
 
-        h = null_handle()
-        k = parent_index()
-        if (k > 0) h = parents(k)%parent
-    end function version_control_parent_buffer
+        call self%make_local_entry(k)
+        if (k > 0) self%locals(k)%buffer = parent
+    end subroutine set_version_control_parent_buffer_local
 
-    !> The current buffer's `version_control_parent_buffer_name' (" from NAME").
-    !> Not a port.
-    function version_control_parent_buffer_name() result(name)
-        character(len=:), allocatable :: name
+    !> The current buffer's `version_control_parent_buffer': its own value,
+    !> else the global one (the null handle for none).  Not a port.
+    function get_version_control_parent_buffer_current(self) result(parent)
+        class(version_control_parent_buffer_setting_type), intent(in) :: self
+        type(handle_type) :: parent
         integer :: k
 
-        name = ""
-        k = parent_index()
-        if (k == 0) return
-        if (allocated(parents(k)%name)) name = parents(k)%name
-    end function version_control_parent_buffer_name
+        parent = self%buffer
+        k = self%get_local_index()
+        if (k > 0) parent = self%locals(k)%buffer
+    end function get_version_control_parent_buffer_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_version_control_parent_buffer_entry(self)
+        class(version_control_parent_buffer_setting_type), intent(inout) :: self
+        type(version_control_parent_buffer_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_version_control_parent_buffer_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_version_control_parent_buffer_entry(self, k)
+        class(version_control_parent_buffer_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%buffer = null_handle()
+    end subroutine clear_version_control_parent_buffer_entry
 
     !> The `version_control_parent_buffer_name' of buffer slot BI, shown in the mode
     !> line while it has a `version_control_parent_buffer' (vc.el's minor-mode-alist
@@ -404,27 +442,31 @@ contains
     subroutine parent_name_of(bi, text)
         integer(int64), intent(in) :: bi
         character(len=:), allocatable, intent(out) :: text
-        integer :: k
+        type(handle_type) :: saved, parent
+        type(status_type) :: st
 
         text = ""
-        if (.not. allocated(parents)) return
+        saved = current_buffer()
+        call set_buffer(buffer_handle(bi), st)
+        if (.not. st%ok()) return
+        parent = version_control_parent_buffer%get_current()
 
-        do k = 1, size(parents)
-            if (parents(k)%serial /= buffers(bi)%serial) cycle
-            if (parents(k)%parent%index == 0) return
-            if (allocated(parents(k)%name)) text = parents(k)%name
-            return
-        end do
+        if (parent%index /= 0 .and. allocated(version_control_parent_buffer_name%value)) then
+            text = version_control_parent_buffer_name%value
+        end if
+
+        if (saved%index /= 0) call set_buffer(saved, st)
     end subroutine parent_name_of
 
     !> Show `version_control_parent_buffer_name' in the mode line of buffers with a
     !> `version_control_parent_buffer'.  Part of vc.el (its minor-mode-alist entry).
     !> Not a port.
     subroutine initialize_version_control_dispatcher()
-        use data_mod, only: append_locals_clearer
+        use data_mod, only: append_locals_clearer, forward_setting
 
         call add_minor_mode_lighter("version_control_parent_buffer", "", text=parent_name_of, first=.true.)
         call append_locals_clearer(clear_log_locals)
+        call forward_setting(version_control_parent_buffer_name)
     end subroutine initialize_version_control_dispatcher
 
     ! ------------------------------------------------------------------
@@ -459,42 +501,64 @@ contains
         log_locals(k) = version_control_log_local_type(serial=buffers(current)%serial)
     end subroutine make_log_local_entry
 
-    ! kill-all-local-variables: forget the current buffer's values.
-    ! Not a port.
+    ! kill-all-local-variables: forget the current buffer's values and its
+    ! own `version_control_log_fileset' (`version_control_parent_buffer'
+    ! is permanent-local and stays).  Not a port.
     subroutine clear_log_locals()
         integer :: k
 
         k = log_local_index()
         if (k > 0) log_locals(k) = version_control_log_local_type()
+        call version_control_log_fileset%clear_local()
     end subroutine clear_log_locals
 
-    !> The current buffer's `version_control_log_fileset' (FOUND false if it has none):
-    !> the files of the log entry.  Not a port.
-    subroutine version_control_log_fileset(files, found)
-        type(string_type), allocatable, intent(out) :: files(:)
-        logical, intent(out) :: found
-        integer :: k
-
-        found = .false.
-        k = log_local_index()
-        if (k > 0) found = log_locals(k)%has_fileset
-
-        if (found) then
-            files = log_locals(k)%fileset
-        else
-            allocate (files(0))
-        end if
-    end subroutine version_control_log_fileset
-
-    !> Set the current buffer's `version_control_log_fileset' to FILES.  Not a port.
-    subroutine set_version_control_log_fileset(files)
+    !> Give the current buffer its own `version_control_log_fileset',
+    !> FILES.  Not a port.
+    subroutine set_version_control_log_fileset_local(self, files)
+        class(version_control_log_fileset_setting_type), intent(inout) :: self
         type(string_type), intent(in) :: files(:)
         integer :: k
 
-        call make_log_local_entry(k)
-        log_locals(k)%has_fileset = .true.
-        log_locals(k)%fileset = files
-    end subroutine set_version_control_log_fileset
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%files = files
+    end subroutine set_version_control_log_fileset_local
+
+    !> The current buffer's `version_control_log_fileset', FILES: its own
+    !> value, else no files.  Not a port.
+    subroutine get_version_control_log_fileset_current(self, files)
+        class(version_control_log_fileset_setting_type), intent(in) :: self
+        type(string_type), allocatable, intent(out) :: files(:)
+        integer :: k
+
+        k = self%get_local_index()
+
+        if (k > 0) then
+            if (allocated(self%locals(k)%files)) then
+                files = self%locals(k)%files
+                return
+            end if
+        end if
+
+        allocate (files(0))
+    end subroutine get_version_control_log_fileset_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_version_control_log_fileset_entry(self)
+        class(version_control_log_fileset_setting_type), intent(inout) :: self
+        type(version_control_log_fileset_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_version_control_log_fileset_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_version_control_log_fileset_entry(self, k)
+        class(version_control_log_fileset_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        if (allocated(self%locals(k)%files)) deallocate (self%locals(k)%files)
+    end subroutine clear_version_control_log_fileset_entry
 
     !> The current buffer's `version_control_patch_string' (unallocated for none).
     !> Not a port.
@@ -548,19 +612,6 @@ contains
         browsing = is_derived_mode([character(len=30) :: "version_control_directory_mode", "directory_editor_mode", "diff_mode", &
                                     "log_view_mode"])
     end function version_control_dispatcher_browsing
-
-    !> Set the current buffer's `version_control_parent_buffer' to PARENT and its
-    !> `version_control_parent_buffer_name' to NAME.  Not a port.
-    subroutine set_version_control_parent_buffer(parent, name)
-        type(handle_type), intent(in) :: parent
-        character(len=*), intent(in) :: name
-        integer :: k
-
-        call make_parent_entry(k)
-        if (k == 0) return
-        parents(k)%parent = parent
-        parents(k)%name = name
-    end subroutine set_version_control_parent_buffer
 
     ! ------------------------------------------------------------------
     ! Common command execution logic
@@ -627,7 +678,8 @@ contains
         ! If we are refreshing an existing view,
         ! don't throw away where we really came from (bug#59457).
         if (camefrom%index /= current .and. is_buffer_live(camefrom)) then
-            call set_version_control_parent_buffer(camefrom, " from "//buffers(camefrom%index)%name)
+            call version_control_parent_buffer%set_local(camefrom)
+            call version_control_parent_buffer_name%set_local(" from "//buffers(camefrom%index)%name)
         end if
 
         buffers(current)%directory = olddir

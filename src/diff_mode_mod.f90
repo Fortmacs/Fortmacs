@@ -52,7 +52,7 @@ module diff_mode_mod
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
-    use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer
+    use data_mod, only: logical_setting_type, string_setting_type, forward_setting, append_locals_clearer
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
     use data_mod, only: symbol_value, set
@@ -92,8 +92,8 @@ module diff_mode_mod
               diff_setup_buffer_type, diff_hunk_text, diff_find_source_location, diff_apply_hunk, diff_test_hunk, &
               diff_goto_source, diff_apply_buffer, diff_revert_and_cut_hunk, diff_sanity_check_hunk, &
               diff_beginning_of_file_and_junk, diff_delete_other_hunks, diff_delete_junk, diff_next_error, &
-              diff_merge_strings, set_diff_default_directory, diff_source_location_type, diff_text_type, &
-              diff_buffer_type, set_diff_version_control_backend, diff_version_control_backend, diff_add_log_current_subprograms, &
+              diff_merge_strings, diff_source_location_type, diff_text_type, &
+              diff_buffer_type, set_diff_version_control_revisions, diff_add_log_current_subprograms, &
               diff_current_subprogram, add_diff_change_log_entries_other_window
 
     !> If true, `diff_mode' buffers default to being read-only.  Port of
@@ -133,6 +133,17 @@ module diff_mode_mod
     !> True when read-only diff buffer uses short keys.  Port of
     !> diff-mode.el diff-mode-read-only (buffer-local).
     type(logical_setting_type), target, public :: diff_mode_read_only = logical_setting_type(name="diff_mode_read_only")
+
+    !> The VERSION_CONTROL backend that created the current Diff buffer, if any (its
+    !> name; unallocated for none).  Port of diff-mode.el diff-vc-backend (a
+    !> Diff buffer gets its own with `%set_local').
+    type(string_setting_type), target, public :: diff_version_control_backend = &
+                                                 string_setting_type(name="diff_version_control_backend")
+
+    !> The default directory where the current Diff buffer was created.
+    !> Port of diff-mode.el diff-default-directory (buffer-local when set).
+    type(string_setting_type), target, public :: diff_default_directory = &
+                                                 string_setting_type(name="diff_default_directory")
 
     !> Bindings for read-only `diff_mode' buffers.  See also
     !> `diff_mode_read_only_map'.  Port of diff-mode.el
@@ -229,19 +240,18 @@ module diff_mode_mod
     end type remembered_type
 
     !> A Diff buffer's own variables, by buffer serial number:
-    !> diff-buffer-type, diff-default-directory, diff-remembered-defdir and
+    !> diff-buffer-type, diff-remembered-defdir and
     !> diff-remembered-files-alist, diff-apply-hunk-to-backup-file,
     !> diff-narrowed-to (0 none, 1 hunk, 2 file).
     type :: diff_locals_type
         integer(int64) :: serial = 0
         integer :: kind = DIFF_BUFFER_PLAIN
-        character(len=:), allocatable :: default_directory, remembered_default_directory
+        character(len=:), allocatable :: remembered_default_directory
         type(remembered_type), allocatable :: remembered(:)
         logical :: apply_to_backup = .false.
         integer :: narrowed_to = 0
-        !> `diff_version_control_backend' (the name of the VERSION_CONTROL backend that produced
-        !> the diff, unallocated for none) and `diff_version_control_revisions'.
-        character(len=:), allocatable :: version_control_backend, version_control_rev1, version_control_rev2
+        !> `diff_version_control_revisions'.
+        character(len=:), allocatable :: version_control_rev1, version_control_rev2
     end type diff_locals_type
 
     type(diff_locals_type), allocatable :: diff_buffers(:)
@@ -468,15 +478,6 @@ contains
         k = findloc(diff_buffers%serial, buffers(current)%serial, dim=1)
         if (k > 0) buffer_kind = diff_buffers(k)%kind
     end function buffer_kind
-
-    !> Set the current buffer's diff-default-directory.  Not a port.
-    subroutine set_diff_default_directory(directory)
-        character(len=*), intent(in) :: directory
-        integer :: k
-
-        call make_current_entry(k)
-        diff_buffers(k)%default_directory = directory
-    end subroutine set_diff_default_directory
 
     ! ------------------------------------------------------------------
     ! Hunks and files
@@ -1833,32 +1834,18 @@ contains
         call goto_character(saved)
     end subroutine diff_setup_buffer_type
 
-    !> Set the current buffer's `diff_version_control_backend' to BACKEND (the VERSION_CONTROL
-    !> backend name; absent for none) and `diff_version_control_revisions' to (REV1
-    !> REV2).  Port of the buffer-local setting of diff-mode.el diff-vc-backend and
-    !> diff-vc-revisions.
-    subroutine set_diff_version_control_backend(backend, rev1, rev2)
-        character(len=*), intent(in), optional :: backend, rev1, rev2
+    !> Set the current buffer's `diff_version_control_revisions' to (REV1 REV2).
+    !> Port of the buffer-local setting of diff-mode.el diff-vc-revisions.
+    subroutine set_diff_version_control_revisions(rev1, rev2)
+        character(len=*), intent(in), optional :: rev1, rev2
         integer :: k
 
         call make_current_entry(k)
-        if (allocated(diff_buffers(k)%version_control_backend)) deallocate (diff_buffers(k)%version_control_backend)
         if (allocated(diff_buffers(k)%version_control_rev1)) deallocate (diff_buffers(k)%version_control_rev1)
         if (allocated(diff_buffers(k)%version_control_rev2)) deallocate (diff_buffers(k)%version_control_rev2)
-        if (present(backend)) diff_buffers(k)%version_control_backend = backend
         if (present(rev1)) diff_buffers(k)%version_control_rev1 = rev1
         if (present(rev2)) diff_buffers(k)%version_control_rev2 = rev2
-    end subroutine set_diff_version_control_backend
-
-    !> The current buffer's `diff_version_control_backend' ("" for none).  Not a port.
-    function diff_version_control_backend() result(name)
-        character(len=:), allocatable :: name
-        integer :: k
-
-        name = ""
-        call make_current_entry(k)
-        if (allocated(diff_buffers(k)%version_control_backend)) name = diff_buffers(k)%version_control_backend
-    end function diff_version_control_backend
+    end subroutine set_diff_version_control_revisions
 
     !> The current buffer's `diff_buffer_type': DIFF_BUFFER_PLAIN,
     !> DIFF_BUFFER_GIT or DIFF_BUFFER_MERCURIAL.  Port of the buffer-local
@@ -2483,6 +2470,8 @@ contains
         call make_sparse_keymap(diff_read_only_map)
         call set_keymap_parent(diff_read_only_map, diff_mode_read_only_map, st)
         call forward_setting(diff_mode_read_only, local_if_set=.true.)
+        call forward_setting(diff_default_directory, local_if_set=.true.)
+        call forward_setting(diff_version_control_backend)
         call append_minor_mode_map("diff_mode_read_only", diff_read_only_map)
         call append_locals_clearer(clear_diff_locals)
     end subroutine initialize_diff_mode

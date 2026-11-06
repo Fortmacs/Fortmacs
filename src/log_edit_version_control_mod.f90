@@ -52,7 +52,6 @@ contains
 
     module procedure log_edit_diff_fileset
     type(version_control_fileset_type) :: fs
-    logical :: found
 
     ! Re NOT-ESSENTIAL .true.: this function can get called from
     ! `log-edit-hook' and we don't want to abort the whole Log Edit setup
@@ -60,8 +59,8 @@ contains
     ! still actually get saved before committing, by the
     ! `vc-log-operation' anonymous function.  Possibly
     ! `log-edit-maybe-show-diff' should catch the error instead.
-    fs%backend = log_edit_version_control_backend()
-    call version_control_log_fileset(fs%files, found)
+    fs%backend = int(log_edit_version_control_backend%value)
+    call version_control_log_fileset%get_current(fs%files)
     call version_control_diff(status, not_essential=.true., fileset=fs)
     end procedure log_edit_diff_fileset
 

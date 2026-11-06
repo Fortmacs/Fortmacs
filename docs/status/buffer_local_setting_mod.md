@@ -20,4 +20,4 @@ the deferred `append_local_entry` and `clear_local_entry` each extension binds b
 
 ## Tests
 
-test_buffer_local_setting_mod (own: `set_local`, `get_current`, `is_local` and `clear_local` in two buffers, a local null value, the reuse of a closed buffer's entry, an array setting, `local_abbreviation_table`, `command_interpreter_completion_fignore` and `syntax_parser_state_table`)
+test_buffer_local_setting_mod (own: `set_local`, `get_current`, `is_local` and `clear_local` in two buffers, a local null value, the reuse of a closed buffer's entry, an array setting, `local_abbreviation_table`, `command_interpreter_completion_fignore`, `syntax_parser_state_table` and the per-buffer variables of vc-dir, vc-dispatcher (permanent-local ones kept), log-edit and diff-mode)

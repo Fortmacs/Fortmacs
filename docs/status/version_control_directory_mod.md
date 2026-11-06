@@ -8,7 +8,7 @@
 
 `vc-dir` (C-x v d, C-u for the backend),
 `vc-dir-root`,
-`vc-dir-mode` and its keymap,
+`vc-dir-mode` and its keymap, `vc-dir-backend` as a forwarded integer setting (`%set_local`, `%value`),
 `vc-dir-prepare-status-buffer`,
 `vc-dir-update`,
 `vc-dir-refresh` (g),

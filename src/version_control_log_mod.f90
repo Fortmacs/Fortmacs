@@ -31,7 +31,7 @@ submodule(version_control_mod) version_control_log_mod
                             log_view_goto_revision
     use execute_interactively_mod, only: PREFIX_NUMBER
     use version_control_dispatcher_mod, only: version_control_exec_after, version_control_action_type, &
-                                              version_control_parent_buffer, set_version_control_parent_buffer, &
+                                              version_control_parent_buffer_name, &
                                               version_control_sentinel_movepoint
     use value_mod, only: value_type
     use execute_interactively_mod, only: current_prefix_argument
@@ -310,7 +310,7 @@ contains
     if (.not. status%ok()) return
     ! We're looking at the root, so displaying " from <some-file>" in
     ! the mode line isn't helpful.
-    call set_version_control_parent_buffer(version_control_parent_buffer(), "")
+    call version_control_parent_buffer_name%clear()
     end procedure version_control_print_root_log
 
     ! Read a LIMIT argument for a VERSION_CONTROL log command.  Port of

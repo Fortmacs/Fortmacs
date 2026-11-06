@@ -7,7 +7,7 @@
 ## Ported
 
 `compile` (M-x compile; C-u: Comint mode with `compilation-shell-minor-mode`),
-`recompile`,
+`recompile` (in the buffer's `compilation-directory`, a forwarded string setting a compilation buffer gets its own of),
 `compilation-start` (as before, plus MODE t, "[Compiling] " and `mode-line-process` ":run"/":exit [N]" with the error/warning/info counts),
 `compilation-mode` (`compilation-mode-map`: RET, C-c C-c, C-o, C-c C-k, M-n, M-p, M-{, M-}, n, p, TAB, <backtab>, g),
 error parsing: `compilation-error-regexp-alist-alist` (all 67 rules, the `rx` ones as regexps; HIGHLIGHTs, makepp's and omake's forms, javac's `current-column`),
@@ -84,5 +84,5 @@ the variables `define-compilation-mode` sets from the mode's name (the mode's bo
 
 ## Tests
 
-test_compile_mod (ports compile-test-error-regexps (all 179 cases and the counts) and compile-test-functions; own: compilations, directory tracking, next-error and RET, Comint compilations);
+test_compile_mod (ports compile-test-error-regexps (all 179 cases and the counts) and compile-test-functions; own: compilations, recompile in the buffer's own `compilation-directory`, directory tracking, next-error and RET, Comint compilations);
 compile-test-grep-regexps is in test_grep_mod

@@ -77,7 +77,7 @@ module version_control_mod
     use window_mod, only: pop_to_buffer, switch_to_buffer_other_window, quit_windows_on, &
                           shrink_window_if_larger_than_buffer, get_buffer_window
     use diff_mod, only: diff_switches
-    use diff_mode_mod, only: diff_mode, diff_setup_buffer_type, set_diff_version_control_backend, diff_version_control_backend, &
+    use diff_mode_mod, only: diff_mode, diff_setup_buffer_type, set_diff_version_control_revisions, diff_version_control_backend, &
                              diff_file_next, diff_find_file_name
     use directory_editor_mod, only: directory_files
     use directory_editor_mode_mod, only: directory_editor_get_marked_files
@@ -113,7 +113,7 @@ module version_control_mod
     use version_control_dispatcher_mod, only: version_control_action_type, version_control_setup_buffer, &
                                               version_control_exec_after, version_control_delistify, &
                                               version_control_resynch_buffer, version_control_buffer_synchronize, &
-                                              version_control_parent_buffer, set_version_control_parent_buffer, &
+                                              version_control_parent_buffer, &
                                               version_control_mode_line_hook, version_control_do_command, &
                                               initialize_version_control_dispatcher, VERSION_CONTROL_OKSTATUS_ASYNCHRONOUS, &
                                               VERSION_CONTROL_DESTINATION_CURRENT, VERSION_CONTROL_NOQUERY_YES, &
@@ -1176,7 +1176,8 @@ contains
         if (handled) return
 
         if (is_derived_mode("diff_mode")) then
-            b = version_control_backend_named(diff_version_control_backend())
+            b = 0
+            if (allocated(diff_version_control_backend%value)) b = version_control_backend_named(diff_version_control_backend%value)
             return
         end if
 
@@ -1287,7 +1288,7 @@ contains
 
         call log_view_fileset(fs, handled)
         if (handled) return
-        parent = version_control_parent_buffer()
+        parent = version_control_parent_buffer%get_current()
 
         if (is_buffer_live(parent)) then
             ok = allocated(buffers(parent%index)%filename)
@@ -1451,7 +1452,7 @@ contains
             call set_buffer(buffer, st)
         else
             do
-                parent = version_control_parent_buffer()
+                parent = version_control_parent_buffer%get_current()
                 if (.not. is_buffer_live(parent)) exit
                 ! Avoid infinite looping when vc-parent-buffer and
                 ! current buffer are the same buffer.
@@ -2545,17 +2546,8 @@ contains
         ! Set the major mode and some local variables before calling into
         ! the backend.
         call diff_mode(st)
-
-        if (present(rev1) .and. present(rev2)) then
-            call set_diff_version_control_backend(version_control_backend_name(fs%backend), rev1, rev2)
-        else if (present(rev1)) then
-            call set_diff_version_control_backend(version_control_backend_name(fs%backend), rev1=rev1)
-        else if (present(rev2)) then
-            call set_diff_version_control_backend(version_control_backend_name(fs%backend), rev2=rev2)
-        else
-            call set_diff_version_control_backend(version_control_backend_name(fs%backend))
-        end if
-
+        call diff_version_control_backend%set_local(version_control_backend_name(fs%backend))
+        call set_diff_version_control_revisions(rev1, rev2)
         call remember_diff_arguments(asynchronous, fs, verb, rev1, rev2)
         call revert_buffer_function%set_local(version_control_diff_revert)
 
@@ -3127,7 +3119,7 @@ contains
         if (.not. status%ok()) return
         old = current_buffer()
         call set_buffer(result, st)
-        call set_version_control_parent_buffer(filebuf, "")
+        call version_control_parent_buffer%set_local(filebuf)
         call make_local_entry(k)
         locals(k)%has_override = .true.
         locals(k)%override%backend = backend

@@ -1136,7 +1136,7 @@ contains
     end function incoming_index
 
     !> Clear all VERSION_CONTROL properties of FILE.  Port of
-    !> vc-hooks.el:vc-file-clearprops (`version_control_parent_buffer' is version_control_mod's).
+    !> vc-hooks.el:vc-file-clearprops (`version_control_parent_buffer' is version_control_dispatcher_mod's).
     subroutine version_control_file_clearprops(file)
         character(len=*), intent(in) :: file
         integer :: k

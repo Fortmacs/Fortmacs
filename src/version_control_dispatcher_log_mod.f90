@@ -65,7 +65,8 @@ contains
     end if
 
     if (.not. status%ok()) return
-    call set_version_control_parent_buffer(parent, " from "//buffers(parent%index)%name)
+    call version_control_parent_buffer%set_local(parent)
+    call version_control_parent_buffer_name%set_local(" from "//buffers(parent%index)%name)
     if (present(patch_string)) call set_version_control_patch_string(patch_string)
 
     ! `log-edit-hook' is usually for things like
@@ -102,18 +103,20 @@ contains
     module procedure version_control_log_edit
     type(string_type), allocatable :: current_fileset(:)
     type(handle_type) :: parent
-    logical :: setup, has
+    logical :: setup
 
     status = status_type()
-    parent = version_control_parent_buffer()
+    parent = version_control_parent_buffer%get_current()
     buffers(current)%directory = buffers(parent%index)%directory
     ! Setup a new log message if the log buffer is "empty",
     ! or was previously used for a different set of files.
     setup = is_log_edit_empty_buffer()
 
     if (.not. setup) then
-        call version_control_log_fileset(current_fileset, has)
-        if (has) setup = .not. same_files(current_fileset, fileset)
+        if (version_control_log_fileset%is_local()) then
+            call version_control_log_fileset%get_current(current_fileset)
+            setup = .not. same_files(current_fileset, fileset)
+        end if
     end if
 
     pending_fileset = fileset
@@ -171,7 +174,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call set_version_control_log_fileset(pending_fileset)
+        call version_control_log_fileset%set_local(pending_fileset)
     end subroutine set_parameters
 
     ! log-edit-listfun of `version_control_log_edit': the files of `version_control_log_fileset'
@@ -183,7 +186,7 @@ contains
         type(status_type), intent(out) :: status
         type(string_type), allocatable :: fileset(:)
         character(len=:), allocatable :: root
-        logical :: found, has
+        logical :: found
         integer :: i
 
         ! FIXME: When fileset includes directories, and
@@ -195,7 +198,7 @@ contains
         ! through to this function.
         call version_control_root_directory(root, found, status)
         if (.not. status%ok()) return
-        call version_control_log_fileset(fileset, has)
+        call version_control_log_fileset%get_current(fileset)
         ! Returns paths relative to the root, so that
         ! `log-edit-changelog-insert-entries'
         ! substitutes them in correctly later, even when
@@ -253,10 +256,10 @@ contains
     ! save the parameters held in buffer-local variables
     logbuf = current_buffer()
     operation = log_locals(k)%operation
-    call version_control_log_fileset(fileset, has)
+    call version_control_log_fileset%get_current(fileset)
     log_entry = buffer_string()
     after_hook => log_locals(k)%after_hook
-    parent = version_control_parent_buffer()
+    parent = version_control_parent_buffer%get_current()
     ! OK, do it to it
     call set_buffer(parent, status)
     if (.not. status%ok()) return

@@ -6,7 +6,7 @@
 
 ## Ported
 
-`log-edit` (SETUP, the PARAMS as arguments: list function, diff function, VC backend),
+`log-edit` (SETUP, the PARAMS as arguments: list function, diff function, VC backend), `log-edit-callback` and `log-edit-diff-function` as procedure settings (`%set_local`, `%get_current`) and `log-edit-vc-backend` as a forwarded integer setting (`%set_local`, `%value`), cleared by kill-all-local-variables,
 `log-edit-mode` (font lock of headers and GNU-style entries, `log-edit-do-auto-fill`, `log-edit-fill-entry` as `fill-paragraph-function`),
 `log-edit-done` (empty headers, blank lines, final newline, `log-edit-confirm`, `log-edit-done-hook`, the callback),
 `log-edit-kill-buffer`,
@@ -44,4 +44,5 @@ directory-local variables
 ## Tests
 
 test_log_edit_mod (ports log-edit-tests.el: the eight log-edit-fill-entry tests and the four log-edit-done-strip-cvs-lines tests),
-test_add_log_mod (own: `log-edit-generate-changelog-from-diff`)
+test_add_log_mod (own: `log-edit-generate-changelog-from-diff`),
+test_buffer_local_setting_mod (own: `log-edit-callback`, `log-edit-diff-function` and `log-edit-vc-backend` per buffer)

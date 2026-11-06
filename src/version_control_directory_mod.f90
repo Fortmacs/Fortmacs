@@ -44,7 +44,7 @@ module version_control_directory_mod
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type
     use utility_functions_mod, only: is_string_less
-    use data_mod, only: symbol_value, set, append_locals_clearer, choice_setting_type
+    use data_mod, only: symbol_value, set, append_locals_clearer, choice_setting_type, forward_setting, integer_setting_type
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live, erase_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, close_buffer, deactivate_mark_variable
@@ -95,7 +95,7 @@ module version_control_directory_mod
                                          VERSION_CONTROL_EDITED, VERSION_CONTROL_ADDED, VERSION_CONTROL_REMOVED, &
                                          VERSION_CONTROL_MISSING, VERSION_CONTROL_CONFLICT, VERSION_CONTROL_NEEDS_UPDATE, &
                                          VERSION_CONTROL_UNLOCKED_CHANGES, VERSION_CONTROL_BACKEND_NONE
-    use version_control_dispatcher_mod, only: version_control_setup_buffer, set_version_control_parent_buffer, &
+    use version_control_dispatcher_mod, only: version_control_setup_buffer, version_control_parent_buffer_name, &
                                               version_control_parent_buffer, version_control_set_mode_line_busy_indicator
     use version_control_dispatcher_mod, only: version_control_directory_refresh_function
     use version_control_mod, only: version_control_fileset_type, version_control_responsible_backend, &
@@ -130,7 +130,6 @@ module version_control_directory_mod
               version_control_directory_resynch_file_impl, &
               version_control_directory_show_fileentry, version_control_directory_hide_state, &
               version_control_directory_remove_line, version_control_directory_deduce_fileset, &
-              version_control_directory_backend, &
               version_control_directory_busy, version_control_directory_stop_directory_status_process, &
               version_control_directory_headers, version_control_default_directory_printer, &
               version_control_default_directory_extra_headers, version_control_directory_widget_collection, &
@@ -228,10 +227,15 @@ module version_control_directory_mod
         logical :: has_fortmacs_widget_for_object_collections = .false.
         type(fortmacs_widget_for_object_collections_type) :: fortmacs_widget_for_object_collections
         type(handle_type) :: process_buffer
-        integer :: backend = 0
     end type local_type
 
     type(local_type), allocatable :: locals(:)
+
+    !> The backend used by the current *vc-dir* buffer (0 for none).  Port of
+    !> vc-dir.el vc-dir-backend (a VC-Dir buffer gets its own with
+    !> `%set_local').
+    type(integer_setting_type), target, public :: version_control_directory_backend = &
+                                                  integer_setting_type(name="version_control_directory_backend")
 
     ! The backend `version_control_directory_mode' gives the buffer (use-vc-backend,
     ! saved and restored by `version_control_directory').
@@ -315,16 +319,6 @@ contains
 
         call version_control_directory_widget_collection(fortmacs_widget_for_object_collections, has)
     end function ew
-
-    !> The current buffer's `version_control_directory_backend': the backend used by the
-    !> current *vc-dir* buffer (0 for none).  Not a port.
-    integer function version_control_directory_backend()
-        integer :: k
-
-        version_control_directory_backend = 0
-        k = local_index()
-        if (k > 0) version_control_directory_backend = locals(k)%backend
-    end function version_control_directory_backend
 
     ! The current buffer's `version_control_directory_process_buffer'.  Not a port.
     function process_buffer() result(h)
@@ -542,7 +536,8 @@ contains
                 if (.not. is_buffer_live(version_control_directory_buffers(k))) cycle
                 call set_buffer(version_control_directory_buffers(k), st)
 
-                if (is_derived_mode("version_control_directory_mode") .and. version_control_directory_backend() == backend .and. &
+                if (is_derived_mode("version_control_directory_mode") .and. &
+                    version_control_directory_backend%value == backend .and. &
                     buffers(current)%directory == directory) then
                     buffer = version_control_directory_buffers(k)
                     exit
@@ -564,7 +559,7 @@ contains
         call version_control_setup_buffer(buffer, status)
         ! Reset the vc-parent-buffer-name so that it does not appear
         ! in the mode-line.
-        call set_version_control_parent_buffer(version_control_parent_buffer(), "")
+        call version_control_parent_buffer_name%clear()
         call set_buffer(old, st)
     end subroutine version_control_directory_prepare_status_buffer
 
@@ -788,7 +783,7 @@ contains
         end if
 
         ! Update VERSION_CONTROL file properties.
-        b = version_control_directory_backend()
+        b = int(version_control_directory_backend%value)
 
         do j = k, n
             if (entries(j)%state == VERSION_CONTROL_UNREGISTERED) then
@@ -1551,7 +1546,7 @@ contains
             crt = fortmacs_widget_for_object_collections_next(ew(), crt)
         end do
 
-        fs%backend = version_control_directory_backend()
+        fs%backend = int(version_control_directory_backend%value)
         call append_string(fs%files, buffers(current)%directory)
         call version_control_directory_only_files_state_and_model(files, states, fs, status)
         if (.not. status%ok()) return
@@ -1809,7 +1804,7 @@ contains
         integer :: b
 
         entry%name = file_relative_name(file_name, def_directory)
-        b = version_control_directory_backend()
+        b = int(version_control_directory_backend%value)
         if (b == 0) return
         saved = buffers(current)%directory
         buffers(current)%directory = def_directory
@@ -1920,7 +1915,7 @@ contains
 
             if (is_file_directory(file)) then
                 call version_control_directory_resync_directory_files(file)
-                call version_control_directory_headers(version_control_directory_backend(), ddir, header)
+                call version_control_directory_headers(int(version_control_directory_backend%value), ddir, header)
                 call fortmacs_widget_for_object_collections_set_hf_parts(ew(), header, none)
             else
                 ! Pass two truenames (bug#80803, bug#80967).
@@ -1976,7 +1971,7 @@ contains
         call major_modes%version_control_directory_mode%begin(saved_mode, status)
         if (.not. status%ok()) return
         call make_local_entry(k)
-        locals(k)%backend = use_version_control_backend
+        call version_control_directory_backend%set_local(use_version_control_backend)
         buffers(current)%read_only = .false.
         call erase_buffer(status)
 
@@ -2135,7 +2130,7 @@ contains
 
         status = status_type()
         def_directory = buffers(current)%directory
-        backend = version_control_directory_backend()
+        backend = int(version_control_directory_backend%value)
         call version_control_set_mode_line_busy_indicator()
         ! Call the `dir-status-files' backend function.
         ! `dir-status-files' is supposed to be asynchronous.
@@ -2233,7 +2228,7 @@ contains
         end if
 
         def_directory = buffers(current)%directory
-        backend = version_control_directory_backend()
+        backend = int(version_control_directory_backend%value)
 
         if (version_control_directory_save_some_buffers_on_revert) then
             fs%backend = backend
@@ -2357,7 +2352,7 @@ contains
         integer(int64), intent(in) :: data
         integer :: b
 
-        b = version_control_directory_backend()
+        b = int(version_control_directory_backend%value)
 
         if (b > 0) then
             if (associated(version_control_backends(b)%directory_printer)) then
@@ -2415,9 +2410,11 @@ contains
 
         if (yes) then
             call version_control_directory_hide_state()
-            call version_control_only_files_state_and_model(other, other_states, version_control_directory_backend(), fs, status)
+            call version_control_only_files_state_and_model(other, other_states, int(version_control_directory_backend%value), fs, &
+                                                            status)
         else
-            call version_control_only_files_state_and_model(files, states, version_control_directory_backend(), fs, status)
+            call version_control_only_files_state_and_model(files, states, int(version_control_directory_backend%value), fs, &
+                                                            status)
         end if
     end subroutine version_control_directory_only_files_state_and_model
 
@@ -2448,7 +2445,7 @@ contains
             if (smo) call version_control_directory_child_files_and_states(only_files, states)
         end if
 
-        fs%backend = version_control_directory_backend()
+        fs%backend = int(version_control_directory_backend%value)
         if (smo) call version_control_directory_only_files_state_and_model(only_files, states, fs, status)
     end subroutine version_control_directory_deduce_fileset
 
@@ -2891,5 +2888,6 @@ contains
         call keymap_set(mark_map, "%", "version_control_directory_mark_by_regular_expression", st)
         call keymap_set(mark_map, "r", "version_control_directory_mark_registered_files", st)
         call append_locals_clearer(clear_version_control_directory_locals)
+        call forward_setting(version_control_directory_backend)
     end subroutine initialize_version_control_directory
 end module version_control_directory_mod
