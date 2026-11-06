@@ -46,7 +46,9 @@ module test_keyboard_mod
     use utility_functions_mod, only: value_equal
     use basic_subprograms_mod, only: initialize_basic_subprograms
     use system_dependent_mod, only: fortmacs_terminal_type, open_pty, close_fd, initialize_system_modes, &
-                                    reset_system_modes, fortmacs_write
+                                    reset_system_modes, fortmacs_write, initialize_signals, pending_fatal_signal, &
+                                    clear_fatal_signal, signal_disposition_type, default_signal, restore_signal, &
+                                    fortmacs_kill, fortmacs_getpid, input_available, SIGHUP, SIGINT, SIGTERM, SIGPIPE
     implicit none(type, external)
     private
 
@@ -102,7 +104,8 @@ contains
                     new_unittest("this-command-keys", test_this_command_keys), &
                     new_unittest("echo-keystrokes", test_echo), &
                     new_unittest("event-symbols", test_event_symbols), &
-                    new_unittest("recursive-edit/top-level", test_recursive_edit) &
+                    new_unittest("recursive-edit/top-level", test_recursive_edit), &
+                    new_unittest("fatal-signal-ends-command-loop", test_fatal_signal) &
                     ]
     end subroutine collect_keyboard_mod
 
@@ -1167,4 +1170,58 @@ contains
         call check(error,.not. post_command_hook%member(execute_fail), "removed")
         call free(global)
     end subroutine test_recursive_edit
+
+    !> sysdep.c:init_signals and emacs.c:terminate_due_to_signal: a SIGTERM
+    !> received while the command loop waits for input ends the loop (and
+    !> so Fortmacs), as kill-emacs does upstream.
+    subroutine test_fatal_signal(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(fortmacs_terminal_type) :: old
+        type(signal_disposition_type) :: hangup, interrupt, terminate, pipe
+        type(status_type) :: st
+        integer(int32) :: master, slave, err
+        integer :: k
+
+        call open_pty(master, slave, st)
+        call check(error, st%ok(), "open_pty")
+        if (allocated(error)) return
+        call default_signal(SIGHUP, hangup)
+        call default_signal(SIGINT, interrupt)
+        call default_signal(SIGTERM, terminate)
+        call default_signal(SIGPIPE, pipe)
+        call clear_fatal_signal()
+        call initialize_signals()
+
+        run: block
+            call initialize_system_modes(slave, old, st)
+            call check(error, st%ok(), "raw mode")
+            if (allocated(error)) exit run
+            call set_input_fd(slave)
+            err = fortmacs_kill(fortmacs_getpid(), SIGTERM)
+            call check(error, err, 0_int32)
+            if (allocated(error)) exit run
+
+            ! The signal may reach another thread first.
+            do k = 1, 100
+                if (pending_fatal_signal() /= 0) exit
+                if (input_available(slave, 10_int32)) exit
+            end do
+
+            call check(error, pending_fatal_signal(), int(SIGTERM))
+            if (allocated(error)) exit run
+            ! Nothing is typed: without the signal this would wait for ever.
+            call command_loop(st)
+            call check(error, st%ok(), "command loop")
+            call reset_system_modes(slave, old, st)
+        end block run
+
+        call set_input_fd(-1_int32)
+        call clear_fatal_signal()
+        call restore_signal(SIGHUP, hangup)
+        call restore_signal(SIGINT, interrupt)
+        call restore_signal(SIGTERM, terminate)
+        call restore_signal(SIGPIPE, pipe)
+        call close_fd(slave)
+        call close_fd(master)
+    end subroutine test_fatal_signal
 end module test_keyboard_mod
