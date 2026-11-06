@@ -1,7 +1,7 @@
 ! test_fake_graphical_user_interface_mod.f90 -- redisplay on a fake window-system frame:
 ! layout in pixels through the redisplay interface (fake_graphical_user_interface_mod), and
 ! the same text as on a terminal.
-! Own tests; upstream's xdisp-tests.el needs Lisp and real GUI frames.
+! Own tests; upstream's xdisp-tests.el needs Lisp and real GRAPHICAL_USER_INTERFACE frames.
 !
 ! Copyright (C) 2026 The Fortmacs authors
 !
@@ -27,20 +27,20 @@ module test_fake_graphical_user_interface_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, resolve_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char
+    use editing_functions_mod, only: goto_character
     use value_mod, only: list, value_type
     use text_properties_mod, only: put_text_property
     use glyph_matrices_mod, only: FILLED_BOX_CURSOR, MODE_LINE_ACTIVE_FACE_ID, MODE_LINE_INACTIVE_FACE_ID, &
                                   VERTICAL_BORDER_FACE_ID
-    use faces_mod, only: init_faces
-    use face_realization_mod, only: init_frame_faces
+    use faces_mod, only: initialize_faces
+    use face_realization_mod, only: initialize_frame_faces
     use terminfo_mod, only: terminfo_type, builtin_xterm
-    use terminal_output_mod, only: init_tty_entry
-    use terminal_state_mod, only: tty_take_output
+    use terminal_output_mod, only: initialize_terminal_entry
+    use terminal_state_mod, only: terminal_take_output
     use frame_mod, only: frame_type
     use window_mod, only: delete_window_tree, delete_window_object, split_window_internal, set_window_buffer, windows, &
                           window_end
-    use display_engine_mod, only: redisplay_internal, init_frame_windows, mode_line_text, mode_line_modes
+    use display_engine_mod, only: redisplay_internal, initialize_frame_windows, mode_line_text, mode_line_modes
     use keyboard_mod, only: last_message
     use fake_graphical_user_interface_mod, only: fake_device_type, fake_font_driver_type, make_fake_frame, FAKE_COLUMN_WIDTH, &
                                                  FAKE_LINE_HEIGHT
@@ -75,20 +75,20 @@ contains
         call insert(text, st)
     end subroutine buffer_with
 
-    !> A fake frame `cols' by `lines' showing buffer `h' in its window,
+    !> A fake frame `columns' by `lines' showing buffer `h' in its window,
     !> its faces realized with the fake fonts.
-    subroutine fake_frame(f, device, driver, cols, lines, h)
+    subroutine fake_frame(f, device, driver, columns, lines, h)
         type(frame_type), intent(inout) :: f
         type(fake_device_type), target, intent(inout) :: device
         type(fake_font_driver_type), target, intent(inout) :: driver
-        integer, intent(in) :: cols, lines
+        integer, intent(in) :: columns, lines
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call make_fake_frame(f, device, driver, cols, lines)
-        call init_faces()
-        call init_frame_faces(f, "dumb")
-        call init_frame_windows(f)
+        call make_fake_frame(f, device, driver, columns, lines)
+        call initialize_faces()
+        call initialize_frame_faces(f, "dumb")
+        call initialize_frame_windows(f)
         call set_window_buffer(f%selected_window, h, st)
     end subroutine fake_frame
 
@@ -105,14 +105,14 @@ contains
     !> whole), ^A and wide characters, the cursor and the echo area.
     subroutine test_same_text(error)
         type(error_type), allocatable, intent(out) :: error
-        type(frame_type) :: tty, f
+        type(frame_type) :: terminal, f
         type(fake_device_type), target :: device
         type(fake_font_driver_type), target :: driver
         type(terminfo_type) :: ti
         type(handle_type) :: h
         type(status_type) :: st
         character(len=:), allocatable :: text, out
-        character(len=80) :: msg
+        character(len=80) :: message
         integer :: r, k
         integer(int32) :: codes(80)
 
@@ -123,17 +123,17 @@ contains
                char(230)//char(151)//char(165)//char(230)//char(156)//char(172)//" two wide"//achar(10)// &
                repeat("long line ", 20)//achar(10)//"last"
         call buffer_with("*fake-gui-same*", text, h)
-        call goto_char(26_int64)
+        call goto_character(26_int64)
         ! The terminal.
         call builtin_xterm(ti)
-        call init_tty_entry(tty%tty, ti, "xterm-256color", -1_int32, st)
-        call init_faces()
-        call init_frame_faces(tty, "xterm-256color")
-        call init_frame_windows(tty)
-        call set_window_buffer(tty%selected_window, h, st)
+        call initialize_terminal_entry(terminal%terminal, ti, "xterm-256color", -1_int32, st)
+        call initialize_faces()
+        call initialize_frame_faces(terminal, "xterm-256color")
+        call initialize_frame_windows(terminal)
+        call set_window_buffer(terminal%selected_window, h, st)
         last_message = "Hello"
-        call redisplay_internal(tty, st)
-        out = tty_take_output(tty%tty)
+        call redisplay_internal(terminal, st)
+        out = terminal_take_output(terminal%terminal)
         ! The fake frame, as large.
         call fake_frame(f, device, driver, 80, 24, h)
         call redisplay_internal(f, st)
@@ -144,10 +144,10 @@ contains
             codes = device%column_text(r*FAKE_LINE_HEIGHT, 80)
 
             do k = 1, 80
-                if (codes(k) /= tty%current_matrix%rows(r)%glyphs(k)%ch) then
-                    write (msg, '("row ",i0,", column ",i0,": ",i0," /= ",i0)') r, k, codes(k), &
-                        tty%current_matrix%rows(r)%glyphs(k)%ch
-                    call check(error, .false., trim(msg))
+                if (codes(k) /= terminal%current_matrix%rows(r)%glyphs(k)%ch) then
+                    write (message, '("row ",i0,", column ",i0,": ",i0," /= ",i0)') r, k, codes(k), &
+                        terminal%current_matrix%rows(r)%glyphs(k)%ch
+                    call check(error, .false., trim(message))
                     return
                 end if
             end do
@@ -164,7 +164,7 @@ contains
         if (allocated(error)) return
         ! The cursor (on the e at column 14 of the second line) as a box
         ! over its cell.
-        call check(error, tty%cursor_vpos == 1 .and. tty%cursor_hpos == 14, "terminal cursor")
+        call check(error, terminal%cursor_vertical_position == 1 .and. terminal%cursor_horizontal_position == 14, "terminal cursor")
         if (allocated(error)) return
         call check(error, device%cursor_type == FILLED_BOX_CURSOR .and. &
                    device%cursor_x == 14*FAKE_COLUMN_WIDTH .and. device%cursor_y == FAKE_LINE_HEIGHT .and. &
@@ -176,7 +176,7 @@ contains
         call check(error, device%text_at(FAKE_LINE_HEIGHT, 77*FAKE_COLUMN_WIDTH), "h \", &
                    device%text_at(FAKE_LINE_HEIGHT, 77*FAKE_COLUMN_WIDTH))
         last_message = ""
-        call delete_frame_windows(tty)
+        call delete_frame_windows(terminal)
         call delete_frame_windows(f)
         call close_buffer(h, st)
     end subroutine test_same_text
@@ -193,7 +193,7 @@ contains
         type(status_type) :: st
 
         call buffer_with("*fake-gui-prop*", repeat("i", 19)//achar(10)//repeat("m", 7)//achar(10)//"ab", h)
-        call goto_char(23_int64)
+        call goto_character(23_int64)
         driver%proportional = .true.
         call fake_frame(f, device, driver, 10, 8, h)
         call redisplay_internal(f, st)
@@ -214,8 +214,8 @@ contains
         call check(error, device%cursor_x == 24 .and. device%cursor_y == 2*FAKE_LINE_HEIGHT .and. &
                    device%cursor_width == 12 .and. device%cursor_height == FAKE_LINE_HEIGHT, "cursor")
         if (allocated(error)) return
-        call check(error, windows(f%selected_window%index)%cursor_vpos == 2 .and. &
-                   windows(f%selected_window%index)%cursor_hpos == 2, "window cursor row and glyph")
+        call check(error, windows(f%selected_window%index)%cursor_vertical_position == 2 .and. &
+                   windows(f%selected_window%index)%cursor_horizontal_position == 2, "window cursor row and glyph")
         call delete_frame_windows(f)
         call close_buffer(h, st)
     end subroutine test_proportional
@@ -241,7 +241,7 @@ contains
         call buffer_with("*fake-gui-tall*", text, h)
         call put_text_property(4_int64, 6_int64, value_type(name="face"), list(value_type(name=":height"), value_type(200_int64)), &
                                st)
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call fake_frame(f, device, driver, 20, 10, h)
         call redisplay_internal(f, st)
         call check(error, device%text_at(0), "ab ", device%text_at(0))
@@ -322,7 +322,7 @@ contains
         integer :: x
 
         call buffer_with("*fake-gui-split*", repeat("0123456789", 5)//achar(10)//"two", h)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call fake_frame(f, device, driver, 80, 12, h)
         call redisplay_internal(f, st)
         left = f%root_window

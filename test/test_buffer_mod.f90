@@ -27,13 +27,13 @@ module test_buffer_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: format_message
-    use error_mod, only: status_type, FM_INVALID_HANDLE, FM_BUFFER_READ_ONLY, &
-                         FM_GENERIC_ERROR
+    use error_mod, only: status_type, INVALID_HANDLE_CODE, BUFFER_READ_ONLY_CODE, &
+                         GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
-    use buffer_mod, only: barf_if_buffer_read_only, beginning, buffer_chars_modified_tick, buffer_last_name, &
+    use buffer_mod, only: barf_if_buffer_read_only, beginning, buffer_characters_modified_tick, buffer_last_name, &
                           is_buffer_live, is_buffer_modified, buffer_modified_tick, buffer_name, &
                           buffers, current, current_buffer, generate_new_buffer_name, get_buffer, &
-                          get_or_make_buffer, close_buffer, modiff_incr, swap_buffer_text, rename_buffer, resolve_buffer, &
+                          get_or_make_buffer, close_buffer, modiff_increment, swap_buffer_text, rename_buffer, resolve_buffer, &
                           restore_buffer_modified, set_buffer, set_buffer_read_only, buffer_enable_undo, &
                           set_buffer_modified, buffer_file_name, find_buffer, bury_buffer_internal, record_buffer
     use hooks_mod, only: buffer_list_update_hook
@@ -63,8 +63,8 @@ contains
                     new_unittest("kill-buffer-stale-handle", test_kill), &
                     new_unittest("kill-current-buffer", test_kill_current), &
                     new_unittest("buffer-modified-p", test_modified), &
-                    new_unittest("test-buffer-chars-modified-ticks", test_chars_ticks), &
-                    new_unittest("modiff-incr", test_modiff_incr), &
+                    new_unittest("test-buffer-chars-modified-ticks", test_characters_ticks), &
+                    new_unittest("modiff-incr", test_modiff_increment), &
                     new_unittest("barf-if-buffer-read-only", test_read_only), &
                     new_unittest("buffer-tests-inhibit-buffer-hooks", test_inhibit_buffer_hooks), &
                     new_unittest("buffer-list-update-hook", test_buffer_list_update_hook), &
@@ -122,7 +122,7 @@ contains
         type(status_type) :: st
 
         call get_or_make_buffer("", h, st)
-        call check(error, st%code, FM_GENERIC_ERROR)
+        call check(error, st%code, GENERIC_ERROR_CODE)
     end subroutine test_empty_name
 
     subroutine test_generate_name(error)
@@ -171,7 +171,7 @@ contains
         if (allocated(error)) return
         call set_buffer(a, st)
         call rename_buffer("tb-ren-b", .false., actual, st)
-        call check(error, st%code, FM_GENERIC_ERROR)
+        call check(error, st%code, GENERIC_ERROR_CODE)
         if (allocated(error)) return
         call check(error, st%detail, format_message("Buffer name `")//"tb-ren-b"//format_message("' is in use"))
         if (allocated(error)) return
@@ -206,7 +206,7 @@ contains
         call check(error,.not. is_buffer_live(h), "closed buffer still live")
         if (allocated(error)) return
         call buffer_name(h, name, st)
-        call check(error, st%code, FM_INVALID_HANDLE)
+        call check(error, st%code, INVALID_HANDLE_CODE)
         if (allocated(error)) return
         found = get_buffer("tb-kill")
         call check(error, found%index, 0_int64)
@@ -240,7 +240,7 @@ contains
         call check(error, is_buffer_live(current_buffer()), "current buffer not live")
         if (allocated(error)) return
         call set_buffer(b, st)
-        call check(error, st%code, FM_INVALID_HANDLE)
+        call check(error, st%code, INVALID_HANDLE_CODE)
         if (allocated(error)) return
         call check(error, st%detail, "Selecting deleted buffer")
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -280,7 +280,7 @@ contains
 
     !> The file-independent part of buffer-tests.el:
     !> test-buffer-chars-modified-ticks.
-    subroutine test_chars_ticks(error)
+    subroutine test_characters_ticks(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
@@ -290,38 +290,38 @@ contains
         call make("tb-ticks", h, error)
         if (allocated(error)) return
         call set_buffer(h, st)
-        call buffer_chars_modified_tick(h, ticks, st)
+        call buffer_characters_modified_tick(h, ticks, st)
         call buffer_modified_tick(h, modt, st)
         call check(error, ticks, 1_int64)
         if (allocated(error)) return
         call check(error, ticks, modt)
         if (allocated(error)) return
         call insert("foobar", st)
-        call buffer_chars_modified_tick(h, ticks, st)
+        call buffer_characters_modified_tick(h, ticks, st)
         call buffer_modified_tick(h, modt, st)
         call check(error, ticks, modt)
         if (allocated(error)) return
         call check(error, ticks > 1, "chars tick did not advance")
         if (is_buffer_live(old)) call set_buffer(old, st)
         call discard(h)
-    end subroutine test_chars_ticks
+    end subroutine test_characters_ticks
 
-    subroutine test_modiff_incr(error)
+    subroutine test_modiff_increment(error)
         type(error_type), allocatable, intent(out) :: error
         integer(int64) :: a, old
 
         a = 10
-        call modiff_incr(a, 0_int64, old)
+        call modiff_increment(a, 0_int64, old)
         call check(error, old == 10 .and. a == 11, "len 0 adds 1")
         if (allocated(error)) return
         a = 10
-        call modiff_incr(a, 1_int64)
+        call modiff_increment(a, 1_int64)
         call check(error, a, 11_int64)      ! elogb(1) + 1 = 1
         if (allocated(error)) return
         a = 10
-        call modiff_incr(a, 1000_int64)
+        call modiff_increment(a, 1000_int64)
         call check(error, a, 20_int64)      ! elogb(1000) + 1 = 10
-    end subroutine test_modiff_incr
+    end subroutine test_modiff_increment
 
     subroutine test_read_only(error)
         type(error_type), allocatable, intent(out) :: error
@@ -337,7 +337,7 @@ contains
         if (allocated(error)) return
         call set_buffer_read_only(h, .true., st)
         call barf_if_buffer_read_only(st)
-        call check(error, st%code, FM_BUFFER_READ_ONLY)
+        call check(error, st%code, BUFFER_READ_ONLY_CODE)
         if (allocated(error)) return
         call check(error, st%detail, "tb-ro")
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -441,12 +441,12 @@ contains
         call buffer_file_name(name, found, st, h)
         call check(error, found .and. name == "/tmp/x.txt", "the visited file")
         if (allocated(error)) return
-        call set_default(value_type(name="find_buffer_test_var"), value_type(0_int64), st)
-        call setq_local("find_buffer_test_var", value_type(42_int64), st)
-        found_h = find_buffer(value_type(name="find_buffer_test_var"), value_type(42_int64))
+        call set_default(value_type(name="find_buffer_test_variable"), value_type(0_int64), st)
+        call setq_local("find_buffer_test_variable", value_type(42_int64), st)
+        found_h = find_buffer(value_type(name="find_buffer_test_variable"), value_type(42_int64))
         call check(error, found_h%index == h%index, "found by its local value")
         if (allocated(error)) return
-        found_h = find_buffer(value_type(name="find_buffer_test_var"), value_type(7_int64))
+        found_h = find_buffer(value_type(name="find_buffer_test_variable"), value_type(7_int64))
         call check(error, found_h%index == 0, "no buffer with 7")
         call discard(h)
         if (is_buffer_live(old)) call set_buffer(old, st)
@@ -457,12 +457,12 @@ contains
     !> buffer.c:Fbuffer_swap_text.
     subroutine test_swap_buffer_text(error)
         use insert_delete_mod, only: insert
-        use editing_functions_mod, only: buffer_string, point, goto_char, narrow_to_region, widen
+        use editing_functions_mod, only: buffer_string, point, goto_character, narrow_to_region, widen
         use marker_mod, only: copy_marker_at, marker_position, marker_buffer, destroy_marker
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b, m, mb
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call make("swap-a", a, error)
         if (allocated(error)) return
@@ -470,10 +470,10 @@ contains
         if (allocated(error)) return
         call set_buffer(b, st)
         call insert("bbbbbbbb", st)
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call set_buffer(a, st)
         call insert("aaaa", st)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call copy_marker_at(4_int64, m, .false., st)
         call narrow_to_region(2_int64, 4_int64, st)
         call swap_buffer_text(b, st)
@@ -484,8 +484,8 @@ contains
         call check(error, buffers(current)%name == "swap-a", "names stay")
         if (allocated(error)) return
         call marker_buffer(m, mb, st)
-        call marker_position(m, pos, st)
-        call check(error, mb%index == b%index .and. pos == 4, "the marker went with the text")
+        call marker_position(m, position, st)
+        call check(error, mb%index == b%index .and. position == 4, "the marker went with the text")
         if (allocated(error)) return
         call set_buffer(b, st)
         call check(error, buffer_string() == "aa" .and. point() == 2, "the other has this text, narrowed")

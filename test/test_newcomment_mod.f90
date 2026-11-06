@@ -29,16 +29,16 @@ module test_newcomment_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, buffer_string
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, buffer_string
     use simple_mod, only: deactivate_mark
     use indent_mod, only: indent_tabs_mode
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use syntax_mod, only: make_syntax_table, set_syntax_table, modify_syntax_entry, destroy_syntax_table
     use newcomment_mod, only: comment_start, comment_end, comment_start_skip, comment_continue, comment_style, &
-                              comment_region, uncomment_region, comment_indent, comment_line, comment_dwim, &
+                              comment_region, uncomment_region, comment_indent, comment_line, comment_do_what_i_mean, &
                               comment_string_strip, comment_string_reverse, comment_padright, comment_padleft, &
-                              comment_normalize_vars, COMMENT_STYLE_MULTI_LINE, COMMENT_STYLE_INDENT, &
-                              comment_empty_lines, COMMENT_EMPTY_LINES_EOL
+                              comment_normalize_variables, COMMENT_STYLE_MULTI_LINE, COMMENT_STYLE_INDENT, &
+                              comment_empty_lines, COMMENT_EMPTY_LINES_END_OF_LINE
     implicit none(type, external)
     private
 
@@ -58,7 +58,7 @@ contains
                     new_unittest("comment-region-hash", test_region_hash), &
                     new_unittest("comment-indent-hash", test_indent_hash), &
                     new_unittest("comment-line-hash", test_line_hash), &
-                    new_unittest("comment-dwim-blank-line", test_dwim_blank), &
+                    new_unittest("comment-dwim-blank-line", test_do_what_i_mean_blank), &
                     new_unittest("comment-empty-lines-buffer-local", test_empty_lines_local) &
                     ]
     end subroutine collect_newcomment_mod
@@ -71,27 +71,27 @@ contains
         type(handle_type) :: a, b
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *newcomment-a*", a, st)
         call get_or_make_buffer(" *newcomment-b*", b, st)
         call set_buffer(a, st)
-        call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_EOL)
+        call comment_empty_lines%set_local(COMMENT_EMPTY_LINES_END_OF_LINE)
         call set_buffer(b, st)
         call check(error, comment_empty_lines%is_off(), "the default in another buffer")
         if (allocated(error)) return
         call set_buffer(a, st)
-        call check(error, comment_empty_lines%choice == COMMENT_EMPTY_LINES_EOL, "the buffer's own choice")
+        call check(error, comment_empty_lines%choice == COMMENT_EMPTY_LINES_END_OF_LINE, "the buffer's own choice")
         call close_buffer(a, st)
         call close_buffer(b, st)
     end subroutine test_empty_lines_local
 
     !> A fresh buffer holding TEXT, with its own syntax TABLE.
-    subroutine temp_buffer(text, h, table)
+    subroutine temporary_buffer(text, h, table)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h, table
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *newcomment-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -100,7 +100,7 @@ contains
         call set_syntax_table(table, st)
         call insert(text, st)
         indent_tabs_mode = .false.
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     !> A buffer with `#' comments ending at end of line (as in sh).
     subroutine hash_buffer(text, h, table)
@@ -108,7 +108,7 @@ contains
         type(handle_type), intent(out) :: h, table
         type(status_type) :: st
 
-        call temp_buffer(text, h, table)
+        call temporary_buffer(text, h, table)
         call modify_syntax_entry(iachar("#"), iachar("#"), "<", st)
         call modify_syntax_entry(10, 10, ">", st)
         call comment_start%set_local("# ")
@@ -130,7 +130,7 @@ contains
         type(status_type) :: st
         integer(int64) :: saved_style
 
-        call temp_buffer("", h, table)
+        call temporary_buffer("", h, table)
 
         checks: block
             ! C mode's comments.
@@ -144,10 +144,10 @@ contains
             comment_style = COMMENT_STYLE_MULTI_LINE
             call comment_continue%set_local("   ")
             call insert("  a"//LF//"  b", st)
-            call comment_region(point_min(), point_max(), st)
+            call comment_region(point_minimum(), point_maximum(), st)
             call check(error, st%ok(), "comment_region failed")
             if (allocated(error)) exit checks
-            call uncomment_region(point_min(), point_max(), st)
+            call uncomment_region(point_minimum(), point_maximum(), st)
             call check(error, st%ok(), "uncomment_region failed")
             if (allocated(error)) exit checks
             call check(error, buffer_string(), "  a"//LF//"  b")
@@ -171,7 +171,7 @@ contains
         call hash_buffer("", h, table)
 
         checks: block
-            call comment_normalize_vars(st)
+            call comment_normalize_variables(st)
             call check(error, comment_padright("# "), "# ")
             if (allocated(error)) exit checks
             call check(error, comment_padright("#", 2_int64), "### ")
@@ -190,12 +190,12 @@ contains
         call hash_buffer("a"//LF//"  b"//LF, h, table)
 
         checks: block
-            call comment_region(point_min(), point_max(), st)
+            call comment_region(point_minimum(), point_maximum(), st)
             call check(error, st%ok(), "comment_region failed")
             if (allocated(error)) exit checks
             call check(error, buffer_string(), "# a"//LF//"#   b"//LF)
             if (allocated(error)) exit checks
-            call uncomment_region(point_min(), point_max(), st)
+            call uncomment_region(point_minimum(), point_maximum(), st)
             call check(error, buffer_string(), "a"//LF//"  b"//LF)
         end block checks
 
@@ -210,13 +210,13 @@ contains
         call hash_buffer("foo", h, table)
 
         checks: block
-            call goto_char(1_int64)
+            call goto_character(1_int64)
             call comment_indent(st)
             call check(error, st%ok(), "comment_indent failed")
             if (allocated(error)) exit checks
             call check(error, buffer_string(), "foo"//repeat(" ", 29)//"# ")
             if (allocated(error)) exit checks
-            call check(error, point() == point_max(), "point is not after the comment starter")
+            call check(error, point() == point_maximum(), "point is not after the comment starter")
         end block checks
 
         call leave(h, table)
@@ -230,7 +230,7 @@ contains
         call hash_buffer("a"//LF//"b"//LF, h, table)
 
         checks: block
-            call goto_char(1_int64)
+            call goto_character(1_int64)
             call comment_line(1_int64, st)
             call check(error, st%ok(), "comment_line failed")
             if (allocated(error)) exit checks
@@ -238,7 +238,7 @@ contains
             if (allocated(error)) exit checks
             call check(error, point() == 5, "point is not on the next line")
             if (allocated(error)) exit checks
-            call goto_char(1_int64)
+            call goto_character(1_int64)
             call comment_line(1_int64, st)
             call check(error, buffer_string(), "a"//LF//"b"//LF)
         end block checks
@@ -246,7 +246,7 @@ contains
         call leave(h, table)
     end subroutine test_line_hash
 
-    subroutine test_dwim_blank(error)
+    subroutine test_do_what_i_mean_blank(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, table
         type(status_type) :: st
@@ -254,12 +254,12 @@ contains
         call hash_buffer("", h, table)
 
         checks: block
-            call comment_dwim(st)
-            call check(error, st%ok(), "comment_dwim failed")
+            call comment_do_what_i_mean(st)
+            call check(error, st%ok(), "comment_do_what_i_mean failed")
             if (allocated(error)) exit checks
             call check(error, buffer_string(), "# ")
         end block checks
 
         call leave(h, table)
-    end subroutine test_dwim_blank
+    end subroutine test_do_what_i_mean_blank
 end module test_newcomment_mod

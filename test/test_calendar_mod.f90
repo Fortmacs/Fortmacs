@@ -32,7 +32,7 @@ module test_calendar_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, get_buffer, &
                           is_buffer_live
     use editing_functions_mod, only: buffer_string
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use calendar_mod, only: calendar_date_type, operator(==), calendar, calendar_mode, calendar_generate, &
                             calendar_exit, calendar_current_date, calendar_cursor_to_date, &
                             calendar_cursor_to_visible_date, calendar_gregorian_from_absolute, &
@@ -56,7 +56,7 @@ module test_calendar_mod
 
     public :: collect_calendar_mod
 
-    character(len=*), parameter :: NL = achar(10)
+    character(len=*), parameter :: NEWLINE = achar(10)
 
 contains
 
@@ -86,7 +86,7 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call calendar_mode(st)
@@ -154,7 +154,7 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: line
 
-        call init_bindings()
+        call initialize_bindings()
         old = current_buffer()
         today = calendar_current_date()
         next = calendar_gregorian_from_absolute(1 + calendar_absolute_from_gregorian(today))
@@ -295,24 +295,24 @@ contains
         old = current_buffer()
         call calendar_buffer("*cal-test-display*", 11, 2026, h)
         expected = &
-            "         October 2026            November 2026            December 2026    "//NL// &
-            "     Su Mo Tu We Th Fr Sa     Su Mo Tu We Th Fr Sa     Su Mo Tu We Th Fr Sa "//NL// &
-            "                  1  2  3      1  2  3  4  5  6  7            1  2  3  4  5 "//NL// &
-            "      4  5  6  7  8  9 10      8  9 10 11 12 13 14      6  7  8  9 10 11 12 "//NL// &
-            "     11 12 13 14 15 16 17     15 16 17 18 19 20 21     13 14 15 16 17 18 19 "//NL// &
-            "     18 19 20 21 22 23 24     22 23 24 25 26 27 28     20 21 22 23 24 25 26 "//NL// &
+            "         October 2026            November 2026            December 2026    "//NEWLINE// &
+            "     Su Mo Tu We Th Fr Sa     Su Mo Tu We Th Fr Sa     Su Mo Tu We Th Fr Sa "//NEWLINE// &
+            "                  1  2  3      1  2  3  4  5  6  7            1  2  3  4  5 "//NEWLINE// &
+            "      4  5  6  7  8  9 10      8  9 10 11 12 13 14      6  7  8  9 10 11 12 "//NEWLINE// &
+            "     11 12 13 14 15 16 17     15 16 17 18 19 20 21     13 14 15 16 17 18 19 "//NEWLINE// &
+            "     18 19 20 21 22 23 24     22 23 24 25 26 27 28     20 21 22 23 24 25 26 "//NEWLINE// &
             "     25 26 27 28 29 30 31     29 30                    27 28 29 30 31 "
         call check(error, buffer_string(), expected)
         if (allocated(error)) return
         call generate(1, 2027, st)
         expected = &
-            "        December 2026             January 2027            February 2027    "//NL// &
-            "     Su Mo Tu We Th Fr Sa     Su Mo Tu We Th Fr Sa     Su Mo Tu We Th Fr Sa "//NL// &
-            "            1  2  3  4  5                     1  2         1  2  3  4  5  6 "//NL// &
-            "      6  7  8  9 10 11 12      3  4  5  6  7  8  9      7  8  9 10 11 12 13 "//NL// &
-            "     13 14 15 16 17 18 19     10 11 12 13 14 15 16     14 15 16 17 18 19 20 "//NL// &
-            "     20 21 22 23 24 25 26     17 18 19 20 21 22 23     21 22 23 24 25 26 27 "//NL// &
-            "     27 28 29 30 31           24 25 26 27 28 29 30     28 "//NL// &
+            "        December 2026             January 2027            February 2027    "//NEWLINE// &
+            "     Su Mo Tu We Th Fr Sa     Su Mo Tu We Th Fr Sa     Su Mo Tu We Th Fr Sa "//NEWLINE// &
+            "            1  2  3  4  5                     1  2         1  2  3  4  5  6 "//NEWLINE// &
+            "      6  7  8  9 10 11 12      3  4  5  6  7  8  9      7  8  9 10 11 12 13 "//NEWLINE// &
+            "     13 14 15 16 17 18 19     10 11 12 13 14 15 16     14 15 16 17 18 19 20 "//NEWLINE// &
+            "     20 21 22 23 24 25 26     17 18 19 20 21 22 23     21 22 23 24 25 26 27 "//NEWLINE// &
+            "     27 28 29 30 31           24 25 26 27 28 29 30     28 "//NEWLINE// &
             "                              31 "
         call check(error, buffer_string(), expected)
         if (allocated(error)) return
@@ -336,13 +336,13 @@ contains
         call calendar_buffer("*cal-test-monday*", 11, 2026, h)
         calendar_week_start_day = 0
         expected = &
-            "         October 2026            November 2026            December 2026    "//NL// &
-            "     Mo Tu We Th Fr Sa Su     Mo Tu We Th Fr Sa Su     Mo Tu We Th Fr Sa Su "//NL// &
-            "               1  2  3  4                        1         1  2  3  4  5  6 "//NL// &
-            "      5  6  7  8  9 10 11      2  3  4  5  6  7  8      7  8  9 10 11 12 13 "//NL// &
-            "     12 13 14 15 16 17 18      9 10 11 12 13 14 15     14 15 16 17 18 19 20 "//NL// &
-            "     19 20 21 22 23 24 25     16 17 18 19 20 21 22     21 22 23 24 25 26 27 "//NL// &
-            "     26 27 28 29 30 31        23 24 25 26 27 28 29     28 29 30 31 "//NL// &
+            "         October 2026            November 2026            December 2026    "//NEWLINE// &
+            "     Mo Tu We Th Fr Sa Su     Mo Tu We Th Fr Sa Su     Mo Tu We Th Fr Sa Su "//NEWLINE// &
+            "               1  2  3  4                        1         1  2  3  4  5  6 "//NEWLINE// &
+            "      5  6  7  8  9 10 11      2  3  4  5  6  7  8      7  8  9 10 11 12 13 "//NEWLINE// &
+            "     12 13 14 15 16 17 18      9 10 11 12 13 14 15     14 15 16 17 18 19 20 "//NEWLINE// &
+            "     19 20 21 22 23 24 25     16 17 18 19 20 21 22     21 22 23 24 25 26 27 "//NEWLINE// &
+            "     26 27 28 29 30 31        23 24 25 26 27 28 29     28 29 30 31 "//NEWLINE// &
             "                              30 "
         call check(error, buffer_string(), expected)
         call set_buffer(old, st)

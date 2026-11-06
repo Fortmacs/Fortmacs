@@ -6,13 +6,13 @@
 
 ## Ported
 
-`dired` (C-x d),
+`directory_editor` (C-x d),
 `dired-other-window` (C-x 4 d),
 `dired-noselect`,
 `dired-internal-noselect` (one buffer per directory, `dired-auto-revert-buffer`, `dired-directory-changed-p`),
 `dired-mode` (major mode, read-only, `dired-mode-map` with all the ported keys, `dired-mode-hook`, `dired-before-readin-hook`, `dired-after-readin-hook`, `dired-initial-position-hook`),
 `dired-readin`,
-`dired-insert-directory` (`dired-use-ls-dired` with `dired--check-use-ls-dired`, `dired-listing-switches`, wildcards, `dired-free-space` with `get-free-disk-space`),
+`dired-insert-directory` (`dired-use-ls-dired` with `directory_editor--check-use-ls-dired`, `dired-listing-switches`, wildcards, `dired-free-space` with `get-free-disk-space`),
 `dired-align-file`,
 `dired-insert-set-properties` (`dired-filename`, `mouse-face`, `invisible` for hide-details),
 the *ls error* buffer,
@@ -35,7 +35,7 @@ deleting (x, D with `dired-mark-pop-up`'s *Deletions* window, `dired-deletion-co
 `dired-undo` (C-x u, C-_),
 `dired-copy-filename-as-kill` (w),
 `dired-sort-toggle-or-edit` (s, the mode name "Dired by name"/"Dired by date"),
-`dired-switches-in-mode-line` (a choice setting: DIRED_SWITCHES_IN_MODE_LINE_SORT_ORDER, _AS_IS, `%characters = N`, `%procedure => f`), + (`dired-create-directory`),
+`dired-switches-in-mode-line` (a choice setting: DIRECTORY_EDITOR_SWITCHES_IN_MODE_LINE_SORT_ORDER, _AS_IS, `%characters = N`, `%procedure => f`), + (`dired-create-directory`),
 l (`dired-do-redisplay`),
 `dired-add-file`,
 `dired-update-file-line`,
@@ -103,5 +103,5 @@ the free space shown by a `display` property (redisplay does not draw them yet)
 
 ## Tests
 
-test_directory_editor_mode_mod (ports dired-test-bug22694, -bug27243-01, -bug27243-02, -bug27968, -bug27940, -ls-error-message without the shell's sample message; own tests of the buffer, marks, deletion, keys, C-x d, + and ^, the values of `dired_switches_in_mode_line`);
+test_directory_editor_mode_mod (ports dired-test-bug22694, -bug27243-01, -bug27243-02, -bug27968, -bug27940, -ls-error-message without the shell's sample message; own tests of the buffer, marks, deletion, keys, C-x d, + and ^, the values of `directory_editor_switches_in_mode_line`);
 test_directory_editor_auxiliary_mod (ports dired-test-bug28834, dired-test-bug30624; own tests of copy, rename with a visiting buffer, links, chmod, touch, k, `% u`, `% R`, compression, v, the overwrite query and `dired-unmark-all-files`)

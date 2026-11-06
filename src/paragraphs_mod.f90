@@ -29,27 +29,28 @@
 module paragraphs_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
-    use buffer_mod, only: buffers, current, buf_fetch_char, transient_mark_mode, barf_if_buffer_read_only
-    use marker_mod, only: char_to_byte
-    use editing_functions_mod, only: point, goto_char, is_bob, is_eob, is_bol, point_min, point_max, constrain_to_field, &
-                                     narrow_to_region, widen, inhibit_field_text_motion
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
+    use buffer_mod, only: buffers, current, buffer_fetch_character, transient_mark_mode, barf_if_buffer_read_only
+    use marker_mod, only: character_to_byte
+    use editing_functions_mod, only: point, goto_character, is_beginning_of_buffer, is_end_of_buffer, is_beginning_of_line, &
+                                     point_minimum, point_maximum, constrain_to_field, narrow_to_region, widen, &
+                                     inhibit_field_text_motion
     use editing_commands_mod, only: forward_line, beginning_of_line, end_of_line
     use indent_mod, only: current_column, move_to_left_margin, current_left_margin
-    use simple_mod, only: cut_region, set_mark, push_mark, transpose_subr, fill_prefix
+    use simple_mod, only: cut_region, set_mark, push_mark, transpose_subroutine, fill_prefix
     use editing_functions_mod, only: mark_position
     use data_mod, only: string_setting_type, logical_setting_type
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
     use keyboard_mod, only: this_command, last_command
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, match_beginning, match_end, &
-                          SEARCH_NOERROR, SEARCH_MOVE, regexp_quote
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, match_beginning, &
+                          match_end, SEARCH_NOERROR, SEARCH_MOVE, regular_expression_quote
     implicit none(type, external)
     private
 
-    public :: transpose_paragraphs, transpose_sentences, init_paragraph_variables, count_sentences
+    public :: transpose_paragraphs, transpose_sentences, initialize_paragraph_variables, count_sentences
     public :: forward_paragraph, backward_paragraph, mark_paragraph, cut_paragraph, backward_cut_paragraph, &
-              start_of_paragraph_text, end_of_paragraph_text, init_paragraphs
-    public :: sentence_end_regexp, forward_sentence, backward_sentence, cut_sentence, backward_cut_sentence, &
+              start_of_paragraph_text, end_of_paragraph_text, initialize_paragraphs
+    public :: sentence_end_regular_expression, forward_sentence, backward_sentence, cut_sentence, backward_cut_sentence, &
               mark_end_of_sentence
 
     integer, parameter :: TAB = 9, NEWLINE = 10, FORMFEED = 12, SPACE = 32
@@ -70,7 +71,7 @@ module paragraphs_mod
     !> If the variable `use_hard_newlines' is true, then only lines
     !> following a hard newline are considered to match.  Port of
     !> paragraphs.el paragraph-start (one global value; set by
-    !> init_paragraphs).
+    !> initialize_paragraphs).
     type(string_setting_type), public :: paragraph_start = string_setting_type(name="paragraph_start")
 
     !> Regexp for beginning of a line that separates paragraphs.
@@ -131,7 +132,7 @@ module paragraphs_mod
 
     !> Regexp describing line-beginnings that separate pages.  Port of
     !> paragraphs.el page-delimiter (given its value by
-    !> `init_paragraph_variables').
+    !> `initialize_paragraph_variables').
     type(string_setting_type), public :: page_delimiter = string_setting_type(name="page_delimiter")
 
     !> No-break space, which counts as a space in sentence ends.
@@ -141,71 +142,72 @@ contains
 
     !> Give the variables their default values, unless already set.
     !> Not a port.
-    subroutine init_paragraph_variables()
+    subroutine initialize_paragraph_variables()
         if (.not. allocated(paragraph_start%value)) paragraph_start = achar(FORMFEED)//"\|[ "//achar(TAB)//"]*$"
         if (.not. allocated(paragraph_separate%value)) paragraph_separate = "[ "//achar(TAB)//achar(FORMFEED)//"]*$"
         if (.not. allocated(sentence_end_without_space)) sentence_end_without_space = "。．？！"
         if (.not. allocated(page_delimiter%value)) page_delimiter = "^"//achar(FORMFEED)
         if (.not. allocated(sentence_end_base)) sentence_end_base = "[.?!…‽][]""'”’)}»›]*"
-    end subroutine init_paragraph_variables
+    end subroutine initialize_paragraph_variables
 
-    !> The character at `pos', or -1 outside the accessible region.
+    !> The character at `position', or -1 outside the accessible region.
     !> Not a port.
-    integer function char_at(pos)
-        integer(int64), intent(in) :: pos
+    integer function character_at(position)
+        integer(int64), intent(in) :: position
 
-        char_at = -1
-        if (pos < buffers(current)%begv .or. pos >= buffers(current)%zv) return
-        char_at = buf_fetch_char(buffers(current), char_to_byte(pos))
-    end function char_at
+        character_at = -1
+        if (position < buffers(current)%beginning_of_accessible_portion .or. position >= buffers( &
+            current)%end_of_accessible_portion) return
+        character_at = buffer_fetch_character(buffers(current), character_to_byte(position))
+    end function character_at
 
-    !> The first position from `pos' on that is not one of `chars'
+    !> The first position from `position' on that is not one of `chars'
     !> (skip-chars-forward).  Not a port.
-    integer(int64) function skip(pos, chars) result(p)
-        integer(int64), intent(in) :: pos
+    integer(int64) function skip(position, chars) result(p)
+        integer(int64), intent(in) :: position
         integer, intent(in) :: chars(:)
 
-        p = pos
+        p = position
 
-        do while (any(char_at(p) == chars))
+        do while (any(character_at(p) == chars))
             p = p + 1
         end do
     end function skip
 
-    !> (looking-at REGEXP), false for an invalid one.  Not a port.
-    logical function is_looking_at(regexp)
-        character(len=*), intent(in) :: regexp
+    !> (looking-at REGULAR_EXPRESSION), false for an invalid one.  Not a port.
+    logical function is_looking_at(regular_expression)
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: status
 
-        is_looking_at = looking_at(regexp, status)
+        is_looking_at = looking_at(regular_expression, status)
         if (.not. status%ok()) is_looking_at = .false.
     end function is_looking_at
 
-    !> `re_search_backward' of REGEXP with BOUND, for NOERROR (`mode')
+    !> `regular_expression_search_backward' of REGULAR_EXPRESSION with BOUND, for NOERROR (`mode')
     !> SEARCH_NOERROR or SEARCH_MOVE: .true. when found.  Not a port.
-    logical function re_search_back(regexp, mode, bound) result(found)
-        character(len=*), intent(in) :: regexp
+    logical function regular_expression_search_back(regular_expression, mode, bound) result(found)
+        character(len=*), intent(in) :: regular_expression
         integer, intent(in) :: mode
         integer(int64), intent(in), optional :: bound
         type(status_type) :: status
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call re_search_backward(regexp, pos, status, bound=bound, noerror=mode)
-        found = status%ok() .and. pos > 0
-    end function re_search_back
+        call regular_expression_search_backward(regular_expression, position, status, bound=bound, noerror=mode)
+        found = status%ok() .and. position > 0
+    end function regular_expression_search_back
 
-    !> `re_search_forward' of REGEXP with BOUND, for NOERROR (`mode')
+    !> `regular_expression_search_forward' of REGULAR_EXPRESSION with BOUND, for NOERROR (`mode')
     !> SEARCH_NOERROR or SEARCH_MOVE: .true. when found.  Not a port.
-    logical function re_search_fwd(regexp, mode, bound) result(found)
-        character(len=*), intent(in) :: regexp
+    logical function regular_expression_search_fwd(regular_expression, mode, bound) result(found)
+        character(len=*), intent(in) :: regular_expression
         integer, intent(in) :: mode
         integer(int64), intent(in), optional :: bound
         type(status_type) :: status
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call re_search_forward(regexp, pos, status, bound=bound, noerror=mode)
-        found = status%ok() .and. pos > 0
-    end function re_search_fwd
+        call regular_expression_search_forward(regular_expression, position, status, bound=bound, noerror=mode)
+        found = status%ok() .and. position > 0
+    end function regular_expression_search_fwd
 
     !> (move-to-left-margin) Not a port.
     subroutine to_left_margin()
@@ -216,27 +218,27 @@ contains
 
     !> skip-chars-backward " \t".  Not a port.
     subroutine skip_blanks_backward()
-        do while (point() > buffers(current)%begv)
-            if (char_at(point() - 1) /= SPACE .and. char_at(point() - 1) /= TAB) exit
-            call goto_char(point() - 1)
+        do while (point() > buffers(current)%beginning_of_accessible_portion)
+            if (character_at(point() - 1) /= SPACE .and. character_at(point() - 1) /= TAB) exit
+            call goto_character(point() - 1)
         end do
     end subroutine skip_blanks_backward
 
-    !> REGEXP without a leading ^.  Not a port.
-    function unanchored(regexp) result(r)
-        character(len=*), intent(in) :: regexp
+    !> REGULAR_EXPRESSION without a leading ^.  Not a port.
+    function unanchored(regular_expression) result(r)
+        character(len=*), intent(in) :: regular_expression
         character(len=:), allocatable :: r
 
-        r = regexp
+        r = regular_expression
 
-        if (len(regexp) > 0) then
-            if (regexp(1:1) == "^") r = regexp(2:)
+        if (len(regular_expression) > 0) then
+            if (regular_expression(1:1) == "^") r = regular_expression(2:)
         end if
     end function unanchored
 
     !> Move forward to end of paragraph.
-    !> With argument ARG, do it ARG times;
-    !> a negative argument ARG = -N means move backward N paragraphs.
+    !> With argument ARGUMENT, do it ARGUMENT times;
+    !> a negative argument ARGUMENT = -N means move backward N paragraphs.
     !>
     !> A line which `paragraph_start' matches either separates paragraphs
     !> (if `paragraph_separate' matches it also) or is the first line of a paragraph.
@@ -244,22 +246,22 @@ contains
     !> to which the end of the previous line belongs, or the end of the buffer.
     !> Returns the count of paragraphs left to move.  Port of
     !> paragraphs.el:forward-paragraph (no hard newlines).
-    integer(int64) function forward_paragraph(arg) result(left)
-        integer(int64), intent(in) :: arg
-        integer(int64) :: opoint, start, shortage
-        character(len=:), allocatable :: parstart, parsep, sp_parstart, fill_prefix_regexp
+    integer(int64) function forward_paragraph(argument) result(left)
+        integer(int64), intent(in) :: argument
+        integer(int64) :: original_point, start, shortage
+        character(len=:), allocatable :: parstart, parsep, sp_parstart, fill_prefix_regular_expression
         logical :: found_start, has_fpr
         type(status_type) :: status
 
-        call init_paragraph_variables()
-        left = arg
-        opoint = point()
+        call initialize_paragraph_variables()
+        left = argument
+        original_point = point()
         has_fpr = .false.
 
         if (allocated(fill_prefix%value) .and. .not. paragraph_ignore_fill_prefix) then
             if (len(fill_prefix%value) > 0) then
                 has_fpr = .true.
-                fill_prefix_regexp = regexp_quote(fill_prefix%value)
+                fill_prefix_regular_expression = regular_expression_quote(fill_prefix%value)
             end if
         end if
 
@@ -269,29 +271,29 @@ contains
         ! work normally with indented text.
         parstart = unanchored(paragraph_start%value)
         parsep = unanchored(paragraph_separate%value)
-        if (has_fpr) parsep = parsep//"\|"//fill_prefix_regexp//"[ "//achar(TAB)//"]*$"
+        if (has_fpr) parsep = parsep//"\|"//fill_prefix_regular_expression//"[ "//achar(TAB)//"]*$"
         ! This is used for searching.
         sp_parstart = "^[ "//achar(TAB)//"]*\(?:"//parstart//"\|"//parsep//"\)"
         start = point()
 
-        do while (left < 0 .and. .not. is_bob())
-            if (.not. is_looking_at(parsep) .and. re_search_back("^"//achar(NEWLINE), SEARCH_NOERROR, &
-                                                                 max(point() - 1, point_min())) .and. &
+        do while (left < 0 .and. .not. is_beginning_of_buffer())
+            if (.not. is_looking_at(parsep) .and. regular_expression_search_back("^"//achar(NEWLINE), SEARCH_NOERROR, &
+                                                                                 max(point() - 1, point_minimum())) .and. &
                 is_looking_at(parsep)) then
                 left = left + 1
             else
                 start = point()
                 ! Move back over paragraph-separating lines.
-                call goto_char(point() - 1)
+                call goto_character(point() - 1)
                 call beginning_of_line()
 
-                do while (.not. is_bob())
+                do while (.not. is_beginning_of_buffer())
                     call to_left_margin()
                     if (.not. is_looking_at(parsep)) exit
                     shortage = forward_line(-1_int64)
                 end do
 
-                if (.not. is_bob()) then
+                if (.not. is_beginning_of_buffer()) then
                     left = left + 1
                     ! Go to end of the previous (non-separating) line.
                     call end_of_line()
@@ -302,18 +304,18 @@ contains
                         ! There is a fill prefix; it overrides parstart.
                         do
                             call beginning_of_line()
-                            if (is_bob()) exit
+                            if (is_beginning_of_buffer()) exit
                             call to_left_margin()
                             if (is_looking_at(parsep)) exit
-                            if (.not. is_looking_at(fill_prefix_regexp)) exit
+                            if (.not. is_looking_at(fill_prefix_regular_expression)) exit
                             shortage = forward_line(-1_int64)
                         end do
 
                         call to_left_margin()
-                        found_start = .not. is_bob()
+                        found_start = .not. is_beginning_of_buffer()
                     else
                         do
-                            if (.not. re_search_back(sp_parstart, SEARCH_MOVE)) exit
+                            if (.not. regular_expression_search_back(sp_parstart, SEARCH_MOVE)) exit
                             found_start = .true.
                             ! Found a candidate, but need to check if it is a
                             ! REAL parstart.
@@ -322,7 +324,7 @@ contains
                             if (is_looking_at(parsep)) exit
                             if (is_looking_at(parstart)) exit
                             found_start = .false.
-                            call goto_char(start)
+                            call goto_character(start)
                         end do
                     end if
 
@@ -330,7 +332,7 @@ contains
                         ! Move forward over paragraph separators.  We know
                         ! this cannot reach the place we started because we
                         ! know we moved back over a non-separator.
-                        do while (.not. is_eob())
+                        do while (.not. is_end_of_buffer())
                             call to_left_margin()
                             if (.not. is_looking_at(parsep)) exit
                             shortage = forward_line(1_int64)
@@ -341,63 +343,63 @@ contains
                         call end_of_line(0_int64)
 
                         if (current_column() > current_left_margin()) then
-                            call goto_char(point() + 1)
+                            call goto_character(point() + 1)
                         else
                             call skip_blanks_backward()
-                            if (.not. is_bol()) shortage = forward_line(1_int64)
+                            if (.not. is_beginning_of_line()) shortage = forward_line(1_int64)
                         end if
                     else
                         ! No starter or separator line => use buffer beginning.
-                        call goto_char(point_min())
+                        call goto_character(point_minimum())
                     end if
                 end if
             end if
         end do
 
-        do while (left > 0 .and. .not. is_eob())
+        do while (left > 0 .and. .not. is_end_of_buffer())
             ! Move forward over separator lines...
-            do while (.not. is_eob())
+            do while (.not. is_end_of_buffer())
                 call to_left_margin()
-                if (is_eob()) exit
+                if (is_end_of_buffer()) exit
                 if (.not. is_looking_at(parsep)) exit
                 shortage = forward_line(1_int64)
             end do
 
-            if (.not. is_eob()) left = left - 1
+            if (.not. is_end_of_buffer()) left = left - 1
             ! ... and one more line.
             shortage = forward_line(1_int64)
 
             if (has_fpr) then
                 ! There is a fill prefix; it overrides parstart.
-                do while (.not. is_eob())
+                do while (.not. is_end_of_buffer())
                     call to_left_margin()
-                    if (is_eob()) exit
+                    if (is_end_of_buffer()) exit
                     if (is_looking_at(parsep)) exit
-                    if (.not. is_looking_at(fill_prefix_regexp)) exit
+                    if (.not. is_looking_at(fill_prefix_regular_expression)) exit
                     shortage = forward_line(1_int64)
                 end do
             else
                 do
-                    if (.not. re_search_fwd(sp_parstart, SEARCH_MOVE)) exit
+                    if (.not. regular_expression_search_fwd(sp_parstart, SEARCH_MOVE)) exit
                     start = match_beginning(0, status)
-                    call goto_char(start)
-                    if (is_eob()) exit
+                    call goto_character(start)
+                    if (is_end_of_buffer()) exit
                     call to_left_margin()
                     if (is_looking_at(parsep)) exit
                     if (is_looking_at(parstart)) exit
-                    call goto_char(point() + 1)
+                    call goto_character(point() + 1)
                 end do
 
-                if (point() < point_max()) call goto_char(start)
+                if (point() < point_maximum()) call goto_character(start)
             end if
         end do
 
-        call goto_char(constrain_to_field(point(), opoint, .true., .false.))
+        call goto_character(constrain_to_field(point(), original_point, .true., .false.))
     end function forward_paragraph
 
     !> Move backward to start of paragraph.
-    !> With argument ARG, do it ARG times;
-    !> a negative argument ARG = -N means move forward N paragraphs.
+    !> With argument ARGUMENT, do it ARGUMENT times;
+    !> a negative argument ARGUMENT = -N means move forward N paragraphs.
     !>
     !> A paragraph start is the beginning of a line which is a
     !> `paragraph_start' or which is ordinary text and follows a
@@ -407,113 +409,113 @@ contains
     !>
     !> See `forward_paragraph' for more information.  Port of
     !> paragraphs.el:backward-paragraph.
-    subroutine backward_paragraph(arg)
-        integer(int64), intent(in) :: arg
+    subroutine backward_paragraph(argument)
+        integer(int64), intent(in) :: argument
         integer(int64) :: left
 
-        left = forward_paragraph(-arg)
+        left = forward_paragraph(-argument)
     end subroutine backward_paragraph
 
     !> Put point at beginning of this paragraph, mark at end.
     !> The paragraph marked is the one that contains point or follows point.
     !>
-    !> With argument ARG, puts mark at end of a following paragraph, so that
-    !> the number of paragraphs marked equals ARG.
+    !> With argument ARGUMENT, puts mark at end of a following paragraph, so that
+    !> the number of paragraphs marked equals ARGUMENT.
     !>
-    !> If ARG is negative, point is put at end of this paragraph, mark is put
+    !> If ARGUMENT is negative, point is put at end of this paragraph, mark is put
     !> at beginning of this or a previous paragraph.
     !>
     !> Interactively (or if ALLOW_EXTEND is true), if this command is
     !> repeated or (in Transient Mark mode) if the mark is active,
-    !> it marks the next ARG paragraphs after the ones already marked.
+    !> it marks the next ARGUMENT paragraphs after the ones already marked.
     !> Port of paragraphs.el:mark-paragraph.
-    subroutine mark_paragraph(arg, allow_extend, status)
-        integer(int64), intent(in) :: arg
+    subroutine mark_paragraph(argument, allow_extend, status)
+        integer(int64), intent(in) :: argument
         logical, intent(in) :: allow_extend
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, target, left
+        integer(int64) :: original_point, target, left
 
         status = status_type()
 
-        if (arg == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Cannot mark zero paragraphs")
+        if (argument == 0) then
+            call set_error(status, GENERIC_ERROR_CODE, "Cannot mark zero paragraphs")
             return
         end if
 
         if (allow_extend .and. ((associated(last_command, this_command) .and. mark_position() /= 0) .or. &
                                 (transient_mark_mode%value .and. buffers(current)%mark_active))) then
-            opoint = point()
-            call goto_char(mark_position())
-            left = forward_paragraph(arg)
+            original_point = point()
+            call goto_character(mark_position())
+            left = forward_paragraph(argument)
             target = point()
-            call goto_char(opoint)
+            call goto_character(original_point)
             call set_mark(target)
         else
-            left = forward_paragraph(arg)
+            left = forward_paragraph(argument)
             call push_mark(nomsg=.true., activate=.true.)
-            call backward_paragraph(arg)
+            call backward_paragraph(argument)
         end if
     end subroutine mark_paragraph
 
     !> Cut forward to end of paragraph.
-    !> With ARG N, cut forward to Nth end of paragraph;
-    !> negative ARG -N means cut backward to Nth start of paragraph.
+    !> With ARGUMENT N, cut forward to Nth end of paragraph;
+    !> negative ARGUMENT -N means cut backward to Nth start of paragraph.
     !> Port of paragraphs.el:kill-paragraph.
-    subroutine cut_paragraph(arg, status)
-        integer(int64), intent(in) :: arg
+    subroutine cut_paragraph(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: start, left
 
         start = point()
-        left = forward_paragraph(arg)
+        left = forward_paragraph(argument)
         call cut_region(start, point(), status)
     end subroutine cut_paragraph
 
     !> Cut back to start of paragraph.
-    !> With ARG N, cut back to Nth start of paragraph;
-    !> negative ARG -N means cut forward to Nth end of paragraph.
+    !> With ARGUMENT N, cut back to Nth start of paragraph;
+    !> negative ARGUMENT -N means cut forward to Nth end of paragraph.
     !> Port of paragraphs.el:backward-kill-paragraph.
-    subroutine backward_cut_paragraph(arg, status)
-        integer(int64), intent(in) :: arg
+    subroutine backward_cut_paragraph(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: start
 
         start = point()
-        call backward_paragraph(arg)
+        call backward_paragraph(argument)
         call cut_region(start, point(), status)
     end subroutine backward_cut_paragraph
 
     !> Move to the start of the current paragraph.
     !> Port of paragraphs.el:start-of-paragraph-text.
     recursive subroutine start_of_paragraph_text()
-        integer(int64) :: opoint, npoint, left
+        integer(int64) :: original_point, npoint, left
 
-        opoint = point()
+        original_point = point()
         left = forward_paragraph(-1_int64)
         npoint = point()
-        call goto_char(skip(point(), [SPACE, TAB, NEWLINE]))
+        call goto_character(skip(point(), [SPACE, TAB, NEWLINE]))
 
         ! If the range of blank lines found spans the original start point,
         ! try again from the beginning of it.  Must be careful to avoid
         ! infinite loop when following a single return at start of buffer.
-        if (point() >= opoint .and. npoint < opoint) then
-            call goto_char(npoint)
-            if (npoint > point_min()) call start_of_paragraph_text()
+        if (point() >= original_point .and. npoint < original_point) then
+            call goto_character(npoint)
+            if (npoint > point_minimum()) call start_of_paragraph_text()
         end if
     end subroutine start_of_paragraph_text
 
     !> Move to the end of the current paragraph.
     !> Port of paragraphs.el:end-of-paragraph-text.
     recursive subroutine end_of_paragraph_text()
-        integer(int64) :: opoint, left
+        integer(int64) :: original_point, left
 
-        opoint = point()
+        original_point = point()
         left = forward_paragraph(1_int64)
-        if (char_at(point() - 1) == NEWLINE) call goto_char(point() - 1)
+        if (character_at(point() - 1) == NEWLINE) call goto_character(point() - 1)
 
-        if (point() <= opoint) then
-            call goto_char(point() + 1)
-            if (point() < point_max()) call end_of_paragraph_text()
+        if (point() <= original_point) then
+            call goto_character(point() + 1)
+            if (point() < point_maximum()) call end_of_paragraph_text()
         end if
     end subroutine end_of_paragraph_text
 
@@ -528,10 +530,10 @@ contains
     !> end of a sentence, the ending period, question mark, or exclamation
     !> point must be followed by two spaces, with perhaps some closing
     !> delimiters in between.  Port of paragraphs.el:sentence-end.
-    function sentence_end_regexp() result(r)
+    function sentence_end_regular_expression() result(r)
         character(len=:), allocatable :: r
 
-        call init_paragraph_variables()
+        call initialize_paragraph_variables()
 
         if (allocated(sentence_end%value)) then
             r = sentence_end%value
@@ -550,63 +552,63 @@ contains
         end if
 
         r = r//"\|["//sentence_end_without_space//"]+\)[ "//NBSP//achar(TAB)//achar(NEWLINE)//"]*"
-    end function sentence_end_regexp
+    end function sentence_end_regular_expression
 
-    !> Move forward to next end of sentence.  With argument ARG, repeat.
-    !> If ARG is negative, move backward repeatedly to start of sentence.
+    !> Move forward to next end of sentence.  With argument ARGUMENT, repeat.
+    !> If ARGUMENT is negative, move backward repeatedly to start of sentence.
     !>
     !> The variable `sentence_end' is a regular expression that matches
     !> ends of sentences.  Also, every paragraph boundary terminates
     !> sentences as well.  Port of paragraphs.el:forward-sentence with
     !> forward-sentence-default-function.
-    subroutine forward_sentence(arg)
-        integer(int64), intent(in) :: arg
-        integer(int64) :: n, opoint, pos, par_beginning, par_text_beginning, par_end
+    subroutine forward_sentence(argument)
+        integer(int64), intent(in) :: argument
+        integer(int64) :: n, original_point, position, par_beginning, par_text_beginning, par_end
         character(len=:), allocatable :: send
         type(status_type) :: status
 
-        n = arg
-        opoint = point()
-        send = sentence_end_regexp()
+        n = argument
+        original_point = point()
+        send = sentence_end_regular_expression()
 
         do while (n < 0)
-            pos = point()
+            position = point()
             ! Start of real text in the paragraph.  We move back to here if
             ! we don't see a sentence-end.
             call start_of_paragraph_text()
             par_text_beginning = point()
             ! Start of the first line of the paragraph.  We use this as the
             ! search limit to allow sentence-end to match if it is anchored
-            ! at BOL and the paragraph starts indented.
+            ! at BEGINNING_OF_LINE and the paragraph starts indented.
             call beginning_of_line()
             par_beginning = point()
-            call goto_char(pos)
+            call goto_character(position)
 
             if (back_twice()) then
-                call goto_char(match_end(0, status))
+                call goto_character(match_end(0, status))
             else
-                call goto_char(par_text_beginning)
+                call goto_character(par_text_beginning)
             end if
 
             n = n + 1
         end do
 
         do while (n > 0)
-            pos = point()
+            position = point()
             call end_of_paragraph_text()
             par_end = point()
-            call goto_char(pos)
+            call goto_character(position)
 
-            if (re_search_fwd(send, SEARCH_NOERROR, par_end)) then
+            if (regular_expression_search_fwd(send, SEARCH_NOERROR, par_end)) then
                 call skip_whitespace_backward()
             else
-                call goto_char(par_end)
+                call goto_character(par_end)
             end if
 
             n = n - 1
         end do
 
-        call goto_char(constrain_to_field(point(), opoint, .true., .false.))
+        call goto_character(constrain_to_field(point(), original_point, .true., .false.))
 
     contains
 
@@ -614,10 +616,10 @@ contains
         !>      (or (< (match-end 0) pos)
         !>          (re-search-backward sentence-end par-beg t)))
         logical function back_twice()
-            back_twice = re_search_back(send, SEARCH_NOERROR, par_beginning)
+            back_twice = regular_expression_search_back(send, SEARCH_NOERROR, par_beginning)
             if (.not. back_twice) return
-            if (match_end(0, status) < pos) return
-            back_twice = re_search_back(send, SEARCH_NOERROR, par_beginning)
+            if (match_end(0, status) < position) return
+            back_twice = regular_expression_search_back(send, SEARCH_NOERROR, par_beginning)
         end function back_twice
     end subroutine forward_sentence
 
@@ -625,24 +627,25 @@ contains
     !> paragraphs.el:count-sentences.
     integer(int64) function count_sentences(start, end) result(sentences)
         integer(int64), intent(in) :: start, end
-        integer(int64) :: opoint, begv, zv_from_end, prev, next, before
+        integer(int64) :: original_point, beginning_of_accessible_portion, end_of_accessible_portion_from_end, previous, next, &
+                          before
         type(status_type) :: st
         logical :: saved
 
         sentences = 0
         saved = inhibit_field_text_motion
         inhibit_field_text_motion = .true.
-        opoint = point()
-        begv = buffers(current)%begv
-        zv_from_end = buffers(current)%text%z - buffers(current)%zv
+        original_point = point()
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion_from_end = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
         call narrow_to_region(start, end, st)
-        call goto_char(point_min())
-        prev = point()
+        call goto_character(point_minimum())
+        previous = point()
         call forward_sentence(1_int64)
         next = point()
 
-        do while (prev /= next)
-            prev = next
+        do while (previous /= next)
+            previous = next
             call forward_sentence(1_int64)
             next = point()
             sentences = sentences + 1
@@ -653,174 +656,174 @@ contains
         call skip_whitespace_backward()
         if (point() /= before) sentences = sentences - 1
         call widen()
-        call narrow_to_region(begv, buffers(current)%text%z - zv_from_end, st)
-        call goto_char(opoint)
+        call narrow_to_region(beginning_of_accessible_portion, buffers(current)%text%z - end_of_accessible_portion_from_end, st)
+        call goto_character(original_point)
         inhibit_field_text_motion = saved
     end function count_sentences
 
     !> skip-chars-backward " \t\n".  Not a port.
     subroutine skip_whitespace_backward()
-        do while (point() > buffers(current)%begv)
-            if (all(char_at(point() - 1) /= [SPACE, TAB, NEWLINE])) exit
-            call goto_char(point() - 1)
+        do while (point() > buffers(current)%beginning_of_accessible_portion)
+            if (all(character_at(point() - 1) /= [SPACE, TAB, NEWLINE])) exit
+            call goto_character(point() - 1)
         end do
     end subroutine skip_whitespace_backward
 
     !> Move backward to start of sentence.
-    !> With ARG, do it ARG times.  See `forward_sentence' for more
+    !> With ARGUMENT, do it ARGUMENT times.  See `forward_sentence' for more
     !> information.  Port of paragraphs.el:backward-sentence.
-    subroutine backward_sentence(arg)
-        integer(int64), intent(in) :: arg
+    subroutine backward_sentence(argument)
+        integer(int64), intent(in) :: argument
 
-        call forward_sentence(-arg)
+        call forward_sentence(-argument)
     end subroutine backward_sentence
 
     !> Cut from point to end of sentence.
-    !> With ARG, repeat; negative ARG -N means cut back to Nth start of
+    !> With ARGUMENT, repeat; negative ARGUMENT -N means cut back to Nth start of
     !> sentence.  Port of paragraphs.el:kill-sentence.
-    subroutine cut_sentence(arg, status)
-        integer(int64), intent(in) :: arg
+    subroutine cut_sentence(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: start
 
         start = point()
-        call forward_sentence(arg)
+        call forward_sentence(argument)
         call cut_region(start, point(), status)
     end subroutine cut_sentence
 
     !> Cut back from point to start of sentence.
-    !> With ARG, repeat, or cut forward to Nth end of sentence if
-    !> negative ARG -N.  Port of paragraphs.el:backward-kill-sentence.
-    subroutine backward_cut_sentence(arg, status)
-        integer(int64), intent(in) :: arg
+    !> With ARGUMENT, repeat, or cut forward to Nth end of sentence if
+    !> negative ARGUMENT -N.  Port of paragraphs.el:backward-kill-sentence.
+    subroutine backward_cut_sentence(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: start
 
         start = point()
-        call backward_sentence(arg)
+        call backward_sentence(argument)
         call cut_region(start, point(), status)
     end subroutine backward_cut_sentence
 
     !> Put mark at end of sentence.
-    !> ARG works as in `forward_sentence'.  If this command is repeated,
-    !> it marks the next ARG sentences after the ones already marked.
+    !> ARGUMENT works as in `forward_sentence'.  If this command is repeated,
+    !> it marks the next ARGUMENT sentences after the ones already marked.
     !> Port of paragraphs.el:mark-end-of-sentence.
-    subroutine mark_end_of_sentence(arg)
-        integer(int64), intent(in) :: arg
-        integer(int64) :: opoint, target
+    subroutine mark_end_of_sentence(argument)
+        integer(int64), intent(in) :: argument
+        integer(int64) :: original_point, target
 
-        opoint = point()
-        if (associated(last_command, this_command) .and. mark_position() /= 0) call goto_char(mark_position())
-        call forward_sentence(arg)
+        original_point = point()
+        if (associated(last_command, this_command) .and. mark_position() /= 0) call goto_character(mark_position())
+        call forward_sentence(argument)
         target = point()
-        call goto_char(opoint)
+        call goto_character(original_point)
         call push_mark(target, nomsg=.true., activate=.true.)
     end subroutine mark_end_of_sentence
 
     !> Move forward to end of paragraph.
-    !> With argument ARG, do it ARG times;
-    !> a negative argument ARG = -N means move backward N paragraphs.
+    !> With argument ARGUMENT, do it ARGUMENT times;
+    !> a negative argument ARGUMENT = -N means move backward N paragraphs.
     !>
     !> A line which `paragraph_start' matches either separates paragraphs
     !> (if `paragraph_separate' matches it also) or is the first line of a paragraph.
     !> A paragraph end is the beginning of a line which is not part of the paragraph
     !> to which the end of the previous line belongs, or the end of the buffer.
     !> Port of paragraphs.el:forward-paragraph (the command).
-    subroutine cmd_forward_paragraph(status)
+    subroutine execute_forward_paragraph(status)
         type(status_type), intent(out) :: status
         integer(int64) :: left
 
         status = status_type()
-        left = forward_paragraph(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_forward_paragraph
+        left = forward_paragraph(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_forward_paragraph
 
-    subroutine cmd_backward_paragraph(status)
+    subroutine execute_backward_paragraph(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call backward_paragraph(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_backward_paragraph
+        call backward_paragraph(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_backward_paragraph
 
-    subroutine cmd_mark_paragraph(status)
+    subroutine execute_mark_paragraph(status)
         type(status_type), intent(out) :: status
 
-        call mark_paragraph(prefix_numeric_value(current_prefix_arg), .true., status)
-    end subroutine cmd_mark_paragraph
+        call mark_paragraph(prefix_numeric_value(current_prefix_argument), .true., status)
+    end subroutine execute_mark_paragraph
 
-    subroutine cmd_cut_paragraph(status)
+    subroutine execute_cut_paragraph(status)
         type(status_type), intent(out) :: status
 
-        call cut_paragraph(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_cut_paragraph
+        call cut_paragraph(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_cut_paragraph
 
-    subroutine cmd_backward_cut_paragraph(status)
+    subroutine execute_backward_cut_paragraph(status)
         type(status_type), intent(out) :: status
 
-        call backward_cut_paragraph(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_backward_cut_paragraph
+        call backward_cut_paragraph(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_backward_cut_paragraph
 
-    subroutine cmd_forward_sentence(status)
-        type(status_type), intent(out) :: status
-
-        status = status_type()
-        call forward_sentence(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_forward_sentence
-
-    subroutine cmd_backward_sentence(status)
+    subroutine execute_forward_sentence(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call backward_sentence(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_backward_sentence
+        call forward_sentence(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_forward_sentence
 
-    subroutine cmd_cut_sentence(status)
-        type(status_type), intent(out) :: status
-
-        call cut_sentence(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_cut_sentence
-
-    subroutine cmd_backward_cut_sentence(status)
-        type(status_type), intent(out) :: status
-
-        call backward_cut_sentence(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_backward_cut_sentence
-
-    subroutine cmd_mark_end_of_sentence(status)
+    subroutine execute_backward_sentence(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call mark_end_of_sentence(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_mark_end_of_sentence
+        call backward_sentence(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_backward_sentence
+
+    subroutine execute_cut_sentence(status)
+        type(status_type), intent(out) :: status
+
+        call cut_sentence(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_cut_sentence
+
+    subroutine execute_backward_cut_sentence(status)
+        type(status_type), intent(out) :: status
+
+        call backward_cut_sentence(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_backward_cut_sentence
+
+    subroutine execute_mark_end_of_sentence(status)
+        type(status_type), intent(out) :: status
+
+        status = status_type()
+        call mark_end_of_sentence(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_mark_end_of_sentence
 
     !> Interchange the current paragraph with the next one.
-    !> With prefix argument ARG a non-zero integer, moves the current
-    !> paragraph past ARG paragraphs, leaving point after the current paragraph.
-    !> If ARG is positive, moves the current paragraph forwards, if
-    !> ARG is negative moves it backwards.  If ARG is zero, exchanges
+    !> With prefix argument ARGUMENT a non-zero integer, moves the current
+    !> paragraph past ARGUMENT paragraphs, leaving point after the current paragraph.
+    !> If ARGUMENT is positive, moves the current paragraph forwards, if
+    !> ARGUMENT is negative moves it backwards.  If ARGUMENT is zero, exchanges
     !> the current paragraph with the one containing the mark.  Port of
     !> paragraphs.el:transpose-paragraphs.
-    subroutine transpose_paragraphs(arg, status)
-        integer(int64), intent(in) :: arg
+    subroutine transpose_paragraphs(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call transpose_subr(move_paragraphs, arg, status)
+        call transpose_subroutine(move_paragraphs, argument, status)
     end subroutine transpose_paragraphs
 
     !> Interchange the current sentence with the next one.
-    !> With prefix argument ARG a non-zero integer, moves the current
-    !> sentence past ARG sentences, leaving point after the current sentence.
-    !> If ARG is positive, moves the current sentence forwards, if
-    !> ARG is negative moves it backwards.  If ARG is zero, exchanges
+    !> With prefix argument ARGUMENT a non-zero integer, moves the current
+    !> sentence past ARGUMENT sentences, leaving point after the current sentence.
+    !> If ARGUMENT is positive, moves the current sentence forwards, if
+    !> ARGUMENT is negative moves it backwards.  If ARGUMENT is zero, exchanges
     !> the current sentence with the one containing the mark.  Port of
     !> paragraphs.el:transpose-sentences.
-    subroutine transpose_sentences(arg, status)
-        integer(int64), intent(in) :: arg
+    subroutine transpose_sentences(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
 
-        call transpose_subr(move_sentences, arg, status)
+        call transpose_subroutine(move_sentences, argument, status)
     end subroutine transpose_sentences
 
-    ! Move over N paragraphs, for `transpose_subr'.  Not a port.
+    ! Move over N paragraphs, for `transpose_subroutine'.  Not a port.
     subroutine move_paragraphs(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -830,7 +833,7 @@ contains
         left = forward_paragraph(n)
     end subroutine move_paragraphs
 
-    ! Move over N sentences, for `transpose_subr'.  Not a port.
+    ! Move over N sentences, for `transpose_subroutine'.  Not a port.
     subroutine move_sentences(n, status)
         integer(int64), intent(in) :: n
         type(status_type), intent(out) :: status
@@ -839,35 +842,35 @@ contains
         call forward_sentence(n)
     end subroutine move_sentences
 
-    subroutine cmd_transpose_paragraphs(status)
+    subroutine execute_transpose_paragraphs(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call transpose_paragraphs(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_transpose_paragraphs
+        if (status%ok()) call transpose_paragraphs(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_transpose_paragraphs
 
-    subroutine cmd_transpose_sentences(status)
+    subroutine execute_transpose_sentences(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call transpose_sentences(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_transpose_sentences
+        if (status%ok()) call transpose_sentences(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_transpose_sentences
 
     !> Give the variables their defaults and register the commands.
     !> Not a port.
-    subroutine init_paragraphs()
-        call init_paragraph_variables()
-        commands%forward_sentence%execute => cmd_forward_sentence
-        commands%backward_sentence%execute => cmd_backward_sentence
-        commands%cut_sentence%execute => cmd_cut_sentence
-        commands%backward_cut_sentence%execute => cmd_backward_cut_sentence
-        commands%mark_end_of_sentence%execute => cmd_mark_end_of_sentence
-        commands%forward_paragraph%execute => cmd_forward_paragraph
-        commands%backward_paragraph%execute => cmd_backward_paragraph
-        commands%mark_paragraph%execute => cmd_mark_paragraph
-        commands%cut_paragraph%execute => cmd_cut_paragraph
-        commands%backward_cut_paragraph%execute => cmd_backward_cut_paragraph
-        commands%transpose_paragraphs%execute => cmd_transpose_paragraphs
-        commands%transpose_sentences%execute => cmd_transpose_sentences
-    end subroutine init_paragraphs
+    subroutine initialize_paragraphs()
+        call initialize_paragraph_variables()
+        commands%forward_sentence%execute => execute_forward_sentence
+        commands%backward_sentence%execute => execute_backward_sentence
+        commands%cut_sentence%execute => execute_cut_sentence
+        commands%backward_cut_sentence%execute => execute_backward_cut_sentence
+        commands%mark_end_of_sentence%execute => execute_mark_end_of_sentence
+        commands%forward_paragraph%execute => execute_forward_paragraph
+        commands%backward_paragraph%execute => execute_backward_paragraph
+        commands%mark_paragraph%execute => execute_mark_paragraph
+        commands%cut_paragraph%execute => execute_cut_paragraph
+        commands%backward_cut_paragraph%execute => execute_backward_cut_paragraph
+        commands%transpose_paragraphs%execute => execute_transpose_paragraphs
+        commands%transpose_sentences%execute => execute_transpose_sentences
+    end subroutine initialize_paragraphs
 end module paragraphs_mod

@@ -33,24 +33,25 @@ module test_editing_functions_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_value, ieee_positive_inf
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_ARGS_OUT_OF_RANGE, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT, format_error, &
+    use error_mod, only: status_type, ARGUMENTS_OUT_OF_RANGE_CODE, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE, format_error, &
                          format_message
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, close_buffer, set_buffer, &
                           current_buffer, is_buffer_live, erase_buffer
     use marker_mod, only: make_marker, set_marker, destroy_marker, marker_position
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: is_bob, is_bol, buffer_size, buffer_size_of, buffer_string, buffer_substring, &
-                                     byte_to_position, char_after, char_before, delete_and_extract_region, &
-                                     delete_region, is_eob, is_eol, following_char, gap_position, goto_char, &
-                                     goto_char_marker, insert_char_n, narrow_to_region, point, point_marker, &
-                                     point_max, point_max_marker, point_min, point_min_marker, position_bytes, &
-                                     preceding_char, widen, field_beginning, field_end, field_string, &
-                                     constrain_to_field, line_beginning_position, line_end_position, &
-                                     delete_field, subst_char_in_region, interactive_region, check_mark, mark_marker
+    use editing_functions_mod, only: is_beginning_of_buffer, is_beginning_of_line, buffer_size, buffer_size_of, buffer_string, &
+                                     buffer_substring, byte_to_position, character_after, character_before, &
+                                     delete_and_extract_region, delete_region, is_end_of_buffer, is_end_of_line, &
+                                     following_character, gap_position, goto_character, goto_character_marker, insert_character_n, &
+                                     narrow_to_region, point, point_marker, point_maximum, point_maximum_marker, point_minimum, &
+                                     point_minimum_marker, position_bytes, preceding_character, widen, field_beginning, field_end, &
+                                     field_string, constrain_to_field, line_beginning_position, line_end_position, delete_field, &
+                                     substitute_character_in_region, interactive_region, check_mark, mark_marker
     use editing_functions_mod, only: insert, insert_before_markers, insert_and_inherit, insert_before_markers_and_inherit, &
-                                     buffer_substring_no_properties, compare_buffer_substrings, char_to_string, string_to_char, &
-                                     is_char_equal, ngettext, fortmacs_pid, group_name, group_real_gid, field_string_no_properties
+                                     buffer_substring_no_properties, compare_buffer_substrings, character_to_string, &
+                                     string_to_character, is_character_equal, ngettext, fortmacs_pid, group_name, group_real_gid, &
+                                     field_string_no_properties
     use file_input_output_mod, only: group_gid
     use system_dependent_mod, only: fortmacs_getpid, fortmacs_getgid
     use search_mod, only: case_fold_search
@@ -60,7 +61,7 @@ module test_editing_functions_mod
     use text_properties_mod, only: string_get_text_property
     use buffer_mod, only: buffers, current, transient_mark_mode
     use execute_interactively_mod, only: mark_even_if_inactive
-    use error_mod, only: FM_MARK_INACTIVE
+    use error_mod, only: MARK_INACTIVE_CODE
     use value_mod, only: list, value_type
     use text_properties_mod, only: add_text_properties, put_text_property, get_text_property
     use value_mod, only: value_type
@@ -69,23 +70,24 @@ module test_editing_functions_mod
                                      save_restriction_begin, save_restriction_end, excursion_type, restriction_type, &
                                      internal_labeled_narrow_to_region, internal_labeled_widen, labeled_narrow_to_region_begin, &
                                      labeled_narrow_to_region_end, labeled_restrictions_remove_in_current_buffer, &
-                                     reset_outermost_restrictions_begin, reset_outermost_restrictions_end, pos_bol, pos_eol
+                                     reset_outermost_restrictions_begin, reset_outermost_restrictions_end, &
+                                     position_beginning_of_line, position_end_of_line
     use marker_mod, only: copy_marker_at
     use value_mod, only: symbols, xsymbol, V_NAME
     use undo_mod, only: undo_boundary, undo_last_kind
     use buffer_mod, only: UE_BOUNDARY
     use simple_mod, only: undo
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use keyboard_mod, only: last_command
     use insert_delete_mod, only: before_change_functions
     use basic_subprograms_mod, only: silent_modifications_type, silent_modifications_begin, silent_modifications_end
-    use editing_commands_mod, only: end_of_line, delete_char
-    use character_table_mod, only: make_char_table, char_table_set, destroy_char_table
-    use character_mod, only: MAX_CHAR, multibyte_chars_in_text
+    use editing_commands_mod, only: end_of_line, delete_character
+    use character_table_mod, only: make_character_table, character_table_set, destroy_character_table
+    use character_mod, only: MAXIMUM_CHARACTER, multibyte_characters_in_text
     use editing_functions_mod, only: format_text, styled_format, format_arguments_type
     use text_properties_mod, only: propertize, joined => propertized_concat
     use intervals_mod, only: compare_string_intervals
-    use error_mod, only: FM_WRONG_NUMBER_OF_ARGUMENTS
+    use error_mod, only: WRONG_NUMBER_OF_ARGUMENTS_CODE
     implicit none(type, external)
     private
 
@@ -104,27 +106,27 @@ contains
                     new_unittest("goto-char-clips", test_goto), &
                     new_unittest("goto-char-marker", test_goto_marker), &
                     new_unittest("position-bytes", test_position_bytes), &
-                    new_unittest("chars-around-point", test_chars_around), &
+                    new_unittest("chars-around-point", test_characters_around), &
                     new_unittest("line-predicates", test_lines), &
                     new_unittest("narrow-and-widen", test_narrow), &
                     new_unittest("narrowing-limits-editing", test_narrow_edit), &
                     new_unittest("narrow-multibyte", test_narrow_multibyte), &
                     new_unittest("buffer-substring", test_substring), &
                     new_unittest("delete-region", test_delete), &
-                    new_unittest("insert-char-count", test_insert_char), &
+                    new_unittest("insert-char-count", test_insert_character), &
                     new_unittest("point-markers", test_point_markers), &
                     new_unittest("erase-buffer-widens", test_erase), &
                     new_unittest("find-fields", test_find_fields), &
                     new_unittest("prompt-field", test_prompt_field), &
-                    new_unittest("subst-char-in-region", test_subst_char), &
+                    new_unittest("subst-char-in-region", test_substitute_character), &
                     new_unittest("interactive-region", test_interactive_region), &
                     new_unittest("insert-strings", test_insert_strings), &
                     new_unittest("insert-strings-markers-inherit", test_insert_markers_inherit), &
                     new_unittest("buffer-substring-properties", test_substring_properties), &
                     new_unittest("field-string", test_field_string), &
                     new_unittest("compare-buffer-substrings", test_compare_substrings), &
-                    new_unittest("char-and-string", test_char_string), &
-                    new_unittest("char-equal", test_char_equal), &
+                    new_unittest("char-and-string", test_character_string), &
+                    new_unittest("char-equal", test_character_equal), &
                     new_unittest("ngettext-and-ids", test_ngettext_ids), &
                     new_unittest("current-message", test_current_message), &
                     new_unittest("test-group-name", test_group_name), &
@@ -183,10 +185,10 @@ contains
         integer(int64) :: size
 
         call enter("te-bounds", h, old)
-        call check(error, point() == 1 .and. point_min() == 1 .and. point_max() == 1, "empty")
+        call check(error, point() == 1 .and. point_minimum() == 1 .and. point_maximum() == 1, "empty")
         if (allocated(error)) return
         call insert("ab"//euro, st)
-        call check(error, point() == 4 .and. point_max() == 4 .and. buffer_size() == 3, "after insert")
+        call check(error, point() == 4 .and. point_maximum() == 4 .and. buffer_size() == 3, "after insert")
         if (allocated(error)) return
         call buffer_size_of(h, size, st)
         call check(error, size, 3_int64)
@@ -202,13 +204,13 @@ contains
 
         call enter("te-goto", h, old)
         call insert("hello", st)
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call check(error, point(), 3_int64)
         if (allocated(error)) return
-        call goto_char(-10_int64)
+        call goto_character(-10_int64)
         call check(error, point(), 1_int64)
         if (allocated(error)) return
-        call goto_char(99_int64)
+        call goto_character(99_int64)
         call check(error, point(), 6_int64)
         call leave(h, old)
     end subroutine test_goto
@@ -219,7 +221,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: mb, ascii, old, old2, m
         type(status_type) :: st
-        integer(int64) :: bytepos
+        integer(int64) :: byte_position
         logical :: found
 
         call enter("te-gm-mb", mb, old)
@@ -228,11 +230,11 @@ contains
         call set_marker(m, 3_int64, st)              ! char 3 = byte 7 here
         call enter("te-gm-ascii", ascii, old2)
         call insert("abcdef", st)
-        call goto_char_marker(m, st)
+        call goto_character_marker(m, st)
         call check(error, point(), 3_int64)
         if (allocated(error)) return
-        call position_bytes(point(), bytepos, found)
-        call check(error, found .and. bytepos == 3, "point byte position")
+        call position_bytes(point(), byte_position, found)
+        call check(error, found .and. byte_position == 3, "point byte position")
         call destroy_marker(m, st)
         call leave(ascii, old2)
         call leave(mb, old)
@@ -261,7 +263,7 @@ contains
         call leave(h, old)
     end subroutine test_position_bytes
 
-    subroutine test_chars_around(error)
+    subroutine test_characters_around(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
@@ -270,28 +272,28 @@ contains
 
         call enter("te-chars", h, old)
         call insert("a"//euro, st)
-        call check(error, following_char(), 0_int32)
+        call check(error, following_character(), 0_int32)
         if (allocated(error)) return
-        call check(error, preceding_char(), int(z'20AC', int32))
+        call check(error, preceding_character(), int(z'20AC', int32))
         if (allocated(error)) return
-        call goto_char(1_int64)
-        call check(error, following_char(), int(iachar("a"), int32))
+        call goto_character(1_int64)
+        call check(error, following_character(), int(iachar("a"), int32))
         if (allocated(error)) return
-        call check(error, preceding_char(), 0_int32)
+        call check(error, preceding_character(), 0_int32)
         if (allocated(error)) return
-        call char_after(c, found, 2_int64)
+        call character_after(c, found, 2_int64)
         call check(error, found .and. c == int(z'20AC', int32), "char-after 2")
         if (allocated(error)) return
-        call char_after(c, found, 3_int64)
+        call character_after(c, found, 3_int64)
         call check(error,.not. found, "char-after at end")
         if (allocated(error)) return
-        call char_before(c, found, 3_int64)
+        call character_before(c, found, 3_int64)
         call check(error, found .and. c == int(z'20AC', int32), "char-before 3")
         if (allocated(error)) return
-        call char_before(c, found)
+        call character_before(c, found)
         call check(error,.not. found, "char-before at bob")
         call leave(h, old)
-    end subroutine test_chars_around
+    end subroutine test_characters_around
 
     subroutine test_lines(error)
         type(error_type), allocatable, intent(out) :: error
@@ -300,16 +302,16 @@ contains
 
         call enter("te-lines", h, old)
         call insert("ab"//new_line("a")//"cd", st)
-        call check(error, is_eol() .and. is_eob() .and. .not. is_bol(), "at end")
+        call check(error, is_end_of_line() .and. is_end_of_buffer() .and. .not. is_beginning_of_line(), "at end")
         if (allocated(error)) return
-        call goto_char(4_int64)
-        call check(error, is_bol() .and. .not. is_eol(), "start of line 2")
+        call goto_character(4_int64)
+        call check(error, is_beginning_of_line() .and. .not. is_end_of_line(), "start of line 2")
         if (allocated(error)) return
-        call goto_char(3_int64)
-        call check(error, is_eol() .and. .not. is_bol(), "end of line 1")
+        call goto_character(3_int64)
+        call check(error, is_end_of_line() .and. .not. is_beginning_of_line(), "end of line 1")
         if (allocated(error)) return
-        call goto_char(1_int64)
-        call check(error, is_bob() .and. is_bol(), "beginning")
+        call goto_character(1_int64)
+        call check(error, is_beginning_of_buffer() .and. is_beginning_of_line(), "beginning")
         call leave(h, old)
     end subroutine test_lines
 
@@ -321,19 +323,19 @@ contains
         call enter("te-narrow", h, old)
         call insert("0123456789", st)                 ! point at 11
         call narrow_to_region(7_int64, 3_int64, st)   ! reversed is fine
-        call check(error, point_min() == 3 .and. point_max() == 7, "bounds")
+        call check(error, point_minimum() == 3 .and. point_maximum() == 7, "bounds")
         if (allocated(error)) return
         call check(error, point(), 7_int64)           ! clamped into the region
         if (allocated(error)) return
         call check(error, buffer_string(), "2345")
         if (allocated(error)) return
-        call check(error, is_bob() .eqv. .false., "is_bob")
+        call check(error, is_beginning_of_buffer() .eqv. .false., "is_beginning_of_buffer")
         if (allocated(error)) return
         call narrow_to_region(0_int64, 5_int64, st)
-        call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
+        call check(error, st%code, ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
         call widen()
-        call check(error, point_min() == 1 .and. point_max() == 11, "widened")
+        call check(error, point_minimum() == 1 .and. point_maximum() == 11, "widened")
         if (allocated(error)) return
         call check(error, buffer_string(), "0123456789")
         call leave(h, old)
@@ -368,14 +370,14 @@ contains
         call enter("te-narrow-edit", h, old)
         call insert("abcdef", st)
         call narrow_to_region(2_int64, 5_int64, st)   ! "bcd"
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call insert("X", st)                          ! extends the region
-        call check(error, point_max(), 6_int64)
+        call check(error, point_maximum(), 6_int64)
         if (allocated(error)) return
         call check(error, buffer_string(), "bcdX")
         if (allocated(error)) return
         call delete_region(1_int64, 3_int64, st)       ! starts before point-min
-        call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
+        call check(error, st%code, ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
         call delete_region(2_int64, 4_int64, st)
         call check(error, buffer_string(), "dX")
@@ -397,7 +399,7 @@ contains
         call check(error, s, euro//"y")
         if (allocated(error)) return
         call buffer_substring(1_int64, 9_int64, s, st)
-        call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
+        call check(error, st%code, ARGUMENTS_OUT_OF_RANGE_CODE)
         if (allocated(error)) return
         call check(error, st%detail, "1, 9")
         call leave(h, old)
@@ -406,7 +408,7 @@ contains
     !> The characters are replaced in place: point and text properties
     !> stay; the region is validated, and the characters must have the
     !> same byte length (editfns.c:Fsubst_char_in_region).
-    subroutine test_subst_char(error)
+    subroutine test_substitute_character(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
@@ -415,24 +417,24 @@ contains
         call enter("te-subst", h, old)
         call insert("a"//char(9)//"b"//char(9)//"c", st)
         call put_text_property(2_int64, 3_int64, value_type(name="face"), value_type(name="bold"), st)
-        call goto_char(3_int64)
-        call subst_char_in_region(6_int64, 1_int64, 9, 32, st)
+        call goto_character(3_int64)
+        call substitute_character_in_region(6_int64, 1_int64, 9, 32, st)
         call check(error, st%ok() .and. buffer_string() == "a b c" .and. point() == 3, "subst: "//buffer_string())
         if (allocated(error)) return
         call get_text_property(2_int64, value_type(name="face"), v, st)
         call check(error, value_eq(v, value_type(name="bold")), "property kept")
         if (allocated(error)) return
-        call subst_char_in_region(1_int64, 9_int64, 32, 95, st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. format_error(st) == "Args out of range: 1, 9", &
+        call substitute_character_in_region(1_int64, 9_int64, 32, 95, st)
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE .and. format_error(st) == "Args out of range: 1, 9", &
                    format_error(st))
         if (allocated(error)) return
-        call subst_char_in_region(1_int64, 6_int64, 97, 233, st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. format_error(st) == &
-                   format_message("Characters in `subst_char_in_region' have different byte-lengths"), format_error(st))
+        call substitute_character_in_region(1_int64, 6_int64, 97, 233, st)
+        call check(error, st%code == GENERIC_ERROR_CODE .and. format_error(st) == &
+                   format_message("Characters in `substitute_character_in_region' have different byte-lengths"), format_error(st))
         if (allocated(error)) return
         call check(error, buffer_string(), "a b c")
         call leave(h, old)
-    end subroutine test_subst_char
+    end subroutine test_substitute_character
 
     subroutine test_delete(error)
         type(error_type), allocatable, intent(out) :: error
@@ -453,26 +455,26 @@ contains
         call leave(h, old)
     end subroutine test_delete
 
-    subroutine test_insert_char(error)
+    subroutine test_insert_character(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, old
         type(status_type) :: st
 
         call enter("te-insert-char", h, old)
-        call insert_char_n(int(z'20AC', int32), 2000_int64, st)   ! 6000 bytes: two chunks
+        call insert_character_n(int(z'20AC', int32), 2000_int64, st)   ! 6000 bytes: two chunks
         call check(error, st%ok(), "insert-char failed")
         if (allocated(error)) return
-        call check(error, point_max(), 2001_int64)
+        call check(error, point_maximum(), 2001_int64)
         if (allocated(error)) return
         call check(error, len(buffer_string()), 6000)
         if (allocated(error)) return
-        call insert_char_n(int(iachar("a"), int32), 0_int64, st)
-        call check(error, point_max(), 2001_int64)
+        call insert_character_n(int(iachar("a"), int32), 0_int64, st)
+        call check(error, point_maximum(), 2001_int64)
         if (allocated(error)) return
-        call insert_char_n(-1_int32, 1_int64, st)
+        call insert_character_n(-1_int32, 1_int64, st)
         call check(error,.not. st%ok(), "invalid character accepted")
         call leave(h, old)
-    end subroutine test_insert_char
+    end subroutine test_insert_character
 
     subroutine test_point_markers(error)
         type(error_type), allocatable, intent(out) :: error
@@ -483,10 +485,10 @@ contains
         call enter("te-pm", h, old)
         call insert("abcdef", st)
         call narrow_to_region(2_int64, 5_int64, st)
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call point_marker(pm)
-        call point_min_marker(lo)
-        call point_max_marker(hi)
+        call point_minimum_marker(lo)
+        call point_maximum_marker(hi)
         call marker_position(pm, p, st)
         call check(error, p, 3_int64)
         if (allocated(error)) return
@@ -510,7 +512,7 @@ contains
         call insert("abcdef", st)
         call narrow_to_region(2_int64, 4_int64, st)
         call erase_buffer(st)
-        call check(error, buffer_size() == 0 .and. point_min() == 1 .and. point_max() == 1, &
+        call check(error, buffer_size() == 0 .and. point_minimum() == 1 .and. point_maximum() == 1, &
                    "erase-buffer must widen and delete everything")
         call leave(h, old)
     end subroutine test_erase
@@ -525,16 +527,16 @@ contains
         call enter("te-fields", h, old)
         call insert("foobarzot", st)
         call add_text_properties(4_int64, 7_int64, list(value_type(name="field"), value_type(name="bar")), changed, st)
-        call goto_char(point_min())
-        call check(error, field_beginning(point(), .false.) == point_min() .and. &
+        call goto_character(point_minimum())
+        call check(error, field_beginning(point(), .false.) == point_minimum() .and. &
                    field_end(point(), .false.) == 4)
         if (allocated(error)) return
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call check(error, field_beginning(point(), .false.) == 4 .and. field_end(point(), .false.) == 7)
         if (allocated(error)) return
-        call goto_char(8_int64)
+        call goto_character(8_int64)
         call check(error, field_beginning(point(), .false.) == 7 .and. &
-                   field_end(point(), .false.) == point_max())
+                   field_end(point(), .false.) == point_maximum())
         if (allocated(error)) return
         call check(error, field_string_no_properties(5_int64) == "bar")
         if (allocated(error)) return
@@ -565,11 +567,11 @@ contains
         call check(error, constrain_to_field(3_int64, 15_int64, .false., .false.) == 12)
         if (allocated(error)) return
         ! At the prompt end (the input field's start), escaping stays put.
-        call goto_char(12_int64)
+        call goto_character(12_int64)
         call check(error, line_beginning_position() == 12)
         if (allocated(error)) return
         ! In the prompt itself, the line starts at the buffer start.
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call check(error, line_beginning_position() == 1)
         call leave(h, old)
     end subroutine test_prompt_field
@@ -596,7 +598,7 @@ contains
         call set_marker(m, 2_int64, st)
         buffers(current)%mark_active = .true.
         call narrow_to_region(4_int64, 8_int64, st)
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call interactive_region(b, e, st)
         call check(error, st%ok() .and. b == 2 .and. e == 6, "the mark outside the narrowing")
         if (allocated(error)) return
@@ -605,7 +607,7 @@ contains
         mark_even_if_inactive = .false.
         call interactive_region(b, e, st)
         mark_even_if_inactive = saved
-        call check(error, st%code == FM_MARK_INACTIVE .and. transient_mark_mode%value, "inactive mark")
+        call check(error, st%code == MARK_INACTIVE_CODE .and. transient_mark_mode%value, "inactive mark")
         call leave(h, old)
     end subroutine test_interactive_region
 
@@ -623,7 +625,7 @@ contains
         if (allocated(error)) return
         call check(error, point(), 14_int64)
         if (allocated(error)) return
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call insert(st, "a", "b", "c", "d", "e", "f", "g", "h")
         call check(error, st%ok() .and. point() == 9, "eight strings")
         if (allocated(error)) return
@@ -650,13 +652,13 @@ contains
         call marker_position(m, p, st)
         call check(error, p, 3_int64)
         if (allocated(error)) return
-        call goto_char(3_int64)
+        call goto_character(3_int64)
         call insert_before_markers(st, "x", "y")
         call marker_position(m, p, st)
         call check(error, st%ok() .and. p == 5 .and. buffer_string() == "abxycd", buffer_string())
         if (allocated(error)) return
         call put_text_property(1_int64, 2_int64, value_type(name="face"), value_type(name="bold"), st)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call insert_and_inherit(st, "1", "2")
         call get_text_property(3_int64, value_type(name="face"), v, st)
         call check(error, value_eq(v, value_type(name="bold")), "inherited")
@@ -665,7 +667,7 @@ contains
         call get_text_property(5_int64, value_type(name="face"), v, st)
         call check(error,.not. allocated(v%a), "not inherited")
         if (allocated(error)) return
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call set_marker(m, 2_int64, st)
         call insert_before_markers_and_inherit(st, "5", "6")
         call get_text_property(3_int64, value_type(name="face"), v, st)
@@ -699,7 +701,7 @@ contains
         call check(error, s, "bcde")
         if (allocated(error)) return
         call buffer_substring(0_int64, 3_int64, v, st)
-        call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
+        call check(error, st%code, ARGUMENTS_OUT_OF_RANGE_CODE)
         call leave(h, old)
     end subroutine test_substring_properties
 
@@ -758,7 +760,7 @@ contains
         call check(error, r, 3_int64)
         if (allocated(error)) return
         call compare_buffer_substrings(r, st, end1=9_int64)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE .and. st%detail == "1, 9", "out of range")
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE .and. st%detail == "1, 9", "out of range")
         case_fold_search = saved
         if (allocated(error)) return
         call close_buffer(h2, st)
@@ -768,38 +770,38 @@ contains
     end subroutine test_compare_substrings
 
     !> char-to-string and string-to-char.
-    subroutine test_char_string(error)
+    subroutine test_character_string(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         character(len=:), allocatable :: s
 
-        call char_to_string(8364, s, st)
+        call character_to_string(8364, s, st)
         call check(error, st%ok() .and. s == euro, "euro")
         if (allocated(error)) return
-        call char_to_string(-1, s, st)
-        call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
+        call character_to_string(-1, s, st)
+        call check(error, st%code, WRONG_TYPE_ARGUMENT_CODE)
         if (allocated(error)) return
-        call check(error, string_to_char(euro//"x") == 8364 .and. string_to_char("") == 0, "string-to-char")
-    end subroutine test_char_string
+        call check(error, string_to_character(euro//"x") == 8364 .and. string_to_character("") == 0, "string-to-char")
+    end subroutine test_character_string
 
     !> char-equal ignores case when case-fold-search is true.
-    subroutine test_char_equal(error)
+    subroutine test_character_equal(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         logical :: saved, a, b, c
 
         saved = case_fold_search%value
         case_fold_search = .true.
-        a = is_char_equal(iachar("a"), iachar("A"), st)
-        b = is_char_equal(iachar("a"), iachar("b"), st)
+        a = is_character_equal(iachar("a"), iachar("A"), st)
+        b = is_character_equal(iachar("a"), iachar("b"), st)
         case_fold_search = .false.
-        c = is_char_equal(iachar("a"), iachar("A"), st)
+        c = is_character_equal(iachar("a"), iachar("A"), st)
         case_fold_search = saved
         call check(error, a .and. .not. b .and. .not. c, "char-equal")
         if (allocated(error)) return
-        a = is_char_equal(-5, 65, st)
-        call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
-    end subroutine test_char_equal
+        a = is_character_equal(-5, 65, st)
+        call check(error, st%code, WRONG_TYPE_ARGUMENT_CODE)
+    end subroutine test_character_equal
 
     !> ngettext, emacs-pid and group-real-gid.
     subroutine test_ngettext_ids(error)
@@ -857,7 +859,7 @@ contains
             call erase_buffer(st)
             write (number, "(i0)") gids(k)
             call execute_process("getent", r, st, destination=value_type(.true.), &
-                                 args=list(value_type(text="group"), value_type(text=trim(number))))
+                                 arguments=list(value_type(text="group"), value_type(text=trim(number))))
             ! No getent: nothing to compare with.
             if (.not. st%ok()) exit
             if (vtag(r) /= V_INTEGER) cycle
@@ -968,21 +970,21 @@ contains
                            [1_int64, 3_int64, 5_int64, 6_int64, 7_int64, 8_int64, 10_int64])
     end subroutine test_transpose_nonascii_2
 
-    !> The `my_prop' (or PROP) property of each character of the accessible
+    !> The `my_property' (or PROPERTY) property of each character of the accessible
     !> text, its name or "" for none.
-    function names_of_property(prop) result(names)
-        character(len=*), intent(in) :: prop
+    function names_of_property(property) result(names)
+        character(len=*), intent(in) :: property
         character(len=8), allocatable :: names(:)
         type(value_type) :: v
         type(status_type) :: st
         integer(int64) :: p
 
-        allocate (names(point_max() - point_min()))
+        allocate (names(point_maximum() - point_minimum()))
 
-        do p = point_min(), point_max() - 1
-            call get_text_property(p, value_type(name=prop), v, st)
-            names(p - point_min() + 1) = ""
-            if (vtag(v) == V_NAME) names(p - point_min() + 1) = xsymbol_name(v)
+        do p = point_minimum(), point_maximum() - 1
+            call get_text_property(p, value_type(name=property), v, st)
+            names(p - point_minimum() + 1) = ""
+            if (vtag(v) == V_NAME) names(p - point_minimum() + 1) = xsymbol_name(v)
         end do
     end function names_of_property
 
@@ -1004,16 +1006,16 @@ contains
 
         call enter("te-tr-equal", h, old)
         call insert(" ab", st)
-        call add_text_properties(2_int64, 4_int64, list(value_type(name="my_prop"), value_type(name="ab")), changed, st)
+        call add_text_properties(2_int64, 4_int64, list(value_type(name="my_property"), value_type(name="ab")), changed, st)
         call insert("SPC", st)
-        call add_text_properties(4_int64, 7_int64, list(value_type(name="my_prop"), value_type(name="SPC")), changed, st)
+        call add_text_properties(4_int64, 7_int64, list(value_type(name="my_property"), value_type(name="SPC")), changed, st)
         call insert("é", st)
-        call add_text_properties(7_int64, 8_int64, list(value_type(name="my_prop"), value_type(name="é")), changed, st)
+        call add_text_properties(7_int64, 8_int64, list(value_type(name="my_property"), value_type(name="é")), changed, st)
         call insert(" ", st)
-        call transpose_regions(point_min() + 1, point_min() + 3, point_min() + 6, point_min() + 7, st)
+        call transpose_regions(point_minimum() + 1, point_minimum() + 3, point_minimum() + 6, point_minimum() + 7, st)
         call check(error, buffer_string(), " éSPCab ")
         if (allocated(error)) return
-        names = names_of_property("my_prop")
+        names = names_of_property("my_property")
         call check(error, all(names == [character(len=8) :: "", "é", "SPC", "SPC", "SPC", "ab", "ab", ""]), &
                    "properties move with the text")
         call leave(h, old)
@@ -1109,7 +1111,7 @@ contains
     end subroutine test_transpose_regions
 
     !> One case of editfns-tests--transpose-regions: the snippets TEST
-    !> (HEAD REG1 MID REG2 TAIL, each ended by a "$" that is not inserted) with byte lengths
+    !> (HEAD REG1 MIDDLE REG2 TAIL, each ended by a "$" that is not inserted) with byte lengths
     !> BLENGTHV after the markup is removed, transposed with LEAVE_MARKERS.
     subroutine check_transposition(error, t, test, blengthv, leave_markers)
         type(error_type), allocatable, intent(out) :: error
@@ -1164,8 +1166,8 @@ contains
         end do
 
         ! The net text snippets and their byte lengths.
-        bounds(0) = point_min()
-        bounds(5) = point_max()
+        bounds(0) = point_minimum()
+        bounds(5) = point_maximum()
 
         do k = 1, 4
             call marker_position(smarkers(k), bounds(k), st)
@@ -1235,7 +1237,7 @@ contains
         ! Undo the transposition and check the text again.
         if (test_undo) then
             last_command => null()
-            call undo(prefix_arg_type(), st)
+            call undo(prefix_argument_type(), st)
             call check(error, buffer_string(), original, "undone, case "//label)
             if (allocated(error)) return
         end if
@@ -1277,7 +1279,7 @@ contains
         call check(error, st%ok() .and. buffer_string() == "efcdab", buffer_string())
         if (allocated(error)) return
         call transpose_regions(1_int64, 3_int64, 4_int64, 9_int64, st)
-        call check(error, st%code, FM_ARGS_OUT_OF_RANGE)
+        call check(error, st%code, ARGUMENTS_OUT_OF_RANGE_CODE)
         call leave(h, old)
     end subroutine test_transpose_errors
 
@@ -1291,13 +1293,13 @@ contains
 
         status = status_type()
         call save_excursion_begin(excursion)
-        call goto_char(beginning)
+        call goto_character(beginning)
         call end_of_line()
 
         if (.not. point() > end) then
             call silent_modifications_begin(silent)
             call insert("foo", status)
-            if (status%ok()) call delete_char(-3_int64, status)
+            if (status%ok()) call delete_character(-3_int64, status)
             call silent_modifications_end(silent)
         end if
 
@@ -1313,13 +1315,14 @@ contains
         call enter("te-bug76124", h, old)
         call insert("Emacs forever!foo"//new_line("a"), st)
         call insert("toto"//new_line("a"), st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! Remove the trailing "foo", so as to move the gap between the
         ! two lines.
-        call delete_region(pos_eol() - 3, pos_eol(), st)
+        call delete_region(position_end_of_line() - 3, position_end_of_line(), st)
         call before_change_functions%prepend(bug76124_before, local=.true.)
-        call goto_char(point_min())
-        call transpose_regions(pos_bol(), pos_eol(), pos_bol(2_int64), pos_eol(2_int64), st)
+        call goto_character(point_minimum())
+        call transpose_regions(position_beginning_of_line(), position_end_of_line(), position_beginning_of_line(2_int64), &
+                               position_end_of_line(2_int64), st)
         call before_change_functions%clear_local()
         call check(error, st%ok() .and. buffer_string() == "toto"//new_line("a")//"Emacs forever!"//new_line("a"), &
                    buffer_string())
@@ -1334,14 +1337,14 @@ contains
         integer(int64) :: changed
 
         call enter("te-translate", h, old)
-        call make_char_table(tt, "translation_table", st)
-        call char_table_set(tt, int(MAX_CHAR), int(iachar("*"), int64), st)
-        call insert_char_n(MAX_CHAR, 1_int64, st)
-        call translate_region_internal(point_min(), point_max(), tt, changed, st)
+        call make_character_table(tt, "translation_table", st)
+        call character_table_set(tt, int(MAXIMUM_CHARACTER), int(iachar("*"), int64), st)
+        call insert_character_n(MAXIMUM_CHARACTER, 1_int64, st)
+        call translate_region_internal(point_minimum(), point_maximum(), tt, changed, st)
         call check(error, st%ok() .and. buffer_string() == "*", buffer_string())
         if (allocated(error)) return
         call check(error, changed, 1_int64)
-        call destroy_char_table(tt, st)
+        call destroy_character_table(tt, st)
         call leave(h, old)
     end subroutine test_translate_region_internal
 
@@ -1368,10 +1371,10 @@ contains
         if (allocated(error)) return
         call check(error, changed, 2_int64)
         if (allocated(error)) return
-        call make_char_table(ct, "syntax_table", st)
+        call make_character_table(ct, "syntax_table", st)
         call translate_region_internal(1_int64, 3_int64, ct, changed, st)
         call check(error, format_error(st), "Not a translation table")
-        call destroy_char_table(ct, st)
+        call destroy_character_table(ct, st)
         call leave(h, old)
     end subroutine test_translate_string
 
@@ -1385,9 +1388,9 @@ contains
 
         call enter("te-excursion", h, old)
         call insert("abcdef", st)
-        call goto_char(4_int64)
+        call goto_character(4_int64)
         call save_excursion_begin(excursion)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call insert("XY", st)
         call enter("te-excursion-2", other, old2)
         call save_excursion_end(excursion)
@@ -1419,16 +1422,16 @@ contains
         call save_restriction_begin(restriction)
         call narrow_to_region(3_int64, 5_int64, st)
         call save_restriction_end(restriction)
-        call check(error, point_min() == 1 .and. point_max() == 11, "widened again")
+        call check(error, point_minimum() == 1 .and. point_maximum() == 11, "widened again")
         if (allocated(error)) return
         call narrow_to_region(3_int64, 6_int64, st)
         call save_restriction_begin(restriction)
         call widen()
-        call goto_char(6_int64)
+        call goto_character(6_int64)
         call insert("XY", st)
-        call goto_char(11_int64)
+        call goto_character(11_int64)
         call save_restriction_end(restriction)
-        call check(error, point_min() == 3 .and. point_max() == 8, "narrowed again, the end moved")
+        call check(error, point_minimum() == 3 .and. point_maximum() == 8, "narrowed again, the end moved")
         if (allocated(error)) return
         call check(error, point(), 8_int64)
         call leave(h, old)
@@ -1448,44 +1451,44 @@ contains
         call insert("0123456789", st)
         call narrow_to_region(2_int64, 10_int64, st)
         call internal_labeled_narrow_to_region(4_int64, 8_int64, "test", st)
-        call check(error, st%ok() .and. point_min() == 4 .and. point_max() == 8, "labeled narrowing")
+        call check(error, st%ok() .and. point_minimum() == 4 .and. point_maximum() == 8, "labeled narrowing")
         if (allocated(error)) return
         call narrow_to_region(1_int64, 6_int64, st)
-        call check(error, point_min() == 4 .and. point_max() == 6, "narrowing within the labeled one")
+        call check(error, point_minimum() == 4 .and. point_maximum() == 6, "narrowing within the labeled one")
         if (allocated(error)) return
         call widen()
-        call check(error, point_min() == 4 .and. point_max() == 8, "widen to the labeled restriction")
+        call check(error, point_minimum() == 4 .and. point_maximum() == 8, "widen to the labeled restriction")
         if (allocated(error)) return
         call save_restriction_begin(restriction)
         call internal_labeled_widen("other")
-        call check(error, point_min() == 4 .and. point_max() == 8, "another label leaves it")
+        call check(error, point_minimum() == 4 .and. point_maximum() == 8, "another label leaves it")
         if (allocated(error)) return
         call internal_labeled_widen("test")
-        call check(error, point_min() == 2 .and. point_max() == 10, "the label removes it")
+        call check(error, point_minimum() == 2 .and. point_maximum() == 10, "the label removes it")
         if (allocated(error)) return
         call widen()
-        call check(error, point_min() == 1 .and. point_max() == 11, "then widen widens")
+        call check(error, point_minimum() == 1 .and. point_maximum() == 11, "then widen widens")
         if (allocated(error)) return
         call save_restriction_end(restriction)
-        call check(error, point_min() == 4 .and. point_max() == 8, "save-restriction restores it")
+        call check(error, point_minimum() == 4 .and. point_maximum() == 8, "save-restriction restores it")
         if (allocated(error)) return
         call reset_outermost_restrictions_begin(restricted)
-        call check(error, size(restricted) == 1 .and. point_min() == 2 .and. point_max() == 10, "the outermost bounds")
+        call check(error, size(restricted) == 1 .and. point_minimum() == 2 .and. point_maximum() == 10, "the outermost bounds")
         if (allocated(error)) return
         call reset_outermost_restrictions_end(restricted)
-        call check(error, point_min() == 4 .and. point_max() == 8, "the labeled bounds again")
+        call check(error, point_minimum() == 4 .and. point_maximum() == 8, "the labeled bounds again")
         if (allocated(error)) return
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call labeled_narrow_to_region_begin(5_int64, 7_int64, "inner", pm, st)
-        call goto_char(7_int64)
-        call check(error, point_min() == 5 .and. point_max() == 7, "labeled_narrow_to_region")
+        call goto_character(7_int64)
+        call check(error, point_minimum() == 5 .and. point_maximum() == 7, "labeled_narrow_to_region")
         if (allocated(error)) return
         call labeled_narrow_to_region_end("inner", pm)
-        call check(error, point_min() == 4 .and. point_max() == 8 .and. point() == 5, "and its end")
+        call check(error, point_minimum() == 4 .and. point_maximum() == 8 .and. point() == 5, "and its end")
         if (allocated(error)) return
         call labeled_restrictions_remove_in_current_buffer()
         call widen()
-        call check(error, point_min() == 1 .and. point_max() == 11, "all removed")
+        call check(error, point_minimum() == 1 .and. point_maximum() == 11, "all removed")
         call leave(h, old)
     end subroutine test_labeled_restrictions
 
@@ -1518,7 +1521,7 @@ contains
         if (allocated(error)) return
         call check(error, xstring(v) == xstring(expected), label//": text "//xstring(v))
         if (allocated(error)) return
-        call multibyte_chars_in_text(xstring(v), nchars, st)
+        call multibyte_characters_in_text(xstring(v), nchars, st)
         call check(error, compare_string_intervals(v, expected, nchars), label//": properties")
     end subroutine check_propertized
 
@@ -1545,7 +1548,7 @@ contains
         type(status_type) :: st
 
         call format_text(string, arguments, text, st)
-        call check(error, st%code == FM_GENERIC_ERROR, string//": error")
+        call check(error, st%code == GENERIC_ERROR_CODE, string//": error")
         if (allocated(error)) return
         call check(error, format_error(st) == message, string//": "//format_error(st))
     end subroutine check_format_error
@@ -1669,7 +1672,7 @@ contains
         type(status_type) :: st
 
         v = propertize(value_type(text="foo"), list(value_type(name="bar")), st)
-        call check(error, st%code == FM_WRONG_NUMBER_OF_ARGUMENTS, "wrong_number_of_arguments")
+        call check(error, st%code == WRONG_NUMBER_OF_ARGUMENTS_CODE, "wrong_number_of_arguments")
     end subroutine test_propertize_odd
 
     !> Port of editfns-tests.el:format-c-float.

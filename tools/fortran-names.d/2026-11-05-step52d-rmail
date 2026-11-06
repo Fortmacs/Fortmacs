@@ -204,7 +204,7 @@ keep	rmail_output_reset_deleted_flag
 # The module of rmailout.el and its startup and test names keep the file's
 # name (CLAUDE.md: one module per upstream file, named after it).
 keep	rmail_output_mod
-keep	init_rmail_output
+keep	initialize_rmail_output
 keep	test_rmail_output_mod
 keep	collect_rmail_output_mod
 # New names that contain an entry's old name as a run of parts: kept, so

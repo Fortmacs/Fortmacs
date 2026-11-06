@@ -1095,7 +1095,7 @@ name	comint_stop_subjob	comint_suspend_subjob
 keep	comint_stop_subjob	src/command_interpreter_mod.f90 src/commands_mod.f90 src/docstrings_mod.f90 PORTING.md
 name	stop_process	suspend_process
 keep	stop_process	src/process_mod.f90 src/command_interpreter_mod.f90 src/docstrings_mod.f90 src/fortmacs.f90 src/simple_shell_mod.f90 test/test_process_mod.f90 PORTING.md README.md
-keep	ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS
+name	ASYNC_SHELL_COMMAND_BUFFER_CONFIRM_STOP_PROCESS	asynchronous_shell_command_buffer_confirm_stop_process
 name	vc_dir_kill_dir_status_process	vc_dir_stop_dir_status_process
 name	kill_without_query	stop_without_query	src/process_mod.f90
 # Fortmacs exits (R6-21: exit_fortmacs, not exit_emacs).
@@ -1676,7 +1676,7 @@ name	string_line_action	string_line_action_type
 name	string_setting	string_setting_type
 name	tty_display_info	tty_display_info_type
 name	casing_str_buf	casing_str_buf_type
-keep	casing_str_buf_type
+name	casing_str_buf_type	casing_string_buffer_type
 # casefiddle.c's function, and data_buffer_mod's default of a function
 # setting.
 keep	prepare_casing_context
@@ -1898,40 +1898,6 @@ name	test_re	test_regexp
 name	update_quick_match_re	update_quick_match_regexp
 name	want_re	want_regexp
 name	words_re	words_regexp
-# Upstream C names with str, buf, idx or cur.
-keep	bidi_cache_idx
-keep	bidi_cache_last_idx
-keep	buf_bytepos_to_charpos
-keep	buf_bytes
-keep	buf_ch
-keep	buf_charlen
-keep	buf_charpos_to_bytepos
-keep	buf_compute_unchanged
-keep	buf_fetch_byte
-keep	buf_name
-keep	buf_next_char_len
-keep	buf_prev_char_len
-keep	buf_push
-keep	buf_push_2
-keep	chartab_idx
-keep	cur_buf
-keep	cur_col
-keep	from_idx
-keep	idx_at_entry
-keep	last_idx
-keep	log_edit_files_buf
-keep	log_edit_hide_buf
-keep	old_buf
-keep	parse_str_as_multibyte
-keep	pat_cur
-keep	stack_idx
-keep	str_as_multibyte
-keep	str_as_unibyte
-keep	str_end
-keep	str_len
-keep	str_to_multibyte
-keep	buf_fetch_char
-keep	ibuffer_buf
 # Types of R2-Q19 already named _type.
 keep	access_state_type
 keep	bounds_line_action_type
@@ -1947,18 +1913,18 @@ keep	function_setting_type
 keep	history_setting_type
 keep	indent_line_setting_type
 keep	integer_setting_type
-keep	isearch_state_type
+name	isearch_state_type	incremental_search_state_type
 keep	lisp_parse_state_type
 keep	logical_setting_type
 keep	name_box_type
 keep	number_line_action_type
 keep	open_line_action_type
-keep	pat_elt_type
+name	pat_elt_type	pattern_element_type
 keep	rectangle_line_action_type
 keep	string_box_type
 keep	string_line_action_type
 keep	string_setting_type
-keep	tty_display_info_type
+name	tty_display_info_type	terminal_display_info_type
 
 # R2-Q10/Q19: one entry per interface, renamed to end _procedure (a
 # logical one that upstream calls a predicate is X_test_procedure).
@@ -2246,13 +2212,13 @@ keep	tools/gen-docstrings.sh
 keep	tools/hazards.awk
 keep	tools/fortran-prose
 keep	tools/lisp-candidates
-keep	nav_motion_procedure
-keep	rif_clear_end_of_line_procedure
-keep	rif_clear_frame_procedure
-keep	rif_draw_vertical_window_border_procedure
-keep	rif_draw_window_cursor_procedure
-keep	rif_flush_display_procedure
-keep	rif_write_glyphs_procedure
+name	nav_motion_procedure	navigation_motion_procedure
+name	rif_clear_end_of_line_procedure	redisplay_interface_clear_end_of_line_procedure
+name	rif_clear_frame_procedure	redisplay_interface_clear_frame_procedure
+name	rif_draw_vertical_window_border_procedure	redisplay_interface_draw_vertical_window_border_procedure
+name	rif_draw_window_cursor_procedure	redisplay_interface_draw_window_cursor_procedure
+name	rif_flush_display_procedure	redisplay_interface_flush_display_procedure
+name	rif_write_glyphs_procedure	redisplay_interface_write_glyphs_procedure
 keep	transpose_mover_procedure
 keep	ynp_actor_procedure
 keep	ynp_prompter_procedure
@@ -2474,7 +2440,7 @@ name	ediff_previous_difference	previous_ediff_difference
 name	ediff_jump_to_difference	jump_to_ediff_difference
 name	ediff_quit	quit_ediff
 # The hook keeps its name (a hook, not the command).
-keep	ediff_quit_hook
+name	ediff_quit_hook	fortmacs_diff_quit_hook
 name	ediff_recenter	recenter_ediff
 name	ediff_toggle_split	toggle_ediff_split
 # hilit spelled out (no abbreviations).
@@ -2483,7 +2449,7 @@ name	ediff_toggle_help	toggle_ediff_help
 name	ediff_update_diffs	update_ediff_diffs
 name	ediff_diff_to_diff	copy_ediff_diff_to_diff
 # The new name contains the old run: kept whole.
-keep	copy_ediff_diff_to_diff
+name	copy_ediff_diff_to_diff	copy_fortmacs_diff_diff_to_diff
 name	ediff_restore_diff	restore_ediff_diff
 name	ediff_toggle_ignore_case	toggle_ediff_ignore_case
 name	ediff_copy_a_to_b	copy_ediff_a_to_b
@@ -2526,10 +2492,10 @@ name	smerge_next	next_smerge_conflict
 name	smerge_prev	previous_smerge_conflict
 # smerge-resolve-function (a variable) and its interface keep the
 # package prefix: the rename above is for the command.
-keep	smerge_resolve_function
-keep	smerge_resolve_function_set_local
-keep	smerge_resolve_procedure
-keep	smerge_auto_combine_max_separation
+name	smerge_resolve_function	simple_merge_resolve_function
+name	smerge_resolve_function_set_local	simple_merge_resolve_function_set_local
+name	smerge_resolve_procedure	simple_merge_resolve_procedure
+name	smerge_auto_combine_max_separation	simple_merge_auto_combine_maximum_separation
 # Verb first (the owner's decision of 2026-11-03, step 52a): a command or
 # procedure name starts with its verb.  The mail commands of
 # mail-utils.el, sendmail.el and mailabbrev.el (pending the owner's
@@ -2700,9 +2666,9 @@ name	python_imenu_format_item_label	format_python_imenu_item_label
 name	python_imenu_format_parent_item_label	format_python_imenu_parent_item_label
 name	python_imenu_format_parent_item_jump_label	format_python_imenu_parent_item_jump_label
 name	python_imenu_create_index	create_python_imenu_index
-keep	python_imenu_format_item_label_function
-keep	python_imenu_format_parent_item_label_function
-keep	python_imenu_format_parent_item_jump_label_function
+name	python_imenu_format_item_label_function	python_index_menu_format_item_label_function
+name	python_imenu_format_parent_item_label_function	python_index_menu_format_parent_item_label_function
+name	python_imenu_format_parent_item_jump_label_function	python_index_menu_format_parent_item_jump_label_function
 # R2-Q19/R6-40 (owner's decision, 2026-11-04): no `_function' suffix on a procedure,
 # verb first.  imenu-default-goto-function the procedure -> goto_imenu_position,
 # by hand: the variable of the same upstream name keeps imenu_default_goto_function
@@ -2750,8 +2716,8 @@ name	xref_go_back	go_back_in_xref_history
 name	xref_go_forward	go_forward_in_xref_history
 # help-mode.el's help-xref-go-back and help-xref-go-forward (help_mode_mod) are
 # not xref.el's commands: the two entries above leave them alone.
-keep	help_xref_go_back
-keep	help_xref_go_forward
+name	help_xref_go_back	help_cross_reference_go_back
+name	help_xref_go_forward	help_cross_reference_go_forward
 # test_help_mode_mod's ports of help-mode-tests-xref-go-back and -xref-go-forward.
 keep	test_xref_go_back	test/test_help_mode_mod.f90
 keep	test_xref_go_forward	test/test_help_mode_mod.f90
@@ -2787,7 +2753,7 @@ name	identifier_completion_ignore_case	is_identifier_completion_case_ignored
 # and its Git slots).  vc_annotate itself starts a job and keeps upstream's order;
 # the names without a verb wait for the owner (listed in PR #236).
 name	vc_annotate_toggle_annotation_visibility	toggle_vc_annotate_annotation_visibility
-keep	vc_annotate_display_mode
+name	vc_annotate_display_mode	version_control_annotate_display_mode
 name	vc_annotate_display_default	display_vc_annotate_default
 name	vc_annotate_display_autoscale	display_vc_annotate_autoscale
 name	vc_annotate_display_select	display_vc_annotate_select

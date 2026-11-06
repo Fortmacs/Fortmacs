@@ -20,18 +20,19 @@
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
 !> The log-edit-tests.el tests: `log_edit_fill_entry' and
-!> `log_edit_done_strip_cvs_lines' as a `log_edit_done_hook'.
+!> `log_edit_done_strip_concurrent_versions_system_lines' as a `log_edit_done_hook'.
 module test_log_edit_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, fill_column
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point_min
-    use bindings_mod, only: init_bindings
-    use version_control_hooks_mod, only: register_vc_backend
-    use log_edit_mod, only: log_edit_fill_entry, log_edit_done, log_edit_done_hook, log_edit_done_strip_cvs_lines, &
-                            set_log_edit_callback, set_log_edit_vc_backend
+    use editing_functions_mod, only: buffer_string, goto_character, point_minimum
+    use bindings_mod, only: initialize_bindings
+    use version_control_hooks_mod, only: register_version_control_backend
+    use log_edit_mod, only: log_edit_fill_entry, log_edit_done, log_edit_done_hook, &
+                            log_edit_done_strip_concurrent_versions_system_lines, set_log_edit_callback, &
+                            set_log_edit_version_control_backend
     implicit none(type, external)
     private
 
@@ -54,8 +55,8 @@ contains
                     new_unittest("log-edit-fill-entry-space-substitution", test_space_substitution), &
                     new_unittest("log-edit-fill-entry-initial-wrapping", test_initial_wrapping), &
                     new_unittest("log-edit-fill-entry-no-defun-list-wrapping", test_no_subprogram_list_wrapping), &
-                    new_unittest("log-edit-done-strip-cvs-lines-cvs", test_strip_cvs), &
-                    new_unittest("log-edit-done-strip-cvs-lines-non-cvs", test_strip_non_cvs), &
+                    new_unittest("log-edit-done-strip-cvs-lines-cvs", test_strip_concurrent_versions_system), &
+                    new_unittest("log-edit-done-strip-cvs-lines-non-cvs", test_strip_non_concurrent_versions_system), &
                     new_unittest("log-edit-done-strip-cvs-lines-only-cvs-colon-blank", test_strip_colon_blank), &
                     new_unittest("log-edit-done-strip-cvs-lines-only-cvs-colon", test_strip_colon) &
                     ]
@@ -66,17 +67,17 @@ contains
     ! ------------------------------------------------------------------
 
     !> (with-temp-buffer (insert TEXT)).
-    subroutine temp_buffer(text, h)
+    subroutine temporary_buffer(text, h)
         character(len=*), intent(in) :: text
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *log-edit-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
         call insert(text, st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine leave(h)
         type(handle_type), intent(in) :: h
@@ -111,18 +112,18 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        call temp_buffer("* dir/file.ext (fun1):"//LF// &
-                         "(fun2):"//LF// &
-                         "(fun3):"//LF// &
-                         "* file2.txt (fun4):"//LF// &
-                         "(fun5):"//LF// &
-                         "(fun6):"//LF// &
-                         "(fun7): Some prose."//LF// &
-                         "(fun8): A longer description of a complicated change."// &
-                         "  Spread over a couple of sentences."// &
-                         "  Long enough to be filled for several lines."//LF// &
-                         "(fun9): Etc.", h)
-        call goto_char(point_min())
+        call temporary_buffer("* dir/file.ext (fun1):"//LF// &
+                              "(fun2):"//LF// &
+                              "(fun3):"//LF// &
+                              "* file2.txt (fun4):"//LF// &
+                              "(fun5):"//LF// &
+                              "(fun6):"//LF// &
+                              "(fun7): Some prose."//LF// &
+                              "(fun8): A longer description of a complicated change."// &
+                              "  Spread over a couple of sentences."// &
+                              "  Long enough to be filled for several lines."//LF// &
+                              "(fun9): Etc.", h)
+        call goto_character(point_minimum())
         call fill_and_check(error, 72, &
                             "* dir/file.ext (fun1, fun2, fun3):"//LF// &
                             "* file2.txt (fun4, fun5, fun6, fun7): Some prose."//LF// &
@@ -168,18 +169,18 @@ contains
 
         ! Indenting function entries is a typical mistake caused by using a
         ! misconfigured or non-ChangeLog specific fill function.
-        call temp_buffer("* dir/file.ext (fun1):"//LF// &
-                         "  (fun2):"//LF// &
-                         "  (fun3):"//LF// &
-                         "* file2.txt (fun4):"//LF// &
-                         "  (fun5):"//LF// &
-                         "  (fun6):"//LF// &
-                         "  (fun7): Some prose."//LF// &
-                         "  (fun8): A longer description of a complicated change."// &
-                         "  Spread over a couple of sentences."// &
-                         "  Long enough to be filled for several lines."//LF// &
-                         "  (fun9): Etc.", h)
-        call goto_char(point_min())
+        call temporary_buffer("* dir/file.ext (fun1):"//LF// &
+                              "  (fun2):"//LF// &
+                              "  (fun3):"//LF// &
+                              "* file2.txt (fun4):"//LF// &
+                              "  (fun5):"//LF// &
+                              "  (fun6):"//LF// &
+                              "  (fun7): Some prose."//LF// &
+                              "  (fun8): A longer description of a complicated change."// &
+                              "  Spread over a couple of sentences."// &
+                              "  Long enough to be filled for several lines."//LF// &
+                              "  (fun9): Etc.", h)
+        call goto_character(point_minimum())
         call fill_and_check(error, 72, &
                             "* dir/file.ext (fun1, fun2, fun3):"//LF// &
                             "* file2.txt (fun4, fun5, fun6, fun7): Some prose."//LF// &
@@ -193,9 +194,9 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
 
-        call temp_buffer("* dir/file.ext (fun1): A longer description of a complicated change."// &
-                         "  Spread over a couple of sentences."// &
-                         "  Long enough to be filled for several lines.", h)
+        call temporary_buffer("* dir/file.ext (fun1): A longer description of a complicated change."// &
+                              "  Spread over a couple of sentences."// &
+                              "  Long enough to be filled for several lines.", h)
         call fill_and_check(error, 72, &
                             "* dir/file.ext (fun1): A longer description of a complicated change."//LF// &
                             "Spread over a couple of sentences.  Long enough to be filled for several"//LF// &
@@ -208,20 +209,20 @@ contains
         type(handle_type) :: h
 
         ! Join short enough function names on the same line.
-        call temp_buffer("* dir/file.ext (fun1):"//LF//"(fun2):", h)
+        call temporary_buffer("* dir/file.ext (fun1):"//LF//"(fun2):", h)
         call fill_and_check(error, 72, "* dir/file.ext (fun1, fun2):")
         call leave(h)
         if (allocated(error)) return
         ! Don't combine them if they're too long.
-        call temp_buffer("* dir/long-file-name.ext (a-really-long-function-name):"//LF// &
-                         "(another-very-long-function-name):", h)
+        call temporary_buffer("* dir/long-file-name.ext (a-really-long-function-name):"//LF// &
+                              "(another-very-long-function-name):", h)
         call fill_and_check(error, 72, "* dir/long-file-name.ext (a-really-long-function-name)"//LF// &
                             "(another-very-long-function-name):")
         call leave(h)
         if (allocated(error)) return
         ! Put function name on next line, if the file name is too long.
-        call temp_buffer("* a-very-long-directory-name/another-long-directory-name/and-a-long-file-name.ext"// &
-                         " (a-really-long-function-name):", h)
+        call temporary_buffer("* a-very-long-directory-name/another-long-directory-name/and-a-long-file-name.ext"// &
+                              " (a-really-long-function-name):", h)
         call fill_and_check(error, 72, &
                             "* a-very-long-directory-name/another-long-directory-name/and-a-long-file-name.ext"//LF// &
                             "(a-really-long-function-name):")
@@ -252,7 +253,7 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(string, h)
+        call temporary_buffer(string, h)
         call fill_and_check(error, 64, string)
 
         if (.not. allocated(error)) then
@@ -290,42 +291,42 @@ contains
         ! This test verifies that filling the paragraph surrounding the
         ! last line of subprograms does not break between subprogram lists with
         ! spaces in identifiers.
-        call temp_buffer(LF// &
-                         "* src/sfnt.c (xmalloc, xrealloc): Improve behavior upon allocation"//LF// &
-                         "failures during test."//LF// &
-                         "(sfnt_table_names): Add prep."//LF// &
-                         "(sfnt_transform_coordinates): Allow applying offsets during"//LF// &
-                         "coordinate transform."//LF// &
-                         "(sfnt_decompose_compound_glyph): Defer offset computation until"//LF// &
-                         "any component compound glyph is loaded, then apply it during the"//LF// &
-                         "transform process."//LF// &
-                         "(sfnt_multiply_divide): Make available everywhere.  Implement on"//LF// &
-                         "64 bit systems."//LF// &
-                         "(sfnt_multiply_divide_signed): New function."//LF// &
-                         "(sfnt_mul_fixed): Fix division overflow."//LF// &
-                         "(sfnt_curve_to_and_build_1, sfnt_build_glyph_outline): Remove"//LF// &
-                         "outdated comment."//LF// &
-                         "(sfnt_build_outline_edges): Fix coding style."//LF// &
-                         "(sfnt_lookup_glyph_metrics): Allow looking up metrics without"//LF// &
-                         "scaling."//LF// &
-                         "(struct sfnt_cvt_table): Fix type of cvt values."//LF// &
-                         "(struct sfnt_prep_table): New structure."//LF// &
-                         "(sfnt_read_cvt_table): Read cvt values in terms of fwords, not"//LF// &
-                         "longs (as Apple's doc seems to say)."//LF// &
-                         "(sfnt_read_fpgm_table): Fix memory allocation for font program"//LF// &
-                         "table."//LF// &
-                         "(sfnt_read_prep_table): New function."//LF// &
-                         "(struct sfnt_interpreter_zone): New structure."//LF// &
-                         "(struct sfnt_interpreter_graphics_state): New fields `project',"//LF// &
-                         "`move', `vector_dot_product'.  Rename to `sfnt_graphics_state'."//LF// &
-                         "(struct sfnt_interpreter, sfnt_mul_f26dot6): Stop doing rounding"//LF// &
-                         "division."//LF// &
-                         "(sfnt_init_graphics_state, sfnt_make_interpreter, MOVE, SSW, RAW)"//LF// &
-                         "(SDS, ADD, SUB, ABS, NEG, WCVTF, _MIN, S45ROUND, SVTCAx)"//LF// &
-                         "(sfnt_set_srounding_state, sfnt_skip_code)"//LF// &
-                         "(sfnt_interpret_unimplemented, sfnt_interpret_fdef)"//LF// &
-                         "(sfnt_interpret_idef, sfnt_interpret_if, sfnt_interpret_else)"//LF// &
-                         "(sfnt_round_none, sfnt_round_to_grid, sfnt_round_to_double_grid)"//LF, h)
+        call temporary_buffer(LF// &
+                              "* src/sfnt.c (xmalloc, xrealloc): Improve behavior upon allocation"//LF// &
+                              "failures during test."//LF// &
+                              "(sfnt_table_names): Add prep."//LF// &
+                              "(sfnt_transform_coordinates): Allow applying offsets during"//LF// &
+                              "coordinate transform."//LF// &
+                              "(sfnt_decompose_compound_glyph): Defer offset computation until"//LF// &
+                              "any component compound glyph is loaded, then apply it during the"//LF// &
+                              "transform process."//LF// &
+                              "(sfnt_multiply_divide): Make available everywhere.  Implement on"//LF// &
+                              "64 bit systems."//LF// &
+                              "(sfnt_multiply_divide_signed): New function."//LF// &
+                              "(sfnt_mul_fixed): Fix division overflow."//LF// &
+                              "(sfnt_curve_to_and_build_1, sfnt_build_glyph_outline): Remove"//LF// &
+                              "outdated comment."//LF// &
+                              "(sfnt_build_outline_edges): Fix coding style."//LF// &
+                              "(sfnt_lookup_glyph_metrics): Allow looking up metrics without"//LF// &
+                              "scaling."//LF// &
+                              "(struct sfnt_cvt_table): Fix type of cvt values."//LF// &
+                              "(struct sfnt_prep_table): New structure."//LF// &
+                              "(sfnt_read_cvt_table): Read cvt values in terms of fwords, not"//LF// &
+                              "longs (as Apple's doc seems to say)."//LF// &
+                              "(sfnt_read_fpgm_table): Fix memory allocation for font program"//LF// &
+                              "table."//LF// &
+                              "(sfnt_read_prep_table): New function."//LF// &
+                              "(struct sfnt_interpreter_zone): New structure."//LF// &
+                              "(struct sfnt_interpreter_graphics_state): New fields `project',"//LF// &
+                              "`move', `vector_dot_product'.  Rename to `sfnt_graphics_state'."//LF// &
+                              "(struct sfnt_interpreter, sfnt_mul_f26dot6): Stop doing rounding"//LF// &
+                              "division."//LF// &
+                              "(sfnt_initialize_graphics_state, sfnt_make_interpreter, MOVE, SSW, RAW)"//LF// &
+                              "(SDS, ADD, SUB, ABS, NEG, WCVTF, _MIN, S45ROUND, SVTCAx)"//LF// &
+                              "(sfnt_set_srounding_state, sfnt_skip_code)"//LF// &
+                              "(sfnt_interpret_unimplemented, sfnt_interpret_fdef)"//LF// &
+                              "(sfnt_interpret_idef, sfnt_interpret_if, sfnt_interpret_else)"//LF// &
+                              "(sfnt_round_none, sfnt_round_to_grid, sfnt_round_to_double_grid)"//LF, h)
         call fill_and_check(error, 20, LF// &
                             "* src/sfnt.c "//LF// &
                             "(xmalloc, xrealloc):"//LF// &
@@ -396,7 +397,7 @@ contains
                             "(sfnt_mul_f26dot6):"//LF// &
                             "Stop doing rounding"//LF// &
                             "division."//LF// &
-                            "(sfnt_init_graphics_state)"//LF// &
+                            "(sfnt_initialize_graphics_state)"//LF// &
                             "(sfnt_make_interpreter)"//LF// &
                             "(MOVE, SSW, RAW, SDS)"//LF// &
                             "(ADD, SUB, ABS, NEG)"//LF// &
@@ -422,11 +423,11 @@ contains
         ! This test verifies that a newline is inserted before a subprogram
         ! itself longer than the fill column when such a subprogram is being
         ! inserted after a file name, and not otherwise.
-        call temp_buffer(LF// &
-                         "* src/sfnt.c (long_entry_1): This entry should be placed on a"//LF// &
-                         "new line."//LF// &
-                         "(but_this_entry_should_not): With the prose displaced to the"//LF// &
-                         "next line instead.", h)
+        call temporary_buffer(LF// &
+                              "* src/sfnt.c (long_entry_1): This entry should be placed on a"//LF// &
+                              "new line."//LF// &
+                              "(but_this_entry_should_not): With the prose displaced to the"//LF// &
+                              "next line instead.", h)
         call fill_and_check(error, 20, LF// &
                             "* src/sfnt.c "//LF// &
                             "(long_entry_1): This"//LF// &
@@ -447,9 +448,9 @@ contains
         ! This test verifies that the opening subprogram list of an entry is never
         ! broken, even in the event its length in total exceeds the fill
         ! column.
-        call temp_buffer(LF// &
-                         "* src/androidfns.c (Fxw_display_color_p):"//LF// &
-                         "(Fx_display_grayscale_p): Report color and/or grayscale properly."//LF, h)
+        call temporary_buffer(LF// &
+                              "* src/androidfns.c (Fxw_display_color_p):"//LF// &
+                              "(Fx_display_grayscale_p): Report color and/or grayscale properly."//LF, h)
         call fill_and_check(error, 64, LF// &
                             "* src/androidfns.c (Fxw_display_color_p, Fx_display_grayscale_p):"//LF// &
                             "Report color and/or grayscale properly."//LF)
@@ -467,22 +468,22 @@ contains
         status = status_type()
     end subroutine no_callback
 
-    !> Tests that running log_edit_done_strip_cvs_lines as a log_edit_done_hook
+    !> Tests that running log_edit_done_strip_concurrent_versions_system_lines as a log_edit_done_hook
     !> produces the WANTED string when run on INITIAL_TEXT with
-    !> `log_edit_vc_backend' set to VC_BACKEND ("" for nil).
-    subroutine strip_cvs_lines_helper(error, initial_text, wanted, vc_backend)
+    !> `log_edit_version_control_backend' set to VERSION_CONTROL_BACKEND ("" for nil).
+    subroutine strip_concurrent_versions_system_lines_helper(error, initial_text, wanted, version_control_backend)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), intent(in) :: initial_text, wanted, vc_backend
+        character(len=*), intent(in) :: initial_text, wanted, version_control_backend
         type(handle_type) :: h
         type(status_type) :: st
         integer :: b
 
-        call temp_buffer("", h)
+        call temporary_buffer("", h)
         b = 0
-        if (len(vc_backend) > 0) call register_vc_backend(vc_backend, b)
+        if (len(version_control_backend) > 0) call register_version_control_backend(version_control_backend, b)
         call log_edit_done_hook%clear()
-        call log_edit_done_hook%prepend(log_edit_done_strip_cvs_lines)
-        call set_log_edit_vc_backend(b)
+        call log_edit_done_hook%prepend(log_edit_done_strip_concurrent_versions_system_lines)
+        call set_log_edit_version_control_backend(b)
         call set_log_edit_callback(no_callback)
         call insert(initial_text, st)
         call log_edit_done(st)
@@ -490,42 +491,45 @@ contains
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string() == wanted, "got: "//buffer_string())
         call leave(h)
-    end subroutine strip_cvs_lines_helper
+    end subroutine strip_concurrent_versions_system_lines_helper
 
-    !> Strip lines beginning with "CVS:" when using CVS as VC backend.
-    subroutine test_strip_cvs(error)
+    !> Strip lines beginning with "CONCURRENT_VERSIONS_SYSTEM:" when using CONCURRENT_VERSIONS_SYSTEM as VERSION_CONTROL backend.
+    subroutine test_strip_concurrent_versions_system(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call strip_cvs_lines_helper(error, "summary line"//LF//"first line"//LF// &
-                                    "CVS: Please evaluate your changes and consider the following."//LF// &
-                                    "CVS: Abort checkin if you answer no."//LF, &
-                                    "summary line"//LF//"first line"//LF, "CVS")
-    end subroutine test_strip_cvs
+        call strip_concurrent_versions_system_lines_helper(error, "summary line"//LF//"first line"//LF// &
+                                                           "CVS: Please evaluate your changes and consider the following."//LF// &
+                                                           "CVS: Abort checkin if you answer no."//LF, &
+                                                           "summary line"//LF//"first line"//LF, "CVS")
+    end subroutine test_strip_concurrent_versions_system
 
-    !> Do not strip lines beginning with "CVS:" when not using CVS as VC backend.
-    subroutine test_strip_non_cvs(error)
+    !> Do not strip lines beginning with "CONCURRENT_VERSIONS_SYSTEM:" when not using CONCURRENT_VERSIONS_SYSTEM as VERSION_CONTROL
+    !> backend.
+    subroutine test_strip_non_concurrent_versions_system(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), parameter :: string = "summary line"//LF//"first line"//LF// &
                                        "CVS: Please evaluate your changes and consider the following."//LF// &
                                        "CVS: Abort checkin if you answer no."//LF
 
-        call strip_cvs_lines_helper(error, string, string, "")
-    end subroutine test_strip_non_cvs
+        call strip_concurrent_versions_system_lines_helper(error, string, string, "")
+    end subroutine test_strip_non_concurrent_versions_system
 
-    !> Strip lines that contain solely "CVS: " when using CVS as VC backend.
+    !> Strip lines that contain solely "CONCURRENT_VERSIONS_SYSTEM: " when using CONCURRENT_VERSIONS_SYSTEM as VERSION_CONTROL
+    !> backend.
     subroutine test_strip_colon_blank(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call strip_cvs_lines_helper(error, "CVS: "//LF, "", "CVS")
+        call strip_concurrent_versions_system_lines_helper(error, "CVS: "//LF, "", "CVS")
     end subroutine test_strip_colon_blank
 
-    !> Strip lines that contain solely "CVS:" when using CVS as VC backend.
+    !> Strip lines that contain solely "CONCURRENT_VERSIONS_SYSTEM:" when using CONCURRENT_VERSIONS_SYSTEM as VERSION_CONTROL
+    !> backend.
     subroutine test_strip_colon(error)
         type(error_type), allocatable, intent(out) :: error
 
-        ! This test verifies that lines consisting only of "CVS:" (no blank
+        ! This test verifies that lines consisting only of "CONCURRENT_VERSIONS_SYSTEM:" (no blank
         ! after the colon) are stripped from the commit message.
-        ! CVS does this to accommodate editors that delete trailing whitespace.
-        call strip_cvs_lines_helper(error, "CVS:"//LF, "", "CVS")
+        ! CONCURRENT_VERSIONS_SYSTEM does this to accommodate editors that delete trailing whitespace.
+        call strip_concurrent_versions_system_lines_helper(error, "CVS:"//LF, "", "CVS")
     end subroutine test_strip_colon
 end module test_log_edit_mod

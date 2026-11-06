@@ -28,9 +28,9 @@ module test_values_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
     use value_mod, only: vtag, V_NULL, V_NAME, V_ARRAY, value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, &
-                         FM_SETTING_CONSTANT, FM_ARGS_OUT_OF_RANGE
-    use value_mod, only: cons, list, list_elt, list_length, list_tail, make_list, sym_nil, sym_t, value_type, xfixnum, &
+    use error_mod, only: status_type, WRONG_TYPE_ARGUMENT_CODE, VOID_VARIABLE_CODE, &
+                         SETTING_CONSTANT_CODE, ARGUMENTS_OUT_OF_RANGE_CODE
+    use value_mod, only: cons, list, list_element, list_length, list_tail, make_list, symbol_false, symbol_t, value_type, xfixnum, &
                          xstring
     use names_mod, only: intern, intern_soft
     use data_mod, only: string_to_number
@@ -75,7 +75,7 @@ contains
         b = a
         ! Poke the copy's string atom directly ([LIST] [1] ["x"]).
         b%a(3)%s = "changed"
-        call check(error, xstring(list_elt(a, 2_int64)), "x")
+        call check(error, xstring(list_element(a, 2_int64)), "x")
         if (allocated(error)) return
         call check(error, vtag(make_list(no_values)) == V_NULL, "empty list is not nil")
         if (allocated(error)) return
@@ -92,9 +92,9 @@ contains
         type(status_type) :: st
         character(len=:), allocatable :: name
 
-        call check(error, intern("nil"), SYM_NIL)
+        call check(error, intern("nil"), SYMBOL_FALSE)
         if (allocated(error)) return
-        call check(error, intern("t"), SYM_T)
+        call check(error, intern("t"), SYMBOL_T)
         if (allocated(error)) return
         call check(error, intern("tv-foo"), intern("tv-foo"))
         if (allocated(error)) return
@@ -154,7 +154,7 @@ contains
         logical :: ok
 
         l = list(value_type(name="a"), value_type(name="b"), value_type(name="c"))
-        call check(error, value_eq(list_elt(l, 1_int64), value_type(name="a")), "first element")
+        call check(error, value_eq(list_element(l, 1_int64), value_type(name="a")), "first element")
         if (allocated(error)) return
         call check(error, value_equal(list_tail(l, 1_int64), list(value_type(name="b"), value_type(name="c"))), "tail")
         if (allocated(error)) return
@@ -167,9 +167,9 @@ contains
         call cons(value_type(name="z"), value_type(name="y"), v, ok)
         call check(error,.not. ok, "only onto an array")
         if (allocated(error)) return
-        call check(error, value_eq(list_elt(l, 3_int64), value_type(name="c")), "third element")
+        call check(error, value_eq(list_element(l, 3_int64), value_type(name="c")), "third element")
         if (allocated(error)) return
-        v = list_elt(l, 10_int64)
+        v = list_element(l, 10_int64)
         call check(error,.not. allocated(v%a), "past the end")
     end subroutine test_lists
 
@@ -183,7 +183,7 @@ contains
         call check(error,.not. bound, "fresh symbol bound")
         if (allocated(error)) return
         call symbol_value(value_type(name="tv-var"), v, st)
-        call check(error, st%code, FM_VOID_VARIABLE)
+        call check(error, st%code, VOID_VARIABLE_CODE)
         if (allocated(error)) return
         call set(value_type(name="tv-var"), value_type(42_int64), st)
         call symbol_value(value_type(name="tv-var"), v, st)
@@ -207,19 +207,19 @@ contains
         type(status_type) :: st
 
         call set(value_type(.true.), value_type(name="bob"), st)
-        call check(error, st%code, FM_SETTING_CONSTANT)
+        call check(error, st%code, SETTING_CONSTANT_CODE)
         if (allocated(error)) return
         call set(value_type(), value_type(name="bob"), st)
-        call check(error, st%code, FM_SETTING_CONSTANT)
+        call check(error, st%code, SETTING_CONSTANT_CODE)
         if (allocated(error)) return
         call set(value_type(name=":keyword"), value_type(name="bob"), st)
-        call check(error, st%code, FM_SETTING_CONSTANT)
+        call check(error, st%code, SETTING_CONSTANT_CODE)
         if (allocated(error)) return
         call set(value_type(name=":keyword"), value_type(name=":keyword"), st)
         call check(error, st%ok(), "setting a keyword to itself")
         if (allocated(error)) return
         call makunbound(value_type(.true.), st)
-        call check(error, st%code, FM_SETTING_CONSTANT)
+        call check(error, st%code, SETTING_CONSTANT_CODE)
     end subroutine test_set_constant
 
     !> fns-tests.el: plist-get/odd-number-of-elements.
@@ -238,7 +238,7 @@ contains
 
         plist = list(value_type(name=":foo"), value_type(1_int64), value_type(name=":bar"))
         call plist_put(plist, value_type(name=":zot"), value_type(2_int64), st)
-        call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
+        call check(error, st%code, WRONG_TYPE_ARGUMENT_CODE)
         if (allocated(error)) return
         call check(error, st%detail, "expected array")
     end subroutine test_plist_put_odd
@@ -310,7 +310,7 @@ contains
         call check(error,.not. allocated(v%a), "missing property")
         if (allocated(error)) return
         call put(value_type(1_int64), value_type(name="p"), value_type(), st)
-        call check(error, st%code, FM_WRONG_TYPE_ARGUMENT)
+        call check(error, st%code, WRONG_TYPE_ARGUMENT_CODE)
     end subroutine test_get_put
 
     subroutine test_string_to_number_trailing_dot(error)
@@ -353,7 +353,7 @@ contains
         call check(error, n == 1, "no real syntax in base 16")
         if (allocated(error)) return
         call string_to_number("12", n, 1, st)
-        call check(error, st%code == FM_ARGS_OUT_OF_RANGE, "base out of range")
+        call check(error, st%code == ARGUMENTS_OUT_OF_RANGE_CODE, "base out of range")
         if (allocated(error)) return
         call string_to_number("1.5", x)
         call check(error, x == 1.5_real64, "a real")

@@ -19,164 +19,166 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The printed form of keyboard macros (`format_kbd_macro'), which
+!> The printed form of keyboard macros (`format_keyboard_macro'), which
 !> keyboard_macros_mod shows in the echo area.
 !>
-!> Deferred: the macro editor (`edit_kbd_macro', `edmacro_mode', C-x C-k
-!> e and RET, `insert_kbd_macro'), `read_kbd_macro' and the parsing of
-!> macro text (`edmacro_parse_keys'), and menu-bar and mouse events in
-!> macros (`edmacro_fix_menu_commands': macros here hold characters and
+!> Deferred: the macro editor (`edit_keyboard_macro', `keyboard_macro_editor_mode', C-x C-k
+!> e and RET, `insert_keyboard_macro'), `read_keyboard_macro' and the parsing of
+!> macro text (`keyboard_macro_editor_parse_keys'), and menu-bar and mouse events in
+!> macros (`keyboard_macro_editor_fix_menu_commands': macros here hold characters and
 !> function keys only).
 module keyboard_macro_editor_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use utility_functions_mod, only: count_characters
     use error_mod, only: status_type
-    use value_mod, only: value_type, xfixnum, xsymbol, xstring, symbols, vtag, V_ARRAY, list_elements, make_keymap_ref, &
-                         make_symbol_ref, V_NULL, V_INTEGER, V_NAME, V_STRING
+    use value_mod, only: value_type, xfixnum, xsymbol, xstring, symbols, vtag, V_ARRAY, list_elements, make_keymap_reference, &
+                         make_symbol_reference, V_NULL, V_INTEGER, V_NAME, V_STRING
     use names_mod, only: intern_soft
     use data_mod, only: value_eq
-    use character_mod, only: CHAR_ALT, CHAR_CTL, CHAR_HYPER, CHAR_META, CHAR_SUPER, CHAR_SHIFT, &
-                             string_char_and_length, char_string, MAX_MULTIBYTE_LENGTH
+    use character_mod, only: CHARACTER_ALT, CHARACTER_CONTROL, CHARACTER_HYPER, CHARACTER_META, CHARACTER_SUPER, CHARACTER_SHIFT, &
+                             string_character_and_length, character_string, MAXIMUM_MULTIBYTE_LENGTH
     use keymap_mod, only: current_active_maps, lookup_key, key_binding, is_keymap, is_keymap_live
     use execute_interactively_mod, only: is_command
     use keyboard_mod, only: local_function_key_map
     implicit none(type, external)
     private
 
-    public :: format_kbd_macro
+    public :: format_keyboard_macro
 
-    !> Values of `format_kbd_macro''s VERBOSE: EDMACRO_COMPACT (a compact 80-column
-    !> format), EDMACRO_ONE_LINE (everything on one line) and EDMACRO_VERBOSE (one command per line,
+    !> Values of `format_keyboard_macro''s VERBOSE: KEYBOARD_MACRO_EDITOR_COMPACT (a compact 80-column
+    !> format), KEYBOARD_MACRO_EDITOR_ONE_LINE (everything on one line) and KEYBOARD_MACRO_EDITOR_VERBOSE (one command per line,
     !> with comments).
-    integer, parameter, public :: EDMACRO_COMPACT = 0, EDMACRO_ONE_LINE = 1, EDMACRO_VERBOSE = 2
+    integer, parameter, public :: KEYBOARD_MACRO_EDITOR_COMPACT = 0, KEYBOARD_MACRO_EDITOR_ONE_LINE = 1, &
+                                  KEYBOARD_MACRO_EDITOR_VERBOSE = 2
 
-    !> True if `edit_kbd_macro' should leave 8-bit characters intact.
+    !> True if `edit_keyboard_macro' should leave 8-bit characters intact.
     !> Default false means to write characters above \177 in octal
     !> notation.  Port of edmacro.el edmacro-eight-bits.
-    logical, public :: edmacro_eight_bits = .false.
+    logical, public :: keyboard_macro_editor_eight_bits = .false.
 
 contains
 
     !> Return the keyboard macro MACRO as a human-readable string.
-    !> This string is suitable for passing to `read_kbd_macro'.
+    !> This string is suitable for passing to `read_keyboard_macro'.
     !> Second argument VERBOSE means to put one command per line with
-    !> comments (EDMACRO_VERBOSE).  If VERBOSE is EDMACRO_ONE_LINE, put
-    !> everything on one line.  If VERBOSE is omitted or EDMACRO_COMPACT,
+    !> comments (KEYBOARD_MACRO_EDITOR_VERBOSE).  If VERBOSE is KEYBOARD_MACRO_EDITOR_ONE_LINE, put
+    !> everything on one line.  If VERBOSE is omitted or KEYBOARD_MACRO_EDITOR_COMPACT,
     !> use a compact 80-column format.  Port of edmacro.el:format-kbd-macro
     !> with edmacro-format-keys (MACRO is an array of events).
-    recursive function format_kbd_macro(macro, verbose) result(res)
+    recursive function format_keyboard_macro(macro, verbose) result(res)
         type(value_type), intent(in) :: macro(:)
         integer, intent(in), optional :: verbose
         character(len=:), allocatable :: res
         type(value_type), allocatable :: rest(:), maps(:), key(:), tkey(:), fkey(:), one(:)
         type(value_type) :: b, bind, fk, first
         type(status_type) :: st
-        character(len=:), allocatable :: prefix, desc, bind_name, text_chars
+        character(len=:), allocatable :: prefix, description, bind_name, text_characters
         character(len=24) :: count_text
-        integer(int64) :: n, pos, i, k, bind_len, text, tlen, times, p, j, maxkey, len_rest, ch, line_len
+        integer(int64) :: n, position, i, k, bind_length, text, tlen, times, p, j, maxkey, length_rest, ch, line_length
         logical :: one_line, verb, has_prefix, found, use_fkey, done, uarg, same
 
         verb = .false.
         one_line = .false.
 
         if (present(verbose)) then
-            verb = verbose == EDMACRO_VERBOSE
-            one_line = verbose == EDMACRO_ONE_LINE
+            verb = verbose == KEYBOARD_MACRO_EDITOR_VERBOSE
+            one_line = verbose == KEYBOARD_MACRO_EDITOR_ONE_LINE
         end if
 
         maxkey = 127
-        if (edmacro_eight_bits) maxkey = 255
+        if (keyboard_macro_editor_eight_bits) maxkey = 255
         n = size(macro, kind=int64)
         allocate (rest(n + 1))
         if (n > 0) rest(1:n) = macro
         rest(n + 1) = value_type(name="end-macro")
         call active_map_list(maps)
         res = ""
-        line_len = 0
-        pos = 1
+        line_length = 0
+        position = 1
 
-        do while (pos <= n)
-            len_rest = n + 2 - pos
+        do while (position <= n)
+            length_rest = n + 2 - position
             ! A prefix argument: M-DIGITS, C-u C-u ... or C-u DIGITS.
             has_prefix = .false.
             prefix = ""
 
-            if (in_mdigs(rest(pos), .false.)) then
-                one = [rest(pos)]
+            if (in_mdigs(rest(position), .false.)) then
+                one = [rest(position)]
                 call key_binding(one, b, st)
 
                 if (value_eq(b, value_type(name="digit_argument")) .or. value_eq(b, value_type(name="negative_argument"))) then
                     i = 1
 
-                    do while (in_mdigs(rest(pos + i), .true.))
+                    do while (in_mdigs(rest(position + i), .true.))
                         i = i + 1
                     end do
 
-                    if (.not. in_pkeys(rest(pos + i))) then
+                    if (.not. in_pkeys(rest(position + i))) then
                         prefix = "M-"
 
-                        do k = pos, pos + i - 1
+                        do k = position, position + i - 1
                             prefix = prefix//achar(iand(xfixnum(rest(k)), 127_int64))
                         end do
 
                         prefix = prefix//" "
-                        pos = pos + i
+                        position = position + i
                         has_prefix = .true.
                     end if
                 end if
             end if
 
-            if (.not. has_prefix .and. int_event(rest(pos)) == 21) then
-                one = [rest(pos)]
+            if (.not. has_prefix .and. integer_event(rest(position)) == 21) then
+                one = [rest(position)]
                 call key_binding(one, b, st)
                 uarg = value_eq(b, value_type(name="universal_argument"))
 
                 if (uarg) then
                     i = 1
 
-                    do while (int_event(rest(pos + i)) == 21)
+                    do while (integer_event(rest(position + i)) == 21)
                         i = i + 1
                     end do
 
-                    if (.not. in_pkeys(rest(pos + i))) then
+                    if (.not. in_pkeys(rest(position + i))) then
                         prefix = repeat("C-u ", int(i))
-                        pos = pos + i
+                        position = position + i
                         has_prefix = .true.
                     end if
                 end if
 
                 if (uarg .and. .not. has_prefix) then
                     i = 1
-                    if (int_event(rest(pos + i)) == iachar("-")) i = i + 1
+                    if (integer_event(rest(position + i)) == iachar("-")) i = i + 1
 
-                    do while (int_event(rest(pos + i)) >= iachar("0") .and. int_event(rest(pos + i)) <= iachar("9"))
+                    do while (integer_event(rest(position + i)) >= iachar("0") .and. integer_event(rest(position + i)) <= iachar( &
+                              "9"))
                         i = i + 1
                     end do
 
-                    if (.not. in_pkeys(rest(pos + i))) then
+                    if (.not. in_pkeys(rest(position + i))) then
                         prefix = "C-u "
 
-                        do k = pos + 1, pos + i - 1
+                        do k = position + 1, position + i - 1
                             prefix = prefix//achar(xfixnum(rest(k)))
                         end do
 
                         prefix = prefix//" "
-                        pos = pos + i
+                        position = position + i
                         has_prefix = .true.
                     end if
                 end if
             end if
 
-            len_rest = n + 2 - pos
+            length_rest = n + 2 - position
             ! The longest bound key sequence at the start.
-            bind_len = 1
+            bind_length = 1
 
             do k = 1, size(maps)
-                call lookup_key(maps(k), rest(pos:n + 1), b, st)
-                if (vtag(b) == V_INTEGER) bind_len = max(bind_len, xfixnum(b))
+                call lookup_key(maps(k), rest(position:n + 1), b, st)
+                if (vtag(b) == V_INTEGER) bind_length = max(bind_length, xfixnum(b))
             end do
 
-            key = rest(pos:pos + bind_len - 1)
+            key = rest(position:position + bind_length - 1)
             bind = value_type()
             found = .false.
             use_fkey = .false.
@@ -192,12 +194,12 @@ contains
             end do
 
             if (.not. found .and. is_keymap_live(local_function_key_map)) then
-                call lookup_key(make_keymap_ref(local_function_key_map), rest(pos:n + 1), fk, st)
+                call lookup_key(make_keymap_reference(local_function_key_map), rest(position:n + 1), fk, st)
 
                 if (vtag(fk) == V_INTEGER) then
                     tlen = xfixnum(fk)
-                    tkey = rest(pos:pos + tlen - 1)
-                    call lookup_key(make_keymap_ref(local_function_key_map), tkey, fk, st)
+                    tkey = rest(position:position + tlen - 1)
+                    call lookup_key(make_keymap_reference(local_function_key_map), tkey, fk, st)
 
                     if (allocated(fk%a) .and. vtag(fk) /= V_INTEGER .and. .not. is_keymap(fk)) then
                         call translation_events(fk, fkey)
@@ -206,7 +208,7 @@ contains
                             call lookup_key(maps(k), fkey, b, st)
 
                             if (allocated(b%a) .and. vtag(b) /= V_INTEGER) then
-                                bind_len = tlen
+                                bind_length = tlen
                                 key = tkey
                                 bind = b
                                 use_fkey = .true.
@@ -219,16 +221,16 @@ contains
 
             first = key(1)
             ! The self-inserting characters that follow (not three alike).
-            i = bind_len
+            i = bind_length
 
-            do while (i < len_rest)
-                ch = int_event(rest(pos + i))
+            do while (i < length_rest)
+                ch = integer_event(rest(position + i))
                 if (ch <= 32 .or. ch >= maxkey .or. ch == 92) exit
                 if (.not. self_inserting(ch)) exit
 
-                if (i <= len_rest - 2) then
-                    if (int_event(rest(pos + i + 1)) == ch) then
-                        if (int_event(rest(pos + i + 2)) == ch) exit
+                if (i <= length_rest - 2) then
+                    if (integer_event(rest(position + i + 1)) == ch) then
+                        if (integer_event(rest(position + i + 2)) == ch) exit
                     end if
                 end if
 
@@ -240,32 +242,33 @@ contains
             if ((vtag(bind) == V_NAME .or. vtag(bind) == V_NULL) .and. allocated(bind%a)) bind_name = symbols(xsymbol(bind))%name
             if (vtag(bind) == V_STRING) bind = value_type()
             done = .false.
-            ch = int_event(first)
+            ch = integer_event(first)
 
             if (value_eq(bind, value_type(name="self_insert_command")) .and. .not. has_prefix .and. text > 1 .and. &
                 ch > 32 .and. ch <= maxkey .and. ch /= 92) then
                 if (text > 30) text = 30
-                desc = event_chars(rest(pos:pos + text - 1))
+                description = event_characters(rest(position:position + text - 1))
 
-                if (len(desc) >= 3) then
-                    if (index("ACHMsS", desc(1:1)) > 0 .and. desc(2:2) == "-" .and. desc(3:3) /= achar(10)) then
+                if (len(description) >= 3) then
+                    if (index("ACHMsS", &
+                              description(1:1)) > 0 .and. description(2:2) == "-" .and. description(3:3) /= achar(10)) then
                         text = 2
-                        desc = desc(1:2)
+                        description = description(1:2)
                     end if
                 end if
 
-                if (.not. reserved_desc(desc)) then
-                    if (len(desc) == 2) then
-                        if (desc(1:1) == "^") desc = desc(1:1)//" "//desc(2:2)
+                if (.not. reserved_description(description)) then
+                    if (len(description) == 2) then
+                        if (description(1:1) == "^") description = description(1:1)//" "//description(2:2)
                     end if
 
-                    if (res_word(desc)) then
-                        text_chars = desc
-                        desc = ""
+                    if (res_word(description)) then
+                        text_characters = description
+                        description = ""
 
-                        do k = 1, len(text_chars)
-                            if (k > 1) desc = desc//" "
-                            desc = desc//text_chars(k:k)
+                        do k = 1, len(text_characters)
+                            if (k > 1) description = description//" "
+                            description = description//text_characters(k:k)
                         end do
                     end if
 
@@ -274,21 +277,21 @@ contains
                         bind_name = bind_name//trim(count_text)
                     end if
 
-                    bind_len = text
+                    bind_length = text
                     done = .true.
                 end if
             end if
 
-            if (.not. done .and. value_eq(bind, value_type(name="execute_extended_command")) .and. text > bind_len) then
-                if (int_event(rest(pos + text)) == 13 .or. value_eq(rest(pos + text), value_type(name="return"))) then
-                    desc = event_chars(rest(pos + bind_len:pos + text - 1))
-                    k = intern_soft(desc)
+            if (.not. done .and. value_eq(bind, value_type(name="execute_extended_command")) .and. text > bind_length) then
+                if (integer_event(rest(position + text)) == 13 .or. value_eq(rest(position + text), value_type(name="return"))) then
+                    description = event_characters(rest(position + bind_length:position + text - 1))
+                    k = intern_soft(description)
 
                     if (k > 0) then
-                        if (is_command(make_symbol_ref(k))) then
-                            bind_name = desc
-                            desc = "<<"//desc//">>"
-                            bind_len = text + 1
+                        if (is_command(make_symbol_reference(k))) then
+                            bind_name = description
+                            description = "<<"//description//">>"
+                            bind_length = text + 1
                             done = .true.
                         end if
                     end if
@@ -296,38 +299,38 @@ contains
             end if
 
             if (.not. done) then
-                desc = ""
+                description = ""
 
                 if (use_fkey) then
                     do k = 1, size(fkey)
-                        if (k > 1) desc = desc//" "
-                        desc = desc//event_description(fkey(k), maxkey)
+                        if (k > 1) description = description//" "
+                        description = description//event_description(fkey(k), maxkey)
                     end do
                 else
                     do k = 1, size(key)
-                        if (k > 1) desc = desc//" "
-                        desc = desc//event_description(key(k), maxkey)
+                        if (k > 1) description = description//" "
+                        description = description//event_description(key(k), maxkey)
                     end do
                 end if
             end if
 
-            if (has_prefix) desc = prefix//desc
+            if (has_prefix) description = prefix//description
 
             ! Repetitions of a key without spaces: 3*C-f.
-            if (index(desc, " ") == 0) then
+            if (index(description, " ") == 0) then
                 times = 1
-                p = bind_len
+                p = bind_length
 
                 do
                     same = .true.
 
-                    do j = 0, bind_len - 1
-                        if (pos + p + j > n + 1) then
+                    do j = 0, bind_length - 1
+                        if (position + p + j > n + 1) then
                             same = .false.
                             exit
                         end if
 
-                        if (.not. value_eq(rest(pos + j), rest(pos + p + j))) then
+                        if (.not. value_eq(rest(position + j), rest(position + p + j))) then
                             same = .false.
                             exit
                         end if
@@ -335,41 +338,41 @@ contains
 
                     if (.not. same) exit
                     times = times + 1
-                    p = p + bind_len
+                    p = p + bind_length
                 end do
 
                 if (times > 1) then
                     write (count_text, '(i0, "*")') times
-                    desc = trim(count_text)//desc
-                    bind_len = bind_len*times
+                    description = trim(count_text)//description
+                    bind_length = bind_length*times
                 end if
             end if
 
-            pos = pos + bind_len
+            position = position + bind_length
 
             if (verb) then
                 if (len(res) > 0) res = res//achar(10)
-                res = res//desc
+                res = res//description
 
                 if (len(bind_name) > 0) then
-                    res = res//repeat(achar(9), int(max(3 - count_characters(desc)/8, 1_int64)))//";; "//bind_name
+                    res = res//repeat(achar(9), int(max(3 - count_characters(description)/8, 1_int64)))//";; "//bind_name
                 end if
 
-                line_len = 0
+                line_length = 0
             else
-                if (line_len + count_characters(desc) + 2 > 72 .and. .not. one_line) then
+                if (line_length + count_characters(description) + 2 > 72 .and. .not. one_line) then
                     res = res//achar(10)//" "
-                    line_len = 1
+                    line_length = 1
                 else if (len(res) > 0) then
                     res = res//" "
-                    line_len = line_len + 1
+                    line_length = line_length + 1
                 end if
 
-                res = res//desc
-                line_len = line_len + count_characters(desc)
+                res = res//description
+                line_length = line_length + count_characters(description)
             end if
         end do
-    end function format_kbd_macro
+    end function format_keyboard_macro
 
     !> The active keymaps (current-active-maps) as an array.  Not a port.
     subroutine active_map_list(maps)
@@ -392,7 +395,7 @@ contains
         type(value_type), intent(in) :: v
         type(value_type), allocatable, intent(out) :: evs(:)
         character(len=:), allocatable :: s
-        integer(int64) :: pos, n
+        integer(int64) :: position, n
         integer(int32) :: c, length
 
         if (vtag(v) == V_ARRAY) then
@@ -409,13 +412,13 @@ contains
         s = xstring(v)
         allocate (evs(len(s)))
         n = 0
-        pos = 1
+        position = 1
 
-        do while (pos <= len(s, kind=int64))
-            call string_char_and_length(s, pos, c, length)
+        do while (position <= len(s, kind=int64))
+            call string_character_and_length(s, position, c, length)
             n = n + 1
             evs(n) = value_type(int(c, int64))
-            pos = pos + length
+            position = position + length
         end do
 
         evs = evs(1:n)
@@ -423,12 +426,12 @@ contains
 
     !> The character code of event EV, or -1 if it is not a character.
     !> Not a port.
-    integer(int64) function int_event(ev)
+    integer(int64) function integer_event(ev)
         type(value_type), intent(in) :: ev
 
-        int_event = -1
-        if (vtag(ev) == V_INTEGER) int_event = xfixnum(ev)
-    end function int_event
+        integer_event = -1
+        if (vtag(ev) == V_INTEGER) integer_event = xfixnum(ev)
+    end function integer_event
 
     !> Whether EV is one of M-- M-0 ... M-9 (only M-0 ... M-9 if DIGITS_ONLY).
     !> Not a port.
@@ -437,11 +440,11 @@ contains
         logical, intent(in) :: digits_only
         integer(int64) :: c
 
-        c = int_event(ev)
+        c = integer_event(ev)
         in_mdigs = .false.
         if (c < 0) return
-        if (iand(c, int(CHAR_META, int64)) == 0) return
-        c = c - int(CHAR_META, int64)
+        if (iand(c, int(CHARACTER_META, int64)) == 0) return
+        c = c - int(CHARACTER_META, int64)
         in_mdigs = c >= iachar("0") .and. c <= iachar("9")
         if (.not. digits_only .and. c == iachar("-")) in_mdigs = .true.
     end function in_mdigs
@@ -454,7 +457,7 @@ contains
 
         in_pkeys = value_eq(ev, value_type(name="end-macro"))
         if (in_pkeys) return
-        c = int_event(ev)
+        c = integer_event(ev)
         if (c < 0) return
         in_pkeys = (c >= iachar("0") .and. c <= iachar("9")) .or. c == iachar("-") .or. c == 21 .or. &
                    in_mdigs(ev, .false.)
@@ -473,7 +476,7 @@ contains
     end function self_inserting
 
     !> The characters EVS (all ASCII) as a string.  Not a port.
-    function event_chars(evs) result(s)
+    function event_characters(evs) result(s)
         type(value_type), intent(in) :: evs(:)
         character(len=:), allocatable :: s
         integer :: k
@@ -481,41 +484,41 @@ contains
         s = ""
 
         do k = 1, size(evs)
-            s = s//achar(int_event(evs(k)))
+            s = s//achar(integer_event(evs(k)))
         end do
-    end function event_chars
+    end function event_characters
 
-    !> Whether DESC matches "^;;\|^<.*>$\|^\\[0-9]+$\|^[0-9]+\*.": text
+    !> Whether DESCRIPTION matches "^;;\|^<.*>$\|^\\[0-9]+$\|^[0-9]+\*.": text
     !> that would read back as something else.
     !> Port of part of edmacro.el:edmacro-format-keys.
-    logical function reserved_desc(desc)
-        character(len=*), intent(in) :: desc
+    logical function reserved_description(description)
+        character(len=*), intent(in) :: description
         integer :: k
 
-        reserved_desc = .false.
-        if (index(desc, ";;") == 1) reserved_desc = .true.
+        reserved_description = .false.
+        if (index(description, ";;") == 1) reserved_description = .true.
 
-        if (len(desc) >= 2) then
-            if (desc(1:1) == "<" .and. desc(len(desc):len(desc)) == ">") reserved_desc = .true.
+        if (len(description) >= 2) then
+            if (description(1:1) == "<" .and. description(len(description):len(description)) == ">") reserved_description = .true.
         end if
 
-        if (len(desc) >= 2) then
-            if (desc(1:1) == "\" .and. verify(desc(2:), "0123456789") == 0) reserved_desc = .true.
+        if (len(description) >= 2) then
+            if (description(1:1) == "\" .and. verify(description(2:), "0123456789") == 0) reserved_description = .true.
         end if
 
-        k = verify(desc, "0123456789")
+        k = verify(description, "0123456789")
 
-        if (k > 1 .and. k < len(desc)) then
-            if (desc(k:k) == "*" .and. desc(k + 1:k + 1) /= achar(10)) reserved_desc = .true.
+        if (k > 1 .and. k < len(description)) then
+            if (description(k:k) == "*" .and. description(k + 1:k + 1) /= achar(10)) reserved_description = .true.
         end if
-    end function reserved_desc
+    end function reserved_description
 
-    !> Whether DESC is one of the reserved words NUL TAB LFD RET ESC SPC DEL
+    !> Whether DESCRIPTION is one of the reserved words NUL TAB LFD RET ESC SPC DEL
     !> REM.  Port of part of edmacro.el:edmacro-format-keys.
-    logical function res_word(desc)
-        character(len=*), intent(in) :: desc
+    logical function res_word(description)
+        character(len=*), intent(in) :: description
 
-        select case (desc)
+        select case (description)
         case ("NUL", "TAB", "LFD", "RET", "ESC", "SPC", "DEL", "REM")
             res_word = .true.
         case default
@@ -533,7 +536,7 @@ contains
         character(len=*), parameter :: pfs = "ACHMsS"
         integer(int64) :: bits(6), ch, ch2
         character(len=24) :: buffer
-        character(len=MAX_MULTIBYTE_LENGTH) :: mb
+        character(len=MAXIMUM_MULTIBYTE_LENGTH) :: mb
         integer(int32) :: nb
         type(status_type) :: st
         integer :: k
@@ -543,9 +546,9 @@ contains
             return
         end if
 
-        bits = [int(CHAR_ALT, int64), int(CHAR_CTL, int64), int(CHAR_HYPER, int64), int(CHAR_META, int64), &
-                int(CHAR_SUPER, int64), int(CHAR_SHIFT, int64)]
-        ch = int_event(ev)
+        bits = [int(CHARACTER_ALT, int64), int(CHARACTER_CONTROL, int64), int(CHARACTER_HYPER, int64), int(CHARACTER_META, int64), &
+                int(CHARACTER_SUPER, int64), int(CHARACTER_SHIFT, int64)]
+        ch = integer_event(ev)
         s = ""
 
         do k = 1, 6
@@ -578,7 +581,7 @@ contains
         else if (ch2 == 127) then
             s = s//"DEL"
         else if (ch2 <= maxkey) then
-            call char_string(int(ch2, int32), mb, nb, st)
+            call character_string(int(ch2, int32), mb, nb, st)
             s = s//mb(1:nb)
         else
             write (buffer, "(o0)") ch2

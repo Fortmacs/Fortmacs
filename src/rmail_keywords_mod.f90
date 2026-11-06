@@ -30,8 +30,8 @@
 module rmail_keywords_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use string_type_mod, only: string_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer
@@ -42,7 +42,7 @@ module rmail_keywords_mod
     use minibuffer_reading_mod, only: read_string
     use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
     use replace_mod, only: format_prompt
-    use mail_utilities_mod, only: mail_comma_list_regexp
+    use mail_utilities_mod, only: mail_comma_list_regular_expression
     use rmail_mod, only: rmail_buffer, rmail_state_index, rmail_states, get_rmail_keywords, get_rmail_labels, &
                          set_rmail_attribute, set_rmail_header, display_rmail_labels, has_rmail_summary, &
                          select_rmail_summary, update_rmail_summary_line_function, set_rmail_message_counters_maybe, &
@@ -52,7 +52,7 @@ module rmail_keywords_mod
     private
 
     public :: add_rmail_label, remove_rmail_label, read_rmail_label, set_rmail_label, next_rmail_labeled_message, &
-              previous_rmail_labeled_message, append_rmail_label, init_rmail_keywords
+              previous_rmail_labeled_message, append_rmail_label, initialize_rmail_keywords
 
     !> The labels used by Rmail, all in lower case, starting with the
     !> attribute names; `read_rmail_label' offers them for completion.
@@ -183,13 +183,13 @@ contains
         end do
     end subroutine append_rmail_attribute_labels
 
-    !> Set LABEL as present or absent according to STATE in message MSG
+    !> Set LABEL as present or absent according to STATE in message MESSAGE
     !> (the current message if absent).  Port of rmailkwd.el:rmail-set-label.
-    recursive subroutine set_rmail_label(label, state, status, msg)
+    recursive subroutine set_rmail_label(label, state, status, message)
         character(len=*), intent(in) :: label
         logical, intent(in) :: state
         type(status_type), intent(out) :: status
-        integer(int64), intent(in), optional :: msg
+        integer(int64), intent(in), optional :: message
         character(len=:), allocatable :: header, before, after, padded
         type(handle_type) :: saved
         type(status_type) :: st
@@ -198,7 +198,7 @@ contains
         logical :: present_now
 
         if (index(label, ",") > 0) then
-            call set_error(status, FM_GENERIC_ERROR, "More than one label specified")
+            call set_error(status, GENERIC_ERROR_CODE, "More than one label specified")
             return
         end if
 
@@ -208,10 +208,10 @@ contains
         call set_rmail_message_counters_maybe()
         k = rmail_state_index(rmail_buffer())
         n = rmail_states(k)%current_message
-        if (present(msg)) n = msg
+        if (present(message)) n = message
 
         if (n == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No message")
+            call set_error(status, GENERIC_ERROR_CODE, "No message")
             call set_buffer(saved, st)
             return
         end if
@@ -306,14 +306,14 @@ contains
         integer(int64), intent(in) :: n
         character(len=*), intent(in) :: labels
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: wanted, regexp, text, blurb
+        character(len=:), allocatable :: wanted, regular_expression, text, blurb
         character(len=200) :: line
-        integer(int64) :: count, last_win, at
+        integer(int64) :: count, last_window, at
         integer :: k
 
         if (len(labels) == 0) then
             if (.not. allocated(rmail_last_multi_labels)) then
-                call set_error(status, FM_GENERIC_ERROR, "No labels to find have been specified previously")
+                call set_error(status, GENERIC_ERROR_CODE, "No labels to find have been specified previously")
                 return
             end if
 
@@ -328,17 +328,17 @@ contains
         call set_rmail_message_counters_maybe()
         k = rmail_state_index(rmail_buffer())
         count = n
-        last_win = rmail_states(k)%current_message
+        last_window = rmail_states(k)%current_message
         at = rmail_states(k)%current_message
-        regexp = " \("//mail_comma_list_regexp(wanted)//"\)\(,\|\'\)"
+        regular_expression = " \("//mail_comma_list_regular_expression(wanted)//"\)\(,\|\'\)"
 
         do while (count > 0 .and. at < rmail_states(k)%total_messages)
             at = at + 1
             call get_rmail_labels(text, status, at)
             if (.not. status%ok()) return
 
-            if (string_match(regexp, text, status) > 0) then
-                last_win = at
+            if (string_match(regular_expression, text, status) > 0) then
+                last_window = at
                 count = count - 1
             end if
         end do
@@ -348,20 +348,20 @@ contains
             call get_rmail_labels(text, status, at)
             if (.not. status%ok()) return
 
-            if (string_match(regexp, text, status) > 0) then
-                last_win = at
+            if (string_match(regular_expression, text, status) > 0) then
+                last_window = at
                 count = count + 1
             end if
         end do
 
         if (count < 0) then
             write (line, '("No previous message with labels ", a)') wanted
-            call set_error(status, FM_GENERIC_ERROR, trim(line))
+            call set_error(status, GENERIC_ERROR_CODE, trim(line))
         else if (count > 0) then
             write (line, '("No following message with labels ", a)') wanted
-            call set_error(status, FM_GENERIC_ERROR, trim(line))
+            call set_error(status, GENERIC_ERROR_CODE, trim(line))
         else
-            call show_rmail_message_1(blurb, status, last_win)
+            call show_rmail_message_1(blurb, status, last_window)
         end if
     end subroutine next_rmail_labeled_message
 
@@ -369,48 +369,48 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine cmd_add_rmail_label(status)
+    recursive subroutine execute_add_rmail_label(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: label
 
         call read_rmail_label("Add label", label, status)
         if (status%ok()) call add_rmail_label(label, status)
-    end subroutine cmd_add_rmail_label
+    end subroutine execute_add_rmail_label
 
-    recursive subroutine cmd_remove_rmail_label(status)
+    recursive subroutine execute_remove_rmail_label(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: label
 
         call read_rmail_label("Remove label", label, status)
         if (status%ok()) call remove_rmail_label(label, status)
-    end subroutine cmd_remove_rmail_label
+    end subroutine execute_remove_rmail_label
 
-    recursive subroutine cmd_next_rmail_labeled_message(status)
+    recursive subroutine execute_next_rmail_labeled_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: labels
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
+        n = prefix_numeric_value(current_prefix_argument)
         call read_string("Move to next msg with labels: ", labels, status)
         if (status%ok()) call next_rmail_labeled_message(n, labels, status)
-    end subroutine cmd_next_rmail_labeled_message
+    end subroutine execute_next_rmail_labeled_message
 
-    recursive subroutine cmd_previous_rmail_labeled_message(status)
+    recursive subroutine execute_previous_rmail_labeled_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: labels
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
+        n = prefix_numeric_value(current_prefix_argument)
         call read_string("Move to previous msg with labels: ", labels, status)
         if (status%ok()) call previous_rmail_labeled_message(n, labels, status)
-    end subroutine cmd_previous_rmail_labeled_message
+    end subroutine execute_previous_rmail_labeled_message
 
     !> Define the commands of rmailkwd.el.  Not a port.
-    subroutine init_rmail_keywords()
+    subroutine initialize_rmail_keywords()
         call append_rmail_attribute_labels()
-        commands%add_rmail_label%execute => cmd_add_rmail_label
-        commands%remove_rmail_label%execute => cmd_remove_rmail_label
-        commands%next_rmail_labeled_message%execute => cmd_next_rmail_labeled_message
-        commands%previous_rmail_labeled_message%execute => cmd_previous_rmail_labeled_message
-    end subroutine init_rmail_keywords
+        commands%add_rmail_label%execute => execute_add_rmail_label
+        commands%remove_rmail_label%execute => execute_remove_rmail_label
+        commands%next_rmail_labeled_message%execute => execute_next_rmail_labeled_message
+        commands%previous_rmail_labeled_message%execute => execute_previous_rmail_labeled_message
+    end subroutine initialize_rmail_keywords
 end module rmail_keywords_mod

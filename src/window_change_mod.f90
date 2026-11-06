@@ -66,8 +66,8 @@ contains
                 ! A "size change" means either a buffer change or that the
                 ! total or body size of the window has changed.
                 frame_size_change = frame_size_change .or. window_buffer_change .or. &
-                                    w%total_lines /= w%old_total_lines .or. w%total_cols /= w%old_total_cols .or. &
-                                    window_body_lines(w) /= w%old_body_lines .or. window_text_cols(w) /= w%old_body_cols
+                                    w%total_lines /= w%old_total_lines .or. w%total_columns /= w%old_total_columns .or. &
+                                    window_body_lines(w) /= w%old_body_lines .or. window_text_columns(w) /= w%old_body_columns
             end associate
         end do
 
@@ -108,9 +108,9 @@ contains
                 w%change_stamp = frame_change_stamp
                 w%old_buffer = w%buffer
                 w%old_total_lines = w%total_lines
-                w%old_total_cols = w%total_cols
+                w%old_total_columns = w%total_columns
                 w%old_body_lines = window_body_lines(w)
-                w%old_body_cols = window_text_cols(w)
+                w%old_body_columns = window_text_columns(w)
             end associate
         end do
 

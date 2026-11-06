@@ -9,4 +9,5 @@
 /src/commands_mod.f90
 /src/docstrings_mod.f90
 /src/face_table_mod.f90
+/src/fortran_completion_table_mod.f90
 /src/modes_mod.f90

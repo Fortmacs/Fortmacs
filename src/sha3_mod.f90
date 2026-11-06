@@ -42,7 +42,7 @@ module sha3_mod
     !> of STATE_BYTES - 2*N bytes (sha3.h:SHA3_224_BLOCK_SIZE and the others).
     integer, parameter :: STATE_BYTES = 200
     !> The largest block, SHA3-224's.
-    integer, parameter :: BLOCK_SIZE_MAX = STATE_BYTES - 2*SHA3_224_DIGEST_SIZE
+    integer, parameter :: BLOCK_SIZE_MAXIMUM = STATE_BYTES - 2*SHA3_224_DIGEST_SIZE
     !> The round constants of the Iota step (sha3.c:rc).
     integer(int64), parameter :: ROUND_CONSTANTS(0:23) = [int(z'0000000000000001', int64), int(z'0000000000008082', int64), &
                                                           int(z'800000000000808A', int64), int(z'8000000080008000', int64), &
@@ -65,7 +65,7 @@ module sha3_mod
 
     !> The state of a SHA-3 computation, made with the size of its digest:
     !> `sha3_context_type(digest_size=SHA3_256_DIGEST_SIZE)' (sha3.c's
-    !> sha3_224_init_ctx to sha3_512_init_ctx).  Feed it with `call
+    !> sha3_224_initialize_ctx to sha3_512_initialize_ctx).  Feed it with `call
     !> context%process_bytes(data)' and get the digest with `call
     !> context%finish(digest)'.  Port of sha3.h:struct sha3_ctx.
     type, public :: sha3_context_type
@@ -75,7 +75,7 @@ module sha3_mod
         !> The 25 lanes of the Keccak state.
         integer(int64) :: state(0:24) = 0
         !> The bytes of an incomplete block, waiting for more.
-        character(len=BLOCK_SIZE_MAX) :: buffer = ""
+        character(len=BLOCK_SIZE_MAXIMUM) :: buffer = ""
         !> The number of bytes in `buffer' (upstream's buflen).
         integer :: buffer_length = 0
     contains
@@ -147,11 +147,11 @@ contains
     pure subroutine finish_sha3(self, digest)
         class(sha3_context_type), intent(inout) :: self
         character(len=:), allocatable, intent(out) :: digest
-        character(len=BLOCK_SIZE_MAX) :: last
+        character(len=BLOCK_SIZE_MAXIMUM) :: last
         integer :: block_size, k
 
         block_size = STATE_BYTES - 2*self%digest_size
-        last = repeat(achar(0), BLOCK_SIZE_MAX)
+        last = repeat(achar(0), BLOCK_SIZE_MAXIMUM)
         last(1:self%buffer_length) = self%buffer(1:self%buffer_length)
         last(self%buffer_length + 1:self%buffer_length + 1) = achar(6)
         last(block_size:block_size) = char(ior(iachar(last(block_size:block_size)), 128))

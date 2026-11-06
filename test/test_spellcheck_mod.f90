@@ -28,7 +28,7 @@
 !> and learns the words sent with `@').  The tests that override
 !> functions with advice check the error the misspelling gives instead.
 !> Own tests: the output parser, the filter, the command loop's keys,
-!> `ispell' on an active region.
+!> `spellcheck' on an active region.
 module test_spellcheck_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -39,23 +39,24 @@ module test_spellcheck_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer, restore_buffer_modified, &
                           transient_mark_mode, buffers, current
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, buffer_string, point, point_min, point_max, delete_region
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, init_fileio
+    use editing_functions_mod, only: goto_character, buffer_string, point, point_minimum, point_maximum, delete_region
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, initialize_fileio
     use keymap_mod, only: key_parse
     use keyboard_mod, only: unread_command_events, discard_input, last_message, command_loop
-    use execute_interactively_mod, only: prefix_arg_type, prefix_arg, current_prefix_arg
-    use bindings_mod, only: init_bindings
+    use execute_interactively_mod, only: prefix_argument_type, prefix_argument, current_prefix_argument
+    use bindings_mod, only: initialize_bindings
     use simple_mod, only: fundamental_mode, set_mark
-    use shell_script_mod, only: sh_mode
+    use shell_script_mod, only: shell_script_mode
     use sgml_mode_mod, only: html_mode
-    use spellcheck_mod, only: ispell_word, ispell_region, ispell_buffer, ispell, ispell_comments_and_strings, &
-                              ispell_comment_or_string_at_point, ispell_change_dictionary, ispell_kill_ispell, &
-                              ispell_pdict_save, ispell_check_version, ispell_init_process, ispell_process_status, &
-                              ispell_add_per_file_word_list, ispell_buffer_local_words, ispell_parse_output, &
-                              ispell_output_type, ispell_filter, ispell_program_name, ispell_check_only, &
-                              ispell_dictionary, ispell_local_dictionary, ispell_pdict_modified, ispell_words_keyword, &
-                              prepend_ispell_buffer_session_localword, ispell_get_word, ispell_highlight, &
-                              ISPELL_OUTPUT_CORRECT, ISPELL_OUTPUT_ROOT, ISPELL_OUTPUT_MISSPELLED, ISPELL_OUTPUT_ERROR
+    use spellcheck_mod, only: spellcheck_word, spellcheck_region, spellcheck_buffer, spellcheck, spellcheck_comments_and_strings, &
+                              spellcheck_comment_or_string_at_point, spellcheck_change_dictionary, spellcheck_kill_spellcheck, &
+                              spellcheck_pdict_save, spellcheck_check_version, spellcheck_initialize_process, &
+                              spellcheck_process_status, spellcheck_add_per_file_word_list, spellcheck_buffer_local_words, &
+                              spellcheck_parse_output, spellcheck_output_type, spellcheck_filter, spellcheck_program_name, &
+                              spellcheck_check_only, spellcheck_dictionary, spellcheck_local_dictionary, &
+                              spellcheck_pdict_modified, spellcheck_words_keyword, prepend_spellcheck_buffer_session_localword, &
+                              spellcheck_get_word, spellcheck_highlight, SPELLCHECK_OUTPUT_CORRECT, SPELLCHECK_OUTPUT_ROOT, &
+                              SPELLCHECK_OUTPUT_MISSPELLED, SPELLCHECK_OUTPUT_ERROR
     implicit none(type, external)
     private
 
@@ -83,17 +84,17 @@ contains
                     new_unittest("ispell/ispell-buffer-local-words/ispell-words-keyword", test_local_words_keyword), &
                     new_unittest("ispell/ispell-buffer-local-words/ispell-buffer-session-localwords", &
                                  test_local_words_session), &
-                    new_unittest("ispell/ispell-init-process/works-with-home", test_init_process), &
+                    new_unittest("ispell/ispell-init-process/works-with-home", test_initialize_process), &
                     new_unittest("ispell/ispell--run-on-word/default", test_run_on_word), &
                     new_unittest("ispell/ispell-word/default/check-only/correct", test_word_correct), &
-                    new_unittest("ispell/ispell-word/default/check-only/correct/add-init", test_word_correct_init), &
+                    new_unittest("ispell/ispell-word/default/check-only/correct/add-init", test_word_correct_initialize), &
                     new_unittest("ispell/ispell-word/default/check-only/incorrect", test_word_incorrect), &
                     new_unittest("ispell/ispell-region/correct", test_region_correct), &
                     new_unittest("ispell/ispell-region/incorrect", test_region_incorrect), &
                     new_unittest("ispell/ispell-buffer/correct", test_buffer_correct), &
                     new_unittest("ispell/ispell-buffer/incorrect", test_buffer_incorrect), &
-                    new_unittest("ispell/ispell-kill-ispell", test_kill_ispell), &
-                    new_unittest("ispell/ispell/region", test_ispell_region_active), &
+                    new_unittest("ispell/ispell-kill-ispell", test_kill_spellcheck), &
+                    new_unittest("ispell/ispell/region", test_spellcheck_region_active), &
                     new_unittest("ispell/ispell-change-dictionary", test_change_dictionary), &
                     new_unittest("ispell/ispell-comments-and-strings/correct", test_comments_correct), &
                     new_unittest("ispell/ispell-comments-and-strings/incorrect", test_comments_incorrect), &
@@ -117,7 +118,7 @@ contains
         character(len=:), allocatable :: path
         type(status_type) :: st
 
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("test/ispell-resources/fake-aspell-new.bash", path, st, fortmacs_wd)
     end function fake_speller
 
@@ -128,21 +129,21 @@ contains
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        current_prefix_arg = prefix_arg_type()
-        ispell_program_name = fake_speller()
-        ispell_dictionary = ""
-        ispell_check_only = .false.
-        ispell_pdict_modified = .false.
-        ispell_highlight = .false.
+        prefix_argument = prefix_argument_type()
+        current_prefix_argument = prefix_argument_type()
+        spellcheck_program_name = fake_speller()
+        spellcheck_dictionary = ""
+        spellcheck_check_only = .false.
+        spellcheck_pdict_modified = .false.
+        spellcheck_highlight = .false.
         call get_or_make_buffer(name, h, st)
         call set_buffer(h, st)
         call restore_buffer_modified(.false.)
         call erase_buffer(st)
         call fundamental_mode(st)
-        call ispell_kill_ispell(st, no_error=.true., clear=.true.)
+        call spellcheck_kill_spellcheck(st, no_error=.true., clear=.true.)
         call show_alone()
         last_message = ""
     end subroutine fresh
@@ -152,11 +153,11 @@ contains
         type(handle_type), intent(in) :: h
         type(status_type) :: st
 
-        call ispell_kill_ispell(st, no_error=.true., clear=.true.)
+        call spellcheck_kill_spellcheck(st, no_error=.true., clear=.true.)
         call set_buffer(h, st)
         call restore_buffer_modified(.false.)
         call close_buffer(h, st)
-        ispell_check_only = .false.
+        spellcheck_check_only = .false.
     end subroutine finish
 
     !> The detail of status ST, "" if none.
@@ -172,7 +173,7 @@ contains
     ! ispell-tests.el
     ! ------------------------------------------------------------------
 
-    !> Should error or at least warn when `ispell_program_name' is a
+    !> Should error or at least warn when `spellcheck_program_name' is a
     !> meaningless string.
     subroutine test_noncommand(error)
         type(error_type), allocatable, intent(out) :: error
@@ -181,13 +182,13 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        ispell_program_name = "baf8cc1a-a811-11f0-abc7-ef02b7a6dda1"
-        call ispell_check_version(result, st)
+        spellcheck_program_name = "baf8cc1a-a811-11f0-abc7-ef02b7a6dda1"
+        call spellcheck_check_version(result, st)
         call finish(h)
         call check(error,.not. st%ok())
     end subroutine test_noncommand
 
-    !> Should error or at least warn if `ispell_program_name' is a path to a
+    !> Should error or at least warn if `spellcheck_program_name' is a path to a
     !> non-executable.
     subroutine test_non_executable(error)
         type(error_type), allocatable, intent(out) :: error
@@ -196,8 +197,8 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        ispell_program_name = "/dev/null"
-        call ispell_check_version(result, st, .true.)
+        spellcheck_program_name = "/dev/null"
+        call spellcheck_check_version(result, st, .true.)
         call finish(h)
         call check(error,.not. st%ok())
     end subroutine test_non_executable
@@ -210,13 +211,13 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        call ispell_add_per_file_word_list("12345", st)
-        call check(error, buffer_string(), LF//ispell_words_keyword//" 12345"//LF)
+        call spellcheck_add_per_file_word_list("12345", st)
+        call check(error, buffer_string(), LF//spellcheck_words_keyword//" 12345"//LF)
         call finish(h)
     end subroutine test_add_word_simple
 
     !> Adding a per-file word to an empty buffer.  Uses a comment syntax
-    !> with no end marker (sh_mode's "# ", for upstream's emacs-lisp-mode
+    !> with no end marker (shell_script_mode's "# ", for upstream's emacs-lisp-mode
     !> and its ";"; the keyword follows `comment_start' and a space).
     subroutine test_add_word_comments(error)
         type(error_type), allocatable, intent(out) :: error
@@ -224,9 +225,9 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        call sh_mode(st)
-        call ispell_add_per_file_word_list("12345", st)
-        call check(error, buffer_string(), LF//"#  "//ispell_words_keyword//" 12345"//LF)
+        call shell_script_mode(st)
+        call spellcheck_add_per_file_word_list("12345", st)
+        call check(error, buffer_string(), LF//"#  "//spellcheck_words_keyword//" 12345"//LF)
         call finish(h)
     end subroutine test_add_word_comments
 
@@ -240,8 +241,8 @@ contains
 
         call fresh("ispell-test", h)
         call html_mode(st)
-        call ispell_add_per_file_word_list("12345", st)
-        call check(error, buffer_string(), LF//"<!-- "//LF//ispell_words_keyword//" 12345"//LF//" -->"//LF)
+        call spellcheck_add_per_file_word_list("12345", st)
+        call check(error, buffer_string(), LF//"<!-- "//LF//spellcheck_words_keyword//" 12345"//LF//" -->"//LF)
         call finish(h)
     end subroutine test_add_word_html
 
@@ -253,9 +254,9 @@ contains
 
         call fresh("ispell-test", h)
         call html_mode(st)
-        call insert(LF//"<!-- "//ispell_words_keyword//LF//"-->"//LF, st)
-        call ispell_add_per_file_word_list("12345", st)
-        call check(error, buffer_string(), LF//"<!-- "//ispell_words_keyword//" 12345"//LF//"-->"//LF)
+        call insert(LF//"<!-- "//spellcheck_words_keyword//LF//"-->"//LF, st)
+        call spellcheck_add_per_file_word_list("12345", st)
+        call check(error, buffer_string(), LF//"<!-- "//spellcheck_words_keyword//" 12345"//LF//"-->"//LF)
         call finish(h)
     end subroutine test_add_word_keyword
 
@@ -267,14 +268,14 @@ contains
 
         call fresh("ispell-test", h)
         call html_mode(st)
-        call ispell_init_process(st)
+        call spellcheck_initialize_process(st)
         call check(error, st%ok(), "init: "//detail(st))
         if (allocated(error)) return
-        call check(error, word_result(WRONG) == ISPELL_OUTPUT_MISSPELLED)
+        call check(error, word_result(WRONG) == SPELLCHECK_OUTPUT_MISSPELLED)
         if (allocated(error)) return
-        call ispell_add_per_file_word_list(WRONG, st)
-        call ispell_buffer_local_words(st)
-        call check(error, word_result(WRONG) == ISPELL_OUTPUT_CORRECT)
+        call spellcheck_add_per_file_word_list(WRONG, st)
+        call spellcheck_buffer_local_words(st)
+        call check(error, word_result(WRONG) == SPELLCHECK_OUTPUT_CORRECT)
         call finish(h)
     end subroutine test_local_words_keyword
 
@@ -286,31 +287,31 @@ contains
 
         call fresh("ispell-test", h)
         call html_mode(st)
-        call ispell_init_process(st)
-        call check(error, word_result(WRONG) == ISPELL_OUTPUT_MISSPELLED)
+        call spellcheck_initialize_process(st)
+        call check(error, word_result(WRONG) == SPELLCHECK_OUTPUT_MISSPELLED)
         if (allocated(error)) return
-        call prepend_ispell_buffer_session_localword(WRONG)
-        call ispell_buffer_local_words(st)
-        call check(error, word_result(WRONG) == ISPELL_OUTPUT_CORRECT)
+        call prepend_spellcheck_buffer_session_localword(WRONG)
+        call spellcheck_buffer_local_words(st)
+        call check(error, word_result(WRONG) == SPELLCHECK_OUTPUT_CORRECT)
         call finish(h)
     end subroutine test_local_words_session
 
-    !> Simple test to check that `ispell_init_process' works.
-    subroutine test_init_process(error)
+    !> Simple test to check that `spellcheck_initialize_process' works.
+    subroutine test_initialize_process(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        call ispell_init_process(st)
+        call spellcheck_initialize_process(st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
-        call check(error, ispell_process_status(), "run")
+        call check(error, spellcheck_process_status(), "run")
         call finish(h)
-    end subroutine test_init_process
+    end subroutine test_initialize_process
 
     !> The kind of the speller's answer for WORD, as ispell--run-on-word
-    !> gives it: `ispell_word' in check-only mode on a copy of WORD added
+    !> gives it: `spellcheck_word' in check-only mode on a copy of WORD added
     !> at the end of the buffer (and removed), the result read from the
     !> message.
     integer function word_result(word) result(kind)
@@ -319,22 +320,22 @@ contains
         integer(int64) :: start
         logical :: saved
 
-        start = point_max()
-        call goto_char(start)
+        start = point_maximum()
+        call goto_character(start)
         call insert(LF//word, st)
-        saved = ispell_check_only
-        ispell_check_only = .true.
+        saved = spellcheck_check_only
+        spellcheck_check_only = .true.
         last_message = ""
-        call ispell_word(st)
-        ispell_check_only = saved
-        kind = ISPELL_OUTPUT_ERROR
-        if (index(last_message, "is correct") > 0) kind = ISPELL_OUTPUT_CORRECT
-        if (index(last_message, "is incorrect") > 0) kind = ISPELL_OUTPUT_MISSPELLED
-        call delete_region(start, point_max(), st)
+        call spellcheck_word(st)
+        spellcheck_check_only = saved
+        kind = SPELLCHECK_OUTPUT_ERROR
+        if (index(last_message, "is correct") > 0) kind = SPELLCHECK_OUTPUT_CORRECT
+        if (index(last_message, "is incorrect") > 0) kind = SPELLCHECK_OUTPUT_MISSPELLED
+        call delete_region(start, point_maximum(), st)
     end function word_result
 
     !> `ispell--run-on-word' should be the simplest interface for checking a
-    !> word (through `ispell_word' in check-only mode).
+    !> word (through `spellcheck_word' in check-only mode).
     subroutine test_run_on_word(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -342,15 +343,15 @@ contains
 
         call fresh("ispell-test", h)
         call html_mode(st)
-        call check(error, word_result(WRONG) == ISPELL_OUTPUT_MISSPELLED)
+        call check(error, word_result(WRONG) == SPELLCHECK_OUTPUT_MISSPELLED)
         if (allocated(error)) return
-        call check(error, word_result("hello") == ISPELL_OUTPUT_CORRECT)
+        call check(error, word_result("hello") == SPELLCHECK_OUTPUT_CORRECT)
         if (allocated(error)) return
-        call check(error, word_result("obvious") == ISPELL_OUTPUT_CORRECT)
+        call check(error, word_result("obvious") == SPELLCHECK_OUTPUT_CORRECT)
         call finish(h)
     end subroutine test_run_on_word
 
-    !> Check that `ispell_word' works with a default dictionary.
+    !> Check that `spellcheck_word' works with a default dictionary.
     subroutine test_word_correct(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -358,32 +359,32 @@ contains
 
         call fresh("ispell-test", h)
         call insert("hello"//LF, st)
-        call goto_char(1_int64)
-        call ispell_word(st)
+        call goto_character(1_int64)
+        call spellcheck_word(st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
         call check(error, index(last_message, "is correct") > 0, last_message)
         call finish(h)
     end subroutine test_word_correct
 
-    !> Check that `ispell_word' works with a default dictionary, after an
-    !> explicit `ispell_init_process'.
-    subroutine test_word_correct_init(error)
+    !> Check that `spellcheck_word' works with a default dictionary, after an
+    !> explicit `spellcheck_initialize_process'.
+    subroutine test_word_correct_initialize(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        ispell_check_only = .true.
-        call ispell_init_process(st)
+        spellcheck_check_only = .true.
+        call spellcheck_initialize_process(st)
         call insert("hello"//LF, st)
-        call goto_char(1_int64)
-        call ispell_word(st)
+        call goto_character(1_int64)
+        call spellcheck_word(st)
         call check(error, index(last_message, "is correct") > 0, last_message)
         call finish(h)
-    end subroutine test_word_correct_init
+    end subroutine test_word_correct_initialize
 
-    !> Check that `ispell_word' works with a default dictionary, given a
+    !> Check that `spellcheck_word' works with a default dictionary, given a
     !> word which does not exist.
     subroutine test_word_incorrect(error)
         type(error_type), allocatable, intent(out) :: error
@@ -391,15 +392,15 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        ispell_check_only = .true.
+        spellcheck_check_only = .true.
         call insert(WRONG//LF, st)
-        call goto_char(1_int64)
-        call ispell_word(st)
+        call goto_character(1_int64)
+        call spellcheck_word(st)
         call check(error, index(last_message, "is incorrect") > 0, last_message)
         call finish(h)
     end subroutine test_word_incorrect
 
-    !> The simplest test for `ispell_region'.
+    !> The simplest test for `spellcheck_region'.
     subroutine test_region_correct(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -407,8 +408,8 @@ contains
 
         call fresh("ispell-test", h)
         call insert(CORRECT_TEXT, st)
-        call goto_char(5_int64)
-        call ispell_region(point(), point_max(), st)
+        call goto_character(5_int64)
+        call spellcheck_region(point(), point_maximum(), st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
         call check(error, index(last_message, "Spell-checking region using fake-aspell-new.bash with default "// &
@@ -416,7 +417,7 @@ contains
         call finish(h)
     end subroutine test_region_correct
 
-    !> `ispell_region' on a misspelling gives an error condition (the fake
+    !> `spellcheck_region' on a misspelling gives an error condition (the fake
     !> speller's offset 0 is a misalignment).
     subroutine test_region_incorrect(error)
         type(error_type), allocatable, intent(out) :: error
@@ -424,15 +425,15 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        ispell_check_only = .true.
+        spellcheck_check_only = .true.
         call insert("hello "//WRONG//" test", st)
-        call goto_char(5_int64)
-        call ispell_region(point(), point_max(), st)
+        call goto_character(5_int64)
+        call spellcheck_region(point(), point_maximum(), st)
         call check(error,.not. st%ok())
         call finish(h)
     end subroutine test_region_incorrect
 
-    !> The simplest test for `ispell_buffer'.
+    !> The simplest test for `spellcheck_buffer'.
     subroutine test_buffer_correct(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -440,7 +441,7 @@ contains
 
         call fresh("ispell-test", h)
         call insert(CORRECT_TEXT, st)
-        call ispell_buffer(st)
+        call spellcheck_buffer(st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
         call check(error, index(last_message, "Spell-checking ispell-test using fake-aspell-new.bash with default "// &
@@ -448,7 +449,7 @@ contains
         call finish(h)
     end subroutine test_buffer_correct
 
-    !> `ispell_buffer' checks from the beginning of the buffer, whatever
+    !> `spellcheck_buffer' checks from the beginning of the buffer, whatever
     !> point: the misspelling there is offered (with no key to read, the
     !> session is suspended, as by X).
     subroutine test_buffer_incorrect(error)
@@ -458,34 +459,34 @@ contains
 
         call fresh("ispell-test", h)
         call insert(WRONG//" "//CORRECT_TEXT, st)
-        call goto_char(10_int64)
-        call ispell_buffer(st)
+        call goto_character(10_int64)
+        call spellcheck_buffer(st)
         call check(error, index(last_message, "Spell-checking suspended") == 1, last_message)
         call finish(h)
     end subroutine test_buffer_incorrect
 
     !> Test that killing ispell works.
-    subroutine test_kill_ispell(error)
+    subroutine test_kill_spellcheck(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
 
         call fresh("ispell-test", h)
         call insert(CORRECT_TEXT, st)
-        call ispell_init_process(st)
-        call check(error, ispell_process_status(), "run")
+        call spellcheck_initialize_process(st)
+        call check(error, spellcheck_process_status(), "run")
         if (allocated(error)) return
-        call ispell_kill_ispell(st, clear=.true.)
+        call spellcheck_kill_spellcheck(st, clear=.true.)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
-        call ispell_kill_ispell(st)
+        call spellcheck_kill_spellcheck(st)
         call check(error, detail(st), "There is no Ispell process running!")
         call finish(h)
-    end subroutine test_kill_ispell
+    end subroutine test_kill_spellcheck
 
-    !> `ispell' checks the active region (ispell/ispell/region, with the
+    !> `spellcheck' checks the active region (ispell/ispell/region, with the
     !> message instead of advice).
-    subroutine test_ispell_region_active(error)
+    subroutine test_spellcheck_region_active(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
@@ -495,16 +496,16 @@ contains
         saved = transient_mark_mode%value
         transient_mark_mode = .true.
         call insert(CORRECT_TEXT, st)
-        call goto_char(2_int64)
+        call goto_character(2_int64)
         call set_mark(point())
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         buffers(current)%mark_active = .true.
-        call ispell(st)
+        call spellcheck(st)
         call check(error, index(last_message, "Spell-checking region using") == 1, last_message)
         buffers(current)%mark_active = .false.
         transient_mark_mode = saved
         call finish(h)
-    end subroutine test_ispell_region_active
+    end subroutine test_spellcheck_region_active
 
     !> Simple test for changing a dictionary.
     subroutine test_change_dictionary(error)
@@ -513,24 +514,24 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        call ispell_change_dictionary("english", st)
+        call spellcheck_change_dictionary("english", st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
-        call check(error, ispell_local_dictionary%value, "english")
+        call check(error, spellcheck_local_dictionary%value, "english")
         if (allocated(error)) return
-        call ispell_change_dictionary("default", st)
-        call check(error,.not. allocated(ispell_local_dictionary%value))
+        call spellcheck_change_dictionary("default", st)
+        call check(error,.not. allocated(spellcheck_local_dictionary%value))
         if (allocated(error)) return
-        call ispell_change_dictionary("english", st)
-        call check(error, ispell_local_dictionary%value, "english")
+        call spellcheck_change_dictionary("english", st)
+        call check(error, spellcheck_local_dictionary%value, "english")
         if (allocated(error)) return
-        call ispell_change_dictionary("2110001888290146229", st)
+        call spellcheck_change_dictionary("2110001888290146229", st)
         call check(error, detail(st), "Undefined dictionary: 2110001888290146229")
-        call ispell_local_dictionary%clear_local()
+        call spellcheck_local_dictionary%clear_local()
         call finish(h)
     end subroutine test_change_dictionary
 
-    !> Test that `ispell_comments_and_strings' does not err on a correct
+    !> Test that `spellcheck_comments_and_strings' does not err on a correct
     !> buffer.
     subroutine test_comments_correct(error)
         type(error_type), allocatable, intent(out) :: error
@@ -539,15 +540,15 @@ contains
 
         call fresh("ispell-test", h)
         call insert("#!/bin/bash"//LF//"echo """//CORRECT_TEXT//""""//LF//"# commented line"//LF, st)
-        call sh_mode(st)
-        call ispell_comments_and_strings(st)
+        call shell_script_mode(st)
+        call spellcheck_comments_and_strings(st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
         call check(error, index(last_message, "Spell-checking region using") == 1, last_message)
         call finish(h)
     end subroutine test_comments_correct
 
-    !> Test that `ispell_comments_and_strings' errs on a misspelled comment.
+    !> Test that `spellcheck_comments_and_strings' errs on a misspelled comment.
     subroutine test_comments_incorrect(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -555,13 +556,13 @@ contains
 
         call fresh("ispell-test", h)
         call insert("#!/bin/bash"//LF//"echo """//CORRECT_TEXT//""""//LF//"# "//WRONG//LF, st)
-        call sh_mode(st)
-        call ispell_comments_and_strings(st)
+        call shell_script_mode(st)
+        call spellcheck_comments_and_strings(st)
         call check(error,.not. st%ok())
         call finish(h)
     end subroutine test_comments_incorrect
 
-    !> Test that `ispell_comment_or_string_at_point' runs two tests, one
+    !> Test that `spellcheck_comment_or_string_at_point' runs two tests, one
     !> correct and one incorrect in the same buffer.
     subroutine test_comment_at_point(error)
         type(error_type), allocatable, intent(out) :: error
@@ -571,20 +572,20 @@ contains
 
         call fresh("ispell-test", h)
         call insert(string1//CORRECT_TEXT//string3//WRONG//LF, st)
-        call sh_mode(st)
-        call goto_char(int(len(string1) + len("hello"), int64))
-        call ispell_comment_or_string_at_point(st)
+        call shell_script_mode(st)
+        call goto_character(int(len(string1) + len("hello"), int64))
+        call spellcheck_comment_or_string_at_point(st)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
         call check(error, index(last_message, "Spell-checking region using") == 1, last_message)
         if (allocated(error)) return
-        call goto_char(int(len(string1) + len(CORRECT_TEXT) + len(string3) + 1, int64))
-        call ispell_comment_or_string_at_point(st)
+        call goto_character(int(len(string1) + len(CORRECT_TEXT) + len(string3) + 1, int64))
+        call spellcheck_comment_or_string_at_point(st)
         call check(error,.not. st%ok())
         call finish(h)
     end subroutine test_comment_at_point
 
-    !> Simple `ispell_pdict_save' test.
+    !> Simple `spellcheck_pdict_save' test.
     subroutine test_pdict_save(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -592,7 +593,7 @@ contains
 
         call fresh("ispell-test", h)
         call insert("12345", st)
-        call ispell_pdict_save(st, .true., .true.)
+        call spellcheck_pdict_save(st, .true., .true.)
         call check(error, st%ok(), detail(st))
         if (allocated(error)) return
         call check(error, last_message, "Personal dictionary saved.")
@@ -606,15 +607,15 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        ispell_pdict_modified = .false.
-        call ispell_pdict_save(st, .true., .false.)
+        spellcheck_pdict_modified = .false.
+        call spellcheck_pdict_save(st, .true., .false.)
         call check(error, last_message, "")
         if (allocated(error)) return
-        ispell_pdict_modified = .true.
-        call ispell_pdict_save(st, .true., .false.)
+        spellcheck_pdict_modified = .true.
+        call spellcheck_pdict_save(st, .true., .false.)
         call check(error, last_message, "Personal dictionary saved.")
         if (allocated(error)) return
-        call check(error,.not. ispell_pdict_modified)
+        call check(error,.not. spellcheck_pdict_modified)
         call finish(h)
     end subroutine test_pdict_save_unmodified
 
@@ -625,16 +626,16 @@ contains
     !> The forms of the speller's answers.
     subroutine test_parse_output(error)
         type(error_type), allocatable, intent(out) :: error
-        type(ispell_output_type) :: r
+        type(spellcheck_output_type) :: r
 
-        call ispell_parse_output("*", r)
-        call check(error, r%kind == ISPELL_OUTPUT_CORRECT)
+        call spellcheck_parse_output("*", r)
+        call check(error, r%kind == SPELLCHECK_OUTPUT_CORRECT)
         if (allocated(error)) return
-        call ispell_parse_output("+ walk", r)
-        call check(error, r%kind == ISPELL_OUTPUT_ROOT .and. r%word == "walk")
+        call spellcheck_parse_output("+ walk", r)
+        call check(error, r%kind == SPELLCHECK_OUTPUT_ROOT .and. r%word == "walk")
         if (allocated(error)) return
-        call ispell_parse_output("& teh 3 5: the, tea, ten, Th", r)
-        call check(error, r%kind == ISPELL_OUTPUT_MISSPELLED)
+        call spellcheck_parse_output("& teh 3 5: the, tea, ten, Th", r)
+        call check(error, r%kind == SPELLCHECK_OUTPUT_MISSPELLED)
         if (allocated(error)) return
         call check(error, r%word, "teh")
         if (allocated(error)) return
@@ -646,8 +647,8 @@ contains
         if (allocated(error)) return
         call check(error, r%guesses(1)%text, "Th")
         if (allocated(error)) return
-        call ispell_parse_output("# xyzzy 7", r, shift=2_int64)
-        call check(error, r%kind == ISPELL_OUTPUT_MISSPELLED .and. r%offset == 9_int64 .and. size(r%misses) == 0)
+        call spellcheck_parse_output("# xyzzy 7", r, shift=2_int64)
+        call check(error, r%kind == SPELLCHECK_OUTPUT_MISSPELLED .and. r%offset == 9_int64 .and. size(r%misses) == 0)
     end subroutine test_parse_output
 
     !> The filter collects lines, a partial line continuing.
@@ -657,14 +658,14 @@ contains
         type(status_type) :: st
 
         call fresh("ispell-test", h)
-        call ispell_init_process(st)
-        call ispell_filter(h, "& wor", st)
-        call ispell_filter(h, "d 0 1: word"//LF//LF, st)
+        call spellcheck_initialize_process(st)
+        call spellcheck_filter(h, "& wor", st)
+        call spellcheck_filter(h, "d 0 1: word"//LF//LF, st)
         call check(error, st%ok())
         call finish(h)
     end subroutine test_filter
 
-    !> `ispell_get_word' takes the word before point, with `otherchars'.
+    !> `spellcheck_get_word' takes the word before point, with `otherchars'.
     subroutine test_get_word(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
@@ -674,11 +675,11 @@ contains
 
         call fresh("ispell-test", h)
         call insert("Steven's dog  ", st)
-        call ispell_get_word(.false., word, start, end, st)
+        call spellcheck_get_word(.false., word, start, end, st)
         call check(error, word, "dog")
         if (allocated(error)) return
-        call goto_char(4_int64)
-        call ispell_get_word(.false., word, start, end, st)
+        call goto_character(4_int64)
+        call spellcheck_get_word(.false., word, start, end, st)
         call check(error, word, "Steven's")
         if (allocated(error)) return
         call check(error, start == 1_int64 .and. end == 9_int64)
@@ -695,7 +696,7 @@ contains
 
         call fresh("ispell-test", h)
         call insert("one "//WRONG//" two", st)
-        call goto_char(8_int64)
+        call goto_character(8_int64)
         call key_parse("M-$ r C-a C-k h e l l o RET", evs, st)
         call unread_command_events(evs)
         call command_loop(st)
@@ -719,7 +720,7 @@ contains
         call check(error, buffer_string(), WRONG)
         if (allocated(error)) return
         last_message = ""
-        call ispell_word(st)
+        call spellcheck_word(st)
         call check(error, index(last_message, "is correct") > 0, last_message)
         call finish(h)
     end subroutine test_command_loop_accept

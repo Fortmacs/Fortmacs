@@ -25,9 +25,9 @@ module test_keymap_mod
     use value_mod, only: V_NULL, V_INTEGER, value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: format_message
-    use error_mod, only: status_type, FM_GENERIC_ERROR, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: list, make_keymap_ref, V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
+    use value_mod, only: list, make_keymap_reference, V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
     use data_mod, only: value_eq
     use utility_functions_mod, only: value_equal
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
@@ -38,7 +38,7 @@ module test_keymap_mod
                           single_key_description, use_local_map, is_key_valid, keymap_set, &
                           keymap_global_set, define_key_range, where_is_internal
     use basic_subprograms_mod, only: global_set_key
-    use keymap_mod, only: text_char_description, minor_mode_key_binding, current_minor_mode_maps, append_minor_mode_map
+    use keymap_mod, only: text_character_description, minor_mode_key_binding, current_minor_mode_maps, append_minor_mode_map
     use error_mod, only: format_error
     use data_mod, only: set
     use print_mod, only: readable_text
@@ -48,7 +48,7 @@ module test_keymap_mod
     public :: collect_keymap_mod
 
     integer(int64), parameter :: META = int(z'8000000', int64), &
-                                 CTL = int(z'4000000', int64), &
+                                 CONTROL = int(z'4000000', int64), &
                                  HYPER = int(z'1000000', int64)
 
 contains
@@ -71,7 +71,7 @@ contains
                     new_unittest("keymap-lookup-key/accept-default", test_accept_default), &
                     new_unittest("keymap-removal-inherit", test_removal_inherit), &
                     new_unittest("keymap-unset-test-remove-and-inheritance", test_unset_inherit), &
-                    new_unittest("keymap-char-table-range", test_char_table_range), &
+                    new_unittest("keymap-char-table-range", test_character_table_range), &
                     new_unittest("keymap-print", test_print_keymap), &
                     new_unittest("keymap-equal", test_equal_keymap), &
                     new_unittest("keymap-prefix-composition", test_prefix_composition), &
@@ -85,21 +85,21 @@ contains
                     new_unittest("subr-test-key-valid-p", test_is_key_valid), &
                     new_unittest("keymap-set-consistency", test_keymap_set), &
                     new_unittest("keymap-global-set", test_keymap_global_set), &
-                    new_unittest("keymap-text-char-description", test_text_char_description), &
+                    new_unittest("keymap-text-char-description", test_text_character_description), &
                     new_unittest("keymap-string-keys-and-silly-symbols", test_string_keys), &
                     new_unittest("keymap-prompt-and-minor-mode-key-binding", test_prompt_minor) &
                     ]
     end subroutine collect_keymap_mod
 
     !> kbd: the key sequence for `text`, which must parse.
-    function kbd(text) result(key)
+    function keyboard(text) result(key)
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: key(:)
         type(status_type) :: st
 
         call key_parse(text, key, st)
         if (.not. st%ok()) allocate (key(0))
-    end function kbd
+    end function keyboard
 
     function ch(c) result(key)
         character, intent(in) :: c
@@ -108,21 +108,21 @@ contains
         key(1) = value_type(int(iachar(c), int64))
     end function ch
 
-    function lookup(map, key) result(val)
+    function lookup(map, key) result(value)
         type(value_type), intent(in) :: map
         type(value_type), intent(in) :: key(:)
-        type(value_type) :: val
+        type(value_type) :: value
         type(status_type) :: st
 
-        call lookup_key(map, key, val, st)
+        call lookup_key(map, key, value, st)
     end function lookup
 
-    function ref(km) result(v)
+    function reference(km) result(v)
         type(handle_type), intent(in) :: km
         type(value_type) :: v
 
-        v = make_keymap_ref(km)
-    end function ref
+        v = make_keymap_reference(km)
+    end function reference
 
     subroutine free(km)
         type(handle_type), intent(in) :: km
@@ -154,16 +154,16 @@ contains
 
         call make_keymap(a)
         call make_sparse_keymap(b)
-        call check(error, is_keymap(ref(a)) .and. is_keymap(ref(b)), "keymaps")
+        call check(error, is_keymap(reference(a)) .and. is_keymap(reference(b)), "keymaps")
         if (allocated(error)) return
         call check(error,.not. is_keymap(list(value_type(name="foo"), value_type(name="bar"))), "(foo bar)")
         if (allocated(error)) return
         call check(error,.not. is_keymap(value_type()), "nil")
         if (allocated(error)) return
-        call check(error, is_keymap(list(ref(a), ref(b))), "composite")
+        call check(error, is_keymap(list(reference(a), reference(b))), "composite")
         call free(a)
         if (allocated(error)) return
-        call check(error,.not. is_keymap(ref(a)), "freed keymap")
+        call check(error,.not. is_keymap(reference(a)), "freed keymap")
         call free(b)
     end subroutine test_is_keymap
 
@@ -182,7 +182,7 @@ contains
         call check(error, st%ok() .and. h%index == parent%index, "parent")
         if (allocated(error)) return
         call set_keymap_parent(parent, map, st)
-        call check(error, st%code == FM_GENERIC_ERROR .and. &
+        call check(error, st%code == GENERIC_ERROR_CODE .and. &
                    st%detail == "Cyclic keymap inheritance", "cycle")
         if (allocated(error)) return
         call set_keymap_parent(map, null_handle(), st)
@@ -199,23 +199,23 @@ contains
         type(value_type) :: v
 
         call make_keymap(map)
-        call define_key(map, kbd("a"), value_type(name="foo"), st)
-        call define_key(map, kbd("C-c x"), value_type(name="bar"), st)
+        call define_key(map, keyboard("a"), value_type(name="foo"), st)
+        call define_key(map, keyboard("C-c x"), value_type(name="bar"), st)
         call copy_keymap(map, copy, st)
         call check(error, st%ok() .and. copy%index /= map%index, "is-not-eq")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(ref(copy), kbd("a")), value_type(name="foo")) .and. &
-                   value_eq(lookup(ref(copy), kbd("C-c x")), value_type(name="bar")), "is-equal")
+        call check(error, value_eq(lookup(reference(copy), keyboard("a")), value_type(name="foo")) .and. &
+                   value_eq(lookup(reference(copy), keyboard("C-c x")), value_type(name="bar")), "is-equal")
         if (allocated(error)) return
         ! Sub-keymaps are copied, so changing one map leaves the other alone.
-        v = lookup(ref(map), kbd("C-c"))
+        v = lookup(reference(map), keyboard("C-c"))
         sub = xhandle(v)
-        v = lookup(ref(copy), kbd("C-c"))
+        v = lookup(reference(copy), keyboard("C-c"))
         subcopy = xhandle(v)
         call check(error, sub%index /= subcopy%index, "sub-keymap copied")
         if (allocated(error)) return
-        call define_key(copy, kbd("C-c x"), value_type(name="baz"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("C-c x")), value_type(name="bar")), "independent")
+        call define_key(copy, keyboard("C-c x"), value_type(name="baz"), st)
+        call check(error, value_eq(lookup(reference(map), keyboard("C-c x")), value_type(name="bar")), "independent")
         if (allocated(error)) return
         ! The copy owns its sub-keymap copy.
         call free(copy)
@@ -230,7 +230,7 @@ contains
 
         call make_keymap(map)
         call define_key(map, ch("a"), value_type(), st)
-        call check(error, st%ok() .and. vtag(lookup(ref(map), ch("a"))) == V_NULL)
+        call check(error, st%ok() .and. vtag(lookup(reference(map), ch("a"))) == V_NULL)
         call free(map)
     end subroutine test_define_undefined
 
@@ -241,7 +241,7 @@ contains
 
         call make_keymap(map)
         call define_key(map, ch("a"), value_type(text="abc"), st)
-        call check(error, value_equal(lookup(ref(map), ch("a")), value_type(text="abc")))
+        call check(error, value_equal(lookup(reference(map), ch("a")), value_type(text="abc")))
         call free(map)
     end subroutine test_define_macro
 
@@ -252,9 +252,9 @@ contains
 
         call make_keymap(map)
         call make_keymap(map2)
-        call define_key(map, ch("a"), ref(map2), st)
+        call define_key(map, ch("a"), reference(map2), st)
         call define_key(map2, ch("b"), value_type(name="foo"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("a b")), value_type(name="foo")))
+        call check(error, value_eq(lookup(reference(map), keyboard("a b")), value_type(name="foo")))
         call free(map)
         call free(map2)
     end subroutine test_define_keymap
@@ -268,15 +268,15 @@ contains
 
         call make_keymap(map)
         call define_key(map, ch("a"), value_type(name="foo"), st)
-        call check(error, value_eq(lookup(ref(map), ch("a")), value_type(name="foo")), "a")
+        call check(error, value_eq(lookup(reference(map), ch("a")), value_type(name="foo")), "a")
         if (allocated(error)) return
-        call check(error, vtag(lookup(ref(map), ch("b"))) == V_NULL, "b")
+        call check(error, vtag(lookup(reference(map), ch("b"))) == V_NULL, "b")
         if (allocated(error)) return
         allocate (none(0))
-        call check(error, value_eq(lookup(ref(map), none), ref(map)), "empty key")
+        call check(error, value_eq(lookup(reference(map), none), reference(map)), "empty key")
         if (allocated(error)) return
         call lookup_key(value_type(name="foo"), ch("a"), v, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "not a keymap")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "not a keymap")
         call free(map)
     end subroutine test_lookup_key
 
@@ -290,7 +290,7 @@ contains
         call make_keymap(map2)
         call define_key(map1, ch("a"), value_type(name="foo"), st)
         call define_key(map2, ch("b"), value_type(name="bar"), st)
-        maps = list(ref(map1), ref(map2))
+        maps = list(reference(map1), reference(map2))
         call check(error, value_eq(lookup(maps, ch("a")), value_type(name="foo")), "a")
         if (allocated(error)) return
         call check(error, value_eq(lookup(maps, ch("b")), value_type(name="bar")), "b")
@@ -307,8 +307,8 @@ contains
         type(value_type) :: v
 
         call make_keymap(map)
-        call define_key(map, kbd("C-c f"), value_type(name="foo"), st)
-        v = lookup(ref(map), kbd("C-c f x"))
+        call define_key(map, keyboard("C-c f"), value_type(name="foo"), st)
+        v = lookup(reference(map), keyboard("C-c f x"))
         call check(error, vtag(v) == V_INTEGER, "fixnum")
         if (allocated(error)) return
         call check(error, xfixnum(v), 2_int64)
@@ -326,16 +326,16 @@ contains
         key(1) = value_type(.true.)
         call define_key(map, key, value_type(name="self_insert_command"), st)
         call define_key(map, ch("a"), value_type(name="foo"), st)
-        call check(error, vtag(lookup(ref(map), ch("b"))) == V_NULL, "ignored")
+        call check(error, vtag(lookup(reference(map), ch("b"))) == V_NULL, "ignored")
         if (allocated(error)) return
-        call lookup_key(ref(map), ch("b"), v, st, accept_default=.true.)
+        call lookup_key(reference(map), ch("b"), v, st, accept_default=.true.)
         call check(error, value_eq(v, value_type(name="self_insert_command")), "default")
         if (allocated(error)) return
-        call lookup_key(ref(map), ch("a"), v, st, accept_default=.true.)
+        call lookup_key(reference(map), ch("a"), v, st, accept_default=.true.)
         call check(error, value_eq(v, value_type(name="foo")), "specific wins")
         if (allocated(error)) return
         ! M-b has no ESC map here, so only the default can apply.
-        call lookup_key(ref(map), kbd("M-b"), v, st, accept_default=.true.)
+        call lookup_key(reference(map), keyboard("M-b"), v, st, accept_default=.true.)
         call check(error, value_eq(v, value_type(name="self_insert_command")), "meta default")
         call free(map)
     end subroutine test_accept_default
@@ -352,17 +352,17 @@ contains
             call set_keymap_parent(child, parent, st)
             call define_key(parent, ch("a"), value_type(name="foo"), st)
             call define_key(child, ch("a"), value_type(name="bar"), st)
-            call check(error, value_eq(lookup(ref(child), ch("a")), value_type(name="bar")), "bar")
+            call check(error, value_eq(lookup(reference(child), ch("a")), value_type(name="bar")), "bar")
             if (allocated(error)) return
 
             if (pass == 1) then
                 ! Set to nil: shadows the parent.
                 call define_key(child, ch("a"), value_type(), st)
-                call check(error, vtag(lookup(ref(child), ch("a"))) == V_NULL, "nil")
+                call check(error, vtag(lookup(reference(child), ch("a"))) == V_NULL, "nil")
             else
                 ! Remove: the parent shows through.
                 call define_key(child, ch("a"), value_type(), st, remove=.true.)
-                call check(error, value_eq(lookup(ref(child), ch("a")), value_type(name="foo")), "foo")
+                call check(error, value_eq(lookup(reference(child), ch("a")), value_type(name="foo")), "foo")
             end if
 
             call free(child)
@@ -380,17 +380,17 @@ contains
         call make_sparse_keymap(parent)
         call set_keymap_parent(map, parent, st)
         ! Removing an unset key should not add a key.
-        call define_key(parent, kbd("u"), value_type(name="undo"), st)
-        call define_key(map, kbd("u"), value_type(), st, remove=.true.)
-        call check(error, value_eq(lookup(ref(map), kbd("u")), value_type(name="undo")), "undo")
+        call define_key(parent, keyboard("u"), value_type(name="undo"), st)
+        call define_key(map, keyboard("u"), value_type(), st, remove=.true.)
+        call check(error, value_eq(lookup(reference(map), keyboard("u")), value_type(name="undo")), "undo")
         if (allocated(error)) return
         ! Non-removed child bindings should shadow parent.
-        call define_key(map, kbd("u"), value_type(name="identity"), st)
-        call define_key(map, kbd("u"), value_type(), st)
-        call check(error, vtag(lookup(ref(map), kbd("u"))) == V_NULL, "shadowed")
+        call define_key(map, keyboard("u"), value_type(name="identity"), st)
+        call define_key(map, keyboard("u"), value_type(), st)
+        call check(error, vtag(lookup(reference(map), keyboard("u"))) == V_NULL, "shadowed")
         if (allocated(error)) return
-        call define_key(map, kbd("u"), value_type(), st, remove=.true.)
-        call check(error, value_eq(lookup(ref(map), kbd("u")), value_type(name="undo")), "from parent")
+        call define_key(map, keyboard("u"), value_type(), st, remove=.true.)
+        call check(error, value_eq(lookup(reference(map), keyboard("u")), value_type(name="undo")), "from parent")
         call free(map)
         call free(parent)
     end subroutine test_unset_inherit
@@ -398,7 +398,7 @@ contains
     !> A full keymap's character range (a char-table range upstream): a
     !> character removed from it falls through to the parent, one bound
     !> to nil stays unbound, and where-is finds runs as intervals.
-    subroutine test_char_table_range(error)
+    subroutine test_character_table_range(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: map, parent
         type(status_type) :: st
@@ -408,18 +408,18 @@ contains
         call make_keymap(map)
         call make_sparse_keymap(parent)
         call set_keymap_parent(map, parent, st)
-        call define_key(parent, kbd("b"), value_type(name="undo"), st)
-        call define_key(parent, kbd("c"), value_type(name="undo"), st)
+        call define_key(parent, keyboard("b"), value_type(name="undo"), st)
+        call define_key(parent, keyboard("c"), value_type(name="undo"), st)
         call define_key_range(map, 97_int64, 122_int64, value_type(name="self_insert_command"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("b")), value_type(name="self_insert_command")), "range")
+        call check(error, value_eq(lookup(reference(map), keyboard("b")), value_type(name="self_insert_command")), "range")
         if (allocated(error)) return
-        call define_key(map, kbd("b"), value_type(), st, remove=.true.)
-        call check(error, value_eq(lookup(ref(map), kbd("b")), value_type(name="undo")), "removed")
+        call define_key(map, keyboard("b"), value_type(), st, remove=.true.)
+        call check(error, value_eq(lookup(reference(map), keyboard("b")), value_type(name="undo")), "removed")
         if (allocated(error)) return
-        call define_key(map, kbd("c"), value_type(), st)
-        call check(error, vtag(lookup(ref(map), kbd("c"))) == V_NULL, "unbound")
+        call define_key(map, keyboard("c"), value_type(), st)
+        call check(error, vtag(lookup(reference(map), keyboard("c"))) == V_NULL, "unbound")
         if (allocated(error)) return
-        call define_key(map, kbd("b"), value_type(name="self_insert_command"), st)
+        call define_key(map, keyboard("b"), value_type(name="self_insert_command"), st)
         call use_local_map(map, st)
         call where_is_internal(value_type(name="self_insert_command"), keys, keymap=map)
         call list_elements(keys, seqs)
@@ -433,7 +433,7 @@ contains
         call use_local_map(null_handle(), st)
         call free(map)
         call free(parent)
-    end subroutine test_char_table_range
+    end subroutine test_character_table_range
 
     !> `equal' compares keymaps as the lists they are upstream.
     subroutine test_equal_keymap(error)
@@ -445,12 +445,12 @@ contains
 
         call make_sparse_keymap(a)
         call make_sparse_keymap(b)
-        call define_key(a, kbd("C-x f"), value_type(name="find_file"), st)
-        call define_key(b, kbd("C-x f"), value_type(name="find_file"), st)
-        call check(error, value_equal(ref(a), ref(b)) .and. .not. value_eq(ref(a), ref(b)), "same bindings")
+        call define_key(a, keyboard("C-x f"), value_type(name="find_file"), st)
+        call define_key(b, keyboard("C-x f"), value_type(name="find_file"), st)
+        call check(error, value_equal(reference(a), reference(b)) .and. .not. value_eq(reference(a), reference(b)), "same bindings")
         if (allocated(error)) return
-        call define_key(b, kbd("C-x g"), value_type(name="undo"), st)
-        call check(error,.not. value_equal(ref(a), ref(b)), "different bindings")
+        call define_key(b, keyboard("C-x g"), value_type(name="undo"), st)
+        call check(error,.not. value_equal(reference(a), reference(b)), "different bindings")
         if (allocated(error)) return
         ! Full keymaps: their char-tables' contents.
         call make_keymap(fa)
@@ -462,7 +462,7 @@ contains
             call define_key(fb, key, value_type(name="undo"), st)
         end do
 
-        call check(error, value_equal(ref(fa), ref(fb)), "char-tables")
+        call check(error, value_equal(reference(fa), reference(fb)), "char-tables")
         call free(a)
         call free(b)
         call free(fa)
@@ -476,14 +476,14 @@ contains
         type(status_type) :: st
 
         call make_sparse_keymap(map)
-        call check(error, readable_text(ref(map)), "(keymap)")
+        call check(error, readable_text(reference(map)), "(keymap)")
         if (allocated(error)) return
         call make_sparse_keymap(parent, value_type(text="Menu"))
-        call define_key(parent, kbd("<f5>"), value_type(name="undo"), st)
+        call define_key(parent, keyboard("<f5>"), value_type(name="undo"), st)
         call set_keymap_parent(map, parent, st)
-        call define_key(map, kbd("a"), value_type(name="undo"), st)
-        call define_key(map, kbd("C-x b"), value_type(), st)
-        call check(error, readable_text(ref(map)), "(keymap (24 keymap (98)) (97 . undo) keymap (f5 . undo) ""Menu"")")
+        call define_key(map, keyboard("a"), value_type(name="undo"), st)
+        call define_key(map, keyboard("C-x b"), value_type(), st)
+        call check(error, readable_text(reference(map)), "(keymap (24 keymap (98)) (97 . undo) keymap (f5 . undo) ""Menu"")")
         call free(map)
         call free(parent)
     end subroutine test_print_keymap
@@ -499,20 +499,20 @@ contains
         call make_sparse_keymap(parent)
         call make_sparse_keymap(child)
         call set_keymap_parent(child, parent, st)
-        call define_key(parent, kbd("C-x C-f"), value_type(name="find_file"), st)
-        call define_key(parent, kbd("C-x C-s"), value_type(name="save_buffer"), st)
-        call define_key(child, kbd("C-x k"), value_type(name="close_buffer"), st)
-        call check(error, value_eq(lookup(ref(child), kbd("C-x k")), value_type(name="close_buffer")), "child")
+        call define_key(parent, keyboard("C-x C-f"), value_type(name="find_file"), st)
+        call define_key(parent, keyboard("C-x C-s"), value_type(name="save_buffer"), st)
+        call define_key(child, keyboard("C-x k"), value_type(name="close_buffer"), st)
+        call check(error, value_eq(lookup(reference(child), keyboard("C-x k")), value_type(name="close_buffer")), "child")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(ref(child), kbd("C-x C-f")), value_type(name="find_file")), "parent")
+        call check(error, value_eq(lookup(reference(child), keyboard("C-x C-f")), value_type(name="find_file")), "parent")
         if (allocated(error)) return
-        v = lookup(ref(child), kbd("C-x"))
+        v = lookup(reference(child), keyboard("C-x"))
         call check(error, vtag(v) == V_ARRAY .and. is_keymap(v), "composite")
         if (allocated(error)) return
-        call define_key(child, kbd("C-x C-s"), value_type(), st)
-        call check(error, vtag(lookup(ref(child), kbd("C-x C-s"))) == V_NULL, "nil shadows")
+        call define_key(child, keyboard("C-x C-s"), value_type(), st)
+        call check(error, vtag(lookup(reference(child), keyboard("C-x C-s"))) == V_NULL, "nil shadows")
         if (allocated(error)) return
-        call check(error, vtag(lookup(ref(parent), kbd("C-x k"))) == V_NULL, "parent unchanged")
+        call check(error, vtag(lookup(reference(parent), keyboard("C-x k"))) == V_NULL, "parent unchanged")
         call free(child)
         call free(parent)
     end subroutine test_prefix_composition
@@ -525,19 +525,19 @@ contains
         type(value_type) :: key(2)
 
         call make_sparse_keymap(map)
-        call define_key(map, kbd("M-x"), value_type(name="execute_extended_command"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("M-x")), &
+        call define_key(map, keyboard("M-x"), value_type(name="execute_extended_command"), st)
+        call check(error, value_eq(lookup(reference(map), keyboard("M-x")), &
                                    value_type(name="execute_extended_command")), "M-x")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(ref(map), kbd("ESC x")), &
+        call check(error, value_eq(lookup(reference(map), keyboard("ESC x")), &
                                    value_type(name="execute_extended_command")), "ESC x")
         if (allocated(error)) return
-        call check(error, is_keymap(lookup(ref(map), kbd("ESC"))), "ESC map")
+        call check(error, is_keymap(lookup(reference(map), keyboard("ESC"))), "ESC map")
         if (allocated(error)) return
         key(1) = value_type(27_int64)
         key(2) = value_type(META + iachar("y"))
         call define_key(map, key, value_type(name="foo"), st)
-        call check(error, value_eq(lookup(ref(map), kbd("ESC ESC y")), value_type(name="foo")), "ESC M-y")
+        call check(error, value_eq(lookup(reference(map), keyboard("ESC ESC y")), value_type(name="foo")), "ESC M-y")
         call free(map)
     end subroutine test_meta
 
@@ -547,14 +547,14 @@ contains
         type(status_type) :: st
 
         call make_sparse_keymap(map)
-        call define_key(map, kbd("C-c"), value_type(name="foo"), st)
-        call define_key(map, kbd("C-c f"), value_type(name="bar"), st)
-        call check(error, st%code == FM_GENERIC_ERROR, "error")
+        call define_key(map, keyboard("C-c"), value_type(name="foo"), st)
+        call define_key(map, keyboard("C-c f"), value_type(name="bar"), st)
+        call check(error, st%code == GENERIC_ERROR_CODE, "error")
         if (allocated(error)) return
         call check(error, st%detail, "Key sequence C-c f starts with non-prefix key C-c")
         if (allocated(error)) return
-        call define_key(map, kbd("ESC"), value_type(name="foo"), st)
-        call define_key(map, kbd("M-a"), value_type(name="bar"), st)
+        call define_key(map, keyboard("ESC"), value_type(name="foo"), st)
+        call define_key(map, keyboard("M-a"), value_type(name="bar"), st)
         call check(error, st%detail, "Key sequence M-a starts with non-prefix key ESC")
         call free(map)
     end subroutine test_non_prefix
@@ -570,9 +570,9 @@ contains
         key(1) = value_type(name="M-C-home")
         call define_key(map, key, value_type(name="foo"), st)
         key(1) = value_type(name="C-M-home")
-        call check(error, value_eq(lookup(ref(map), key), value_type(name="foo")), "C-M-home")
+        call check(error, value_eq(lookup(reference(map), key), value_type(name="foo")), "C-M-home")
         if (allocated(error)) return
-        call check(error, value_eq(lookup(ref(map), kbd("C-M-<home>")), value_type(name="foo")), "kbd")
+        call check(error, value_eq(lookup(reference(map), keyboard("C-M-<home>")), value_type(name="foo")), "kbd")
         call free(map)
     end subroutine test_modifier_order
 
@@ -581,55 +581,55 @@ contains
         type(value_type), allocatable :: k(:)
         type(status_type) :: st
 
-        k = kbd("C-x C-f")
+        k = keyboard("C-x C-f")
         call check(error, size(k) == 2, "C-x C-f size")
         if (allocated(error)) return
         call check(error, xfixnum(k(1)) == 24 .and. xfixnum(k(2)) == 6, "C-x C-f")
         if (allocated(error)) return
-        k = kbd("M-x")
+        k = keyboard("M-x")
         call check(error, xfixnum(k(1)), META + 120)
         if (allocated(error)) return
-        k = kbd("C-M-<return>")
+        k = keyboard("C-M-<return>")
         call check(error, value_eq(k(1), value_type(name="C-M-return")), "C-M-<return>")
         if (allocated(error)) return
-        k = kbd("<f1> SPC")
+        k = keyboard("<f1> SPC")
         call check(error, value_eq(k(1), value_type(name="f1")) .and. xfixnum(k(2)) == 32, "<f1> SPC")
         if (allocated(error)) return
-        k = kbd("RET TAB ESC DEL NUL LFD")
+        k = keyboard("RET TAB ESC DEL NUL LFD")
         call check(error, all(xfixnum(k) == [13, 9, 27, 127, 0, 10]), "named")
         if (allocated(error)) return
-        k = kbd("C-<RET>")
-        call check(error, xfixnum(k(1)), CTL + 13)
+        k = keyboard("C-<RET>")
+        call check(error, xfixnum(k(1)), CONTROL + 13)
         if (allocated(error)) return
-        k = kbd("3*a")
+        k = keyboard("3*a")
         call check(error, size(k) == 3 .and. all(xfixnum(k) == 97), "3*a")
         if (allocated(error)) return
-        k = kbd("C-%")
-        call check(error, xfixnum(k(1)), CTL + 37)
+        k = keyboard("C-%")
+        call check(error, xfixnum(k(1)), CONTROL + 37)
         if (allocated(error)) return
-        k = kbd("^C ^@")
+        k = keyboard("^C ^@")
         call check(error, xfixnum(k(1)) == 3 .and. xfixnum(k(2)) == 0, "^C")
         if (allocated(error)) return
-        k = kbd("\101")
+        k = keyboard("\101")
         call check(error, xfixnum(k(1)), 65_int64)
         if (allocated(error)) return
-        k = kbd("abc")
+        k = keyboard("abc")
         call check(error, size(k) == 3, "abc")
         if (.not. allocated(error)) call check(error, xfixnum(k(3)) == 99, "abc")
         if (allocated(error)) return
-        k = kbd("M-10")
+        k = keyboard("M-10")
         call check(error, size(k) == 2, "M-10")
         if (.not. allocated(error)) call check(error, xfixnum(k(2)) == META + 48, "M-10")
         if (allocated(error)) return
-        k = kbd("C-x REM comment"//achar(10)//"x")
+        k = keyboard("C-x REM comment"//achar(10)//"x")
         call check(error, size(k) == 2, "REM")
         if (.not. allocated(error)) call check(error, xfixnum(k(2)) == 120, "REM")
         if (allocated(error)) return
-        k = kbd("o"//char(195)//char(161))
+        k = keyboard("o"//char(195)//char(161))
         call check(error, size(k) == 2, "multibyte")
         if (.not. allocated(error)) call check(error, xfixnum(k(2)) == 225, "multibyte")
         if (allocated(error)) return
-        k = kbd("<mouse 1>")
+        k = keyboard("<mouse 1>")
         call check(error, value_eq(k(1), value_type(name="mouse 1")), "<as df>")
         if (allocated(error)) return
         call key_parse("C-xy", k, st)
@@ -676,11 +676,11 @@ contains
         if (allocated(error)) return
         call check(error, push_key_description(META + 9), "C-M-i")
         if (allocated(error)) return
-        call check(error, push_key_description(CTL + HYPER + 32), "C-H-SPC")
+        call check(error, push_key_description(CONTROL + HYPER + 32), "C-H-SPC")
         if (allocated(error)) return
         call check(error, push_key_description(int(z'400000', int64)), "A-C-@")
         if (allocated(error)) return
-        call check(error, key_description(kbd("C-x C-f M-q <f5> DEL")), "C-x C-f M-q <f5> DEL")
+        call check(error, key_description(keyboard("C-x C-f M-q <f5> DEL")), "C-x C-f M-q <f5> DEL")
     end subroutine test_key_description
 
     !> Local maps take precedence over the global map.
@@ -693,8 +693,8 @@ contains
         global = current_global_map()
         call check(error, is_keymap_live(global) .and. is_keymap_full(global), "global")
         if (allocated(error)) return
-        call define_key(global, kbd("C-x C-f"), value_type(name="find_file"), st)
-        call define_key(global, kbd("C-f"), value_type(name="forward_char"), st)
+        call define_key(global, keyboard("C-x C-f"), value_type(name="find_file"), st)
+        call define_key(global, keyboard("C-f"), value_type(name="forward_character"), st)
         call get_or_make_buffer("*keymap-test*", buffer, st)
         call set_buffer(buffer, st)
         call make_sparse_keymap(local)
@@ -702,19 +702,19 @@ contains
         h = current_local_map()
         call check(error, st%ok() .and. h%index == local%index, "local")
         if (allocated(error)) return
-        call define_key(local, kbd("C-f"), value_type(name="local-forward"), st)
-        call key_binding(kbd("C-f"), v, st)
+        call define_key(local, keyboard("C-f"), value_type(name="local-forward"), st)
+        call key_binding(keyboard("C-f"), v, st)
         call check(error, value_eq(v, value_type(name="local-forward")), "local wins")
         if (allocated(error)) return
-        call key_binding(kbd("C-x C-f"), v, st)
+        call key_binding(keyboard("C-x C-f"), v, st)
         call check(error, value_eq(v, value_type(name="find_file")), "global")
         if (allocated(error)) return
-        call key_binding(kbd("C-f C-f"), v, st)
+        call key_binding(keyboard("C-f C-f"), v, st)
         call check(error,.not. allocated(v%a), "too long is nil")
         if (allocated(error)) return
         call use_local_map(null_handle(), st)
-        call key_binding(kbd("C-f"), v, st)
-        call check(error, value_eq(v, value_type(name="forward_char")), "no local map")
+        call key_binding(keyboard("C-f"), v, st)
+        call check(error, value_eq(v, value_type(name="forward_character")), "no local map")
         call free(local)
         call close_buffer(buffer, st)
     end subroutine test_key_binding
@@ -727,8 +727,8 @@ contains
         type(value_type) :: v
 
         call make_sparse_keymap(map)
-        call define_key(map, kbd("C-c a"), value_type(name="foo"), st)
-        v = lookup(ref(map), kbd("C-c"))
+        call define_key(map, keyboard("C-c a"), value_type(name="foo"), st)
+        v = lookup(reference(map), keyboard("C-c"))
         prefix = xhandle(v)
         call check(error, is_keymap_live(prefix), "prefix live")
         if (allocated(error)) return
@@ -736,7 +736,7 @@ contains
         call check(error, st%ok() .and. .not. is_keymap_live(prefix), "prefix freed")
         if (allocated(error)) return
         call destroy_keymap(map, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "stale")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "stale")
     end subroutine test_destroy
 
     subroutine test_is_key_valid(error)
@@ -797,10 +797,11 @@ contains
         call check(error, st%ok(), "keymap_set")
         if (allocated(error)) return
         a = value_type(97_int64)
-        call check(error, value_equal(lookup(ref(k), kbd("a")), list(a)), "a")
+        call check(error, value_equal(lookup(reference(k), keyboard("a")), list(a)), "a")
         if (allocated(error)) return
-        call keymap_set(k, "C-c b", "backward_char", st)
-        call check(error, value_eq(lookup(ref(k), kbd("C-c b")), value_type(name="backward_char")), "a command name")
+        call keymap_set(k, "C-c b", "backward_character", st)
+        call check(error, value_eq(lookup(reference(k), keyboard("C-c b")), value_type(name="backward_character")), &
+                   "a command name")
         if (allocated(error)) return
         call keymap_set(k, "b", value_type(text="C-xx"), st)
         call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
@@ -812,54 +813,54 @@ contains
         type(value_type) :: global
         type(status_type) :: st
 
-        global = ref(current_global_map())
-        call keymap_global_set("C-c x", "forward_char", st)
-        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c x")), value_type(name="forward_char")), &
+        global = reference(current_global_map())
+        call keymap_global_set("C-c x", "forward_character", st)
+        call check(error, st%ok() .and. value_eq(lookup(global, keyboard("C-c x")), value_type(name="forward_character")), &
                    "keymap_global_set")
         if (allocated(error)) return
         call keymap_global_set("C-c x", value_type(), st)
-        call check(error, vtag(lookup(global, kbd("C-c x"))) == V_NULL, "unbound with nil")
+        call check(error, vtag(lookup(global, keyboard("C-c x"))) == V_NULL, "unbound with nil")
         if (allocated(error)) return
-        call keymap_global_set("C-xx", "forward_char", st)
+        call keymap_global_set("C-xx", "forward_character", st)
         call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
         if (allocated(error)) return
-        call global_set_key(kbd("C-c y"), "backward_char", st)
-        call check(error, st%ok() .and. value_eq(lookup(global, kbd("C-c y")), value_type(name="backward_char")), &
+        call global_set_key(keyboard("C-c y"), "backward_character", st)
+        call check(error, st%ok() .and. value_eq(lookup(global, keyboard("C-c y")), value_type(name="backward_character")), &
                    "global_set_key")
-        call define_key(current_global_map(), kbd("C-c y"), value_type(), st, remove=.true.)
-        call define_key(current_global_map(), kbd("C-c x"), value_type(), st, remove=.true.)
+        call define_key(current_global_map(), keyboard("C-c y"), value_type(), st, remove=.true.)
+        call define_key(current_global_map(), keyboard("C-c x"), value_type(), st, remove=.true.)
     end subroutine test_keymap_global_set
 
     !> Ports keymap-tests.el's keymap-text-char-description.
-    subroutine test_text_char_description(error)
+    subroutine test_text_character_description(error)
         type(error_type), allocatable, intent(out) :: error
         character(len=:), allocatable :: d
         type(status_type) :: st
 
-        call text_char_description(97_int64, d, st)
+        call text_character_description(97_int64, d, st)
         call check(error, d, "a")
         if (allocated(error)) return
-        call text_char_description(32_int64, d, st)
+        call text_character_description(32_int64, d, st)
         call check(error, d, " ")
         if (allocated(error)) return
-        call text_char_description(9_int64, d, st)
+        call text_character_description(9_int64, d, st)
         call check(error, d, "^I")
         if (allocated(error)) return
-        call text_char_description(3_int64, d, st)
+        call text_character_description(3_int64, d, st)
         call check(error, d, "^C")
         if (allocated(error)) return
-        call text_char_description(127_int64, d, st)
+        call text_character_description(127_int64, d, st)
         call check(error, d, "^?")
         if (allocated(error)) return
-        call text_char_description(128_int64, d, st)
+        call text_character_description(128_int64, d, st)
         call check(error, d, char(194)//char(128))
         if (allocated(error)) return
-        call text_char_description(229_int64, d, st)
+        call text_character_description(229_int64, d, st)
         call check(error, d, char(195)//char(165))
         if (allocated(error)) return
-        call text_char_description(int(z'8000063', int64), d, st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "M-c")
-    end subroutine test_text_char_description
+        call text_character_description(int(z'8000063', int64), d, st)
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "M-c")
+    end subroutine test_text_character_description
 
     !> define-key and lookup-key take ["C-c a"] in key-valid-p syntax
     !> (possibly_translate_key_sequence); a symbol naming a character key
@@ -875,10 +876,10 @@ contains
         call define_key(km, key, value_type(name="ignore"), st)
         call check(error, st%ok(), "define")
         if (allocated(error)) return
-        call lookup_key(make_keymap_ref(km), kbd_keys("C-c a"), v, st)
+        call lookup_key(make_keymap_reference(km), keyboard_keys("C-c a"), v, st)
         call check(error, value_eq(v, value_type(name="ignore")), "parsed")
         if (allocated(error)) return
-        call lookup_key(make_keymap_ref(km), key, v, st)
+        call lookup_key(make_keymap_reference(km), key, v, st)
         call check(error, value_eq(v, value_type(name="ignore")), "lookup string")
         if (allocated(error)) return
         key(1) = value_type(name="C-RET")
@@ -905,13 +906,13 @@ contains
         call check(error, xstring(v), "Choose")
         if (allocated(error)) return
         call make_sparse_keymap(mm)
-        call define_key(mm, kbd_keys("C-c z"), value_type(name="ignore"), st)
+        call define_key(mm, keyboard_keys("C-c z"), value_type(name="ignore"), st)
         call append_minor_mode_map("keymap_test_mode", mm)
         call set(value_type(name="keymap_test_mode"), value_type(.true.), st)
         call current_minor_mode_maps(maps)
         call check(error, any(maps%index == mm%index), "current-minor-mode-maps")
         if (allocated(error)) return
-        call minor_mode_key_binding(kbd_keys("C-c z"), modes, bindings, st)
+        call minor_mode_key_binding(keyboard_keys("C-c z"), modes, bindings, st)
         call check(error, size(modes) == 1 .and. value_eq(bindings(1), value_type(name="ignore")), "minor-mode-key-binding")
         if (allocated(error)) return
         call check(error, trim(modes(1)), "keymap_test_mode")
@@ -921,11 +922,11 @@ contains
     end subroutine test_prompt_minor
 
     !> The events of key description TEXT.
-    function kbd_keys(text) result(keys)
+    function keyboard_keys(text) result(keys)
         character(len=*), intent(in) :: text
         type(value_type), allocatable :: keys(:)
         type(status_type) :: st
 
         call key_parse(text, keys, st)
-    end function kbd_keys
+    end function keyboard_keys
 end module test_keymap_mod

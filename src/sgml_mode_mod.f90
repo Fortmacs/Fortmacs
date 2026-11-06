@@ -26,7 +26,7 @@
 !> `sgml_get_context'), tag motion (`sgml_skip_tag_backward',
 !> `sgml_skip_tag_forward'), `sgml_delete_tag', `sgml_close_tag',
 !> `sgml_quote', `sgml_pretty_print', `sgml_slash', the character names
-!> (`sgml_name_char', `sgml_namify_char', `sgml_name_8bit_mode'),
+!> (`sgml_name_character', `sgml_namify_character', `sgml_name_8bit_mode'),
 !> `sgml_validate', `sgml_guess_indent', `sgml_parse_dtd' and
 !> `html_current_heading_name'.
 !>
@@ -38,13 +38,13 @@
 !> `sgml_tags_invisible' (cursor sensors), `sgml_electric_tag_pair_mode'
 !> (text clones), `sgml_show_context', facemenu, tildify,
 !> outline variables, `sgml_comment_indent_new_line',
-!> the buffer-local `adaptive_fill_regexp', `fill_nobreak_functions' and
+!> the buffer-local `adaptive_fill_regular_expression', `fill_nobreak_functions' and
 !> `sentence_end_base', the classes and IDs of HTML buffers (libxml),
 !> yank-media handlers, `html_autoview_mode' and `browse_url_of_buffer'.
 module sgml_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use character_mod, only: downcase_ascii
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, vtag, V_NAME, V_INTEGER, xsymbol, symbols
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, append_locals_clearer, &
@@ -56,26 +56,27 @@ module sgml_mode_mod
     use add_log_mod, only: add_log_current_subprogram_function
     use keymap_mod, only: keymap_set
     use keyboard_mod, only: last_command_event, this_command, sit_for
-    use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_ppss, parse_state_type, &
-                          parse_partial_expression, forward_comment, skip_chars_forward, skip_chars_backward, skip_syntax_forward, &
-                          skip_syntax_backward, syntax_table, set_syntax_table, syntax_entry_at, ST_STRING_STYLE, &
-                          syntax_descriptor_type, string_to_syntax, syntax_descriptor_value
-    use editing_functions_mod, only: point, point_min, point_max, goto_char, is_bol, is_eol, is_bob, is_eob, char_after, &
-                               char_before, line_beginning_position, line_end_position, narrow_to_region, widen, buffer_substring, &
-                                     delete_region, following_char, preceding_char, char_to_string
-    use editing_commands_mod, only: forward_line, forward_char, self_insert_command, delete_char
+    use syntax_mod, only: make_syntax_table, modify_syntax_entry, is_syntax_table_live, syntax_parser_state, parse_state_type, &
+                          parse_partial_expression, forward_comment, skip_characters_forward, skip_characters_backward, &
+                          skip_syntax_forward, skip_syntax_backward, syntax_table, set_syntax_table, syntax_entry_at, &
+                          ST_STRING_STYLE, syntax_descriptor_type, string_to_syntax, syntax_descriptor_value
+    use editing_functions_mod, only: point, point_minimum, point_maximum, goto_character, is_beginning_of_line, is_end_of_line, &
+                                     is_beginning_of_buffer, is_end_of_buffer, character_after, character_before, &
+                                     line_beginning_position, line_end_position, narrow_to_region, widen, buffer_substring, &
+                                     delete_region, following_character, preceding_character, character_to_string
+    use editing_commands_mod, only: forward_line, forward_character, self_insert_command, delete_character
     use insert_delete_mod, only: insert
     use indent_mod, only: current_column, current_indentation, indent_line_to, indent_line_function, &
                           indent_according_to_mode
-    use search_mod, only: looking_at, re_search_forward, re_search_backward, search_backward, search_forward, &
-                          string_match, match_beginning, match_end, replace_match, case_fold_search, regexp_quote, &
-                          SEARCH_NOERROR, SEARCH_MOVE
+    use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, search_backward, &
+                          search_forward, string_match, match_beginning, match_end, replace_match, case_fold_search, &
+                          regular_expression_quote, SEARCH_NOERROR, SEARCH_MOVE
     use basic_subprograms_mod, only: match_string, match_string_no_properties, looking_back
-    use simple_mod, only: back_to_indentation, read_quoted_char, read_shell_command, reindent_then_newline_and_indent
+    use simple_mod, only: back_to_indentation, read_quoted_character, read_shell_command, reindent_then_newline_and_indent
     use text_properties_mod, only: put_text_property, get_text_property
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use display_engine_mod, only: message
-    use faces_mod, only: named_face_type, display_when, face_attrs
+    use faces_mod, only: named_face_type, display_when, face_attributes
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              font_lock_keywords_type, font_lock_keywords_level
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_prepend_text_property
@@ -84,11 +85,11 @@ module sgml_mode_mod
                               comment_indent_function, comment_indent_type, COMMENT_INDENT_COLUMN
     use paragraphs_mod, only: paragraph_start, paragraph_separate
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type, &
-                                     syntax_property_type, syntax_ppss_table
-    use regular_expression_optimization_mod, only: regexp_opt, REGEXP_OPT_GROUP
+                                     syntax_property_type, syntax_parser_state_table
+    use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     use undo_mod, only: undo_boundary
     use frame_mod, only: selected_window
-    use window_mod, only: is_pos_visible_in_window
+    use window_mod, only: is_position_visible_in_window
     use files_mod, only: save_some_buffers
     use compile_mod, only: compilation_start, compilation_ask_about_save
     use text_mode_mod, only: text_mode_syntax_table
@@ -99,7 +100,7 @@ module sgml_mode_mod
                             skeleton_end_newline, skeleton_end_hook, SKELETON_NEWLINE, SKELETON_POINT, SKELETON_STRING, &
                             SKELETON_INDENT, SKELETON_END, SKELETON_RESUME, SKELETON_V2, SKELETON_IF_NOT_MOVED, &
                             SKELETON_NO_INTERACTOR
-    use execute_interactively_mod, only: prefix_arg_type, current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+    use execute_interactively_mod, only: prefix_argument_type, current_prefix_argument, prefix_numeric_value, PREFIX_NONE
     use minibuffer_reading_mod, only: read_string, completion_table_type, completion_ignore_case
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use replace_mod, only: format_prompt
@@ -113,17 +114,17 @@ module sgml_mode_mod
     use minibuffer_mod, only: read_file_name
     use print_mod, only: fortran_string
     use data_mod, only: history_setting_type
-    use error_mod, only: FM_WRONG_TYPE_ARGUMENT
-    use index_menu_mod, only: imenu_patterns, imenu_pattern_type, imenu_create_index_function, imenu_index_type
+    use error_mod, only: WRONG_TYPE_ARGUMENT_CODE
+    use index_menu_mod, only: index_menu_patterns, index_menu_pattern_type, index_menu_create_index_function, index_menu_index_type
     use string_type_mod, only: string_type, append_string
     use data_mod, only: choice_setting_type
     implicit none(type, external)
     private
 
-    public :: init_sgml_mode, sgml_mode, html_mode, sgml_indent_line, sgml_calculate_indent, sgml_lexical_context, &
+    public :: initialize_sgml_mode, sgml_mode, html_mode, sgml_indent_line, sgml_calculate_indent, sgml_lexical_context, &
               sgml_beginning_of_tag, sgml_skip_tag_backward, sgml_skip_tag_forward, sgml_delete_tag, sgml_close_tag, &
               sgml_quote, sgml_pretty_print, sgml_xml_guess, sgml_parse_tag_backward, sgml_get_context, sgml_tag_type, &
-              sgml_namify_char, sgml_name_char, sgml_parse_dtd, html_current_heading_name, sgml_syntax_propertize, &
+              sgml_namify_character, sgml_name_character, sgml_parse_dtd, html_current_heading_name, sgml_syntax_propertize, &
               sgml_font_lock_syntactic_face, sgml_tag, sgml_attributes, sgml_auto_attributes, sgml_tag_help, sgml_value, &
               html_href_anchor, html_href_anchor_file, html_name_anchor, html_id_anchor, html_headline_1, html_headline_2, &
               html_headline_3, html_headline_4, html_headline_5, html_headline_6, html_horizontal_rule, html_image, html_line, &
@@ -134,7 +135,7 @@ module sgml_mode_mod
 
     !> The types of a tag (`sgml_tag_type'%type).
     integer, parameter, public :: SGML_TAG_OPEN = 1, SGML_TAG_CLOSE = 2, SGML_TAG_EMPTY = 3, SGML_TAG_COMMENT = 4, &
-                                  SGML_TAG_CDATA = 5, SGML_TAG_PI = 6, SGML_TAG_DECL = 7, SGML_TAG_JSP = 8
+                                  SGML_TAG_CDATA = 5, SGML_TAG_PI = 6, SGML_TAG_DECLARATION = 7, SGML_TAG_JSP = 8
 
     !> The lexical contexts of `sgml_lexical_context'.
     integer, parameter, public :: SGML_CONTEXT_TEXT = 0, SGML_CONTEXT_STRING = 1, SGML_CONTEXT_COMMENT = 2, &
@@ -196,7 +197,7 @@ module sgml_mode_mod
 
     !> Array of symbolic character names without `&' and `;' ("" for
     !> none), by character code.  Port of sgml-mode.el sgml-char-names.
-    character(len=6), public :: sgml_char_names(0:255) = ""
+    character(len=6), public :: sgml_character_names(0:255) = ""
 
     !> List of tags whose !ELEMENT definition says EMPTY.  Port of
     !> sgml-mode.el sgml-empty-tags (its default; HTML mode's are its own).
@@ -259,8 +260,8 @@ module sgml_mode_mod
         integer(int64) :: serial = 0
         character(len=:), allocatable :: saved_validate_command
         logical :: html = .false.
-        integer(int64) :: ppss_pos = 0
-        type(parse_state_type) :: ppss
+        integer(int64) :: parser_state_position = 0
+        type(parse_state_type) :: parser_state
     end type sgml_local_type
 
     type(sgml_local_type), allocatable :: locals(:)
@@ -285,12 +286,12 @@ module sgml_mode_mod
     integer, parameter :: UNTIL_DEFAULT = 0, UNTIL_EMPTY = 1, UNTIL_NOW = 2
 
     ! sgml-namespace-re, sgml-name-re and sgml-tag-name-re.
-    character(len=*), parameter :: SGML_NAMESPACE_REGEXP = "[_[:alpha:]][-_.[:alnum:]]*", &
-                                   SGML_NAME_REGEXP = "[_:[:alpha:]][-_.:[:alnum:]]*", &
-                                   SGML_TAG_NAME_REGEXP = "<\([!/?]?"//SGML_NAME_REGEXP//"\)"
+    character(len=*), parameter :: SGML_NAMESPACE_REGULAR_EXPRESSION = "[_[:alpha:]][-_.[:alnum:]]*", &
+                                   SGML_NAME_REGULAR_EXPRESSION = "[_:[:alpha:]][-_.:[:alnum:]]*", &
+                                   SGML_TAG_NAME_REGULAR_EXPRESSION = "<\([!/?]?"//SGML_NAME_REGULAR_EXPRESSION//"\)"
 
     ! The regexps and data of sgml-mode.el.
-    character(len=*), parameter :: SGML_CHAR_NAMES_DATA(256) = [character(len=6) :: &
+    character(len=*), parameter :: SGML_CHARACTER_NAMES_DATA(256) = [character(len=6) :: &
                                                    "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", &
                                                     "", "", "", "", "", "", "", "", "", "", "", "", "nbsp", "excl", "quot", "num", &
                                     "dollar", "percnt", "amp", "apos", "lpar", "rpar", "ast", "plus", "comma", "hyphen", "period", &
@@ -309,30 +310,30 @@ module sgml_mode_mod
                                       "THORN", "szlig", "agrave", "aacute", "acirc", "atilde", "auml", "aring", "aelig", "ccedil", &
                                         "egrave", "eacute", "ecirc", "euml", "igrave", "iacute", "icirc", "iuml", "eth", "ntilde", &
                                    "ograve", "oacute", "ocirc", "otilde", "ouml", "divide", "oslash", "ugrave", "uacute", "ucirc", &
-                                                                "uuml", "yacute", "thorn", "yuml"]
-    character(len=*), parameter :: SGML_START_TAG_REGEXP = &
+                                                                     "uuml", "yacute", "thorn", "yuml"]
+    character(len=*), parameter :: SGML_START_TAG_REGULAR_EXPRESSION = &
                                    "<[_:[:alpha:]][-_.:[:alnum:]]*\(?:[^_.:""'/><[:alnu" &
                                    //"m:]-]\(?:[^""'/><]\|""[^""]*""\|'[^']*'\)*\)?"
-    character(len=*), parameter :: SGML_ATTRS_REGEXP = &
+    character(len=*), parameter :: SGML_ATTRIBUTES_REGULAR_EXPRESSION = &
                                    "\(?:[^_.:""'/><[:alnum:]-]\(?:[^""'/><]\|""[^""]*""\|'[" &
                                    //"^']*'\)*\)?"
-    character(len=*), parameter :: KW1_REGEXP = &
+    character(len=*), parameter :: KW1_REGULAR_EXPRESSION = &
                                    "<\([!?][_:[:alpha:]][-_.:[:alnum:]]*\)"
-    character(len=*), parameter :: KW2_REGEXP = &
+    character(len=*), parameter :: KW2_REGULAR_EXPRESSION = &
                                    "</?\([_[:alpha:]][-_.[:alnum:]]*\)\(?::\([_:[:alph" &
                                    //"a:]][-_.:[:alnum:]]*\)\)?"
-    character(len=*), parameter :: KW3_REGEXP = &
+    character(len=*), parameter :: KW3_REGULAR_EXPRESSION = &
                                    "\(?:^\|[ "//TAB//"]\)\([_[:alpha:]][-_.[:alnum:]]*\)\(?::\" &
                                    //"([_:[:alpha:]][-_.:[:alnum:]]*\)\)?=[""']"
-    character(len=*), parameter :: KW4_REGEXP = &
+    character(len=*), parameter :: KW4_REGULAR_EXPRESSION = &
                                    "[&%][_:[:alpha:]][-_.:[:alnum:]]*;?"
-    character(len=*), parameter :: XML_GUESS_REGEXP = &
+    character(len=*), parameter :: XML_GUESS_REGULAR_EXPRESSION = &
                                    "<!DOCTYPE\s-+\(\w+\)\s-+\(\w+\)\s-+""\([^""]+\)""\s-+" &
                                    //"""\([^""]+\)"""
-    character(len=*), parameter :: QUOTE_REGEXP = &
+    character(len=*), parameter :: QUOTE_REGULAR_EXPRESSION = &
                                    "\(&\(amp\|quot\|lt\|gt\|#\([0-9]+\|[xX][[:xdigit:]" &
                                    //"]+\)\)\)\([][<>&;"//LF//TAB//" ""%!'(),/=?]\|$\)"
-    character(len=*), parameter :: SGML_PARAGRAPH_START_REGEXP = &
+    character(len=*), parameter :: SGML_PARAGRAPH_START_REGULAR_EXPRESSION = &
                                    "[ "//TAB//"]*$\|[ "//TAB//"]*</?\([_:[:alpha:]][-_.:[:alnum:]]*\(?" &
                                    //":[^_.:""'/><[:alnum:]-]\(?:[^""'/><]\|""[^""]*""\|'[^']" &
                                    //"*'\)*\)?\)?>"
@@ -341,12 +342,12 @@ module sgml_mode_mod
     !> The second `match_string' matches extra tags and is ignored.
     !> The third `match_string' will be the used in the menu.  Port of
     !> sgml-mode.el html-imenu-regexp.
-    character(len=:), allocatable, public :: html_imenu_regexp
+    character(len=:), allocatable, public :: html_index_menu_regular_expression
 
-    character(len=*), parameter :: HTML_SUBPROGRAM_REGEXP = &
+    character(len=*), parameter :: HTML_SUBPROGRAM_REGULAR_EXPRESSION = &
                                    "<[ "//TAB//achar(13)//LF//"]*\(?:[hH][0-6]\|title\|TITLE\|Title\)[^>]*>" &
                                    //"[ "//TAB//achar(13)//LF//"]*\([^<"//achar(13)//LF//"]*[^ <"//TAB//achar(13)//LF//"]+\)"
-    character(len=*), parameter :: DTD_REGEXP = &
+    character(len=*), parameter :: DTD_REGULAR_EXPRESSION = &
                                   "<!ELEMENT[ "//TAB//LF//"]+\([^ "//TAB//LF//"]+\)[ "//TAB//LF//"]+[-O][ "//TAB//LF//"]+\([-O]\)" &
                                    //"[ "//TAB//LF//"]+\([^ "//TAB//LF//"]+\)"
 
@@ -542,31 +543,31 @@ contains
         if (k > 0) html_buffer = locals(k)%html
     end function html_buffer
 
-    ! The character after POS, -1 if none.
+    ! The character after POSITION, -1 if none.
     ! Not a port.
-    recursive integer function after_char_at(pos)
-        integer(int64), intent(in) :: pos
+    recursive integer function after_character_at(position)
+        integer(int64), intent(in) :: position
         integer(int32) :: c
         logical :: found
 
-        after_char_at = -1
-        if (pos < point_min() .or. pos >= point_max()) return
-        call char_after(c, found, pos)
-        if (found) after_char_at = c
-    end function after_char_at
+        after_character_at = -1
+        if (position < point_minimum() .or. position >= point_maximum()) return
+        call character_after(c, found, position)
+        if (found) after_character_at = c
+    end function after_character_at
 
-    ! The character before POS, -1 if none.
+    ! The character before POSITION, -1 if none.
     ! Not a port.
-    recursive integer function before_char_at(pos)
-        integer(int64), intent(in) :: pos
+    recursive integer function before_character_at(position)
+        integer(int64), intent(in) :: position
         integer(int32) :: c
         logical :: found
 
-        before_char_at = -1
-        if (pos <= point_min() .or. pos > point_max()) return
-        call char_before(c, found, pos)
-        if (found) before_char_at = c
-    end function before_char_at
+        before_character_at = -1
+        if (position <= point_minimum() .or. position > point_maximum()) return
+        call character_before(c, found, position)
+        if (found) before_character_at = c
+    end function before_character_at
 
     ! The start of subexpression N of the last match, 0 if it didn't match.
     ! Not a port.
@@ -586,22 +587,22 @@ contains
         me = match_end(n, st)
     end function me
 
-    ! looking-at REGEXP.
+    ! looking-at REGULAR_EXPRESSION.
     ! Not a port.
-    recursive logical function at(regexp)
-        character(len=*), intent(in) :: regexp
+    recursive logical function at(regular_expression)
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
 
-        at = looking_at(regexp, st)
+        at = looking_at(regular_expression, st)
     end function at
 
-    ! looking-at-p REGEXP.
+    ! looking-at-p REGULAR_EXPRESSION.
     ! Not a port.
-    recursive logical function is_at(regexp)
-        character(len=*), intent(in) :: regexp
+    recursive logical function is_at(regular_expression)
+        character(len=*), intent(in) :: regular_expression
         type(status_type) :: st
 
-        is_at = looking_at(regexp, st, inhibit_modify=.true.)
+        is_at = looking_at(regular_expression, st, inhibit_modify=.true.)
     end function is_at
 
     ! The text from START to END.
@@ -705,10 +706,10 @@ contains
     subroutine excursion_end(mark)
         type(handle_type), intent(in) :: mark
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call marker_position(mark, pos, st)
-        call goto_char(pos)
+        call marker_position(mark, position, st)
+        call goto_character(position)
         call destroy_marker(mark, st)
     end subroutine excursion_end
 
@@ -742,31 +743,31 @@ contains
     subroutine sgml_font_lock_syntactic_face(state, face)
         type(parse_state_type), intent(in) :: state
         character(len=:), allocatable, intent(out) :: face
-        logical :: in_paren
+        logical :: in_parenthesis
 
         face = ""
         ! Don't use string face outside of tags.
-        in_paren = .false.
-        if (allocated(state%open_parens)) in_paren = size(state%open_parens) > 0
+        in_parenthesis = .false.
+        if (allocated(state%open_parentheses)) in_parenthesis = size(state%open_parentheses) > 0
 
-        if (in_paren .and. state%instring >= 0) then
+        if (in_parenthesis .and. state%instring >= 0) then
             face = "font_lock_string_face"
         else if (state%incomment /= 0) then
             face = "font_lock_comment_face"
         end if
     end subroutine sgml_font_lock_syntactic_face
 
-    ! Return PPSS at POS, fixing the syntax of any lone `>' along the way.
+    ! Return PARSER_STATE at POSITION, fixing the syntax of any lone `>' along the way.
     ! Port of sgml-mode.el:sgml--syntax-propertize-ppss.
-    recursive function syntax_propertize_ppss(pos) result(state)
-        integer(int64), intent(in) :: pos
+    recursive function syntax_propertize_parser_state(position) result(state)
+        integer(int64), intent(in) :: position
         type(parse_state_type) :: state, old
         type(status_type) :: st
         integer :: k
 
         call make_local_entry(k)
-        old = locals(k)%ppss
-        call parse_partial_expression(locals(k)%ppss_pos, pos, state, st, targetdepth=-1_int64, oldstate=old)
+        old = locals(k)%parser_state
+        call parse_partial_expression(locals(k)%parser_state_position, position, state, st, targetdepth=-1_int64, oldstate=old)
 
         do while (state%depth == -1)
             call put_text_property(point() - 1, point(), value_type(name="syntax_table"), syntax_value("."), st)
@@ -774,12 +775,12 @@ contains
             ! (car sgml--syntax-propertize-ppss), we manually "fix it".
             state%depth = 0
             old = state
-            call parse_partial_expression(point(), pos, state, st, targetdepth=-1_int64, oldstate=old)
+            call parse_partial_expression(point(), position, state, st, targetdepth=-1_int64, oldstate=old)
         end do
 
-        locals(k)%ppss = state
-        locals(k)%ppss_pos = pos
-    end function syntax_propertize_ppss
+        locals(k)%parser_state = state
+        locals(k)%parser_state_position = position
+    end function syntax_propertize_parser_state
 
     !> Syntactic keywords for `sgml_mode'.  Port of
     !> sgml-mode.el:sgml-syntax-propertize.
@@ -791,17 +792,17 @@ contains
 
         status = status_type()
         call make_local_entry(k)
-        call goto_char(start)
-        call syntax_ppss(state, start)
-        locals(k)%ppss_pos = start
-        locals(k)%ppss = state
-        call goto_char(start)
+        call goto_character(start)
+        call syntax_parser_state(state, start)
+        locals(k)%parser_state_position = start
+        locals(k)%parser_state = state
+        call goto_character(start)
         if (state%depth < 0) return
         call syntax_propertize_inside(end)
         propertize_end = end
         call propertize_rules%apply(point(), end, status)
         ! Catch any '>' after the last quote.
-        state = syntax_propertize_ppss(end)
+        state = syntax_propertize_parser_state(end)
     end subroutine sgml_syntax_propertize
 
     ! Inside a declaration or processing instruction, put the closing
@@ -811,12 +812,12 @@ contains
         type(parse_state_type) :: state
         type(status_type) :: st
         character(len=:), allocatable :: endre
-        integer(int64) :: opoint, pos
+        integer(int64) :: original_point, position
 
-        call syntax_ppss(state)
+        call syntax_parser_state(state)
         if (state%instring /= ST_STRING_STYLE) return
-        opoint = point()
-        call goto_char(state%comstr_start)
+        original_point = point()
+        call goto_character(state%comstr_start)
 
         if (is_at("<!\[CDATA\[")) then
             endre = "]]>"
@@ -827,9 +828,9 @@ contains
             endre = ">"
         end if
 
-        call goto_char(opoint)
-        call re_search_forward(endre, pos, st, bound=end, noerror=SEARCH_MOVE)
-        if (pos > 0) call put_text_property(point() - 1, point(), value_type(name="syntax_table"), syntax_value("|<"), st)
+        call goto_character(original_point)
+        call regular_expression_search_forward(endre, position, st, bound=end, noerror=SEARCH_MOVE)
+        if (position > 0) call put_text_property(point() - 1, point(), value_type(name="syntax_table"), syntax_value("|<"), st)
     end subroutine syntax_propertize_inside
 
     ! The (prog1 "|>" (sgml-syntax-propertize-inside end)) of a declaration.
@@ -849,14 +850,14 @@ contains
         type(status_type), intent(out) :: status
         type(parse_state_type) :: state
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
 
         status = status_type()
         property%apply = .false.
 
-        if (after_char_at(point()) == after_char_at(mb(0))) then
+        if (after_character_at(point()) == after_character_at(mb(0))) then
             ! Fast-track case.
-            call forward_char(st, 1_int64)
+            call forward_character(st, 1_int64)
             return
         end if
 
@@ -866,13 +867,13 @@ contains
         ! solve this, but that would be too easy, so instead we only move
         ! back enough to avoid skipping comment ender, which happens to be
         ! the only one that we could have overlooked.
-        if (after_char_at(point()) == iachar(">")) moved = skip_chars_backward("-", st)
+        if (after_character_at(point()) == iachar(">")) moved = skip_characters_backward("-", st)
         ! Be careful to call `syntax-ppss' on a position before the one
         ! we're going to change, so as not to need to flush the data we just
         ! computed.
-        opoint = point()
-        state = syntax_propertize_ppss(mb(0))
-        call goto_char(opoint)
+        original_point = point()
+        state = syntax_propertize_parser_state(mb(0))
+        call goto_character(original_point)
 
         if (state%depth == 0) then
             property%apply = .true.
@@ -916,16 +917,16 @@ contains
 
         allocate (kw(4))
         h1(1) = h(1, "font_lock_keyword_face")
-        kw(1) = font_lock_keyword(KW1_REGEXP, highlights=h1)
+        kw(1) = font_lock_keyword(KW1_REGULAR_EXPRESSION, highlights=h1)
         h2(1) = font_lock_highlight(1, face_function=function_name_face)
         h2(2) = h(2, "font_lock_function_name_face", lax=.true.)
-        kw(2) = font_lock_keyword(KW2_REGEXP, highlights=h2)
+        kw(2) = font_lock_keyword(KW2_REGULAR_EXPRESSION, highlights=h2)
         ! FIXME: this doesn't cover the variables using a default value.
         h2(1) = font_lock_highlight(1, face_function=variable_name_face)
         h2(2) = h(2, "font_lock_variable_name_face", lax=.true.)
-        kw(3) = font_lock_keyword(KW3_REGEXP, highlights=h2)
+        kw(3) = font_lock_keyword(KW3_REGULAR_EXPRESSION, highlights=h2)
         h1(1) = h(0, "font_lock_variable_name_face")
-        kw(4) = font_lock_keyword(KW4_REGEXP, highlights=h1)
+        kw(4) = font_lock_keyword(KW4_REGULAR_EXPRESSION, highlights=h1)
     end subroutine keywords_1
 
     ! The faces of the tag `match_string(1)' in `sgml_tag_faces'
@@ -994,7 +995,8 @@ contains
         h1(1) = font_lock_highlight(3, face_function=no_face, properties_function=tag_faces)
         allocate (kw(5))
         kw(1:4) = k1
-        kw(5) = font_lock_keyword("<"//regexp_opt(tags, REGEXP_OPT_GROUP)//"\([ "//TAB//"][^>]*\)?>\([^<]+\)</\1>", highlights=h1)
+        kw(5) = font_lock_keyword("<"//regular_expression_optimization(tags, &
+                                     REGULAR_EXPRESSION_OPTIMIZATION_GROUP)//"\([ "//TAB//"][^>]*\)?>\([^<]+\)</\1>", highlights=h1)
     end subroutine keywords_2
 
     ! ------------------------------------------------------------------
@@ -1006,28 +1008,28 @@ contains
     recursive logical function sgml_xml_guess() result(xml)
         type(status_type) :: st
         character(len=:), allocatable :: file, ext
-        integer(int64) :: opoint, pos, k
+        integer(int64) :: original_point, position, k
 
-        opoint = point()
-        call goto_char(point_min())
+        original_point = point()
+        call goto_character(point_minimum())
         file = ""
         if (allocated(buffers(current)%filename)) file = buffers(current)%filename
         ext = extension(file)
         xml = ext == "xml"
         ! Maybe the buffer-size check isn't needed, I don't know.
-        if (.not. xml) xml = point_max() == point_min() .and. ext == "xhtml"
+        if (.not. xml) xml = point_maximum() == point_minimum() .and. ext == "xhtml"
         if (.not. xml) xml = at("\s-*<\?xml")
 
         if (.not. xml) then
-            call re_search_forward(XML_GUESS_REGEXP, pos, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(XML_GUESS_REGULAR_EXPRESSION, position, st, noerror=SEARCH_NOERROR)
 
-            if (pos > 0) then
+            if (position > 0) then
                 k = string_match("X\(HT\)?ML", match_string_no_properties(3), st)
                 xml = k > 0
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
 
     contains
 
@@ -1060,26 +1062,26 @@ contains
         end if
     end subroutine sgml_comment_indent
 
-    !> Insert ARG slash characters.
+    !> Insert ARGUMENT slash characters.
     !> Behaves electrically if `sgml_quick_keys' is true.  Port of
     !> sgml-mode.el:sgml-slash.
-    recursive subroutine sgml_slash(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive subroutine sgml_slash(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         integer(int64) :: k
 
         status = status_type()
 
-        if (.not. (before_char_at(point()) == iachar("<") .and. arg == 1)) then
-            call sgml_slash_matching(arg, status)
+        if (.not. (before_character_at(point()) == iachar("<") .and. argument == 1)) then
+            call sgml_slash_matching(argument, status)
         else if (sgml_quick_keys%choice == SGML_QUICK_KEYS_INDENT) then
             call insert("/", status)
             call indent_according_to_mode(status)
         else if (sgml_quick_keys%choice == SGML_QUICK_KEYS_CLOSE) then
-            call delete_char(-1_int64, status)
+            call delete_character(-1_int64, status)
             if (status%ok()) call sgml_close_tag(status)
         else
-            do k = 1, arg
+            do k = 1, argument
                 call insert("/", status)
             end do
         end if
@@ -1089,38 +1091,41 @@ contains
     !> Two `/'s are treated as matching if the first `/' ends a
     !> net-enabling start tag, and the second `/' is the corresponding null
     !> end tag.  Port of sgml-mode.el:sgml-slash-matching.
-    recursive subroutine sgml_slash_matching(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive subroutine sgml_slash_matching(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(status_type) :: st
-        integer(int64) :: oldpos, blinkpos, level, pos, tagend, begv, zv, opoint
+        integer(int64) :: oldpos, blinkpos, level, position, tagend, beginning_of_accessible_portion, end_of_accessible_portion, &
+                          original_point
 
-        call insert(repeat("/", int(max(arg, 0_int64))), status)
-        if (.not. status%ok() .or. arg <= 0) return
+        call insert(repeat("/", int(max(argument, 0_int64))), status)
+        if (.not. status%ok() .or. argument <= 0) return
         oldpos = point()
         blinkpos = 0
         level = 0
-        opoint = point()
-        begv = buffers(current)%begv
-        zv = buffers(current)%zv
+        original_point = point()
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion = buffers(current)%end_of_accessible_portion
 
         if (sgml_slash_distance%value > 0) then
-            call narrow_to_region(max(point_min(), point() - sgml_slash_distance%value), oldpos, st)
+            call narrow_to_region(max(point_minimum(), point() - sgml_slash_distance%value), oldpos, st)
         end if
 
-        call re_search_backward(SGML_START_TAG_REGEXP, pos, st, bound=point_min(), noerror=SEARCH_NOERROR)
+        call regular_expression_search_backward(SGML_START_TAG_REGULAR_EXPRESSION, position, st, bound=point_minimum(), &
+                                                noerror=SEARCH_NOERROR)
 
-        if (.not. (pos > 0 .and. me(0) == oldpos - 1)) then
-            call goto_char(oldpos - 1)
+        if (.not. (position > 0 .and. me(0) == oldpos - 1)) then
+            call goto_character(oldpos - 1)
 
             do while (blinkpos == 0)
-                call search_backward("/", pos, st, bound=point_min(), noerror=SEARCH_NOERROR)
-                if (pos == 0) exit
+                call search_backward("/", position, st, bound=point_minimum(), noerror=SEARCH_NOERROR)
+                if (position == 0) exit
                 tagend = 0
-                pos = point()
-                call re_search_backward(SGML_START_TAG_REGEXP, tagend, st, bound=point_min(), noerror=SEARCH_NOERROR)
+                position = point()
+                call regular_expression_search_backward(SGML_START_TAG_REGULAR_EXPRESSION, tagend, st, bound=point_minimum(), &
+                                                        noerror=SEARCH_NOERROR)
                 if (tagend > 0) tagend = me(0)
-                call goto_char(pos)
+                call goto_character(position)
 
                 if (tagend == point()) then
                     if (level == 0) then
@@ -1135,24 +1140,24 @@ contains
         end if
 
         call widen()
-        call narrow_to_region(begv, zv, st)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, st)
 
         if (blinkpos > 0) then
-            call goto_char(blinkpos)
+            call goto_character(blinkpos)
 
-            if (is_pos_visible_in_window(point(), selected_window())) then
+            if (is_position_visible_in_window(point(), selected_window())) then
                 call sit_for(1000_int32)
             else
                 call message("Matches "//text_between(line_beginning_position(), blinkpos + 1))
             end if
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine sgml_slash_matching
 
-    !> Insert a symbolic character name according to `sgml_char_names'
+    !> Insert a symbolic character name according to `sgml_character_names'
     !> (CHAR, read when absent).  Port of sgml-mode.el:sgml-name-char.
-    recursive subroutine sgml_name_char(status, char)
+    recursive subroutine sgml_name_character(status, char)
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: char
         integer(int64) :: c
@@ -1164,144 +1169,144 @@ contains
         if (present(char)) then
             c = char
         else
-            call read_quoted_char(c, status)
+            call read_quoted_character(c, status)
             if (.not. status%ok()) return
         end if
 
-        call delete_char(-1_int64, status)
-        call char_to_string(int(c, int32), text, status)
+        call delete_character(-1_int64, status)
+        call character_to_string(int(c, int32), text, status)
         if (.not. status%ok()) return
         call insert(text, status)
         call undo_boundary()
-        call sgml_namify_char(status)
-    end subroutine sgml_name_char
+        call sgml_namify_character(status)
+    end subroutine sgml_name_character
 
     !> Change the char before point into its `&name;' equivalent.
-    !> Uses `sgml_char_names'.  Port of sgml-mode.el:sgml-namify-char
+    !> Uses `sgml_character_names'.  Port of sgml-mode.el:sgml-namify-char
     !> (characters beyond Latin-1 get their number).
-    recursive subroutine sgml_namify_char(status)
+    recursive subroutine sgml_namify_character(status)
         type(status_type), intent(out) :: status
         character(len=16) :: buffer
         integer :: c
 
         status = status_type()
-        c = before_char_at(point())
+        c = before_character_at(point())
 
         if (c < 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No char before point")
+            call set_error(status, GENERIC_ERROR_CODE, "No char before point")
             return
         end if
 
-        call delete_char(-1_int64, status)
+        call delete_character(-1_int64, status)
 
         if (c < 256) then
-            if (len_trim(sgml_char_names(c)) > 0) then
-                call insert("&"//trim(sgml_char_names(c))//";", status)
+            if (len_trim(sgml_character_names(c)) > 0) then
+                call insert("&"//trim(sgml_character_names(c))//";", status)
                 return
             end if
         end if
 
         write (buffer, "(i0)") c
         call insert("&#"//trim(buffer)//";", status)
-    end subroutine sgml_namify_char
+    end subroutine sgml_namify_character
 
-    ! The command `sgml_namify_char'.
-    recursive subroutine cmd_sgml_namify_char(status)
+    ! The command `sgml_namify_character'.
+    recursive subroutine execute_sgml_namify_character(status)
         type(status_type), intent(out) :: status
 
-        call sgml_namify_char(status)
-    end subroutine cmd_sgml_namify_char
+        call sgml_namify_character(status)
+    end subroutine execute_sgml_namify_character
 
-    ! The command `sgml_name_char'.
-    recursive subroutine cmd_sgml_name_char(status)
+    ! The command `sgml_name_character'.
+    recursive subroutine execute_sgml_name_character(status)
         use buffer_mod, only: barf_if_buffer_read_only
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call sgml_name_char(status)
-    end subroutine cmd_sgml_name_char
+        if (status%ok()) call sgml_name_character(status)
+    end subroutine execute_sgml_name_character
 
     ! The event typed, as a character (-1 if not one).
     ! Not a port.
-    recursive integer(int64) function event_char()
+    recursive integer(int64) function event_character()
         use value_mod, only: xfixnum
 
-        event_char = -1
-        if (vtag(last_command_event) == V_INTEGER) event_char = xfixnum(last_command_event)
-    end function event_char
+        event_character = -1
+        if (vtag(last_command_event) == V_INTEGER) event_character = xfixnum(last_command_event)
+    end function event_character
 
-    !> Insert a symbolic character name according to `sgml_char_names'.
+    !> Insert a symbolic character name according to `sgml_character_names'.
     !> Port of sgml-mode.el:sgml-name-self.
     recursive subroutine sgml_name_self(status)
         type(status_type), intent(out) :: status
 
-        call sgml_name_char(status, event_char())
+        call sgml_name_character(status, event_character())
     end subroutine sgml_name_self
 
-    !> Insert a symbolic character name according to `sgml_char_names'
+    !> Insert a symbolic character name according to `sgml_character_names'
     !> when `sgml_name_8bit_mode' is on.  Port of
     !> sgml-mode.el:sgml-maybe-name-self.
     recursive subroutine sgml_maybe_name_self(status)
         type(status_type), intent(out) :: status
 
         if (minor_modes%sgml_name_8bit_mode%state%value) then
-            call sgml_name_char(status, event_char())
+            call sgml_name_character(status, event_character())
         else
-            call self_insert_command(1_int64, event_char(), status)
+            call self_insert_command(1_int64, event_character(), status)
         end if
     end subroutine sgml_maybe_name_self
 
-    !> Name self unless in position to end a tag or a prefix ARG is given.
+    !> Name self unless in position to end a tag or a prefix ARGUMENT is given.
     !> Port of sgml-mode.el:sgml-maybe-end-tag.
     recursive subroutine sgml_maybe_end_tag(status)
-        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE
+        use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE
         type(status_type), intent(out) :: status
         integer(int64) :: start
         integer :: ctype
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
-            call self_insert_command(prefix_numeric_value(current_prefix_arg), event_char(), status)
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
+            call self_insert_command(prefix_numeric_value(current_prefix_argument), event_character(), status)
             return
         end if
 
         call sgml_lexical_context(ctype, start)
 
         if (ctype == SGML_CONTEXT_TAG) then
-            call self_insert_command(1_int64, event_char(), status)
+            call self_insert_command(1_int64, event_character(), status)
         else
             call sgml_name_self(status)
         end if
     end subroutine sgml_maybe_end_tag
 
     !> Skip to beginning of tag or matching opening tag if present.
-    !> With prefix argument ARG, repeat this ARG times.
+    !> With prefix argument ARGUMENT, repeat this ARGUMENT times.
     !> Return true if we skipped over matched tags.  Port of
     !> sgml-mode.el:sgml-skip-tag-backward.
-    recursive logical function sgml_skip_tag_backward(arg) result(skipped)
-        integer(int64), intent(in) :: arg
+    recursive logical function sgml_skip_tag_backward(argument) result(skipped)
+        integer(int64), intent(in) :: argument
         type(status_type) :: st
-        character(len=:), allocatable :: regexp
-        integer(int64) :: n, pos
+        character(len=:), allocatable :: regular_expression
+        integer(int64) :: n, position
         logical :: saved_fold, dummy
 
         skipped = .true.
-        n = arg
+        n = argument
 
         do while (n >= 1)
-            call search_backward("<", pos, st, noerror=SEARCH_NOERROR)
+            call search_backward("<", position, st, noerror=SEARCH_NOERROR)
 
             if (at("</\([^ "//LF//TAB//">]+\)")) then
                 ! end tag, skip any nested pairs
                 saved_fold = case_fold_search%value
                 case_fold_search%value = .true.
                 ! Ignore empty tags like <foo/>.
-                regexp = "</?"//regexp_quote(match_string(1))//"\([^>]*[^/>]\)?>"
+                regular_expression = "</?"//regular_expression_quote(match_string(1))//"\([^>]*[^/>]\)?>"
 
                 do
-                    call re_search_backward(regexp, pos, st, noerror=SEARCH_NOERROR)
-                    if (pos == 0) exit
-                    if (after_char_at(point() + 1) /= iachar("/")) exit
-                    call forward_char(st, 1_int64)
+                    call regular_expression_search_backward(regular_expression, position, st, noerror=SEARCH_NOERROR)
+                    if (position == 0) exit
+                    if (after_character_at(point() + 1) /= iachar("/")) exit
+                    call forward_character(st, 1_int64)
                     dummy = sgml_skip_tag_backward(1_int64)
                 end do
 
@@ -1315,41 +1320,41 @@ contains
     end function sgml_skip_tag_backward
 
     ! The command `sgml_skip_tag_backward'.
-    recursive subroutine cmd_sgml_skip_tag_backward(status)
-        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    recursive subroutine execute_sgml_skip_tag_backward(status)
+        use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
         type(status_type), intent(out) :: status
         logical :: skipped
 
         status = status_type()
-        skipped = sgml_skip_tag_backward(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_sgml_skip_tag_backward
+        skipped = sgml_skip_tag_backward(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_sgml_skip_tag_backward
 
     !> Skip to end of tag or matching closing tag if present.
-    !> With prefix argument ARG, repeat this ARG times.
+    !> With prefix argument ARGUMENT, repeat this ARGUMENT times.
     !> Return true if after a closing tag.  Port of
     !> sgml-mode.el:sgml-skip-tag-forward.
-    recursive logical function sgml_skip_tag_forward(arg) result(after_close)
-        integer(int64), intent(in) :: arg
+    recursive logical function sgml_skip_tag_forward(argument) result(after_close)
+        integer(int64), intent(in) :: argument
         type(handle_type) :: saved
         type(status_type) :: st
-        character(len=:), allocatable :: regexp
-        integer(int64) :: n, pos, moved, here
+        character(len=:), allocatable :: regular_expression
+        integer(int64) :: n, position, moved, here
         logical :: saved_fold, closing
 
         after_close = .true.
         call use_tag_table(saved)
-        n = arg
+        n = argument
 
         do while (n >= 1)
-            moved = skip_chars_forward("^<>", st)
-            if (following_char() == iachar(">")) call up_group(-1_int64, st)
+            moved = skip_characters_forward("^<>", st)
+            if (following_character() == iachar(">")) call up_group(-1_int64, st)
 
             if (at("<\([^/ "//LF//TAB//">]+\)\([^>]*[^/>]\)?>")) then
                 ! start tag, skip any nested same pairs _and_ closing tag
                 saved_fold = case_fold_search%value
                 case_fold_search%value = .true.
                 ! Ignore empty tags like <foo/>.
-                regexp = "</?"//regexp_quote(match_string(1))//"\([^>]*[^/>]\)?>"
+                regular_expression = "</?"//regular_expression_quote(match_string(1))//"\([^>]*[^/>]\)?>"
                 call sgml_forward_expression(1_int64, st)
                 here = point()
                 closing = .false.
@@ -1357,11 +1362,11 @@ contains
                 ! FIXME: This re-search-forward will mistakenly match
                 ! tag-like text inside attributes.
                 do
-                    call re_search_forward(regexp, pos, st, noerror=SEARCH_NOERROR)
-                    if (pos == 0) exit
-                    closing = after_char_at(mb(0) + 1) == iachar("/")
+                    call regular_expression_search_forward(regular_expression, position, st, noerror=SEARCH_NOERROR)
+                    if (position == 0) exit
+                    closing = after_character_at(mb(0) + 1) == iachar("/")
                     if (closing) exit
-                    call goto_char(mb(0))
+                    call goto_character(mb(0))
                     if (.not. sgml_skip_tag_forward(1_int64)) exit
                     closing = .false.
                 end do
@@ -1369,7 +1374,7 @@ contains
                 case_fold_search%value = saved_fold
 
                 if (.not. closing) then
-                    call goto_char(here)
+                    call goto_character(here)
                     after_close = .false.
                 end if
             else
@@ -1383,14 +1388,14 @@ contains
     end function sgml_skip_tag_forward
 
     ! The command `sgml_skip_tag_forward'.
-    recursive subroutine cmd_sgml_skip_tag_forward(status)
-        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    recursive subroutine execute_sgml_skip_tag_forward(status)
+        use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
         type(status_type), intent(out) :: status
         logical :: skipped
 
         status = status_type()
-        skipped = sgml_skip_tag_forward(prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_sgml_skip_tag_forward
+        skipped = sgml_skip_tag_forward(prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_sgml_skip_tag_forward
 
     ! Return t if the text before point matches STRING.  Port of
     ! sgml-mode.el:sgml-looking-back-at.
@@ -1400,34 +1405,34 @@ contains
 
         looking_back_at = .false.
         start = point() - len(string)
-        if (start < point_min()) return
+        if (start < point_minimum()) return
         looking_back_at = text_between(start, point()) == string
     end function looking_back_at
 
     !> Delete tag on or after cursor, and matching closing or opening tag.
-    !> With prefix argument ARG, repeat this ARG times.  Port of
+    !> With prefix argument ARGUMENT, repeat this ARGUMENT times.  Port of
     !> sgml-mode.el:sgml-delete-tag.
-    recursive subroutine sgml_delete_tag(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive subroutine sgml_delete_tag(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(handle_type) :: mark
         character(len=:), allocatable :: name
-        integer(int64) :: n, close_pos, open_pos, here, shortage, tag_pos
+        integer(int64) :: n, close_position, open_position, here, shortage, tag_position
         logical :: dummy
 
         status = status_type()
-        n = arg
+        n = argument
 
         do while (n >= 1)
             call excursion_begin(mark)
-            close_pos = 0
+            close_position = 0
 
             if (at("[ "//TAB//LF//"]*<")) then
                 ! just before tag
-                if (after_char_at(me(0)) == iachar("/")) then
+                if (after_character_at(me(0)) == iachar("/")) then
                     ! closing tag
-                    close_pos = point()
-                    call goto_char(me(0))
+                    close_position = point()
+                    call goto_character(me(0))
                 end if
             else
                 ! on tag?
@@ -1435,21 +1440,21 @@ contains
                 call sgml_beginning_of_tag(name, .false.)
 
                 if (len(name) > 0) then
-                    if (name(1:1) == "/") close_pos = point()
+                    if (name(1:1) == "/") close_position = point()
                 end if
 
-                call goto_char(here)
+                call goto_character(here)
 
-                if (close_pos == 0) then
+                if (close_position == 0) then
                     ! not on closing tag
                     dummy = sgml_skip_tag_backward(1_int64)
 
-                    if (following_char() /= iachar("<")) then
+                    if (following_character() /= iachar("<")) then
                         call not_on_tag()
                         return
                     end if
 
-                    tag_pos = point()
+                    tag_position = point()
                     call sgml_forward_expression(1_int64, status)
                     if (.not. status%ok()) return
 
@@ -1458,17 +1463,17 @@ contains
                         return
                     end if
 
-                    call goto_char(tag_pos)
+                    call goto_character(tag_position)
                 end if
             end if
 
-            if (close_pos > 0) then
+            if (close_position > 0) then
                 dummy = sgml_skip_tag_backward(1_int64)
-                open_pos = point()
-                call goto_char(close_pos)
+                open_position = point()
+                call goto_character(close_position)
                 call cut_expression(1_int64, status)
             else
-                open_pos = point()
+                open_position = point()
 
                 if (sgml_skip_tag_forward(1_int64)) then
                     if (.not. looking_back_at("/>")) call cut_expression(-1_int64, status)
@@ -1480,7 +1485,7 @@ contains
             ! *should* do nothing, because we're right after the tag.
             shortage = forward_line(0_int64)
             if (at("\(?:[ "//TAB//"]*$\)"//LF//"?")) call delete_region(mb(0), me(0), status)
-            call goto_char(open_pos)
+            call goto_character(open_position)
             call cut_expression(1_int64, status)
             if (.not. status%ok()) return
             shortage = forward_line(0_int64)
@@ -1494,17 +1499,17 @@ contains
         ! (error "Not on or before tag"), leaving point where it was.
         subroutine not_on_tag()
             call excursion_end(mark)
-            call set_error(status, FM_GENERIC_ERROR, "Not on or before tag")
+            call set_error(status, GENERIC_ERROR_CODE, "Not on or before tag")
         end subroutine not_on_tag
     end subroutine sgml_delete_tag
 
     ! The command `sgml_delete_tag'.
-    recursive subroutine cmd_sgml_delete_tag(status)
-        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    recursive subroutine execute_sgml_delete_tag(status)
+        use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
         type(status_type), intent(out) :: status
 
-        call sgml_delete_tag(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_sgml_delete_tag
+        call sgml_delete_tag(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_sgml_delete_tag
 
     !> Validate an SGML document.
     !> Runs COMMAND, a shell command, in a separate process asynchronously
@@ -1525,7 +1530,7 @@ contains
     end subroutine sgml_validate
 
     ! The command `sgml_validate': read the command.
-    recursive subroutine cmd_sgml_validate(status)
+    recursive subroutine execute_sgml_validate(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: initial_input, command, name
         integer :: k, slash
@@ -1548,7 +1553,7 @@ contains
         call read_shell_command("Validate command: ", command, status, initial_input=initial_input)
         if (.not. status%ok()) return
         call sgml_validate(command, status)
-    end subroutine cmd_sgml_validate
+    end subroutine execute_sgml_validate
 
     ! S quoted for the shell (shell-quote-argument).
     ! Not a port.
@@ -1578,12 +1583,12 @@ contains
     ! line.  Port of sgml-mode.el:sgml-at-indentation-p.
     recursive logical function is_at_indentation()
         type(status_type) :: st
-        integer(int64) :: opoint, moved
+        integer(int64) :: original_point, moved
 
-        opoint = point()
-        moved = skip_chars_backward(" "//TAB, st)
-        is_at_indentation = is_bol()
-        call goto_char(opoint)
+        original_point = point()
+        moved = skip_characters_backward(" "//TAB, st)
+        is_at_indentation = is_beginning_of_line()
+        call goto_character(original_point)
     end function is_at_indentation
 
     !> Return the lexical context at point as two values: CTYPE, an
@@ -1602,15 +1607,15 @@ contains
         type(sgml_tag_type) :: tag
         type(status_type) :: st
         character(len=:), allocatable :: skip, end_skip
-        integer(int64) :: opoint, pos, text_start, found, moved
+        integer(int64) :: original_point, position, text_start, found, moved
         logical :: ok
         ! The kind of STATE: none (nil), a parse, an unclosed cdata,
         ! comment or pi.
         integer, parameter :: NONE = 0, PARSED = 1, CDATA = 2, COMMENT = 3, PI = 4
         integer :: kind
 
-        opoint = point()
-        pos = point()
+        original_point = point()
+        position = point()
         text_start = point()
         kind = NONE
         skip = ""
@@ -1619,7 +1624,7 @@ contains
         if (allocated(comment_end_skip%value)) end_skip = comment_end_skip%value
 
         if (present(limit)) then
-            call goto_char(limit)
+            call goto_character(limit)
         else
             ! Skip tags backwards until we find one at indentation
             do
@@ -1631,43 +1636,43 @@ contains
 
         call use_tag_table(saved)
 
-        do while (point() < pos)
+        do while (point() < position)
             ! When entering this loop we're inside text.
             text_start = point()
-            moved = skip_chars_forward("^<", st, pos)
+            moved = skip_characters_forward("^<", st, position)
 
-            if (point() == pos) then
+            if (point() == position) then
                 ! We got to the end without seeing a tag.
                 kind = NONE
             else if (at("<!\[[A-Z]+\[")) then
                 ! We've found a CDATA section or similar.
                 start = point()
                 kind = NONE
-                call search_forward("]]>", found, st, bound=pos, noerror=SEARCH_MOVE)
+                call search_forward("]]>", found, st, bound=position, noerror=SEARCH_MOVE)
                 if (found == 0) kind = CDATA
             else if (at(skip)) then
                 ! parse-partial-sexp doesn't handle <!-- comments -->, or
                 ! only if ?- is in sgml-specials, so match explicitly
                 start = point()
                 kind = NONE
-                call re_search_forward(end_skip, found, st, bound=pos, noerror=SEARCH_MOVE)
+                call regular_expression_search_forward(end_skip, found, st, bound=position, noerror=SEARCH_MOVE)
                 if (found == 0) kind = COMMENT
             else if (sgml_xml_mode%value .and. at("<\?")) then
                 ! Processing Instructions.
                 start = point()
                 kind = NONE
-                call search_forward("?>", found, st, bound=pos, noerror=SEARCH_MOVE)
+                call search_forward("?>", found, st, bound=position, noerror=SEARCH_MOVE)
                 if (found == 0) kind = PI
             else
                 ! We've reached a tag.  Parse it.
                 ! FIXME: Handle net-enabling start-tags
-                call parse_partial_expression(point(), pos, state, st, targetdepth=0_int64)
+                call parse_partial_expression(point(), position, state, st, targetdepth=0_int64)
                 kind = PARSED
             end if
         end do
 
         call restore_table(saved)
-        call goto_char(opoint)
+        call goto_character(original_point)
 
         select case (kind)
         case (CDATA)
@@ -1708,10 +1713,10 @@ contains
         call sgml_lexical_context(ctype, start)
 
         if (ctype == SGML_CONTEXT_TAG) then
-            call goto_char(start)
-            if (at(SGML_TAG_NAME_REGEXP)) name = match_string_no_properties(1)
+            call goto_character(start)
+            if (at(SGML_TAG_NAME_REGULAR_EXPRESSION)) name = match_string_no_properties(1)
         else if (.not. only_immediate .and. ctype /= SGML_CONTEXT_TEXT) then
-            call goto_char(start)
+            call goto_character(start)
             call sgml_beginning_of_tag(name, .true.)
         end if
     end subroutine sgml_beginning_of_tag
@@ -1727,27 +1732,28 @@ contains
         integer(int64), intent(in) :: start, end
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: unquotep
-        character(len=:), allocatable :: num, replacement
-        integer(int64) :: begv, zv, pos, code
+        character(len=:), allocatable :: number, replacement
+        integer(int64) :: beginning_of_accessible_portion, end_of_accessible_portion, position, code
         integer :: c, subexp, ios
         logical :: unquote
-        type(handle_type) :: begv_marker, zv_marker
+        type(handle_type) :: beginning_of_accessible_portion_marker, end_of_accessible_portion_marker
 
         unquote = .false.
         if (present(unquotep)) unquote = unquotep
         ! save-restriction.
-        call copy_marker_at(buffers(current)%begv, begv_marker, .false., status)
-        call copy_marker_at(buffers(current)%zv, zv_marker, .true., status)
+        call copy_marker_at(buffers(current)%beginning_of_accessible_portion, beginning_of_accessible_portion_marker, .false., &
+                            status)
+        call copy_marker_at(buffers(current)%end_of_accessible_portion, end_of_accessible_portion_marker, .true., status)
         call narrow_to_region(start, end, status)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (unquote) then
             ! FIXME: We should unquote other named character references as
             ! well.
             do
-                call re_search_forward(QUOTE_REGEXP, pos, status, noerror=SEARCH_NOERROR)
-                if (pos == 0) exit
-                c = after_char_at(mb(2))
+                call regular_expression_search_forward(QUOTE_REGULAR_EXPRESSION, position, status, noerror=SEARCH_NOERROR)
+                if (position == 0) exit
+                c = after_character_at(mb(2))
 
                 select case (c)
                 case (iachar("a"))
@@ -1759,31 +1765,31 @@ contains
                 case (iachar("g"))
                     code = iachar(">")
                 case default
-                    num = match_string(3)
+                    number = match_string(3)
 
-                    if (num(1:1) == "x" .or. num(1:1) == "X") then
-                        read (num(2:), "(z16)", iostat=ios) code
+                    if (number(1:1) == "x" .or. number(1:1) == "X") then
+                        read (number(2:), "(z16)", iostat=ios) code
                     else
-                        read (num, *, iostat=ios) code
+                        read (number, *, iostat=ios) code
                     end if
 
                     if (ios /= 0) code = 0
                 end select
 
                 ! A code out of range is an invalid character.
-                call char_to_string(int(merge(code, -1_int64, code >= 0 .and. code <= huge(0_int32)), int32), &
-                                    replacement, status)
+                call character_to_string(int(merge(code, -1_int64, code >= 0 .and. code <= huge(0_int32)), int32), &
+                                         replacement, status)
                 if (.not. status%ok()) exit
                 subexp = 1
-                if (before_char_at(me(0)) == iachar(";")) subexp = 0
+                if (before_character_at(me(0)) == iachar(";")) subexp = 0
                 call replace_match(replacement, status, fixedcase=.true., literal=.true., subexp=subexp)
             end do
         else
             do
-                call re_search_forward("[&<>""']", pos, status, noerror=SEARCH_NOERROR)
-                if (pos == 0) exit
+                call regular_expression_search_forward("[&<>""']", position, status, noerror=SEARCH_NOERROR)
+                if (position == 0) exit
 
-                select case (before_char_at(point()))
+                select case (before_character_at(point()))
                 case (iachar("&"))
                     replacement = "&amp;"
                 case (iachar("<"))
@@ -1802,16 +1808,16 @@ contains
 
         status = status_type()
         call widen()
-        call marker_position(begv_marker, begv, status)
-        call marker_position(zv_marker, zv, status)
-        call narrow_to_region(begv, zv, status)
-        call destroy_marker(begv_marker, status)
-        call destroy_marker(zv_marker, status)
+        call marker_position(beginning_of_accessible_portion_marker, beginning_of_accessible_portion, status)
+        call marker_position(end_of_accessible_portion_marker, end_of_accessible_portion, status)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, status)
+        call destroy_marker(beginning_of_accessible_portion_marker, status)
+        call destroy_marker(end_of_accessible_portion_marker, status)
     end subroutine sgml_quote
 
     ! The command `sgml_quote'.
-    recursive subroutine cmd_sgml_quote(status)
-        use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE
+    recursive subroutine execute_sgml_quote(status)
+        use execute_interactively_mod, only: current_prefix_argument, PREFIX_NONE
         use editing_functions_mod, only: region_beginning, region_end
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
@@ -1819,8 +1825,8 @@ contains
         call region_beginning(b, status)
         if (.not. status%ok()) return
         call region_end(e, status)
-        call sgml_quote(b, e, status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_sgml_quote
+        call sgml_quote(b, e, status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_sgml_quote
 
     !> Simple-minded pretty printer for SGML.
     !> Re-indents the code and inserts newlines between BEGINNING and END.
@@ -1831,11 +1837,11 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: mark, end_marker, saved
         type(status_type) :: st
-        integer(int64) :: end, pos, moved
+        integer(int64) :: end, position, moved
 
         status = status_type()
         call excursion_begin(mark)
-        call goto_char(min(beginning_in, end_in))
+        call goto_character(min(beginning_in, end_in))
         end = max(beginning_in, end_in)
         ! Don't use narrowing because it screws up auto-indent.
         call copy_marker_at(end, end_marker, .true., st)
@@ -1843,16 +1849,16 @@ contains
 
         do
             call marker_position(end_marker, end, st)
-            call re_search_forward("<", pos, st, bound=end, noerror=SEARCH_NOERROR)
-            if (pos == 0) exit
-            call goto_char(mb(0))
-            moved = skip_chars_backward(" "//TAB, st)
+            call regular_expression_search_forward("<", position, st, bound=end, noerror=SEARCH_NOERROR)
+            if (position == 0) exit
+            call goto_character(mb(0))
+            moved = skip_characters_backward(" "//TAB, st)
 
-            if (.not. is_bol()) then
-                call goto_char(mb(0))
+            if (.not. is_beginning_of_line()) then
+                call goto_character(mb(0))
                 call reindent_then_newline_and_indent(status)
             else
-                call goto_char(mb(0))
+                call goto_character(mb(0))
             end if
 
             call sgml_forward_expression(1_int64, st)
@@ -1865,7 +1871,7 @@ contains
     end subroutine sgml_pretty_print
 
     ! The command `sgml_pretty_print'.
-    recursive subroutine cmd_sgml_pretty_print(status)
+    recursive subroutine execute_sgml_pretty_print(status)
         use editing_functions_mod, only: region_beginning, region_end
         type(status_type), intent(out) :: status
         integer(int64) :: b, e
@@ -1874,7 +1880,7 @@ contains
         if (.not. status%ok()) return
         call region_end(e, status)
         call sgml_pretty_print(b, e, status)
-    end subroutine cmd_sgml_pretty_print
+    end subroutine execute_sgml_pretty_print
 
     ! Skip past a tag-name, and return the name.  Port of
     ! sgml-mode.el:sgml-parse-tag-name.
@@ -1896,14 +1902,14 @@ contains
         type(handle_type) :: saved
         type(parse_state_type) :: pps
         type(status_type) :: st
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
-        opoint = point()
+        original_point = point()
         call use_tag_table(saved)
         call parse_partial_expression(start, end, pps, st, targetdepth=2_int64)
         is_tag_text = pps%depth == 0
         call restore_table(saved)
-        call goto_char(opoint)
+        call goto_character(original_point)
     end function is_tag_text
 
     ! Search backward for a '<' or '>' character.
@@ -1915,7 +1921,7 @@ contains
         integer(int64), intent(in) :: limit
         type(status_type) :: st
         type(value_type) :: face
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: class
         logical :: comment
 
@@ -1923,15 +1929,15 @@ contains
 
         do
             if (limit > 0) then
-                call re_search_backward("[<>]", pos, st, bound=limit, noerror=SEARCH_MOVE)
+                call regular_expression_search_backward("[<>]", position, st, bound=limit, noerror=SEARCH_MOVE)
             else
-                call re_search_backward("[<>]", pos, st, noerror=SEARCH_MOVE)
+                call regular_expression_search_backward("[<>]", position, st, noerror=SEARCH_MOVE)
             end if
 
-            if (pos == 0) return
+            if (position == 0) return
             ! If this character has "open" or "close" syntax, then we've
             ! found the one we want.
-            class = syntax_class_at(after_char_at(point()), point())
+            class = syntax_class_at(after_character_at(point()), point())
 
             if (class == 4 .or. class == 5) then
                 ! We want to ignore tags in comments.  We could also check
@@ -1964,16 +1970,16 @@ contains
         integer(int64), intent(in), optional :: limit
         type(handle_type) :: saved
         type(status_type) :: st
-        integer(int64) :: lim, tag_start, tag_end, pos, found
+        integer(int64) :: limit_position, tag_start, tag_end, position, found
         integer :: c
 
-        lim = 0
-        if (present(limit)) lim = limit
-        ok = find_angle_backward(lim)
+        limit_position = 0
+        if (present(limit)) limit_position = limit
+        ok = find_angle_backward(limit_position)
         if (.not. ok) return
         tag_start = 0
 
-        if (after_char_at(point()) == iachar("<")) then
+        if (after_character_at(point()) == iachar("<")) then
             ! Oops!! Looks like we were not in a textual context after all!.
             ! Let's try to recover.
             ! Remember the tag-start so we don't need to look for it later.
@@ -1981,7 +1987,7 @@ contains
             ! get stuck in infloops in cases where "looking back for <"
             ! would not go back far enough.
             tag_start = point()
-            pos = point()
+            position = point()
             call use_tag_table(saved)
             ! FIXME: This does not correctly skip over PI and CDATA tags.
             call sgml_forward_expression(1_int64, st)
@@ -1989,19 +1995,19 @@ contains
 
             if (.not. st%ok()) then
                 ! This < seems to be just a spurious one, let's ignore it.
-                call goto_char(pos)
+                call goto_character(position)
                 call sgml_parse_tag_backward(tag, ok, limit)
                 return
             end if
 
             ! Check it is really a tag, without any extra < or > inside.
-            if (.not. is_tag_text(pos, point())) then
-                call goto_char(pos)
+            if (.not. is_tag_text(position, point())) then
+                call goto_character(position)
                 call sgml_parse_tag_backward(tag, ok, limit)
                 return
             end if
 
-            call forward_char(st, -1_int64)
+            call forward_character(st, -1_int64)
         end if
 
         tag_end = point() + 1
@@ -2019,7 +2025,7 @@ contains
             tag%type = SGML_TAG_CDATA
 
             if (tag_start == 0) then
-                call re_search_backward("<!\[[A-Z]+\[", found, st, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward("<!\[[A-Z]+\[", found, st, noerror=SEARCH_NOERROR)
                 tag_start = found
             end if
         else if (looking_back_at("?")) then
@@ -2033,13 +2039,13 @@ contains
         else
             if (tag_start == 0) then
                 call use_tag_table(saved)
-                call goto_char(tag_end)
+                call goto_character(tag_end)
                 call sgml_forward_expression(-1_int64, st)
                 call restore_table(saved)
 
                 if (.not. st%ok()) then
                     ! This > isn't really the end of a tag. Skip it.
-                    call goto_char(tag_end - 1)
+                    call goto_character(tag_end - 1)
                     call sgml_parse_tag_backward(tag, ok, limit)
                     return
                 end if
@@ -2047,13 +2053,13 @@ contains
                 tag_start = point()
             end if
 
-            call goto_char(tag_start + 1)
-            c = after_char_at(point())
+            call goto_character(tag_start + 1)
+            c = after_character_at(point())
 
             select case (c)
             case (iachar("!"))
                 ! declaration
-                tag%type = SGML_TAG_DECL
+                tag%type = SGML_TAG_DECLARATION
             case (iachar("?"))
                 ! processing-instruction
                 tag%type = SGML_TAG_PI
@@ -2062,18 +2068,18 @@ contains
                 tag%type = SGML_TAG_JSP
             case (iachar("/"))
                 ! close-tag
-                call forward_char(st, 1_int64)
+                call forward_character(st, 1_int64)
                 tag%type = SGML_TAG_CLOSE
                 tag%name = parse_tag_name()
             case default
                 ! open or empty tag
                 tag%type = SGML_TAG_OPEN
                 tag%name = parse_tag_name()
-                if (before_char_at(tag_end - 1) == iachar("/") .or. is_empty_tag(tag%name)) tag%type = SGML_TAG_EMPTY
+                if (before_character_at(tag_end - 1) == iachar("/") .or. is_empty_tag(tag%name)) tag%type = SGML_TAG_EMPTY
             end select
         end if
 
-        call goto_char(tag_start)
+        call goto_character(tag_start)
         tag%start = tag_start
         tag%end = tag_end
         if (.not. allocated(tag%name)) tag%name = ""
@@ -2138,7 +2144,7 @@ contains
         ! IGNORE is a list of tags that can be ignored because they have
         !   been closed implicitly.
         ! Make sure we're not at indentation.
-        moved = skip_chars_backward(" "//TAB//LF, st)
+        moved = skip_characters_backward(" "//TAB//LF, st)
 
         do
             if (until == UNTIL_NOW) exit
@@ -2237,7 +2243,7 @@ contains
     recursive subroutine sgml_close_tag(status)
         type(status_type), intent(out) :: status
         type(sgml_tag_type), allocatable :: context(:)
-        integer(int64) :: start, opoint
+        integer(int64) :: start, original_point
         integer :: ctype
 
         status = status_type()
@@ -2253,16 +2259,16 @@ contains
         case (SGML_CONTEXT_TAG)
             call insert(" />", status)
         case (SGML_CONTEXT_TEXT)
-            opoint = point()
+            original_point = point()
             call sgml_get_context(context)
-            call goto_char(opoint)
+            call goto_character(original_point)
 
             if (size(context) > 0) then
                 call insert("</"//context(size(context))%name//">", status)
                 call indent_according_to_mode(status)
             end if
         case default
-            call set_error(status, FM_GENERIC_ERROR, "Nothing to close")
+            call set_error(status, GENERIC_ERROR_CODE, "Nothing to close")
         end select
     end subroutine sgml_close_tag
 
@@ -2302,7 +2308,7 @@ contains
         type(status_type) :: st
         character(len=16), allocatable :: sensitive(:)
         character(len=:), allocatable :: unclosed
-        integer(int64) :: start, here, there, opoint, moved, shortage, found_pos
+        integer(int64) :: start, here, there, original_point, moved, shortage, found_position
         integer :: ctype, i, n
         logical :: mark, sensitive_found, skip, saved_fold
 
@@ -2319,10 +2325,10 @@ contains
         ! Indent comment-start markers inside <!-- just like comment-end
         ! markers.
         if (ctype == SGML_CONTEXT_TAG .and. at("--")) then
-            opoint = point()
-            call goto_char(start)
+            original_point = point()
+            call goto_character(start)
             mark = at("<!--")
-            call goto_char(opoint)
+            call goto_character(original_point)
 
             if (mark) then
                 ctype = SGML_CONTEXT_COMMENT
@@ -2336,9 +2342,9 @@ contains
         sensitive_found = .false.
 
         if (size(sensitive) > 0) then
-            opoint = point()
+            original_point = point()
             call sgml_get_context(context)
-            call goto_char(opoint)
+            call goto_character(original_point)
             saved_fold = case_fold_search%value
             case_fold_search%value = .true.
 
@@ -2369,7 +2375,7 @@ contains
                 ! Previous line is inside the string.
                 column = int(current_indentation())
             else
-                call goto_char(start)
+                call goto_character(start)
                 column = int(current_column()) + 1
             end if
         case (SGML_CONTEXT_COMMENT)
@@ -2387,31 +2393,31 @@ contains
 
             if (point() > start) then
                 ! Previous line is inside the comment.
-                moved = skip_chars_forward(" "//TAB, st)
+                moved = skip_characters_forward(" "//TAB, st)
             else
-                call goto_char(start)
+                call goto_character(start)
                 ! Skip `<!' to get to the `--' with which we want to align.
-                call search_forward("--", found_pos, st, noerror=SEARCH_NOERROR)
-                call goto_char(mb(0))
+                call search_forward("--", found_position, st, noerror=SEARCH_NOERROR)
+                call goto_character(mb(0))
             end if
 
             if (.not. mark .and. at("--")) then
-                call forward_char(st, 2_int64)
-                moved = skip_chars_forward(" "//TAB, st)
+                call forward_character(st, 2_int64)
+                moved = skip_characters_forward(" "//TAB, st)
             end if
 
             column = int(current_column())
         case (SGML_CONTEXT_TAG)
-            call goto_char(start + sgml_attribute_offset%value)
+            call goto_character(start + sgml_attribute_offset%value)
             ! Skip tag name.
-            moved = skip_chars_forward("^ "//TAB//LF, st)
-            moved = skip_chars_forward(" "//TAB, st)
+            moved = skip_characters_forward("^ "//TAB//LF, st)
+            moved = skip_characters_forward(" "//TAB, st)
 
-            if (.not. is_eol()) then
+            if (.not. is_end_of_line()) then
                 column = int(current_column())
             else
                 ! This is the first attribute: indent.
-                call goto_char(start + sgml_attribute_offset%value)
+                call goto_character(start + sgml_attribute_offset%value)
                 column = int(current_column() + sgml_basic_offset%value)
             end if
         case default
@@ -2419,13 +2425,13 @@ contains
             do while (at("</"))
                 call sgml_forward_expression(1_int64, st)
                 if (.not. st%ok()) exit
-                moved = skip_chars_forward(" "//TAB, st)
+                moved = skip_characters_forward(" "//TAB, st)
             end do
 
             here = point()
             unclosed = ""
 
-            if (at(SGML_TAG_NAME_REGEXP)) then
+            if (at(SGML_TAG_NAME_REGULAR_EXPRESSION)) then
                 if (member_ignore_case(match_string(1), unclosed_tags())) unclosed = match_string(1)
             end if
 
@@ -2435,9 +2441,9 @@ contains
             skip = .false.
 
             if (len(unclosed) == 0) then
-                moved = skip_chars_backward(" "//TAB, st)
+                moved = skip_characters_backward(" "//TAB, st)
 
-                if (skip_chars_backward(" "//TAB//LF, st) < 0) then
+                if (skip_characters_backward(" "//TAB//LF, st) < 0) then
                     call back_to_indentation()
                     skip = point() > start
                 end if
@@ -2448,7 +2454,7 @@ contains
             if (skip) then
                 allocate (context(0))
             else
-                call goto_char(here)
+                call goto_character(here)
 
                 if (len(unclosed) > 0) then
                     call sgml_get_context(reversed)
@@ -2477,7 +2483,7 @@ contains
                 if (context(1)%end > here) then
                     ! If we were not in a text context after all, let's try
                     ! again.
-                    call goto_char(here)
+                    call goto_character(here)
 
                     if (context(1)%type == SGML_TAG_COMMENT) then
                         call sgml_calculate_indent(column, found, SGML_CONTEXT_COMMENT, context(1)%start)
@@ -2492,8 +2498,8 @@ contains
 
                 ! Align on the first element after the nearest open-tag, if
                 ! any.
-                call goto_char(context(1)%end)
-                moved = skip_chars_forward(" "//TAB//LF, st)
+                call goto_character(context(1)%end)
+                moved = skip_characters_forward(" "//TAB//LF, st)
 
                 if (point() < here .and. is_at_indentation()) then
                     column = int(current_column())
@@ -2502,7 +2508,7 @@ contains
             end if
 
             ! Otherwise, just follow the rules.
-            call goto_char(there)
+            call goto_character(there)
             column = int(current_column() + sgml_basic_offset%value*size(context))
         end select
     end subroutine sgml_calculate_indent
@@ -2522,7 +2528,7 @@ contains
         call back_to_indentation()
         keep = point() < savep
         call sgml_calculate_indent(column, found)
-        call goto_char(savep)
+        call goto_character(savep)
         noindent = .not. found
         if (.not. found) return
 
@@ -2536,12 +2542,12 @@ contains
     end subroutine sgml_indent_line
 
     ! The command `sgml_indent_line'.
-    recursive subroutine cmd_sgml_indent_line(status)
+    recursive subroutine execute_sgml_indent_line(status)
         type(status_type), intent(out) :: status
         logical :: noindent
 
         call sgml_indent_line(status, noindent)
-    end subroutine cmd_sgml_indent_line
+    end subroutine execute_sgml_indent_line
 
     !> Guess an appropriate value for `sgml_basic_offset'.
     !> Base the guessed indentation level on the first indented tag in the
@@ -2550,20 +2556,20 @@ contains
     recursive subroutine sgml_guess_indent(status)
         type(status_type), intent(out) :: status
         character(len=16) :: buffer
-        integer(int64) :: opoint, pos
+        integer(int64) :: original_point, position
 
         status = status_type()
-        opoint = point()
-        call goto_char(point_min())
-        call re_search_forward("^\([ "//TAB//"]+\)<", pos, status, bound=500_int64, noerror=SEARCH_NOERROR)
+        original_point = point()
+        call goto_character(point_minimum())
+        call regular_expression_search_forward("^\([ "//TAB//"]+\)<", position, status, bound=500_int64, noerror=SEARCH_NOERROR)
 
-        if (pos > 0) then
+        if (position > 0) then
             call sgml_basic_offset%set_local(current_column() - 1)
             write (buffer, "(i0)") sgml_basic_offset%value
             call message("Guessed sgml-basic-offset = "//trim(buffer))
         end if
 
-        call goto_char(opoint)
+        call goto_character(original_point)
     end subroutine sgml_guess_indent
 
     !> Simplistic parse of the current buffer as a DTD.
@@ -2572,14 +2578,14 @@ contains
     recursive subroutine sgml_parse_dtd(empty, unclosed)
         character(len=64), allocatable, intent(out) :: empty(:), unclosed(:)
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         allocate (empty(0), unclosed(0))
 
         do
-            call re_search_forward(DTD_REGEXP, pos, st, noerror=SEARCH_NOERROR)
-            if (pos == 0) exit
+            call regular_expression_search_forward(DTD_REGULAR_EXPRESSION, position, st, noerror=SEARCH_NOERROR)
+            if (position == 0) exit
 
             if (match_string(3) == "EMPTY") then
                 empty = [character(len=64) :: downcase_ascii(match_string_no_properties(1)), empty]
@@ -2618,12 +2624,12 @@ contains
     recursive subroutine html_current_heading_name(name)
         character(len=:), allocatable, intent(out) :: name
         type(status_type) :: st
-        integer(int64) :: opoint, pos
+        integer(int64) :: original_point, position
 
-        opoint = point()
-        call re_search_backward(HTML_SUBPROGRAM_REGEXP, pos, st, noerror=SEARCH_NOERROR)
-        if (st%ok() .and. pos > 0) name = match_string_no_properties(1)
-        call goto_char(opoint)
+        original_point = point()
+        call regular_expression_search_backward(HTML_SUBPROGRAM_REGULAR_EXPRESSION, position, st, noerror=SEARCH_NOERROR)
+        if (st%ok() .and. position > 0) name = match_string_no_properties(1)
+        call goto_character(original_point)
     end subroutine html_current_heading_name
 
     ! ------------------------------------------------------------------
@@ -2631,49 +2637,49 @@ contains
     ! ------------------------------------------------------------------
 
     ! The commands of the keymaps and the prefix argument wrappers.
-    recursive subroutine cmd_sgml_slash(status)
-        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    recursive subroutine execute_sgml_slash(status)
+        use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
         type(status_type), intent(out) :: status
 
-        call sgml_slash(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_sgml_slash
+        call sgml_slash(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_sgml_slash
 
-    recursive subroutine cmd_sgml_slash_matching(status)
-        use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
+    recursive subroutine execute_sgml_slash_matching(status)
+        use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
         type(status_type), intent(out) :: status
 
-        call sgml_slash_matching(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_sgml_slash_matching
+        call sgml_slash_matching(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_sgml_slash_matching
 
-    recursive subroutine cmd_sgml_close_tag(status)
+    recursive subroutine execute_sgml_close_tag(status)
         type(status_type), intent(out) :: status
 
         call sgml_close_tag(status)
-    end subroutine cmd_sgml_close_tag
+    end subroutine execute_sgml_close_tag
 
-    recursive subroutine cmd_sgml_guess_indent(status)
+    recursive subroutine execute_sgml_guess_indent(status)
         type(status_type), intent(out) :: status
 
         call sgml_guess_indent(status)
-    end subroutine cmd_sgml_guess_indent
+    end subroutine execute_sgml_guess_indent
 
-    recursive subroutine cmd_sgml_name_self(status)
+    recursive subroutine execute_sgml_name_self(status)
         type(status_type), intent(out) :: status
 
         call sgml_name_self(status)
-    end subroutine cmd_sgml_name_self
+    end subroutine execute_sgml_name_self
 
-    recursive subroutine cmd_sgml_maybe_name_self(status)
+    recursive subroutine execute_sgml_maybe_name_self(status)
         type(status_type), intent(out) :: status
 
         call sgml_maybe_name_self(status)
-    end subroutine cmd_sgml_maybe_name_self
+    end subroutine execute_sgml_maybe_name_self
 
-    recursive subroutine cmd_sgml_maybe_end_tag(status)
+    recursive subroutine execute_sgml_maybe_end_tag(status)
         type(status_type), intent(out) :: status
 
         call sgml_maybe_end_tag(status)
-    end subroutine cmd_sgml_maybe_end_tag
+    end subroutine execute_sgml_maybe_end_tag
 
     ! `sgml_name_8bit_mode': when on, insert non-ASCII characters as named
     ! entities.
@@ -2703,7 +2709,7 @@ contains
 
     ! sgml-mode-syntax-table and sgml-tag-syntax-table.
     ! Not a port.
-    subroutine init_syntax_tables()
+    subroutine initialize_syntax_tables()
         type(status_type) :: st
         character(len=*), parameter :: PUNCT = "$%&*+/"
         integer :: i
@@ -2723,34 +2729,34 @@ contains
         if (.not. any(sgml_specials == iachar("'"))) then
             call modify_syntax_entry(iachar("'"), iachar("'"), "w", st, sgml_tag_syntax_table)
         end if
-    end subroutine init_syntax_tables
+    end subroutine initialize_syntax_tables
 
     ! sgml-syntax-propertize-rules.
     ! Port of sgml-mode.el:sgml-syntax-propertize-rules.
-    subroutine init_rules()
+    subroutine initialize_rules()
         type(syntax_highlight_type) :: hl
 
         allocate (propertize_rules%rules(4))
         ! Use the `b' style of comments to avoid interference with the -- ...
         ! -- comments recognized when `sgml-specials' includes ?-.
         ! FIXME: beware of <!--> blabla <!--> !!
-        propertize_rules%rules(1)%regexp = "\(<\)!--"
+        propertize_rules%rules(1)%regular_expression = "\(<\)!--"
         hl = syntax_highlight_type(group=1, syntax="< b")
         propertize_rules%rules(1)%highlights = [hl]
-        propertize_rules%rules(2)%regexp = "--[ "//TAB//LF//"]*\(>\)"
+        propertize_rules%rules(2)%regular_expression = "--[ "//TAB//LF//"]*\(>\)"
         hl = syntax_highlight_type(group=1, syntax="> b")
         propertize_rules%rules(2)%highlights = [hl]
-        propertize_rules%rules(3)%regexp = "\(<\)[?!]"
+        propertize_rules%rules(3)%regular_expression = "\(<\)[?!]"
         hl = syntax_highlight_type(group=1, syntax="|>")
         hl%after => declaration_after
         propertize_rules%rules(3)%highlights = [hl]
         ! Quotes outside of tags should not introduce strings which end up
         ! hiding tags.
-        propertize_rules%rules(4)%regexp = "\([""']\)[^""'<>]*"
+        propertize_rules%rules(4)%regular_expression = "\([""']\)[^""'<>]*"
         hl = syntax_highlight_type(group=1)
         hl%value => quote_value
         propertize_rules%rules(4)%highlights = [hl]
-    end subroutine init_rules
+    end subroutine initialize_rules
 
     ! Not a port.
     ! The keywords of the levels: sgml-font-lock-keywords (level 0), -1 and
@@ -2785,7 +2791,7 @@ contains
         type(font_lock_keywords_type) :: levels(3)
         logical :: saved
 
-        if (.not. is_syntax_table_live(sgml_mode_syntax_table)) call init_sgml_mode()
+        if (.not. is_syntax_table_live(sgml_mode_syntax_table)) call initialize_sgml_mode()
         call major_modes%sgml_mode%begin(saved, status)
         if (.not. quick_keys_set) call set_quick_keys()
         quick_keys_set = .true.
@@ -2800,7 +2806,7 @@ contains
 ! Port of sgml-mode.el:sgml-mode (in part: its body).
     ! The body of `sgml_mode'.
     recursive subroutine setup()
-        type(imenu_pattern_type), allocatable :: patterns(:)
+        type(index_menu_pattern_type), allocatable :: patterns(:)
         character(len=:), allocatable :: q
         integer :: k
 
@@ -2808,14 +2814,14 @@ contains
         ! A start or end tag by itself on a line separates a paragraph.
         ! This is desirable because SGML discards a newline that appears
         ! immediately after a start tag or immediately before an end tag.
-        call paragraph_start%set_local(SGML_PARAGRAPH_START_REGEXP)
-        call paragraph_separate%set_local(SGML_PARAGRAPH_START_REGEXP//"$")
+        call paragraph_start%set_local(SGML_PARAGRAPH_START_REGULAR_EXPRESSION)
+        call paragraph_separate%set_local(SGML_PARAGRAPH_START_REGULAR_EXPRESSION//"$")
         call indent_line_function%set_local(indent_line_adapter)
         call comment_start%set_local("<!-- ")
         call comment_end%set_local(" -->")
         call comment_indent_function%set_local(sgml_comment_indent)
         call syntax_propertize_function%set_local(sgml_syntax_propertize)
-        call syntax_ppss_table%set_local(sgml_tag_syntax_table)
+        call syntax_parser_state_table%set_local(sgml_tag_syntax_table)
         if (sgml_xml_guess()) call sgml_xml_mode%set_local(.true.)
         ! This will allow existing comments within declarations to be
         ! recognized.
@@ -2825,13 +2831,15 @@ contains
         q = "?"
         if (sgml_xml_mode%value) q = ""
         allocate (patterns(3))
-        patterns(1) = imenu_pattern_type(menu_title="", regexp="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
-                                         "]*\("//SGML_NAME_REGEXP//"\)", subexpression=2)
-        patterns(2) = imenu_pattern_type(menu_title="Id", regexp="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
-                                         "\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
-        patterns(3) = imenu_pattern_type(menu_title="Name", regexp="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
-                                         q//"\)\("//SGML_NAME_REGEXP//"\)\1", subexpression=2)
-        call imenu_patterns%set_local(patterns)
+        patterns(1) = index_menu_pattern_type(menu_title="", &
+                                              regular_expression="<!\(element\|entity\)[ "//TAB//LF//"]+%?[ "//TAB//LF// &
+                                              "]*\("//SGML_NAME_REGULAR_EXPRESSION//"\)", subexpression=2)
+        patterns(2) = index_menu_pattern_type(menu_title="Id", regular_expression="<[^>]+[ "//TAB//LF//"]+[Ii][Dd]=\(['""]"//q// &
+                                              "\)\("//SGML_NAME_REGULAR_EXPRESSION//"\)\1", subexpression=2)
+        patterns(3) = index_menu_pattern_type(menu_title="Name", &
+                                              regular_expression="<[^>]+[ "//TAB//LF//"]+[Nn][Aa][Mm][Ee]=\(['""]"// &
+                                              q//"\)\("//SGML_NAME_REGULAR_EXPRESSION//"\)\1", subexpression=2)
+        call index_menu_patterns%set_local(patterns)
         call skeleton_further_elements_set_local(sgml_further_elements)
         call skeleton_end_newline%set_local(.false.)
         call skeleton_end_hook%prepend(sgml_skeleton_end, local=.true.)
@@ -2854,7 +2862,7 @@ contains
         logical :: saved
         integer :: k
 
-        if (.not. is_syntax_table_live(sgml_mode_syntax_table)) call init_sgml_mode()
+        if (.not. is_syntax_table_live(sgml_mode_syntax_table)) call initialize_sgml_mode()
         call major_modes%html_mode%begin(saved, status)
         if (.not. status%ok()) return
         ! sgml-tag-face-alist, sgml-whitespace-sensitive-tags,
@@ -2862,43 +2870,44 @@ contains
         call make_local_entry(k)
         locals(k)%html = .true.
         call add_log_current_subprogram_function%set_local(html_current_heading_name)
-        call imenu_create_index_function%set_local(html_imenu_index)
+        call index_menu_create_index_function%set_local(html_index_menu_index)
         call major_modes%html_mode%end(saved, status)
     end subroutine html_mode
 
     !> Return a table of contents for an HTML buffer for use with Imenu.
     !> Port of sgml-mode.el:html-imenu-index.
-    recursive subroutine html_imenu_index(index, status)
-        type(imenu_index_type), intent(out) :: index
+    recursive subroutine html_index_menu_index(index, status)
+        type(index_menu_index_type), intent(out) :: index
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: digit
-        integer(int64) :: here, pos
+        integer(int64) :: here, position_value
         integer :: k, level
 
         status = status_type()
         allocate (index%entries(0))
         here = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        if (.not. allocated(html_imenu_regexp)) then
-            html_imenu_regexp = "\s-*<h\([1-9]\)[^"//LF//"<>]*>\(<[^"//LF//"<>]*>\)*\s-*\([^"//LF//"<>]*\)"
+        if (.not. allocated(html_index_menu_regular_expression)) then
+            html_index_menu_regular_expression = "\s-*<h\([1-9]\)[^"//LF//"<>]*>\(<[^"//LF//"<>]*>\)*\s-*\([^"//LF//"<>]*\)"
         end if
 
         do
-            call re_search_forward(html_imenu_regexp, pos, status, noerror=SEARCH_NOERROR)
-            if (.not. status%ok() .or. pos == 0) exit
+            call regular_expression_search_forward(html_index_menu_regular_expression, position_value, status, &
+                                                   noerror=SEARCH_NOERROR)
+            if (.not. status%ok() .or. position_value == 0) exit
             digit = match_string(1)
             level = ichar(digit(1:1)) - ichar("0")
             call index%append(repeat(" ", max(0, 2*(level - 1)))//match_string(3), k, position=line_beginning_position())
         end do
 
-        call goto_char(here)
-    end subroutine html_imenu_index
+        call goto_character(here)
+    end subroutine html_index_menu_index
 
     ! Not a port.
     !> Define SGML mode and HTML mode: their variables, tables, keymaps and
     !> commands.
-    recursive subroutine init_sgml_mode()
+    recursive subroutine initialize_sgml_mode()
         type(status_type) :: st
         type(named_face_type), pointer :: f
         character(len=:), allocatable :: key
@@ -2911,17 +2920,17 @@ contains
         call forward_setting(sgml_validate_command)
         call forward_setting(sgml_slash_distance)
         if (.not. allocated(sgml_specials)) sgml_specials = [iachar(""""), iachar("'")]
-        if (all(sgml_char_names == "")) sgml_char_names = SGML_CHAR_NAMES_DATA
+        if (all(sgml_character_names == "")) sgml_character_names = SGML_CHARACTER_NAMES_DATA
         if (.not. allocated(sgml_empty_tags)) allocate (sgml_empty_tags(0))
         if (.not. allocated(sgml_unclosed_tags)) allocate (sgml_unclosed_tags(0))
         if (.not. allocated(sgml_whitespace_sensitive_tags)) allocate (sgml_whitespace_sensitive_tags(0))
-        call init_validate_command()
-        call init_html_tag_faces()
+        call initialize_validate_command()
+        call initialize_html_tag_faces()
         f => sgml_namespace
         call f%define("sgml_namespace", "`sgml_mode' face used to highlight the namespace part of identifiers.")
-        call f%spec_entry(display_when(), face_attrs(inherit="font_lock_builtin_face"))
-        call init_syntax_tables()
-        call init_rules()
+        call f%specification_entry(display_when(), face_attributes(inherit="font_lock_builtin_face"))
+        call initialize_syntax_tables()
+        call initialize_rules()
         call append_locals_clearer(clear_sgml_locals)
         call major_modes%sgml_mode%define("sgml_mode", "SGML", sgml_mode, sgml_mode_hook, parent=major_modes%text_mode, &
                                           syntax_table=sgml_mode_syntax_table)
@@ -2930,7 +2939,7 @@ contains
         html_mode_map = major_modes%html_mode%map
         call minor_modes%sgml_name_8bit_mode%define("sgml_name_8bit_mode")
         call keymap_set(sgml_mode_map, "/", "sgml_slash", st)
-        call keymap_set(sgml_mode_map, "C-c C-n", "sgml_name_char", st)
+        call keymap_set(sgml_mode_map, "C-c C-n", "sgml_name_character", st)
         call keymap_set(sgml_mode_map, "C-c C-b", "sgml_skip_tag_backward", st)
         call keymap_set(sgml_mode_map, "C-c <left>", "sgml_skip_tag_backward", st)
         call keymap_set(sgml_mode_map, "C-c C-f", "sgml_skip_tag_forward", st)
@@ -2968,65 +2977,65 @@ contains
         call keymap_set(html_mode_map, "C-c C-c i", "html_image", st)
 
         do c = 128, 255
-            call char_to_string(int(c, int32), key, st)
+            call character_to_string(int(c, int32), key, st)
             call keymap_set(sgml_mode_map, key, "sgml_maybe_name_self", st)
         end do
 
         commands%sgml_mode%execute => sgml_mode
         commands%html_mode%execute => html_mode
-        commands%sgml_slash%execute => cmd_sgml_slash
-        commands%sgml_slash_matching%execute => cmd_sgml_slash_matching
-        commands%sgml_name_char%execute => cmd_sgml_name_char
-        commands%sgml_namify_char%execute => cmd_sgml_namify_char
-        commands%sgml_name_self%execute => cmd_sgml_name_self
-        commands%sgml_maybe_name_self%execute => cmd_sgml_maybe_name_self
-        commands%sgml_maybe_end_tag%execute => cmd_sgml_maybe_end_tag
-        commands%sgml_skip_tag_backward%execute => cmd_sgml_skip_tag_backward
-        commands%sgml_skip_tag_forward%execute => cmd_sgml_skip_tag_forward
-        commands%sgml_delete_tag%execute => cmd_sgml_delete_tag
-        commands%sgml_validate%execute => cmd_sgml_validate
-        commands%sgml_quote%execute => cmd_sgml_quote
-        commands%sgml_pretty_print%execute => cmd_sgml_pretty_print
-        commands%sgml_close_tag%execute => cmd_sgml_close_tag
-        commands%sgml_indent_line%execute => cmd_sgml_indent_line
-        commands%sgml_guess_indent%execute => cmd_sgml_guess_indent
+        commands%sgml_slash%execute => execute_sgml_slash
+        commands%sgml_slash_matching%execute => execute_sgml_slash_matching
+        commands%sgml_name_character%execute => execute_sgml_name_character
+        commands%sgml_namify_character%execute => execute_sgml_namify_character
+        commands%sgml_name_self%execute => execute_sgml_name_self
+        commands%sgml_maybe_name_self%execute => execute_sgml_maybe_name_self
+        commands%sgml_maybe_end_tag%execute => execute_sgml_maybe_end_tag
+        commands%sgml_skip_tag_backward%execute => execute_sgml_skip_tag_backward
+        commands%sgml_skip_tag_forward%execute => execute_sgml_skip_tag_forward
+        commands%sgml_delete_tag%execute => execute_sgml_delete_tag
+        commands%sgml_validate%execute => execute_sgml_validate
+        commands%sgml_quote%execute => execute_sgml_quote
+        commands%sgml_pretty_print%execute => execute_sgml_pretty_print
+        commands%sgml_close_tag%execute => execute_sgml_close_tag
+        commands%sgml_indent_line%execute => execute_sgml_indent_line
+        commands%sgml_guess_indent%execute => execute_sgml_guess_indent
         commands%sgml_name_8bit_mode%execute => sgml_name_8bit_mode
-        commands%sgml_tag%execute => cmd_sgml_tag
-        commands%sgml_attributes%execute => cmd_sgml_attributes
-        commands%sgml_auto_attributes%execute => cmd_sgml_auto_attributes
-        commands%sgml_tag_help%execute => cmd_sgml_tag_help
+        commands%sgml_tag%execute => execute_sgml_tag
+        commands%sgml_attributes%execute => execute_sgml_attributes
+        commands%sgml_auto_attributes%execute => execute_sgml_auto_attributes
+        commands%sgml_tag_help%execute => execute_sgml_tag_help
         call forward_setting(sgml_tag_history)
-        call init_tag_tables()
-        call init_tag_help()
-        commands%html_href_anchor%execute => cmd_html_href_anchor
-        commands%html_href_anchor_file%execute => cmd_html_href_anchor_file
-        commands%html_name_anchor%execute => cmd_html_name_anchor
-        commands%html_id_anchor%execute => cmd_html_id_anchor
-        commands%html_headline_1%execute => cmd_html_headline_1
-        commands%html_headline_2%execute => cmd_html_headline_2
-        commands%html_headline_3%execute => cmd_html_headline_3
-        commands%html_headline_4%execute => cmd_html_headline_4
-        commands%html_headline_5%execute => cmd_html_headline_5
-        commands%html_headline_6%execute => cmd_html_headline_6
-        commands%html_horizontal_rule%execute => cmd_html_horizontal_rule
-        commands%html_image%execute => cmd_html_image
-        commands%html_line%execute => cmd_html_line
-        commands%html_ordered_list%execute => cmd_html_ordered_list
-        commands%html_unordered_list%execute => cmd_html_unordered_list
-        commands%html_list_item%execute => cmd_html_list_item
-        commands%html_paragraph%execute => cmd_html_paragraph
-        commands%html_div%execute => cmd_html_div
-        commands%html_span%execute => cmd_html_span
-        commands%html_checkboxes%execute => cmd_html_checkboxes
-        commands%html_radio_buttons%execute => cmd_html_radio_buttons
-        commands%html_navigational_links%execute => cmd_html_navigational_links
-        commands%html_html5_template%execute => cmd_html_html5_template
-    end subroutine init_sgml_mode
+        call initialize_tag_tables()
+        call initialize_tag_help()
+        commands%html_href_anchor%execute => execute_html_href_anchor
+        commands%html_href_anchor_file%execute => execute_html_href_anchor_file
+        commands%html_name_anchor%execute => execute_html_name_anchor
+        commands%html_id_anchor%execute => execute_html_id_anchor
+        commands%html_headline_1%execute => execute_html_headline_1
+        commands%html_headline_2%execute => execute_html_headline_2
+        commands%html_headline_3%execute => execute_html_headline_3
+        commands%html_headline_4%execute => execute_html_headline_4
+        commands%html_headline_5%execute => execute_html_headline_5
+        commands%html_headline_6%execute => execute_html_headline_6
+        commands%html_horizontal_rule%execute => execute_html_horizontal_rule
+        commands%html_image%execute => execute_html_image
+        commands%html_line%execute => execute_html_line
+        commands%html_ordered_list%execute => execute_html_ordered_list
+        commands%html_unordered_list%execute => execute_html_unordered_list
+        commands%html_list_item%execute => execute_html_list_item
+        commands%html_paragraph%execute => execute_html_paragraph
+        commands%html_div%execute => execute_html_div
+        commands%html_span%execute => execute_html_span
+        commands%html_checkboxes%execute => execute_html_checkboxes
+        commands%html_radio_buttons%execute => execute_html_radio_buttons
+        commands%html_navigational_links%execute => execute_html_navigational_links
+        commands%html_html5_template%execute => execute_html_html5_template
+    end subroutine initialize_sgml_mode
 
     ! Port of sgml-mode.el:sgml-validate-command (its default value).
     ! The default `sgml_validate_command': prefer tidy because (o)nsgmls is
     ! often built without --enable-http which makes it next to useless.
-    subroutine init_validate_command()
+    subroutine initialize_validate_command()
         use files_mod, only: executable_find
         character(len=:), allocatable :: found_path
 
@@ -3052,11 +3061,11 @@ contains
         ! onsgmls is the community version of `nsgmls' hosted on
         ! https://openjade.sourceforge.net/
         if (len(found_path) > 0) sgml_validate_command%value = "onsgmls -s"
-    end subroutine init_validate_command
+    end subroutine initialize_validate_command
 
 ! Port of sgml-mode.el:html-tag-face-alist (its value).
     ! html-tag-face-alist.
-    subroutine init_html_tag_faces()
+    subroutine initialize_html_tag_faces()
         if (allocated(html_tag_faces)) return
         html_tag_faces = [sgml_tag_face_type(tag="b", faces=[character(len=32) :: "bold", ""]), &
                           sgml_tag_face_type(tag="big", faces=[character(len=32) :: "bold", ""]), &
@@ -3078,7 +3087,7 @@ contains
                           sgml_tag_face_type(tag="tt", faces=[character(len=32) :: "default", ""]), &
                           sgml_tag_face_type(tag="u", faces=[character(len=32) :: "underline", ""]), &
                           sgml_tag_face_type(tag="var", faces=[character(len=32) :: "italic", ""])]
-    end subroutine init_html_tag_faces
+    end subroutine initialize_html_tag_faces
 
     ! ------------------------------------------------------------------
     ! Tag tables and skeletons
@@ -3258,7 +3267,7 @@ contains
                 if (len(answer) > 0) then
                     call insert(answer//'"', status)
                 else
-                    call delete_char(-2_int64, status)
+                    call delete_character(-2_int64, status)
                 end if
             end if
         else
@@ -3319,7 +3328,7 @@ contains
         rule = 0
 
         if (len(tag) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "Wrong context for adding attribute")
+            call set_error(status, GENERIC_ERROR_CODE, "Wrong context for adding attribute")
             return
         end if
 
@@ -3337,7 +3346,7 @@ contains
             if (first == SGML_END_TAG_NONE .and. size(alist) > 0) then
                 if (alist(1)%bare) then
                     completion_ignore_case = saved
-                    call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array, got "//fortran_string(alist(1)%name))
+                    call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected array, got "//fortran_string(alist(1)%name))
                     return
                 end if
             end if
@@ -3367,7 +3376,7 @@ contains
 
             if (alist(1)%bare) then
                 ! An always present attribute.
-                if (preceding_char() == iachar(" ")) then
+                if (preceding_character() == iachar(" ")) then
                     call insert(transform(alist(1)%name), status)
                 else
                     call insert(" "//transform(alist(1)%name), status)
@@ -3430,7 +3439,7 @@ contains
                     end if
                 end do
 
-                if (status%ok() .and. preceding_char() == iachar(" ")) call delete_char(-1_int64, status)
+                if (status%ok() .and. preceding_character() == iachar(" ")) call delete_character(-1_int64, status)
             end if
         end if
 
@@ -3459,36 +3468,36 @@ contains
     end function transform
 
     ! Not a port.
-    recursive subroutine cmd_sgml_attributes(status)
+    recursive subroutine execute_sgml_attributes(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: tag
         integer :: first, rule
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
         call barf_if_buffer_read_only(status)
         if (.not. status%ok()) return
-        opoint = point()
+        original_point = point()
         call sgml_beginning_of_tag(tag, .true.)
-        call goto_char(opoint)
+        call goto_character(original_point)
         call sgml_attributes(tag, .false., first, rule, status)
-    end subroutine cmd_sgml_attributes
+    end subroutine execute_sgml_attributes
 
     !> Self insert the character typed; at top level of tag, prompt for attributes.
-    !> With prefix argument ARG, only self insert.  Port of
+    !> With prefix argument ARGUMENT, only self insert.  Port of
     !> sgml-mode.el:sgml-auto-attributes.
-    recursive subroutine sgml_auto_attributes(arg, status)
-        type(prefix_arg_type), intent(in) :: arg
+    recursive subroutine sgml_auto_attributes(argument, status)
+        type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         type(sgml_tags_type), pointer :: tags
         character(len=:), allocatable :: tag
-        integer(int64) :: opoint
+        integer(int64) :: original_point
         integer :: first, rule
         logical :: plain
 
         status = status_type()
-        opoint = point()
+        original_point = point()
         tags => current_tags()
-        plain = arg%kind /= PREFIX_NONE
+        plain = argument%kind /= PREFIX_NONE
 
         ! no message when nothing configured
         if (.not. plain) then
@@ -3498,29 +3507,29 @@ contains
 
         if (.not. plain) then
             call sgml_beginning_of_tag(tag, .true.)
-            call goto_char(opoint)
+            call goto_character(original_point)
             plain = len(tag) == 0
             if (.not. plain) plain = tag(1:1) == "/"
         end if
 
         if (plain) then
-            call self_insert_command(prefix_numeric_value(arg), event_char(), status)
+            call self_insert_command(prefix_numeric_value(argument), event_character(), status)
             return
         end if
 
         call sgml_attributes(tag, .false., first, rule, status)
         if (.not. status%ok()) return
         last_command_event = value_type(32_int64)
-        if (point() <= opoint) call self_insert_command(1_int64, 32_int64, status)
+        if (point() <= original_point) call self_insert_command(1_int64, 32_int64, status)
     end subroutine sgml_auto_attributes
 
     ! Not a port.
-    recursive subroutine cmd_sgml_auto_attributes(status)
+    recursive subroutine execute_sgml_auto_attributes(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call sgml_auto_attributes(current_prefix_arg, status)
-    end subroutine cmd_sgml_auto_attributes
+        if (status%ok()) call sgml_auto_attributes(current_prefix_argument, status)
+    end subroutine execute_sgml_auto_attributes
 
     !> Display description of tag TAG.  If TAG is absent or empty, use the tag at point.
     !> Port of sgml-mode.el:sgml-tag-help.
@@ -3528,21 +3537,21 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: tag_in
         character(len=:), allocatable :: tag, description
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
         status = status_type()
         tag = ""
         if (present(tag_in)) tag = tag_in
 
         if (len(tag) == 0) then
-            opoint = point()
-            if (after_char_at(point()) == iachar("<")) call forward_char(status)
+            original_point = point()
+            if (after_character_at(point()) == iachar("<")) call forward_character(status)
             call sgml_beginning_of_tag(tag, .false.)
-            call goto_char(opoint)
+            call goto_character(original_point)
         end if
 
         if (len(tag) == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No tag selected")
+            call set_error(status, GENERIC_ERROR_CODE, "No tag selected")
             return
         end if
 
@@ -3585,15 +3594,15 @@ contains
     end function tag_description
 
     ! Not a port.
-    recursive subroutine cmd_sgml_tag_help(status)
+    recursive subroutine execute_sgml_tag_help(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: def, tag
-        integer(int64) :: opoint
+        integer(int64) :: original_point
 
-        opoint = point()
-        if (after_char_at(point()) == iachar("<")) call forward_char(status)
+        original_point = point()
+        if (after_character_at(point()) == iachar("<")) call forward_character(status)
         call sgml_beginning_of_tag(def, .false.)
-        call goto_char(opoint)
+        call goto_character(original_point)
 
         if (len(def) > 0) then
             call completing_read(format_prompt("Tag", def), table_of(tag_names()), tag, status, history="sgml_tag_history", &
@@ -3604,7 +3613,7 @@ contains
 
         if (.not. status%ok()) return
         call sgml_tag_help(status, tag)
-    end subroutine cmd_sgml_tag_help
+    end subroutine execute_sgml_tag_help
 
     ! The interactor of `sgml_tag': the tag read with completion, through
     ! the skeleton transformation.  Not a port.
@@ -3682,7 +3691,7 @@ contains
         v2_t = tag_first == SGML_END_TAG_NO
 
         if (string == "![") then
-            call goto_char(point() - 1)
+            call goto_character(point() - 1)
             skeleton_state%value = [skeleton_for_each([character(len=1) :: ""]), skeleton_text(" [ "), SKELETON_POINT, &
                                     skeleton_text(" ]]"), SKELETON_END]
         else if (v2_t .and. sgml_xml_mode%value .and. any(empty_tags() == string)) then
@@ -3726,28 +3735,28 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:sgml-tag.
-    recursive subroutine sgml_tag(status, string, arg)
+    recursive subroutine sgml_tag(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
         call skeleton_command([skeleton_interactor(tag_interactor), skeleton_text("<"), SKELETON_STRING, &
                                SKELETON_IF_NOT_MOVED, skeleton_for_each([character(len=1) :: ""]), skeleton_delete(1), &
                                skeleton_action(undo_boundary_action), skeleton_literal("&lt;"), SKELETON_END, &
-                               SKELETON_IF_NOT_MOVED, skeleton_value(tag_rest_value)], status, string, arg)
+                               SKELETON_IF_NOT_MOVED, skeleton_value(tag_rest_value)], status, string, argument)
     end subroutine sgml_tag
 
-    recursive subroutine cmd_sgml_tag(status)
+    recursive subroutine execute_sgml_tag(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call sgml_tag(status, arg=current_prefix_arg)
-    end subroutine cmd_sgml_tag
+        if (status%ok()) call sgml_tag(status, argument=current_prefix_argument)
+    end subroutine execute_sgml_tag
 
     ! sgml-mode's `skeleton_end_hook'.  Not a port.
     recursive subroutine sgml_skeleton_end(status)
@@ -3755,7 +3764,7 @@ contains
         logical :: v2_newline
 
         status = status_type()
-        if (is_eol()) return
+        if (is_end_of_line()) return
         v2_newline = tag_slot_newline
 
         if (allocated(skeleton_state%v2)) then
@@ -3797,7 +3806,7 @@ contains
         integer :: i
 
         if (.not. sgml_quick_keys%is_off()) then
-            call keymap_set(sgml_mode_map, "&", "sgml_name_char", st)
+            call keymap_set(sgml_mode_map, "&", "sgml_name_character", st)
             call keymap_set(sgml_mode_map, "<", "sgml_tag", st)
             call keymap_set(sgml_mode_map, "SPC", "sgml_auto_attributes", st)
             call keymap_set(sgml_mode_map, ">", "sgml_maybe_end_tag", st)
@@ -3943,13 +3952,13 @@ contains
         call xml_or("<br />", "<br>")
     end subroutine xml_br
 
-    ! (if (is_bol) nil '\n).  Not a port.
-    recursive subroutine newline_unless_bol(status)
+    ! (if (is_beginning_of_line) nil '\n).  Not a port.
+    recursive subroutine newline_unless_beginning_of_line(status)
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. is_bol()) skeleton_state%value = [SKELETON_NEWLINE]
-    end subroutine newline_unless_bol
+        if (.not. is_beginning_of_line()) skeleton_state%value = [SKELETON_NEWLINE]
+    end subroutine newline_unless_beginning_of_line
 
     ! The table's cell kind: (completing-read "Cell kind: " '(("td")
     ! ("th")) nil t "t").  Not a port.
@@ -4174,7 +4183,7 @@ contains
             skeleton = [NONE, N, text("<"//name(6:6)//"l>"), N, text("<li>"), P, skeleton_value(xml_end_li), N, &
                         text("</"//name(6:6)//"l>"), I, N]
         case ("html_list_item")
-            skeleton = [NONE, skeleton_value(newline_unless_bol), text("<li>"), P, skeleton_value(xml_end_li)]
+            skeleton = [NONE, skeleton_value(newline_unless_beginning_of_line), text("<li>"), P, skeleton_value(xml_end_li)]
         case ("html_paragraph")
             skeleton = [NONE, N, text("<p>"), P, skeleton_value(xml_end_paragraph)]
         case ("html_div")
@@ -4205,20 +4214,20 @@ contains
     end subroutine html_skeleton
 
     ! Insert the HTML skeleton NAME as its command does.  Not a port.
-    recursive subroutine html_skeleton_command(name, status, string, arg)
+    recursive subroutine html_skeleton_command(name, status, string, argument)
         character(len=*), intent(in) :: name
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
         type(skeleton_element_type), allocatable :: skeleton(:)
 
         call html_skeleton(name, skeleton)
-        call skeleton_command(skeleton, status, string, arg)
+        call skeleton_command(skeleton, status, string, argument)
     end subroutine html_skeleton_command
 
     ! The tag tables: sgml-tag-alist and html-tag-alist (their values).
     ! Port of sgml-mode.el sgml-tag-alist and html-tag-alist.
-    subroutine init_tag_tables()
+    subroutine initialize_tag_tables()
         type(skeleton_element_type), allocatable :: list_item_skeleton(:)
         type(skeleton_element_type), parameter :: N = SKELETON_NEWLINE, P = SKELETON_POINT, S = SKELETON_STRING, &
                                                   E = SKELETON_END
@@ -4677,11 +4686,11 @@ contains
         call html_tags%append_attribute("width")
         call html_tags%append_attribute("height")
         call html_tags%append("wbr", end_tag=SGML_END_TAG_NO)
-    end subroutine init_tag_tables
+    end subroutine initialize_tag_tables
 
     ! The tag descriptions: sgml-tag-help and html-tag-help (their values).
     ! Port of sgml-mode.el sgml-tag-help and html-tag-help.
-    subroutine init_tag_help()
+    subroutine initialize_tag_help()
         if (allocated(html_tag_help)) return
         html_tag_help = [ &
                         sgml_tag_help_type(tag="!", description="Empty declaration for comment"), &
@@ -4833,7 +4842,7 @@ contains
                         sgml_tag_help_type(tag="video", description="Video or movie"), &
                         sgml_tag_help_type(tag="wbr", description="Enable <br> within <nobr>")]
         if (.not. allocated(sgml_tag_help_variable)) sgml_tag_help_variable = html_tag_help(1:6)
-    end subroutine init_tag_help
+    end subroutine initialize_tag_help
 
     !> HTML anchor tag with href attribute.
     !>
@@ -4842,25 +4851,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-href-anchor.
-    recursive subroutine html_href_anchor(status, string, arg)
+    recursive subroutine html_href_anchor(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_href_anchor", status, string, arg)
+        call html_skeleton_command("html_href_anchor", status, string, argument)
     end subroutine html_href_anchor
 
-    recursive subroutine cmd_html_href_anchor(status)
+    recursive subroutine execute_html_href_anchor(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_href_anchor(status, arg=current_prefix_arg)
-    end subroutine cmd_html_href_anchor
+        if (status%ok()) call html_href_anchor(status, argument=current_prefix_argument)
+    end subroutine execute_html_href_anchor
 
     !> HTML anchor tag with href attribute (from a local file).
     !>
@@ -4869,25 +4878,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-href-anchor-file.
-    recursive subroutine html_href_anchor_file(status, string, arg)
+    recursive subroutine html_href_anchor_file(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_href_anchor_file", status, string, arg)
+        call html_skeleton_command("html_href_anchor_file", status, string, argument)
     end subroutine html_href_anchor_file
 
-    recursive subroutine cmd_html_href_anchor_file(status)
+    recursive subroutine execute_html_href_anchor_file(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_href_anchor_file(status, arg=current_prefix_arg)
-    end subroutine cmd_html_href_anchor_file
+        if (status%ok()) call html_href_anchor_file(status, argument=current_prefix_argument)
+    end subroutine execute_html_href_anchor_file
 
     !> HTML anchor tag with name attribute.
     !>
@@ -4896,25 +4905,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-name-anchor.
-    recursive subroutine html_name_anchor(status, string, arg)
+    recursive subroutine html_name_anchor(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_name_anchor", status, string, arg)
+        call html_skeleton_command("html_name_anchor", status, string, argument)
     end subroutine html_name_anchor
 
-    recursive subroutine cmd_html_name_anchor(status)
+    recursive subroutine execute_html_name_anchor(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_name_anchor(status, arg=current_prefix_arg)
-    end subroutine cmd_html_name_anchor
+        if (status%ok()) call html_name_anchor(status, argument=current_prefix_argument)
+    end subroutine execute_html_name_anchor
 
     !> HTML anchor tag with id attribute.
     !>
@@ -4923,25 +4932,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-id-anchor.
-    recursive subroutine html_id_anchor(status, string, arg)
+    recursive subroutine html_id_anchor(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_id_anchor", status, string, arg)
+        call html_skeleton_command("html_id_anchor", status, string, argument)
     end subroutine html_id_anchor
 
-    recursive subroutine cmd_html_id_anchor(status)
+    recursive subroutine execute_html_id_anchor(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_id_anchor(status, arg=current_prefix_arg)
-    end subroutine cmd_html_id_anchor
+        if (status%ok()) call html_id_anchor(status, argument=current_prefix_argument)
+    end subroutine execute_html_id_anchor
 
     !> HTML level 1 headline tags.
     !>
@@ -4950,25 +4959,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-headline-1.
-    recursive subroutine html_headline_1(status, string, arg)
+    recursive subroutine html_headline_1(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_headline_1", status, string, arg)
+        call html_skeleton_command("html_headline_1", status, string, argument)
     end subroutine html_headline_1
 
-    recursive subroutine cmd_html_headline_1(status)
+    recursive subroutine execute_html_headline_1(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_headline_1(status, arg=current_prefix_arg)
-    end subroutine cmd_html_headline_1
+        if (status%ok()) call html_headline_1(status, argument=current_prefix_argument)
+    end subroutine execute_html_headline_1
 
     !> HTML level 2 headline tags.
     !>
@@ -4977,25 +4986,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-headline-2.
-    recursive subroutine html_headline_2(status, string, arg)
+    recursive subroutine html_headline_2(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_headline_2", status, string, arg)
+        call html_skeleton_command("html_headline_2", status, string, argument)
     end subroutine html_headline_2
 
-    recursive subroutine cmd_html_headline_2(status)
+    recursive subroutine execute_html_headline_2(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_headline_2(status, arg=current_prefix_arg)
-    end subroutine cmd_html_headline_2
+        if (status%ok()) call html_headline_2(status, argument=current_prefix_argument)
+    end subroutine execute_html_headline_2
 
     !> HTML level 3 headline tags.
     !>
@@ -5004,25 +5013,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-headline-3.
-    recursive subroutine html_headline_3(status, string, arg)
+    recursive subroutine html_headline_3(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_headline_3", status, string, arg)
+        call html_skeleton_command("html_headline_3", status, string, argument)
     end subroutine html_headline_3
 
-    recursive subroutine cmd_html_headline_3(status)
+    recursive subroutine execute_html_headline_3(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_headline_3(status, arg=current_prefix_arg)
-    end subroutine cmd_html_headline_3
+        if (status%ok()) call html_headline_3(status, argument=current_prefix_argument)
+    end subroutine execute_html_headline_3
 
     !> HTML level 4 headline tags.
     !>
@@ -5031,25 +5040,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-headline-4.
-    recursive subroutine html_headline_4(status, string, arg)
+    recursive subroutine html_headline_4(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_headline_4", status, string, arg)
+        call html_skeleton_command("html_headline_4", status, string, argument)
     end subroutine html_headline_4
 
-    recursive subroutine cmd_html_headline_4(status)
+    recursive subroutine execute_html_headline_4(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_headline_4(status, arg=current_prefix_arg)
-    end subroutine cmd_html_headline_4
+        if (status%ok()) call html_headline_4(status, argument=current_prefix_argument)
+    end subroutine execute_html_headline_4
 
     !> HTML level 5 headline tags.
     !>
@@ -5058,25 +5067,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-headline-5.
-    recursive subroutine html_headline_5(status, string, arg)
+    recursive subroutine html_headline_5(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_headline_5", status, string, arg)
+        call html_skeleton_command("html_headline_5", status, string, argument)
     end subroutine html_headline_5
 
-    recursive subroutine cmd_html_headline_5(status)
+    recursive subroutine execute_html_headline_5(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_headline_5(status, arg=current_prefix_arg)
-    end subroutine cmd_html_headline_5
+        if (status%ok()) call html_headline_5(status, argument=current_prefix_argument)
+    end subroutine execute_html_headline_5
 
     !> HTML level 6 headline tags.
     !>
@@ -5085,25 +5094,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-headline-6.
-    recursive subroutine html_headline_6(status, string, arg)
+    recursive subroutine html_headline_6(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_headline_6", status, string, arg)
+        call html_skeleton_command("html_headline_6", status, string, argument)
     end subroutine html_headline_6
 
-    recursive subroutine cmd_html_headline_6(status)
+    recursive subroutine execute_html_headline_6(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_headline_6(status, arg=current_prefix_arg)
-    end subroutine cmd_html_headline_6
+        if (status%ok()) call html_headline_6(status, argument=current_prefix_argument)
+    end subroutine execute_html_headline_6
 
     !> HTML horizontal rule tag.
     !>
@@ -5112,25 +5121,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-horizontal-rule.
-    recursive subroutine html_horizontal_rule(status, string, arg)
+    recursive subroutine html_horizontal_rule(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_horizontal_rule", status, string, arg)
+        call html_skeleton_command("html_horizontal_rule", status, string, argument)
     end subroutine html_horizontal_rule
 
-    recursive subroutine cmd_html_horizontal_rule(status)
+    recursive subroutine execute_html_horizontal_rule(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_horizontal_rule(status, arg=current_prefix_arg)
-    end subroutine cmd_html_horizontal_rule
+        if (status%ok()) call html_horizontal_rule(status, argument=current_prefix_argument)
+    end subroutine execute_html_horizontal_rule
 
     !> HTML image tag.
     !>
@@ -5139,25 +5148,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-image.
-    recursive subroutine html_image(status, string, arg)
+    recursive subroutine html_image(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_image", status, string, arg)
+        call html_skeleton_command("html_image", status, string, argument)
     end subroutine html_image
 
-    recursive subroutine cmd_html_image(status)
+    recursive subroutine execute_html_image(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_image(status, arg=current_prefix_arg)
-    end subroutine cmd_html_image
+        if (status%ok()) call html_image(status, argument=current_prefix_argument)
+    end subroutine execute_html_image
 
     !> HTML line break tag.
     !>
@@ -5166,25 +5175,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-line.
-    recursive subroutine html_line(status, string, arg)
+    recursive subroutine html_line(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_line", status, string, arg)
+        call html_skeleton_command("html_line", status, string, argument)
     end subroutine html_line
 
-    recursive subroutine cmd_html_line(status)
+    recursive subroutine execute_html_line(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_line(status, arg=current_prefix_arg)
-    end subroutine cmd_html_line
+        if (status%ok()) call html_line(status, argument=current_prefix_argument)
+    end subroutine execute_html_line
 
     !> HTML ordered list tags.
     !>
@@ -5193,25 +5202,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-ordered-list.
-    recursive subroutine html_ordered_list(status, string, arg)
+    recursive subroutine html_ordered_list(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_ordered_list", status, string, arg)
+        call html_skeleton_command("html_ordered_list", status, string, argument)
     end subroutine html_ordered_list
 
-    recursive subroutine cmd_html_ordered_list(status)
+    recursive subroutine execute_html_ordered_list(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_ordered_list(status, arg=current_prefix_arg)
-    end subroutine cmd_html_ordered_list
+        if (status%ok()) call html_ordered_list(status, argument=current_prefix_argument)
+    end subroutine execute_html_ordered_list
 
     !> HTML unordered list tags.
     !>
@@ -5220,25 +5229,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-unordered-list.
-    recursive subroutine html_unordered_list(status, string, arg)
+    recursive subroutine html_unordered_list(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_unordered_list", status, string, arg)
+        call html_skeleton_command("html_unordered_list", status, string, argument)
     end subroutine html_unordered_list
 
-    recursive subroutine cmd_html_unordered_list(status)
+    recursive subroutine execute_html_unordered_list(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_unordered_list(status, arg=current_prefix_arg)
-    end subroutine cmd_html_unordered_list
+        if (status%ok()) call html_unordered_list(status, argument=current_prefix_argument)
+    end subroutine execute_html_unordered_list
 
     !> HTML list item tag.
     !>
@@ -5247,25 +5256,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-list-item.
-    recursive subroutine html_list_item(status, string, arg)
+    recursive subroutine html_list_item(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_list_item", status, string, arg)
+        call html_skeleton_command("html_list_item", status, string, argument)
     end subroutine html_list_item
 
-    recursive subroutine cmd_html_list_item(status)
+    recursive subroutine execute_html_list_item(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_list_item(status, arg=current_prefix_arg)
-    end subroutine cmd_html_list_item
+        if (status%ok()) call html_list_item(status, argument=current_prefix_argument)
+    end subroutine execute_html_list_item
 
     !> HTML paragraph tag.
     !>
@@ -5274,25 +5283,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-paragraph.
-    recursive subroutine html_paragraph(status, string, arg)
+    recursive subroutine html_paragraph(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_paragraph", status, string, arg)
+        call html_skeleton_command("html_paragraph", status, string, argument)
     end subroutine html_paragraph
 
-    recursive subroutine cmd_html_paragraph(status)
+    recursive subroutine execute_html_paragraph(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_paragraph(status, arg=current_prefix_arg)
-    end subroutine cmd_html_paragraph
+        if (status%ok()) call html_paragraph(status, argument=current_prefix_argument)
+    end subroutine execute_html_paragraph
 
     !> HTML div tag.
     !>
@@ -5301,25 +5310,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-div.
-    recursive subroutine html_div(status, string, arg)
+    recursive subroutine html_div(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_div", status, string, arg)
+        call html_skeleton_command("html_div", status, string, argument)
     end subroutine html_div
 
-    recursive subroutine cmd_html_div(status)
+    recursive subroutine execute_html_div(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_div(status, arg=current_prefix_arg)
-    end subroutine cmd_html_div
+        if (status%ok()) call html_div(status, argument=current_prefix_argument)
+    end subroutine execute_html_div
 
     !> HTML span tag.
     !>
@@ -5328,25 +5337,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-span.
-    recursive subroutine html_span(status, string, arg)
+    recursive subroutine html_span(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_span", status, string, arg)
+        call html_skeleton_command("html_span", status, string, argument)
     end subroutine html_span
 
-    recursive subroutine cmd_html_span(status)
+    recursive subroutine execute_html_span(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_span(status, arg=current_prefix_arg)
-    end subroutine cmd_html_span
+        if (status%ok()) call html_span(status, argument=current_prefix_argument)
+    end subroutine execute_html_span
 
     !> Group of connected checkbox inputs.
     !>
@@ -5355,25 +5364,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-checkboxes.
-    recursive subroutine html_checkboxes(status, string, arg)
+    recursive subroutine html_checkboxes(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_checkboxes", status, string, arg)
+        call html_skeleton_command("html_checkboxes", status, string, argument)
     end subroutine html_checkboxes
 
-    recursive subroutine cmd_html_checkboxes(status)
+    recursive subroutine execute_html_checkboxes(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_checkboxes(status, arg=current_prefix_arg)
-    end subroutine cmd_html_checkboxes
+        if (status%ok()) call html_checkboxes(status, argument=current_prefix_argument)
+    end subroutine execute_html_checkboxes
 
     !> Group of connected radio button inputs.
     !>
@@ -5382,25 +5391,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-radio-buttons.
-    recursive subroutine html_radio_buttons(status, string, arg)
+    recursive subroutine html_radio_buttons(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_radio_buttons", status, string, arg)
+        call html_skeleton_command("html_radio_buttons", status, string, argument)
     end subroutine html_radio_buttons
 
-    recursive subroutine cmd_html_radio_buttons(status)
+    recursive subroutine execute_html_radio_buttons(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_radio_buttons(status, arg=current_prefix_arg)
-    end subroutine cmd_html_radio_buttons
+        if (status%ok()) call html_radio_buttons(status, argument=current_prefix_argument)
+    end subroutine execute_html_radio_buttons
 
     !> Group of navigational links.
     !>
@@ -5409,25 +5418,25 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-navigational-links.
-    recursive subroutine html_navigational_links(status, string, arg)
+    recursive subroutine html_navigational_links(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_navigational_links", status, string, arg)
+        call html_skeleton_command("html_navigational_links", status, string, argument)
     end subroutine html_navigational_links
 
-    recursive subroutine cmd_html_navigational_links(status)
+    recursive subroutine execute_html_navigational_links(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_navigational_links(status, arg=current_prefix_arg)
-    end subroutine cmd_html_navigational_links
+        if (status%ok()) call html_navigational_links(status, argument=current_prefix_argument)
+    end subroutine execute_html_navigational_links
 
     !> Initial HTML5 template.
     !>
@@ -5436,23 +5445,23 @@ contains
     !> If there is a highlighted region, the skeleton text is wrapped
     !> around the region text.
     !>
-    !> A prefix argument ARG says to wrap the skeleton around the next ARG words.
+    !> A prefix argument ARGUMENT says to wrap the skeleton around the next ARGUMENT words.
     !> A prefix argument of -1 says to wrap around region, even if not highlighted.
     !> A prefix argument of zero says to wrap around zero words---that is, nothing.
     !> This is a way of overriding the use of a highlighted region.  Port of
     !> sgml-mode.el:html-html5-template.
-    recursive subroutine html_html5_template(status, string, arg)
+    recursive subroutine html_html5_template(status, string, argument)
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: string
-        type(prefix_arg_type), intent(in), optional :: arg
+        type(prefix_argument_type), intent(in), optional :: argument
 
-        call html_skeleton_command("html_html5_template", status, string, arg)
+        call html_skeleton_command("html_html5_template", status, string, argument)
     end subroutine html_html5_template
 
-    recursive subroutine cmd_html_html5_template(status)
+    recursive subroutine execute_html_html5_template(status)
         type(status_type), intent(out) :: status
 
         call barf_if_buffer_read_only(status)
-        if (status%ok()) call html_html5_template(status, arg=current_prefix_arg)
-    end subroutine cmd_html_html5_template
+        if (status%ok()) call html_html5_template(status, argument=current_prefix_argument)
+    end subroutine execute_html_html5_template
 end module sgml_mode_mod

@@ -31,10 +31,10 @@ module test_holidays_mod
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, close_buffer, get_buffer, &
                           is_buffer_live
-    use editing_functions_mod, only: buffer_string, point_min, point_max
+    use editing_functions_mod, only: buffer_string, point_minimum, point_maximum
     use interval_tree_mod, only: overlays_in
     use display_engine_mod, only: current_message
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use handle_mod, only: null_handle
     use frame_mod, only: selected_frame, ensure_frame_windows
     use window_mod, only: delete_window_tree, resize_window_tree
@@ -55,7 +55,7 @@ module test_holidays_mod
 
     public :: collect_holidays_mod
 
-    character(len=*), parameter :: NL = achar(10)
+    character(len=*), parameter :: NEWLINE = achar(10)
 
     ! The text of M-x list_holidays for 2026 with the default lists, and
     ! for 2024 with `calendar_christian_all_holidays_flag' and
@@ -160,13 +160,13 @@ contains
     ! 80-column frame, as the frame of `emacs --batch' that made the
     ! expected text.
     subroutine setup()
-        call init_bindings()
+        call initialize_bindings()
         selected_frame%minibuffer_selected = .false.
         call delete_window_tree(selected_frame%root_window)
         selected_frame%root_window = null_handle()
         call ensure_frame_windows()
         call resize_window_tree(selected_frame%root_window, 0, 0, 24, 80, 80)
-        selected_frame%tty%wcm%cm_cols = 80
+        selected_frame%terminal%wcm%cursor_motion_columns = 80
     end subroutine setup
 
     ! LINES joined with newlines.
@@ -178,7 +178,7 @@ contains
         text = ""
 
         do k = 1, size(lines)
-            if (k > 1) text = text//NL
+            if (k > 1) text = text//NEWLINE
             text = text//trim(lines(k))
         end do
     end function joined
@@ -252,7 +252,7 @@ contains
             call holiday_buffer_text(text, mode_line)
 
             if (len(res) > 0) then
-                res = res//NL//text
+                res = res//NEWLINE//text
             else
                 res = text
             end if
@@ -436,10 +436,10 @@ contains
         call check(error, st%ok() .and. found, "calendar_list_holidays")
         if (allocated(error)) return
         call holiday_buffer_text(text, mode_line)
-        call check(error, text == "Wednesday, November 11, 2026: Veteran's Day"//NL// &
-                   "Thursday, November 26, 2026: Thanksgiving"//NL// &
-                   "Friday, December 25, 2026: Christmas"//NL// &
-                   "Friday, January 1, 2027: New Year's Day"//NL// &
+        call check(error, text == "Wednesday, November 11, 2026: Veteran's Day"//NEWLINE// &
+                   "Thursday, November 26, 2026: Thanksgiving"//NEWLINE// &
+                   "Friday, December 25, 2026: Christmas"//NEWLINE// &
+                   "Friday, January 1, 2027: New Year's Day"//NEWLINE// &
                    "Monday, January 18, 2027: Martin Luther King Day", text)
         if (allocated(error)) return
         ! "%-" shows as dashes to the end of the mode line.
@@ -483,12 +483,12 @@ contains
         call calendar_generate(12, 2026, st)
         buffers(current)%read_only = .true.
         call calendar_mark_holidays(st)
-        call overlays_in(point_min(), point_max(), ovs)
+        call overlays_in(point_minimum(), point_maximum(), ovs)
         call check(error, st%ok() .and. calendar_mark_holidays_variable .and. size(ovs) == 5, "x")
 
         if (.not. allocated(error)) then
             call calendar_unmark(st)
-            call overlays_in(point_min(), point_max(), ovs)
+            call overlays_in(point_minimum(), point_maximum(), ovs)
             call check(error,.not. calendar_mark_holidays_variable .and. size(ovs) == 0, "u")
         end if
 

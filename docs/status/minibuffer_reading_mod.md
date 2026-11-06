@@ -39,7 +39,7 @@ with a table's completion category;
 `minibuffer-depth`,
 `minibuffer-prompt` (`minibuf_prompt` per level),
 `minibuffer-exit-hook` (`execute_exit_minibuf_hook`, run safely with the minibuffer current as it exits),
-`completion-regexp-list` (`match_regexps`, in try-completion, all-completions and test-completion),
+`completion-regexp-list` (`match_regular_expressions`, in try-completion, all-completions and test-completion),
 `assoc-string`,
 `is_minibuffer`'s LIVE (`is_live_minibuffer`, `is_minibuffer_at_depth`, `nth_minibuffer`),
 `inhibit-interaction` (`barf_if_interaction_inhibited`, in keyboard_mod),

@@ -28,13 +28,13 @@ submodule(coding_mod) utf_8_language_mod
 contains
 
     !> Port of the language environments of utf-8-lang.el.
-    module subroutine define_utf_8_lang_language_environments()
+    module subroutine define_utf_8_language_language_environments()
         call define_language_environment("UTF-8", &
                                          documentation="This language environment is a generic one for the Unicode c" &
                                          //"haracter set"//achar(10)//"encoded in UTF-8.", &
-                                         charsets=[character(len=40) :: "unicode-bmp", "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode-bmp", "unicode"], &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &
                                          input_method="rfc1345")
-    end subroutine define_utf_8_lang_language_environments
+    end subroutine define_utf_8_language_language_environments
 end submodule utf_8_language_mod

@@ -24,7 +24,7 @@
 module test_execute_process_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_FILE_MISSING
+    use error_mod, only: status_type, format_error, FILE_MISSING_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, list, xfixnum, xstring, vtag, V_INTEGER, V_STRING
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, &
@@ -110,7 +110,7 @@ contains
 
         call fresh_buffer("*callproc-test*", "", h)
         call execute_process("echo", r, st, destination=value_type(.true.), &
-                             args=list(value_type(text="hello"), value_type(text="w"//char(195)//char(182)//"rld")))
+                             arguments=list(value_type(text="hello"), value_type(text="w"//char(195)//char(182)//"rld")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, xfixnum(r) == 0, "status 0")
 
@@ -126,13 +126,13 @@ contains
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call execute_process("sh", r, st, destination=value_type(.true.), &
-                                 args=list(value_type(text="-c"), value_type(text="echo out; echo err >&2")))
+                                 arguments=list(value_type(text="-c"), value_type(text="echo out; echo err >&2")))
             call check(error, buffer_string(), "out"//new_line("a")//"err"//new_line("a"))
         end if
 
         if (.not. allocated(error)) then
             call erase_buffer(st)
-            call execute_process("echo", r, st, args=list(value_type(text="discarded")))
+            call execute_process("echo", r, st, arguments=list(value_type(text="discarded")))
             call check(error, st%ok() .and. buffer_size() == 0, "discarded")
         end if
 
@@ -147,7 +147,7 @@ contains
         call execute_process("false", r, st)
         call check(error, st%ok() .and. vtag(r) == V_INTEGER .and. xfixnum(r) == 1, "false")
         if (allocated(error)) return
-        call execute_process("sh", r, st, args=list(value_type(text="-c"), value_type(text="exit 42")))
+        call execute_process("sh", r, st, arguments=list(value_type(text="-c"), value_type(text="exit 42")))
         call check(error, xfixnum(r), 42_int64)
     end subroutine test_exit_status
 
@@ -157,7 +157,7 @@ contains
         type(value_type) :: r
         type(status_type) :: st
 
-        call execute_process("sh", r, st, args=list(value_type(text="-c"), value_type(text="kill -TERM $$")))
+        call execute_process("sh", r, st, arguments=list(value_type(text="-c"), value_type(text="kill -TERM $$")))
         call check(error, st%ok() .and. vtag(r) == V_STRING, "a string")
         if (.not. allocated(error)) call check(error, xstring(r), "Terminated")
     end subroutine test_signal
@@ -168,7 +168,7 @@ contains
         type(status_type) :: st
 
         call execute_process("fortmacs-no-such-program", r, st)
-        call check(error, st%code == FM_FILE_MISSING, "file_missing")
+        call check(error, st%code == FILE_MISSING_CODE, "file_missing")
 
         if (.not. allocated(error)) then
             call check(error, format_error(st), &
@@ -209,7 +209,7 @@ contains
 
         call fresh_buffer("*callproc-test*", "", h)
         call execute_process("echo", r, st, destination=value_type(text="*callproc-out*"), &
-                             args=list(value_type(text="elsewhere")))
+                             arguments=list(value_type(text="elsewhere")))
         call check(error, st%ok() .and. buffer_size() == 0, "not in the current buffer")
         if (allocated(error)) return
         now = current_buffer()
@@ -274,13 +274,13 @@ contains
 
         call fresh_buffer("*callproc-test*", "hello world", h)
         call execute_process_region("tr", r, st, 1_int64, 6_int64, destination=value_type(.true.), &
-                                    args=list(value_type(text="a-z"), value_type(text="A-Z")))
+                                    arguments=list(value_type(text="a-z"), value_type(text="A-Z")))
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, buffer_string(), "hello worldHELLO")
 
         if (.not. allocated(error)) then
             call execute_process_region("tr", r, st, 1_int64, 6_int64, delete=.true., destination=value_type(.true.), &
-                                        args=list(value_type(text="a-z"), value_type(text="A-Z")))
+                                        arguments=list(value_type(text="a-z"), value_type(text="A-Z")))
             call check(error, buffer_string(), " worldHELLOHELLO")
         end if
 
@@ -297,13 +297,13 @@ contains
 
         call fresh_buffer("*callproc-test*", "", h)
         call setenv("FORTMACS_CALLPROC_TEST", "hello")
-        call execute_process("sh", r, st, destination=value_type(.true.), args=print_test_variable())
+        call execute_process("sh", r, st, destination=value_type(.true.), arguments=print_test_variable())
         call check(error, buffer_string(), "hello")
 
         if (.not. allocated(error)) then
             call erase_buffer(st)
             call setenv("FORTMACS_CALLPROC_TEST")
-            call execute_process("sh", r, st, destination=value_type(.true.), args=print_test_variable())
+            call execute_process("sh", r, st, destination=value_type(.true.), arguments=print_test_variable())
             call check(error, buffer_string(), "unset")
         end if
 
@@ -321,13 +321,13 @@ contains
 
         call fresh_buffer("*callproc-test*", "", h)
         call setenv("FORTMACS_CALLPROC_TEST", "hello")
-        call execute_process("sh", r, st, destination=value_type(.true.), args=print_test_variable(), &
+        call execute_process("sh", r, st, destination=value_type(.true.), arguments=print_test_variable(), &
                              environment=list(value_type(text="FORTMACS_CALLPROC_TEST=over")))
         call check(error, buffer_string(), "over")
 
         if (.not. allocated(error)) then
             call erase_buffer(st)
-            call execute_process("sh", r, st, destination=value_type(.true.), args=print_test_variable(), &
+            call execute_process("sh", r, st, destination=value_type(.true.), arguments=print_test_variable(), &
                                  environment=list(value_type(text="FORTMACS_CALLPROC_TEST")))
             call check(error, buffer_string(), "unset")
         end if
@@ -336,11 +336,11 @@ contains
         call done(h)
     end subroutine test_environment_overrides
 
-    !> ARGS for sh printing FORTMACS_CALLPROC_TEST, or "unset".
-    function print_test_variable() result(args)
-        type(value_type) :: args
+    !> ARGUMENTS for sh printing FORTMACS_CALLPROC_TEST, or "unset".
+    function print_test_variable() result(arguments)
+        type(value_type) :: arguments
 
-        args = list(value_type(text="-c"), value_type(text='printf %s "${FORTMACS_CALLPROC_TEST-unset}"'))
+        arguments = list(value_type(text="-c"), value_type(text='printf %s "${FORTMACS_CALLPROC_TEST-unset}"'))
     end function print_test_variable
 
     !> make_environment_block: PWD set to the directory without trailing

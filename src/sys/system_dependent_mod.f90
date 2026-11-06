@@ -32,7 +32,7 @@ module system_dependent_mod
     use, intrinsic :: iso_c_binding, only: c_int, c_long, c_size_t, c_char, c_ptr, c_null_char, &
                                                   c_associated, c_f_pointer, c_signed_char, c_funloc, c_funptr, c_loc, c_null_ptr, &
                                                                               c_int32_t, c_null_funptr, c_intptr_t, c_int64_t
-    use error_mod, only: status_type, set_error, FM_FILE_ERROR
+    use error_mod, only: status_type, set_error, FILE_ERROR_CODE
     use system_linux_mod, only: c_close, c_grantpt, c_ioctl_winsize, c_isatty, c_open, c_poll, c_posix_openpt, &
                                 c_ptsname, c_read, c_signal, sigint, c_string_to_fortran, c_tcgetattr, &
                                 c_tcsetattr, c_unlockpt, c_write, cdisable, cs8, echo, eintr, errno, &
@@ -44,7 +44,7 @@ module system_dependent_mod
                                 c_chmod, c_statx, c_getcwd, c_getuid, c_geteuid, c_getegid, c_getgid, c_gethostname, &
                                 c_getpwnam, c_getpwuid, at_symlink_nofollow, S_IFLNK, c_mkdir, &
                                 c_rmdir, c_setenv, c_unsetenv, c_statvfs, statvfs_type, &
-                                c_strerror, statx_type, passwd_type, o_rdonly, o_cloexec, at_fdcwd, &
+                                c_strerror, statx_type, password_type, o_rdonly, o_cloexec, at_fdcwd, &
                                 at_statx_sync_as_stat, statx_basic_stats, ENOENT, EACCES, EEXIST, &
                                 ENOTDIR, EISDIR, ERANGE, F_OK, R_OK, W_OK, X_OK, S_IFMT, S_IFDIR, &
                                 S_IFREG, c_fork, c_dup2, c_chdir, c_exit, c_pipe2, &
@@ -60,7 +60,7 @@ module system_dependent_mod
                                 VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, c_getrandom, &
                                 c_clock_gettime, CLOCK_REALTIME, CLOCK_PROCESS_CPUTIME_ID, &
                                 c_inotify_init1, c_inotify_add_watch, c_inotify_rm_watch, IN_ACCESS, IN_MODIFY, &
-                                IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, &
+                                IN_ATTRIBUTE, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, IN_MOVED_TO, &
                                 IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
                                 IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, &
                                 IN_ALL_EVENTS, IN_MOVE, IN_CLOSE, c_tcdrain, c_ioctl_char, c_getpid, c_getpgrp, c_setpgid, &
@@ -69,46 +69,47 @@ module system_dependent_mod
     implicit none(type, external)
     private
 
-    !> Port of systty.h:struct emacs_tty.
-    type, public :: fortmacs_tty_type
+    !> Port of systty.h:struct emacs_terminal.
+    type, public :: fortmacs_terminal_type
         type(termios_type) :: main
-    end type fortmacs_tty_type
+    end type fortmacs_terminal_type
 
     !> The quit character, C-g (keyboard.c:quit_char).
-    integer(c_signed_char), parameter, public :: QUIT_CHAR = 7_c_signed_char
+    integer(c_signed_char), parameter, public :: QUIT_CHARACTER = 7_c_signed_char
 
-    public :: fortmacs_get_tty, fortmacs_set_tty, tty_raw_settings, init_sys_modes, &
-              reset_sys_modes, get_tty_size, set_tty_size, fortmacs_read, &
+    public :: fortmacs_get_terminal, fortmacs_set_terminal, terminal_raw_settings, initialize_system_modes, &
+              reset_system_modes, get_terminal_size, set_terminal_size, fortmacs_read, &
               fortmacs_full_write, fortmacs_write, input_available
     public :: install_window_change_handler, window_change_pending, clear_window_change
-    public :: sys_suspend, stuff_char, SIGTSTP, SIGHUP
-    public :: signal_disposition_type, ignore_signal, default_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, sys_setpgid
+    public :: system_suspend, stuff_character, SIGTSTP, SIGHUP
+    public :: signal_disposition_type, ignore_signal, default_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, &
+              system_setpgid
     public :: install_interrupt_handler, interrupt_pending
     public :: open_pty, close_fd, is_tabs_safe, fortmacs_isatty
-    public :: file_stat_type, fortmacs_open_read, fortmacs_creat, sys_access, sys_rename, &
-              sys_unlink, sys_chmod, sys_stat, sys_mkdir, sys_rmdir, sys_setenv, &
-              sys_unsetenv, fortmacs_get_current_dir_name, &
-              passwd_home_by_name, passwd_home_of_user, passwd_name_of_user, &
-              passwd_entry_by_uid, passwd_entry_by_name, fortmacs_gethostname, &
+    public :: file_status_type, fortmacs_open_read, fortmacs_creat, system_access, system_rename, &
+              system_unlink, system_chmod, system_status, system_mkdir, system_rmdir, system_setenv, &
+              system_unsetenv, fortmacs_get_current_directory_name, &
+              password_home_by_name, password_home_of_user, password_name_of_user, &
+              password_entry_by_uid, password_entry_by_name, fortmacs_gethostname, &
               fortmacs_geteuid, fortmacs_getuid, fortmacs_getegid, fortmacs_getgid, fortmacs_strerror
     public :: ENOENT, EACCES, EEXIST, ENOTDIR, EISDIR, EPIPE, F_OK, R_OK, W_OK, X_OK, &
               S_IFMT, S_IFDIR, S_IFREG, S_IFLNK
     public :: fortmacs_spawn, wait_for_termination, fortmacs_pipe, fortmacs_strsignal, &
-              fortmacs_readlink, fortmacs_execv, fortmacs_mkostemp, fortmacs_directory_entries, sys_symlink, &
+              fortmacs_readlink, fortmacs_execv, fortmacs_mkostemp, fortmacs_directory_entries, system_symlink, &
               fortmacs_statvfs
-    public :: fortmacs_get_tty_pgrp, fortmacs_tty_signal_char, fortmacs_environment
-    public :: fortmacs_open_mode, sys_link, sys_rename_noreplace, sys_set_file_times, sys_futimens, fortmacs_umask, &
-              fortmacs_set_umask, fortmacs_sync, fortmacs_fsync, fortmacs_sleep, &
-              sys_fchmod, sys_chmod_at, sys_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
+    public :: fortmacs_get_terminal_pgrp, fortmacs_terminal_signal_character, fortmacs_environment
+    public :: fortmacs_open_mode, system_link, system_rename_noreplace, system_set_file_times, system_futimens, fortmacs_umask, &
+              fortmacs_set_umask, fortmacs_synchronize, fortmacs_fsync, fortmacs_sleep, &
+              system_fchmod, system_chmod_at, system_fchown, group_name_of_gid, user_name_of_uid, system_user_names, &
               system_group_names
     public :: O_WRONLY, O_CREAT, O_EXCL, O_TRUNC, O_APPEND, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP
-    public :: fortmacs_spawn_async, child_setup_tty, fortmacs_kill, ignore_sigpipe, fortmacs_write_nonblock, &
-              set_nonblocking, fortmacs_dup_cloexec, inputs_available, fortmacs_num_processors, &
-              fortmacs_clock_realtime, fortmacs_clock_process_cputime, sys_localtime, sys_mktime, sys_set_time_zone
-    public :: inotify_raw_event_type, fortmacs_inotify_init, fortmacs_inotify_add_watch, fortmacs_inotify_rm_watch, &
+    public :: fortmacs_spawn_asynchronous, child_setup_terminal, fortmacs_kill, ignore_sigpipe, fortmacs_write_nonblock, &
+              set_nonblocking, fortmacs_dup_cloexec, inputs_available, fortmacs_number_processors, &
+              fortmacs_clock_realtime, fortmacs_clock_process_cputime, system_localtime, system_mktime, system_set_time_zone
+    public :: inotify_raw_event_type, fortmacs_inotify_initialize, fortmacs_inotify_add_watch, fortmacs_inotify_rm_watch, &
               fortmacs_inotify_read
     public :: get_load_averages, fortmacs_getrandom
-    public :: IN_ACCESS, IN_MODIFY, IN_ATTRIB, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
+    public :: IN_ACCESS, IN_MODIFY, IN_ATTRIBUTE, IN_CLOSE_WRITE, IN_CLOSE_NOWRITE, IN_OPEN, IN_MOVED_FROM, &
               IN_MOVED_TO, IN_CREATE, IN_DELETE, IN_DELETE_SELF, IN_MOVE_SELF, IN_UNMOUNT, IN_Q_OVERFLOW, &
               IN_IGNORED, IN_ONLYDIR, IN_DONT_FOLLOW, IN_EXCL_UNLINK, IN_MASK_ADD, IN_ISDIR, IN_ALL_EVENTS, &
               IN_MOVE, IN_CLOSE
@@ -133,7 +134,7 @@ module system_dependent_mod
 
     ! The editor's environment ("NAME=VALUE" entries, in order): read
     ! from /proc/self/environ on first use and kept current by
-    ! `sys_setenv' and `sys_unsetenv' (libc's `environ' is out of a
+    ! `system_setenv' and `system_unsetenv' (libc's `environ' is out of a
     ! Fortran program's reach; execute_process_mod keeps `process_environment',
     ! starting from this).
     type(string_type), allocatable :: environment(:)
@@ -143,24 +144,24 @@ module system_dependent_mod
     !> null-terminated array of pointers to them.
     type :: c_argv_type
         character(kind=c_char), allocatable :: buffer(:)
-        type(c_ptr), allocatable :: ptrs(:)
+        type(c_ptr), allocatable :: pointers(:)
     end type c_argv_type
 
     !> What fileio.c reads from struct stat: the file's type and permission
     !> bits, link count, owner, size and modification time (and, for
     !> movemail's stale locks, the change time in seconds).
-    type :: file_stat_type
+    type :: file_status_type
         integer(int32) :: mode = 0
         integer(int64) :: nlink = 0
         integer(int32) :: uid = 0, gid = 0
         integer(int64) :: size = 0
-        integer(int64) :: mtime_sec = 0
+        integer(int64) :: mtime_second = 0
         integer(int32) :: mtime_nsec = 0
-        integer(int64) :: atime_sec = 0
+        integer(int64) :: atime_second = 0
         integer(int32) :: atime_nsec = 0
         integer(int64) :: dev = 0, ino = 0
-        integer(int64) :: ctime_sec = 0
-    end type file_stat_type
+        integer(int64) :: ctime_second = 0
+    end type file_status_type
 
     !> Set (to the signal number) asynchronously by the SIGWINCH handler;
     !> read and cleared by `window_change_pending'.
@@ -171,38 +172,38 @@ module system_dependent_mod
 contains
 
     !> Fill `status' from errno after the C call `what' failed.  Not a port.
-    subroutine sys_error(status, what, err)
+    subroutine system_error(status, what, err)
         type(status_type), intent(inout) :: status
         character(len=*), intent(in) :: what
         !> errno, if already fetched.
         integer(c_int), intent(in), optional :: err
-        character(len=12) :: num
+        character(len=12) :: number
 
         if (present(err)) then
-            write (num, "(i0)") err
+            write (number, "(i0)") err
         else
-            write (num, "(i0)") errno()
+            write (number, "(i0)") errno()
         end if
 
-        call set_error(status, FM_FILE_ERROR, what//" failed, errno "//trim(num))
-    end subroutine sys_error
+        call set_error(status, FILE_ERROR_CODE, what//" failed, errno "//trim(number))
+    end subroutine system_error
 
     !> Read the terminal modes of `fd'.  Port of sysdep.c:emacs_get_tty.
-    subroutine fortmacs_get_tty(fd, settings, status)
+    subroutine fortmacs_get_terminal(fd, settings, status)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type), intent(out) :: settings
+        type(fortmacs_terminal_type), intent(out) :: settings
         type(status_type), intent(out) :: status
 
-        if (c_tcgetattr(fd, settings%main) /= 0) call sys_error(status, "tcgetattr")
-    end subroutine fortmacs_get_tty
+        if (c_tcgetattr(fd, settings%main) /= 0) call system_error(status, "tcgetattr")
+    end subroutine fortmacs_get_terminal
 
     !> Set the terminal modes of `fd', discarding pending input if `flushp'.
     !> Reads the settings back and retries (up to 10 times) until they
     !> stick, as POSIX lets tcsetattr succeed partially.
     !> Port of sysdep.c:emacs_set_tty.
-    subroutine fortmacs_set_tty(fd, settings, flushp, status)
+    subroutine fortmacs_set_terminal(fd, settings, flushp, status)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type), intent(in) :: settings
+        type(fortmacs_terminal_type), intent(in) :: settings
         logical, intent(in) :: flushp
         type(status_type), intent(out) :: status
         type(termios_type) :: now
@@ -215,7 +216,7 @@ contains
         do i = 1, 10
             if (c_tcsetattr(fd, action, settings%main) < 0) then
                 if (errno() == EINTR) cycle
-                call sys_error(status, "tcsetattr")
+                call system_error(status, "tcsetattr")
                 return
             end if
 
@@ -226,25 +227,25 @@ contains
                 now%c_lflag == settings%main%c_lflag .and. &
                 all(now%c_cc == settings%main%c_cc)) return
         end do
-    end subroutine fortmacs_set_tty
+    end subroutine fortmacs_set_terminal
 
     !> The modes Fortmacs runs a terminal in, derived from `old': no echo, no
-    !> line editing, no CR/NL mapping, 8-bit input, reads of at least one
+    !> line editing, no CR/NEWLINE mapping, 8-bit input, reads of at least one
     !> byte, and special characters disabled except C-g for SIGINT/SIGQUIT
     !> on the controlling terminal.  The termios part of
     !> sysdep.c:init_sys_modes, separated so it can be tested.
     !> Port of part of sysdep.c:init_sys_modes.
-    pure function tty_raw_settings(old, flow_control, meta_key, controlling) result(tty)
-        type(fortmacs_tty_type), intent(in) :: old
+    pure function terminal_raw_settings(old, flow_control, meta_key, controlling) result(terminal)
+        type(fortmacs_terminal_type), intent(in) :: old
         logical, intent(in) :: flow_control, meta_key, controlling
-        type(fortmacs_tty_type) :: tty
+        type(fortmacs_terminal_type) :: terminal
 
-        tty = old
+        terminal = old
 
-        associate (m => tty%main)
+        associate (m => terminal%main)
             m%c_iflag = ior(m%c_iflag, IGNBRK)          ! Ignore break condition
-            m%c_iflag = iand(m%c_iflag, not(ICRNL))     ! No CR -> NL on input
-            m%c_iflag = iand(m%c_iflag, not(INLCR))     ! No NL -> CR on input
+            m%c_iflag = iand(m%c_iflag, not(ICRNL))     ! No CR -> NEWLINE on input
+            m%c_iflag = iand(m%c_iflag, not(INLCR))     ! No NEWLINE -> CR on input
             m%c_iflag = iand(m%c_iflag, not(ISTRIP))    ! Keep the 8th bit
             m%c_lflag = iand(m%c_lflag, not(ECHO))      ! No echo
             m%c_lflag = iand(m%c_lflag, not(ICANON))    ! No erase/kill processing
@@ -258,7 +259,7 @@ contains
                 m%c_iflag = iand(m%c_iflag, not(IXON))
             end if
 
-            m%c_oflag = iand(m%c_oflag, not(ONLCR))     ! No NL -> CR-NL on output
+            m%c_oflag = iand(m%c_oflag, not(ONLCR))     ! No NEWLINE -> CR-NL on output
             m%c_oflag = iand(m%c_oflag, not(TAB3))      ! No tab expansion
 
             if (meta_key) then
@@ -267,8 +268,8 @@ contains
             end if
 
             if (controlling) then
-                m%c_cc(VINTR) = QUIT_CHAR                ! C-g gives SIGINT
-                m%c_cc(VQUIT) = QUIT_CHAR
+                m%c_cc(VINTR) = QUIT_CHARACTER                ! C-g gives SIGINT
+                m%c_cc(VQUIT) = QUIT_CHARACTER
             else
                 m%c_cc(VINTR) = CDISABLE
                 m%c_cc(VQUIT) = CDISABLE
@@ -290,36 +291,36 @@ contains
                 m%c_cc(VSTOP) = CDISABLE
             end if
         end associate
-    end function tty_raw_settings
+    end function terminal_raw_settings
 
     !> Save the modes of `fd' in `old' and switch it to Fortmacs's modes.
     !> Port of the termios part of sysdep.c:init_sys_modes.
-    subroutine init_sys_modes(fd, old, status, flow_control, meta_key, controlling)
+    subroutine initialize_system_modes(fd, old, status, flow_control, meta_key, controlling)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type), intent(out) :: old
+        type(fortmacs_terminal_type), intent(out) :: old
         type(status_type), intent(out) :: status
         logical, intent(in), optional :: flow_control, meta_key, controlling
-        logical :: flow, meta, ctl
+        logical :: flow, meta, control
 
         flow = .false.
         meta = .true.
-        ctl = .true.
+        control = .true.
         if (present(flow_control)) flow = flow_control
         if (present(meta_key)) meta = meta_key
-        if (present(controlling)) ctl = controlling
-        call fortmacs_get_tty(fd, old, status)
+        if (present(controlling)) control = controlling
+        call fortmacs_get_terminal(fd, old, status)
         if (.not. status%ok()) return
-        call fortmacs_set_tty(fd, tty_raw_settings(old, flow, meta, ctl), .false., status)
-    end subroutine init_sys_modes
+        call fortmacs_set_terminal(fd, terminal_raw_settings(old, flow, meta, control), .false., status)
+    end subroutine initialize_system_modes
 
-    !> Restore the modes saved by `init_sys_modes': wait until the output
+    !> Restore the modes saved by `initialize_system_modes': wait until the output
     !> is sent, make the descriptor blocking again and give the terminal
     !> back the modes in `old'.  Port of the descriptor part of
     !> sysdep.c:reset_sys_modes (job control, widen_foreground_group, is
     !> not ported).
-    subroutine reset_sys_modes(fd, old, status)
+    subroutine reset_system_modes(fd, old, status)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type), intent(in) :: old
+        type(fortmacs_terminal_type), intent(in) :: old
         type(status_type), intent(out) :: status
         integer(c_int) :: r
 
@@ -331,8 +332,8 @@ contains
 
         r = c_fcntl_int(fd, F_GETFL, 0_c_int)
         if (r >= 0) r = c_fcntl_int(fd, F_SETFL, iand(r, not(O_NONBLOCK)))
-        call fortmacs_set_tty(fd, old, .false., status)
-    end subroutine reset_sys_modes
+        call fortmacs_set_terminal(fd, old, .false., status)
+    end subroutine reset_system_modes
 
     !> Whether `fd' is a terminal.  The isatty check of emacs.c:main.
     !> Not a port.
@@ -346,50 +347,50 @@ contains
     !> them to spaces).  Port of sysdep.c:tabs_safe_p.
     logical function is_tabs_safe(fd)
         integer(int32), intent(in) :: fd
-        type(fortmacs_tty_type) :: settings
+        type(fortmacs_terminal_type) :: settings
         type(status_type) :: status
 
-        call fortmacs_get_tty(fd, settings, status)
+        call fortmacs_get_terminal(fd, settings, status)
         is_tabs_safe = status%ok() .and. iand(settings%main%c_oflag, TABDLY) /= TAB3
     end function is_tabs_safe
 
     !> Width and height of the terminal on `fd'.
     !> Port of sysdep.c:get_tty_size.
-    subroutine get_tty_size(fd, width, height, status)
+    subroutine get_terminal_size(fd, width, height, status)
         integer(int32), intent(in) :: fd
         integer(int32), intent(out) :: width, height
         type(status_type), intent(out) :: status
-        type(winsize_type) :: ws
+        type(winsize_type) :: window_size
 
         width = 0
         height = 0
 
-        if (c_ioctl_winsize(fd, TIOCGWINSZ, ws) < 0) then
-            call sys_error(status, "ioctl(TIOCGWINSZ)")
+        if (c_ioctl_winsize(fd, TIOCGWINSZ, window_size) < 0) then
+            call system_error(status, "ioctl(TIOCGWINSZ)")
             return
         end if
 
-        width = int(ws%ws_col, int32)
-        height = int(ws%ws_row, int32)
-    end subroutine get_tty_size
+        width = int(window_size%ws_col, int32)
+        height = int(window_size%ws_row, int32)
+    end subroutine get_terminal_size
 
     !> Set the size of the terminal on `fd' (used on pseudo-terminals).
     !> Port of sysdep.c:set_window_size.
-    subroutine set_tty_size(fd, width, height, status)
+    subroutine set_terminal_size(fd, width, height, status)
         integer(int32), intent(in) :: fd
         integer(int32), intent(in) :: width, height
         type(status_type), intent(out) :: status
-        type(winsize_type) :: ws
+        type(winsize_type) :: window_size
 
-        if (c_ioctl_winsize(fd, TIOCGWINSZ, ws) < 0) then
-            call sys_error(status, "ioctl(TIOCGWINSZ)")
+        if (c_ioctl_winsize(fd, TIOCGWINSZ, window_size) < 0) then
+            call system_error(status, "ioctl(TIOCGWINSZ)")
             return
         end if
 
-        ws%ws_col = int(width, kind(ws%ws_col))
-        ws%ws_row = int(height, kind(ws%ws_row))
-        if (c_ioctl_winsize(fd, TIOCSWINSZ, ws) < 0) call sys_error(status, "ioctl(TIOCSWINSZ)")
-    end subroutine set_tty_size
+        window_size%ws_col = int(width, kind(window_size%ws_col))
+        window_size%ws_row = int(height, kind(window_size%ws_row))
+        if (c_ioctl_winsize(fd, TIOCSWINSZ, window_size) < 0) call system_error(status, "ioctl(TIOCSWINSZ)")
+    end subroutine set_terminal_size
 
     !> Read up to len(buffer) bytes from `fd' into `buffer', retrying on EINTR.
     !> `nread' is the count (0 at end of file).
@@ -416,7 +417,7 @@ contains
 
             if (e /= EINTR) then
                 if (present(err)) err = e
-                call sys_error(status, "read", e)
+                call system_error(status, "read", e)
                 return
             end if
         end do
@@ -449,7 +450,7 @@ contains
                 e = errno()
                 if (e == EINTR) cycle
                 if (present(err)) err = e
-                call sys_error(status, "write", e)
+                call system_error(status, "write", e)
                 return
             end if
 
@@ -545,51 +546,51 @@ contains
 
     !> Suspend the Fortmacs process; give terminal to its superior.
     !> Port of sysdep.c:sys_suspend.
-    subroutine sys_suspend()
+    subroutine system_suspend()
         integer(c_int) :: r
 
         r = c_kill(0_c_int32_t, SIGTSTP)
-    end subroutine sys_suspend
+    end subroutine system_suspend
 
     !> Push character C back into the input queue of the terminal `fd', so
     !> that it reads as typed there; `ok' is false if that fails (this
     !> needs TIOCSTI, which Linux may forbid).  Port of
     !> sysdep.c:stuff_char (the caller checks that the selected frame is
     !> on a terminal).
-    subroutine stuff_char(fd, c, ok)
+    subroutine stuff_character(fd, c, ok)
         integer(int32), intent(in) :: fd
         character, intent(in) :: c
         logical, intent(out) :: ok
 
         ok = c_ioctl_char(fd, TIOCSTI, c) == 0
-    end subroutine stuff_char
+    end subroutine stuff_character
 
-    !> Set signal `sig' to be ignored, saving in `old' how it was handled.
+    !> Set signal `signal' to be ignored, saving in `old' how it was handled.
     !> Not a port.
-    subroutine ignore_signal(sig, old)
-        integer, intent(in) :: sig
+    subroutine ignore_signal(signal, old)
+        integer, intent(in) :: signal
         type(signal_disposition_type), intent(out) :: old
 
-        old%handler = c_signal(int(sig, c_int), transfer(1_c_intptr_t, c_null_funptr))
+        old%handler = c_signal(int(signal, c_int), transfer(1_c_intptr_t, c_null_funptr))
     end subroutine ignore_signal
 
-    !> Set signal `sig' to its default action, saving in `old' how it was
+    !> Set signal `signal' to its default action, saving in `old' how it was
     !> handled.  A child inherits an ignored signal through exec, but not
     !> a handler, which exec puts back to the default.  Not a port.
-    subroutine default_signal(sig, old)
-        integer, intent(in) :: sig
+    subroutine default_signal(signal, old)
+        integer, intent(in) :: signal
         type(signal_disposition_type), intent(out) :: old
 
-        old%handler = c_signal(int(sig, c_int), c_null_funptr)
+        old%handler = c_signal(int(signal, c_int), c_null_funptr)
     end subroutine default_signal
 
-    !> Handle signal `sig' again as `old' says.  Not a port.
-    subroutine restore_signal(sig, old)
-        integer, intent(in) :: sig
+    !> Handle signal `signal' again as `old' says.  Not a port.
+    subroutine restore_signal(signal, old)
+        integer, intent(in) :: signal
         type(signal_disposition_type), intent(in) :: old
         type(c_funptr) :: previous
 
-        previous = c_signal(int(sig, c_int), old%handler)
+        previous = c_signal(int(signal, c_int), old%handler)
     end subroutine restore_signal
 
     !> getpid(2): the process id.  Not a port.
@@ -604,13 +605,13 @@ contains
 
     !> setpgid(2): move process `pid' (0: this one) into process group
     !> `pgid' (0: a new one it leads).  `err' is 0 or errno.  Not a port.
-    subroutine sys_setpgid(pid, pgid, err)
+    subroutine system_setpgid(pid, pgid, err)
         integer(int32), intent(in) :: pid, pgid
         integer(int32), intent(out) :: err
 
         err = 0
         if (c_setpgid(pid, pgid) /= 0) err = errno()
-    end subroutine sys_setpgid
+    end subroutine system_setpgid
 
     !> Open a pseudo-terminal pair: `master' and the matching `slave'.
     !> Port of the Unix98 path of process.c:allocate_pty (plus opening the
@@ -624,12 +625,12 @@ contains
         master = c_posix_openpt(ior(O_RDWR, O_NOCTTY))
 
         if (master < 0) then
-            call sys_error(status, "posix_openpt")
+            call system_error(status, "posix_openpt")
             return
         end if
 
         if (c_grantpt(master) /= 0 .or. c_unlockpt(master) /= 0) then
-            call sys_error(status, "grantpt/unlockpt")
+            call system_error(status, "grantpt/unlockpt")
             call close_fd(master)
             return
         end if
@@ -638,7 +639,7 @@ contains
         slave = c_open(name//char(0), ior(O_RDWR, O_NOCTTY))
 
         if (slave < 0) then
-            call sys_error(status, "open("//name//")")
+            call system_error(status, "open("//name//")")
             call close_fd(master)
         end if
     end subroutine open_pty
@@ -700,50 +701,50 @@ contains
 
     !> access(2) with `mode' (F_OK, R_OK, W_OK, X_OK); 0 if allowed.
     !> Not a port.
-    integer(int32) function sys_access(file, mode) result(err)
+    integer(int32) function system_access(file, mode) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
 
         err = 0
         if (c_access(c_path(file), mode) /= 0) err = errno()
-    end function sys_access
+    end function system_access
 
     !> rename(2).  Not a port.
-    integer(int32) function sys_rename(old, new) result(err)
+    integer(int32) function system_rename(old, new) result(err)
         character(len=*), intent(in) :: old, new
 
         err = 0
         if (c_rename(c_path(old), c_path(new)) /= 0) err = errno()
-    end function sys_rename
+    end function system_rename
 
     !> unlink(2).  Not a port.
-    integer(int32) function sys_unlink(file) result(err)
+    integer(int32) function system_unlink(file) result(err)
         character(len=*), intent(in) :: file
 
         err = 0
         if (c_unlink(c_path(file)) /= 0) err = errno()
-    end function sys_unlink
+    end function system_unlink
 
     !> mkdir(2) with permission bits `mode' (before the umask).  Not a port.
-    integer(int32) function sys_mkdir(dir, mode) result(err)
-        character(len=*), intent(in) :: dir
+    integer(int32) function system_mkdir(directory, mode) result(err)
+        character(len=*), intent(in) :: directory
         integer(int32), intent(in) :: mode
 
         err = 0
-        if (c_mkdir(c_path(dir), mode) /= 0) err = errno()
-    end function sys_mkdir
+        if (c_mkdir(c_path(directory), mode) /= 0) err = errno()
+    end function system_mkdir
 
     !> rmdir(2).  Not a port.
-    integer(int32) function sys_rmdir(dir) result(err)
-        character(len=*), intent(in) :: dir
+    integer(int32) function system_rmdir(directory) result(err)
+        character(len=*), intent(in) :: directory
 
         err = 0
-        if (c_rmdir(c_path(dir)) /= 0) err = errno()
-    end function sys_rmdir
+        if (c_rmdir(c_path(directory)) /= 0) err = errno()
+    end function system_rmdir
 
     !> Set environment variable `name' to `value' for this process (and
     !> so for get_environment_variable).  Not a port.
-    integer(int32) function sys_setenv(name, value) result(err)
+    integer(int32) function system_setenv(name, value) result(err)
         character(len=*), intent(in) :: name, value
 
         err = 0
@@ -753,10 +754,10 @@ contains
             if (.not. environment_read) call read_environment()
             call environment_set(name//"="//value)
         end if
-    end function sys_setenv
+    end function system_setenv
 
     !> Remove environment variable `name'.  Not a port.
-    integer(int32) function sys_unsetenv(name) result(err)
+    integer(int32) function system_unsetenv(name) result(err)
         character(len=*), intent(in) :: name
 
         err = 0
@@ -766,7 +767,7 @@ contains
             if (.not. environment_read) call read_environment()
             call environment_set(name)
         end if
-    end function sys_unsetenv
+    end function system_unsetenv
 
     ! Read the environment the editor started with into `environment'.
     ! Not a port.
@@ -842,20 +843,20 @@ contains
     end subroutine environment_set
 
     !> chmod(2).  Not a port.
-    integer(int32) function sys_chmod(file, mode) result(err)
+    integer(int32) function system_chmod(file, mode) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
 
         err = 0
         if (c_chmod(c_path(file), mode) /= 0) err = errno()
-    end function sys_chmod
+    end function system_chmod
 
     !> Status of `file', following symbolic links unless `nofollow'.
     !> Cf. emacs_fstatat (statx is used because its layout is the same on
     !> both targets).  Not a port.
-    integer(int32) function sys_stat(file, st, nofollow) result(err)
+    integer(int32) function system_status(file, st, nofollow) result(err)
         character(len=*), intent(in) :: file
-        type(file_stat_type), intent(out) :: st
+        type(file_status_type), intent(out) :: st
         logical, intent(in), optional :: nofollow
         type(statx_type) :: sx
         integer(c_int) :: flags
@@ -877,24 +878,24 @@ contains
         st%uid = sx%stx_uid
         st%gid = sx%stx_gid
         st%size = sx%stx_size
-        st%mtime_sec = sx%stx_mtime%tv_sec
+        st%mtime_second = sx%stx_mtime%tv_sec
         st%mtime_nsec = sx%stx_mtime%tv_nsec
-        st%atime_sec = sx%stx_atime%tv_sec
+        st%atime_second = sx%stx_atime%tv_sec
         st%atime_nsec = sx%stx_atime%tv_nsec
-        st%ctime_sec = sx%stx_ctime%tv_sec
+        st%ctime_second = sx%stx_ctime%tv_sec
         st%dev = ior(shiftl(int(sx%stx_dev_major, int64), 32), &
                      iand(int(sx%stx_dev_minor, int64), int(z'FFFFFFFF', int64)))
         st%ino = sx%stx_ino
-    end function sys_stat
+    end function system_status
 
     !> The current working directory, preferring $PWD when it names the
     !> same directory (so symbolic links in it are kept); "" on failure.
     !> Port of sysdep.c:emacs_get_current_dir_name.
-    function fortmacs_get_current_dir_name() result(dir)
-        character(len=:), allocatable :: dir
+    function fortmacs_get_current_directory_name() result(directory)
+        character(len=:), allocatable :: directory
         character(len=:), allocatable :: pwd
         character(kind=c_char, len=:), allocatable :: buffer
-        type(file_stat_type) :: dotstat, pwdstat
+        type(file_status_type) :: dotstat, pwdstat
         type(c_ptr) :: p
         integer :: length, stat, bufsize
         integer(int32) :: e1, e2
@@ -906,12 +907,12 @@ contains
             call get_environment_variable("PWD", pwd)
 
             if (pwd(1:1) == "/") then
-                e1 = sys_stat(pwd, pwdstat)
-                e2 = sys_stat(".", dotstat)
+                e1 = system_status(pwd, pwdstat)
+                e2 = system_status(".", dotstat)
 
                 if (e1 == 0 .and. e2 == 0 .and. pwdstat%dev == dotstat%dev .and. &
                     pwdstat%ino == dotstat%ino) then
-                    dir = pwd
+                    directory = pwd
                     return
                 end if
             end if
@@ -927,64 +928,64 @@ contains
 
             ! ERANGE: the buffer was too small; grow it and retry.
             if (errno() /= ERANGE .or. bufsize > 1048576) then
-                dir = ""
+                directory = ""
                 return
             end if
 
             bufsize = 2*bufsize
         end do
 
-        dir = buffer(1:index(buffer, c_null_char) - 1)
-    end function fortmacs_get_current_dir_name
+        directory = buffer(1:index(buffer, c_null_char) - 1)
+    end function fortmacs_get_current_directory_name
 
     !> Home directory of the user called `name' (getpwnam).  `found' is
     !> false when there is no such user.  Not a port.
-    subroutine passwd_home_by_name(name, home, found)
+    subroutine password_home_by_name(name, home, found)
         character(len=*), intent(in) :: name
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: found
 
-        call passwd_home(c_getpwnam(c_path(name)), home, found)
-    end subroutine passwd_home_by_name
+        call password_home(c_getpwnam(c_path(name)), home, found)
+    end subroutine password_home_by_name
 
     !> Home directory of the real user (getpwuid (getuid ())).  Not a port.
-    subroutine passwd_home_of_user(home, found)
+    subroutine password_home_of_user(home, found)
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: found
 
-        call passwd_home(c_getpwuid(c_getuid()), home, found)
-    end subroutine passwd_home_of_user
+        call password_home(c_getpwuid(c_getuid()), home, found)
+    end subroutine password_home_of_user
 
     !> Login name of the real user (getpwuid (getuid ())), as
     !> editfns.c:Fuser_real_login_name finds it.  `found' is false when the
     !> user has no passwd entry.  Not a port.
-    subroutine passwd_name_of_user(name, found)
+    subroutine password_name_of_user(name, found)
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: found
         type(c_ptr) :: p
-        type(passwd_type), pointer :: pw
+        type(password_type), pointer :: password
 
         p = c_getpwuid(c_getuid())
         found = c_associated(p)
         name = ""
         if (.not. found) return
-        call c_f_pointer(p, pw)
-        name = c_string_to_fortran(pw%pw_name)
-    end subroutine passwd_name_of_user
+        call c_f_pointer(p, password)
+        name = c_string_to_fortran(password%pw_name)
+    end subroutine password_name_of_user
 
     ! Not a port.
-    subroutine passwd_home(p, home, found)
+    subroutine password_home(p, home, found)
         type(c_ptr), intent(in) :: p
         character(len=:), allocatable, intent(out) :: home
         logical, intent(out) :: found
-        type(passwd_type), pointer :: pw
+        type(password_type), pointer :: password
 
         found = c_associated(p)
         home = ""
         if (.not. found) return
-        call c_f_pointer(p, pw)
-        home = c_string_to_fortran(pw%pw_dir)
-    end subroutine passwd_home
+        call c_f_pointer(p, password)
+        home = c_string_to_fortran(password%pw_dir)
+    end subroutine password_home
 
     !> The effective user id (editfns.c:Fuser_uid).  Not a port.
     integer(int32) function fortmacs_geteuid()
@@ -1019,64 +1020,64 @@ contains
     ! Processes.  Like the file calls, each returns 0 or the errno value.
     ! ------------------------------------------------------------------
 
-    !> Fill `argv' (which must be a target) from `args'.  Not a port.
-    subroutine make_argv(args, argv)
-        type(string_type), intent(in) :: args(:)
+    !> Fill `argv' (which must be a target) from `arguments'.  Not a port.
+    subroutine make_argv(arguments, argv)
+        type(string_type), intent(in) :: arguments(:)
         type(c_argv_type), intent(out), target :: argv
         integer :: k, j, off, n
 
-        allocate (argv%buffer(sum([(len(args(k)%text) + 1, k=1, size(args))])))
-        allocate (argv%ptrs(size(args) + 1))
+        allocate (argv%buffer(sum([(len(arguments(k)%text) + 1, k=1, size(arguments))])))
+        allocate (argv%pointers(size(arguments) + 1))
         off = 1
 
-        do k = 1, size(args)
-            n = len(args(k)%text)
+        do k = 1, size(arguments)
+            n = len(arguments(k)%text)
 
             do j = 1, n
-                argv%buffer(off + j - 1) = args(k)%text(j:j)
+                argv%buffer(off + j - 1) = arguments(k)%text(j:j)
             end do
 
             argv%buffer(off + n) = c_null_char
-            argv%ptrs(k) = c_loc(argv%buffer(off))
+            argv%pointers(k) = c_loc(argv%buffer(off))
             off = off + n + 1
         end do
 
-        argv%ptrs(size(args) + 1) = c_null_ptr
+        argv%pointers(size(arguments) + 1) = c_null_ptr
     end subroutine make_argv
 
     !> Start the program `path' (a file name, found by the caller) with
-    !> arguments `args' (args(1) is its name), standard input from file
+    !> arguments `arguments' (args(1) is its name), standard input from file
     !> `infile', standard output and error to `out_fd' (or /dev/null if it
-    !> is negative), in directory `dir' (unless empty), with the
-    !> environment `env' (the editor's own if absent).  With `err_file',
+    !> is negative), in directory `directory' (unless empty), with the
+    !> environment `environment' (the editor's own if absent).  With `err_file',
     !> standard error goes to that file instead (created or truncated).
     !> `pid' is the child, which starts a
     !> new session with SIGINT, SIGQUIT and SIGPIPE at their defaults.
-    !> The caller checks that `path', `infile' and `dir' can be used first;
+    !> The caller checks that `path', `infile' and `directory' can be used first;
     !> if the child still fails to start, it exits with status 127.
     !> Port of callproc.c:emacs_spawn (the fork path, without a pty).
-    integer(int32) function fortmacs_spawn(path, args, infile, out_fd, dir, pid, err_file, env) result(err)
-        character(len=*), intent(in) :: path, infile, dir
-        type(string_type), intent(in) :: args(:)
+    integer(int32) function fortmacs_spawn(path, arguments, infile, out_fd, directory, pid, err_file, environment) result(err)
+        character(len=*), intent(in) :: path, infile, directory
+        type(string_type), intent(in) :: arguments(:)
         integer(int32), intent(in) :: out_fd
         integer(int32), intent(out) :: pid
         character(len=*), intent(in), optional :: err_file
         !> The child's whole environment, "NAME=VALUE" entries (as
         !> execute_process_mod's `make_environment_block' makes it).
-        type(string_type), intent(in), optional :: env(:)
+        type(string_type), intent(in), optional :: environment(:)
         type(c_argv_type), target :: argv, envv
-        character(len=:), allocatable :: c_file, c_infile, c_null, c_dir, c_err
+        character(len=:), allocatable :: c_file, c_infile, c_null, c_directory, c_err
         integer(c_int) :: fd, r
         logical :: separate_err
 
         ! Everything the child needs is made before forking: between fork
         ! and exec it only makes system calls.
-        call make_argv(args, argv)
-        if (present(env)) call make_argv(env, envv)
+        call make_argv(arguments, argv)
+        if (present(environment)) call make_argv(environment, envv)
         c_file = c_path(path)
         c_infile = c_path(infile)
         c_null = c_path("/dev/null")
-        c_dir = c_path(dir)
+        c_directory = c_path(directory)
         separate_err = present(err_file)
         c_err = ""
         if (separate_err) c_err = c_path(err_file)
@@ -1111,14 +1112,14 @@ contains
             r = c_dup2(fd, 2)
         end if
 
-        if (len(dir) > 0) then
-            if (c_chdir(c_dir) /= 0) call c_exit(127)
+        if (len(directory) > 0) then
+            if (c_chdir(c_directory) /= 0) call c_exit(127)
         end if
 
-        if (present(env)) then
-            r = c_execve(c_file, argv%ptrs, envv%ptrs)
+        if (present(environment)) then
+            r = c_execve(c_file, argv%pointers, envv%pointers)
         else
-            r = c_execv(c_file, argv%ptrs)
+            r = c_execv(c_file, argv%pointers)
         end if
 
         call c_exit(127)
@@ -1139,13 +1140,13 @@ contains
         old = c_signal(SIGPIPE, c_null_funptr)
     end subroutine child_signals
 
-    !> Start the program `path' with arguments `args' (args(1) is its
-    !> name) as an asynchronous subprocess in directory `dir' (unless
-    !> empty), with the environment `env' (the editor's own if absent).
+    !> Start the program `path' with arguments `arguments' (args(1) is its
+    !> name) as an asynchronous subprocess in directory `directory' (unless
+    !> empty), with the environment `environment' (the editor's own if absent).
     !> With `pty', its standard input, output and error are the slave of
     !> a new pseudo-terminal (its controlling terminal, set up by
-    !> `child_setup_tty'), named
-    !> `tty_name', and `to_child' and `from_child' are both the master;
+    !> `child_setup_terminal'), named
+    !> `terminal_name', and `to_child' and `from_child' are both the master;
     !> otherwise they are the editor's ends of a pipe to its standard input
     !> and of a pipe from its standard output and error.  All are
     !> close-on-exec; the caller closes them.  The child starts a new
@@ -1154,34 +1155,35 @@ contains
     !> errno of the failure.  Port of the part of process.c:create_process
     !> and callproc.c:emacs_spawn that runs the child (fork, with
     !> create_process's exec-monitor pipe carrying the exec error back).
-    integer(int32) function fortmacs_spawn_async(path, args, dir, pty, to_child, from_child, pid, tty_name, env) &
+    integer(int32) function fortmacs_spawn_asynchronous(path, arguments, directory, pty, to_child, from_child, pid, terminal_name, &
+                                                        environment) &
         result(err)
-        character(len=*), intent(in) :: path, dir
-        type(string_type), intent(in) :: args(:)
+        character(len=*), intent(in) :: path, directory
+        type(string_type), intent(in) :: arguments(:)
         logical, intent(in) :: pty
         integer(int32), intent(out) :: to_child, from_child, pid
-        character(len=:), allocatable, intent(out) :: tty_name
+        character(len=:), allocatable, intent(out) :: terminal_name
         !> The child's whole environment, "NAME=VALUE" entries (as
         !> execute_process_mod's `make_environment_block' makes it).
-        type(string_type), intent(in), optional :: env(:)
+        type(string_type), intent(in), optional :: environment(:)
         type(c_argv_type), target :: argv, envv
-        character(len=:), allocatable :: c_file, c_dir
-        integer(c_int) :: inpipe(2), outpipe(2), monitor(2), master, slave, r, std_in, std_out
+        character(len=:), allocatable :: c_file, c_directory
+        integer(c_int) :: inpipe(2), outpipe(2), monitor(2), master, slave, r, standard_in, standard_out
         integer(c_int) :: code
-        character(kind=c_char) :: code_chars(4)
+        character(kind=c_char) :: code_characters(4)
         integer(c_long) :: n
         integer(c_int32_t) :: w
-        type(termios_type) :: tty
+        type(termios_type) :: terminal
         type(status_type) :: st
 
-        call make_argv(args, argv)
-        if (present(env)) call make_argv(env, envv)
+        call make_argv(arguments, argv)
+        if (present(environment)) call make_argv(environment, envv)
         c_file = c_path(path)
-        c_dir = c_path(dir)
+        c_directory = c_path(directory)
         to_child = -1
         from_child = -1
         pid = -1
-        tty_name = ""
+        terminal_name = ""
         inpipe = -1
         outpipe = -1
         master = -1
@@ -1197,9 +1199,9 @@ contains
 
             r = c_fcntl_int(master, F_SETFD, FD_CLOEXEC)
             r = c_fcntl_int(slave, F_SETFD, FD_CLOEXEC)
-            tty_name = c_string_to_fortran(c_ptsname(master))
-            std_in = slave
-            std_out = slave
+            terminal_name = c_string_to_fortran(c_ptsname(master))
+            standard_in = slave
+            standard_out = slave
         else
             if (c_pipe2(inpipe, O_CLOEXEC) /= 0) then
                 err = errno()
@@ -1212,8 +1214,8 @@ contains
                 return
             end if
 
-            std_in = inpipe(1)
-            std_out = outpipe(2)
+            standard_in = inpipe(1)
+            standard_out = outpipe(2)
         end if
 
         if (c_pipe2(monitor, O_CLOEXEC) /= 0) then
@@ -1241,24 +1243,24 @@ contains
                 ! Make the pty's terminal the controlling terminal.
                 r = c_ioctl_int(slave, TIOCSCTTY, 0_c_int)
 
-                if (c_tcgetattr(slave, tty) == 0) then
-                    tty = child_setup_tty(tty)
-                    r = c_tcsetattr(slave, TCSANOW, tty)
+                if (c_tcgetattr(slave, terminal) == 0) then
+                    terminal = child_setup_terminal(terminal)
+                    r = c_tcsetattr(slave, TCSANOW, terminal)
                 end if
             end if
 
-            r = c_dup2(std_in, 0)
-            r = c_dup2(std_out, 1)
-            r = c_dup2(std_out, 2)
+            r = c_dup2(standard_in, 0)
+            r = c_dup2(standard_out, 1)
+            r = c_dup2(standard_out, 2)
 
-            if (len(dir) > 0) then
-                if (c_chdir(c_dir) /= 0) call child_failed()
+            if (len(directory) > 0) then
+                if (c_chdir(c_directory) /= 0) call child_failed()
             end if
 
-            if (present(env)) then
-                r = c_execve(c_file, argv%ptrs, envv%ptrs)
+            if (present(environment)) then
+                r = c_execve(c_file, argv%pointers, envv%pointers)
             else
-                r = c_execv(c_file, argv%ptrs)
+                r = c_execv(c_file, argv%pointers)
             end if
 
             call child_failed()
@@ -1279,7 +1281,7 @@ contains
         end if
 
         do
-            n = c_read(monitor(1), code_chars, 4_c_size_t)
+            n = c_read(monitor(1), code_characters, 4_c_size_t)
             if (n >= 0) exit
             if (errno() /= EINTR) exit
         end do
@@ -1288,7 +1290,7 @@ contains
 
         if (n == 4) then
             ! The exec failed: reap the child and report why.
-            err = transfer(code_chars, 0_int32)
+            err = transfer(code_characters, 0_int32)
             w = c_waitpid(pid, r, 0)
             r = c_close(to_child)
             if (from_child /= to_child) r = c_close(from_child)
@@ -1304,7 +1306,7 @@ contains
             integer(c_long) :: written
 
             code = errno()
-            written = c_write(monitor(2), transfer(code, code_chars), 4_c_size_t)
+            written = c_write(monitor(2), transfer(code, code_characters), 4_c_size_t)
             call c_exit(127)
         end subroutine child_failed
 
@@ -1319,19 +1321,19 @@ contains
             if (master >= 0) rc = c_close(master)
             if (slave >= 0) rc = c_close(slave)
         end subroutine close_all
-    end function fortmacs_spawn_async
+    end function fortmacs_spawn_asynchronous
 
     !> Wait for child `pid' to exit.  `code' is its exit status, or -1 if
-    !> it was killed by signal `sig' (0 otherwise).  Port of
+    !> it was killed by signal `signal' (0 otherwise).  Port of
     !> sysdep.c:wait_for_termination (get_child_status, blocking).
-    integer(int32) function wait_for_termination(pid, code, sig) result(err)
+    integer(int32) function wait_for_termination(pid, code, signal) result(err)
         integer(int32), intent(in) :: pid
-        integer(int32), intent(out) :: code, sig
+        integer(int32), intent(out) :: code, signal
         integer(c_int) :: wstatus
         integer(c_int32_t) :: r
 
         code = -1
-        sig = 0
+        signal = 0
         err = 0
 
         do
@@ -1346,7 +1348,7 @@ contains
         if (iand(wstatus, 127) == 0) then
             code = iand(ishft(wstatus, -8), 255)
         else
-            sig = iand(wstatus, 127)
+            signal = iand(wstatus, 127)
         end if
     end function wait_for_termination
 
@@ -1375,24 +1377,24 @@ contains
         all = environment_with(none)
     end function fortmacs_environment
 
-    !> The editor's environment with the "NAME=VALUE" entries `env' first,
+    !> The editor's environment with the "NAME=VALUE" entries `environment' first,
     !> replacing the variables they name (earlier entries win); an entry
     !> "NAME" without "=" removes the variable.  Cf.
     !> callproc.c:make_environment_block.  Not a port.
-    function environment_with(env) result(all)
-        type(string_type), intent(in) :: env(:)
+    function environment_with(environment_variables) result(all)
+        type(string_type), intent(in) :: environment_variables(:)
         type(string_type), allocatable :: all(:), grown(:)
         character(len=:), allocatable :: entry
         integer :: n, k, j
         logical :: shadowed
 
-        allocate (all(size(env)))
+        allocate (all(size(environment_variables)))
         n = 0
 
-        do k = 1, size(env)
-            if (.not. already(all(1:n), env(k)%text)) then
+        do k = 1, size(environment_variables)
+            if (.not. already(all(1:n), environment_variables(k)%text)) then
                 n = n + 1
-                all(n)%text = env(k)%text
+                all(n)%text = environment_variables(k)%text
             end if
         end do
 
@@ -1457,7 +1459,7 @@ contains
     !> or with `overridable', the number OMP_NUM_THREADS gives (capped by
     !> OMP_THREAD_LIMIT).  Port of gnulib nproc.c:num_processors
     !> (NPROC_CURRENT and NPROC_CURRENT_OVERRIDABLE).
-    integer function fortmacs_num_processors(overridable) result(n)
+    integer function fortmacs_number_processors(overridable) result(n)
         logical, intent(in) :: overridable
         integer(c_int64_t) :: mask(16)
         integer :: limit, threads
@@ -1520,21 +1522,21 @@ contains
 
             value = d
         end function omp_threads
-    end function fortmacs_num_processors
+    end function fortmacs_number_processors
 
     !> The current time as seconds and nanoseconds since the epoch
     !> (clock_gettime(2) with CLOCK_REALTIME; gnulib current_timespec).
     !> Not a port.
-    subroutine fortmacs_clock_realtime(sec, nsec)
-        integer(int64), intent(out) :: sec
+    subroutine fortmacs_clock_realtime(second, nsec)
+        integer(int64), intent(out) :: second
         integer(int32), intent(out) :: nsec
         type(timespec_type) :: ts
 
         if (c_clock_gettime(CLOCK_REALTIME, ts) /= 0) then
-            sec = c_time(c_null_ptr)
+            second = c_time(c_null_ptr)
             nsec = 0
         else
-            sec = ts%tv_sec
+            second = ts%tv_sec
             nsec = int(ts%tv_nsec, int32)
         end if
     end subroutine fortmacs_clock_realtime
@@ -1542,16 +1544,16 @@ contains
     !> The CPU time this process has used, as seconds and nanoseconds
     !> (clock_gettime(2) with CLOCK_PROCESS_CPUTIME_ID, which glibc's
     !> clock(3) reads).  Not a port.
-    subroutine fortmacs_clock_process_cputime(sec, nsec)
-        integer(int64), intent(out) :: sec
+    subroutine fortmacs_clock_process_cputime(second, nsec)
+        integer(int64), intent(out) :: second
         integer(int32), intent(out) :: nsec
         type(timespec_type) :: ts
 
-        sec = 0
+        second = 0
         nsec = 0
 
         if (c_clock_gettime(CLOCK_PROCESS_CPUTIME_ID, ts) == 0) then
-            sec = ts%tv_sec
+            second = ts%tv_sec
             nsec = int(ts%tv_nsec, int32)
         end if
     end subroutine fortmacs_clock_process_cputime
@@ -1562,7 +1564,7 @@ contains
     !> tm_isdst), the UTC offset in seconds (tm_gmtoff) and the zone
     !> abbreviation (tm_zone).  `ok' is false when the year does not fit
     !> (localtime_r fails).  Not a port.
-    subroutine sys_localtime(seconds, fields, gmtoff, abbreviation, ok)
+    subroutine system_localtime(seconds, fields, gmtoff, abbreviation, ok)
         integer(int64), intent(in) :: seconds
         integer, intent(out) :: fields(9)
         integer(int64), intent(out) :: gmtoff
@@ -1578,14 +1580,14 @@ contains
         gmtoff = tm%tm_gmtoff
         abbreviation = ""
         if (ok) abbreviation = c_string_to_fortran(tm%tm_zone)
-    end subroutine sys_localtime
+    end subroutine system_localtime
 
     !> mktime(3) under the current TZ of the broken-down time `fields'
-    !> (struct tm order, as sys_localtime gives them; tm_wday and tm_yday
+    !> (struct tm order, as system_localtime gives them; tm_wday and tm_yday
     !> are ignored, a negative tm_isdst lets mktime guess): `seconds' since
     !> the epoch, with `fields' brought into range.  `ok' is false when
     !> the time is not representable.  Not a port.
-    subroutine sys_mktime(fields, seconds, ok)
+    subroutine system_mktime(fields, seconds, ok)
         integer, intent(inout) :: fields(9)
         integer(int64), intent(out) :: seconds
         logical, intent(out) :: ok
@@ -1605,14 +1607,14 @@ contains
         ok = tm%tm_wday >= 0
         fields = [tm%tm_sec, tm%tm_min, tm%tm_hour, tm%tm_mday, tm%tm_mon, tm%tm_year, tm%tm_wday, tm%tm_yday, &
                   tm%tm_isdst]
-    end subroutine sys_mktime
+    end subroutine system_mktime
 
     !> Set the C library's time zone rule: TZ in the C environment only
     !> (not in `environment', which subprocesses get, as upstream's
     !> set-time-zone-rule leaves `process-environment' alone), or no TZ
     !> (the system's wall clock time) when `rule' is absent; then
     !> tzset(3).  Not a port.
-    subroutine sys_set_time_zone(rule)
+    subroutine system_set_time_zone(rule)
         character(len=*), intent(in), optional :: rule
         integer(c_int) :: r
 
@@ -1623,21 +1625,21 @@ contains
         end if
 
         call c_tzset()
-    end subroutine sys_set_time_zone
+    end subroutine system_set_time_zone
 
-    !> The terminal modes `tty' with the changes child_setup_tty makes for
+    !> The terminal modes `terminal' with the changes child_setup_terminal makes for
     !> the terminal at the other end of a pseudo-terminal that the editor
     !> controls an inferior through: no echo or line editing beyond
-    !> ICANON (done in the editor), signals on, no padding, no NL to CR-NL
+    !> ICANON (done in the editor), signals on, no padding, no NEWLINE to CR-NL
     !> mapping, 8-bit characters, ^D as EOF, ^C and ^\ as INTR and QUIT if
     !> they are disabled.  Port of sysdep.c:child_setup_tty (as a pure
     !> function; the caller reads and sets the modes).
-    pure function child_setup_tty(tty) result(s)
-        type(termios_type), intent(in) :: tty
+    pure function child_setup_terminal(terminal) result(s)
+        type(termios_type), intent(in) :: terminal
         type(termios_type) :: s
 
-        s = tty
-        ! Enable output postprocessing, without mapping NL to CR-NL.
+        s = terminal
+        ! Enable output postprocessing, without mapping NEWLINE to CR-NL.
         s%c_oflag = ior(s%c_oflag, OPOST)
         s%c_oflag = iand(s%c_oflag, not(ONLCR))
         ! No output delays.
@@ -1661,35 +1663,35 @@ contains
         ! Enable line editing and EOF processing, with C-d as EOF.
         s%c_lflag = ior(s%c_lflag, ICANON)
         s%c_cc(VEOF) = 4_c_signed_char
-    end function child_setup_tty
+    end function child_setup_terminal
 
-    !> kill(2): send signal `sig' to process `pid' (a process group if
+    !> kill(2): send signal `signal' to process `pid' (a process group if
     !> negative).  Returns 0 or errno.  Not a port.
-    integer(int32) function fortmacs_kill(pid, sig) result(err)
-        integer(int32), intent(in) :: pid, sig
+    integer(int32) function fortmacs_kill(pid, signal) result(err)
+        integer(int32), intent(in) :: pid, signal
 
         err = 0
-        if (c_kill(pid, sig) /= 0) err = errno()
+        if (c_kill(pid, signal) /= 0) err = errno()
     end function fortmacs_kill
 
     !> The foreground process group of the terminal `fd' (a pty master: its
     !> slave's), or -1.  The TIOCGPGRP part of process.c:emacs_get_tty_pgrp.
     !> Port of process.c:emacs_get_tty_pgrp (in part).
-    integer(int32) function fortmacs_get_tty_pgrp(fd) result(gid)
+    integer(int32) function fortmacs_get_terminal_pgrp(fd) result(gid)
         integer(int32), intent(in) :: fd
 
         gid = c_tcgetpgrp(fd)
-    end function fortmacs_get_tty_pgrp
+    end function fortmacs_get_terminal_pgrp
 
     !> The character that "types" signal SIGNO (SIGINT, SIGQUIT or
     !> SIGTSTP) on the terminal `fd': its INTR, QUIT or SUSP character, or
     !> -1 if it has none (disabled, or another signal).  The
     !> SIGNALS_VIA_CHARACTERS part of process.c:process_send_signal.
     !> Port of part of process.c:process_send_signal.
-    integer function fortmacs_tty_signal_char(fd, signo) result(c)
+    integer function fortmacs_terminal_signal_character(fd, signo) result(c)
         integer(int32), intent(in) :: fd
         integer, intent(in) :: signo
-        type(fortmacs_tty_type) :: t
+        type(fortmacs_terminal_type) :: t
         type(status_type) :: st
         integer :: k
 
@@ -1706,11 +1708,11 @@ contains
             return
         end select
 
-        call fortmacs_get_tty(fd, t, st)
+        call fortmacs_get_terminal(fd, t, st)
         if (.not. st%ok()) return
         if (t%main%c_cc(k) == CDISABLE) return
         c = iand(int(t%main%c_cc(k)), 255)
-    end function fortmacs_tty_signal_char
+    end function fortmacs_terminal_signal_character
 
     !> Ignore SIGPIPE, so that writing to a subprocess that has exited is
     !> an EPIPE error, not the editor's death (sysdep.c:init_signals; the
@@ -1798,13 +1800,13 @@ contains
         if (flags >= 0) r = c_fcntl_int(fd, F_SETFL, ior(flags, O_NONBLOCK))
     end subroutine set_nonblocking
 
-    !> The description of signal `sig' ("Killed"), as strsignal gives it.
+    !> The description of signal `signal' ("Killed"), as strsignal gives it.
     !> Not a port.
-    function fortmacs_strsignal(sig) result(text)
-        integer(int32), intent(in) :: sig
+    function fortmacs_strsignal(signal) result(text)
+        integer(int32), intent(in) :: signal
         character(len=:), allocatable :: text
 
-        text = c_string_to_fortran(c_strsignal(sig))
+        text = c_string_to_fortran(c_strsignal(signal))
         if (len(text) == 0) text = "unknown"
     end function fortmacs_strsignal
 
@@ -1845,16 +1847,16 @@ contains
     end function fortmacs_readlink
 
     !> Replace this process with the program `path', given arguments
-    !> `args' (args(1) is its name) and the same environment.  Returns
+    !> `arguments' (args(1) is its name) and the same environment.  Returns
     !> only on failure.  Not a port.
-    integer(int32) function fortmacs_execv(path, args) result(err)
+    integer(int32) function fortmacs_execv(path, arguments) result(err)
         character(len=*), intent(in) :: path
-        type(string_type), intent(in) :: args(:)
+        type(string_type), intent(in) :: arguments(:)
         type(c_argv_type), target :: argv
         integer(c_int) :: r
 
-        call make_argv(args, argv)
-        r = c_execv(c_path(path), argv%ptrs)
+        call make_argv(arguments, argv)
+        r = c_execv(c_path(path), argv%pointers)
         err = errno()
     end function fortmacs_execv
 
@@ -1879,11 +1881,11 @@ contains
         end if
     end function fortmacs_mkostemp
 
-    !> The names of the entries of directory `dir', "." and ".." included,
+    !> The names of the entries of directory `directory', "." and ".." included,
     !> in the order the file system gives them.  Cf. dired.c's use of
     !> opendir and readdir.  Not a port.
-    integer(int32) function fortmacs_directory_entries(dir, names) result(err)
-        character(len=*), intent(in) :: dir
+    integer(int32) function fortmacs_directory_entries(directory, names) result(err)
+        character(len=*), intent(in) :: directory
         type(string_type), allocatable, intent(out) :: names(:)
         ! struct dirent: d_ino (8), d_off (8), d_reclen (2), d_type (1), then
         ! d_name (256).
@@ -1896,7 +1898,7 @@ contains
 
         err = 0
         allocate (names(0))
-        dirp = c_opendir(c_path(dir))
+        dirp = c_opendir(c_path(directory))
 
         if (.not. c_associated(dirp)) then
             err = errno()
@@ -1934,12 +1936,12 @@ contains
     end function fortmacs_directory_entries
 
     !> symlink(2): make `link' a symbolic link to `target'.  Not a port.
-    integer(int32) function sys_symlink(target, link) result(err)
+    integer(int32) function system_symlink(target, link) result(err)
         character(len=*), intent(in) :: target, link
 
         err = 0
         if (c_symlink(c_path(target), c_path(link)) /= 0) err = errno()
-    end function sys_symlink
+    end function system_symlink
 
     !> Open `file' with `flags' (O_WRONLY with O_CREAT, O_EXCL or O_TRUNC)
     !> and, when it is created, permission bits `mode' (before the umask),
@@ -1961,59 +1963,59 @@ contains
     end function fortmacs_open_mode
 
     !> link(2).  Not a port.
-    integer(int32) function sys_link(old, new) result(err)
+    integer(int32) function system_link(old, new) result(err)
         character(len=*), intent(in) :: old, new
 
         err = 0
         if (c_link(c_path(old), c_path(new)) /= 0) err = errno()
-    end function sys_link
+    end function system_link
 
     !> Rename `old' to `new' unless `new' exists (renameat2 with
     !> RENAME_NOREPLACE).  Cf. sysdep.c:renameat_noreplace.
     !> Port of sysdep.c:renameat_noreplace (the Linux case).
-    integer(int32) function sys_rename_noreplace(old, new) result(err)
+    integer(int32) function system_rename_noreplace(old, new) result(err)
         character(len=*), intent(in) :: old, new
 
         err = 0
         if (c_renameat2(AT_FDCWD, c_path(old), AT_FDCWD, c_path(new), RENAME_NOREPLACE) /= 0) err = errno()
-    end function sys_rename_noreplace
+    end function system_rename_noreplace
 
     !> Set the access and modification times of `file' (a nanoseconds
     !> value of UTIME_NOW means the current time), the link itself if
     !> `nofollow' (utimensat(2)).  Not a port.
-    integer(int32) function sys_set_file_times(file, atime_sec, atime_nsec, mtime_sec, mtime_nsec, nofollow) result(err)
+    integer(int32) function system_set_file_times(file, atime_second, atime_nsec, mtime_second, mtime_nsec, nofollow) result(err)
         character(len=*), intent(in) :: file
-        integer(int64), intent(in) :: atime_sec, mtime_sec
+        integer(int64), intent(in) :: atime_second, mtime_second
         integer(int32), intent(in) :: atime_nsec, mtime_nsec
         logical, intent(in) :: nofollow
         type(timespec_type) :: ts(2)
         integer(c_int) :: flags
 
         err = 0
-        ts(1)%tv_sec = atime_sec
+        ts(1)%tv_sec = atime_second
         ts(1)%tv_nsec = atime_nsec
-        ts(2)%tv_sec = mtime_sec
+        ts(2)%tv_sec = mtime_second
         ts(2)%tv_nsec = mtime_nsec
         flags = 0
         if (nofollow) flags = AT_SYMLINK_NOFOLLOW
         if (c_utimensat(AT_FDCWD, c_path(file), ts, flags) /= 0) err = errno()
-    end function sys_set_file_times
+    end function system_set_file_times
 
     !> futimens(2): the access and modification times of open file `fd'.
     !> Not a port.
-    integer(int32) function sys_futimens(fd, atime_sec, atime_nsec, mtime_sec, mtime_nsec) result(err)
+    integer(int32) function system_futimens(fd, atime_second, atime_nsec, mtime_second, mtime_nsec) result(err)
         integer(int32), intent(in) :: fd
-        integer(int64), intent(in) :: atime_sec, mtime_sec
+        integer(int64), intent(in) :: atime_second, mtime_second
         integer(int32), intent(in) :: atime_nsec, mtime_nsec
         type(timespec_type) :: ts(2)
 
         err = 0
-        ts(1)%tv_sec = atime_sec
+        ts(1)%tv_sec = atime_second
         ts(1)%tv_nsec = atime_nsec
-        ts(2)%tv_sec = mtime_sec
+        ts(2)%tv_sec = mtime_second
         ts(2)%tv_nsec = mtime_nsec
         if (c_futimens(fd, ts) /= 0) err = errno()
-    end function sys_futimens
+    end function system_futimens
 
     !> The process's file mode creation mask (umask(2), set back at once).
     !> Not a port.
@@ -2035,9 +2037,9 @@ contains
     end subroutine fortmacs_set_umask
 
     !> Schedule every pending disk write (sync(2)).  Not a port.
-    subroutine fortmacs_sync()
+    subroutine fortmacs_synchronize()
         call c_sync()
-    end subroutine fortmacs_sync
+    end subroutine fortmacs_synchronize
 
     !> Wait SECONDS seconds (sleep(3), as poll(2) on no descriptors).
     !> Not a port.
@@ -2062,16 +2064,16 @@ contains
     end function fortmacs_fsync
 
     !> fchmod(2).  Not a port.
-    integer(int32) function sys_fchmod(fd, mode) result(err)
+    integer(int32) function system_fchmod(fd, mode) result(err)
         integer(int32), intent(in) :: fd, mode
 
         err = 0
         if (c_fchmod(fd, mode) /= 0) err = errno()
-    end function sys_fchmod
+    end function system_fchmod
 
     !> Set the permission bits of `file', of the link itself if
     !> `nofollow' (fchmodat(2)).  Cf. sysdep.c:emacs_fchmodat.  Not a port.
-    integer(int32) function sys_chmod_at(file, mode, nofollow) result(err)
+    integer(int32) function system_chmod_at(file, mode, nofollow) result(err)
         character(len=*), intent(in) :: file
         integer(int32), intent(in) :: mode
         logical, intent(in) :: nofollow
@@ -2081,15 +2083,15 @@ contains
         flags = 0
         if (nofollow) flags = AT_SYMLINK_NOFOLLOW
         if (c_fchmodat(AT_FDCWD, c_path(file), mode, flags) /= 0) err = errno()
-    end function sys_chmod_at
+    end function system_chmod_at
 
     !> fchown(2); -1 leaves the owner or group as it is.  Not a port.
-    integer(int32) function sys_fchown(fd, uid, gid) result(err)
+    integer(int32) function system_fchown(fd, uid, gid) result(err)
         integer(int32), intent(in) :: fd, uid, gid
 
         err = 0
         if (c_fchown(fd, uid, gid) /= 0) err = errno()
-    end function sys_fchown
+    end function system_fchown
 
     !> The name of group `gid' (getgrgid(3)); `found' is false if it has
     !> no entry.  Not a port.
@@ -2115,60 +2117,60 @@ contains
         character(len=:), allocatable, intent(out) :: name
         logical, intent(out) :: found
         type(c_ptr) :: p
-        type(passwd_type), pointer :: pw
+        type(password_type), pointer :: password
 
         p = c_getpwuid(uid)
         found = c_associated(p)
         name = ""
         if (.not. found) return
-        call c_f_pointer(p, pw)
-        name = c_string_to_fortran(pw%pw_name)
+        call c_f_pointer(p, password)
+        name = c_string_to_fortran(password%pw_name)
     end subroutine user_name_of_uid
 
     !> The login name, gecos field and uid of user UID (getpwuid(3));
     !> FOUND is false if it has no entry.  Not a port.
-    subroutine passwd_entry_by_uid(uid, name, gecos, found)
+    subroutine password_entry_by_uid(uid, name, gecos, found)
         integer(int32), intent(in) :: uid
         character(len=:), allocatable, intent(out) :: name, gecos
         logical, intent(out) :: found
 
-        call passwd_entry(c_getpwuid(uid), name, gecos, found)
-    end subroutine passwd_entry_by_uid
+        call password_entry(c_getpwuid(uid), name, gecos, found)
+    end subroutine password_entry_by_uid
 
     !> The login name and gecos field of the user called LOGIN
     !> (getpwnam(3)); FOUND is false if there is no such user.  UID is the
     !> user's uid.  Not a port.
-    subroutine passwd_entry_by_name(login, name, gecos, uid, found)
+    subroutine password_entry_by_name(login, name, gecos, uid, found)
         character(len=*), intent(in) :: login
         character(len=:), allocatable, intent(out) :: name, gecos
         integer(int32), intent(out) :: uid
         logical, intent(out) :: found
         type(c_ptr) :: p
-        type(passwd_type), pointer :: pw
+        type(password_type), pointer :: password
 
         uid = -1
         p = c_getpwnam(c_path(login))
-        call passwd_entry(p, name, gecos, found)
+        call password_entry(p, name, gecos, found)
         if (.not. found) return
-        call c_f_pointer(p, pw)
-        uid = pw%pw_uid
-    end subroutine passwd_entry_by_name
+        call c_f_pointer(p, password)
+        uid = password%pw_uid
+    end subroutine password_entry_by_name
 
     ! Not a port.
-    subroutine passwd_entry(p, name, gecos, found)
+    subroutine password_entry(p, name, gecos, found)
         type(c_ptr), intent(in) :: p
         character(len=:), allocatable, intent(out) :: name, gecos
         logical, intent(out) :: found
-        type(passwd_type), pointer :: pw
+        type(password_type), pointer :: password
 
         found = c_associated(p)
         name = ""
         gecos = ""
         if (.not. found) return
-        call c_f_pointer(p, pw)
-        name = c_string_to_fortran(pw%pw_name)
-        if (c_associated(pw%pw_gecos)) gecos = c_string_to_fortran(pw%pw_gecos)
-    end subroutine passwd_entry
+        call c_f_pointer(p, password)
+        name = c_string_to_fortran(password%pw_name)
+        if (c_associated(password%pw_gecos)) gecos = c_string_to_fortran(password%pw_gecos)
+    end subroutine password_entry
 
     !> The host name (gethostname(2)), growing the buffer until the name
     !> fits, as sysdep.c:init_system_name does.
@@ -2198,7 +2200,7 @@ contains
     !> order (getpwent(3)).  Cf. dired.c:Fsystem_users.  Not a port.
     subroutine system_user_names(names)
         type(string_type), allocatable, intent(out) :: names(:)
-        type(passwd_type), pointer :: pw
+        type(password_type), pointer :: password
         type(c_ptr) :: p
 
         allocate (names(0))
@@ -2207,8 +2209,8 @@ contains
         do
             p = c_getpwent()
             if (.not. c_associated(p)) exit
-            call c_f_pointer(p, pw)
-            call append_string(names, c_string_to_fortran(pw%pw_name))
+            call c_f_pointer(p, password)
+            call append_string(names, c_string_to_fortran(password%pw_name))
         end do
 
         call c_endpwent()
@@ -2263,13 +2265,13 @@ contains
 
     !> A new inotify instance, non-blocking and close-on-exec, in FD.
     !> The result is 0 or errno.  Not a port.
-    integer(int32) function fortmacs_inotify_init(fd) result(err)
+    integer(int32) function fortmacs_inotify_initialize(fd) result(err)
         integer(int32), intent(out) :: fd
 
         err = 0
         fd = c_inotify_init1(ior(O_NONBLOCK, O_CLOEXEC))
         if (fd < 0) err = errno()
-    end function fortmacs_inotify_init
+    end function fortmacs_inotify_initialize
 
     !> Watch FILE for the events in MASK on inotify instance FD, giving
     !> the watch descriptor in WD.  The result is 0 or errno.  Not a port.

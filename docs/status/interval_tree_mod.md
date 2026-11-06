@@ -32,10 +32,10 @@ the ascending traversal (`itree_iterator_start`, `_next`, `_first_node`, `itree_
 the overlay modification hooks (`report_overlay_modification`, `add_overlay_mod_hooklist`, `execute_overlay_mod_hooks`: `modification-hooks`, `insert-in-front-hooks`, `insert-behind-hooks`, run by insert_delete_mod before and after a change),
 `is_overlay_touches`,
 `mouse_face_overlay_overlaps`,
-`disable_line_numbers_overlay_at_eob`;
+`disable_line_numbers_overlay_at_end_of_buffer`;
 `destroy_overlay` (ours);
 `overlay_advance` (front/rear-advance),
-`overlay_get_prop`,
+`overlay_get_property`,
 `swap_buffer_overlays` (for buffer-swap-text)
 
 ## Deferred

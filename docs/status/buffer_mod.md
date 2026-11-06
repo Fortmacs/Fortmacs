@@ -1,7 +1,7 @@
 # buffer_mod
 
 - Module: buffer_mod
-- Upstream: buffer.c, buffer.h (+ intervals.c `temp_set_point_both`, lisp.h `modiff_incr`)
+- Upstream: buffer.c, buffer.h (+ intervals.c `temporary_set_point_both`, lisp.h `modiff_increment`)
 - State: done
 
 ## Ported
@@ -32,7 +32,7 @@ registry,
 modified ticks,
 `barf-if-buffer-read-only`,
 BUFFER_BYTE_ADDRESS / FETCH_BYTE / FETCH_CHAR / next/prev char len,
-BUF_COMPUTE_UNCHANGED,
+BUFFER_COMPUTE_UNCHANGED,
 `get-file-buffer` (given an expanded name),
 BVAR filename/directory,
 `buffer-backed-up`,
@@ -43,7 +43,7 @@ new buffers inherit `default-directory`,
 the window part of `kill-buffer` (through a hook to window_mod),
 `fill-column`,
 `left-margin` and `auto-fill-function` (one global value each);
-BVAR `invisibility_spec` (`buffer-invisibility-spec`: t, or ATOM and (ATOM . ELLIPSIS) entries; reset by kill-all-local-variables);
+BVAR `invisibility_specification` (`buffer-invisibility-spec`: t, or ATOM and (ATOM . ELLIPSIS) entries; reset by kill-all-local-variables);
 BVAR `header_line_format` (a `header_line_format_type`: text segments with a face and a column each, `add` and `clear`);
 the overlay functions of buffer.c are interval_tree_mod's,
 `buffer-local-value` and `buffer-local-variables` (with `buffer_local_value`, `buffer_lisp_local_variables`, `buffer_local_variables_1`) data_mod's;

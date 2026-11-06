@@ -23,7 +23,7 @@
 module test_namelist_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, condition_matches, FM_INVALID_READ_SYNTAX
+    use error_mod, only: status_type, format_error, condition_matches, INVALID_READ_SYNTAX_CODE
     use namelist_mod, only: namelist_group_type, namelist_item_type, read_namelist, namelist_text, &
                             NAMELIST_STRING, NAMELIST_INTEGER, NAMELIST_LOGICAL
     implicit none(type, external)
@@ -31,7 +31,7 @@ module test_namelist_mod
 
     public :: collect_namelist_mod
 
-    character(len=1), parameter :: nl = achar(10)
+    character(len=1), parameter :: newline = achar(10)
 
 contains
 
@@ -58,7 +58,7 @@ contains
         group%name = "savehist"
         item = namelist_item_type(name="file_name_history", subscripted=.true., lower=1, upper=2)
         call item%append_string('~/say "hi".txt')
-        call item%append_string("two"//nl//"lines")
+        call item%append_string("two"//newline//"lines")
         call group%append(item)
         item = namelist_item_type(name="place", component="position", subscripted=.true., lower=3, upper=3)
         call item%append_integer(-42_int64)
@@ -67,10 +67,10 @@ contains
         call item%append_logical(.true.)
         call group%append(item)
         text = namelist_text(group)
-        call check(error, text, "&savehist"//nl// &
-                   ' file_name_history(1:2) = "~/say ""hi"".txt", "two'//nl//'lines",'//nl// &
-                   " place(3)%position = -42,"//nl// &
-                   " flag = .true.,"//nl//"/"//nl)
+        call check(error, text, "&savehist"//newline// &
+                   ' file_name_history(1:2) = "~/say ""hi"".txt", "two'//newline//'lines",'//newline// &
+                   " place(3)%position = -42,"//newline// &
+                   " flag = .true.,"//newline//"/"//newline)
         if (allocated(error)) return
         call read_namelist(text, groups, st)
         call check(error, st%ok(), format_error(st))
@@ -84,7 +84,7 @@ contains
             if (allocated(error)) return
             call check(error, it(1)%values(1)%string, '~/say "hi".txt')
             if (allocated(error)) return
-            call check(error, it(1)%values(2)%string, "two"//nl//"lines")
+            call check(error, it(1)%values(2)%string, "two"//newline//"lines")
             if (allocated(error)) return
             call check(error, it(2)%component == "position" .and. it(2)%lower == 3 .and. &
                        it(2)%values(1)%kind == NAMELIST_INTEGER .and. it(2)%values(1)%integer == -42, "the position")
@@ -101,7 +101,7 @@ contains
         type(namelist_group_type), allocatable :: groups(:)
         type(status_type) :: st
 
-        call read_namelist("! a comment"//nl//"&one a = 'x''y' 'z' ! more"//nl//" b=T c = .f. /"//nl// &
+        call read_namelist("! a comment"//newline//"&one a = 'x''y' 'z' ! more"//newline//" b=T c = .f. /"//newline// &
                            "&two t(1:1)='!'/", groups, st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -134,13 +134,13 @@ contains
         type(status_type) :: st
 
         call read_namelist("&g a = 1", groups, st)
-        call check(error, condition_matches(st%code, FM_INVALID_READ_SYNTAX), "no /")
+        call check(error, condition_matches(st%code, INVALID_READ_SYNTAX_CODE), "no /")
         if (allocated(error)) return
-        call read_namelist('&g a = "x'//nl//"/", groups, st)
-        call check(error, condition_matches(st%code, FM_INVALID_READ_SYNTAX), "unterminated string")
+        call read_namelist('&g a = "x'//newline//"/", groups, st)
+        call check(error, condition_matches(st%code, INVALID_READ_SYNTAX_CODE), "unterminated string")
         if (allocated(error)) return
-        call read_namelist(nl//"&g a 1 /", groups, st)
-        call check(error, condition_matches(st%code, FM_INVALID_READ_SYNTAX), "no =")
+        call read_namelist(newline//"&g a 1 /", groups, st)
+        call check(error, condition_matches(st%code, INVALID_READ_SYNTAX_CODE), "no =")
         if (allocated(error)) return
         call check(error, index(format_error(st), "line 2") > 0, format_error(st))
     end subroutine test_errors

@@ -37,13 +37,12 @@ module test_casefiddle_mod
     use value_mod, only: value_type
     use simple_mod, only: region_extract_function, region_extract_procedure, region_bounds
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point, point_min, point_max, buffer_string
-    use character_mod, only: string_char
-    use casefiddle_mod, only: upcase_string, downcase_string, capitalize_string, upcase_initials_string, &
-                              upcase_char, downcase_char, capitalize_char, upcase_initials_char, upcase_region, &
-                              downcase_region, capitalize_region, upcase_initials_region, upcase_word, &
-                              downcase_word, capitalize_word, case_identifiers_as_words, &
-                              casefiddle_region_bounds => region_bounds
+    use editing_functions_mod, only: goto_character, point, point_minimum, point_maximum, buffer_string
+    use character_mod, only: string_character
+    use casefiddle_mod, only: upcase_string, downcase_string, capitalize_string, upcase_initials_string, upcase_character, &
+                              downcase_character, capitalize_character, upcase_initials_character, upcase_region, downcase_region, &
+                              capitalize_region, upcase_initials_region, upcase_word, downcase_word, capitalize_word, &
+                              case_identifiers_as_words, casefiddle_region_bounds => region_bounds
     implicit none(type, external)
     private
 
@@ -60,7 +59,7 @@ contains
                     new_unittest("casefiddle-tests-casing-word", test_casing_word), &
                     new_unittest("casefiddle-tests-casing", test_casing), &
                     new_unittest("casefiddle-tests-casing-byte8", test_casing_byte8), &
-                    new_unittest("casefiddle-tests-char-casing", test_char_casing), &
+                    new_unittest("casefiddle-tests-char-casing", test_character_casing), &
                     new_unittest("casefiddle-case-symbols-as-words", test_identifiers_as_words), &
                     new_unittest("casefiddle-noncontiguous-region", test_noncontiguous), &
                     new_unittest("casefiddle-unibyte-buffer", test_unibyte) &
@@ -71,7 +70,7 @@ contains
     integer(int32) function ch(s)
         character(len=*), intent(in) :: s
 
-        ch = string_char(s, 1_int64)
+        ch = string_character(s, 1_int64)
     end function ch
 
     !> The multibyte form of raw byte B.
@@ -82,14 +81,14 @@ contains
         s = achar(192 + iand(ishft(b, -6), 1))//achar(128 + iand(b, 63))
     end function raw
 
-    subroutine temp_buffer(h)
+    subroutine temporary_buffer(h)
         type(handle_type), intent(out) :: h
         type(status_type) :: st
 
         call get_or_make_buffer(" *casefiddle-test*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
-    end subroutine temp_buffer
+    end subroutine temporary_buffer
 
     subroutine test_casing_character(error)
         type(error_type), allocatable, intent(out) :: error
@@ -106,11 +105,11 @@ contains
 
         do k = 1, 12
             c = ch(trim(tests(1, k)))
-            call check(error, upcase_char(c) == ch(trim(tests(2, k))), trim(tests(1, k))//" upcase")
+            call check(error, upcase_character(c) == ch(trim(tests(2, k))), trim(tests(1, k))//" upcase")
             if (allocated(error)) return
-            call check(error, downcase_char(c) == ch(trim(tests(3, k))), trim(tests(1, k))//" downcase")
+            call check(error, downcase_character(c) == ch(trim(tests(3, k))), trim(tests(1, k))//" downcase")
             if (allocated(error)) return
-            call check(error, capitalize_char(c) == ch(trim(tests(4, k))), trim(tests(1, k))//" capitalize")
+            call check(error, capitalize_character(c) == ch(trim(tests(4, k))), trim(tests(1, k))//" capitalize")
             if (allocated(error)) return
         end do
     end subroutine test_casing_character
@@ -122,13 +121,13 @@ contains
         character(len=7), parameter :: want(3) = ["FOO Bar", "foo Bar", "Foo Bar"]
         integer :: k, back
 
-        call temp_buffer(h)
+        call temporary_buffer(h)
 
         do k = 1, 3
             do back = 0, 1
                 call erase_buffer(st)
                 call insert("foO Bar", st)
-                call goto_char(point_min() + 4*back)
+                call goto_character(point_minimum() + 4*back)
 
                 select case (k)
                 case (1)
@@ -141,7 +140,7 @@ contains
 
                 call check(error, buffer_string() == want(k), want(k)//" got "//buffer_string())
                 if (allocated(error)) exit
-                call check(error, point() == point_min() + merge(4, 3, back == 1), "point")
+                call check(error, point() == point_minimum() + merge(4, 3, back == 1), "point")
                 if (allocated(error)) exit
             end do
 
@@ -177,18 +176,18 @@ contains
 
             call check(error, got == trim(expected(k)), input//" string "//char(48 + k)//": "//got)
             if (allocated(error)) return
-            call temp_buffer(h)
+            call temporary_buffer(h)
             call insert(input, st)
 
             select case (k)
             case (1)
-                call upcase_region(point_min(), point_max(), st)
+                call upcase_region(point_minimum(), point_maximum(), st)
             case (2)
-                call downcase_region(point_min(), point_max(), st)
+                call downcase_region(point_minimum(), point_maximum(), st)
             case (3)
-                call capitalize_region(point_min(), point_max(), st)
+                call capitalize_region(point_minimum(), point_maximum(), st)
             case default
-                call upcase_initials_region(point_min(), point_max(), st)
+                call upcase_initials_region(point_minimum(), point_maximum(), st)
             end select
 
             got = buffer_string()
@@ -255,7 +254,7 @@ contains
         call check_casing(error, ff//" Zażółć gĘŚlą "//ff, e)
     end subroutine test_casing_byte8
 
-    subroutine test_char_casing(error)
+    subroutine test_character_casing(error)
         type(error_type), allocatable, intent(out) :: error
         ! input upcase downcase titlecase; we char-upcase ß to ẞ (bug
         ! #11309).
@@ -272,38 +271,38 @@ contains
         do k = 1, 12
             c = ch(trim(tests(1, k)))
             tc = ch(trim(tests(4, k)))
-            call check(error, upcase_char(c) == ch(trim(tests(2, k))), trim(tests(1, k))//" upcase")
+            call check(error, upcase_character(c) == ch(trim(tests(2, k))), trim(tests(1, k))//" upcase")
             if (allocated(error)) return
-            call check(error, downcase_char(c) == ch(trim(tests(3, k))), trim(tests(1, k))//" downcase")
+            call check(error, downcase_character(c) == ch(trim(tests(3, k))), trim(tests(1, k))//" downcase")
             if (allocated(error)) return
-            call check(error, capitalize_char(c) == tc, trim(tests(1, k))//" capitalize")
+            call check(error, capitalize_character(c) == tc, trim(tests(1, k))//" capitalize")
             if (allocated(error)) return
-            call check(error, upcase_initials_char(c) == tc, trim(tests(1, k))//" upcase-initials")
+            call check(error, upcase_initials_character(c) == tc, trim(tests(1, k))//" upcase-initials")
             if (allocated(error)) return
         end do
-    end subroutine test_char_casing
+    end subroutine test_character_casing
 
     subroutine test_identifiers_as_words(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call syms("Aa_bb Cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
-        call syms("Aa_bb cc_DD", "Aa_Bb Cc_DD", "Aa_bb Cc_DD")
-        call syms("aa_bb cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
-        call syms("Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd")
+        call symbols("Aa_bb Cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
+        call symbols("Aa_bb cc_DD", "Aa_Bb Cc_DD", "Aa_bb Cc_DD")
+        call symbols("aa_bb cc_dd", "Aa_Bb Cc_Dd", "Aa_bb Cc_dd")
+        call symbols("Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd", "Aa_Bb Cc_Dd")
         case_identifiers_as_words = .false.
 
     contains
 
-        subroutine syms(init, with_words, with_symbols)
-            character(len=*), intent(in) :: init, with_words, with_symbols
+        subroutine symbols(initialize, with_words, with_symbols)
+            character(len=*), intent(in) :: initialize, with_words, with_symbols
 
             if (allocated(error)) return
             case_identifiers_as_words = .false.
-            call check(error, upcase_initials_string(init) == with_words, init//" words")
+            call check(error, upcase_initials_string(initialize) == with_words, initialize//" words")
             if (allocated(error)) return
             case_identifiers_as_words = .true.
-            call check(error, upcase_initials_string(init) == with_symbols, init//" symbols")
-        end subroutine syms
+            call check(error, upcase_initials_string(initialize) == with_symbols, initialize//" symbols")
+        end subroutine symbols
     end subroutine test_identifiers_as_words
 
     !> A region of two pieces, "abc" and "def" of "abc def ghi".
@@ -327,7 +326,7 @@ contains
         type(status_type) :: st
         procedure(region_extract_procedure), pointer :: saved
 
-        call temp_buffer(h)
+        call temporary_buffer(h)
         call insert("abc def ghi", st)
         saved => region_extract_function
         region_extract_function => two_pieces
@@ -345,15 +344,15 @@ contains
         type(handle_type) :: h
         type(status_type) :: st
 
-        call temp_buffer(h)
+        call temporary_buffer(h)
         call insert("foo bar", st)
-        call check(error, upcase_char(255_int32) == 376)
+        call check(error, upcase_character(255_int32) == 376)
         if (allocated(error)) return
         buffers(current)%multibyte = .false.
         call upcase_region(1_int64, 8_int64, st)
         call check(error, buffer_string() == "FOO BAR")
         if (allocated(error)) return
-        call check(error, upcase_char(255_int32) == 255 .and. upcase_char(97_int32) == 65)
+        call check(error, upcase_character(255_int32) == 255 .and. upcase_character(97_int32) == 65)
         buffers(current)%multibyte = .true.
         call close_buffer(h, st)
     end subroutine test_unibyte

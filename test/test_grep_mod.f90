@@ -24,7 +24,7 @@
 !> Ports of grep-tests.el (the GNU/Linux case of the rgrep abbreviation
 !> tests; the darwin and windows-nt cases bind `system-type', which is
 !> always gnu/linux here) and of compile-tests.el compile-test-grep-regexps,
-!> and own tests: `wildcard_to_regexp', `grep_expand_template', and grep
+!> and own tests: `wildcard_to_regular_expression', `grep_expand_template', and grep
 !> run on a file with `next_error' visiting the matches.
 module test_grep_mod
     use, intrinsic :: iso_fortran_env, only: int64
@@ -37,21 +37,21 @@ module test_grep_mod
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer, erase_buffer, get_buffer, &
                           is_buffer_live, set_buffer_read_only, current_buffer, restore_buffer_modified
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, point, point_min, point_max, goto_char
+    use editing_functions_mod, only: buffer_string, point, point_minimum, point_maximum, goto_character
     use text_properties_mod, only: get_text_property
-    use search_mod, only: re_search_forward, string_match, case_fold_search
+    use search_mod, only: regular_expression_search_forward, string_match, case_fold_search
     use basic_subprograms_mod, only: match_string
     use file_input_output_mod, only: file_name_as_directory
-    use files_mod, only: temporary_file_directory, wildcard_to_regexp
-    use bindings_mod, only: init_bindings
+    use files_mod, only: temporary_file_directory, wildcard_to_regular_expression
+    use bindings_mod, only: initialize_bindings
     use modes_mod, only: minor_modes
     use font_lock_mod, only: font_lock_ensure
     use process_mod, only: accept_process_output, get_buffer_process
     use compile_mod, only: compilation_parse_errors, compilation_forget_errors, compilation_message_info, &
                            compilation_message_info_type, compilation_message_counts
     use grep_mod, only: grep_change_to_grep_edit_mode, grep_edit_save_changes
-    use grep_mod, only: grep, grep_mode, grep_compute_defaults, rgrep_default_command, grep_expand_template, &
-                        grep_find_abbreviate, grep_heading_regexp, grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
+    use grep_mod, only: grep, grep_mode, grep_compute_defaults, rgrep_default_command, grep_expand_template, grep_find_abbreviate, &
+                        grep_heading_regular_expression, grep_highlight_matches, GREP_HIGHLIGHT_MATCHES_ALWAYS, &
                         GREP_HIGHLIGHT_MATCHES_AUTO, grep_save_buffers, GREP_SAVE_BUFFERS_ASK
     use simple_mod, only: next_error
     implicit none(type, external)
@@ -70,10 +70,10 @@ contains
 
         testsuite = [ &
                     new_unittest("grep-tests--rgrep-abbreviate-properties-gnu-linux", test_rgrep_abbreviate), &
-                    new_unittest("grep-tests--grep-heading-regexp-without-null", test_heading_regexp_without_null), &
-                    new_unittest("grep-tests--grep-heading-regexp-with-null", test_heading_regexp_with_null), &
-                    new_unittest("compile-test-grep-regexps", test_grep_regexps), &
-                    new_unittest("wildcard-to-regexp", test_wildcard_to_regexp), &
+                    new_unittest("grep-tests--grep-heading-regexp-without-null", test_heading_regular_expression_without_null), &
+                    new_unittest("grep-tests--grep-heading-regexp-with-null", test_heading_regular_expression_with_null), &
+                    new_unittest("compile-test-grep-regexps", test_grep_regular_expressions), &
+                    new_unittest("wildcard-to-regexp", test_wildcard_to_regular_expression), &
                     new_unittest("grep-expand-template", test_expand_template), &
                     new_unittest("grep-run", test_grep_execute), &
                     new_unittest("grep-edit-mode", test_grep_edit), &
@@ -126,8 +126,8 @@ contains
         buffers(current)%read_only = .false.
         call minor_modes%font_lock_mode%enable(st)
         call font_lock_ensure(st)
-        call goto_char(point_min())
-        call re_search_forward("find ", found, st)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward("find ", found, st)
         call get_text_property(point(), value_type(name="display"), v, st)
         if (vtag(v) == V_STRING) display = xstring(v)
         call close_buffer(h, st)
@@ -140,7 +140,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         logical :: saved
 
-        call init_bindings()
+        call initialize_bindings()
         saved = grep_find_abbreviate
         grep_find_abbreviate = .true.
         call check(error, rgrep_abbreviation(), "[…]")
@@ -154,46 +154,46 @@ contains
     end subroutine test_rgrep_abbreviate
 
     !> Port of grep-tests.el grep-tests--grep-heading-regexp-without-null.
-    subroutine test_heading_regexp_without_null(error)
+    subroutine test_heading_regular_expression_without_null(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        character(len=1), parameter :: SEPS(3) = [":", "-", "="]
+        character(len=1), parameter :: SEPARATORS(3) = [":", "-", "="]
         character(len=:), allocatable :: string
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
 
         do k = 1, 3
-            string = "filename"//SEPS(k)//"123"//SEPS(k)//"text"
-            call check(error, string_match(grep_heading_regexp, string, st) /= 0, string)
+            string = "filename"//SEPARATORS(k)//"123"//SEPARATORS(k)//"text"
+            call check(error, string_match(grep_heading_regular_expression, string, st) /= 0, string)
             if (.not. allocated(error)) call check(error, match_string(1, string), "filename")
-            if (.not. allocated(error)) call check(error, match_string(2, string), "filename"//SEPS(k))
+            if (.not. allocated(error)) call check(error, match_string(2, string), "filename"//SEPARATORS(k))
             if (allocated(error)) return
         end do
-    end subroutine test_heading_regexp_without_null
+    end subroutine test_heading_regular_expression_without_null
 
     !> Port of grep-tests.el grep-tests--grep-heading-regexp-with-null.
-    subroutine test_heading_regexp_with_null(error)
+    subroutine test_heading_regular_expression_with_null(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        character(len=1), parameter :: SEPS(3) = [":", "-", "="]
+        character(len=1), parameter :: SEPARATORS(3) = [":", "-", "="]
         character(len=:), allocatable :: string
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
 
         do k = 1, 3
-            string = "funny:0:filename"//NUL//"123"//SEPS(k)//"text"
-            call check(error, string_match(grep_heading_regexp, string, st) /= 0, string)
+            string = "funny:0:filename"//NUL//"123"//SEPARATORS(k)//"text"
+            call check(error, string_match(grep_heading_regular_expression, string, st) /= 0, string)
             if (.not. allocated(error)) call check(error, match_string(1, string), "funny:0:filename")
             if (.not. allocated(error)) call check(error, match_string(2, string), "funny:0:filename"//NUL)
             if (allocated(error)) return
         end do
-    end subroutine test_heading_regexp_with_null
+    end subroutine test_heading_regular_expression_with_null
 
     !> Port of compile-tests.el compile--test-error-line for the grep test
     !> cases (no rule name, no column): parse STRING and check the message at
-    !> POS (1) has LINE and FILE; INFO gets the message.
+    !> POSITION (1) has LINE and FILE; INFO gets the message.
     subroutine grep_error_line(error, string, line, file, info)
         type(error_type), allocatable, intent(out) :: error
         character(len=*), intent(in) :: string, file
@@ -207,12 +207,12 @@ contains
         call erase_buffer(st)
         call compilation_forget_errors()
         call insert(string, st)
-        call compilation_parse_errors(point_min(), point_max(), st)
+        call compilation_parse_errors(point_minimum(), point_maximum(), st)
         call check(error, st%ok(), what//": "//format_error(st))
         if (allocated(error)) return
         call compilation_message_info(1_int64, info, found)
         call check(error, found, what//": no message")
-        if (.not. allocated(error)) call check(error, info%has_loc, what//": no location")
+        if (.not. allocated(error)) call check(error, info%has_location, what//": no location")
         if (allocated(error)) return
         call check(error,.not. info%has_column, what//": column")
         if (.not. allocated(error)) call check(error, info%has_line, what//": line")
@@ -223,16 +223,16 @@ contains
     end subroutine grep_error_line
 
     !> Port of compile-tests.el compile-test-grep-regexps: the
-    !> `grep_regexps' regexps, on file names that NUL bytes or colons
+    !> `grep_regular_expressions' regexps, on file names that NUL bytes or colons
     !> separate from the line numbers.
-    subroutine test_grep_regexps(error)
+    subroutine test_grep_regular_expressions(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
         type(compilation_message_info_type) :: info1, info2
         integer(int64) :: errors, warnings, infos
 
-        call init_bindings()
+        call initialize_bindings()
         call get_or_make_buffer(" *grep-regexps*", h, st)
         call set_buffer(h, st)
         call erase_buffer(st)
@@ -275,21 +275,21 @@ contains
             if (.not. allocated(error)) call check(error, info1%file, info2%file, "same file")
             if (.not. allocated(error)) call check(error, info1%type, info2%type, "same type")
         end subroutine pair
-    end subroutine test_grep_regexps
+    end subroutine test_grep_regular_expressions
 
-    !> `wildcard_to_regexp' on shell patterns.
-    subroutine test_wildcard_to_regexp(error)
+    !> `wildcard_to_regular_expression' on shell patterns.
+    subroutine test_wildcard_to_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, wildcard_to_regexp("foo"), "\`foo\'")
-        if (.not. allocated(error)) call check(error, wildcard_to_regexp("*.el"), "\`[^"//NUL//"]*\.el\'")
-        if (.not. allocated(error)) call check(error, wildcard_to_regexp("a?c"), "\`a[^"//NUL//"]c\'")
-        if (.not. allocated(error)) call check(error, wildcard_to_regexp("*.[ch]"), "\`[^"//NUL//"]*\.[ch]\'")
-        if (.not. allocated(error)) call check(error, wildcard_to_regexp("[!a]x"), "\`[^a]x\'")
-        if (.not. allocated(error)) call check(error, wildcard_to_regexp("[^a]x"), "\`["//NUL//"^a]x\'")
-        if (.not. allocated(error)) call check(error, wildcard_to_regexp("a+b$"), "\`a\+b\$\'")
-        if (.not. allocated(error)) call check(error, wildcard_to_regexp("[]"), "\`\[]\'")
-    end subroutine test_wildcard_to_regexp
+        call check(error, wildcard_to_regular_expression("foo"), "\`foo\'")
+        if (.not. allocated(error)) call check(error, wildcard_to_regular_expression("*.el"), "\`[^"//NUL//"]*\.el\'")
+        if (.not. allocated(error)) call check(error, wildcard_to_regular_expression("a?c"), "\`a[^"//NUL//"]c\'")
+        if (.not. allocated(error)) call check(error, wildcard_to_regular_expression("*.[ch]"), "\`[^"//NUL//"]*\.[ch]\'")
+        if (.not. allocated(error)) call check(error, wildcard_to_regular_expression("[!a]x"), "\`[^a]x\'")
+        if (.not. allocated(error)) call check(error, wildcard_to_regular_expression("[^a]x"), "\`["//NUL//"^a]x\'")
+        if (.not. allocated(error)) call check(error, wildcard_to_regular_expression("a+b$"), "\`a\+b\$\'")
+        if (.not. allocated(error)) call check(error, wildcard_to_regular_expression("[]"), "\`\[]\'")
+    end subroutine test_wildcard_to_regular_expression
 
     !> `grep_expand_template' substitutes the place holders once each.
     subroutine test_expand_template(error)
@@ -297,7 +297,7 @@ contains
         logical :: saved_fold
         type(choice_type) :: saved_highlight
 
-        call init_bindings()
+        call initialize_bindings()
         saved_fold = case_fold_search%value
         saved_highlight = choice_state(grep_highlight_matches)
         case_fold_search = .true.
@@ -318,7 +318,7 @@ contains
 
         if (.not. allocated(error)) then
             grep_highlight_matches = GREP_HIGHLIGHT_MATCHES_AUTO
-            call check(error, grep_expand_template("grep <C> <R>", "x", more_opts=[character(len=4) :: "-w"]), &
+            call check(error, grep_expand_template("grep <C> <R>", "x", more_options=[character(len=4) :: "-w"]), &
                        "grep --color=auto -i -w x")
         end if
 
@@ -351,13 +351,13 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer
         type(status_type) :: st
-        character(len=:), allocatable :: dir, path, text
+        character(len=:), allocatable :: directory, path, text
         integer(int64) :: errors, warnings, infos
         integer :: unit
 
-        call init_bindings()
-        dir = file_name_as_directory(temporary_file_directory())
-        path = dir//"fortmacs-grep-test.txt"
+        call initialize_bindings()
+        directory = file_name_as_directory(temporary_file_directory())
+        path = directory//"fortmacs-grep-test.txt"
         open (newunit=unit, file=path, status="replace", action="write")
         write (unit, "(a)") "alpha"
         write (unit, "(a)") "beta needle"
@@ -366,7 +366,7 @@ contains
         close (unit)
         call get_or_make_buffer("*grep-test*", h, st)
         call set_buffer(h, st)
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
         call show_alone()
         call set_buffer(h, st)
         call grep("grep -nH -e needle fortmacs-grep-test.txt", st)
@@ -414,20 +414,20 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h, buffer, file_buffer
         type(status_type) :: st
-        character(len=:), allocatable :: dir, path, text
+        character(len=:), allocatable :: directory, path, text
         integer(int64) :: found
         integer :: unit
 
-        call init_bindings()
-        dir = file_name_as_directory(temporary_file_directory())
-        path = dir//"fortmacs-grep-edit-test.txt"
+        call initialize_bindings()
+        directory = file_name_as_directory(temporary_file_directory())
+        path = directory//"fortmacs-grep-edit-test.txt"
         open (newunit=unit, file=path, status="replace", action="write")
         write (unit, "(a)") "alpha"
         write (unit, "(a)") "beta needle"
         close (unit)
         call get_or_make_buffer("*grep-test*", h, st)
         call set_buffer(h, st)
-        buffers(current)%directory = dir
+        buffers(current)%directory = directory
         call show_alone()
         call set_buffer(h, st)
         call grep("grep -nH -e needle fortmacs-grep-edit-test.txt", st)
@@ -441,8 +441,8 @@ contains
         if (.not. allocated(error)) call check(error, buffers(current)%major_mode, "grep_edit_mode")
         if (allocated(error)) return
         ! The end of the match line, after "needle".
-        call goto_char(point_min())
-        call re_search_forward("beta needle", found, st)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward("beta needle", found, st)
         call check(error, found /= 0, "the match line")
         if (allocated(error)) return
         call insert("X", st)

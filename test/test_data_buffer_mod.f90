@@ -27,9 +27,9 @@
 module test_data_buffer_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_WRONG_TYPE_ARGUMENT, FM_VOID_VARIABLE, FM_VOID_FUNCTION
+    use error_mod, only: status_type, WRONG_TYPE_ARGUMENT_CODE, VOID_VARIABLE_CODE, VOID_FUNCTION_CODE
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, xfixnum, xstring, list_length, list_elt
+    use value_mod, only: value_type, xfixnum, xstring, list_length, list_element
     use buffer_mod, only: get_or_make_buffer, close_buffer, set_buffer, buffers, current, fill_column, &
                           auto_fill_function, FILL_COLUMN_NONE
     use fill_mod, only: current_fill_column
@@ -42,7 +42,7 @@ module test_data_buffer_mod
                         is_local_variable, is_local_variable_if_set, default_value, set_default, &
                         default_boundp, buffer_local_value, buffer_local_variables, setq_local
     use utility_functions_mod, only: put
-    use simple_mod, only: init_simple
+    use simple_mod, only: initialize_simple
     implicit none(type, external)
     private
 
@@ -221,7 +221,7 @@ contains
         call check(error, xfixnum(v) == 50, "buffer-local-value of A")
         if (allocated(error)) return
         call set(value_type(name="fill_column"), value_type(text="x"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "wrong_type_argument")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "wrong_type_argument")
         if (allocated(error)) return
         call set_buffer(a, st)
         call check(error, fill_column%value == 50, "local again in A")
@@ -236,7 +236,7 @@ contains
     end subroutine test_forwarded
 
     !> case-symbols-as-words is a DEFVAR_BOOL made automatically
-    !> buffer-local (casefiddle.c syms_of_casefiddle).
+    !> buffer-local (casefiddle.c symbols_of_casefiddle).
     subroutine test_case_symbols_local(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
@@ -269,7 +269,7 @@ contains
         type(status_type) :: st
         type(value_type) :: v
 
-        call init_simple()
+        call initialize_simple()
         call setup(error, a, b)
         if (allocated(error)) return
         call set(value_type(name="auto_fill_function"), value_type(name="do_auto_fill"), st)
@@ -287,13 +287,13 @@ contains
         ! A name is resolved when it is set: an undefined one is a
         ! void-function error condition, and the value stays.
         call set(value_type(name="auto_fill_function"), value_type(name="no-such-function"), st)
-        call check(error, st%code == FM_VOID_FUNCTION, "void-function when set")
+        call check(error, st%code == VOID_FUNCTION_CODE, "void-function when set")
         if (allocated(error)) return
         call symbol_value(value_type(name="auto_fill_function"), v, st)
         call check(error, value_eq(v, value_type(name="do_auto_fill")), "value unchanged")
         if (allocated(error)) return
         call set(value_type(name="auto_fill_function"), value_type(1_int64), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "a number is the wrong type")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "a number is the wrong type")
         call teardown(a, b)
         if (allocated(error)) return
         call check(error,.not. associated(auto_fill_function%value), "off after killing A")
@@ -331,7 +331,7 @@ contains
     subroutine test_buffer_local_variables(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: a, b
-        type(value_type) :: table, elt
+        type(value_type) :: table, element
 
         call setup(error, a, b)
         if (allocated(error)) return
@@ -339,9 +339,9 @@ contains
         ! binding-test-some-local plus buffer-read-only, major-mode, mode-name.
         call check(error, list_length(table) == 4, "four entries")
         if (allocated(error)) return
-        elt = list_elt(table, 1_int64)
-        call check(error, value_eq(list_elt(elt, 1_int64), value_type(name="binding-test-some-local")) .and. &
-                   value_eq(list_elt(elt, 2_int64), value_type(name="local")), "first entry")
+        element = list_element(table, 1_int64)
+        call check(error, value_eq(list_element(element, 1_int64), value_type(name="binding-test-some-local")) .and. &
+                   value_eq(list_element(element, 2_int64), value_type(name="local")), "first entry")
         if (allocated(error)) return
         table = buffer_local_variables(b%index)
         call check(error, list_length(table) == 3, "only the slots in B")
@@ -360,7 +360,7 @@ contains
         call close_buffer(a, st)
         call check_value(error, "binding-test-some-local", "some")
         call symbol_value(value_type(name="binding-test-nothing"), v, st)
-        if (.not. allocated(error)) call check(error, st%code == FM_VOID_VARIABLE, "void")
+        if (.not. allocated(error)) call check(error, st%code == VOID_VARIABLE_CODE, "void")
         call teardown(a, b)
     end subroutine test_kill_current
 
@@ -403,14 +403,14 @@ contains
         if (allocated(error)) return
         ! Another integer setting holds integers only.
         call set_default(value_type(name="standard_indent"), value_type(), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "standard-indent: unallocated is the wrong type")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "standard-indent: unallocated is the wrong type")
         if (allocated(error)) return
         call set_default(value_type(name="fill_column"), value_type(text="x"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "expected integer")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "expected integer")
         if (allocated(error)) return
         ! A string setting holds a string or no string.
         call set_default(value_type(name="fill_prefix"), value_type(name="data-test"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-prefix: a name is the wrong type")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "fill-prefix: a name is the wrong type")
         fill_column = 70
     end subroutine test_exact
 
@@ -425,7 +425,7 @@ contains
         call setup(error, a, b)
         if (allocated(error)) return
         call makunbound(value_type(name="fill_column"), st)
-        call check(error, st%code == FM_WRONG_TYPE_ARGUMENT, "fill-column: expected integer")
+        call check(error, st%code == WRONG_TYPE_ARGUMENT_CODE, "fill-column: expected integer")
         if (allocated(error)) return
         indent_tabs_mode = .false.
         call makunbound(value_type(name="indent_tabs_mode"), st)
@@ -436,7 +436,7 @@ contains
         call check(error,.not. bound, "fill-prefix void here")
         if (allocated(error)) return
         call symbol_value(value_type(name="fill_prefix"), v, st)
-        call check(error, st%code == FM_VOID_VARIABLE, "void_variable")
+        call check(error, st%code == VOID_VARIABLE_CODE, "void_variable")
         if (allocated(error)) return
         call set_buffer(b, st)
         call boundp(value_type(name="fill_prefix"), bound, st)

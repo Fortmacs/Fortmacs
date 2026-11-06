@@ -40,12 +40,12 @@
 !> keeps them pure).
 module case_table_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
-    use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current
-    use character_table_mod, only: make_char_table, is_char_table, char_table_subtype, char_table_extra_table, &
-                                   set_char_table_extra_table, char_table_ref, char_table_set, set_char_table_range, &
-                                   map_char_table, copy_char_table
+    use character_table_mod, only: make_character_table, is_character_table, character_table_subtype, character_table_extra_table, &
+                                   set_character_table_extra_table, character_table_reference, character_table_set, &
+                                   set_character_table_range, map_character_table, copy_character_table
     use unicode_case_mod, only: down_count, down_keys, down_values, up_count, up_keys, up_values, &
                                 canon_count, canon_keys, canon_values
     implicit none(type, external)
@@ -56,7 +56,7 @@ module case_table_mod
 
     !> The standard case table and its companions (casetab.c
     !> Vascii_downcase_table, Vascii_upcase_table, Vascii_canon_table,
-    !> Vascii_eqv_table); null until `init_casetab_once' runs.
+    !> Vascii_eqv_table); null until `initialize_casetab_once' runs.
     type(handle_type) :: ascii_downcase_table, ascii_upcase_table, ascii_canon_table, ascii_eqv_table
 
     !> An error found while mapping over a case table (`set_canon').
@@ -74,22 +74,22 @@ contains
         integer(int32), intent(in) :: c
         integer, intent(in) :: n
         integer(int32), intent(in) :: keys(n), values(n)
-        integer :: lo, hi, mid
+        integer :: lo, hi, middle
 
         v = c
         lo = 1
         hi = n
 
         do while (lo <= hi)
-            mid = (lo + hi)/2
+            middle = (lo + hi)/2
 
-            if (keys(mid) == c) then
-                v = values(mid)
+            if (keys(middle) == c) then
+                v = values(middle)
                 return
-            else if (keys(mid) < c) then
-                lo = mid + 1
+            else if (keys(middle) < c) then
+                lo = middle + 1
             else
-                hi = mid - 1
+                hi = middle - 1
             end if
         end do
     end function lookup
@@ -132,8 +132,8 @@ contains
 
         h = buffer_table(1)
 
-        if (is_char_table(h)) then
-            down = char_table_ref(h, c)
+        if (is_character_table(h)) then
+            down = character_table_reference(h, c)
             downcase = c
             if (down >= 0) downcase = int(down, int32)
         else if (c < 128) then
@@ -153,8 +153,8 @@ contains
 
         h = buffer_table(2)
 
-        if (is_char_table(h)) then
-            up = char_table_ref(h, c)
+        if (is_character_table(h)) then
+            up = character_table_reference(h, c)
             upcase = c
             if (up >= 0) upcase = int(up, int32)
         else if (c < 128) then
@@ -176,8 +176,8 @@ contains
 
         h = buffer_table(3)
 
-        if (is_char_table(h)) then
-            ch = char_table_ref(h, c)
+        if (is_character_table(h)) then
+            ch = character_table_reference(h, c)
             case_canon = c
             if (ch >= 0) case_canon = int(ch, int32)
         else if (c < 128) then
@@ -214,17 +214,17 @@ contains
         type(status_type) :: status
 
         is_case_table = .false.
-        if (.not. is_char_table(object)) return
-        if (char_table_subtype(object, status) /= "case_table") return
-        up = char_table_extra_table(object, 0, status)
+        if (.not. is_character_table(object)) return
+        if (character_table_subtype(object, status) /= "case_table") return
+        up = character_table_extra_table(object, 0, status)
         if (.not. status%ok()) return
-        canon = char_table_extra_table(object, 1, status)
-        eqv = char_table_extra_table(object, 2, status)
-        is_case_table = up%index == 0 .or. is_char_table(up)
+        canon = character_table_extra_table(object, 1, status)
+        eqv = character_table_extra_table(object, 2, status)
+        is_case_table = up%index == 0 .or. is_character_table(up)
 
         if (is_case_table) then
             is_case_table = canon%index == 0 .and. eqv%index == 0
-            if (.not. is_case_table .and. is_char_table(canon)) is_case_table = eqv%index == 0 .or. is_char_table(eqv)
+            if (.not. is_case_table .and. is_character_table(canon)) is_case_table = eqv%index == 0 .or. is_character_table(eqv)
         end if
     end function is_case_table
 
@@ -235,7 +235,8 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        if (.not. is_case_table(obj)) call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected case table type(char_table_type)")
+        if (.not. is_case_table(obj)) call set_error(status, WRONG_TYPE_ARGUMENT_CODE, &
+                                                     "expected case table type(character_table_type)")
     end subroutine check_case_table
 
     !> Return the case table of the current buffer.  Port of
@@ -254,7 +255,7 @@ contains
     function standard_case_table() result(h)
         type(handle_type) :: h
 
-        if (.not. is_char_table(ascii_downcase_table)) call init_casetab_once()
+        if (.not. is_character_table(ascii_downcase_table)) call initialize_casetab_once()
         h = ascii_downcase_table
     end function standard_case_table
 
@@ -279,7 +280,7 @@ contains
         type(handle_type), intent(in) :: table
         type(status_type), intent(out) :: status
 
-        if (.not. is_char_table(ascii_downcase_table)) call init_casetab_once()
+        if (.not. is_character_table(ascii_downcase_table)) call initialize_casetab_once()
         call set_case_table_1(table, .false., status)
     end subroutine set_case_table
 
@@ -291,7 +292,7 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: i
 
-        if (.not. is_char_table(ascii_downcase_table)) call init_casetab_once()
+        if (.not. is_character_table(ascii_downcase_table)) call initialize_casetab_once()
         call check_case_table(table, status)
         if (.not. status%ok()) return
 
@@ -321,22 +322,22 @@ contains
 
         call check_case_table(table, status)
         if (.not. status%ok()) return
-        up = char_table_extra_table(table, 0, st)
-        canon = char_table_extra_table(table, 1, st)
-        eqv = char_table_extra_table(table, 2, st)
+        up = character_table_extra_table(table, 0, st)
+        canon = character_table_extra_table(table, 1, st)
+        eqv = character_table_extra_table(table, 2, st)
 
         if (up%index == 0) then
-            call make_char_table(up, "case_table", st)
-            call map_char_table(set_identity, table, st, up)
-            call map_char_table(shuffle, table, st, up)
-            call set_char_table_extra_table(table, 0, up, st)
+            call make_character_table(up, "case_table", st)
+            call map_character_table(set_identity, table, st, up)
+            call map_character_table(shuffle, table, st, up)
+            call set_character_table_extra_table(table, 0, up, st)
         end if
 
         if (canon%index == 0) then
-            call make_char_table(canon, "case_table", st)
-            call set_char_table_extra_table(table, 1, canon, st)
+            call make_character_table(canon, "case_table", st)
+            call set_character_table_extra_table(table, 1, canon, st)
             map_status = status_type()
-            call map_char_table(set_canon, table, st, table)
+            call map_character_table(set_canon, table, st, table)
 
             if (.not. map_status%ok()) then
                 status = map_status
@@ -345,15 +346,15 @@ contains
         end if
 
         if (eqv%index == 0) then
-            call make_char_table(eqv, "case_table", st)
-            call map_char_table(set_identity, canon, st, eqv)
-            call map_char_table(shuffle, canon, st, eqv)
-            call set_char_table_extra_table(table, 2, eqv, st)
+            call make_character_table(eqv, "case_table", st)
+            call map_character_table(set_identity, canon, st, eqv)
+            call map_character_table(shuffle, canon, st, eqv)
+            call set_character_table_extra_table(table, 2, eqv, st)
         end if
 
         ! This is so set_image_of_range_1 in regex-emacs.c can find the EQV
         ! table.
-        call set_char_table_extra_table(canon, 2, eqv, st)
+        call set_character_table_extra_table(canon, 2, eqv, st)
 
         if (standard) then
             ascii_downcase_table = table
@@ -369,65 +370,65 @@ contains
     end subroutine set_case_table_1
 
     !> Set CANON char-table element for characters in FROM..TO to a
-    !> translated ELT by UP and DOWN char-tables.  This is done only when
-    !> ELT is a character.  The char-tables CANON, UP, and DOWN are in
+    !> translated ELEMENT by UP and DOWN char-tables.  This is done only when
+    !> ELEMENT is a character.  The char-tables CANON, UP, and DOWN are in
     !> CASE_TABLE.  Port of casetab.c:set_canon.
-    recursive subroutine set_canon(case_table, from, to, elt)
+    recursive subroutine set_canon(case_table, from, to, element)
         type(handle_type), intent(in) :: case_table
         integer, intent(in) :: from, to
-        integer(int64), intent(in) :: elt
+        integer(int64), intent(in) :: element
         type(handle_type) :: up, canon
         type(status_type) :: st
         integer(int64) :: u
 
-        if (elt < 0) return
-        up = char_table_extra_table(case_table, 0, st)
-        canon = char_table_extra_table(case_table, 1, st)
-        u = char_table_ref(up, int(elt))
+        if (element < 0) return
+        up = character_table_extra_table(case_table, 0, st)
+        canon = character_table_extra_table(case_table, 1, st)
+        u = character_table_reference(up, int(element))
 
         if (u < 0) then
-            call set_error(map_status, FM_WRONG_TYPE_ARGUMENT, "expected integer (a character code)")
+            call set_error(map_status, WRONG_TYPE_ARGUMENT_CODE, "expected integer (a character code)")
             return
         end if
 
-        call set_char_table_range(canon, char_table_ref(case_table, int(u)), st, from, to)
+        call set_character_table_range(canon, character_table_reference(case_table, int(u)), st, from, to)
     end subroutine set_canon
 
     !> Set elements of char-table TABLE for FROM..TO to themselves.  This
-    !> is done only when ELT is a character.  This is called in
-    !> `map_char_table'.  Port of casetab.c:set_identity.
-    recursive subroutine set_identity(table, from, to, elt)
+    !> is done only when ELEMENT is a character.  This is called in
+    !> `map_character_table'.  Port of casetab.c:set_identity.
+    recursive subroutine set_identity(table, from, to, element)
         type(handle_type), intent(in) :: table
         integer, intent(in) :: from, to
-        integer(int64), intent(in) :: elt
+        integer(int64), intent(in) :: element
         type(status_type) :: st
         integer :: c
 
-        if (elt < 0) return
+        if (element < 0) return
 
         do c = from, to
-            call char_table_set(table, c, int(c, int64), st)
+            call character_table_set(table, c, int(c, int64), st)
         end do
     end subroutine set_identity
 
     !> Permute the elements of TABLE (which is initially an identity
     !> mapping) so that it has one cycle for each equivalence class
-    !> induced by the translation table on which `map_char_table' is
+    !> induced by the translation table on which `map_character_table' is
     !> operated.  Port of casetab.c:shuffle.
-    recursive subroutine shuffle(table, from, to, elt)
+    recursive subroutine shuffle(table, from, to, element)
         type(handle_type), intent(in) :: table
         integer, intent(in) :: from, to
-        integer(int64), intent(in) :: elt
+        integer(int64), intent(in) :: element
         type(status_type) :: st
         integer(int64) :: tem
         integer :: c
 
-        if (elt < 0) return
+        if (element < 0) return
 
         do c = from, to
-            tem = char_table_ref(table, int(elt))
-            call char_table_set(table, int(elt), int(c, int64), st)
-            call char_table_set(table, c, tem, st)
+            tem = character_table_reference(table, int(element))
+            call character_table_set(table, int(element), int(c, int64), st)
+            call character_table_set(table, c, tem, st)
         end do
     end subroutine shuffle
 
@@ -440,31 +441,31 @@ contains
     !> upcase entry), with its canonicalize and equivalence slots empty,
     !> so that `set_case_table' computes them.  Port of
     !> casetab.c:init_casetab_once, with characters.el's case entries.
-    subroutine init_casetab_once()
+    subroutine initialize_casetab_once()
         type(handle_type) :: down, up, canon, eqv
         type(status_type) :: st
         integer :: i, c
 
-        call make_char_table(down, "case_table", st)
+        call make_character_table(down, "case_table", st)
 
         do i = 0, 127
             c = i
             if (i >= iachar("A") .and. i <= iachar("Z")) c = i + 32
-            call char_table_set(down, i, int(c, int64), st)
+            call character_table_set(down, i, int(c, int64), st)
         end do
 
-        call copy_char_table(down, canon, st)
-        call set_char_table_extra_table(down, 1, canon, st)
-        call make_char_table(up, "case_table", st)
-        call set_char_table_extra_table(down, 0, up, st)
+        call copy_character_table(down, canon, st)
+        call set_character_table_extra_table(down, 1, canon, st)
+        call make_character_table(up, "case_table", st)
+        call set_character_table_extra_table(down, 0, up, st)
 
         do i = 0, 127
             c = i
             if (i >= iachar("a") .and. i <= iachar("z")) c = i - 32
-            call char_table_set(up, i, int(c, int64), st)
+            call character_table_set(up, i, int(c, int64), st)
         end do
 
-        call make_char_table(eqv, "case_table", st)
+        call make_character_table(eqv, "case_table", st)
 
         do i = 0, 127
             c = i
@@ -475,19 +476,19 @@ contains
                 c = i - 32
             end if
 
-            call char_table_set(eqv, i, int(c, int64), st)
+            call character_table_set(eqv, i, int(c, int64), st)
         end do
 
-        call set_char_table_extra_table(down, 2, eqv, st)
+        call set_character_table_extra_table(down, 2, eqv, st)
         ! Fill in what isn't filled in.
         call set_case_table_1(down, .true., st)
         ! characters.el: the Unicode entries, then the extra slots cleared
         ! so that they are recomputed from the downcase and upcase tables.
         call characters_case_entries(down, up)
-        call set_char_table_extra_table(down, 1, null_handle(), st)
-        call set_char_table_extra_table(down, 2, null_handle(), st)
+        call set_character_table_extra_table(down, 1, null_handle(), st)
+        call set_character_table_extra_table(down, 2, null_handle(), st)
         call set_case_table_1(down, .true., st)
-    end subroutine init_casetab_once
+    end subroutine initialize_casetab_once
 
     !> characters.el's case entries above ASCII in DOWN and UP, from the
     !> generated tables.  Not a port.
@@ -498,22 +499,22 @@ contains
 
         ! The identity entries of the cased characters.
         do k = 1, up_count
-            call char_table_set(down, up_keys(k), int(up_keys(k), int64), st)
-            call char_table_set(up, up_values(k), int(up_values(k), int64), st)
+            call character_table_set(down, up_keys(k), int(up_keys(k), int64), st)
+            call character_table_set(up, up_values(k), int(up_values(k), int64), st)
         end do
 
         do k = 1, down_count
-            call char_table_set(down, down_values(k), int(down_values(k), int64), st)
-            call char_table_set(up, down_keys(k), int(down_keys(k), int64), st)
+            call character_table_set(down, down_values(k), int(down_values(k), int64), st)
+            call character_table_set(up, down_keys(k), int(down_keys(k), int64), st)
         end do
 
         ! The mappings.
         do k = 1, up_count
-            call char_table_set(up, up_keys(k), int(up_values(k), int64), st)
+            call character_table_set(up, up_keys(k), int(up_values(k), int64), st)
         end do
 
         do k = 1, down_count
-            call char_table_set(down, down_keys(k), int(down_values(k), int64), st)
+            call character_table_set(down, down_keys(k), int(down_values(k), int64), st)
         end do
     end subroutine characters_case_entries
 end module case_table_mod

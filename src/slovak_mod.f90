@@ -34,7 +34,7 @@ contains
                                         documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
                                          //" sets the default input method to ""slovak"","//achar(10)//"and selects the " &
                                          //"Slovak tutorial.", &
-                                         charsets=[character(len=40) :: "ascii", "latin-iso8859-2"], &
+                                         character_sets=[character(len=40) :: "ascii", "latin-iso8859-2"], &
                                          sample_text="Prajeme Vám príjemný deň!", &
                                          coding_systems=[character(len=40) :: "iso-8859-2"], &
                                          coding_system_order=[character(len=40) :: "iso-8859-2"], &

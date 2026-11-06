@@ -189,7 +189,7 @@ module system_linux_mod
     integer(c_int), parameter, public :: O_CLOEXEC = int(o'2000000', c_int)
     ! inotify event masks and watch flags (linux/inotify.h)
     !> inotify event mask or watch flag IN_ACCESS.
-    integer(c_int32_t), parameter, public :: IN_ACCESS = 1, IN_MODIFY = 2, IN_ATTRIB = 4, IN_CLOSE_WRITE = 8, &
+    integer(c_int32_t), parameter, public :: IN_ACCESS = 1, IN_MODIFY = 2, IN_ATTRIBUTE = 4, IN_CLOSE_WRITE = 8, &
                                              IN_CLOSE_NOWRITE = 16, IN_OPEN = 32, IN_MOVED_FROM = 64, &
                                              IN_MOVED_TO = 128, IN_CREATE = 256, IN_DELETE = 512, &
                                              IN_DELETE_SELF = 1024, IN_MOVE_SELF = 2048, IN_UNMOUNT = 8192, &
@@ -319,12 +319,12 @@ module system_linux_mod
     end type tm_type
 
     !> struct passwd.
-    type, bind(C), public :: passwd_type
+    type, bind(C), public :: password_type
         type(c_ptr) :: pw_name, pw_passwd
         integer(c_int32_t) :: pw_uid = 0
         integer(c_int32_t) :: pw_gid = 0
         type(c_ptr) :: pw_gecos, pw_dir, pw_shell
-    end type passwd_type
+    end type password_type
 
     !> struct group.
     type, bind(C), public :: group_type
@@ -434,12 +434,12 @@ module system_linux_mod
         end function c_poll
 
         !> ioctl(fd, request, struct winsize *): see the module note.
-        integer(c_int) function c_ioctl_winsize(fd, request, ws) bind(C, name="ioctl")
+        integer(c_int) function c_ioctl_winsize(fd, request, window_size) bind(C, name="ioctl")
             import :: c_int, c_long, winsize_type
             implicit none(type, external)
             integer(c_int), value :: fd
             integer(c_long), value :: request
-            type(winsize_type), intent(inout) :: ws
+            type(winsize_type), intent(inout) :: window_size
         end function c_ioctl_winsize
 
         !> signal(2) from glibc: BSD semantics (SA_RESTART, handler stays).
@@ -752,10 +752,10 @@ module system_linux_mod
         end function c_execv
 
         !> Binding of libc's strsignal.
-        type(c_ptr) function c_strsignal(sig) bind(C, name="strsignal")
+        type(c_ptr) function c_strsignal(signal) bind(C, name="strsignal")
             import :: c_ptr, c_int
             implicit none(type, external)
-            integer(c_int), value :: sig
+            integer(c_int), value :: signal
         end function c_strsignal
 
         !> Binding of libc's mkostemp.
@@ -887,13 +887,13 @@ module system_linux_mod
             implicit none(type, external)
         end subroutine c_endgrent
         !> pthread_create(thread, NULL, start, arg).
-        integer(c_int) function c_pthread_create(thread, attr, start, arg) bind(C, name="pthread_create")
+        integer(c_int) function c_pthread_create(thread, attribute, start, argument) bind(C, name="pthread_create")
             import :: c_int, c_long, c_ptr, c_funptr
             implicit none(type, external)
             integer(c_long), intent(out) :: thread
-            type(c_ptr), value :: attr
+            type(c_ptr), value :: attribute
             type(c_funptr), value :: start
-            type(c_ptr), value :: arg
+            type(c_ptr), value :: argument
         end function c_pthread_create
 
         !> pthread_join(thread, NULL).
@@ -934,11 +934,11 @@ module system_linux_mod
         end function c_pthread_sigmask
 
         !> Binding of libc's kill.
-        integer(c_int) function c_kill(pid, sig) bind(C, name="kill")
+        integer(c_int) function c_kill(pid, signal) bind(C, name="kill")
             import :: c_int, c_int32_t
             implicit none(type, external)
             integer(c_int32_t), value :: pid
-            integer(c_int), value :: sig
+            integer(c_int), value :: signal
         end function c_kill
 
         !> Binding of libc's setsid.
@@ -980,12 +980,12 @@ module system_linux_mod
         end function c_pidfd_open
 
         !> ioctl(fd, request, int): see the module note.
-        integer(c_int) function c_ioctl_int(fd, request, arg) bind(C, name="ioctl")
+        integer(c_int) function c_ioctl_int(fd, request, argument) bind(C, name="ioctl")
             import :: c_int, c_long
             implicit none(type, external)
             integer(c_int), value :: fd
             integer(c_long), value :: request
-            integer(c_int), value :: arg
+            integer(c_int), value :: argument
         end function c_ioctl_int
 
         !> ioctl(fd, request, char *): see the module note.
@@ -1057,10 +1057,10 @@ module system_linux_mod
         end function c_clock_gettime
 
         !> fcntl(fd, cmd, int): variadic, bound like ioctl (module note).
-        integer(c_int) function c_fcntl_int(fd, cmd, arg) bind(C, name="fcntl")
+        integer(c_int) function c_fcntl_int(fd, command, argument) bind(C, name="fcntl")
             import :: c_int
             implicit none(type, external)
-            integer(c_int), value :: fd, cmd, arg
+            integer(c_int), value :: fd, command, argument
         end function c_fcntl_int
 
         type(c_ptr) function c_errno_location() bind(C, name="__errno_location")

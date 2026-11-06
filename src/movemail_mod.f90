@@ -34,8 +34,8 @@ module movemail_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use system_dependent_mod, only: fortmacs_mkostemp, fortmacs_open_read, fortmacs_open_mode, fortmacs_creat, &
                                     fortmacs_read, fortmacs_full_write, fortmacs_fsync, fortmacs_strerror, fortmacs_sleep, &
-                                    fortmacs_umask, fortmacs_set_umask, close_fd, sys_link, sys_unlink, sys_stat, &
-                                    file_stat_type, fortmacs_clock_realtime, O_WRONLY, O_CREAT, O_EXCL, EEXIST, ENOENT, &
+                                    fortmacs_umask, fortmacs_set_umask, close_fd, system_link, system_unlink, system_status, &
+                                    file_status_type, fortmacs_clock_realtime, O_WRONLY, O_CREAT, O_EXCL, EEXIST, ENOENT, &
                                     EINVAL
     use error_mod, only: status_type
     implicit none(type, external)
@@ -60,10 +60,10 @@ contains
         character(len=:), allocatable, intent(out) :: errors
         character(len=:), allocatable :: lockname, tempname
         character(len=1024) :: buffer
-        type(file_stat_type) :: st
+        type(file_status_type) :: st
         type(status_type) :: rst, wst
         integer(int64) :: nread, written, now
-        integer(int32) :: desc, tem, indesc, outdesc, err, mask, nanoseconds
+        integer(int32) :: description, tem, indesc, outdesc, err, mask, nanoseconds
         integer :: dirlen
         logical :: lockname_unlinked
 
@@ -86,7 +86,7 @@ contains
             ! Create the lock file, but not under the lock file name.
             ! Give up if cannot do that.
             tempname = inbox(1:dirlen)//"EXXXXXX"
-            err = fortmacs_mkostemp(tempname, desc)
+            err = fortmacs_mkostemp(tempname, description)
 
             if (err /= 0) then
                 call report_error("error while creating what would become the lock file")
@@ -94,15 +94,15 @@ contains
                 return
             end if
 
-            call close_fd(desc)
-            err = sys_link(tempname, lockname)
+            call close_fd(description)
+            err = system_link(tempname, lockname)
 
             if (err /= 0 .and. err /= EEXIST) then
                 call report_fatal_error(fortmacs_strerror(err)//" for "//lockname)
                 return
             end if
 
-            tem = sys_unlink(tempname)
+            tem = system_unlink(tempname)
             if (err == 0) exit
             call fortmacs_sleep(1)
 
@@ -111,11 +111,11 @@ contains
             ! long enough to avoid being fooled by time differences between
             ! machines.
             if (.not. lockname_unlinked) then
-                if (sys_stat(lockname, st) == 0) then
+                if (system_status(lockname, st) == 0) then
                     call fortmacs_clock_realtime(now, nanoseconds)
 
-                    if (st%ctime_sec < now - 300) then
-                        tem = sys_unlink(lockname)
+                    if (st%ctime_second < now - 300) then
+                        tem = system_unlink(lockname)
                         lockname_unlinked = tem == 0 .or. tem == ENOENT
                     end if
                 end if
@@ -154,7 +154,7 @@ contains
             call fortmacs_full_write(outdesc, buffer(1:nread), written, wst, err)
 
             if (.not. wst%ok() .or. written /= nread) then
-                tem = sys_unlink(destination)
+                tem = system_unlink(destination)
                 call close_fd(indesc)
                 call close_fd(outdesc)
                 call report_fatal_error(fortmacs_strerror(err)//" for "//destination, lockname)
@@ -169,7 +169,7 @@ contains
         if (err /= 0 .and. err /= EINVAL) then
             call close_fd(indesc)
             call close_fd(outdesc)
-            tem = sys_unlink(destination)
+            tem = system_unlink(destination)
             call report_fatal_error(fortmacs_strerror(err)//" for "//destination, lockname)
             return
         end if
@@ -180,11 +180,11 @@ contains
 
         if (.not. preserve) then
             ! Get rid of the contents of the input file.
-            err = fortmacs_creat(inbox, int(o'600', int32), desc)
-            if (err == 0) call close_fd(desc)
+            err = fortmacs_creat(inbox, int(o'600', int32), description)
+            if (err == 0) call close_fd(description)
         end if
 
-        tem = sys_unlink(lockname)
+        tem = system_unlink(lockname)
 
     contains
 
@@ -202,7 +202,7 @@ contains
             character(len=*), intent(in), optional :: lock
             integer(int32) :: ignored
 
-            if (present(lock)) ignored = sys_unlink(lock)
+            if (present(lock)) ignored = system_unlink(lock)
             call report_error(text)
         end subroutine report_fatal_error
     end subroutine move_mail

@@ -22,10 +22,9 @@ name	flyspell_correct_word_before_point	correct_flyspell_word_before_point
 name	flyspell_delay_command	set_flyspell_delayed_command
 name	flyspell_delay_commands	set_flyspell_delayed_commands
 name	flyspell_deplacement_command	set_flyspell_deplacement_command
-# The new name holds the old one: kept, so that the entry above does not
-# apply to it again.
-keep	set_flyspell_deplacement_command
-keep	cmd_set_flyspell_deplacement_command
+# The new name holds the old one, so it has an entry of its own (the
+# spellcheck family, 2026-11-05), which also ends the chain.
+name	set_flyspell_deplacement_command	set_spellcheck_deplacement_command
 name	flyspell_after_change_function	record_flyspell_change
 name	flyspell_notify_misspell	notify_flyspell_misspelling
 name	flyspell_word_search_backward	search_flyspell_word_backward

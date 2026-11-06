@@ -30,17 +30,18 @@
 module rmail_output_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_VOID_FUNCTION
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, VOID_FUNCTION_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, get_file_buffer, close_buffer, &
                           get_or_make_buffer, generate_new_buffer_name
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, narrow_to_region, widen, buffer_size, &
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, narrow_to_region, widen, buffer_size, &
                                      insert_buffer_substring, buffer_substring_no_properties, save_restriction_begin, &
                                      save_restriction_end, save_excursion_begin, save_excursion_end, restriction_type, &
                                      excursion_type, line_beginning_position
     use editing_commands_mod, only: beginning_of_line
-    use search_mod, only: re_search_forward, search_forward, looking_at, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE
+    use search_mod, only: regular_expression_search_forward, search_forward, looking_at, case_fold_search, &
+                          SEARCH_NOERROR, SEARCH_MOVE
     use utility_functions_mod, only: read_yes_or_no
     use basic_subprograms_mod, only: read_y_or_n
     use file_input_output_mod, only: expand_file_name, file_exists, file_name_directory, file_name_nondirectory, &
@@ -62,7 +63,7 @@ module rmail_output_mod
     private
 
     public :: output_rmail_message, output_rmail_message_as_seen, output_rmail_message_body_to_file, read_rmail_output_file_name, &
-              delete_rmail_unwanted_fields, output_rmail_message_as_mbox, init_rmail_output
+              delete_rmail_unwanted_fields, output_rmail_message_as_mbox, initialize_rmail_output
 
     !> If true, do coding system decoding when outputting message as Babyl.
     !> Port of rmailout.el rmail-output-decode-coding.
@@ -93,7 +94,7 @@ contains
         ! If no suggestion, use same file as last time.
         default_file = rmail_default_file
         call read_file_name(format_prompt("Output message to mail file", file_name_nondirectory(default_file)), read, &
-                            status, dir=file_name_directory(default_file), &
+                            status, directory=file_name_directory(default_file), &
                             default_filename=abbreviate_file_name(default_file))
         if (.not. status%ok()) return
         call expand_file_name(read, read_file, status, file_name_directory(default_file))
@@ -123,12 +124,12 @@ contains
         status = status_type()
         if (.not. allocated(rmail_fields_not_to_output)) return
         call save_excursion_begin(saved)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
 
         do
-            call re_search_forward(rmail_fields_not_to_output, found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(rmail_fields_not_to_output, found, status, noerror=SEARCH_NOERROR)
             if (found == 0 .or. .not. status%ok()) exit
             call beginning_of_line(1_int64)
             kept = .false.
@@ -168,11 +169,11 @@ contains
         if (present(as_seen)) seen = as_seen
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! Preserve the Mail-From and MIME-Version fields even if they have
         ! been pruned.
         call search_forward(LF//LF, found, status, noerror=SEARCH_MOVE)
-        call narrow_to_region(point_min(), point(), status)
+        call narrow_to_region(point_minimum(), point(), status)
 
         if (rmail_enable_mime) then
             call delete_rmail_unwanted_fields("Mail-From", status)
@@ -185,20 +186,20 @@ contains
             return
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (.not. looking_at("From ", status)) then
             case_fold_search%value = saved_fold
-            call set_error(status, FM_VOID_FUNCTION, "mail-mbox-from")
+            call set_error(status, VOID_FUNCTION_CODE, "mail-mbox-from")
             return
         end if
 
         call widen()
         ! Make sure message ends with blank line.
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call ensure_rmail_blank_line(status)
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         case_fold_search%value = saved_fold
         buffer = get_file_buffer(file_name)
         temporary = current_buffer()
@@ -208,7 +209,7 @@ contains
             if (coding_set) saved_coding = coding_system_for_write%value
             coding_system_for_write%value = "raw-text-unix"
             ! FIXME should ensure existing file ends with a blank line.
-            call write_region(file_name, .false., status, point_min(), point_max(), wrote, append=.true.)
+            call write_region(file_name, .false., status, point_minimum(), point_maximum(), wrote, append=.true.)
 
             if (coding_set) then
                 coding_system_for_write%value = saved_coding
@@ -221,7 +222,7 @@ contains
         end if
 
         if (buffer%index == temporary%index) then
-            call set_error(status, FM_GENERIC_ERROR, "Can't output message to same file it's already in")
+            call set_error(status, GENERIC_ERROR_CODE, "Can't output message to same file it's already in")
             return
         end if
 
@@ -231,7 +232,7 @@ contains
         k = rmail_state_index(buffer)
 
         if (k > 0 .and. seen) then
-            call set_error(status, FM_GENERIC_ERROR, "Can't output ""as seen"" to a visited Rmail file")
+            call set_error(status, GENERIC_ERROR_CODE, "Can't output ""as seen"" to a visited Rmail file")
             return
         end if
 
@@ -242,7 +243,7 @@ contains
             saved_read_only = buffers(current)%read_only
             buffers(current)%read_only = .false.
             call widen()
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call insert_buffer_substring(temporary, status)
             buffers(current)%read_only = saved_read_only
         end if
@@ -250,12 +251,12 @@ contains
 
     ! Copy message in TEMBUF into the current Rmail buffer.
     ! Do what is necessary to make Rmail know about the new message, then
-    ! display message number MSG.  Port of
+    ! display message number MESSAGE.  Port of
     ! rmailout.el:rmail-output-to-rmail-buffer (Auto Save mode is not
     ! ported).
-    recursive subroutine output_rmail_message_to_rmail_buffer(tembuf, msg, status)
+    recursive subroutine output_rmail_message_to_rmail_buffer(tembuf, message, status)
         type(handle_type), intent(in) :: tembuf
-        integer(int64), intent(in) :: msg
+        integer(int64), intent(in) :: message
         type(status_type), intent(out) :: status
         type(excursion_type) :: saved
         character(len=:), allocatable :: blurb
@@ -276,11 +277,11 @@ contains
 
             if (buffer_size() /= 0) then
                 ! Make sure the last old message ends with a blank line.
-                call goto_char(point_max())
+                call goto_character(point_maximum())
                 call ensure_rmail_blank_line(status)
                 if (.not. status%ok()) exit body
                 ! Insert the new message at the end.
-                call narrow_to_region(point_max(), point_max(), status)
+                call narrow_to_region(point_maximum(), point_maximum(), status)
             end if
 
             call insert_buffer_substring(tembuf, status)
@@ -293,7 +294,7 @@ contains
                 if (.not. status%ok()) exit body
             end if
 
-            call show_rmail_message_1(blurb, status, msg)
+            call show_rmail_message_1(blurb, status, message)
         end block body
 
         call save_excursion_end(saved)
@@ -342,7 +343,7 @@ contains
         character(len=:), allocatable :: file
         type(handle_type) :: buffer, source
         logical :: babyl_format, create, nomsg, reset, next_message, outside
-        integer(int64) :: n, orig_count, beginning, end, message_number
+        integer(int64) :: n, original_count, beginning, end, message_number
         integer :: k
 
         n = 1
@@ -365,19 +366,19 @@ contains
         if (babyl_format .and. is_buffer_live(buffer)) babyl_format = is_babyl_buffer(buffer)
 
         if (babyl_format) then
-            call set_error(status, FM_VOID_FUNCTION, "rmail-output-as-babyl")
+            call set_error(status, VOID_FUNCTION_CODE, "rmail-output-as-babyl")
             return
         end if
 
         if (outside) then
             source = current_buffer()
-            call output_in_temporary_buffer(source, point_min(), point_max(), file, nomsg, .false., status)
+            call output_in_temporary_buffer(source, point_minimum(), point_maximum(), file, nomsg, .false., status)
             return
         end if
 
         ! Called from an Rmail buffer.
         if (.not. is_buffer_live(rmail_buffer())) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no Rmail buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "There is no Rmail buffer")
             return
         end if
 
@@ -386,11 +387,11 @@ contains
         k = rmail_state_index(rmail_buffer())
 
         if (rmail_states(k)%total_messages == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No messages to output")
+            call set_error(status, GENERIC_ERROR_CODE, "No messages to output")
             return
         end if
 
-        orig_count = n
+        original_count = n
 
         do while (n > 0)
             reset = .false.
@@ -439,7 +440,7 @@ contains
             if (.not. status%ok()) return
 
             if (n > 0 .and. .not. next_message) then
-                call set_appended_error(orig_count - n, status)
+                call set_appended_error(original_count - n, status)
                 return
             end if
         end do
@@ -459,7 +460,7 @@ contains
             call save_excursion_begin(excursion)
             call save_restriction_begin(restriction)
             call widen()
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             is_babyl_buffer = looking_at("BABYL OPTIONS:", st)
             call save_restriction_end(restriction)
             call save_excursion_end(excursion)
@@ -468,18 +469,18 @@ contains
     end subroutine output_rmail_message
 
     ! The error "Only N message(s) appended" in STATUS.  Not a port.
-    subroutine set_appended_error(num_appended, status)
-        integer(int64), intent(in) :: num_appended
+    subroutine set_appended_error(number_appended, status)
+        integer(int64), intent(in) :: number_appended
         type(status_type), intent(out) :: status
         character(len=100) :: text
 
-        if (num_appended == 1) then
-            write (text, '("Only ", i0, " message appended")') num_appended
+        if (number_appended == 1) then
+            write (text, '("Only ", i0, " message appended")') number_appended
         else
-            write (text, '("Only ", i0, " messages appended")') num_appended
+            write (text, '("Only ", i0, " messages appended")') number_appended
         end if
 
-        call set_error(status, FM_GENERIC_ERROR, trim(text))
+        call set_error(status, GENERIC_ERROR_CODE, trim(text))
     end subroutine set_appended_error
 
     ! Ask whether to create FILE if no buffer visits it and it does not
@@ -494,7 +495,7 @@ contains
         if (is_buffer_live(get_file_buffer(file))) return
         if (file_exists(file)) return
         call read_yes_or_no(""""//file//""" does not exist, create it? ", create, status)
-        if (status%ok() .and. .not. create) call set_error(status, FM_GENERIC_ERROR, "Output file does not exist")
+        if (status%ok() .and. .not. create) call set_error(status, GENERIC_ERROR_CODE, "Output file does not exist")
     end subroutine confirm_output_file
 
     ! Insert the text from BEGINNING to END of buffer CURRENT, widened, into
@@ -547,7 +548,7 @@ contains
         logical, intent(in), optional :: noattribute, not_rmail
         character(len=:), allocatable :: file
         type(handle_type) :: source
-        integer(int64) :: n, orig_count, beginning, end
+        integer(int64) :: n, original_count, beginning, end
         logical :: nomsg, next_message, babyl
         integer :: k
 
@@ -569,7 +570,7 @@ contains
         if (is_file_readable(file)) babyl = is_mail_file_babyl(file, status)
 
         if (babyl) then
-            call set_error(status, FM_GENERIC_ERROR, "Cannot output `as seen' to a Babyl file")
+            call set_error(status, GENERIC_ERROR_CODE, "Cannot output `as seen' to a Babyl file")
             return
         end if
 
@@ -577,7 +578,7 @@ contains
         if (present(noattribute)) nomsg = noattribute
 
         if (.not. is_buffer_live(rmail_buffer())) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no Rmail buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "There is no Rmail buffer")
             return
         end if
 
@@ -586,11 +587,11 @@ contains
         k = rmail_state_index(rmail_buffer())
 
         if (rmail_states(k)%total_messages == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No messages to output")
+            call set_error(status, GENERIC_ERROR_CODE, "No messages to output")
             return
         end if
 
-        orig_count = n
+        original_count = n
         source = current_buffer()
 
         do while (n > 0)
@@ -625,7 +626,7 @@ contains
             if (.not. status%ok()) return
 
             if (n > 0 .and. .not. next_message) then
-                call set_appended_error(orig_count - n, status)
+                call set_appended_error(original_count - n, status)
                 return
             end if
         end do
@@ -656,25 +657,25 @@ contains
         k = rmail_state_index(rmail_buffer())
 
         if (k == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No message to output")
+            call set_error(status, GENERIC_ERROR_CODE, "No message to output")
             return
         end if
 
         if (rmail_states(k)%current_message == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No message to output")
+            call set_error(status, GENERIC_ERROR_CODE, "No message to output")
             return
         end if
 
         call save_excursion_begin(saved)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward(LF//LF, found, status)
 
         if (status%ok() .and. file_exists(file)) then
             call read_y_or_n("File "//file//" exists; overwrite? ", overwrite, status)
-            if (status%ok() .and. .not. overwrite) call set_error(status, FM_GENERIC_ERROR, "Operation aborted")
+            if (status%ok() .and. .not. overwrite) call set_error(status, GENERIC_ERROR_CODE, "Operation aborted")
         end if
 
-        if (status%ok()) call write_region(file, .false., status, point(), point_max())
+        if (status%ok()) call write_region(file, .false., status, point(), point_maximum())
         call save_excursion_end(saved)
         if (.not. status%ok()) return
         if (rmail_delete_after_output) call delete_rmail_message_forward(status)
@@ -684,27 +685,27 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine cmd_output_rmail_message(status)
+    recursive subroutine execute_output_rmail_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
+        n = prefix_numeric_value(current_prefix_argument)
         call read_rmail_output_file_name(file, status)
         if (status%ok()) call output_rmail_message(file, status, n)
-    end subroutine cmd_output_rmail_message
+    end subroutine execute_output_rmail_message
 
-    recursive subroutine cmd_output_rmail_message_as_seen(status)
+    recursive subroutine execute_output_rmail_message_as_seen(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
+        n = prefix_numeric_value(current_prefix_argument)
         call read_rmail_output_file_name(file, status)
         if (status%ok()) call output_rmail_message_as_seen(file, status, n)
-    end subroutine cmd_output_rmail_message_as_seen
+    end subroutine execute_output_rmail_message_as_seen
 
-    recursive subroutine cmd_output_rmail_message_body_to_file(status)
+    recursive subroutine execute_output_rmail_message_body_to_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: default_file, file
         integer :: i
@@ -717,17 +718,17 @@ contains
             if (default_file(i:i) == ":" .or. default_file(i:i) == " ") default_file(i:i) = "-"
         end do
 
-        call read_file_name("Output message body to file: ", file, status, dir=file_name_directory(default_file), &
+        call read_file_name("Output message body to file: ", file, status, directory=file_name_directory(default_file), &
                             default_filename=default_file, initial_input=default_file)
         if (.not. status%ok()) return
         rmail_default_body_file = file
         call output_rmail_message_body_to_file(file, status)
-    end subroutine cmd_output_rmail_message_body_to_file
+    end subroutine execute_output_rmail_message_body_to_file
 
     !> Define the commands of rmailout.el.  Not a port.
-    subroutine init_rmail_output()
-        commands%output_rmail_message%execute => cmd_output_rmail_message
-        commands%output_rmail_message_as_seen%execute => cmd_output_rmail_message_as_seen
-        commands%output_rmail_message_body_to_file%execute => cmd_output_rmail_message_body_to_file
-    end subroutine init_rmail_output
+    subroutine initialize_rmail_output()
+        commands%output_rmail_message%execute => execute_output_rmail_message
+        commands%output_rmail_message_as_seen%execute => execute_output_rmail_message_as_seen
+        commands%output_rmail_message_body_to_file%execute => execute_output_rmail_message_body_to_file
+    end subroutine initialize_rmail_output
 end module rmail_output_mod

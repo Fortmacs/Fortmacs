@@ -1,4 +1,4 @@
-! miscellaneous_language_mod.f90 -- the misc-lang coding systems of type `charset'.
+! miscellaneous_language_mod.f90 -- the misc-lang coding systems of type `character_set'.
 ! Ported from GNU Emacs 31.1 lisp/language/misc-lang.el.
 !
 ! Copyright (C) 2012-2026 Free Software Foundation, Inc.
@@ -23,7 +23,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that misc-lang.el defines, with their
+!> The coding systems of type `character_set' that misc-lang.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -33,39 +33,39 @@ submodule(coding_mod) miscellaneous_language_mod
 
 contains
 
-    !> Port of the `charset' coding systems of misc-lang.el.
-    module subroutine init_misc_lang()
-        call define_charset_coding_system("iso-8859-6", iachar("6"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-6"], &
-                                          mime_charset="iso-8859-6", &
-                                          doc="ISO-8859-6 based encoding (MIME:ISO-8859-6).")
-        call define_charset_coding_system("windows-1256", iachar("A"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1256"], &
-                                          mime_charset="windows-1256", &
-                                          doc="windows-1256 (Arabic) encoding (MIME: WINDOWS-1256)")
+    !> Port of the `character_set' coding systems of misc-lang.el.
+    module subroutine initialize_miscellaneous_language()
+        call define_character_set_coding_system("iso-8859-6", iachar("6"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-6"], &
+                                                mime_character_set="iso-8859-6", &
+                                                doc="ISO-8859-6 based encoding (MIME:ISO-8859-6).")
+        call define_character_set_coding_system("windows-1256", iachar("A"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "windows-1256"], &
+                                                mime_character_set="windows-1256", &
+                                                doc="windows-1256 (Arabic) encoding (MIME: WINDOWS-1256)")
         call define_coding_system_alias("cp1256", "windows-1256")
-    end subroutine init_misc_lang
+    end subroutine initialize_miscellaneous_language
 
     !> Port of the language environments of misc-lang.el.
-    module subroutine define_misc_lang_language_environments()
+    module subroutine define_miscellaneous_language_language_environments()
         call define_language_environment("IPA", &
                                          documentation="IPA is International Phonetic Alphabet for English, French, " &
                                          //"German"//achar(10)//"and Italian.", &
-                                         charsets=[character(len=40) :: "ipa"], &
+                                         character_sets=[character(len=40) :: "ipa"], &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &
                                          nonascii_translation="ipa", &
                                          input_method="ipa")
         call define_language_environment("Arabic", &
                                          documentation="Bidirectional editing is supported.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Arabic"//achar(9)//"السّلام عليكم", &
                                          coding_systems=[character(len=40) :: "utf-8", "iso-8859-6", "windows-1256"], &
                                          coding_system_order=[character(len=40) :: "utf-8", "iso-8859-6", "windows-1256"], &
                                          input_method="arabic")
         call define_language_environment("Persian", &
                                          documentation="Bidirectional editing is supported.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Persian"//achar(9)//"فارسی", &
                                          coding_systems=[character(len=40) :: "utf-8", "iso-8859-6", "windows-1256"], &
                                          coding_system_order=[character(len=40) :: "utf-8", "iso-8859-6", "windows-1256"], &
@@ -74,7 +74,7 @@ contains
         call define_language_environment("Syriac", &
                                          documentation="Language environment for Classical Syriac, Aramaic, and othe" &
                                          //"r languages"//achar(10)//"using the Syriac script.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Syriac"//achar(9)//"ܫܠܡܐ", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &
@@ -82,7 +82,7 @@ contains
         call define_language_environment("Hanifi Rohingya", &
                                          documentation="Rohingya language and its script Hanifi Rohingya are support" &
                                          //"ed"//achar(10)//"in this language environment.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Hanifi Rohingya (𐴌𐴟𐴇" &
                                          //"𐴥𐴝𐴚𐴒𐴙𐴝 𐴇𐴝𐴕𐴞𐴉𐴞 𐴓"//"𐴠𐴑𐴤𐴝)"//achar(9) &
                                          //"𐴀𐴝𐴏𐴓𐴝𐴀𐴡𐴤𐴛𐴝𐴓𐴝𐴙𐴑𐴟"//"𐴔", &
@@ -92,7 +92,7 @@ contains
         call define_language_environment("Kharoshthi", &
                                          documentation="Language environment for Gāndhārī, Sanskrit, and other langu" &
                                          //"ages"//achar(10)//"using the Kharoṣṭhī script.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Kharoṣṭhī (𐨑𐨪𐨆𐨛𐨁)"//achar(9) &
                                          //"𐨣𐨨𐨲𐨪𐨆 𐨐𐨪𐨅𐨨𐨁", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
@@ -101,7 +101,7 @@ contains
         call define_language_environment("Adlam", &
                                         documentation="Fulani language and its script Adlam are supported"//achar(10)//"in this l" &
                                          //"anguage environment.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Adlam (𞤀𞤣𞤤𞤢𞤥)"//achar(9)//"𞤅𞤢𞤤𞤢𞥄𞤥", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &
@@ -109,7 +109,7 @@ contains
         call define_language_environment("Mende Kikakui", &
                                         documentation="Mende language and its script Kikakui are supported"//achar(10)//"in this " &
                                          //"language environment.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Mende Kikakui (𞠀𞠁𞠂)"//achar(9)//"𞠛𞠉", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &
@@ -117,7 +117,7 @@ contains
         call define_language_environment("Gothic", &
                                          documentation="Ancient Gothic language using the Gothic script is supported" &
                                          //" in this"//achar(10)//"language environment.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Gothic (𐌲𐌿𐍄𐌹𐍃𐌺𐌰)"//achar(9) &
                                          //"𐌷𐌰𐌹𐌻𐍃 / 𐌷𐌰𐌹𐌻𐌰", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
@@ -126,7 +126,7 @@ contains
         call define_language_environment("Coptic", &
                                          documentation="Coptic language using the Coptic script is supported in this" &
                                          //achar(10)//"language environment.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Coptic (ⲘⲉⲧⲢⲉⲙ̀ⲛⲭⲏⲙⲓ)"//achar(9)// &
                                          "Ⲛⲟⲩϥⲣⲓ", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
@@ -141,10 +141,10 @@ contains
                                          coding_system_order=[character(len=40) :: "utf-8"])
         call define_language_environment("Tifinagh", &
                                          documentation="Tifinagh a script used to write the Berber languages.", &
-                                         charsets=[character(len=40) :: "unicode"], &
+                                         character_sets=[character(len=40) :: "unicode"], &
                                          sample_text="Tifinagh"//achar(9)//"ⴰⵣⵓⵍ", &
                                          coding_systems=[character(len=40) :: "utf-8"], &
                                          coding_system_order=[character(len=40) :: "utf-8"], &
                                          input_method="tifinagh")
-    end subroutine define_misc_lang_language_environments
+    end subroutine define_miscellaneous_language_language_environments
 end submodule miscellaneous_language_mod

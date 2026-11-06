@@ -36,25 +36,26 @@
 module send_mail_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, PREFIX_NONE, PREFIX_RAW
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR, FM_USER_ERROR, FM_VOID_FUNCTION
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE, PREFIX_RAW
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, VOID_FUNCTION_CODE
     use casefiddle_mod, only: downcase_string
     use handle_mod, only: handle_type
-    use value_mod, only: value_type, command_procedure, make_buffer_ref, make_list, vtag, V_INTEGER, V_STRING
+    use value_mod, only: value_type, command_procedure, make_buffer_reference, make_list, vtag, V_INTEGER, V_STRING
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_buffer, get_or_make_buffer, is_buffer_live, &
                           erase_buffer, close_buffer, buffer_serial_live, generate_new_buffer_name, set_buffer_modified, &
                           is_buffer_modified, barf_if_buffer_read_only, fill_column, get_file_buffer
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_bol, is_eol, is_eob, buffer_substring, &
-                                     buffer_substring_no_properties, buffer_string, delete_region, narrow_to_region, widen, &
-                                     insert_buffer_substring, line_beginning_position, line_end_position, preceding_char, &
-                                     insert_before_markers, mark_position, mark_marker, buffer_size
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_beginning_of_line, is_end_of_line, &
+                                     is_end_of_buffer, buffer_substring, buffer_substring_no_properties, buffer_string, &
+                                     delete_region, narrow_to_region, widen, insert_buffer_substring, line_beginning_position, &
+                                     line_end_position, preceding_character, insert_before_markers, mark_position, mark_marker, &
+                                     buffer_size
     use insert_delete_mod, only: insert
-    use editing_commands_mod, only: forward_line, forward_char, end_of_line, beginning_of_line
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward, make_syntax_table, modify_syntax_entry
-    use search_mod, only: re_search_forward, re_search_backward, search_forward, looking_at, match_beginning, match_end, &
-                          replace_match, string_match, regexp_quote, case_fold_search, SEARCH_NOERROR, SEARCH_MOVE, &
-                          string_index_to_offset
+    use editing_commands_mod, only: forward_line, forward_character, end_of_line, beginning_of_line
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward, make_syntax_table, modify_syntax_entry
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, search_forward, looking_at, &
+                          match_beginning, match_end, replace_match, string_match, regular_expression_quote, case_fold_search, &
+                          SEARCH_NOERROR, SEARCH_MOVE, string_index_to_offset
     use basic_subprograms_mod, only: read_y_or_n, match_string, mail_user_agent_type, mail_switch_procedure
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker, set_marker, set_marker_insertion_type
     use file_input_output_mod, only: expand_file_name, file_name_as_directory, file_exists, is_file_readable, &
@@ -63,26 +64,26 @@ module send_mail_mod
     use environment_mod, only: getenv
     use display_engine_mod, only: message
     use help_mod, only: substitute_command_keys
-    use simple_mod, only: rfc822_goto_eoh, push_mark, delete_horizontal_space, do_auto_fill, normal_auto_fill_function, &
+    use simple_mod, only: rfc822_goto_end_of_headers, push_mark, delete_horizontal_space, do_auto_fill, normal_auto_fill_function, &
                           fill_prefix
     use fill_mod, only: fill_region_as_paragraph, fill_paragraph_function
     use indent_mod, only: indent_rigidly, current_column
     use newcomment_mod, only: comment_start, comment_start_skip
     use paragraphs_mod, only: paragraph_separate, page_delimiter
-    use abbreviation_mod, only: expand_abbrev
+    use abbreviation_mod, only: expand_abbreviation
     use modes_mod, only: major_modes
     use keymap_mod, only: keymap_set
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, FONT_LOCK_OVERRIDE_NONE
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_anchored
-    use text_mode_mod, only: text_mode_syntax_table, init_text_mode
+    use text_mode_mod, only: text_mode_syntax_table, initialize_text_mode
     use window_mod, only: pop_to_buffer_same_window, switch_to_buffer_other_window, bury_buffer, other_buffer, &
                           switch_to_buffer, display_buffer
     use minibuffer_reading_mod, only: completion_ignore_case
     use minibuffer_mod, only: completing_read, read_file_name, REQUIRE_MATCH_YES
     use replace_mod, only: format_prompt
     use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
-    use coding_mod, only: buffer_file_coding_system, coding_system_mime_charset
-    use regular_expression_optimization_mod, only: regexp_opt, REGEXP_OPT_GROUP
+    use coding_mod, only: buffer_file_coding_system, coding_system_mime_character_set
+    use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
     use time_functions_mod, only: format_time_string
     use editing_functions_mod, only: user_full_name, user_login_name
     use startup_mod, only: user_mail_address_value
@@ -103,15 +104,15 @@ module send_mail_mod
               mail_mail_reply_to, mail_mail_followup_to, position_mail_on_field, mail_text, &
               insert_mail_disposition_notification_to, mail_signature, indent_mail_citation, paste_mail_original, &
               clear_mail_paste_headers, paste_mail_region, insert_mail_file, mail, mail_other_window, &
-              select_message_coding_system, set_mail_reply_buffer, init_sendmail
+              select_message_coding_system, set_mail_reply_buffer, initialize_sendmail
 
     !> Values of `mail_from_style': the return address only
     !> (MAIL_FROM_STYLE_SIMPLE), the full name in parentheses after it
-    !> (MAIL_FROM_STYLE_PARENS), the address in angles after the full name
+    !> (MAIL_FROM_STYLE_PARENTHESES), the address in angles after the full name
     !> (MAIL_FROM_STYLE_ANGLES), angles unless they would need quoting
     !> and parentheses would not (MAIL_FROM_STYLE_DEFAULT), and the
     !> deprecated MAIL_FROM_STYLE_SYSTEM_DEFAULT, which inserts no field.
-    integer, parameter, public :: MAIL_FROM_STYLE_SIMPLE = 0, MAIL_FROM_STYLE_PARENS = 1, MAIL_FROM_STYLE_ANGLES = 2, &
+    integer, parameter, public :: MAIL_FROM_STYLE_SIMPLE = 0, MAIL_FROM_STYLE_PARENTHESES = 1, MAIL_FROM_STYLE_ANGLES = 2, &
                                   MAIL_FROM_STYLE_DEFAULT = 3, MAIL_FROM_STYLE_SYSTEM_DEFAULT = 4
 
     !> Values of `mail_send_nonascii' besides .true. (allow non-ASCII
@@ -133,7 +134,7 @@ module send_mail_mod
     !> Program used to send messages.
     !> If the program returns a nonzero error code, or outputs any
     !> text, sending is considered "failed" by Fortmacs.  Port of
-    !> sendmail.el sendmail-program (set by `init_sendmail' unless
+    !> sendmail.el sendmail-program (set by `initialize_sendmail' unless
     !> already set).
     character(len=:), allocatable, public :: sendmail_program
 
@@ -141,13 +142,13 @@ module send_mail_mod
     !>
     !> If MAIL_FROM_STYLE_SIMPLE, they contain just the return address like:
     !>     king@grassland.com
-    !> If MAIL_FROM_STYLE_PARENS, they look like:
+    !> If MAIL_FROM_STYLE_PARENTHESES, they look like:
     !>     king@grassland.com (Elvis Parsley)
     !> If MAIL_FROM_STYLE_ANGLES, they look like:
     !>     Elvis Parsley <king@grassland.com>
     !>
     !> Otherwise, most addresses look like MAIL_FROM_STYLE_ANGLES, but they look like
-    !> MAIL_FROM_STYLE_PARENS if MAIL_FROM_STYLE_ANGLES would need quoting and MAIL_FROM_STYLE_PARENS would not.
+    !> MAIL_FROM_STYLE_PARENTHESES if MAIL_FROM_STYLE_ANGLES would need quoting and MAIL_FROM_STYLE_PARENTHESES would not.
     !> Port of sendmail.el mail-from-style.
     integer, public :: mail_from_style = MAIL_FROM_STYLE_ANGLES
 
@@ -198,7 +199,7 @@ module send_mail_mod
 
     !> Delete these headers from old message when it's inserted in a reply.
     !> Port of sendmail.el mail-yank-ignored-headers (set by
-    !> `init_sendmail' unless already set).
+    !> `initialize_sendmail' unless already set).
     character(len=:), allocatable, public :: mail_paste_ignored_headers
 
     !> Function to call to send the current buffer as mail.
@@ -274,7 +275,7 @@ module send_mail_mod
     !> including leading whitespace.  The default value matches citations
     !> like `foo_bar>' plus any leading whitespace.  Port of sendmail.el
     !> mail-citation-prefix-regexp.
-    character(len=:), allocatable, public :: mail_citation_prefix_regexp
+    character(len=:), allocatable, public :: mail_citation_prefix_regular_expression
 
     !> The setting `mail_signature_variable': .true. inserts the file
     !> `mail_signature_file', .false. nothing; its text (`%text') or
@@ -472,9 +473,9 @@ contains
         if (k > 0) locals(k)%reply_buffer = buffer
     end subroutine set_mail_reply_buffer
 
-    ! A marker at POS.  Not a port.
-    function marker_at(pos, insertion_type) result(m)
-        integer(int64), intent(in) :: pos
+    ! A marker at POSITION.  Not a port.
+    function marker_at(position, insertion_type) result(m)
+        integer(int64), intent(in) :: position
         logical, intent(in), optional :: insertion_type
         type(handle_type) :: m
         type(status_type) :: st
@@ -482,33 +483,33 @@ contains
 
         it = .false.
         if (present(insertion_type)) it = insertion_type
-        call copy_marker_at(pos, m, it, st)
+        call copy_marker_at(position, m, it, st)
     end function marker_at
 
     ! The position of marker M.  Not a port.
-    integer(int64) function mpos(m)
+    integer(int64) function marked_position(m)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, mpos, st)
-    end function mpos
+        call marker_position(m, marked_position, st)
+    end function marked_position
 
     ! The position of marker M, which is destroyed.  Not a port.
-    integer(int64) function marker_end(m) result(pos)
+    integer(int64) function marker_end(m) result(position)
         type(handle_type), intent(in) :: m
         type(status_type) :: st
 
-        call marker_position(m, pos, st)
+        call marker_position(m, position, st)
         call destroy_marker(m, st)
     end function marker_end
 
     ! The searches, telling whether they found a match.  Not a port.
-    recursive logical function search_regexp(regexp, status, bound, move) result(found)
-        character(len=*), intent(in) :: regexp
+    recursive logical function search_regular_expression(regular_expression, status, bound, move) result(found)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: move
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: noerror
 
         noerror = SEARCH_NOERROR
@@ -517,17 +518,17 @@ contains
             if (move) noerror = SEARCH_MOVE
         end if
 
-        call re_search_forward(regexp, pos, status, bound, noerror)
-        found = pos /= 0
-    end function search_regexp
+        call regular_expression_search_forward(regular_expression, position, status, bound, noerror)
+        found = position /= 0
+    end function search_regular_expression
 
-    ! Search backward for REGEXP.  Not a port.
-    recursive logical function search_regexp_backward(regexp, status, bound, move) result(found)
-        character(len=*), intent(in) :: regexp
+    ! Search backward for REGULAR_EXPRESSION.  Not a port.
+    recursive logical function search_regular_expression_backward(regular_expression, status, bound, move) result(found)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound
         logical, intent(in), optional :: move
-        integer(int64) :: pos
+        integer(int64) :: position
         integer :: noerror
 
         noerror = SEARCH_NOERROR
@@ -536,19 +537,19 @@ contains
             if (move) noerror = SEARCH_MOVE
         end if
 
-        call re_search_backward(regexp, pos, status, bound, noerror)
-        found = pos /= 0
-    end function search_regexp_backward
+        call regular_expression_search_backward(regular_expression, position, status, bound, noerror)
+        found = position /= 0
+    end function search_regular_expression_backward
 
     ! Search forward for STRING.  Not a port.
     recursive logical function search_string(string, status, bound) result(found)
         character(len=*), intent(in) :: string
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: bound
-        integer(int64) :: pos
+        integer(int64) :: position
 
-        call search_forward(string, pos, status, bound, SEARCH_NOERROR)
-        found = pos /= 0
+        call search_forward(string, position, status, bound, SEARCH_NOERROR)
+        found = position /= 0
     end function search_string
 
     ! Narrow to the headers (message-narrow-to-headers).  Port of
@@ -558,17 +559,17 @@ contains
         integer(int64) :: e
 
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        if (search_regexp("^"//regexp_quote(mail_header_separator)//LF, status)) then
+        if (search_regular_expression("^"//regular_expression_quote(mail_header_separator)//LF, status)) then
             e = match_beginning(0, status)
         else
-            e = point_max()
+            e = point_maximum()
         end if
 
         if (.not. status%ok()) return
-        call narrow_to_region(point_min(), e, status)
-        call goto_char(point_min())
+        call narrow_to_region(point_minimum(), e, status)
+        call goto_character(point_minimum())
     end subroutine narrow_to_mail_headers
 
     ! The date as a Date field gives it (message-make-date, of the
@@ -654,7 +655,7 @@ contains
         if (cont) noerase = MAIL_NOERASE_YES
         call mail(status, noerase, to, subject, initialized=initialized)
         if (.not. status%ok()) return
-        if (.not. (initialized .or. cont)) call set_error(status, FM_GENERIC_ERROR, "Message aborted")
+        if (.not. (initialized .or. cont)) call set_error(status, GENERIC_ERROR_CODE, "Message aborted")
     end subroutine compose_sendmail_user_agent
 
     !> Set up the current buffer for a message to TO with SUBJECT,
@@ -690,7 +691,7 @@ contains
             if (present(replybuffer)) locals(k)%reply_buffer = replybuffer
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (set_up_mail_with_from) then
             call insert_mail_from_field(status)
@@ -712,10 +713,10 @@ contains
                 address_start = point()
                 call insert(to//LF, status)
                 if (.not. status%ok()) exit body
-                call fill_region_as_paragraph(address_start, point_max(), status)
+                call fill_region_as_paragraph(address_start, point_maximum(), status)
                 if (.not. status%ok()) exit body
-                call goto_char(point_max())
-                if (.not. is_bol()) call insert(LF, status)
+                call goto_character(point_maximum())
+                if (.not. is_beginning_of_line()) call insert(LF, status)
             else
                 call insert(LF, status)
             end if
@@ -728,10 +729,10 @@ contains
                 address_start = point()
                 call insert(cc//LF, status)
                 if (.not. status%ok()) exit body
-                call fill_region_as_paragraph(address_start, point_max(), status)
+                call fill_region_as_paragraph(address_start, point_maximum(), status)
                 if (.not. status%ok()) exit body
-                call goto_char(point_max())
-                if (.not. is_bol()) call insert(LF, status)
+                call goto_character(point_maximum())
+                if (.not. is_beginning_of_line()) call insert(LF, status)
                 if (.not. status%ok()) exit body
             end if
 
@@ -741,11 +742,11 @@ contains
                 fill_column%value = 78
                 address_start = point()
                 call insert("In-Reply-To: "//in_reply_to//LF, status)
-                if (status%ok()) call fill_region_as_paragraph(address_start, point_max(), status)
+                if (status%ok()) call fill_region_as_paragraph(address_start, point_maximum(), status)
                 fill_column%value = saved_column
                 if (.not. status%ok()) exit body
-                call goto_char(point_max())
-                if (.not. is_bol()) call insert(LF, status)
+                call goto_character(point_maximum())
+                if (.not. is_beginning_of_line()) call insert(LF, status)
                 if (.not. status%ok()) exit body
             end if
 
@@ -770,8 +771,8 @@ contains
                 if (.not. status%ok()) exit body
             end if
 
-            call goto_char(point_max())
-            if (.not. is_bol()) call insert(LF, status)
+            call goto_character(point_maximum())
+            if (.not. is_beginning_of_line()) call insert(LF, status)
         end block body
 
         if (has_prefix) then
@@ -780,9 +781,9 @@ contains
             deallocate (fill_prefix%value)
         end if
 
-        call goto_char(marker_end(here))
+        call goto_character(marker_end(here))
         if (.not. status%ok()) return
-        if (present(to)) call goto_char(to_position)
+        if (present(to)) call goto_character(to_position)
         if (.not. (present(to) .or. present(subject) .or. present(in_reply_to))) call set_buffer_modified(.false.)
         call set_up_mail_hook%execute(status)
     end subroutine set_up_mail
@@ -814,7 +815,7 @@ contains
         character(len=:), allocatable :: rest
         logical :: saved
 
-        if (.not. associated(major_modes%mail_mode%execute)) call init_sendmail()
+        if (.not. associated(major_modes%mail_mode%execute)) call initialize_sendmail()
         call major_modes%mail_mode%begin(saved, status)
         if (.not. status%ok()) return
         call mail_font_lock_keywords(keywords)
@@ -826,7 +827,7 @@ contains
         ! anything if mail_paste_prefix is set).
         if (allocated(mail_paste_prefix)) then
             call comment_start%set_local(mail_paste_prefix)
-            call comment_start_skip%set_local("^"//regexp_quote(mail_paste_prefix)//"[ "//TAB//"]*")
+            call comment_start_skip%set_local("^"//regular_expression_quote(mail_paste_prefix)//"[ "//TAB//"]*")
         end if
 
         ! `-- ' precedes the signature.  `-----' appears at the start of the
@@ -840,7 +841,7 @@ contains
             ! the idea is to allow navigation etc of cited paragraphs).
             call paragraph_separate%set_local(rest)
         else
-            call paragraph_separate%set_local(regexp_quote(mail_header_separator)//"$\|"//rest)
+            call paragraph_separate%set_local(regular_expression_quote(mail_header_separator)//"$\|"//rest)
         end if
 
         call major_modes%mail_mode%end(saved, status)
@@ -876,7 +877,7 @@ contains
     subroutine mail_font_lock_keywords(keywords)
         type(font_lock_keyword_type), allocatable, intent(out) :: keywords(:)
         type(font_lock_highlight_type) :: h(1), h2(2), a(1)
-        character(len=*), parameter :: cite_chars = "[>|}]", cite_prefix = "[:alpha:]", &
+        character(len=*), parameter :: cite_characters = "[>|}]", cite_prefix = "[:alpha:]", &
                                        cite_suffix = cite_prefix//"0-9_.@-`'"""
         character(len=:), allocatable :: separator
 
@@ -889,7 +890,7 @@ contains
         if (len(mail_header_separator) == 0) then
             separator = " \`\' "
         else
-            separator = regexp_quote(mail_header_separator)
+            separator = regular_expression_quote(mail_header_separator)
         end if
 
         keywords(4) = font_lock_keyword("^"//separator//"$", face="font_lock_warning_face")
@@ -897,11 +898,11 @@ contains
         h2(1) = font_lock_highlight(1, face="font_lock_comment_delimiter_face", override=FONT_LOCK_OVERRIDE_NONE, &
                                     laxmatch=.true.)
         h2(2) = font_lock_highlight(5, face="font_lock_comment_face", override=FONT_LOCK_OVERRIDE_NONE, laxmatch=.true.)
-        a(1) = font_lock_anchored(h2, regexp="\=[ "//TAB//"]*"// &
+        a(1) = font_lock_anchored(h2, regular_expression="\=[ "//TAB//"]*"// &
                                   "\(\(\(["//cite_prefix//"]+["//cite_suffix//"]*\)?"// &
-                                  "\("//cite_chars//"[ "//TAB//"]*\)\)+\)"// &
+                                  "\("//cite_characters//"[ "//TAB//"]*\)\)+\)"// &
                                   "\(.*\)", pre_match_form=pre_beginning_of_line, post_match_form=post_end_of_line)
-        keywords(5) = font_lock_keyword(cite_chars, highlights=a)
+        keywords(5) = font_lock_keyword(cite_characters, highlights=a)
         keywords(6) = font_lock_keyword("^\(X-[A-Za-z0-9-]+\|In-Reply-To\):.*\("//LF//"[ "//TAB//"]+.*\)*$", &
                                         face="font_lock_string_face")
     end subroutine mail_font_lock_keywords
@@ -920,60 +921,60 @@ contains
     subroutine post_end_of_line(limit)
         integer(int64), intent(out) :: limit
 
-        call goto_char(line_end_position())
+        call goto_character(line_end_position())
         limit = 0
     end subroutine post_end_of_line
 
     !> Return the buffer location of the end of headers, as a number.
     !> Port of sendmail.el:mail-header-end.
-    recursive integer(int64) function mail_header_end() result(pos)
-        integer(int64) :: here, begv, zv
+    recursive integer(int64) function mail_header_end() result(position)
+        integer(int64) :: here, beginning_of_accessible_portion, end_of_accessible_portion
         type(status_type) :: st
         type(handle_type) :: mb, me
 
         here = point()
-        begv = buffers(current)%begv
-        zv = buffers(current)%zv
-        mb = marker_at(begv)
-        me = marker_at(zv, .true.)
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion = buffers(current)%end_of_accessible_portion
+        mb = marker_at(beginning_of_accessible_portion)
+        me = marker_at(end_of_accessible_portion, .true.)
         call widen()
-        call rfc822_goto_eoh(st)
-        pos = point()
+        call rfc822_goto_end_of_headers(st)
+        position = point()
         call narrow_to_region(marker_end(mb), marker_end(me), st)
-        call goto_char(here)
+        call goto_character(here)
     end function mail_header_end
 
     !> Return the buffer location of the start of text, as a number.
     !> Port of sendmail.el:mail-text-start.
-    recursive integer(int64) function mail_text_start() result(pos)
+    recursive integer(int64) function mail_text_start() result(position)
         integer(int64) :: here, shortage
         type(status_type) :: st
         type(handle_type) :: mb, me
 
         here = point()
-        mb = marker_at(buffers(current)%begv)
-        me = marker_at(buffers(current)%zv, .true.)
+        mb = marker_at(buffers(current)%beginning_of_accessible_portion)
+        me = marker_at(buffers(current)%end_of_accessible_portion, .true.)
         call widen()
-        call rfc822_goto_eoh(st)
+        call rfc822_goto_end_of_headers(st)
         shortage = forward_line(1_int64)
-        pos = point()
+        position = point()
         call narrow_to_region(marker_end(mb), marker_end(me), st)
-        call goto_char(here)
+        call goto_character(here)
     end function mail_text_start
 
     !> Set up whatever header delimiter convention sendmail will use.
     !> Concretely: replace the first blank line in the header with the
-    !> separator; POS is where it ends.  Port of
+    !> separator; POSITION is where it ends.  Port of
     !> sendmail.el:mail-sendmail-delimit-header.
-    recursive subroutine delimit_mail_sendmail_header(pos, status)
-        integer(int64), intent(out) :: pos
+    recursive subroutine delimit_mail_sendmail_header(position, status)
+        integer(int64), intent(out) :: position
         type(status_type), intent(out) :: status
 
-        pos = 0
-        call rfc822_goto_eoh(status)
+        position = 0
+        call rfc822_goto_end_of_headers(status)
         if (.not. status%ok()) return
         call insert(mail_header_separator, status)
-        pos = point()
+        position = point()
     end subroutine delimit_mail_sendmail_header
 
     !> Remove header separator to put the message in correct form for sendmail.
@@ -982,14 +983,15 @@ contains
     recursive subroutine undelimit_mail_sendmail_header(status)
         type(status_type), intent(out) :: status
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         if (len(mail_header_separator) > 0) then
-            if (search_regexp("^"//regexp_quote(mail_header_separator)//LF, status)) call replace_match(LF, status)
+            if (search_regular_expression("^"//regular_expression_quote(mail_header_separator)//LF, &
+                                          status)) call replace_match(LF, status)
             if (.not. status%ok()) return
         end if
 
-        call rfc822_goto_eoh(status)
+        call rfc822_goto_end_of_headers(status)
     end subroutine undelimit_mail_sendmail_header
 
     !> Carry out Auto Fill for Mail mode.
@@ -1017,7 +1019,7 @@ contains
                 shortage = forward_line(-1_int64)
             end do
 
-            call goto_char(marker_end(here))
+            call goto_character(marker_end(here))
         else
             call do_auto_fill(status)
         end if
@@ -1041,7 +1043,7 @@ contains
         ! Do something special only if within the headers.
         if (point() >= mail_header_end()) return
         fieldname = ""
-        found = search_regexp_backward("^[-a-zA-Z]+:", status, move=.true.)
+        found = search_regular_expression_backward("^[-a-zA-Z]+:", status, move=.true.)
         if (.not. status%ok()) return
         beginning = point()
 
@@ -1063,14 +1065,14 @@ contains
         end do
 
         end = marker_at(point())
-        call goto_char(beginning)
+        call goto_character(beginning)
 
         ! If this field contains addresses,
         ! make sure we can fill after each address.
         select case (fieldname)
         case ("to", "cc", "bcc", "from", "reply-to", "mail-reply-to", "mail-followup-to", "resent-to", "resent-cc", &
               "resent-bcc", "resent-from", "resent-reply-to")
-            do while (search_string(",", status, mpos(end)))
+            do while (search_string(",", status, marked_position(end)))
                 continued = looking_at("[ "//TAB//"]", status)
                 if (.not. continued) call insert(" ", status)
                 if (.not. status%ok()) exit
@@ -1079,14 +1081,14 @@ contains
             continue
         end select
 
-        if (status%ok()) call fill_region_as_paragraph(beginning, mpos(end), status, justify)
+        if (status%ok()) call fill_region_as_paragraph(beginning, marked_position(end), status, justify)
 
         if (status%ok()) then
             ! Mark all lines except the first as continuations.
-            call goto_char(beginning)
+            call goto_character(beginning)
             shortage = forward_line(1_int64)
 
-            do while (point() < mpos(end))
+            do while (point() < marked_position(end))
                 call insert("  ", status)
                 if (.not. status%ok()) exit
                 shortage = forward_line(1_int64)
@@ -1104,36 +1106,36 @@ contains
     !> Send message like `send_mail', then, if no errors, exit from mail buffer.
     !> Prefix arg means don't delete this window.  Port of
     !> sendmail.el:mail-send-and-exit.
-    recursive subroutine send_mail_and_exit(status, arg)
+    recursive subroutine send_mail_and_exit(status, argument)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: arg
+        logical, intent(in), optional :: argument
 
         call send_mail(status)
-        if (status%ok()) call bury_mail(status, arg)
+        if (status%ok()) call bury_mail(status, argument)
     end subroutine send_mail_and_exit
 
     !> Don't send the message you have been editing.
     !> Prefix arg means don't delete this window.  Port of
     !> sendmail.el:mail-dont-send.
-    recursive subroutine mail_dont_send(status, arg)
+    recursive subroutine mail_dont_send(status, argument)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: arg
+        logical, intent(in), optional :: argument
 
-        call bury_mail(status, arg)
+        call bury_mail(status, argument)
     end subroutine mail_dont_send
 
-    !> Bury this mail buffer.  ARG, true, would keep the window when
+    !> Bury this mail buffer.  ARGUMENT, true, would keep the window when
     !> returning with a return action.  Port of sendmail.el:mail-bury
     !> (return actions, and so returning to an Rmail buffer, come with
-    !> Rmail; without one, ARG makes no difference, as upstream).
-    recursive subroutine bury_mail(status, arg)
+    !> Rmail; without one, ARGUMENT makes no difference, as upstream).
+    recursive subroutine bury_mail(status, argument)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: arg
+        logical, intent(in), optional :: argument
         type(handle_type) :: newbuf
         logical :: keep_window
 
         keep_window = .false.
-        if (present(arg)) keep_window = arg
+        if (present(argument)) keep_window = argument
         newbuf = other_buffer(current_buffer())
         call bury_buffer(status, current_buffer())
         if (.not. status%ok()) return
@@ -1151,7 +1153,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: ml, to, cc, new_header_values, previous, value
         character(len=:), allocatable :: seen(:)
-        integer(int64) :: opoint, header_end, moved
+        integer(int64) :: original_point, header_end, moved
         logical :: proceed, modified, found, has_to, has_cc, valid
         integer :: k
 
@@ -1167,7 +1169,7 @@ contains
         end if
 
         if (.not. status%ok() .or. .not. proceed) return
-        opoint = point()
+        original_point = point()
         ml = ""
 
         if (allocated(mail_mailing_lists)) then
@@ -1176,7 +1178,8 @@ contains
                 ! `strip_mail_quoted_names' on addresses before matching
                 ! Cannot deal with full RFC 822 (or later), but that is
                 ! unlikely to be problematic.
-                ml = "\(?:[[:space:];,]\|\`\)"//regexp_opt(mail_mailing_lists, REGEXP_OPT_GROUP)// &
+                ml = "\(?:[[:space:];,]\|\`\)"//regular_expression_optimization(mail_mailing_lists, &
+                                                                                REGULAR_EXPRESSION_OPTIMIZATION_GROUP)// &
                      "\(?:[[:space:];,]\|\'\)"
             end if
         end if
@@ -1209,7 +1212,7 @@ contains
                 if (.not. status%ok()) return
 
                 if (.not. allocated(previous)) then
-                    call goto_char(mail_header_end())
+                    call goto_character(mail_header_end())
                     call split_addresses(new_header_values, seen)
                     value = ""
 
@@ -1235,7 +1238,7 @@ contains
                 if (.not. status%ok()) return
 
                 if (.not. allocated(previous)) then
-                    call goto_char(mail_header_end())
+                    call goto_character(mail_header_end())
                     call get_mail_field("reply-to", value, status)
                     if (.not. allocated(value)) value = user_mail_address_value()
                     call insert("Mail-Reply-To: "//value//LF, status)
@@ -1243,20 +1246,20 @@ contains
                 end if
             end if
 
-            call goto_char(opoint)
+            call goto_character(original_point)
         end if
 
         if (.not. mail_send_nonascii%value .and. mail_send_nonascii%choice /= MAIL_SEND_NONASCII_MIME) then
-            call goto_char(point_min())
-            moved = skip_chars_forward(achar(0)//"-"//achar(127), status)
+            call goto_character(point_minimum())
+            moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
 
-            if (point() /= point_max()) then
+            if (point() /= point_maximum()) then
                 if (mail_send_nonascii%choice == MAIL_SEND_NONASCII_ASK) then
                     found = ask("Message contains non-ASCII characters; send anyway? ", status)
                     if (.not. status%ok()) return
-                    if (.not. found) call set_error(status, FM_GENERIC_ERROR, "Aborted")
+                    if (.not. found) call set_error(status, GENERIC_ERROR_CODE, "Aborted")
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Message contains non-ASCII characters")
+                    call set_error(status, GENERIC_ERROR_CODE, "Message contains non-ASCII characters")
                 end if
 
                 if (.not. status%ok()) return
@@ -1264,21 +1267,21 @@ contains
         end if
 
         ! Complain about any invalid line.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! Search for mail-header-separator as whole line.
-        found = search_regexp("^"//regexp_quote(mail_header_separator)//"$", status, point_max())
+        found = search_regular_expression("^"//regular_expression_quote(mail_header_separator)//"$", status, point_maximum())
         if (.not. status%ok()) return
-        header_end = point_max()
+        header_end = point_maximum()
         if (found) header_end = match_beginning(0, status)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
         do while (point() < header_end)
             valid = looking_at("[ "//TAB//"]\|.*:\|$", status)
             if (.not. status%ok()) return
 
             if (.not. valid) then
-                call push_mark(opoint)
-                call set_error(status, FM_GENERIC_ERROR, &
+                call push_mark(original_point)
+                call set_error(status, GENERIC_ERROR_CODE, &
                                "Invalid header line (maybe a continuation line lacks initial whitespace)")
                 return
             end if
@@ -1286,7 +1289,7 @@ contains
             moved = forward_line(1_int64)
         end do
 
-        call goto_char(opoint)
+        call goto_character(original_point)
         call mail_send_hook%execute(status)
         if (.not. status%ok()) return
         call message("Sending...")
@@ -1349,7 +1352,7 @@ contains
     !> sendmail.el:mail-insert-from-field.
     recursive subroutine insert_mail_from_field(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: login, fullname, tmp
+        character(len=:), allocatable :: login, fullname, temporary
         logical :: quote_fullname, angles, found
         integer(int64) :: fullname_start, m, k
         type(handle_type) :: fullname_end
@@ -1368,7 +1371,7 @@ contains
             return
         case (MAIL_FROM_STYLE_ANGLES)
             angles = .true.
-        case (MAIL_FROM_STYLE_PARENS)
+        case (MAIL_FROM_STYLE_PARENTHESES)
             angles = .false.
         case default
             ! Use angles if no quoting is needed, or if
@@ -1376,46 +1379,46 @@ contains
             angles = string_match("[^- !#-'*+/-9=?A-Z^-~]", fullname, status) == 0
 
             if (.not. angles) then
-                tmp = fullname
+                temporary = fullname
 
                 do
-                    m = string_match("([^()]*)", tmp, status)
+                    m = string_match("([^()]*)", temporary, status)
                     if (m == 0) exit
                     ! The parentheses are ASCII: their byte offsets.
-                    k = string_index_to_offset(tmp, m) + 1
-                    tmp(k:k) = "-"
-                    k = string_index_to_offset(tmp, match_end(0, status) - 1) + 1
-                    tmp(k:k) = "-"
+                    k = string_index_to_offset(temporary, m) + 1
+                    temporary(k:k) = "-"
+                    k = string_index_to_offset(temporary, match_end(0, status) - 1) + 1
+                    temporary(k:k) = "-"
                 end do
 
-                angles = string_match("[\()]", tmp, status) > 0
+                angles = string_match("[\()]", temporary, status) > 0
             end if
         end select
 
         if (angles) then
             call insert("From: "//fullname, status)
             if (.not. status%ok()) return
-            fullname_start = point_min() + 6
+            fullname_start = point_minimum() + 6
             fullname_end = marker_at(point())
-            call goto_char(fullname_start)
+            call goto_character(fullname_start)
             ! Look for a character that cannot appear unquoted
             ! according to RFC 822 (or later).
-            found = search_regexp("[^- !#-'*+/-9=?A-Z^-~]", status, mpos(fullname_end), move=.true.)
+            found = search_regular_expression("[^- !#-'*+/-9=?A-Z^-~]", status, marked_position(fullname_end), move=.true.)
 
             if (status%ok() .and. (found .or. quote_fullname)) then
                 ! Quote fullname, escaping specials.
-                call goto_char(fullname_start)
+                call goto_character(fullname_start)
                 call insert('"', status)
 
                 do while (status%ok())
-                    if (.not. search_regexp("[""\]", status, mpos(fullname_end), move=.true.)) exit
+                    if (.not. search_regular_expression("[""\]", status, marked_position(fullname_end), move=.true.)) exit
                     call replace_match("\\\&", status, fixedcase=.true.)
                 end do
 
                 if (status%ok()) call insert('"', status)
             end if
 
-            call goto_char(marker_end(fullname_end))
+            call goto_character(marker_end(fullname_end))
             if (status%ok()) call insert(" <"//login//">"//LF, status)
         else
             ! parens or default
@@ -1426,27 +1429,28 @@ contains
             call insert(fullname, status)
             if (quote_fullname) call insert('"', status)
             fullname_end = marker_at(point())
-            call goto_char(fullname_start)
+            call goto_character(fullname_start)
 
             ! \ and nonmatching parentheses must be escaped in comments.
             ! Escape every instance of ()\ ...
             do while (status%ok())
-                if (.not. search_regexp("[()\]", status, mpos(fullname_end), move=.true.)) exit
+                if (.not. search_regular_expression("[()\]", status, marked_position(fullname_end), move=.true.)) exit
                 call replace_match("\\\&", status, fixedcase=.true.)
             end do
 
             ! ... then undo escaping of matching parentheses,
             ! including matching nested parentheses.
-            call goto_char(fullname_start)
+            call goto_character(fullname_start)
 
             do while (status%ok())
-                if (.not. search_regexp("\(\=\|[^\]\(\\\\\)*\)\\(\(\([^\]\|\\\\\)*\)\\)", status, mpos(fullname_end), &
-                                        move=.true.)) exit
+                if (.not. search_regular_expression("\(\=\|[^\]\(\\\\\)*\)\\(\(\([^\]\|\\\\\)*\)\\)", status, &
+                                                    marked_position(fullname_end), &
+                                                    move=.true.)) exit
                 call replace_match("\1(\3)", status, fixedcase=.true.)
-                call goto_char(fullname_start)
+                call goto_character(fullname_start)
             end do
 
-            call goto_char(marker_end(fullname_end))
+            call goto_character(marker_end(fullname_end))
             if (status%ok()) call insert(")"//LF, status)
         end if
     end subroutine insert_mail_from_field
@@ -1467,25 +1471,26 @@ contains
         query_asked = .false.
         query_answer = .false.
         here = marker_at(point())
-        narrowed = buffers(current)%begv /= 1 .or. buffers(current)%zv /= buffers(current)%text%z
-        mb = marker_at(buffers(current)%begv)
-        me = marker_at(buffers(current)%zv, .true.)
-        call goto_char(point_min())
-        call narrow_to_region(point_min(), mail_header_end(), status)
+        narrowed = buffers(current)%beginning_of_accessible_portion /= 1 .or. buffers(current)%end_of_accessible_portion &
+                   /= buffers(current)%text%z
+        mb = marker_at(buffers(current)%beginning_of_accessible_portion)
+        me = marker_at(buffers(current)%end_of_accessible_portion, .true.)
+        call goto_character(point_minimum())
+        call narrow_to_region(point_minimum(), mail_header_end(), status)
 
         body: block
             if (.not. status%ok()) exit body
             ! Find the first FIELD field and record where it ends.
-            if (.not. search_regexp(search_pattern, status)) exit body
+            if (.not. search_regular_expression(search_pattern, status)) exit body
             moved = forward_line(1_int64)
-            found = search_regexp("^[^ "//TAB//"]", status)
+            found = search_regular_expression("^[^ "//TAB//"]", status)
             if (.not. status%ok()) exit body
             call beginning_of_line()
             first_to_end = marker_at(point(), .true.)
 
             ! Find each following FIELD field
             ! and combine it with the first FIELD field.
-            do while (search_regexp(search_pattern, status))
+            do while (search_regular_expression(search_pattern, status))
                 ! For the second FIELD field, ask user to
                 ! approve combining them.
                 if (.not. query_asked) then
@@ -1497,7 +1502,7 @@ contains
                 if (query_answer) then
                     this_to_start = line_beginning_position()
                     moved = forward_line(1_int64)
-                    found = search_regexp("^[^ "//TAB//"]", status)
+                    found = search_regular_expression("^[^ "//TAB//"]", status)
                     if (.not. status%ok()) exit
                     call beginning_of_line()
                     this_to_end = point()
@@ -1508,13 +1513,13 @@ contains
                     if (.not. status%ok()) exit
                     k = point()
                     ! Put a comma after the first FIELD field.
-                    call goto_char(mpos(first_to_end) - 1)
+                    call goto_character(marked_position(first_to_end) - 1)
                     call insert(",", status)
                     ! Copy this one after it.
-                    call goto_char(mpos(first_to_end))
+                    call goto_character(marked_position(first_to_end))
                     k = point()
                     call insert(this_to, status)
-                    call goto_char(k)
+                    call goto_character(k)
                     ! Replace the FIELD: with spaces.
                     found = looking_at(search_pattern, status)
                     if (.not. status%ok()) exit
@@ -1534,10 +1539,10 @@ contains
         end block body
 
         call widen()
-        if (narrowed) call narrow_to_region(mpos(mb), mpos(me), status)
+        if (narrowed) call narrow_to_region(marked_position(mb), marked_position(me), status)
         call destroy_marker(mb, status)
         call destroy_marker(me, status)
-        call goto_char(marker_end(here))
+        call goto_character(marker_end(here))
     end subroutine combine_mail_fields
 
     !> Return a coding system to encode the outgoing message of the current buffer.
@@ -1581,7 +1586,7 @@ contains
         type(handle_type) :: errbuf, tembuf, mailbuf, delimline
         type(value_type) :: result, destination, item
         type(value_type), allocatable :: argv(:)
-        character(len=:), allocatable :: selected_coding, envelope_from, charset, errors, resend_to(:), part(:), merged(:), &
+        character(len=:), allocatable :: selected_coding, envelope_from, character_set, errors, resend_to(:), part(:), merged(:), &
                                          address
         type(restriction_type) :: restriction
         logical :: failed, fcc_was_found, multibyte, saved_fold, found, has_errbuf
@@ -1636,33 +1641,33 @@ contains
             call insert_buffer_substring(mailbuf, status)
             if (.not. status%ok()) exit body
             if (len(selected_coding) > 0) call buffer_file_coding_system%set_local(selected_coding)
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             ! require one newline at the end.
-            if (preceding_char() /= 10) call insert(LF, status)
+            if (preceding_character() /= 10) call insert(LF, status)
             if (.not. status%ok()) exit body
             ! Change header-delimiter to be what sendmail expects.
-            call goto_char(mail_header_end())
+            call goto_character(mail_header_end())
             call delete_region(point(), line_end_position(), status)
             if (.not. status%ok()) exit body
             delimline = marker_at(point())
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             ! Ignore any blank lines in the header
             do
-                if (.not. search_regexp(LF//LF//LF//"*", status, mpos(delimline))) exit
-                if (point() >= mpos(delimline)) exit
+                if (.not. search_regular_expression(LF//LF//LF//"*", status, marked_position(delimline))) exit
+                if (point() >= marked_position(delimline)) exit
                 call replace_match(LF, status)
                 if (.not. status%ok()) exit body
             end do
 
             if (.not. status%ok()) exit body
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             ! Look for Resent- headers.  They require sending
             ! the message specially.
             case_fold_search%value = .true.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            do while (search_regexp("^Resent-\(To\|Cc\|Bcc\):", status, mpos(delimline)))
+            do while (search_regular_expression("^Resent-\(To\|Cc\|Bcc\):", status, marked_position(delimline)))
                 ! Put a list of such addresses in resend-to-addresses.
                 call resent_addresses(part, status)
                 if (.not. status%ok()) exit body
@@ -1683,7 +1688,7 @@ contains
                 k = point()
                 call beginning_of_line()
                 found = looking_at("resent-bcc", status)
-                call goto_char(k)
+                call goto_character(k)
 
                 if (found) then
                     call delete_region(line_beginning_position(), line_beginning_position(2_int64), status)
@@ -1693,49 +1698,49 @@ contains
 
             if (.not. status%ok()) exit body
             ! Don't send out a blank subject line
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            if (search_regexp("^Subject:\([ "//TAB//"]*"//LF//"\)+\b", status, mpos(delimline))) then
+            if (search_regular_expression("^Subject:\([ "//TAB//"]*"//LF//"\)+\b", status, marked_position(delimline))) then
                 call replace_match("", status)
-            else if (search_regexp("^Subject:\([ "//TAB//"]*"//LF//"\)+", status, mpos(delimline))) then
+            else if (search_regular_expression("^Subject:\([ "//TAB//"]*"//LF//"\)+", status, marked_position(delimline))) then
                 ! This one matches a Subject just before the header delimiter.
-                if (match_end(0, status) == mpos(delimline)) call replace_match("", status)
+                if (match_end(0, status) == marked_position(delimline)) call replace_match("", status)
             end if
 
             if (.not. status%ok()) exit body
             ! Put the "From:" field in unless for some odd reason
             ! they put one in themselves.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            if (.not. search_regexp("^From:", status, mpos(delimline))) then
+            if (.not. search_regular_expression("^From:", status, marked_position(delimline))) then
                 if (status%ok()) call insert_mail_from_field(status)
             end if
 
             if (.not. status%ok()) exit body
             ! Possibly add a MIME header for the current coding system
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             where_content_type = 0
-            if (search_regexp("^Content-type:", status, mpos(delimline))) where_content_type = point()
-            call goto_char(point_min())
+            if (search_regular_expression("^Content-type:", status, marked_position(delimline))) where_content_type = point()
+            call goto_character(point_minimum())
 
             if (mail_send_nonascii%choice == MAIL_SEND_NONASCII_MIME) then
-                found = search_regexp("^MIME-version:", status, mpos(delimline))
+                found = search_regular_expression("^MIME-version:", status, marked_position(delimline))
 
                 if (.not. found) then
-                    moved = skip_chars_forward(achar(0)//"-"//achar(127), status)
+                    moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
 
-                    if (point() /= point_max() .and. len(selected_coding) > 0) then
-                        charset = coding_system_mime_charset(selected_coding)
+                    if (point() /= point_maximum() .and. len(selected_coding) > 0) then
+                        character_set = coding_system_mime_character_set(selected_coding)
 
-                        if (len(charset) > 0) then
-                            call goto_char(mpos(delimline))
-                            call insert("MIME-version: 1.0"//LF//"Content-type: text/plain; charset="//charset// &
+                        if (len(character_set) > 0) then
+                            call goto_character(marked_position(delimline))
+                            call insert("MIME-version: 1.0"//LF//"Content-type: text/plain; charset="//character_set// &
                                         LF//"Content-Transfer-Encoding: 8bit"//LF, status)
 
                             ! The character set we will actually use
                             ! should override any specified in the message itself.
                             if (status%ok() .and. where_content_type > 0) then
-                                call goto_char(where_content_type)
+                                call goto_character(where_content_type)
                                 k = line_beginning_position()
                                 moved = forward_line(1_int64)
                                 call delete_region(k, point(), status)
@@ -1747,9 +1752,9 @@ contains
 
             if (.not. status%ok()) exit body
             ! Find and handle any Fcc fields.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
-            if (search_regexp("^Fcc:", status, mpos(delimline))) then
+            if (search_regular_expression("^Fcc:", status, marked_position(delimline))) then
                 fcc_was_found = .true.
                 call do_mail_fcc(delimline, status)
                 if (.not. status%ok()) exit body
@@ -1762,12 +1767,12 @@ contains
                 if (.not. status%ok()) exit body
             end if
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             if (size(resend_to) > 0) then
                 found = .true.
             else
-                found = search_regexp("^To:\|^cc:\|^bcc:", status, mpos(delimline))
+                found = search_regular_expression("^To:\|^cc:\|^bcc:", status, marked_position(delimline))
             end if
 
             if (.not. status%ok()) exit body
@@ -1776,22 +1781,22 @@ contains
             if (found) then
                 buffers(current)%directory = "/"
                 allocate (argv(0))
-                call append_arg("-oi")
+                call append_argument("-oi")
 
                 if (len(envelope_from) > 0) then
-                    call append_arg("-f")
-                    call append_arg(envelope_from)
+                    call append_argument("-f")
+                    call append_argument(envelope_from)
                 end if
 
-                if (allocated(mail_alias_file)) call append_arg("-oA"//mail_alias_file)
+                if (allocated(mail_alias_file)) call append_argument("-oA"//mail_alias_file)
 
                 if (mail_interactive) then
                     do k = 1, size(sendmail_error_reporting_interactive)
-                        call append_arg(trim(sendmail_error_reporting_interactive(k)))
+                        call append_argument(trim(sendmail_error_reporting_interactive(k)))
                     end do
                 else
                     do k = 1, size(sendmail_error_reporting_non_interactive)
-                        call append_arg(trim(sendmail_error_reporting_non_interactive(k)))
+                        call append_argument(trim(sendmail_error_reporting_non_interactive(k)))
                     end do
                 end if
 
@@ -1802,32 +1807,32 @@ contains
                 ! For a resend, include the specific addresses.
                 if (size(resend_to) > 0) then
                     do k = 1, size(resend_to)
-                        call append_arg(trim(resend_to(k)))
+                        call append_argument(trim(resend_to(k)))
                     end do
                 else
-                    call append_arg("-t")
+                    call append_argument("-t")
                 end if
 
                 if (allocated(mail_use_dsn)) then
                     if (size(mail_use_dsn) > 0) then
-                        call append_arg("-N")
+                        call append_argument("-N")
                         errors = trim(mail_use_dsn(1))
 
                         do k = 2, size(mail_use_dsn)
                             errors = errors//","//trim(mail_use_dsn(k))
                         end do
 
-                        call append_arg(errors)
+                        call append_argument(errors)
                     end if
                 end if
 
                 if (mail_interactive) then
-                    destination = make_buffer_ref(errbuf)
+                    destination = make_buffer_reference(errbuf)
                 else
                     destination = value_type(0_int64)
                 end if
 
-                call execute_process_region(sendmail_program, result, status, point_min(), point_max(), .false., &
+                call execute_process_region(sendmail_program, result, status, point_minimum(), point_maximum(), .false., &
                                             destination, make_list(argv))
                 if (.not. status%ok()) exit body
 
@@ -1836,33 +1841,33 @@ contains
                     if (result%a(1)%i /= 0) then
                         failed = .true.
                         write (exit_text, '("Sending...failed with exit value ", i0)') result%a(1)%i
-                        call set_error(status, FM_GENERIC_ERROR, trim(exit_text))
+                        call set_error(status, GENERIC_ERROR_CODE, trim(exit_text))
                         exit body
                     end if
                 case (V_STRING)
                     failed = .true.
-                    call set_error(status, FM_GENERIC_ERROR, "Sending...terminated by signal: "//result%a(1)%s)
+                    call set_error(status, GENERIC_ERROR_CODE, "Sending...terminated by signal: "//result%a(1)%s)
                     exit body
                 case default
                     continue
                 end select
             else if (.not. fcc_was_found) then
-                call set_error(status, FM_GENERIC_ERROR, "No recipients")
+                call set_error(status, GENERIC_ERROR_CODE, "No recipients")
                 exit body
             end if
 
             if (mail_interactive) then
                 call set_buffer(errbuf, status)
-                call goto_char(point_min())
+                call goto_character(point_minimum())
 
-                do while (search_regexp(LF//LF//"* *", status))
+                do while (search_regular_expression(LF//LF//"* *", status))
                     call replace_match("; ", status)
                 end do
 
                 if (buffer_size() /= 0) then
                     failed = .true.
                     errors = buffer_string()
-                    call set_error(status, FM_GENERIC_ERROR, "Sending...failed to "//errors)
+                    call set_error(status, GENERIC_ERROR_CODE, "Sending...failed to "//errors)
                 end if
             end if
         end block body
@@ -1883,12 +1888,12 @@ contains
 
     contains
 
-        subroutine append_arg(arg)
-            character(len=*), intent(in) :: arg
+        subroutine append_argument(argument)
+            character(len=*), intent(in) :: argument
 
-            item = value_type(text=arg)
+            item = value_type(text=argument)
             argv = [argv, item]
-        end subroutine append_arg
+        end subroutine append_argument
     end subroutine send_mail_with_sendmail
 
     ! The addresses of the Resent- field at point (its continuation lines
@@ -1911,14 +1916,14 @@ contains
         end do
 
         e = point()
-        call goto_char(here)
-        mb = marker_at(buffers(current)%begv)
-        me = marker_at(buffers(current)%zv, .true.)
+        call goto_character(here)
+        mb = marker_at(buffers(current)%beginning_of_accessible_portion)
+        me = marker_at(buffers(current)%end_of_accessible_portion, .true.)
         call narrow_to_region(here, e, status)
         if (status%ok()) call parse_mail_comma_list(addresses, status)
         call widen()
         call narrow_to_region(marker_end(mb), marker_end(me), status)
-        call goto_char(here)
+        call goto_character(here)
     end subroutine resent_addresses
 
     !> Find and act on any Fcc: headers in the current message before HEADER_END.
@@ -1931,7 +1936,7 @@ contains
         type(handle_type), intent(in) :: header_end
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: fcc_list(:), fcc, text
-        type(handle_type) :: mailbuf, tmp, buffer, curbuf
+        type(handle_type) :: mailbuf, temporary, buffer, curbuf
         integer(int64) :: beginning, end, beginning2, moved, fcc_start, k
         logical :: dont_write_the_file, buffer_matches_file, modified, babyl, saved_fold, save, read_only
         type(status_type) :: st
@@ -1940,15 +1945,15 @@ contains
         mailbuf = current_buffer()
         allocate (character(len=0) :: fcc_list(0))
         k = point()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
 
         do
-            if (.not. search_regexp("^Fcc:[ "//TAB//"]*", status, mpos(header_end))) exit
+            if (.not. search_regular_expression("^Fcc:[ "//TAB//"]*", status, marked_position(header_end))) exit
             fcc_start = point()
             call end_of_line()
-            moved = skip_chars_backward(" "//TAB, status)
+            moved = skip_characters_backward(" "//TAB, status)
             call buffer_substring(fcc_start, point(), fcc, status)
             if (.not. status%ok()) exit
             call push_fcc(fcc)
@@ -1959,9 +1964,9 @@ contains
 
         case_fold_search%value = saved_fold
         if (.not. status%ok()) return
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, status)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, status)
         if (.not. status%ok()) return
-        call set_buffer(tmp, status)
+        call set_buffer(temporary, status)
 
         body: block
             ! This initial newline is not written out if we create a new
@@ -1972,16 +1977,16 @@ contains
             call insert_buffer_substring(mailbuf, status)
             if (.not. status%ok()) exit body
             ! Make sure messages are separated.
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             call insert(LF, status)
-            call goto_char(2_int64)
+            call goto_character(2_int64)
             ! ``Quote'' "^From " as ">From "
             !  (note that this isn't really quoting, as there is no requirement
             !   that "^[>]+From " be quoted in the same transparent way.)
             case_fold_search%value = .false.
 
             do while (search_string(LF//"From ", status))
-                call goto_char(point() - 5)
+                call goto_character(point() - 5)
                 call insert(">", status)
                 if (.not. status%ok()) exit
             end do
@@ -1990,10 +1995,10 @@ contains
             if (.not. status%ok()) exit body
             curbuf = current_buffer()
             ! the initial blank line
-            beginning = point_min()
-            end = point_max()
+            beginning = point_minimum()
+            end = point_maximum()
             ! After the ^From line.
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             moved = forward_line(2_int64)
             beginning2 = point()
 
@@ -2012,7 +2017,7 @@ contains
                     ! Output file not in Rmail mode => just insert
                     ! at the end.
                     call widen()
-                    call goto_char(point_max())
+                    call goto_character(point_maximum())
                     call insert_buffer_substring(curbuf, status, beginning, end)
                     buffers(current)%read_only = read_only
                     if (.not. status%ok()) exit body
@@ -2053,9 +2058,9 @@ contains
                     else if (file_exists(fcc)) then
                         ! Ensure there is a blank line between messages, but
                         ! not at the very start of the file.
-                        call write_region(fcc, .false., status, point_min(), point_max(), append=.true.)
+                        call write_region(fcc, .false., status, point_minimum(), point_maximum(), append=.true.)
                     else
-                        call write_region(fcc, .false., status, point_min() + 1, point_max(), append=.true.)
+                        call write_region(fcc, .false., status, point_minimum() + 1, point_maximum(), append=.true.)
                     end if
 
                     if (.not. status%ok()) exit body
@@ -2070,9 +2075,9 @@ contains
         end block body
 
         case_fold_search%value = saved_fold
-        call close_buffer(tmp, st)
+        call close_buffer(temporary, st)
         call set_buffer(mailbuf, st)
-        call goto_char(min(k, point_max()))
+        call goto_character(min(k, point_maximum()))
 
     contains
 
@@ -2098,17 +2103,17 @@ contains
     recursive subroutine write_babyl_message(file, text, status)
         character(len=*), intent(in) :: file, text
         type(status_type), intent(out) :: status
-        type(handle_type) :: old, tmp
+        type(handle_type) :: old, temporary
         type(status_type) :: st
 
         old = current_buffer()
-        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, status)
+        call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, status)
         if (.not. status%ok()) return
-        call set_buffer(tmp, status)
+        call set_buffer(temporary, status)
         call insert(achar(12)//LF//"0, unseen,,"//LF//"*** EOOH ***"//LF//"Date: "//mail_rfc822_date()//LF//text// &
                     LF//achar(31), status)
-        if (status%ok()) call write_region(file, .false., status, point_min(), point_max(), append=.true.)
-        call close_buffer(tmp, st)
+        if (status%ok()) call write_region(file, .false., status, point_minimum(), point_maximum(), append=.true.)
+        call close_buffer(temporary, st)
         call set_buffer(old, st)
     end subroutine write_babyl_message
 
@@ -2144,7 +2149,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (status%ok()) call position_mail_on_field("To", found, status)
     end subroutine mail_to
 
@@ -2154,7 +2159,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (status%ok()) call position_mail_on_field("Subject", found, status)
     end subroutine mail_subject
 
@@ -2191,13 +2196,13 @@ contains
     end subroutine mail_mail_followup_to
 
     ! (or (mail-position-on-field FIELD t) (progn (mail-position-on-field
-    ! "to") (insert "\nNAME: "))), after `expand_abbrev'.  Not a port.
+    ! "to") (insert "\nNAME: "))), after `expand_abbreviation'.  Not a port.
     recursive subroutine field_after_to(field, name, status)
         character(len=*), intent(in) :: field, name
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (.not. status%ok()) return
         call position_mail_on_field(field, found, status, soft=.true.)
         if (.not. status%ok() .or. found) return
@@ -2212,7 +2217,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (.not. status%ok()) return
         ! Put new field after exiting Fcc.
         call position_mail_on_field("fcc", found, status, soft=.true.)
@@ -2226,7 +2231,7 @@ contains
         type(status_type), intent(out) :: status
         logical :: found
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (status%ok()) call position_mail_on_field("Reply-To", found, status)
     end subroutine mail_reply_to
 
@@ -2248,17 +2253,17 @@ contains
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
         end = mail_header_end()
-        call goto_char(point_min())
-        found = search_regexp("^"//regexp_quote(field)//":", status, end)
+        call goto_character(point_minimum())
+        found = search_regular_expression("^"//regular_expression_quote(field)//":", status, end)
 
         if (found .and. status%ok()) then
-            other = search_regexp("^[^ "//TAB//"]", status, move=.true.)
+            other = search_regular_expression("^[^ "//TAB//"]", status, move=.true.)
             call beginning_of_line()
-            moved = skip_chars_backward(LF, status)
+            moved = skip_characters_backward(LF, status)
         else if (status%ok() .and. .not. is_soft) then
-            call goto_char(end)
+            call goto_character(end)
             call insert(field//": "//LF, status)
-            moved = skip_chars_backward(LF, status)
+            moved = skip_characters_backward(LF, status)
         end if
 
         case_fold_search%value = saved_fold
@@ -2268,8 +2273,8 @@ contains
     recursive subroutine mail_text(status)
         type(status_type), intent(out) :: status
 
-        call expand_abbrev(status)
-        if (status%ok()) call goto_char(mail_text_start())
+        call expand_abbreviation(status)
+        if (status%ok()) call goto_character(mail_text_start())
     end subroutine mail_text
 
     !> Insert a Disposition-Notification-To header, if it doesn't already
@@ -2277,19 +2282,20 @@ contains
     recursive subroutine insert_mail_disposition_notification_to(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: value, text
-        type(handle_type) :: here, mb, me, old, tmp
+        type(handle_type) :: here, mb, me, old, temporary
         logical :: found, narrowed
         type(status_type) :: st
 
-        call expand_abbrev(status)
+        call expand_abbreviation(status)
         if (.not. status%ok()) return
         here = marker_at(point())
         call position_mail_on_field("Disposition-Notification-To", found, status)
 
         if (status%ok() .and. .not. found) then
-            narrowed = buffers(current)%begv /= 1 .or. buffers(current)%zv /= buffers(current)%text%z
-            mb = marker_at(buffers(current)%begv)
-            me = marker_at(buffers(current)%zv, .true.)
+            narrowed = buffers(current)%beginning_of_accessible_portion /= 1 .or. buffers(current)%end_of_accessible_portion &
+                       /= buffers(current)%text%z
+            mb = marker_at(buffers(current)%beginning_of_accessible_portion)
+            me = marker_at(buffers(current)%end_of_accessible_portion, .true.)
 
             k_block: block
                 type(handle_type) :: at
@@ -2298,8 +2304,8 @@ contains
                 if (status%ok()) call get_mail_field("Reply-To", value, status)
                 if (status%ok() .and. .not. allocated(value)) call get_mail_field("From", value, status)
                 call widen()
-                if (narrowed) call narrow_to_region(mpos(mb), mpos(me), st)
-                call goto_char(marker_end(at))
+                if (narrowed) call narrow_to_region(marked_position(mb), marked_position(me), st)
+                call goto_character(marker_end(at))
             end block k_block
 
             call destroy_marker(mb, st)
@@ -2307,11 +2313,11 @@ contains
 
             if (status%ok() .and. .not. allocated(value)) then
                 old = current_buffer()
-                call get_or_make_buffer(generate_new_buffer_name(" *temp*"), tmp, status)
-                call set_buffer(tmp, status)
+                call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, status)
+                call set_buffer(temporary, status)
                 call insert_mail_from_field(status)
                 text = buffer_string()
-                call close_buffer(tmp, st)
+                call close_buffer(temporary, st)
                 call set_buffer(old, st)
                 value = text(len("From: ") + 1:len(text) - 1)
             end if
@@ -2319,7 +2325,7 @@ contains
             if (status%ok()) call insert(value, status)
         end if
 
-        call goto_char(marker_end(here))
+        call goto_character(marker_end(here))
     end subroutine insert_mail_disposition_notification_to
 
     ! ------------------------------------------------------------------
@@ -2359,11 +2365,11 @@ contains
         here = marker_at(point())
 
         if (.not. at) then
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             ! Delete trailing whitespace and blank lines.
-            moved = skip_chars_backward(" "//TAB//LF, status)
-            call goto_char(line_end_position())
-            call delete_region(point(), point_max(), status)
+            moved = skip_characters_backward(" "//TAB//LF, status)
+            call goto_character(line_end_position())
+            call delete_region(point(), point_maximum(), status)
         end if
 
         if (status%ok()) then
@@ -2378,7 +2384,7 @@ contains
             end if
         end if
 
-        call goto_char(marker_end(here))
+        call goto_character(marker_end(here))
     end subroutine mail_signature
 
     !> Modify text just inserted from a message to be cited.
@@ -2405,22 +2411,22 @@ contains
         else
             here = marker_at(point())
             end = marker_at(e)
-            call goto_char(b)
+            call goto_character(b)
 
-            do while (point() < mpos(end))
+            do while (point() < marked_position(end))
                 call insert(mail_paste_prefix, status)
                 if (.not. status%ok()) exit
                 moved = forward_line(1_int64)
             end do
 
             call destroy_marker(end, status)
-            call goto_char(marker_end(here))
+            call goto_character(marker_end(here))
         end if
     end subroutine indent_mail_citation
 
     !> Insert the message being replied to, if any.
     !> Puts point after the text and mark before.
-    !> Normally, indents each nonblank line ARG spaces (default 3).
+    !> Normally, indents each nonblank line ARGUMENT spaces (default 3).
     !> However, if `mail_paste_prefix' is allocated, insert that prefix on
     !> each line.
     !>
@@ -2428,12 +2434,12 @@ contains
     !> insert no prefix, and don't delete any header fields.  Port of
     !> sendmail.el:mail-yank-original (with a buffer as the message being
     !> replied to; the action form comes with Rmail).
-    recursive subroutine paste_mail_original(status, arg, raw)
+    recursive subroutine paste_mail_original(status, argument, raw)
         type(status_type), intent(out) :: status
-        integer, intent(in), optional :: arg
+        integer, intent(in), optional :: argument
         logical, intent(in), optional :: raw
         type(handle_type) :: original, mark
-        integer(int64) :: start, eoh, e
+        integer(int64) :: start, end_of_headers, e
         integer :: k, saved_spaces
         logical :: is_raw, has_mark
         type(status_type) :: st
@@ -2450,23 +2456,23 @@ contains
         call insert_buffer_substring(original, status)
         if (.not. status%ok()) return
         call push_mark(point())
-        call goto_char(start)
+        call goto_character(start)
 
         if (.not. is_raw) then
-            call goto_char(start)
+            call goto_character(start)
             saved_spaces = mail_indentation_spaces
-            if (present(arg)) mail_indentation_spaces = arg
+            if (present(argument)) mail_indentation_spaces = argument
 
             if (.not. mail_citation_hook%empty()) then
                 ! Bind mail_citation_header to the inserted
                 ! message's header.
-                call narrow_to_region(start, point_max(), status)
-                call goto_char(start)
-                call rfc822_goto_eoh(st)
-                eoh = point()
+                call narrow_to_region(start, point_maximum(), status)
+                call goto_character(start)
+                call rfc822_goto_end_of_headers(st)
+                end_of_headers = point()
                 call widen()
-                call goto_char(start)
-                call buffer_substring_no_properties(start, eoh, mail_citation_header, status)
+                call goto_character(start)
+                call buffer_substring_no_properties(start, end_of_headers, mail_citation_header, status)
                 if (status%ok()) call mail_citation_hook%execute(status)
                 if (allocated(mail_citation_header)) deallocate (mail_citation_header)
             else
@@ -2486,10 +2492,10 @@ contains
             e = mark_position()
             call mark_marker(mark)
             call set_marker(mark, point(), status, current_buffer())
-            call goto_char(e)
+            call goto_character(e)
         end if
 
-        if (.not. is_eol()) call insert(LF, status)
+        if (.not. is_end_of_line()) call insert(LF, status)
     end subroutine paste_mail_original
 
     !> Delete the headers matching `mail_paste_ignored_headers' from the
@@ -2507,40 +2513,41 @@ contains
         end = max(start_in, end_in)
         if (.not. allocated(mail_paste_ignored_headers)) return
         here = point()
-        call goto_char(start)
+        call goto_character(start)
 
         if (search_string(LF//LF, status, end)) then
-            narrowed = buffers(current)%begv /= 1 .or. buffers(current)%zv /= buffers(current)%text%z
-            mb = marker_at(buffers(current)%begv)
-            me = marker_at(buffers(current)%zv, .true.)
+            narrowed = buffers(current)%beginning_of_accessible_portion /= 1 .or. buffers(current)%end_of_accessible_portion &
+                       /= buffers(current)%text%z
+            mb = marker_at(buffers(current)%beginning_of_accessible_portion)
+            me = marker_at(buffers(current)%end_of_accessible_portion, .true.)
             call narrow_to_region(start, point(), status)
-            call goto_char(start)
+            call goto_character(start)
             saved_fold = case_fold_search%value
 
             do while (status%ok())
                 case_fold_search%value = .true.
-                found = search_regexp(mail_paste_ignored_headers, status)
+                found = search_regular_expression(mail_paste_ignored_headers, status)
                 case_fold_search%value = saved_fold
                 if (.not. found) exit
                 call beginning_of_line()
                 here = point()
-                if (.not. search_regexp(LF//"[^ "//TAB//"]", status)) exit
-                call forward_char(status, -1_int64)
+                if (.not. search_regular_expression(LF//"[^ "//TAB//"]", status)) exit
+                call forward_character(status, -1_int64)
                 call delete_region(here, point(), status)
             end do
 
             call widen()
-            if (narrowed) call narrow_to_region(mpos(mb), mpos(me), status)
+            if (narrowed) call narrow_to_region(marked_position(mb), marked_position(me), status)
             call destroy_marker(mb, status)
             call destroy_marker(me, status)
         end if
 
-        call goto_char(min(start, point_max()))
+        call goto_character(min(start, point_maximum()))
     end subroutine clear_mail_paste_headers
 
     !> Insert the selected region from the message being replied to.
     !> Puts point after the text and mark before.
-    !> Normally, indents each nonblank line ARG spaces (default 3).
+    !> Normally, indents each nonblank line ARGUMENT spaces (default 3).
     !> However, if `mail_paste_prefix' is allocated, insert that prefix on
     !> each line.
     !>
@@ -2563,9 +2570,9 @@ contains
         integer(int64) :: here, start, middle, inserted, column
 
         here = point()
-        call goto_char(point_max())
+        call goto_character(point_maximum())
 
-        if (.not. is_bol()) then
+        if (.not. is_beginning_of_line()) then
             call insert(LF, status)
             if (.not. status%ok()) return
         end if
@@ -2582,12 +2589,12 @@ contains
         call insert(repeat("=", 60)//LF, status)
         if (.not. status%ok()) return
         call push_mark()
-        call goto_char(middle)
+        call goto_character(middle)
         call insert_file_contents(file, .false., inserted, status)
         if (.not. status%ok()) return
-        if (.not. is_bol()) call insert(LF, status)
-        call goto_char(start)
-        call goto_char(here)
+        if (.not. is_beginning_of_line()) call insert(LF, status)
+        call goto_character(start)
+        call goto_character(here)
     end subroutine insert_mail_file
 
     ! ------------------------------------------------------------------
@@ -2642,9 +2649,9 @@ contains
         type(handle_type), intent(in), optional :: replybuffer
         logical, intent(out), optional :: initialized
         type(handle_type) :: buffer
-        character(len=:), allocatable :: dir
+        character(len=:), allocatable :: directory
         integer :: noerase
-        logical :: init, modified, proceed
+        logical :: initialize, modified, proceed
 
         noerase = MAIL_NOERASE_NO
         if (present(noerase_in)) noerase = noerase_in
@@ -2662,11 +2669,11 @@ contains
         if (.not. status%ok()) return
         call set_buffer(buffer, status)
         ! Avoid danger that the auto-save file can't be written.
-        call expand_file_name(file_name_as_directory(mail_default_directory), dir, status)
-        if (status%ok() .and. file_exists(dir)) buffers(current)%directory = dir
+        call expand_file_name(file_name_as_directory(mail_default_directory), directory, status)
+        if (status%ok() .and. file_exists(directory)) buffers(current)%directory = directory
         call mail_mode(status)
         if (.not. status%ok()) return
-        init = .false.
+        initialize = .false.
 
         if (.not. (noerase /= MAIL_NOERASE_NO .and. noerase /= MAIL_NOERASE_NEW)) then
             call is_buffer_modified(current_buffer(), modified, status)
@@ -2697,11 +2704,11 @@ contains
                 if (.not. status%ok()) return
                 call set_up_mail(status, to, subject, in_reply_to, cc, replybuffer)
                 if (.not. status%ok()) return
-                init = .true.
+                initialize = .true.
             end if
         end if
 
-        if (present(initialized)) initialized = init
+        if (present(initialized)) initialized = initialize
     end subroutine mail
 
     !> Like `mail' command, but display mail buffer in another window.
@@ -2734,80 +2741,80 @@ contains
     end function read_only
 
     ! The raw prefix argument as NOERASE.  Not a port.
-    integer function noerase_arg()
-        noerase_arg = MAIL_NOERASE_NO
-        if (current_prefix_arg%kind /= PREFIX_NONE) noerase_arg = MAIL_NOERASE_YES
-    end function noerase_arg
+    integer function noerase_argument()
+        noerase_argument = MAIL_NOERASE_NO
+        if (current_prefix_argument%kind /= PREFIX_NONE) noerase_argument = MAIL_NOERASE_YES
+    end function noerase_argument
 
-    recursive subroutine cmd_mail(status)
+    recursive subroutine execute_mail(status)
         type(status_type), intent(out) :: status
 
-        call mail(status, noerase_arg())
-    end subroutine cmd_mail
+        call mail(status, noerase_argument())
+    end subroutine execute_mail
 
-    recursive subroutine cmd_mail_other_window(status)
+    recursive subroutine execute_mail_other_window(status)
         type(status_type), intent(out) :: status
 
-        call mail_other_window(status, noerase_arg())
-    end subroutine cmd_mail_other_window
+        call mail_other_window(status, noerase_argument())
+    end subroutine execute_mail_other_window
 
-    recursive subroutine cmd_send_mail_and_exit(status)
+    recursive subroutine execute_send_mail_and_exit(status)
         type(status_type), intent(out) :: status
 
-        call send_mail_and_exit(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_send_mail_and_exit
+        call send_mail_and_exit(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_send_mail_and_exit
 
-    recursive subroutine cmd_mail_dont_send(status)
+    recursive subroutine execute_mail_dont_send(status)
         type(status_type), intent(out) :: status
 
-        call mail_dont_send(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_mail_dont_send
+        call mail_dont_send(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_mail_dont_send
 
-    recursive subroutine cmd_send_mail(status)
+    recursive subroutine execute_send_mail(status)
         type(status_type), intent(out) :: status
 
         call send_mail(status)
-    end subroutine cmd_send_mail
+    end subroutine execute_send_mail
 
-    recursive subroutine cmd_mail_fcc(status)
+    recursive subroutine execute_mail_fcc(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: folder
 
         call read_file_name("Folder carbon copy: ", folder, status)
         if (status%ok()) call mail_fcc(folder, status)
-    end subroutine cmd_mail_fcc
+    end subroutine execute_mail_fcc
 
-    recursive subroutine cmd_mail_signature(status)
+    recursive subroutine execute_mail_signature(status)
         type(status_type), intent(out) :: status
 
         if (read_only(status)) return
-        call mail_signature(status, current_prefix_arg%kind /= PREFIX_NONE, .true.)
-    end subroutine cmd_mail_signature
+        call mail_signature(status, current_prefix_argument%kind /= PREFIX_NONE, .true.)
+    end subroutine execute_mail_signature
 
-    recursive subroutine cmd_paste_mail_original(status)
+    recursive subroutine execute_paste_mail_original(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_RAW) then
+        if (current_prefix_argument%kind == PREFIX_RAW) then
             call paste_mail_original(status, raw=.true.)
-        else if (current_prefix_arg%kind /= PREFIX_NONE) then
-            call paste_mail_original(status, int(prefix_numeric_value(current_prefix_arg)))
+        else if (current_prefix_argument%kind /= PREFIX_NONE) then
+            call paste_mail_original(status, int(prefix_numeric_value(current_prefix_argument)))
         else
             call paste_mail_original(status)
         end if
-    end subroutine cmd_paste_mail_original
+    end subroutine execute_paste_mail_original
 
-    recursive subroutine cmd_insert_mail_file(status)
+    recursive subroutine execute_insert_mail_file(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_file_name("Attach file: ", file, status, mustmatch=REQUIRE_MATCH_YES)
         if (status%ok()) call insert_mail_file(file, status)
-    end subroutine cmd_insert_mail_file
+    end subroutine execute_insert_mail_file
 
     !> Define Mail mode, its keymap, syntax table and the commands, and
     !> `sendmail_user_agent'.  Not a port.
-    subroutine init_sendmail()
-        use regular_expression_optimization_mod, only: regexp_opt
+    subroutine initialize_sendmail()
+        use regular_expression_optimization_mod, only: regular_expression_optimization
         type(status_type) :: st
         character(len=:), allocatable :: path
 
@@ -2820,10 +2827,10 @@ contains
         if (.not. allocated(mail_use_dsn)) allocate (character(len=7) :: mail_use_dsn(0))
         if (.not. allocated(mail_mailing_lists)) allocate (character(len=0) :: mail_mailing_lists(0))
 
-        if (.not. allocated(mail_citation_prefix_regexp)) then
+        if (.not. allocated(mail_citation_prefix_regular_expression)) then
             ! Use [:word:] rather than \w so we don't get tripped up if one
             ! of those chars has a weird `syntax-table' text property.
-            mail_citation_prefix_regexp = "\(?:[ "//TAB//"]*\(?:[[:word:]_.]+>\|[>|]\)\)+"
+            mail_citation_prefix_regular_expression = "\(?:[ "//TAB//"]*\(?:[[:word:]_.]+>\|[>|]\)\)+"
         end if
 
         if (.not. allocated(sendmail_error_reporting_interactive)) then
@@ -2835,11 +2842,12 @@ contains
         end if
 
         if (.not. allocated(mail_paste_ignored_headers)) then
-            mail_paste_ignored_headers = "^"//regexp_opt([character(len=18) :: "via", "mail-from", "origin", "status", &
-                                                          "remailed", "received", "message-id", "summary-line", "to", &
-                                                          "subject", "in-reply-to", "return-path", "mail-reply-to", &
-                                                          "x-rmail-attributes", "x-rmail-keywords", "mail-followup-to"], &
-                                                         open="\(?:")//":"
+            mail_paste_ignored_headers = "^"//regular_expression_optimization([character(len=18) :: "via", "mail-from", "origin", &
+                                                                               "status", &
+                                                                       "remailed", "received", "message-id", "summary-line", "to", &
+                                                                         "subject", "in-reply-to", "return-path", "mail-reply-to", &
+                                                                    "x-rmail-attributes", "x-rmail-keywords", "mail-followup-to"], &
+                                                                              open="\(?:")//":"
         end if
 
         if (.not. allocated(sendmail_program)) then
@@ -2858,7 +2866,7 @@ contains
             end if
         end if
 
-        if (.not. associated(major_modes%text_mode%execute)) call init_text_mode()
+        if (.not. associated(major_modes%text_mode%execute)) call initialize_text_mode()
 
         if (mail_mode_syntax_table%index == 0) then
             ! define-derived-mode will make it inherit from text-mode-syntax-table.
@@ -2871,11 +2879,11 @@ contains
                                           syntax_table=mail_mode_syntax_table)
         mail_mode_map = major_modes%mail_mode%map
         commands%mail_mode%execute => mail_mode
-        commands%mail%execute => cmd_mail
-        commands%mail_other_window%execute => cmd_mail_other_window
+        commands%mail%execute => execute_mail
+        commands%mail_other_window%execute => execute_mail_other_window
         commands%mail_to%execute => mail_to
         commands%mail_bcc%execute => mail_bcc
-        commands%mail_fcc%execute => cmd_mail_fcc
+        commands%mail_fcc%execute => execute_mail_fcc
         commands%mail_cc%execute => mail_cc
         commands%mail_subject%execute => mail_subject
         commands%mail_reply_to%execute => mail_reply_to
@@ -2883,13 +2891,13 @@ contains
         commands%mail_mail_followup_to%execute => mail_mail_followup_to
         commands%insert_mail_disposition_notification_to%execute => insert_mail_disposition_notification_to
         commands%mail_text%execute => mail_text
-        commands%paste_mail_original%execute => cmd_paste_mail_original
+        commands%paste_mail_original%execute => execute_paste_mail_original
         commands%paste_mail_region%execute => paste_mail_region
-        commands%mail_signature%execute => cmd_mail_signature
-        commands%send_mail_and_exit%execute => cmd_send_mail_and_exit
-        commands%send_mail%execute => cmd_send_mail
-        commands%mail_dont_send%execute => cmd_mail_dont_send
-        commands%insert_mail_file%execute => cmd_insert_mail_file
+        commands%mail_signature%execute => execute_mail_signature
+        commands%send_mail_and_exit%execute => execute_send_mail_and_exit
+        commands%send_mail%execute => execute_send_mail
+        commands%mail_dont_send%execute => execute_mail_dont_send
+        commands%insert_mail_file%execute => execute_insert_mail_file
         call keymap_set(mail_mode_map, "C-c ?", "describe_mode", st)
         call keymap_set(mail_mode_map, "C-c C-f C-t", "mail_to", st)
         call keymap_set(mail_mode_map, "C-c C-f C-b", "mail_bcc", st)
@@ -2912,7 +2920,7 @@ contains
         call sendmail_user_agent%define("sendmail_user_agent", compose_sendmail_user_agent, commands%send_mail_and_exit, &
                                         hook=mail_send_hook)
         call append_locals_clearer(clear_sendmail_locals)
-    end subroutine init_sendmail
+    end subroutine initialize_sendmail
 
     !> Forget the text and procedure of `mail_signature_variable', as any
     !> assignment to it does.  Not a port.
@@ -2969,7 +2977,7 @@ contains
             ! Upstream passes the missing field on to
             ! mail-extract-address-components, which refuses it.
             if (.not. allocated(from)) then
-                call set_error(status, FM_GENERIC_ERROR, "Invalid address: .false.")
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid address: .false.")
                 return
             end if
 

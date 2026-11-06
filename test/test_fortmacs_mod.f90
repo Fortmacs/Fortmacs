@@ -26,31 +26,31 @@ module test_fortmacs_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use buffer_mod, only: erase_buffer, buffers, current
     use editing_functions_mod, only: buffer_string
-    use system_dependent_mod, only: open_pty, close_fd, set_tty_size, init_sys_modes, &
-                                    reset_sys_modes, fortmacs_write, fortmacs_read, input_available, &
-                                    fortmacs_tty_type
+    use system_dependent_mod, only: open_pty, close_fd, set_terminal_size, initialize_system_modes, &
+                                    reset_system_modes, fortmacs_write, fortmacs_read, input_available, &
+                                    fortmacs_terminal_type
     use keyboard_mod, only: last_message
     use value_mod, only: value_type, xstring
     use data_mod, only: symbol_value, value_eq
-    use names_mod, only: user_init_file
-    use fortmacs_mod, only: fortmacs_main, command_line, init_file_had_error, load_init_file, sort_args
+    use names_mod, only: user_initialization_file
+    use fortmacs_mod, only: fortmacs_main, command_line, initialization_file_had_error, load_initialization_file, sort_arguments
     use error_mod, only: format_error, format_message
     use frame_mod, only: selected_frame
     use test_support_mod, only: show_alone
     use window_mod, only: windows, window_leaves
-    use file_input_output_mod, only: fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, init_fileio
+    use file_input_output_mod, only: fortmacs_wd, file_name_as_directory, write_region, create_directory_internal, initialize_fileio
     use buffer_mod, only: close_buffer, get_file_buffer
-    use fortmacs, only: status_type, set_error, FM_GENERIC_ERROR, command_type, &
+    use fortmacs, only: status_type, set_error, GENERIC_ERROR_CODE, command_type, &
                         keymap_global_set, insert, get_or_make_buffer, set_buffer, &
-                        handle_type, tab_width, message_log_max, show_paren_style, SHOW_PAREN_STYLE_PARENTHESIS, &
-                        sh_indent_for_fi, sh_indent_after_if, SH_MINUS, SH_PLUS
+                        handle_type, tab_width, message_log_maximum, show_parenthesis_style, SHOW_PARENTHESIS_STYLE_PARENTHESIS, &
+                        shell_indent_for_fi, shell_indent_after_if, SHELL_MINUS, SHELL_PLUS
     use string_type_mod, only: string_type
     implicit none(type, external)
     private
 
     public :: collect_fortmacs_mod
 
-    type(command_type), target :: cmd_insert_config_stamp
+    type(command_type), target :: command_insert_configuration_stamp
 
 contains
 
@@ -60,10 +60,10 @@ contains
 
         testsuite = [ &
                     new_unittest("command-line-options", test_command_line), &
-                    new_unittest("sort-args", test_sort_args), &
+                    new_unittest("sort-args", test_sort_arguments), &
                     new_unittest("init-file-configure", test_configure), &
-                    new_unittest("init-file-skipped-with-q", test_no_init_file), &
-                    new_unittest("init-file-error", test_init_error), &
+                    new_unittest("init-file-skipped-with-q", test_no_initialization_file), &
+                    new_unittest("init-file-error", test_initialize_error), &
                     new_unittest("init-file-rejected-choice", test_rejected_choice), &
                     new_unittest("scratch-fundamental-mode", test_scratch), &
                     new_unittest("initial-window-shows-scratch", test_initial_window), &
@@ -76,23 +76,23 @@ contains
         type(status_type), intent(out) :: status
 
         tab_width = 4
-        cmd_insert_config_stamp = command_type("insert-config-stamp", insert_config_stamp)
-        call cmd_insert_config_stamp%define()
+        command_insert_configuration_stamp = command_type("insert-config-stamp", insert_configuration_stamp)
+        call command_insert_configuration_stamp%define()
         call keymap_global_set("C-c d", "insert-config-stamp", status)
     end subroutine sample_configure
 
     !> The command bound by `sample_configure`.
-    subroutine insert_config_stamp(status)
+    subroutine insert_configuration_stamp(status)
         type(status_type), intent(out) :: status
 
         call insert("configured", status)
-    end subroutine insert_config_stamp
+    end subroutine insert_configuration_stamp
 
     !> An init file whose `configure` fails.
     subroutine failing_configure(status)
         type(status_type), intent(out) :: status
 
-        call set_error(status, FM_GENERIC_ERROR, "Something is wrong")
+        call set_error(status, GENERIC_ERROR_CODE, "Something is wrong")
     end subroutine failing_configure
 
     !> An init file giving choice settings values they do not accept.
@@ -100,22 +100,22 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        show_paren_style = .true.
-        sh_indent_for_fi = 0
-        sh_indent_after_if = SH_MINUS
-        message_log_max = 500
+        show_parenthesis_style = .true.
+        shell_indent_for_fi = 0
+        shell_indent_after_if = SHELL_MINUS
+        message_log_maximum = 500
     end subroutine rejecting_configure
 
     !> Execute the editor on a pty with `keys` typed (they must end with
     !> C-x C-c), *scratch* emptied first; the terminal has `lines` lines
     !> (8 if absent).
-    subroutine execute_on_pty(keys, st, args, configure, lines)
+    subroutine execute_on_pty(keys, st, arguments, configure, lines)
         character(len=*), intent(in) :: keys
         type(status_type), intent(out) :: st
-        type(string_type), intent(in), optional :: args(:)
+        type(string_type), intent(in), optional :: arguments(:)
         procedure(sample_configure), optional :: configure
         integer(int32), intent(in), optional :: lines
-        type(fortmacs_tty_type) :: old
+        type(fortmacs_terminal_type) :: old
         type(handle_type) :: scratch
         type(status_type) :: ignore
         integer(int32) :: master, slave
@@ -129,50 +129,50 @@ contains
         if (.not. st%ok()) return
 
         if (present(lines)) then
-            call set_tty_size(slave, 40_int32, lines, ignore)
+            call set_terminal_size(slave, 40_int32, lines, ignore)
         else
-            call set_tty_size(slave, 40_int32, 8_int32, ignore)
+            call set_terminal_size(slave, 40_int32, 8_int32, ignore)
         end if
 
         ! Raw mode first, so C-c is not taken as an interrupt.
-        call init_sys_modes(slave, old, ignore)
+        call initialize_system_modes(slave, old, ignore)
         call fortmacs_write(master, keys, ignore)
-        call fortmacs_main("xterm-256color", slave, st, args, configure)
+        call fortmacs_main("xterm-256color", slave, st, arguments, configure)
 
         do while (input_available(master, 100_int32))
             call fortmacs_read(master, buffer, n, ignore)
             if (n <= 0) exit
         end do
 
-        call reset_sys_modes(slave, old, ignore)
+        call reset_system_modes(slave, old, ignore)
         call close_fd(slave)
         call close_fd(master)
     end subroutine execute_on_pty
 
     !> Arguments from strings.
-    function argv(strings) result(args)
+    function argv(strings) result(arguments)
         character(len=*), intent(in) :: strings(:)
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         integer :: i
 
-        allocate (args(size(strings)))
+        allocate (arguments(size(strings)))
 
         do i = 1, size(strings)
-            args(i)%text = trim(strings(i))
+            arguments(i)%text = trim(strings(i))
         end do
     end function argv
 
     !> The arguments joined by spaces.
-    function joined(args) result(s)
-        type(string_type), intent(in) :: args(:)
+    function joined(arguments) result(s)
+        type(string_type), intent(in) :: arguments(:)
         character(len=:), allocatable :: s
         integer :: i
 
         s = ""
 
-        do i = 1, size(args)
+        do i = 1, size(arguments)
             if (i > 1) s = s//" "
-            s = s//args(i)%text
+            s = s//arguments(i)%text
         end do
     end function joined
 
@@ -180,63 +180,63 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(string_type), allocatable :: rest(:)
         type(status_type) :: st
-        logical :: init
+        logical :: initialize
 
-        call command_line(argv([character(len=4) :: "-q", "+3", "file"]), rest, init, st)
-        call check(error, st%ok() .and. .not. init .and. joined(rest) == "+3 file", "-q")
+        call command_line(argv([character(len=4) :: "-q", "+3", "file"]), rest, initialize, st)
+        call check(error, st%ok() .and. .not. initialize .and. joined(rest) == "+3 file", "-q")
         if (allocated(error)) return
-        call command_line(argv([character(len=14) :: "--no-init-file", "+3", "file"]), rest, init, st)
-        call check(error, st%ok() .and. .not. init .and. joined(rest) == "+3 file", "--no-init-file")
+        call command_line(argv([character(len=14) :: "--no-init-file", "+3", "file"]), rest, initialize, st)
+        call check(error, st%ok() .and. .not. initialize .and. joined(rest) == "+3 file", "--no-init-file")
         if (allocated(error)) return
-        call command_line(argv([character(len=2) :: "-Q"]), rest, init, st)
-        call check(error,.not. init, "-Q")
+        call command_line(argv([character(len=2) :: "-Q"]), rest, initialize, st)
+        call check(error,.not. initialize, "-Q")
         if (allocated(error)) return
         ! Long options may be abbreviated.
-        call command_line(argv([character(len=6) :: "--no-i", "file"]), rest, init, st)
-        call check(error, st%ok() .and. .not. init .and. joined(rest) == "file", "--no-i")
+        call command_line(argv([character(len=6) :: "--no-i", "file"]), rest, initialize, st)
+        call check(error, st%ok() .and. .not. initialize .and. joined(rest) == "file", "--no-i")
         if (allocated(error)) return
-        call command_line(argv([character(len=5) :: "--no-", "file"]), rest, init, st)
+        call command_line(argv([character(len=5) :: "--no-", "file"]), rest, initialize, st)
         call check(error, format_error(st) == format_message("Option `--no-' is ambiguous"), format_error(st))
         if (allocated(error)) return
-        call command_line(argv([character(len=16) :: "--no-init-file=x"]), rest, init, st)
+        call command_line(argv([character(len=16) :: "--no-init-file=x"]), rest, initialize, st)
         call check(error, format_error(st) == format_message("Option `-no-init-file' doesn't allow an argument"), &
                    format_error(st))
         if (allocated(error)) return
         ! The options end at the first other argument.
-        call command_line(argv([character(len=4) :: "file", "-q"]), rest, init, st)
-        call check(error, init .and. joined(rest) == "file -q", "after a file")
+        call command_line(argv([character(len=4) :: "file", "-q"]), rest, initialize, st)
+        call check(error, initialize .and. joined(rest) == "file -q", "after a file")
         if (allocated(error)) return
-        call command_line(argv([character(len=1) ::]), rest, init, st)
-        call check(error, init .and. size(rest) == 0, "no arguments")
+        call command_line(argv([character(len=1) ::]), rest, initialize, st)
+        call check(error, initialize .and. size(rest) == 0, "no arguments")
     end subroutine test_command_line
 
     !> emacs.c:sort_args puts known options first, by priority.
-    subroutine test_sort_args(error)
+    subroutine test_sort_arguments(error)
         type(error_type), allocatable, intent(out) :: error
-        type(string_type), allocatable :: args(:)
+        type(string_type), allocatable :: arguments(:)
         character(len=:), allocatable :: why
         logical :: ok
 
-        args = argv([character(len=4) :: "file", "-q", "+3", "-Q"])
-        call sort_args(args, ok, why)
-        call check(error, ok .and. joined(args) == "-Q -q file +3", joined(args))
+        arguments = argv([character(len=4) :: "file", "-q", "+3", "-Q"])
+        call sort_arguments(arguments, ok, why)
+        call check(error, ok .and. joined(arguments) == "-Q -q file +3", joined(arguments))
         if (allocated(error)) return
-        args = argv([character(len=4) :: "-q", "a", "-q"])
-        call sort_args(args, ok, why)
-        call check(error, joined(args) == "-q a", "duplicates")
+        arguments = argv([character(len=4) :: "-q", "a", "-q"])
+        call sort_arguments(arguments, ok, why)
+        call check(error, joined(arguments) == "-q a", "duplicates")
         if (allocated(error)) return
-        args = argv([character(len=4) :: "a", "--", "-q"])
-        call sort_args(args, ok, why)
-        call check(error, joined(args) == "a -- -q", "after --")
+        arguments = argv([character(len=4) :: "a", "--", "-q"])
+        call sort_arguments(arguments, ok, why)
+        call check(error, joined(arguments) == "a -- -q", "after --")
         if (allocated(error)) return
-        args = argv([character(len=8) :: "x", "-l", "lib", "--no-ini"])
-        call sort_args(args, ok, why)
-        call check(error, joined(args) == "--no-ini x -l lib", joined(args))
+        arguments = argv([character(len=8) :: "x", "-l", "lib", "--no-ini"])
+        call sort_arguments(arguments, ok, why)
+        call check(error, joined(arguments) == "--no-ini x -l lib", joined(arguments))
         if (allocated(error)) return
-        args = argv([character(len=4) :: "x", "-l"])
-        call sort_args(args, ok, why)
+        arguments = argv([character(len=4) :: "x", "-l"])
+        call sort_arguments(arguments, ok, why)
         call check(error,.not. ok .and. why == "Option '-l' requires an argument", why)
-    end subroutine test_sort_args
+    end subroutine test_sort_arguments
 
     subroutine test_configure(error)
         type(error_type), allocatable, intent(out) :: error
@@ -246,25 +246,25 @@ contains
         call check(error, st%ok(), "fortmacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "configured")
         if (.not. allocated(error)) call check(error, tab_width%value == 4)
-        if (.not. allocated(error)) call check(error,.not. init_file_had_error, "no error")
+        if (.not. allocated(error)) call check(error,.not. initialization_file_had_error, "no error")
         tab_width = 8
     end subroutine test_configure
 
-    subroutine test_no_init_file(error)
+    subroutine test_no_initialization_file(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        type(string_type) :: args(1)
+        type(string_type) :: arguments(1)
 
-        args(1)%text = "-q"
+        arguments(1)%text = "-q"
         ! Without the init file C-c d is an undefined key (C-c is a prefix key, as
         ! in Emacs), so it inserts nothing; the second "d" self-inserts.
-        call execute_on_pty(achar(3)//"dd"//achar(24)//achar(3), st, args, sample_configure)
+        call execute_on_pty(achar(3)//"dd"//achar(24)//achar(3), st, arguments, sample_configure)
         call check(error, st%ok(), "fortmacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "d")
         if (.not. allocated(error)) call check(error, tab_width%value == 8)
-    end subroutine test_no_init_file
+    end subroutine test_no_initialization_file
 
-    subroutine test_init_error(error)
+    subroutine test_initialize_error(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
 
@@ -272,19 +272,19 @@ contains
         call execute_on_pty("hi"//achar(24)//achar(3), st, configure=failing_configure)
         call check(error, st%ok(), "fortmacs_main")
         if (.not. allocated(error)) call check(error, buffer_string(), "hi")
-        if (.not. allocated(error)) call check(error, init_file_had_error, "init-file-had-error")
+        if (.not. allocated(error)) call check(error, initialization_file_had_error, "init-file-had-error")
         if (allocated(error)) return
         ! The message (typing clears it, so it is checked here).
-        call load_init_file(failing_configure)
-        call check(error, init_file_had_error .and. last_message == &
+        call load_initialization_file(failing_configure)
+        call check(error, initialization_file_had_error .and. last_message == &
                    "An error occurred while loading the init file: Something is wrong", "the message")
         if (allocated(error)) return
-        call load_init_file(sample_configure)
-        call check(error,.not. init_file_had_error, "reset")
+        call load_initialization_file(sample_configure)
+        call check(error,.not. initialization_file_had_error, "reset")
         tab_width = 8
         ! Leave no init file name behind for other suites.
-        if (allocated(user_init_file)) deallocate (user_init_file)
-    end subroutine test_init_error
+        if (allocated(user_initialization_file)) deallocate (user_initialization_file)
+    end subroutine test_initialize_error
 
     !> Values a choice setting does not accept are errors of the init file
     !> (panel 2026-11-04); the settings keep their defaults, the accepted
@@ -292,21 +292,21 @@ contains
     subroutine test_rejected_choice(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call load_init_file(rejecting_configure)
-        call check(error, init_file_had_error, "init-file-had-error")
+        call load_initialization_file(rejecting_configure)
+        call check(error, initialization_file_had_error, "init-file-had-error")
         if (allocated(error)) return
-        call check(error, last_message, "An error occurred while loading the init file: message_log_max: 500 is not "// &
-                   "a value of this option; a number of lines is `message_log_max%lines = 500'")
+        call check(error, last_message, "An error occurred while loading the init file: message_log_maximum: 500 is not "// &
+                   "a value of this option; a number of lines is `message_log_maximum%lines = 500'")
         if (allocated(error)) return
-        call check(error, show_paren_style%choice == SHOW_PAREN_STYLE_PARENTHESIS, "show_paren_style kept")
+        call check(error, show_parenthesis_style%choice == SHOW_PARENTHESIS_STYLE_PARENTHESIS, "show_parenthesis_style kept")
         if (allocated(error)) return
-        call check(error, sh_indent_for_fi%other_value(), "%columns = 0")
+        call check(error, shell_indent_for_fi%other_value(), "%columns = 0")
         if (allocated(error)) return
-        call check(error, message_log_max%lines == 1000, "message_log_max kept")
+        call check(error, message_log_maximum%lines == 1000, "message_log_maximum kept")
         if (allocated(error)) return
-        call check(error, sh_indent_after_if%choice == SH_MINUS, "accepted value")
-        sh_indent_after_if = SH_PLUS
-        if (allocated(user_init_file)) deallocate (user_init_file)
+        call check(error, shell_indent_after_if%choice == SHELL_MINUS, "accepted value")
+        shell_indent_after_if = SHELL_PLUS
+        if (allocated(user_initialization_file)) deallocate (user_initialization_file)
     end subroutine test_rejected_choice
 
     !> *scratch* starts empty (no initial-scratch-message: there is no
@@ -356,26 +356,26 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
         type(handle_type), allocatable :: leaves(:)
-        type(handle_type) :: a, b, tmp
-        character(len=:), allocatable :: dir
+        type(handle_type) :: a, b, temporary
+        character(len=:), allocatable :: directory
         character(len=256) :: names(2)
 
-        call init_fileio()
-        dir = file_name_as_directory(file_name_as_directory(fortmacs_wd)//"build/test-emacs-files")
-        call create_directory_internal(dir, st)
-        call get_or_make_buffer(" *emacs-test-file*", tmp, st)
-        call set_buffer(tmp, st)
+        call initialize_fileio()
+        directory = file_name_as_directory(file_name_as_directory(fortmacs_wd)//"build/test-emacs-files")
+        call create_directory_internal(directory, st)
+        call get_or_make_buffer(" *emacs-test-file*", temporary, st)
+        call set_buffer(temporary, st)
         call insert("A", st)
-        call write_region(dir//"a.txt", .false., st)
-        call write_region(dir//"b.txt", .false., st)
-        call close_buffer(tmp, st)
-        names(1) = dir//"a.txt"
-        names(2) = dir//"b.txt"
+        call write_region(directory//"a.txt", .false., st)
+        call write_region(directory//"b.txt", .false., st)
+        call close_buffer(temporary, st)
+        names(1) = directory//"a.txt"
+        names(2) = directory//"b.txt"
         call execute_on_pty(achar(24)//achar(3), st, argv(names), lines=20_int32)
         call check(error, st%ok(), "fortmacs_main: "//format_error(st))
         if (allocated(error)) return
-        a = get_file_buffer(dir//"a.txt")
-        b = get_file_buffer(dir//"b.txt")
+        a = get_file_buffer(directory//"a.txt")
+        b = get_file_buffer(directory//"b.txt")
         call window_leaves(selected_frame%root_window, leaves)
         call check(error, size(leaves) == 2, "two windows")
         if (allocated(error)) return

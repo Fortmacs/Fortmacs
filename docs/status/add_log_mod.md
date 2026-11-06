@@ -27,7 +27,7 @@
 `add-log-keep-changes-together`,
 `add-log-always-start-new-record`,
 `change-log-version-info-enabled`,
-`change-log-version-number-regexp-list` (`change_log_version_number_regexps`) and `change-log-version-number-search` (`search_change_log_version_number`),
+`change-log-version-number-regexp-list` (`change_log_version_number_regular_expressions`) and `change-log-version-number-search` (`search_change_log_version_number`),
 `change-log-mode` (syntax table, faces, `change-log-font-lock-keywords`, `page-delimiter`, C-c C-f),
 `change-log-find-file` (`find_change_log_entry_file`, C-c C-f),
 `change-log-search-file-name`,

@@ -26,7 +26,7 @@
 !>
 !> The value of a variable is always the current buffer's.  When a
 !> buffer has its own value for a variable, the default is kept in the
-!> symbol (`default_val') while that buffer is current, and the local
+!> symbol (`default_value') while that buffer is current, and the local
 !> value in the buffer (`local_values') while it is not; the swap
 !> happens in set_buffer_internal.  Variables forwarded to procedure
 !> pointers (auto-fill-function, indent-line-function) keep the pointers
@@ -36,7 +36,7 @@
 !> A submodule because the Fortran settings live in modules that use
 !> data_mod.
 submodule(data_mod) data_buffer_mod
-    use value_mod, only: make_symbol_ref, make_list, xfixnum, xstring, value_type, vtag, V_NULL, V_INTEGER, V_NAME, &
+    use value_mod, only: make_symbol_reference, make_list, xfixnum, xstring, value_type, vtag, V_NULL, V_INTEGER, V_NAME, &
                          V_STRING, V_ARRAY, list_elements
     use names_mod, only: intern
     use handle_mod, only: null_handle
@@ -50,9 +50,9 @@ submodule(data_mod) data_buffer_mod
     use search_mod, only: case_fold_search
     use minibuffer_reading_mod, only: completion_ignore_case
     use paragraphs_mod, only: paragraph_start, paragraph_separate, sentence_end, &
-                              sentence_end_double_space, init_paragraph_variables
+                              sentence_end_double_space, initialize_paragraph_variables
     use fill_mod, only: adaptive_fill_mode
-    use simple_mod, only: fill_prefix, auto_fill_inhibit_regexp, do_auto_fill
+    use simple_mod, only: fill_prefix, auto_fill_inhibit_regular_expression, do_auto_fill
     use utility_functions_mod, only: get
     use hooks_mod, only: change_major_mode_hook, clear_local_hooks
     use basic_subprograms_mod, only: clear_delayed_mode_hooks
@@ -69,7 +69,7 @@ submodule(data_mod) data_buffer_mod
     implicit none(type, external)
 
     !> Kinds of forwarded variable.
-    integer, parameter :: K_INT64 = 1, K_INT = 2, K_BOOL = 3, K_STRING = 4, K_AUTO_FILL = 5, &
+    integer, parameter :: K_INT64 = 1, K_INTEGER = 2, K_BOOL = 3, K_STRING = 4, K_AUTO_FILL = 5, &
                           K_INDENT_LINE = 6, K_SLOT = 7, K_FUNCTION = 8
 
     !> The variables forwarded to Fortran settings; slot variables are
@@ -79,10 +79,11 @@ submodule(data_mod) data_buffer_mod
     !> Settings forwarded with `forward_setting' come after this index
     !> (EXT_BASE + their index).
     integer, parameter :: EXT_BASE = 100000
-    character(len=*), parameter :: FWD_NAMES(NFWD) = [character(len=32) :: &
+    character(len=*), parameter :: FWD_NAMES(NFWD) = [character(len=36) :: &
                                                 "fill_column", "left_margin", "tab_width", "indent_tabs_mode", "case_fold_search", &
                                                       "fill_prefix", "paragraph_start", "paragraph_separate", "sentence_end", &
-                                                    "sentence_end_double_space", "adaptive_fill_mode", "auto_fill_inhibit_regexp", &
+                                                      "sentence_end_double_space", "adaptive_fill_mode", &
+                                                      "auto_fill_inhibit_regular_expression", &
                                            "standard_indent", "auto_fill_function", "indent_line_function", "transient_mark_mode", &
                                                       "major_mode", "mode_name", "buffer_read_only", "text_mode_variant", &
                                                       "parse_expression_ignore_comments", "require_final_newline", &
@@ -90,11 +91,12 @@ submodule(data_mod) data_buffer_mod
                                                       "completion_ignore_case", "comment_end_can_be_escaped", &
                                                       "inhibit_modification_hooks", &
                                                       "electric_indent_inhibit"]
-    integer, parameter :: FWD_KIND(NFWD) = [K_INT64, K_INT64, K_INT, K_BOOL, K_BOOL, &
+    integer, parameter :: FWD_KIND(NFWD) = [K_INT64, K_INT64, K_INTEGER, K_BOOL, K_BOOL, &
                                             K_STRING, K_STRING, K_STRING, K_STRING, &
                                             K_BOOL, K_BOOL, K_STRING, &
                                             K_INT64, K_AUTO_FILL, K_INDENT_LINE, K_BOOL, &
-                                            K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INT, K_INT, K_BOOL, K_BOOL, K_BOOL, K_BOOL, &
+                                            K_SLOT, K_SLOT, K_SLOT, K_BOOL, K_BOOL, K_INTEGER, K_INTEGER, K_BOOL, K_BOOL, K_BOOL, &
+                                            K_BOOL, &
                                             K_BOOL]
     !> DEFVAR_PER_BUFFER, `make_variable_buffer_local' or `:local t':
     !> local when set.
@@ -318,7 +320,7 @@ contains
         else if (.not. allocated(v%a) .and. present(none)) then
             s = none
         else
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer")
         end if
     end subroutine set_integer
 
@@ -337,7 +339,7 @@ contains
         else if (.not. allocated(v%a)) then
             call s%clear()
         else
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected character(len=*)")
         end if
     end subroutine set_string
 
@@ -345,17 +347,17 @@ contains
     function history_value(h) result(v)
         type(history_setting_type), intent(in) :: h
         type(value_type) :: v
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         integer :: k
 
         if (.not. allocated(h%items)) return
-        allocate (elems(size(h%items)))
+        allocate (elements(size(h%items)))
 
         do k = 1, size(h%items)
-            elems(k) = value_type(text=h%items(k)%text)
+            elements(k) = value_type(text=h%items(k)%text)
         end do
 
-        v = make_list(elems)
+        v = make_list(elements)
     end function history_value
 
     !> Set history H to V, a list of strings (a `wrong-type-argument'
@@ -364,7 +366,7 @@ contains
         type(history_setting_type), intent(inout) :: h
         type(value_type), intent(in) :: v
         type(status_type), intent(out) :: status
-        type(value_type), allocatable :: elems(:)
+        type(value_type), allocatable :: elements(:)
         type(string_type), allocatable :: items(:)
         integer :: k
 
@@ -372,21 +374,21 @@ contains
 
         if (allocated(v%a)) then
             if (vtag(v) /= V_ARRAY) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array of character(len=*)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected array of character(len=*)")
                 return
             end if
         end if
 
-        call list_elements(v, elems)
-        allocate (items(size(elems)))
+        call list_elements(v, elements)
+        allocate (items(size(elements)))
 
-        do k = 1, size(elems)
-            if (vtag(elems(k)) /= V_STRING) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected array of character(len=*)")
+        do k = 1, size(elements)
+            if (vtag(elements(k)) /= V_STRING) then
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected array of character(len=*)")
                 return
             end if
 
-            items(k)%text = xstring(elems(k))
+            items(k)%text = xstring(elements(k))
         end do
 
         call move_alloc(items, h%items)
@@ -415,7 +417,7 @@ contains
             type is (logical_setting_type)
                 call setting_value(p, bool_value(p%value), v, bound)
             type is (string_setting_type)
-                call setting_value(p, string_or_nil(p%value), v, bound)
+                call setting_value(p, string_or_false(p%value), v, bound)
             type is (function_setting_type)
                 call setting_value(p, auto_fill_value(p%value), v, bound)
             type is (history_setting_type)
@@ -452,21 +454,22 @@ contains
         case ("case_fold_search")
             call setting_value(case_fold_search, bool_value(case_fold_search%value), v, bound)
         case ("fill_prefix")
-            call setting_value(fill_prefix, string_or_nil(fill_prefix%value), v, bound)
+            call setting_value(fill_prefix, string_or_false(fill_prefix%value), v, bound)
         case ("paragraph_start")
-            call init_paragraph_variables()
-            call setting_value(paragraph_start, string_or_nil(paragraph_start%value), v, bound)
+            call initialize_paragraph_variables()
+            call setting_value(paragraph_start, string_or_false(paragraph_start%value), v, bound)
         case ("paragraph_separate")
-            call init_paragraph_variables()
-            call setting_value(paragraph_separate, string_or_nil(paragraph_separate%value), v, bound)
+            call initialize_paragraph_variables()
+            call setting_value(paragraph_separate, string_or_false(paragraph_separate%value), v, bound)
         case ("sentence_end")
-            call setting_value(sentence_end, string_or_nil(sentence_end%value), v, bound)
+            call setting_value(sentence_end, string_or_false(sentence_end%value), v, bound)
         case ("sentence_end_double_space")
             call setting_value(sentence_end_double_space, bool_value(sentence_end_double_space%value), v, bound)
         case ("adaptive_fill_mode")
             call setting_value(adaptive_fill_mode, bool_value(adaptive_fill_mode%value), v, bound)
-        case ("auto_fill_inhibit_regexp")
-            call setting_value(auto_fill_inhibit_regexp, string_or_nil(auto_fill_inhibit_regexp%value), v, bound)
+        case ("auto_fill_inhibit_regular_expression")
+            call setting_value(auto_fill_inhibit_regular_expression, string_or_false(auto_fill_inhibit_regular_expression%value), &
+                               v, bound)
         case ("standard_indent")
             call setting_value(standard_indent, value_type(standard_indent%value), v, bound)
         case ("auto_fill_function")
@@ -520,7 +523,7 @@ contains
     end subroutine fwd_get
 
     !> A string or nil.  Not a port.
-    function string_or_nil(s) result(v)
+    function string_or_false(s) result(v)
         character(len=:), allocatable, intent(in) :: s
         type(value_type) :: v
 
@@ -529,7 +532,7 @@ contains
         else
             v = value_type()
         end if
-    end function string_or_nil
+    end function string_or_false
 
     !> Set forwarded variable K (of the current buffer, for slots).
     !> Port of data.c:store_symval_forwarding.
@@ -594,8 +597,8 @@ contains
             sentence_end_double_space = allocated(v%a)
         case ("adaptive_fill_mode")
             adaptive_fill_mode = allocated(v%a)
-        case ("auto_fill_inhibit_regexp")
-            call set_string(auto_fill_inhibit_regexp, v, status)
+        case ("auto_fill_inhibit_regular_expression")
+            call set_string(auto_fill_inhibit_regular_expression, v, status)
         case ("standard_indent")
             call set_integer(standard_indent, v, .false., status)
         case ("auto_fill_function")
@@ -610,7 +613,7 @@ contains
             if (current == 0) return
 
             if ((vtag(v) /= V_NAME .and. vtag(v) /= V_NULL)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected name")
             else if (.not. allocated(v%a)) then
                 buffers(current)%major_mode = "nil"
             else
@@ -622,7 +625,7 @@ contains
             if (vtag(v) == V_STRING) then
                 buffers(current)%mode_name = xstring(v)
             else
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected character(len=*)")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected character(len=*)")
             end if
         case ("buffer_read_only")
             if (current > 0) buffers(current)%read_only = allocated(v%a)
@@ -667,14 +670,14 @@ contains
         end if
 
         if (vtag(v) /= V_NAME) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected name")
             return
         end if
 
         c => find_command(symbols(xsymbol(v))%name)
 
         if (.not. associated(c)) then
-            call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(v))%name)
+            call set_error(status, VOID_FUNCTION_CODE, symbols(xsymbol(v))%name)
             return
         end if
 
@@ -697,7 +700,7 @@ contains
         status = status_type()
 
         if (vtag(v) /= V_NAME) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected name")
             return
         end if
 
@@ -708,7 +711,7 @@ contains
             c => find_command(symbols(xsymbol(v))%name)
 
             if (.not. associated(c)) then
-                call set_error(status, FM_VOID_FUNCTION, symbols(xsymbol(v))%name)
+                call set_error(status, VOID_FUNCTION_CODE, symbols(xsymbol(v))%name)
                 return
             end if
 
@@ -793,13 +796,13 @@ contains
         else if (vtag(v) == V_INTEGER) then
             s = int(xfixnum(v))
         else
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected .true., .false. or a named constant")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected .true., .false. or a named constant")
         end if
 
         ! A value S does not accept (panel 2026-11-04).
         if (allocated(setting_errors)) then
             if (size(setting_errors) > errors) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, setting_errors(size(setting_errors))%text)
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, setting_errors(size(setting_errors))%text)
                 setting_errors = setting_errors(1:errors)
             end if
         end if
@@ -835,14 +838,14 @@ contains
 
         select case (trim(FWD_NAMES(k)))
         case ("fill_column", "left_margin", "tab_width")
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected integer")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected integer")
         case ("indent_tabs_mode")
             ! A DEFVAR_BOOL stores !NILP (Qunbound): t.
             indent_tabs_mode = .true.
         case ("completion_ignore_case")
             completion_ignore_case = .true.
         case ("major_mode")
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected name")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected name")
         case ("mode_name", "buffer_read_only")
             continue
         case ("case_fold_search")
@@ -859,8 +862,8 @@ contains
             sentence_end_double_space%void = .true.
         case ("adaptive_fill_mode")
             adaptive_fill_mode%void = .true.
-        case ("auto_fill_inhibit_regexp")
-            auto_fill_inhibit_regexp%void = .true.
+        case ("auto_fill_inhibit_regular_expression")
+            auto_fill_inhibit_regular_expression%void = .true.
         case ("standard_indent")
             standard_indent%void = .true.
         case ("auto_fill_function")
@@ -953,7 +956,7 @@ contains
         if (k > 0) then
             call fwd_get(k, current, v, bound)
         else
-            v = symbols(id)%val
+            v = symbols(id)%value
             bound = symbols(id)%bound
         end if
     end subroutine get_current
@@ -977,7 +980,7 @@ contains
                 call fwd_makunbound(k, st)
             end if
         else
-            symbols(id)%val = v
+            symbols(id)%value = v
             symbols(id)%bound = bound
         end if
     end subroutine set_current
@@ -996,19 +999,19 @@ contains
     ! Not a port.
     subroutine ensure_saved_functions(b)
         integer(int64), intent(in) :: b
-        type(function_settings_type), allocatable :: tmp(:)
+        type(function_settings_type), allocatable :: temporary(:)
         integer(int64) :: i
 
         if (.not. allocated(saved_functions)) allocate (saved_functions(max(b, 16_int64)))
 
         if (size(saved_functions, kind=int64) < b) then
-            allocate (tmp(max(b, 2*size(saved_functions, kind=int64))))
+            allocate (temporary(max(b, 2*size(saved_functions, kind=int64))))
 
             do i = 1, size(saved_functions, kind=int64)
-                tmp(i) = saved_functions(i)
+                temporary(i) = saved_functions(i)
             end do
 
-            call move_alloc(tmp, saved_functions)
+            call move_alloc(temporary, saved_functions)
         end if
     end subroutine ensure_saved_functions
 
@@ -1108,7 +1111,7 @@ contains
                     call fn_end(id, 0_int64)
                 case default
                     call get_current(id, buffers(old)%local_values(i), buffers(old)%local_bound(i))
-                    call set_current(id, symbols(id)%default_val, symbols(id)%default_bound)
+                    call set_current(id, symbols(id)%default_value, symbols(id)%default_bound)
                 end select
             end do
         end if
@@ -1128,7 +1131,7 @@ contains
                     call fn_begin(id, 0_int64)
                     call fn_end(id, new)
                 case default
-                    call get_current(id, symbols(id)%default_val, symbols(id)%default_bound)
+                    call get_current(id, symbols(id)%default_value, symbols(id)%default_bound)
                     call set_current(id, buffers(new)%local_values(i), buffers(new)%local_bound(i))
                 end select
             end do
@@ -1154,7 +1157,7 @@ contains
         case (K_FUNCTION)
             call fn_end(id, 0_int64)
         case default
-            call set_current(id, symbols(id)%default_val, symbols(id)%default_bound)
+            call set_current(id, symbols(id)%default_value, symbols(id)%default_bound)
         end select
 
         n = buffers(current)%nlocal
@@ -1175,7 +1178,7 @@ contains
         call check_symbol(variable, status)
         if (.not. status%ok()) return
         id = xsymbol(variable)
-        if (symbols(id)%constant) call set_error(status, FM_SETTING_CONSTANT, symbols(id)%name)
+        if (symbols(id)%constant) call set_error(status, SETTING_CONSTANT_CODE, symbols(id)%name)
     end subroutine check_localizable
 
     ! ------------------------------------------------------------------
@@ -1232,7 +1235,7 @@ contains
     case (K_FUNCTION)
         call fn_begin(id, 0_int64)
     case default
-        call get_current(id, symbols(id)%default_val, symbols(id)%default_bound)
+        call get_current(id, symbols(id)%default_value, symbols(id)%default_bound)
     end select
     end procedure make_local_variable
 
@@ -1246,7 +1249,7 @@ contains
     ! A void variable gets the default value nil.
     if (kind_of(id) == 0 .and. .not. local_in_current(id)) then
         if (.not. symbols(id)%bound) then
-            symbols(id)%val = value_type()
+            symbols(id)%value = value_type()
             symbols(id)%bound = .true.
         end if
     end if
@@ -1265,7 +1268,7 @@ contains
     module procedure clear_all_local_variables
     logical :: all
     integer :: i
-    type(value_type) :: prop
+    type(value_type) :: property
     type(status_type) :: st
 
     if (current == 0) return
@@ -1285,17 +1288,17 @@ contains
     buffers(current)%major_mode = "fundamental_mode"
     buffers(current)%mode_name = "Fundamental"
     buffers(current)%keymap = null_handle()
-    buffers(current)%invisibility_spec_t = .true.
-    buffers(current)%bidi_display_reordering = .true.
-    buffers(current)%bidi_paragraph_direction = 0
+    buffers(current)%invisibility_specification_t = .true.
+    buffers(current)%bidirectional_display_reordering = .true.
+    buffers(current)%bidirectional_paragraph_direction = 0
     buffers(current)%read_only_mode_state_set = .false.
-    if (allocated(buffers(current)%invisibility_spec)) deallocate (buffers(current)%invisibility_spec)
+    if (allocated(buffers(current)%invisibility_specification)) deallocate (buffers(current)%invisibility_specification)
     call buffers(current)%mode_line_format%clear()
 
     do i = buffers(current)%nlocal, 1, -1
         if (.not. all) then
-            call get(make_symbol_ref(buffers(current)%local_ids(i)), value_type(name="permanent_local"), prop, st)
-            if (allocated(prop%a)) cycle
+            call get(make_symbol_reference(buffers(current)%local_ids(i)), value_type(name="permanent_local"), property, st)
+            if (allocated(property%a)) cycle
         end if
 
         call clear_local(i)
@@ -1378,7 +1381,7 @@ contains
             end if
         case default
             if (local_in_current(id)) then
-                v = symbols(id)%default_val
+                v = symbols(id)%default_value
                 bound = symbols(id)%default_bound
             else
                 call get_current(id, v, bound)
@@ -1409,7 +1412,7 @@ contains
     if (.not. status%ok()) return
     id = xsymbol(symbol)
     call get_default(id, v, bound)
-    if (.not. bound) call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
+    if (.not. bound) call set_error(status, VOID_VARIABLE_CODE, symbols(id)%name)
     end procedure default_value
 
     module procedure default_boundp
@@ -1433,7 +1436,7 @@ contains
     if (.not. local_in_current(id)) then
         call forwarded_set(id, v, status, found)
         if (found) return
-        symbols(id)%val = v
+        symbols(id)%value = v
         symbols(id)%bound = .true.
         return
     end if
@@ -1452,7 +1455,7 @@ contains
             call set_auto_fill(fn_store(i)%s, v, status)
         end block
     case (0)
-        symbols(id)%default_val = v
+        symbols(id)%default_value = v
         symbols(id)%default_bound = .true.
     case default
         ! Check the type by storing into the local value and back.
@@ -1463,7 +1466,7 @@ contains
             call fwd_set(k, v, status)
 
             if (status%ok()) then
-                symbols(id)%default_val = v
+                symbols(id)%default_value = v
                 symbols(id)%default_bound = .true.
             end if
 
@@ -1483,12 +1486,12 @@ contains
     id = xsymbol(variable)
 
     if (buffer <= 0 .or. buffer > size(buffers, kind=int64)) then
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
+        call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(buffer_type)")
         return
     end if
 
     if (.not. is_buffer_live(buffer_handle(buffer))) then
-        call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(buffer_type)")
+        call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(buffer_type)")
         return
     end if
 
@@ -1520,13 +1523,13 @@ contains
         end if
     end if
 
-    if (.not. bound) call set_error(status, FM_VOID_VARIABLE, symbols(id)%name)
+    if (.not. bound) call set_error(status, VOID_VARIABLE_CODE, symbols(id)%name)
     end procedure buffer_local_value
 
     module procedure buffer_local_variables
     integer(int64) :: b, id
     integer :: i, n
-    type(value_type), allocatable :: elts(:)
+    type(value_type), allocatable :: elements(:)
     type(value_type) :: v
     type(status_type) :: st
     character(len=*), parameter :: SLOTS(3) = [character(len=16) :: "buffer_read_only", "major_mode", "mode_name"]
@@ -1535,28 +1538,28 @@ contains
     if (present(buffer)) b = buffer
     table = value_type()
     if (b <= 0) return
-    allocate (elts(buffers(b)%nlocal + size(SLOTS)))
+    allocate (elements(buffers(b)%nlocal + size(SLOTS)))
     n = 0
 
     do i = 1, buffers(b)%nlocal
         id = buffers(b)%local_ids(i)
-        call buffer_local_value(make_symbol_ref(id), b, v, st)
+        call buffer_local_value(make_symbol_reference(id), b, v, st)
         n = n + 1
 
         if (st%ok()) then
-            elts(n) = list(make_symbol_ref(id), v)
+            elements(n) = list(make_symbol_reference(id), v)
         else
-            elts(n) = make_symbol_ref(id)
+            elements(n) = make_symbol_reference(id)
         end if
     end do
 
     do i = 1, size(SLOTS)
         call buffer_local_value(value_type(name=trim(SLOTS(i))), b, v, st)
         n = n + 1
-        elts(n) = list(value_type(name=trim(SLOTS(i))), v)
+        elements(n) = list(value_type(name=trim(SLOTS(i))), v)
     end do
 
-    table = make_list(elts(1:n))
+    table = make_list(elements(1:n))
     end procedure buffer_local_variables
 
     module procedure setq_local

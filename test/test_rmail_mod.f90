@@ -28,7 +28,7 @@ module test_rmail_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
     use buffer_mod, only: buffers, current, get_file_buffer, set_buffer
-    use editing_functions_mod, only: buffer_string, point, goto_char
+    use editing_functions_mod, only: buffer_string, point, goto_character
     use commands_mod, only: commands
     use file_input_output_mod, only: file_exists
     use rmail_mod, only: rmail, rmail_states, next_rmail_undeleted_message, previous_rmail_undeleted_message, &

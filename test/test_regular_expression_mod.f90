@@ -35,17 +35,19 @@
 module test_regular_expression_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_INVALID_REGEXP, FM_SEARCH_FAILED
+    use error_mod, only: status_type, format_error, FM_INVALID_REGULAR_EXPRESSION, SEARCH_FAILED_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, erase_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char, point, point_max, point_min, buffer_substring, buffer_string, delete_region
+    use editing_functions_mod, only: goto_character, point, point_maximum, point_minimum, buffer_substring, buffer_string, &
+                                     delete_region
     use search_mod, only: string_index_to_offset
     use basic_subprograms_mod, only: match_string, string_matches, is_looking_at, looking_back
     use syntax_mod, only: modify_syntax_entry, make_syntax_table, set_syntax_table, destroy_syntax_table
-    use search_mod, only: string_match, posix_string_match, looking_at, re_search_forward, re_search_backward, &
-                          match_beginning, match_end, match_data, set_match_data, regexp_quote, case_fold_search, &
-                          search_spaces_regexp, posix_looking_at, SEARCH_NOERROR
+    use search_mod, only: string_match, posix_string_match, looking_at, regular_expression_search_forward, &
+                          regular_expression_search_backward, match_beginning, match_end, match_data, set_match_data, &
+                          regular_expression_quote, case_fold_search, search_spaces_regular_expression, posix_looking_at, &
+                          SEARCH_NOERROR
     implicit none(type, external)
     private
 
@@ -53,7 +55,7 @@ module test_regular_expression_mod
 
     !> Regex that matches an even number of \\ characters
     !> (regex-tests-re-even-escapes).
-    character(len=*), parameter :: re_even_escapes = "\(?:^\|[^\]\)\(?:\\\\\)*"
+    character(len=*), parameter :: regular_expression_even_escapes = "\(?:^\|[^\]\)\(?:\\\\\)*"
 
 contains
 
@@ -81,11 +83,11 @@ contains
                     new_unittest("regexp-intervals", test_intervals), &
                     new_unittest("regexp-invalid", test_invalid), &
                     new_unittest("regexp-categories-latin-linebreak", test_categories), &
-                    new_unittest("re-search-forward-backward", test_regexp_search), &
+                    new_unittest("re-search-forward-backward", test_regular_expression_search), &
                     new_unittest("looking-at", test_looking_at), &
                     new_unittest("match-data", test_match_data), &
-                    new_unittest("regexp-quote", test_regexp_quote), &
-                    new_unittest("search-spaces-regexp", test_spaces_regexp), &
+                    new_unittest("regexp-quote", test_regular_expression_quote), &
+                    new_unittest("search-spaces-regexp", test_spaces_regular_expression), &
                     new_unittest("posix-string-match", test_posix), &
                     new_unittest("match-string-and-friends", test_match_string), &
                     new_unittest("looking-back", test_looking_back) &
@@ -93,11 +95,11 @@ contains
     end subroutine collect_regular_expression_mod
 
     !> `string-match`, failing the test on an error; 0 for nil.
-    integer(int64) function sm(regexp, string)
-        character(len=*), intent(in) :: regexp, string
+    integer(int64) function sm(regular_expression, string)
+        character(len=*), intent(in) :: regular_expression, string
         type(status_type) :: st
 
-        sm = string_match(regexp, string, st)
+        sm = string_match(regular_expression, string, st)
         if (.not. st%ok()) sm = -99
     end function sm
 
@@ -133,7 +135,7 @@ contains
         call get_or_make_buffer("regex-test", h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
     end subroutine enter
 
     subroutine leave(h)
@@ -141,7 +143,7 @@ contains
         type(status_type) :: st
 
         case_fold_search = .true.
-        if (allocated(search_spaces_regexp)) deallocate (search_spaces_regexp)
+        if (allocated(search_spaces_regular_expression)) deallocate (search_spaces_regular_expression)
         call close_buffer(h, st)
     end subroutine leave
 
@@ -173,24 +175,24 @@ contains
     !> string-match-p part).
     subroutine test_character_classes(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: ws = " "//achar(9)//achar(10)
+        character(len=*), parameter :: whitespace = " "//achar(9)//achar(10)
 
         case_fold_search = .false.
-        call cc("alnum", "abcABC012łąka", "-, "//ws)
+        call cc("alnum", "abcABC012łąka", "-, "//whitespace)
         if (allocated(error)) return
-        call cc("alpha", "abcABCłąka", "-,012 "//ws)
+        call cc("alpha", "abcABCłąka", "-,012 "//whitespace)
         if (allocated(error)) return
-        call cc("digit", "012", "abcABCłąka-, "//ws)
+        call cc("digit", "012", "abcABCłąka-, "//whitespace)
         if (allocated(error)) return
-        call cc("xdigit", "0123aBc", "łąk-, "//ws)
+        call cc("xdigit", "0123aBc", "łąk-, "//whitespace)
         if (allocated(error)) return
-        call cc("upper", "ABCŁĄKA", "abc012-, "//ws)
+        call cc("upper", "ABCŁĄKA", "abc012-, "//whitespace)
         if (allocated(error)) return
-        call cc("lower", "abcłąka", "ABC012-, "//ws)
+        call cc("lower", "abcłąka", "ABC012-, "//whitespace)
         if (allocated(error)) return
-        call cc("word", "abcABC012☠", "-, "//ws)
+        call cc("word", "abcABC012☠", "-, "//whitespace)
         if (allocated(error)) return
-        call cc("punct", ".,-", "abcABC012☠ "//ws)
+        call cc("punct", ".,-", "abcABC012☠ "//whitespace)
         if (allocated(error)) return
         call cc("cntrl", achar(1)//achar(2)//achar(9)//achar(10), ".,-abcABC012☠ ")
         if (allocated(error)) return
@@ -198,7 +200,7 @@ contains
         if (allocated(error)) return
         call cc("print", "abcłąka☠-, ", achar(9)//achar(10)//achar(1))
         if (allocated(error)) return
-        call cc("space", ws//" ", "abcABCł0123")
+        call cc("space", whitespace//" ", "abcABCł0123")
         if (allocated(error)) return
         call cc("blank", " "//achar(9)//" ", achar(10))
         if (allocated(error)) return
@@ -237,7 +239,7 @@ contains
         call check(error, sm("\`x\{65535\}", repeat("x", 65534)) == 0)
         if (allocated(error)) return
         i = string_match("\`x\{65536\}", "X", st)
-        call check(error, st%code == FM_INVALID_REGEXP, format_error(st))
+        call check(error, st%code == FM_INVALID_REGULAR_EXPRESSION, format_error(st))
     end subroutine test_repeat_limit
 
     !> Test matching a multibyte regexp against a multibyte string.
@@ -417,15 +419,15 @@ contains
     !> certain zero-width assertions (bug#64128).
     subroutine test_zero_width(error)
         type(error_type), allocatable, intent(out) :: error
-        character(len=*), parameter :: nl = achar(10)
+        character(len=*), parameter :: newline = achar(10)
 
         ! Postfix operators after ^ and \` become literals, for historical
         ! compatibility.  Only the first character of a lazy operator (like
         ! *?) becomes a literal.
-        call t("^*a", "x"//nl//"*a", 3)
-        call t("^*?a", "x"//nl//"*a", 3)
-        call t("^*?a", "x"//nl//"a", 3)
-        call t("^*?a", "x"//nl//"**a", 0)
+        call t("^*a", "x"//newline//"*a", 3)
+        call t("^*?a", "x"//newline//"*a", 3)
+        call t("^*?a", "x"//newline//"a", 3)
+        call t("^*?a", "x"//newline//"**a", 0)
         call t("\`*a", "*a", 1)
         call t("\`*?a", "*a", 1)
         call t("\`*?a", "a", 1)
@@ -471,12 +473,12 @@ contains
 
     contains
 
-        subroutine t(regexp, string, want)
-            character(len=*), intent(in) :: regexp, string
+        subroutine t(regular_expression, string, want)
+            character(len=*), intent(in) :: regular_expression, string
             integer, intent(in) :: want
 
             if (allocated(error)) return
-            call check(error, sm(regexp, string) == want, regexp//" on "//string)
+            call check(error, sm(regular_expression, string) == want, regular_expression//" on "//string)
         end subroutine t
     end subroutine test_zero_width
 
@@ -526,31 +528,31 @@ contains
     !> match, 0 for any match, else the start; then `want_end` (exclusive)
     !> unless negative.  Return a message, or "" on success.  Port of
     !> regex-tests-match and regex-tests-compare (group 0).
-    function try_match(pattern, string, want_start, want_end) result(msg)
+    function try_match(pattern, string, want_start, want_end) result(message)
         character(len=*), intent(in) :: pattern, string
         integer, intent(in) :: want_start, want_end
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message
         type(status_type) :: st
         integer(int64) :: i
         character(len=40) :: buffer
 
-        msg = ""
+        message = ""
         ! [.x.] and [=x=] forms are not supported by Emacs.
         if (index(pattern, "[.") > 0 .or. index(pattern, "[=") > 0) return
         i = string_match(pattern, string, st)
 
-        if (st%code == FM_INVALID_REGEXP) then
-            if (want_start /= -2) msg = "Expected match or no match; but pattern failure"
+        if (st%code == FM_INVALID_REGULAR_EXPRESSION) then
+            if (want_start /= -2) message = "Expected match or no match; but pattern failure"
         else if (i == 0) then
-            if (want_start /= -1) msg = "Expected match or pattern failure; but no match"
+            if (want_start /= -1) message = "Expected match or pattern failure; but no match"
         else if (want_start == -1) then
-            msg = "Expected no match; but match"
+            message = "Expected no match; but match"
         else if (want_start == -2) then
-            msg = "Expected pattern failure; but match"
+            message = "Expected pattern failure; but match"
         else if (want_start > 0) then
             if (mb(0) /= want_start .or. (want_end >= 0 .and. me(0) /= want_end)) then
                 write (buffer, "(4(i0,1x))") mb(0), want_start, me(0), want_end
-                msg = "mismatch in group 0: "//trim(buffer)
+                message = "mismatch in group 0: "//trim(buffer)
             end if
         end if
     end function try_match
@@ -562,14 +564,14 @@ contains
         type(error_type), allocatable, intent(out) :: error
         character(len=512), allocatable :: lines(:)
         integer, allocatable :: lengths(:)
-        character(len=*), parameter :: sep = "¦"
+        character(len=*), parameter :: separator = "¦"
         ! Emacs doesn't see DEL (0x7f) as a [:cntrl:] character, and
         ! doesn't barf on weird ranges such as [b-a], but simply fails to
         ! match.
         integer, parameter :: whitelist(2) = [138, 168]
         type(handle_type) :: h, table
         type(status_type) :: st
-        character(len=:), allocatable :: line, msg, failures, fields(:)
+        character(len=:), allocatable :: line, message, failures, fields(:)
         integer :: n, raw_start, raw_end, want_start, want_end, nf, tested
 
         call read_lines("test/regex-resources/PTESTS", lines, lengths, error)
@@ -584,7 +586,7 @@ contains
             line = lines(n) (1:lengths(n))
             if (len(line) == 0) cycle
             if (line(1:1) == "#" .or. any(whitelist == n)) cycle
-            call split(line, sep, fields, nf)
+            call split(line, separator, fields, nf)
             tested = tested + 1
             read (fields(1), *) raw_start
             read (fields(2), *) raw_end
@@ -600,11 +602,11 @@ contains
             end select
 
             want_end = raw_end + 1
-            msg = try_match(trim(fields(3)), trim(fields(4)), want_start, want_end)
+            message = try_match(trim(fields(3)), trim(fields(4)), want_start, want_end)
 
-            if (len(msg) > 0) then
-                write (msg, "(a,i0,a)") msg//" (line ", n, ")"
-                failures = failures//" "//trim(fields(3))//": "//msg//";"
+            if (len(message) > 0) then
+                write (message, "(a,i0,a)") message//" (line ", n, ")"
+                failures = failures//" "//trim(fields(3))//": "//message//";"
             end if
         end do
 
@@ -620,23 +622,23 @@ contains
             character(len=*), intent(in) :: string, sp
             character(len=:), allocatable, intent(out) :: parts(:)
             integer, intent(out) :: np
-            integer :: pos, nxt
+            integer :: position, nxt
 
             allocate (character(len=len(string)) :: parts(8))
             np = 0
-            pos = 1
+            position = 1
 
             do
-                nxt = index(string(pos:), sp)
+                nxt = index(string(position:), sp)
                 np = np + 1
 
                 if (nxt == 0) then
-                    parts(np) = string(pos:)
+                    parts(np) = string(position:)
                     exit
                 end if
 
-                parts(np) = string(pos:pos + nxt - 2)
-                pos = pos + nxt - 1 + len(sp)
+                parts(np) = string(position:position + nxt - 2)
+                position = position + nxt - 1 + len(sp)
             end do
         end subroutine split
     end subroutine test_ptests
@@ -654,7 +656,7 @@ contains
         integer, parameter :: whitelist(6) = [42, 57, 58, 59, 60, 67]
         type(handle_type) :: h, table
         type(status_type) :: st
-        character(len=:), allocatable :: line, msg, failures, pattern
+        character(len=:), allocatable :: line, message, failures, pattern
         integer :: n, first, last, want, tested
 
         call read_lines("test/regex-resources/TESTS", lines, lengths, error)
@@ -677,16 +679,16 @@ contains
 
             select case (want)
             case (2)
-                msg = try_match(pattern, line(last + 1:), -2, -1)
+                message = try_match(pattern, line(last + 1:), -2, -1)
             case (1)
-                msg = try_match(pattern, line(last + 1:), -1, -1)
+                message = try_match(pattern, line(last + 1:), -1, -1)
             case default
-                msg = try_match(pattern, line(last + 1:), 0, -1)
+                message = try_match(pattern, line(last + 1:), 0, -1)
             end select
 
-            if (len(msg) > 0) then
-                write (msg, "(a,i0,a)") msg//" (line ", n, ")"
-                failures = failures//" "//pattern//": "//msg//";"
+            if (len(message) > 0) then
+                write (message, "(a,i0,a)") message//" (line ", n, ")"
+                failures = failures//" "//pattern//": "//message//";"
             end if
         end do
 
@@ -774,16 +776,17 @@ contains
         subroutine replace_escaped(x, to)
             character(len=*), intent(in) :: x, to
             character(len=:), allocatable :: group
-            integer(int64) :: pos
+            integer(int64) :: position
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
 
             do
-                call re_search_forward("\("//re_even_escapes//"\)\\"//x, pos, st, noerror=SEARCH_NOERROR)
-                if (pos == 0) exit
+                call regular_expression_search_forward("\("//regular_expression_even_escapes//"\)\\"//x, position, st, &
+                                                       noerror=SEARCH_NOERROR)
+                if (position == 0) exit
                 call buffer_substring(mb(1), me(1), group, st)
                 call delete_region(mb(0), me(0), st)
-                call goto_char(mb(0))
+                call goto_character(mb(0))
                 call insert(group//to, st)
             end do
         end subroutine replace_escaped
@@ -809,8 +812,8 @@ contains
         type(handle_type) :: h, parse_buffer, table
         type(status_type) :: st
         character(len=:), allocatable :: line, failures, pattern_raw, string_raw, positions_raw, pattern, string, &
-                                         msg
-        integer(int64) :: pos, positions(40)
+                                         message
+        integer(int64) :: position, positions(40)
         integer :: n, npos, ios, k, tested
         logical :: basic, icase, notbol, noteol, compile_fail
 
@@ -843,12 +846,12 @@ contains
             call set_buffer(parse_buffer, st)
             call erase_buffer(st)
             call insert(line, st)
-            call goto_char(1_int64)
-            call re_search_forward('\(\S-+\)\s-+"\(.*\)"\s-+?\(.+\)', pos, st, noerror=SEARCH_NOERROR)
-            if (pos == 0) call re_search_forward("\(\S-+\)\s-+\(\S-+\)\s-+?\(.+\)", pos, st, &
-                                                 noerror=SEARCH_NOERROR)
-            if (pos == 0) call re_search_forward("\(\S-+\)\s-+\(!\)", pos, st, noerror=SEARCH_NOERROR)
-            call check(error, pos > 0, "can't parse line")
+            call goto_character(1_int64)
+            call regular_expression_search_forward('\(\S-+\)\s-+"\(.*\)"\s-+?\(.+\)', position, st, noerror=SEARCH_NOERROR)
+            if (position == 0) call regular_expression_search_forward("\(\S-+\)\s-+\(\S-+\)\s-+?\(.+\)", position, st, &
+                                                                      noerror=SEARCH_NOERROR)
+            if (position == 0) call regular_expression_search_forward("\(\S-+\)\s-+\(!\)", position, st, noerror=SEARCH_NOERROR)
+            call check(error, position > 0, "can't parse line")
             if (allocated(error)) exit
             call buffer_substring(mb(1), me(1), pattern_raw, st)
             call buffer_substring(mb(2), me(2), string_raw, st)
@@ -873,11 +876,11 @@ contains
             if (notbol .or. noteol) cycle
             tested = tested + 1
             case_fold_search = icase
-            msg = compare(pattern, string, compile_fail, positions(1:npos))
+            message = compare(pattern, string, compile_fail, positions(1:npos))
 
-            if (len(msg) > 0) then
-                write (msg, "(a,i0,a)") msg//" (line ", n, ")"
-                failures = failures//" "//pattern//": "//msg//";"
+            if (len(message) > 0) then
+                write (message, "(a,i0,a)") message//" (line ", n, ")"
+                failures = failures//" "//pattern//": "//message//";"
             end if
         end do
 
@@ -891,13 +894,13 @@ contains
 
     contains
 
-        !> Match and compare the groups with the 0-based POS (start, end
+        !> Match and compare the groups with the 0-based POSITION (start, end
         !> pairs; a negative start for no match).  Port of
         !> regex-tests-match and regex-tests-compare.
-        function compare(regexp, text, want_fail, pos_ref) result(m)
-            character(len=*), intent(in) :: regexp, text
+        function compare(regular_expression, text, want_fail, position_reference) result(m)
+            character(len=*), intent(in) :: regular_expression, text
             logical, intent(in) :: want_fail
-            integer(int64), intent(in) :: pos_ref(:)
+            integer(int64), intent(in) :: position_reference(:)
             character(len=:), allocatable :: m
             type(status_type) :: s
             integer(int64) :: i, b, e
@@ -907,12 +910,12 @@ contains
 
             m = ""
             ! [.x.] and [=x=] forms are not supported by Emacs.
-            if (index(regexp, "[.") > 0 .or. index(regexp, "[=") > 0) return
+            if (index(regular_expression, "[.") > 0 .or. index(regular_expression, "[=") > 0) return
             want_no_match = .false.
-            if (size(pos_ref) > 0) want_no_match = pos_ref(1) < 0
-            i = string_match(regexp, text, s)
+            if (size(position_reference) > 0) want_no_match = position_reference(1) < 0
+            i = string_match(regular_expression, text, s)
 
-            if (s%code == FM_INVALID_REGEXP) then
+            if (s%code == FM_INVALID_REGULAR_EXPRESSION) then
                 if (.not. want_fail) m = "Expected match; but pattern failure"
                 return
             end if
@@ -932,19 +935,19 @@ contains
                 return
             end if
 
-            do g = 0, size(pos_ref)/2 - 1
+            do g = 0, size(position_reference)/2 - 1
                 b = mb(g)
                 e = me(g)
 
-                if (pos_ref(2*g + 1) < 0) then
+                if (position_reference(2*g + 1) < 0) then
                     if (b /= 0) then
                         write (buffer, "(a,i0)") "group unexpectedly matched ", g
                         m = trim(buffer)
                         return
                     end if
-                else if (b /= pos_ref(2*g + 1) + 1 .or. e /= pos_ref(2*g + 2) + 1) then
-                    write (buffer, "(a,i0,a,4(1x,i0))") "mismatch in group ", g, ":", b - 1, pos_ref(2*g + 1), e - 1, &
-                        pos_ref(2*g + 2)
+                else if (b /= position_reference(2*g + 1) + 1 .or. e /= position_reference(2*g + 2) + 1) then
+                    write (buffer, "(a,i0,a,4(1x,i0))") "mismatch in group ", g, ":", b - 1, position_reference(2*g + 1), e - 1, &
+                        position_reference(2*g + 2)
                     m = trim(buffer)
                     return
                 end if
@@ -961,7 +964,7 @@ contains
                                               1193, 1196, 1203]
         type(handle_type) :: h, table
         type(status_type) :: st
-        character(len=:), allocatable :: line, failures, pattern, string, match_ref
+        character(len=:), allocatable :: line, failures, pattern, string, match_reference
         character(len=200) :: observed(0:20)
         logical :: icase, has_pattern, search_failed, compile_failed
         integer :: n, position, colon, last, tested, g
@@ -996,7 +999,7 @@ contains
                 string = line(5:)
                 case_fold_search = icase
                 i = string_match(pattern, string, st)
-                compile_failed = st%code == FM_INVALID_REGEXP
+                compile_failed = st%code == FM_INVALID_REGULAR_EXPRESSION
                 search_failed = .not. compile_failed .and. i == 0
                 observed = "<unset>"
 
@@ -1013,12 +1016,12 @@ contains
                     failures = failures//" line "//trim(buffer)//": "//pattern//": Expected no match; but match;"
                 end if
             else if (verification_line(line, position, colon)) then
-                match_ref = line(colon + 2:)
+                match_reference = line(colon + 2:)
 
                 if (.not. (compile_failed .or. search_failed) .and. position <= 20) then
-                    if (match_ref /= trim(observed(position))) then
+                    if (match_reference /= trim(observed(position))) then
                         write (buffer, "(i0)") n
-                        failures = failures//" line "//trim(buffer)//": "//pattern//": group wrong: '"//match_ref// &
+                        failures = failures//" line "//trim(buffer)//": "//pattern//": group wrong: '"//match_reference// &
                                    "'/'"//trim(observed(position))//"';"
                     end if
                 end if
@@ -1038,23 +1041,23 @@ contains
     contains
 
         !> Whether LINE is " *N: text"; INDEX is N and COLON where the colon is.
-        logical function verification_line(ln, num, col)
+        logical function verification_line(ln, number, column)
             character(len=*), intent(in) :: ln
-            integer, intent(out) :: num, col
+            integer, intent(out) :: number, column
             integer :: k, ios
 
             verification_line = .false.
-            num = -1
-            col = index(ln, ": ")
-            if (col < 2) return
+            number = -1
+            column = index(ln, ": ")
+            if (column < 2) return
 
-            do k = 1, col - 1
+            do k = 1, column - 1
                 if (ln(k:k) /= " " .and. (ln(k:k) < "0" .or. ln(k:k) > "9")) return
             end do
 
-            if (len_trim(ln(1:col - 1)) == 0) return
-            if (index(adjustl(ln(1:col - 1)), " ") <= len_trim(adjustl(ln(1:col - 1)))) return
-            read (ln(1:col - 1), *, iostat=ios) num
+            if (len_trim(ln(1:column - 1)) == 0) return
+            if (index(adjustl(ln(1:column - 1)), " ") <= len_trim(adjustl(ln(1:column - 1)))) return
+            read (ln(1:column - 1), *, iostat=ios) number
             verification_line = ios == 0
         end function verification_line
     end subroutine test_pcre
@@ -1173,65 +1176,66 @@ contains
         call bad("\(a\)\2", "Invalid back reference")
         call bad("a\{2,1\}", "Invalid content of \{\}")
         call bad("a\{1", "Unmatched \{")
-        ! Class names must match exactly (re_wctype_parse compares lengths).
+        ! Class names must match exactly (regular_expression_wctype_parse compares lengths).
         call bad("[[:word :]]", "Invalid character class name")
         call bad("[[:alpha  :]]", "Invalid character class name")
 
     contains
 
-        subroutine bad(regexp, msg)
-            character(len=*), intent(in) :: regexp, msg
+        subroutine bad(regular_expression, message)
+            character(len=*), intent(in) :: regular_expression, message
             type(status_type) :: st
             integer(int64) :: i
 
             if (allocated(error)) return
-            i = string_match(regexp, "", st)
-            call check(error, st%code == FM_INVALID_REGEXP .and. format_error(st) == "Invalid regexp: """//msg//"""", &
-                       regexp//": "//format_error(st))
+            i = string_match(regular_expression, "", st)
+            call check(error, &
+                       st%code == FM_INVALID_REGULAR_EXPRESSION .and. format_error(st) == "Invalid regexp: """//message//"""", &
+                       regular_expression//": "//format_error(st))
         end subroutine bad
     end subroutine test_invalid
 
-    subroutine test_regexp_search(error)
+    subroutine test_regular_expression_search(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call enter("foo1 bar22 baz333", h)
 
         body: block
-            call re_search_forward("[a-z]+\([0-9]+\)", pos, st)
-            call check(error, st%ok() .and. pos == 5 .and. point() == 5 .and. mb(1) == 4, "first")
+            call regular_expression_search_forward("[a-z]+\([0-9]+\)", position, st)
+            call check(error, st%ok() .and. position == 5 .and. point() == 5 .and. mb(1) == 4, "first")
             if (allocated(error)) exit body
-            call re_search_forward("[a-z]+\([0-9]+\)", pos, st, count=2_int64)
-            call check(error, st%ok() .and. pos == 18 .and. mb(1) == 15 .and. me(1) == 18, "count 2")
+            call regular_expression_search_forward("[a-z]+\([0-9]+\)", position, st, count=2_int64)
+            call check(error, st%ok() .and. position == 18 .and. mb(1) == 15 .and. me(1) == 18, "count 2")
             if (allocated(error)) exit body
-            call re_search_backward("b[a-z]+", pos, st)
-            call check(error, st%ok() .and. pos == 12 .and. me(0) == 15, "backward")
+            call regular_expression_search_backward("b[a-z]+", position, st)
+            call check(error, st%ok() .and. position == 12 .and. me(0) == 15, "backward")
             if (allocated(error)) exit body
-            call re_search_backward("^f", pos, st)
-            call check(error, st%ok() .and. pos == 1, "backward anchored")
+            call regular_expression_search_backward("^f", position, st)
+            call check(error, st%ok() .and. position == 1, "backward anchored")
             if (allocated(error)) exit body
-            call re_search_forward("qux", pos, st)
-            call check(error, st%code == FM_SEARCH_FAILED .and. point() == 1, "fails")
+            call regular_expression_search_forward("qux", position, st)
+            call check(error, st%code == SEARCH_FAILED_CODE .and. point() == 1, "fails")
             if (allocated(error)) exit body
-            call re_search_forward("qux", pos, st, noerror=SEARCH_NOERROR)
-            call check(error, st%ok() .and. pos == 0, "noerror")
+            call regular_expression_search_forward("qux", position, st, noerror=SEARCH_NOERROR)
+            call check(error, st%ok() .and. position == 0, "noerror")
             if (allocated(error)) exit body
-            call re_search_forward("b..", pos, st, bound=9_int64)
-            call check(error, st%ok() .and. pos == 9, "bound")
+            call regular_expression_search_forward("b..", position, st, bound=9_int64)
+            call check(error, st%ok() .and. position == 9, "bound")
             if (allocated(error)) exit body
-            call re_search_forward("\(", pos, st)
-            call check(error, st%code == FM_INVALID_REGEXP, "invalid")
+            call regular_expression_search_forward("\(", position, st)
+            call check(error, st%code == FM_INVALID_REGULAR_EXPRESSION, "invalid")
             if (allocated(error)) exit body
             ! A trivial regexp is searched for as a string, \ quoting.
-            call goto_char(1_int64)
-            call re_search_forward("bar2", pos, st)
-            call check(error, st%ok() .and. pos == 10, "trivial")
+            call goto_character(1_int64)
+            call regular_expression_search_forward("bar2", position, st)
+            call check(error, st%ok() .and. position == 10, "trivial")
         end block body
 
         call leave(h)
-    end subroutine test_regexp_search
+    end subroutine test_regular_expression_search
 
     subroutine test_looking_at(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1245,17 +1249,17 @@ contains
             if (allocated(error)) exit body
             call check(error,.not. looking_at("world", st), "not")
             if (allocated(error)) exit body
-            call goto_char(7_int64)
+            call goto_character(7_int64)
             call check(error, looking_at("world$", st), "$ before newline")
             if (allocated(error)) exit body
             call check(error,.not. looking_at("world\'", st), "\' not at end")
             if (allocated(error)) exit body
-            call goto_char(13_int64)
+            call goto_character(13_int64)
             call check(error, looking_at("^next\'", st), "^ after newline")
             if (allocated(error)) exit body
             call check(error, looking_at("\=n", st), "\=")
             if (allocated(error)) exit body
-            call goto_char(1_int64)
+            call goto_character(1_int64)
             call check(error, looking_at("hello", st, inhibit_modify=.true.) .and. mb(0) == 13, "inhibit-modify")
             if (allocated(error)) exit body
             call check(error, posix_looking_at("h\|hello", st) .and. me(0) == 6, "posix longest")
@@ -1282,38 +1286,38 @@ contains
         call check(error, mb(0) == 5 .and. me(0) == 9 .and. mb(1) == 0, "set_match_data")
     end subroutine test_match_data
 
-    subroutine test_regexp_quote(error)
+    subroutine test_regular_expression_quote(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, regexp_quote("a.b*c[d]^$\?+") == "a\.b\*c\[d]\^\$\\\?\+")
+        call check(error, regular_expression_quote("a.b*c[d]^$\?+") == "a\.b\*c\[d]\^\$\\\?\+")
         if (allocated(error)) return
-        call check(error, sm(regexp_quote("1+1=2?"), "x 1+1=2?") == 3)
-    end subroutine test_regexp_quote
+        call check(error, sm(regular_expression_quote("1+1=2?"), "x 1+1=2?") == 3)
+    end subroutine test_regular_expression_quote
 
-    subroutine test_spaces_regexp(error)
+    subroutine test_spaces_regular_expression(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
 
         call enter("foo"//achar(9)//"  bar", h)
 
         body: block
-            search_spaces_regexp = "[ "//achar(9)//achar(10)//"]+"
-            call re_search_forward("foo bar", pos, st)
-            call check(error, st%ok() .and. pos == point_max(), "lax whitespace")
+            search_spaces_regular_expression = "[ "//achar(9)//achar(10)//"]+"
+            call regular_expression_search_forward("foo bar", position, st)
+            call check(error, st%ok() .and. position == point_maximum(), "lax whitespace")
             if (allocated(error)) exit body
-            call goto_char(1_int64)
+            call goto_character(1_int64)
             call check(error, looking_at("foo *", st) .and. me(0) == 4, "space before * is literal")
             if (allocated(error)) exit body
-            deallocate (search_spaces_regexp)
-            call goto_char(1_int64)
-            call re_search_forward("foo bar", pos, st, noerror=SEARCH_NOERROR)
-            call check(error, pos == 0, "strict whitespace")
+            deallocate (search_spaces_regular_expression)
+            call goto_character(1_int64)
+            call regular_expression_search_forward("foo bar", position, st, noerror=SEARCH_NOERROR)
+            call check(error, position == 0, "strict whitespace")
         end block body
 
         call leave(h)
-    end subroutine test_spaces_regexp
+    end subroutine test_spaces_regular_expression
 
     subroutine test_posix(error)
         type(error_type), allocatable, intent(out) :: error
@@ -1332,7 +1336,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(status_type) :: st
-        integer(int64) :: pos
+        integer(int64) :: position
         logical :: matched
         character(len=:), allocatable :: s
 
@@ -1348,10 +1352,10 @@ contains
         call enter("key = value", h)
 
         body: block
-            call re_search_forward("\(\w+\) = \(\w+\)", pos, st)
+            call regular_expression_search_forward("\(\w+\) = \(\w+\)", position, st)
             call check(error, match_string(1) == "key" .and. match_string(2) == "value", "buffer")
             if (allocated(error)) exit body
-            call goto_char(1_int64)
+            call goto_character(1_int64)
             call check(error, is_looking_at("key", st) .and. mb(1) == 1, "looking-at-p keeps data")
         end block body
 
@@ -1366,7 +1370,7 @@ contains
         call enter("aaa bbb", h)
 
         body: block
-            call goto_char(4_int64)
+            call goto_character(4_int64)
             call check(error, looking_back("a+", st) .and. point() == 4, "plain")
             if (allocated(error)) exit body
             call check(error, mb(0) == 3, "non-greedy match is short")

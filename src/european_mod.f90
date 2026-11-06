@@ -1,4 +1,4 @@
-! european_mod.f90 -- the european coding systems of type `charset'.
+! european_mod.f90 -- the european coding systems of type `character_set'.
 ! Ported from GNU Emacs 31.1 lisp/language/european.el.
 !
 ! Copyright (C) 1997-1998, 2000-2026 Free Software Foundation, Inc.
@@ -26,7 +26,7 @@
 ! You should have received a copy of the GNU General Public License
 ! along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-!> The coding systems of type `charset' that european.el defines, with their
+!> The coding systems of type `character_set' that european.el defines, with their
 !> aliases, and its language environments (its other coding systems are
 !> Deferred).  A submodule of coding_mod, which defines the coding systems
 !> when it starts and the language environments when multilingual_environment_mod asks for them.
@@ -37,202 +37,202 @@ submodule(coding_mod) european_mod
 
 contains
 
-    !> Port of the `charset' coding systems of european.el.
-    module subroutine init_european()
-        call define_charset_coding_system("iso-latin-2", iachar("2"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-2"], &
-                                          mime_charset="iso-8859-2", &
-                                          doc="ISO 2022 based 8-bit encoding for Latin-2 (MIME:ISO-8859-2).")
+    !> Port of the `character_set' coding systems of european.el.
+    module subroutine initialize_european()
+        call define_character_set_coding_system("iso-latin-2", iachar("2"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-2"], &
+                                                mime_character_set="iso-8859-2", &
+                                                doc="ISO 2022 based 8-bit encoding for Latin-2 (MIME:ISO-8859-2).")
         call define_coding_system_alias("iso-8859-2", "iso-latin-2")
         call define_coding_system_alias("latin-2", "iso-latin-2")
-        call define_charset_coding_system("iso-latin-3", iachar("3"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-3"], &
-                                          mime_charset="iso-8859-3", &
-                                          doc="ISO 2022 based 8-bit encoding for Latin-3 (MIME:ISO-8859-3).")
+        call define_character_set_coding_system("iso-latin-3", iachar("3"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-3"], &
+                                                mime_character_set="iso-8859-3", &
+                                                doc="ISO 2022 based 8-bit encoding for Latin-3 (MIME:ISO-8859-3).")
         call define_coding_system_alias("iso-8859-3", "iso-latin-3")
         call define_coding_system_alias("latin-3", "iso-latin-3")
-        call define_charset_coding_system("iso-latin-4", iachar("4"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-4"], &
-                                          mime_charset="iso-8859-4", &
-                                          doc="ISO 2022 based 8-bit encoding for Latin-4 (MIME:ISO-8859-4).")
+        call define_character_set_coding_system("iso-latin-4", iachar("4"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-4"], &
+                                                mime_character_set="iso-8859-4", &
+                                                doc="ISO 2022 based 8-bit encoding for Latin-4 (MIME:ISO-8859-4).")
         call define_coding_system_alias("iso-8859-4", "iso-latin-4")
         call define_coding_system_alias("latin-4", "iso-latin-4")
-        call define_charset_coding_system("iso-latin-5", iachar("9"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-9"], &
-                                          mime_charset="iso-8859-9", &
-                                          doc="ISO 2022 based 8-bit encoding for Latin-5 (MIME:ISO-8859-9).")
+        call define_character_set_coding_system("iso-latin-5", iachar("9"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-9"], &
+                                                mime_character_set="iso-8859-9", &
+                                                doc="ISO 2022 based 8-bit encoding for Latin-5 (MIME:ISO-8859-9).")
         call define_coding_system_alias("iso-8859-9", "iso-latin-5")
         call define_coding_system_alias("latin-5", "iso-latin-5")
-        call define_charset_coding_system("iso-latin-6", iachar("9"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-10"], &
-                                          mime_charset="iso-8859-10", &
-                                          doc="ISO 2022 based 8-bit encoding for Latin-6 (MIME:ISO-8859-10)" &
-                                          //".")
+        call define_character_set_coding_system("iso-latin-6", iachar("9"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-10"], &
+                                                mime_character_set="iso-8859-10", &
+                                                doc="ISO 2022 based 8-bit encoding for Latin-6 (MIME:ISO-8859-10)" &
+                                                //".")
         call define_coding_system_alias("iso-8859-10", "iso-latin-6")
         call define_coding_system_alias("latin-6", "iso-latin-6")
-        call define_charset_coding_system("iso-latin-7", iachar("9"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-13"], &
-                                          mime_charset="iso-8859-13", &
-                                          doc="ISO 2022 based 8-bit encoding for Latin-7 (MIME:ISO-8859-13)" &
-                                          //".")
+        call define_character_set_coding_system("iso-latin-7", iachar("9"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-13"], &
+                                                mime_character_set="iso-8859-13", &
+                                                doc="ISO 2022 based 8-bit encoding for Latin-7 (MIME:ISO-8859-13)" &
+                                                //".")
         call define_coding_system_alias("iso-8859-13", "iso-latin-7")
         call define_coding_system_alias("latin-7", "iso-latin-7")
-        call define_charset_coding_system("iso-latin-8", iachar("W"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-14"], &
-                                          mime_charset="iso-8859-14", &
-                                          doc="ISO 2022 based 8-bit encoding for Latin-8 (MIME:ISO-8859-14)" &
-                                          //".")
+        call define_character_set_coding_system("iso-latin-8", iachar("W"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-14"], &
+                                                mime_character_set="iso-8859-14", &
+                                                doc="ISO 2022 based 8-bit encoding for Latin-8 (MIME:ISO-8859-14)" &
+                                                //".")
         call define_coding_system_alias("iso-8859-14", "iso-latin-8")
         call define_coding_system_alias("latin-8", "iso-latin-8")
-        call define_charset_coding_system("iso-latin-9", iachar("0"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "iso-8859-15"], &
-                                          mime_charset="iso-8859-15", &
-                                          doc="ISO 2022 based 8-bit encoding for Latin-9 (MIME:ISO-8859-15)" &
-                                          //".")
+        call define_character_set_coding_system("iso-latin-9", iachar("0"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "iso-8859-15"], &
+                                                mime_character_set="iso-8859-15", &
+                                                doc="ISO 2022 based 8-bit encoding for Latin-9 (MIME:ISO-8859-15)" &
+                                                //".")
         call define_coding_system_alias("iso-8859-15", "iso-latin-9")
         call define_coding_system_alias("latin-9", "iso-latin-9")
         call define_coding_system_alias("latin-0", "iso-latin-9")
-        call define_charset_coding_system("windows-1250", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1250"], &
-                                          mime_charset="windows-1250", &
-                                          doc="windows-1250 (Central European) encoding (MIME: WINDOWS-1250" &
-                                          //")")
+        call define_character_set_coding_system("windows-1250", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "windows-1250"], &
+                                                mime_character_set="windows-1250", &
+                                                doc="windows-1250 (Central European) encoding (MIME: WINDOWS-1250" &
+                                                //")")
         call define_coding_system_alias("cp1250", "windows-1250")
-        call define_charset_coding_system("windows-1252", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1252"], &
-                                          mime_charset="windows-1252", &
-                                          doc="windows-1252 (Western European) encoding (MIME: WINDOWS-1252" &
-                                          //")")
+        call define_character_set_coding_system("windows-1252", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "windows-1252"], &
+                                                mime_character_set="windows-1252", &
+                                                doc="windows-1252 (Western European) encoding (MIME: WINDOWS-1252" &
+                                                //")")
         call define_coding_system_alias("cp1252", "windows-1252")
-        call define_charset_coding_system("windows-1254", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1254"], &
-                                          mime_charset="windows-1254", &
-                                          doc="windows-1254 (Turkish) encoding (MIME: WINDOWS-1254)")
+        call define_character_set_coding_system("windows-1254", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "windows-1254"], &
+                                                mime_character_set="windows-1254", &
+                                                doc="windows-1254 (Turkish) encoding (MIME: WINDOWS-1254)")
         call define_coding_system_alias("cp1254", "windows-1254")
-        call define_charset_coding_system("windows-1257", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "windows-1257"], &
-                                          mime_charset="windows-1257", &
-                                          doc="windows-1257 (Baltic) encoding (MIME: WINDOWS-1257)")
+        call define_character_set_coding_system("windows-1257", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "windows-1257"], &
+                                                mime_character_set="windows-1257", &
+                                                doc="windows-1257 (Baltic) encoding (MIME: WINDOWS-1257)")
         call define_coding_system_alias("cp1257", "windows-1257")
-        call define_charset_coding_system("ibm256", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm256"], &
-                                          doc="Netherlands version of EBCDIC")
+        call define_character_set_coding_system("ibm256", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm256"], &
+                                                doc="Netherlands version of EBCDIC")
         call define_coding_system_alias("ebcdic-int1", "ibm256")
         call define_coding_system_alias("cp256", "ibm256")
-        call define_charset_coding_system("ibm273", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm273"], &
-                                          doc="Austrian / German version of EBCDIC")
+        call define_character_set_coding_system("ibm273", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm273"], &
+                                                doc="Austrian / German version of EBCDIC")
         call define_coding_system_alias("cp273", "ibm273")
-        call define_charset_coding_system("ibm274", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm274"], &
-                                          doc="Belgian version of EBCDIC")
+        call define_character_set_coding_system("ibm274", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm274"], &
+                                                doc="Belgian version of EBCDIC")
         call define_coding_system_alias("ebcdic-be", "ibm274")
         call define_coding_system_alias("cp274", "ibm274")
-        call define_charset_coding_system("ibm275", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm275"], &
-                                          doc="Brazilian version of EBCDIC")
+        call define_character_set_coding_system("ibm275", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm275"], &
+                                                doc="Brazilian version of EBCDIC")
         call define_coding_system_alias("ebcdic-br", "ibm275")
         call define_coding_system_alias("cp275", "ibm275")
-        call define_charset_coding_system("ibm277", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm277"], &
-                                          doc="Danish / Norwegian version of EBCDIC")
+        call define_character_set_coding_system("ibm277", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm277"], &
+                                                doc="Danish / Norwegian version of EBCDIC")
         call define_coding_system_alias("ebcdic-cp-dk", "ibm277")
         call define_coding_system_alias("ebcdic-cp-no", "ibm277")
         call define_coding_system_alias("cp277", "ibm277")
-        call define_charset_coding_system("ibm278", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm278"], &
-                                          doc="Finnish / Swedish version of EBCDIC")
+        call define_character_set_coding_system("ibm278", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm278"], &
+                                                doc="Finnish / Swedish version of EBCDIC")
         call define_coding_system_alias("ebcdic-cp-fi", "ibm278")
         call define_coding_system_alias("ebcdic-cp-se", "ibm278")
         call define_coding_system_alias("cp278", "ibm278")
-        call define_charset_coding_system("ibm280", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm280"], &
-                                          doc="Italian version of EBCDIC")
+        call define_character_set_coding_system("ibm280", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm280"], &
+                                                doc="Italian version of EBCDIC")
         call define_coding_system_alias("ebcdic-cp-it", "ibm280")
         call define_coding_system_alias("cp280", "ibm280")
-        call define_charset_coding_system("ibm284", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm284"], &
-                                          doc="Spanish version of EBCDIC")
+        call define_character_set_coding_system("ibm284", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm284"], &
+                                                doc="Spanish version of EBCDIC")
         call define_coding_system_alias("ebcdic-cp-es", "ibm284")
         call define_coding_system_alias("cp284", "ibm284")
-        call define_charset_coding_system("ibm285", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm285"], &
-                                          doc="UK English version of EBCDIC")
+        call define_character_set_coding_system("ibm285", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm285"], &
+                                                doc="UK English version of EBCDIC")
         call define_coding_system_alias("ebcdic-cp-gb", "ibm285")
         call define_coding_system_alias("cp285", "ibm285")
-        call define_charset_coding_system("ibm297", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "ibm297"], &
-                                          doc="French version of EBCDIC")
+        call define_character_set_coding_system("ibm297", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "ibm297"], &
+                                                doc="French version of EBCDIC")
         call define_coding_system_alias("ebcdic-cp-fr", "ibm297")
         call define_coding_system_alias("cp297", "ibm297")
-        call define_charset_coding_system("cp775", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp775"], &
-                                          mime_charset="cp775", &
-                                          doc="DOS codepage 775 (PC Baltic, MS-DOS Baltic Rim)")
+        call define_character_set_coding_system("cp775", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp775"], &
+                                                mime_character_set="cp775", &
+                                                doc="DOS codepage 775 (PC Baltic, MS-DOS Baltic Rim)")
         call define_coding_system_alias("ibm775", "cp775")
-        call define_charset_coding_system("cp850", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp850"], &
-                                          mime_charset="cp850", &
-                                          doc="DOS codepage 850 (Western European)")
+        call define_character_set_coding_system("cp850", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp850"], &
+                                                mime_character_set="cp850", &
+                                                doc="DOS codepage 850 (Western European)")
         call define_coding_system_alias("ibm850", "cp850")
-        call define_charset_coding_system("cp852", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp852"], &
-                                          mime_charset="cp852", &
-                                          doc="DOS codepage 852 (Slavic)")
+        call define_character_set_coding_system("cp852", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp852"], &
+                                                mime_character_set="cp852", &
+                                                doc="DOS codepage 852 (Slavic)")
         call define_coding_system_alias("ibm852", "cp852")
-        call define_charset_coding_system("cp857", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp857"], &
-                                          mime_charset="cp857", &
-                                          doc="DOS codepage 857 (Turkish)")
+        call define_character_set_coding_system("cp857", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp857"], &
+                                                mime_character_set="cp857", &
+                                                doc="DOS codepage 857 (Turkish)")
         call define_coding_system_alias("ibm857", "cp857")
-        call define_charset_coding_system("cp858", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp858"], &
-                                          mime_charset="cp858", &
-                                          doc="Codepage 858 (Multilingual Latin I + Euro)")
-        call define_charset_coding_system("cp860", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp860"], &
-                                          mime_charset="cp860", &
-                                          doc="DOS codepage 860 (Portuguese)")
+        call define_character_set_coding_system("cp858", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp858"], &
+                                                mime_character_set="cp858", &
+                                                doc="Codepage 858 (Multilingual Latin I + Euro)")
+        call define_character_set_coding_system("cp860", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp860"], &
+                                                mime_character_set="cp860", &
+                                                doc="DOS codepage 860 (Portuguese)")
         call define_coding_system_alias("ibm860", "cp860")
-        call define_charset_coding_system("cp861", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp861"], &
-                                          mime_charset="cp861", &
-                                          doc="DOS codepage 861 (Icelandic)")
+        call define_character_set_coding_system("cp861", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp861"], &
+                                                mime_character_set="cp861", &
+                                                doc="DOS codepage 861 (Icelandic)")
         call define_coding_system_alias("ibm861", "cp861")
-        call define_charset_coding_system("cp863", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp863"], &
-                                          mime_charset="cp863", &
-                                          doc="DOS codepage 863 (French Canadian)")
+        call define_character_set_coding_system("cp863", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp863"], &
+                                                mime_character_set="cp863", &
+                                                doc="DOS codepage 863 (French Canadian)")
         call define_coding_system_alias("ibm863", "cp863")
-        call define_charset_coding_system("cp865", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp865"], &
-                                          mime_charset="cp865", &
-                                          doc="DOS codepage 865 (Norwegian/Danish)")
+        call define_character_set_coding_system("cp865", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp865"], &
+                                                mime_character_set="cp865", &
+                                                doc="DOS codepage 865 (Norwegian/Danish)")
         call define_coding_system_alias("ibm865", "cp865")
-        call define_charset_coding_system("cp437", iachar("D"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "cp437"], &
-                                          mime_charset="cp437", &
-                                          doc="DOS codepage 437")
+        call define_character_set_coding_system("cp437", iachar("D"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "cp437"], &
+                                                mime_character_set="cp437", &
+                                                doc="DOS codepage 437")
         call define_coding_system_alias("ibm437", "cp437")
-        call define_charset_coding_system("mac-roman", iachar("M"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "mac-roman"], &
-                                          mime_charset="macintosh", &
-                                          doc="Mac Roman Encoding (MIME:MACINTOSH).")
+        call define_character_set_coding_system("mac-roman", iachar("M"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "mac-roman"], &
+                                                mime_character_set="macintosh", &
+                                                doc="Mac Roman Encoding (MIME:MACINTOSH).")
         call define_coding_system_alias("macintosh", "mac-roman")
-        call define_charset_coding_system("next", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "next"], &
-                                          mime_charset="next", &
-                                          doc="NeXTstep encoding")
-        call define_charset_coding_system("hp-roman8", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "hp-roman8"], &
-                                          mime_charset="hp-roman8", &
-                                          doc="Hewlet-Packard roman-8 encoding (MIME:ROMAN-8)")
+        call define_character_set_coding_system("next", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "next"], &
+                                                mime_character_set="next", &
+                                                doc="NeXTstep encoding")
+        call define_character_set_coding_system("hp-roman8", iachar("*"), &
+                                                character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "hp-roman8"], &
+                                                mime_character_set="hp-roman8", &
+                                                doc="Hewlet-Packard roman-8 encoding (MIME:ROMAN-8)")
         call define_coding_system_alias("roman8", "hp-roman8")
-        call define_charset_coding_system("adobe-standard-encoding", iachar("*"), &
-                                          charset_names=[character(len=CHARSET_NAME_LEN) :: "adobe-standard-encoding"], &
-                                          mime_charset="adobe-standard-encoding", &
-                                          doc="Adobe `standard' encoding for PostScript")
-    end subroutine init_european
+        call define_character_set_coding_system("adobe-standard-encoding", iachar("*"), &
+                                      character_set_names=[character(len=CHARACTER_SET_NAME_LENGTH) :: "adobe-standard-encoding"], &
+                                                mime_character_set="adobe-standard-encoding", &
+                                                doc="Adobe `standard' encoding for PostScript")
+    end subroutine initialize_european
 
     !> Port of the language environments of european.el.
     module subroutine define_european_language_environments()
@@ -252,7 +252,7 @@ contains
                     //"nish, ""Spanish""."//achar(10)//achar(10)//"Latin-1 also covers several written langua" &
                     //"ges outside Europe, including"//achar(10)//"Indonesian/Malay, Tagalog (Phi" &
                     //"lippines), Swahili and Afrikaans.", &
-                    charsets=[character(len=40) :: "iso-8859-1"], &
+                    character_sets=[character(len=40) :: "iso-8859-1"], &
                     sample_text="Hello, Hej, Tere, Hei, Bonjour, Grüß Gott, Ciao, ¡Hola!", &
                     coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9", "windows-1252"], &
                     coding_system_order=[character(len=40) :: "iso-latin-1"], &
@@ -268,7 +268,7 @@ contains
                                          //"anguage environments for the following languages:"//achar(10)//"  For Czec" &
                                  //"h, ""Czech""."//achar(10)//"  For Croatian, ""Croatian""."//achar(10)//"  For Polish, ""Polis" &
                                      //"h""."//achar(10)//"  For Romanian, ""Romanian""."//achar(10)//"  For Slovak, ""Slovak"".", &
-                                         charsets=[character(len=40) :: "iso-8859-2"], &
+                                         character_sets=[character(len=40) :: "iso-8859-2"], &
                                          coding_systems=[character(len=40) :: "iso-latin-2", "windows-1250"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-2"], &
                                          nonascii_translation="iso-8859-2", &
@@ -279,7 +279,7 @@ contains
                                          //"character set:"//achar(10)//" Afrikaans, Catalan, Dutch, English, Esperant" &
                                          //"o, French, Galician,"//achar(10)//" German, Italian, Maltese, Spanish, and" &
                                          //" Turkish.", &
-                                         charsets=[character(len=40) :: "iso-8859-3"], &
+                                         character_sets=[character(len=40) :: "iso-8859-3"], &
                                          coding_systems=[character(len=40) :: "iso-latin-3"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-3"], &
                                          nonascii_translation="iso-8859-3", &
@@ -289,7 +289,7 @@ contains
                                          documentation="These languages are supported with the Latin-4 (ISO-8859-4) " &
                                          //"character set:"//achar(10)//" Danish, English, Estonian, Finnish, German, " &
                                          //"Greenlandic, Latvian,"//achar(10)//" Lithuanian, Norwegian, and Sami.", &
-                                         charsets=[character(len=40) :: "iso-8859-4"], &
+                                         character_sets=[character(len=40) :: "iso-8859-4"], &
                                          coding_systems=[character(len=40) :: "iso-8859-4"], &
                                          coding_system_order=[character(len=40) :: "iso-8859-4"], &
                                          nonascii_translation="iso-8859-4", &
@@ -297,7 +297,7 @@ contains
                                          unibyte_display="iso-8859-4")
         call define_language_environment("Latin-5", &
                                          documentation="Support for Latin-5.See also the Turkish environment.", &
-                                         charsets=[character(len=40) :: "iso-8859-9"], &
+                                         character_sets=[character(len=40) :: "iso-8859-9"], &
                                          coding_systems=[character(len=40) :: "iso-latin-5"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-5"], &
                                          nonascii_translation="iso-8859-9", &
@@ -305,14 +305,14 @@ contains
                                          unibyte_display="iso-latin-5")
         call define_language_environment("Latin-6", &
                                          documentation="Support for Latin-6.", &
-                                         charsets=[character(len=40) :: "iso-8859-10"], &
+                                         character_sets=[character(len=40) :: "iso-8859-10"], &
                                          coding_systems=[character(len=40) :: "latin-6"], &
                                          coding_system_order=[character(len=40) :: "latin-6"], &
                                          input_method="latin-prefix", &
                                          unibyte_display="iso-latin-6")
         call define_language_environment("Latin-7", &
                                          documentation="Support for Latin-7, e.g. Latvian, Lithuanian.", &
-                                         charsets=[character(len=40) :: "iso-8859-13"], &
+                                         character_sets=[character(len=40) :: "iso-8859-13"], &
                                          coding_systems=[character(len=40) :: "latin-7"], &
                                          coding_system_order=[character(len=40) :: "latin-7"], &
                                          nonascii_translation="iso-8859-13", &
@@ -324,7 +324,7 @@ contains
                                          //"es, including those not"//achar(10)//"covered by other ISO-8859 character " &
                                          //"sets:"//achar(10)//" Welsh, Manx Gaelic and Irish Gaelic (old orthography)" &
                                          //".", &
-                                         charsets=[character(len=40) :: "iso-8859-14"], &
+                                         character_sets=[character(len=40) :: "iso-8859-14"], &
                                          sample_text="ḃ ŵ Ŷ", &
                                          coding_systems=[character(len=40) :: "iso-latin-8"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-8"], &
@@ -337,7 +337,7 @@ contains
                                          //" as Latin-1 with the"//achar(10)//"addition of the Euro sign and some addi" &
                                          //"tional French and Finnish letters."//achar(10)//"Latin-9 is sometimes nick" &
                                          //"named `Latin-0'.", &
-                                         charsets=[character(len=40) :: "iso-8859-15"], &
+                                         character_sets=[character(len=40) :: "iso-8859-15"], &
                                          sample_text="AVE. ŠšŽžŒœŸ €", &
                                          coding_systems=[character(len=40) :: "iso-latin-9"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-9"], &
@@ -346,7 +346,7 @@ contains
                                          unibyte_display="iso-latin-9")
         call define_language_environment("Esperanto", &
                                          documentation="Support for Esperanto with ISO-8859-3 character set.", &
-                                         charsets=[character(len=40) :: "iso-8859-3"], &
+                                         character_sets=[character(len=40) :: "iso-8859-3"], &
                                          coding_systems=[character(len=40) :: "iso-latin-3"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-3"], &
                                          nonascii_translation="latin-iso8859-3", &
@@ -356,7 +356,7 @@ contains
         call define_language_environment("Dutch", &
                                         documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
                                          //" it selects the Dutch tutorial and input method.", &
-                                         charsets=[character(len=40) :: "iso-8859-1"], &
+                                         character_sets=[character(len=40) :: "iso-8859-1"], &
                                          sample_text="Er is een aantal manieren waarop je dit kan doen", &
                                          coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-1"], &
@@ -368,7 +368,7 @@ contains
                                         documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
                                          //" sets the default input method to ""german-postfix""."//achar(10)//"Addition" &
                                          //"ally, it selects the German tutorial.", &
-                                         charsets=[character(len=40) :: "iso-8859-1"], &
+                                         character_sets=[character(len=40) :: "iso-8859-1"], &
                                          sample_text="German (Deutsch Nord)"//achar(9)//"Guten Tag"//achar(10) &
                                          //"German (Deutsch Süd)" &
                                          //achar(9)//"Grüß Go" &
@@ -382,7 +382,7 @@ contains
         call define_language_environment("French", &
                                         documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
                                          //" it selects the French tutorial and input method.", &
-                                         charsets=[character(len=40) :: "iso-8859-1"], &
+                                         character_sets=[character(len=40) :: "iso-8859-1"], &
                                          sample_text="French (Français)"//achar(9)//"Bonjour, Salut", &
                                          coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-1"], &
@@ -394,7 +394,7 @@ contains
                                         documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
                                          //" sets the default input method to ""italian-postfix""."//achar(10)//"Additio" &
                                          //"nally, it selects the Italian tutorial.", &
-                                         charsets=[character(len=40) :: "iso-8859-1"], &
+                                         character_sets=[character(len=40) :: "iso-8859-1"], &
                                          sample_text="Salve, ciao!", &
                                          coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-1"], &
@@ -405,7 +405,7 @@ contains
         call define_language_environment("Slovenian", &
                                         documentation="This language environment is almost the same as Latin-2,"//achar(10)//"but" &
                                          //" it selects the Slovenian tutorial and input method.", &
-                                         charsets=[character(len=40) :: "iso-8859-2"], &
+                                         character_sets=[character(len=40) :: "iso-8859-2"], &
                                          sample_text="Želimo vam uspešen dan!", &
                                          coding_systems=[character(len=40) :: "iso-8859-2", "windows-1250"], &
                                          coding_system_order=[character(len=40) :: "iso-8859-2"], &
@@ -417,7 +417,7 @@ contains
                                         documentation="This language environment is almost the same as Latin-1,"//achar(10)//"but" &
                                          //" it sets the default input method to ""spanish-postfix"","//achar(10)//"and " &
                                          //"it selects the Spanish tutorial.", &
-                                         charsets=[character(len=40) :: "iso-8859-1"], &
+                                         character_sets=[character(len=40) :: "iso-8859-1"], &
                                          sample_text="Spanish (Español)"//achar(9)//"¡Hola!", &
                                          coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-1"], &
@@ -429,7 +429,7 @@ contains
                                         documentation="Support for Turkish."//achar(10)//"Differs from the Latin-5 environment in" &
                                          //" using the `turkish-postfix' input"//achar(10)//"method and applying Turki" &
                                          //"sh case rules for the characters i, I, ı, İ.", &
-                                         charsets=[character(len=40) :: "iso-8859-9"], &
+                                         character_sets=[character(len=40) :: "iso-8859-9"], &
                                          sample_text="Turkish (Türkçe)"//achar(9)//"Esenlikler / Merhaba", &
                                          coding_systems=[character(len=40) :: "iso-latin-5", "windows-1254", "iso-latin-3"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-5"], &
@@ -438,7 +438,7 @@ contains
                                          unibyte_display="iso-latin-5")
         call define_language_environment("Polish", &
                                          has_documentation=.true., &
-                                         charsets=[character(len=40) :: "iso-8859-2"], &
+                                         character_sets=[character(len=40) :: "iso-8859-2"], &
                                          sample_text="Pójdź, kiń-że tę chmurność w głąb flaszy", &
                                          coding_systems=[character(len=40) :: "iso-8859-2", "windows-1250"], &
                                          coding_system_order=[character(len=40) :: "iso-8859-2"], &
@@ -466,7 +466,7 @@ contains
                                          input_method="latvian-keyboard")
         call define_language_environment("Swedish", &
                                          documentation="Support for Swedish", &
-                                         charsets=[character(len=40) :: "iso-8859-1"], &
+                                         character_sets=[character(len=40) :: "iso-8859-1"], &
                                          sample_text="Goddag Hej", &
                                          coding_systems=[character(len=40) :: "iso-latin-1"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-1"], &
@@ -475,7 +475,7 @@ contains
                                          tutorial="TUTORIAL.sv")
         call define_language_environment("Croatian", &
                                          documentation="Support for Croatian with Latin-2 encoding.", &
-                                         charsets=[character(len=40) :: "iso-8859-2"], &
+                                         character_sets=[character(len=40) :: "iso-8859-2"], &
                                          coding_systems=[character(len=40) :: "iso-8859-2"], &
                                          coding_system_order=[character(len=40) :: "iso-8859-2"], &
                                          nonascii_translation="iso-8859-2", &
@@ -483,7 +483,7 @@ contains
                                          unibyte_display="iso-8859-2")
         call define_language_environment("Brazilian Portuguese", &
                                          documentation="Support for Brazilian Portuguese.", &
-                                         charsets=[character(len=40) :: "iso-8859-1"], &
+                                         character_sets=[character(len=40) :: "iso-8859-1"], &
                                          sample_text="Oi", &
                                          coding_systems=[character(len=40) :: "iso-latin-1", "iso-latin-9"], &
                                          coding_system_order=[character(len=40) :: "iso-latin-1"], &
@@ -495,7 +495,7 @@ contains
                                          documentation="This language environment uses the ISO-8859-1 character set," &
                                          //achar(10)//"sets the default input method to ""catalan-prefix"", and sets" &
                                          //achar(10)//"the syntax of the middle dot character `·' to word.", &
-                                         charsets=[character(len=40) :: "iso-8859-1"], &
+                                         character_sets=[character(len=40) :: "iso-8859-1"], &
                                          sample_text="Catalan (Català)  Avui demà i ahir s'esfullarà una rosa.", &
                                          coding_systems=[character(len=40) :: "iso-8859-1", "iso-8859-15"], &
                                          coding_system_order=[character(len=40) :: "iso-8859-1"], &

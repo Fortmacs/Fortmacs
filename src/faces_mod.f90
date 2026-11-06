@@ -36,28 +36,29 @@
 !>     faces%mode_line%box = face_box(line_width=-1, style=FACE_BOX_RELEASED_BUTTON)
 !>     faces%help_key_binding%inherit = "fixed_pitch"
 !>
-!> `face_spec_recalc' works out the attributes a face has on the frame
+!> `face_specification_recalc' works out the attributes a face has on the frame
 !> (its `lface'): the spec alternative that matches the display, then
 !> the attributes set in the configuration.  face_realization_mod merges them and
 !> realizes faces for the terminal.
 !>
 !> Deferred: themes and Customize, frame-local `set_face_attribute',
-!> X resources, face aliases, `face_override_spec', stipples, fonts and
+!> X resources, face aliases, `face_override_specification', stipples, fonts and
 !> fontsets, and
 !> the `cursor' face's face-no-inherit property (no face may inherit
 !> from it; xfaces.c).
 module faces_mod
     use, intrinsic :: iso_fortran_env, only: real64
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
-    use terminal_colors_mod, only: tty_color_values
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
+    use terminal_colors_mod, only: terminal_color_values
     implicit none(type, external)
     private
 
     public :: face_flag_type, face_line_type, face_box_type, face_height_type, face_inherit_type
     public :: face_attributes_type, named_face_type, face_display_type
-    public :: face_attrs, face_underline, face_box, display_when, face_named, face_count, face_at, face_spec_recalc_all
+    public :: face_attributes, face_underline, face_box, display_when, face_named, face_count, face_at, &
+              face_specification_recalc_all
     public :: set_frame_display, faces_equal, face_weight_numeric, face_slant_numeric
-    public :: init_faces
+    public :: initialize_faces
     public :: color_values, is_color_dark, readable_foreground_color
 
     !> The relative luminance below which a color is considered "dark".
@@ -171,35 +172,35 @@ module faces_mod
     !> t; otherwise every condition given must hold.  `classes' and
     !> `backgrounds' are FACE_CLASS_* and FACE_BACKGROUND_* lists,
     !> `types' window system types ("tty", "graphic", "x", "pc", ...),
-    !> `min_colors' 0 for no condition.  `is_default' marks a `default'
+    !> `minimum_colors' 0 for no condition.  `is_default' marks a `default'
     !> entry, whose attributes underlie the alternative chosen.
     type :: face_display_type
         logical :: always = .false.
         logical :: is_default = .false.
         integer, allocatable :: classes(:), backgrounds(:)
         character(len=16), allocatable :: types(:)
-        integer :: min_colors = 0
-        !> A `supports' condition: the attributes `supports_attrs' must be
+        integer :: minimum_colors = 0
+        !> A `supports' condition: the attributes `supports_attributes' must be
         !> supported by the display (display-supports-face-attributes-p).
         logical :: supports = .false.
     end type face_display_type
 
-    !> One alternative of a face spec; `supports_attrs' the attributes of a
+    !> One alternative of a face spec; `supports_attributes' the attributes of a
     !> `supports' condition.
-    type :: face_spec_entry_type
+    type :: face_specification_entry_type
         type(face_display_type) :: display
-        type(face_attributes_type) :: supports_attrs
-        type(face_attributes_type) :: attrs
-    end type face_spec_entry_type
+        type(face_attributes_type) :: supports_attributes
+        type(face_attributes_type) :: attributes
+    end type face_specification_entry_type
 
-    !> Whether the display supports face attributes ATTRS (the terminal's
+    !> Whether the display supports face attributes ATTRIBUTES (the terminal's
     !> part of display-supports-face-attributes-p, installed by face_realization_mod).
     abstract interface
         ! Not a port.
-        logical function supports_procedure(attrs)
+        logical function supports_procedure(attributes)
             import :: face_attributes_type
             implicit none(type, external)
-            type(face_attributes_type), intent(in) :: attrs
+            type(face_attributes_type), intent(in) :: attributes
         end function supports_procedure
     end interface
 
@@ -214,7 +215,7 @@ module faces_mod
         !> The face's name, as `C-h v' and face references show it.
         character(len=64) :: name = ""
         !> The defface spec.
-        type(face_spec_entry_type), allocatable :: spec(:)
+        type(face_specification_entry_type), allocatable :: specification(:)
         !> The attributes on the frame.
         type(face_attributes_type) :: lface
         !> The face's documentation (`face_documentation').
@@ -223,18 +224,18 @@ module faces_mod
         !> Make the face known by NAME with documentation DOC.
         procedure :: define => face_define
         !> Add an alternative to the face's spec.
-        procedure :: spec_entry => face_spec_entry
+        procedure :: specification_entry => face_specification_entry
         !> Recompute the face's attributes on the frame.
-        procedure :: recalc => face_spec_recalc
+        procedure :: recalc => face_specification_recalc
     end type named_face_type
 
     !> A pointer to a face, for the registry.
-    type :: face_ref_type
+    type :: face_reference_type
         type(named_face_type), pointer :: p => null()
-    end type face_ref_type
+    end type face_reference_type
 
     !> The defined faces, in order of definition (face-list).
-    type(face_ref_type), allocatable :: registry(:)
+    type(face_reference_type), allocatable :: registry(:)
 
     !> The frame's display class (FACE_CLASS_*, the frame parameter
     !> `display_type'), set with `set_frame_display'.
@@ -456,7 +457,7 @@ module faces_mod
     !> Face for displaying non-graphic characters (e.g. U+202A (LRE)).  It
     !> is used for characters of no fonts too.  Port of
     !> faces.el:glyphless-char.
-    type(named_face_type), target, public :: glyphless_char
+    type(named_face_type), target, public :: glyphless_character
     !> Basic face used to highlight errors and to denote failure.  Port
     !> of faces.el:error.
     type(named_face_type), target, public :: error
@@ -468,24 +469,24 @@ module faces_mod
     !> Face for the name in `read_multiple_choice' output.  Port of
     !> faces.el:read-multiple-choice-face.
     type(named_face_type), target, public :: read_multiple_choice_face
-    !> Face for displaying enabled items in TTY menus.  Port of
+    !> Face for displaying enabled items in TERMINAL menus.  Port of
     !> faces.el:tty-menu-enabled-face.
-    type(named_face_type), target, public :: tty_menu_enabled_face
-    !> Face for displaying disabled items in TTY menus.  Port of
+    type(named_face_type), target, public :: terminal_menu_enabled_face
+    !> Face for displaying disabled items in TERMINAL menus.  Port of
     !> faces.el:tty-menu-disabled-face.
-    type(named_face_type), target, public :: tty_menu_disabled_face
-    !> Face for displaying the currently selected item in TTY menus.
+    type(named_face_type), target, public :: terminal_menu_disabled_face
+    !> Face for displaying the currently selected item in TERMINAL menus.
     !> Port of faces.el:tty-menu-selected-face.
-    type(named_face_type), target, public :: tty_menu_selected_face
+    type(named_face_type), target, public :: terminal_menu_selected_face
     !> Face used for a matching paren.  Port of faces.el:show-paren-match.
-    type(named_face_type), target, public :: show_paren_match
+    type(named_face_type), target, public :: show_parenthesis_match
     !> Face used for a matching paren when highlighting the whole
-    !> expression.  This face is used by `show_paren_mode'.  Port of
+    !> expression.  This face is used by `show_parenthesis_mode'.  Port of
     !> faces.el:show-paren-match-expression.
-    type(named_face_type), target, public :: show_paren_match_expression
+    type(named_face_type), target, public :: show_parenthesis_match_expression
     !> Face used for a mismatching paren.  Port of
     !> faces.el:show-paren-mismatch.
-    type(named_face_type), target, public :: show_paren_mismatch
+    type(named_face_type), target, public :: show_parenthesis_mismatch
 
 contains
 
@@ -658,9 +659,9 @@ contains
     !> Face attributes with the given ones specified, for specs: the
     !> attributes of a defface alternative.  INHERIT names one face
     !> inherited from, INHERITS a list of them.  Not a port.
-    function face_attrs(family, foundry, foreground, background, distant_foreground, weight, slant, width, height, &
-                        relative_height, underline, underline_color, underline_style, overline, strike_through, &
-                        box, box_color, inverse_video, inherit, inherits, extend) result(a)
+    function face_attributes(family, foundry, foreground, background, distant_foreground, weight, slant, width, height, &
+                             relative_height, underline, underline_color, underline_style, overline, strike_through, &
+                             box, box_color, inverse_video, inherit, inherits, extend) result(a)
         character(len=*), intent(in), optional :: family, foundry, foreground, background, distant_foreground, &
                                                   weight, slant, width, underline_color, box_color, inherit
         character(len=*), intent(in), optional :: inherits(:)
@@ -705,7 +706,7 @@ contains
         if (present(inherit)) a%inherit = inherit
         if (present(inherits)) a%inherit = inherits
         if (present(extend)) a%extend = extend
-    end function face_attrs
+    end function face_attributes
 
     !> An underline given as upstream's
     !> attributes `:color', `:style' and `:position', as `color', `style' and `position', for
@@ -715,7 +716,7 @@ contains
     !> FACE_STYLE_WAVE, FACE_STYLE_DOTS and FACE_STYLE_DASHES; POSITION
     !> true draws the line at the descent of the text instead of the
     !> baseline (a number of pixels above the descent is Deferred with
-    !> the GUI).  On a terminal, the styles other than a line are drawn
+    !> the GRAPHICAL_USER_INTERFACE).  On a terminal, the styles other than a line are drawn
     !> where the terminal supports them (the Smulx or Su capability) and
     !> as a line otherwise.  The property-list form of xfaces.c's
     !> `:underline' attribute.  Not a port.
@@ -782,19 +783,19 @@ contains
 
     !> A display condition for a spec alternative (see
     !> `face_display_type'); no argument at all means t.  A `supports'
-    !> condition is given to `spec_entry'.  Not a port.
-    function display_when(classes, min_colors, backgrounds, types, is_default) result(d)
+    !> condition is given to `specification_entry'.  Not a port.
+    function display_when(classes, minimum_colors, backgrounds, types, is_default) result(d)
         integer, intent(in), optional :: classes(:), backgrounds(:)
-        integer, intent(in), optional :: min_colors
+        integer, intent(in), optional :: minimum_colors
         character(len=*), intent(in), optional :: types(:)
         logical, intent(in), optional :: is_default
         type(face_display_type) :: d
         integer :: k
 
-        d%always = .not. (present(classes) .or. present(min_colors) .or. present(backgrounds) .or. present(types))
+        d%always = .not. (present(classes) .or. present(minimum_colors) .or. present(backgrounds) .or. present(types))
         if (present(classes)) d%classes = classes
         if (present(backgrounds)) d%backgrounds = backgrounds
-        if (present(min_colors)) d%min_colors = min_colors
+        if (present(minimum_colors)) d%minimum_colors = minimum_colors
 
         if (present(types)) then
             allocate (d%types(size(types)))
@@ -812,51 +813,51 @@ contains
     ! ------------------------------------------------------------------
 
     !> Make face SELF known by NAME, with documentation DOC and no spec
-    !> yet (`face_spec_entry' adds alternatives).  Port of
+    !> yet (`face_specification_entry' adds alternatives).  Port of
     !> faces.el:make-face / custom-declare-face (internal-make-lisp-face).
     subroutine face_define(self, name, doc)
         class(named_face_type), intent(inout), target :: self
         character(len=*), intent(in) :: name
         character(len=*), intent(in), optional :: doc
-        type(face_ref_type) :: ref
+        type(face_reference_type) :: reference
 
         self%name = name
         if (present(doc)) self%doc = doc
-        if (allocated(self%spec)) deallocate (self%spec)
-        allocate (self%spec(0))
+        if (allocated(self%specification)) deallocate (self%specification)
+        allocate (self%specification(0))
         if (associated(face_named(name))) return
         if (.not. allocated(registry)) allocate (registry(0))
 
         select type (self)
         type is (named_face_type)
-            ref%p => self
+            reference%p => self
         end select
 
-        registry = [registry, ref]
+        registry = [registry, reference]
     end subroutine face_define
 
-    !> Add the alternative with DISPLAY and ATTRS at the end of the face's
+    !> Add the alternative with DISPLAY and ATTRIBUTES at the end of the face's
     !> spec.  Not a port.
-    subroutine face_spec_entry(self, display, attrs, supports)
+    subroutine face_specification_entry(self, display, attributes, supports)
         class(named_face_type), intent(inout) :: self
         type(face_display_type), intent(in) :: display
-        type(face_attributes_type), intent(in) :: attrs
+        type(face_attributes_type), intent(in) :: attributes
         !> The attributes of a `supports' condition in DISPLAY.
         type(face_attributes_type), intent(in), optional :: supports
-        type(face_spec_entry_type) :: entry
+        type(face_specification_entry_type) :: entry
 
-        if (.not. allocated(self%spec)) allocate (self%spec(0))
+        if (.not. allocated(self%specification)) allocate (self%specification(0))
         entry%display = display
 
         if (present(supports)) then
             entry%display%supports = .true.
             entry%display%always = .false.
-            entry%supports_attrs = supports
+            entry%supports_attributes = supports
         end if
 
-        entry%attrs = attrs
-        self%spec = [self%spec, entry]
-    end subroutine face_spec_entry
+        entry%attributes = attributes
+        self%specification = [self%specification, entry]
+    end subroutine face_specification_entry
 
     !> The face named NAME, or null.  Port of
     !> xfaces.c:Finternal_lisp_face_p (the face itself).
@@ -906,9 +907,9 @@ contains
 
     !> True if DISPLAY matches the frame.  Port of
     !> faces.el:face-spec-set-match-display.
-    logical function match_display(display, supports_attrs) result(match)
+    logical function match_display(display, supports_attributes) result(match)
         type(face_display_type), intent(in) :: display
-        type(face_attributes_type), intent(in) :: supports_attrs
+        type(face_attributes_type), intent(in) :: supports_attributes
         integer :: k
 
         match = .true.
@@ -925,8 +926,8 @@ contains
             if (.not. match) return
         end if
 
-        if (display%min_colors > 0) then
-            match = frame_colors >= display%min_colors
+        if (display%minimum_colors > 0) then
+            match = frame_colors >= display%minimum_colors
             if (.not. match) return
         end if
 
@@ -944,7 +945,7 @@ contains
             match = .false.
 
             if (associated(display_supports_face_attributes_p)) then
-                match = display_supports_face_attributes_p(supports_attrs)
+                match = display_supports_face_attributes_p(supports_attributes)
             end if
         end if
     end function match_display
@@ -980,7 +981,7 @@ contains
     !> face-set-after-frame-default applies the global ones).  Port of
     !> faces.el:face-spec-recalc (with face-spec-choose; no theme specs
     !> or X resources).
-    subroutine face_spec_recalc(self)
+    subroutine face_specification_recalc(self)
         class(named_face_type), intent(inout) :: self
         integer :: k
         logical :: found
@@ -988,18 +989,18 @@ contains
         self%lface = face_attributes_type()
         found = .false.
 
-        if (allocated(self%spec)) then
+        if (allocated(self%specification)) then
             ! If the condition is `default', that sets the default for
             ! following conditions.
-            do k = 1, size(self%spec)
-                if (self%spec(k)%display%is_default) call set_attributes(self%lface, self%spec(k)%attrs)
+            do k = 1, size(self%specification)
+                if (self%specification(k)%display%is_default) call set_attributes(self%lface, self%specification(k)%attributes)
             end do
 
-            do k = 1, size(self%spec)
-                if (self%spec(k)%display%is_default) cycle
+            do k = 1, size(self%specification)
+                if (self%specification(k)%display%is_default) cycle
 
-                if (match_display(self%spec(k)%display, self%spec(k)%supports_attrs)) then
-                    call set_attributes(self%lface, self%spec(k)%attrs)
+                if (match_display(self%specification(k)%display, self%specification(k)%supports_attributes)) then
+                    call set_attributes(self%lface, self%specification(k)%attributes)
                     found = .true.
                     exit
                 end if
@@ -1007,11 +1008,11 @@ contains
         end if
 
         call set_attributes(self%lface, self%face_attributes_type)
-    end subroutine face_spec_recalc
+    end subroutine face_specification_recalc
 
     !> Recompute the attributes of every face on the frame (as
     !> frame-set-background-mode does for a new frame).  Not a port.
-    subroutine face_spec_recalc_all()
+    subroutine face_specification_recalc_all()
         integer :: k
 
         if (.not. allocated(registry)) return
@@ -1019,7 +1020,7 @@ contains
         do k = 1, size(registry)
             call registry(k)%p%recalc()
         end do
-    end subroutine face_spec_recalc_all
+    end subroutine face_specification_recalc_all
 
     !> Whether face attributes A and B are the same.  Port of
     !> xfaces.c:lface_equal_p.
@@ -1127,350 +1128,354 @@ contains
     ! ------------------------------------------------------------------
 
     !> Define the faces of faces.el with their specs.  Not a port.
-    subroutine init_faces()
+    subroutine initialize_faces()
         integer, parameter :: C = FACE_CLASS_COLOR, G = FACE_CLASS_GRAYSCALE, M = FACE_CLASS_MONO
         integer, parameter :: LIGHT = FACE_BACKGROUND_LIGHT, DARK = FACE_BACKGROUND_DARK
-        type(face_attributes_type) :: attrs
+        type(face_attributes_type) :: attributes
 
         call default%define("default", "Basic default face.")
-        call default%spec_entry(display_when(), face_attrs())
+        call default%specification_entry(display_when(), face_attributes())
         call bold%define("bold", "Basic bold face.")
-        call bold%spec_entry(display_when(), face_attrs(weight="bold"))
+        call bold%specification_entry(display_when(), face_attributes(weight="bold"))
         call italic%define("italic", "Basic italic face.")
-        call italic%spec_entry(display_when(), face_attrs(slant="italic"), supports=face_attrs(slant="italic"))
-        call italic%spec_entry(display_when(), face_attrs(underline=.true., slant="italic"), &
-                               supports=face_attrs(underline=.true.))
-        call italic%spec_entry(display_when(), face_attrs(slant="italic"))
+        call italic%specification_entry(display_when(), face_attributes(slant="italic"), supports=face_attributes(slant="italic"))
+        call italic%specification_entry(display_when(), face_attributes(underline=.true., slant="italic"), &
+                                        supports=face_attributes(underline=.true.))
+        call italic%specification_entry(display_when(), face_attributes(slant="italic"))
         call bold_italic%define("bold_italic", "Basic bold-italic face.")
-        call bold_italic%spec_entry(display_when(), face_attrs(weight="bold", slant="italic"))
+        call bold_italic%specification_entry(display_when(), face_attributes(weight="bold", slant="italic"))
         call underline%define("underline", "Basic underlined face.")
-        call underline%spec_entry(display_when(), face_attrs(underline=.true.), supports=face_attrs(underline=.true.))
-        call underline%spec_entry(display_when(), face_attrs(weight="bold"), &
-                                  supports=face_attrs(weight="bold", underline=.true.))
-        call underline%spec_entry(display_when(), face_attrs(underline=.true.))
+        call underline%specification_entry(display_when(), face_attributes(underline=.true.), &
+                                           supports=face_attributes(underline=.true.))
+        call underline%specification_entry(display_when(), face_attributes(weight="bold"), &
+                                           supports=face_attributes(weight="bold", underline=.true.))
+        call underline%specification_entry(display_when(), face_attributes(underline=.true.))
         call fixed_pitch%define("fixed_pitch", "The basic fixed-pitch face.")
-        call fixed_pitch%spec_entry(display_when(), face_attrs(family="Monospace"))
+        call fixed_pitch%specification_entry(display_when(), face_attributes(family="Monospace"))
         call fixed_pitch_serif%define("fixed_pitch_serif", "The basic fixed-pitch face with serifs.")
-        call fixed_pitch_serif%spec_entry(display_when(), face_attrs(family="Monospace Serif"))
+        call fixed_pitch_serif%specification_entry(display_when(), face_attributes(family="Monospace Serif"))
         call variable_pitch%define("variable_pitch", "The basic variable-pitch face.")
-        call variable_pitch%spec_entry(display_when(types=[character(len=3) :: "w32"]), &
-                                       face_attrs(family="Arial", foundry="outline"))
-        call variable_pitch%spec_entry(display_when(), face_attrs(family="Sans Serif"))
+        call variable_pitch%specification_entry(display_when(types=[character(len=3) :: "w32"]), &
+                                                face_attributes(family="Arial", foundry="outline"))
+        call variable_pitch%specification_entry(display_when(), face_attributes(family="Sans Serif"))
         call variable_pitch_text%define("variable_pitch_text", "The proportional face used for longer texts.")
-        call variable_pitch_text%spec_entry(display_when(), face_attrs(inherit="variable_pitch", &
-                                                                       relative_height=1.1))
+        call variable_pitch_text%specification_entry(display_when(), face_attributes(inherit="variable_pitch", &
+                                                                                     relative_height=1.1))
         call shadow%define("shadow", "Basic face for shadowed text.")
-        call shadow%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[LIGHT]), &
-                               face_attrs(foreground="grey50"))
-        call shadow%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[DARK]), &
-                               face_attrs(foreground="grey70"))
-        call shadow%spec_entry(display_when(classes=[C], min_colors=8, backgrounds=[LIGHT]), &
-                               face_attrs(foreground="green"))
-        call shadow%spec_entry(display_when(classes=[C], min_colors=8, backgrounds=[DARK]), &
-                               face_attrs(foreground="yellow"))
+        call shadow%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[LIGHT]), &
+                                        face_attributes(foreground="grey50"))
+        call shadow%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[DARK]), &
+                                        face_attributes(foreground="grey70"))
+        call shadow%specification_entry(display_when(classes=[C], minimum_colors=8, backgrounds=[LIGHT]), &
+                                        face_attributes(foreground="green"))
+        call shadow%specification_entry(display_when(classes=[C], minimum_colors=8, backgrounds=[DARK]), &
+                                        face_attributes(foreground="yellow"))
         call link%define("link", "Basic face for unvisited links.")
-        call link%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                             face_attrs(foreground="RoyalBlue3", underline=.true.))
-        call link%spec_entry(display_when(classes=[C], backgrounds=[LIGHT]), &
-                             face_attrs(foreground="blue", underline=.true.))
-        call link%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                             face_attrs(foreground="cyan1", underline=.true.))
-        call link%spec_entry(display_when(classes=[C], backgrounds=[DARK]), &
-                             face_attrs(foreground="cyan", underline=.true.))
-        call link%spec_entry(display_when(), face_attrs(inherit="underline"))
+        call link%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                      face_attributes(foreground="RoyalBlue3", underline=.true.))
+        call link%specification_entry(display_when(classes=[C], backgrounds=[LIGHT]), &
+                                      face_attributes(foreground="blue", underline=.true.))
+        call link%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                      face_attributes(foreground="cyan1", underline=.true.))
+        call link%specification_entry(display_when(classes=[C], backgrounds=[DARK]), &
+                                      face_attributes(foreground="cyan", underline=.true.))
+        call link%specification_entry(display_when(), face_attributes(inherit="underline"))
         call link_visited%define("link_visited", "Basic face for visited links.")
-        call link_visited%spec_entry(display_when(is_default=.true.), face_attrs(inherit="link"))
-        call link_visited%spec_entry(display_when(classes=[C], backgrounds=[LIGHT]), &
-                                     face_attrs(foreground="magenta4"))
-        call link_visited%spec_entry(display_when(classes=[C], backgrounds=[DARK]), &
-                                     face_attrs(foreground="violet"))
+        call link_visited%specification_entry(display_when(is_default=.true.), face_attributes(inherit="link"))
+        call link_visited%specification_entry(display_when(classes=[C], backgrounds=[LIGHT]), &
+                                              face_attributes(foreground="magenta4"))
+        call link_visited%specification_entry(display_when(classes=[C], backgrounds=[DARK]), &
+                                              face_attributes(foreground="violet"))
         call highlight%define("highlight", "Basic face for highlighting.")
-        call highlight%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                                  face_attrs(background="darkseagreen2"))
-        call highlight%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                                  face_attrs(background="darkolivegreen"))
-        call highlight%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[LIGHT]), &
-                                  face_attrs(background="darkseagreen2"))
-        call highlight%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[DARK]), &
-                                  face_attrs(background="darkolivegreen"))
-        call highlight%spec_entry(display_when(classes=[C], min_colors=8), &
-                                  face_attrs(background="green", foreground="black"))
-        call highlight%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call highlight%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                           face_attributes(background="darkseagreen2"))
+        call highlight%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                           face_attributes(background="darkolivegreen"))
+        call highlight%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[LIGHT]), &
+                                           face_attributes(background="darkseagreen2"))
+        call highlight%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[DARK]), &
+                                           face_attributes(background="darkolivegreen"))
+        call highlight%specification_entry(display_when(classes=[C], minimum_colors=8), &
+                                           face_attributes(background="green", foreground="black"))
+        call highlight%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call region%define("region", "Basic face for highlighting the region.")
-        call region%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                               face_attrs(background="blue3", extend=.true.))
-        call region%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                               face_attrs(background="lightgoldenrod2", extend=.true.))
-        call region%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[DARK]), &
-                               face_attrs(background="blue3", extend=.true.))
-        call region%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[LIGHT]), &
-                               face_attrs(background="lightgoldenrod2", extend=.true.))
-        call region%spec_entry(display_when(classes=[C], min_colors=8), &
-                               face_attrs(background="blue", foreground="white", extend=.true.))
-        call region%spec_entry(display_when(types=[character(len=3) :: "tty"], classes=[M]), &
-                               face_attrs(inverse_video=.true.))
-        call region%spec_entry(display_when(), face_attrs(background="gray", extend=.true.))
+        call region%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                        face_attributes(background="blue3", extend=.true.))
+        call region%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                        face_attributes(background="lightgoldenrod2", extend=.true.))
+        call region%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[DARK]), &
+                                        face_attributes(background="blue3", extend=.true.))
+        call region%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[LIGHT]), &
+                                        face_attributes(background="lightgoldenrod2", extend=.true.))
+        call region%specification_entry(display_when(classes=[C], minimum_colors=8), &
+                                        face_attributes(background="blue", foreground="white", extend=.true.))
+        call region%specification_entry(display_when(types=[character(len=3) :: "tty"], classes=[M]), &
+                                        face_attributes(inverse_video=.true.))
+        call region%specification_entry(display_when(), face_attributes(background="gray", extend=.true.))
         call secondary_selection%define("secondary_selection", "Basic face for displaying the secondary selection.")
-        call secondary_selection%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[LIGHT]), &
-                                            face_attrs(background="yellow1", extend=.true.))
-        call secondary_selection%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[DARK]), &
-                                            face_attrs(background="SkyBlue4", extend=.true.))
-        call secondary_selection%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[LIGHT]), &
-                                            face_attrs(background="yellow", extend=.true.))
-        call secondary_selection%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[DARK]), &
-                                            face_attrs(background="SkyBlue4", extend=.true.))
-        call secondary_selection%spec_entry(display_when(classes=[C], min_colors=8), &
-                                            face_attrs(background="cyan", foreground="black", extend=.true.))
-        call secondary_selection%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call secondary_selection%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[LIGHT]), &
+                                                     face_attributes(background="yellow1", extend=.true.))
+        call secondary_selection%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[DARK]), &
+                                                     face_attributes(background="SkyBlue4", extend=.true.))
+        call secondary_selection%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[LIGHT]), &
+                                                     face_attributes(background="yellow", extend=.true.))
+        call secondary_selection%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[DARK]), &
+                                                     face_attributes(background="SkyBlue4", extend=.true.))
+        call secondary_selection%specification_entry(display_when(classes=[C], minimum_colors=8), &
+                                                     face_attributes(background="cyan", foreground="black", extend=.true.))
+        call secondary_selection%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call trailing_whitespace%define("trailing_whitespace", "Basic face for highlighting trailing whitespace.")
-        call trailing_whitespace%spec_entry(display_when(classes=[C], backgrounds=[LIGHT]), face_attrs(background="red1"))
-        call trailing_whitespace%spec_entry(display_when(classes=[C], backgrounds=[DARK]), face_attrs(background="red1"))
-        call trailing_whitespace%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call trailing_whitespace%specification_entry(display_when(classes=[C], backgrounds=[LIGHT]), &
+                                                     face_attributes(background="red1"))
+        call trailing_whitespace%specification_entry(display_when(classes=[C], backgrounds=[DARK]), &
+                                                     face_attributes(background="red1"))
+        call trailing_whitespace%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call line_number%define("line_number", "Face for displaying line numbers.")
-        call line_number%spec_entry(display_when(), &
-                                    face_attrs(inherits=[character(len=7) :: "shadow", "default"]))
+        call line_number%specification_entry(display_when(), &
+                                             face_attributes(inherits=[character(len=7) :: "shadow", "default"]))
         call line_number_current_line%define("line_number_current_line", &
                                              "Face for displaying the current line number.")
-        call line_number_current_line%spec_entry(display_when(), face_attrs(inherit="line_number"))
+        call line_number_current_line%specification_entry(display_when(), face_attributes(inherit="line_number"))
         call line_number_major_tick%define("line_number_major_tick", &
                                            'Face for highlighting "major ticks" (as in a ruler).')
-        call line_number_major_tick%spec_entry(display_when(classes=[C, G], backgrounds=[LIGHT]), &
-                                               face_attrs(background="grey85", weight="bold"))
-        call line_number_major_tick%spec_entry(display_when(classes=[C, G], backgrounds=[DARK]), &
-                                               face_attrs(background="grey75", weight="bold"))
-        call line_number_major_tick%spec_entry(display_when(), face_attrs(inherit="line_number"))
+        call line_number_major_tick%specification_entry(display_when(classes=[C, G], backgrounds=[LIGHT]), &
+                                                        face_attributes(background="grey85", weight="bold"))
+        call line_number_major_tick%specification_entry(display_when(classes=[C, G], backgrounds=[DARK]), &
+                                                        face_attributes(background="grey75", weight="bold"))
+        call line_number_major_tick%specification_entry(display_when(), face_attributes(inherit="line_number"))
         call line_number_minor_tick%define("line_number_minor_tick", &
                                            'Face for highlighting "minor ticks" (as in a ruler).')
-        call line_number_minor_tick%spec_entry(display_when(classes=[C, G], backgrounds=[LIGHT]), &
-                                               face_attrs(background="grey95", weight="bold"))
-        call line_number_minor_tick%spec_entry(display_when(classes=[C, G], backgrounds=[DARK]), &
-                                               face_attrs(background="grey55", weight="bold"))
-        call line_number_minor_tick%spec_entry(display_when(), face_attrs(inherit="line_number"))
+        call line_number_minor_tick%specification_entry(display_when(classes=[C, G], backgrounds=[LIGHT]), &
+                                                        face_attributes(background="grey95", weight="bold"))
+        call line_number_minor_tick%specification_entry(display_when(classes=[C, G], backgrounds=[DARK]), &
+                                                        face_attributes(background="grey55", weight="bold"))
+        call line_number_minor_tick%specification_entry(display_when(), face_attributes(inherit="line_number"))
         call fill_column_indicator%define("fill_column_indicator", "Face for displaying fill column indicator.")
         ! (:stipple nil is not kept: stipples are deferred.)
-        call fill_column_indicator%spec_entry(display_when(), &
-                                              face_attrs(inherit="shadow", weight="normal", slant="normal", &
-                                                         underline=.false., overline=.false., &
-                                                         strike_through=.false., box=.false., &
-                                                         inverse_video=.false.))
+        call fill_column_indicator%specification_entry(display_when(), &
+                                                       face_attributes(inherit="shadow", weight="normal", slant="normal", &
+                                                                       underline=.false., overline=.false., &
+                                                                       strike_through=.false., box=.false., &
+                                                                       inverse_video=.false.))
         call escape_glyph%define("escape_glyph", "Face for characters displayed as sequences using `^' or `\'.")
-        call escape_glyph%spec_entry(display_when(backgrounds=[DARK]), face_attrs(foreground="cyan"))
-        call escape_glyph%spec_entry(display_when(types=[character(len=3) :: "pc"]), face_attrs(foreground="magenta"))
-        call escape_glyph%spec_entry(display_when(), face_attrs(foreground="brown"))
+        call escape_glyph%specification_entry(display_when(backgrounds=[DARK]), face_attributes(foreground="cyan"))
+        call escape_glyph%specification_entry(display_when(types=[character(len=3) :: "pc"]), face_attributes(foreground="magenta"))
+        call escape_glyph%specification_entry(display_when(), face_attributes(foreground="brown"))
         call homoglyph%define("homoglyph", "Face for lookalike characters.")
-        call homoglyph%spec_entry(display_when(backgrounds=[DARK]), face_attrs(foreground="cyan"))
-        call homoglyph%spec_entry(display_when(types=[character(len=3) :: "pc"]), face_attrs(foreground="magenta"))
-        call homoglyph%spec_entry(display_when(), face_attrs(foreground="brown"))
+        call homoglyph%specification_entry(display_when(backgrounds=[DARK]), face_attributes(foreground="cyan"))
+        call homoglyph%specification_entry(display_when(types=[character(len=3) :: "pc"]), face_attributes(foreground="magenta"))
+        call homoglyph%specification_entry(display_when(), face_attributes(foreground="brown"))
         call nobreak_space%define("nobreak_space", "Face for displaying nobreak space.")
-        call nobreak_space%spec_entry(display_when(classes=[C], min_colors=88), &
-                                      face_attrs(inherit="escape_glyph", underline=.true.))
-        call nobreak_space%spec_entry(display_when(classes=[C], min_colors=8), &
-                                      face_attrs(background="magenta"))
-        call nobreak_space%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call nobreak_space%specification_entry(display_when(classes=[C], minimum_colors=88), &
+                                               face_attributes(inherit="escape_glyph", underline=.true.))
+        call nobreak_space%specification_entry(display_when(classes=[C], minimum_colors=8), &
+                                               face_attributes(background="magenta"))
+        call nobreak_space%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call nobreak_hyphen%define("nobreak_hyphen", "Face for displaying nobreak hyphens.")
-        call nobreak_hyphen%spec_entry(display_when(backgrounds=[DARK]), face_attrs(foreground="cyan"))
-        call nobreak_hyphen%spec_entry(display_when(types=[character(len=3) :: "pc"]), &
-                                       face_attrs(foreground="magenta"))
-        call nobreak_hyphen%spec_entry(display_when(), face_attrs(foreground="brown"))
+        call nobreak_hyphen%specification_entry(display_when(backgrounds=[DARK]), face_attributes(foreground="cyan"))
+        call nobreak_hyphen%specification_entry(display_when(types=[character(len=3) :: "pc"]), &
+                                                face_attributes(foreground="magenta"))
+        call nobreak_hyphen%specification_entry(display_when(), face_attributes(foreground="brown"))
         call mode_line%define("mode_line", "Face for the mode lines as well as header lines.")
-        call mode_line%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[LIGHT]), &
-                                  mode_line_box(background="grey75", foreground="black"))
-        call mode_line%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[DARK]), &
-                                  mode_line_box(background="grey20", foreground="white"))
-        call mode_line%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call mode_line%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[LIGHT]), &
+                                           mode_line_box(background="grey75", foreground="black"))
+        call mode_line%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[DARK]), &
+                                           mode_line_box(background="grey20", foreground="white"))
+        call mode_line%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call mode_line_active%define("mode_line_active", "Face for the selected mode line.")
-        call mode_line_active%spec_entry(display_when(), face_attrs(inherit="mode_line"))
+        call mode_line_active%specification_entry(display_when(), face_attributes(inherit="mode_line"))
         call mode_line_inactive%define("mode_line_inactive", "Basic mode line face for non-selected windows.")
-        call mode_line_inactive%spec_entry(display_when(is_default=.true.), face_attrs(inherit="mode_line"))
-        call mode_line_inactive%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[LIGHT]), &
-                                           inactive_box(weight="light", box_color="grey75", foreground="grey20", &
-                                                        background="grey90"))
-        call mode_line_inactive%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[DARK]), &
-                                           inactive_box(weight="light", box_color="grey40", foreground="grey80", &
-                                                        background="grey30"))
+        call mode_line_inactive%specification_entry(display_when(is_default=.true.), face_attributes(inherit="mode_line"))
+        call mode_line_inactive%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[LIGHT]), &
+                                                    inactive_box(weight="light", box_color="grey75", foreground="grey20", &
+                                                                 background="grey90"))
+        call mode_line_inactive%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[DARK]), &
+                                                    inactive_box(weight="light", box_color="grey40", foreground="grey80", &
+                                                                 background="grey30"))
         call mode_line_highlight%define("mode_line_highlight", "Basic mode line face for highlighting.")
-        call mode_line_highlight%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[LIGHT]), &
-                                            highlight_box("grey40"), supports=face_attrs(box=.true.))
-        call mode_line_highlight%spec_entry(display_when(classes=[C, G], min_colors=88, backgrounds=[DARK]), &
-                                            highlight_box("grey80"), supports=face_attrs(box=.true.))
-        call mode_line_highlight%spec_entry(display_when(), face_attrs(inherit="highlight"))
+        call mode_line_highlight%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[LIGHT]), &
+                                                     highlight_box("grey40"), supports=face_attributes(box=.true.))
+        call mode_line_highlight%specification_entry(display_when(classes=[C, G], minimum_colors=88, backgrounds=[DARK]), &
+                                                     highlight_box("grey80"), supports=face_attributes(box=.true.))
+        call mode_line_highlight%specification_entry(display_when(), face_attributes(inherit="highlight"))
         call mode_line_emphasis%define("mode_line_emphasis", "Face used to emphasize certain mode line features.")
-        call mode_line_emphasis%spec_entry(display_when(), face_attrs(weight="bold"))
+        call mode_line_emphasis%specification_entry(display_when(), face_attributes(weight="bold"))
         call mode_line_buffer_id%define("mode_line_buffer_id", &
                                         "Face used for buffer identification parts of the mode line.")
-        call mode_line_buffer_id%spec_entry(display_when(), face_attrs(weight="bold"))
+        call mode_line_buffer_id%specification_entry(display_when(), face_attributes(weight="bold"))
         call header_line%define("header_line", "Basic header-line face.")
-        call header_line%spec_entry(display_when(is_default=.true.), face_attrs(inherit="mode_line"))
-        call header_line%spec_entry(display_when(types=[character(len=3) :: "tty"]), &
-                                    face_attrs(inverse_video=.false., underline=.true.))
-        call header_line%spec_entry(display_when(classes=[C, G], backgrounds=[LIGHT]), &
-                                    face_attrs(background="grey90", foreground="grey20", box=.false.))
-        call header_line%spec_entry(display_when(classes=[C, G], backgrounds=[DARK]), &
-                                    face_attrs(background="grey20", foreground="grey90", box=.false.))
-        call header_line%spec_entry(display_when(classes=[M], backgrounds=[LIGHT]), &
-                                    face_attrs(background="white", foreground="black", inverse_video=.false., &
-                                               box=.false., underline=.true.))
-        call header_line%spec_entry(display_when(classes=[M], backgrounds=[DARK]), &
-                                    face_attrs(background="black", foreground="white", inverse_video=.false., &
-                                               box=.false., underline=.true.))
+        call header_line%specification_entry(display_when(is_default=.true.), face_attributes(inherit="mode_line"))
+        call header_line%specification_entry(display_when(types=[character(len=3) :: "tty"]), &
+                                             face_attributes(inverse_video=.false., underline=.true.))
+        call header_line%specification_entry(display_when(classes=[C, G], backgrounds=[LIGHT]), &
+                                             face_attributes(background="grey90", foreground="grey20", box=.false.))
+        call header_line%specification_entry(display_when(classes=[C, G], backgrounds=[DARK]), &
+                                             face_attributes(background="grey20", foreground="grey90", box=.false.))
+        call header_line%specification_entry(display_when(classes=[M], backgrounds=[LIGHT]), &
+                                             face_attributes(background="white", foreground="black", inverse_video=.false., &
+                                                             box=.false., underline=.true.))
+        call header_line%specification_entry(display_when(classes=[M], backgrounds=[DARK]), &
+                                             face_attributes(background="black", foreground="white", inverse_video=.false., &
+                                                             box=.false., underline=.true.))
         call header_line_highlight%define("header_line_highlight", "Basic header line face for highlighting.")
-        call header_line_highlight%spec_entry(display_when(), face_attrs(inherit="mode_line_highlight"))
+        call header_line_highlight%specification_entry(display_when(), face_attributes(inherit="mode_line_highlight"))
         call header_line_active%define("header_line_active", "Face for the selected header line.")
-        call header_line_active%spec_entry(display_when(), face_attrs(inherit="header_line"))
+        call header_line_active%specification_entry(display_when(), face_attributes(inherit="header_line"))
         call header_line_inactive%define("header_line_inactive", "Basic header line face for non-selected windows.")
-        call header_line_inactive%spec_entry(display_when(), face_attrs(inherit="header_line"))
+        call header_line_inactive%specification_entry(display_when(), face_attributes(inherit="header_line"))
         call vertical_border%define("vertical_border", "Face used for vertical window dividers on ttys.")
-        call vertical_border%spec_entry(display_when(types=[character(len=3) :: "tty"]), &
-                                        face_attrs(inherit="mode_line_inactive"))
+        call vertical_border%specification_entry(display_when(types=[character(len=3) :: "tty"]), &
+                                                 face_attributes(inherit="mode_line_inactive"))
         call window_divider%define("window_divider", "Basic face for window dividers.")
-        call window_divider%spec_entry(display_when(), face_attrs(foreground="gray60"))
+        call window_divider%specification_entry(display_when(), face_attributes(foreground="gray60"))
         call window_divider_first_pixel%define("window_divider_first_pixel", &
                                                "Basic face for first pixel line/column of window dividers.")
-        call window_divider_first_pixel%spec_entry(display_when(), face_attrs(foreground="gray80"))
+        call window_divider_first_pixel%specification_entry(display_when(), face_attributes(foreground="gray80"))
         call window_divider_last_pixel%define("window_divider_last_pixel", &
                                               "Basic face for last pixel line/column of window dividers.")
-        call window_divider_last_pixel%spec_entry(display_when(), face_attrs(foreground="gray40"))
+        call window_divider_last_pixel%specification_entry(display_when(), face_attributes(foreground="gray40"))
         call internal_border%define("internal_border", "Basic face for the internal border.")
-        call internal_border%spec_entry(display_when(), face_attrs())
+        call internal_border%specification_entry(display_when(), face_attributes())
         call child_frame_border%define("child_frame_border", "Basic face for the internal border of child frames.")
-        call child_frame_border%spec_entry(display_when(), face_attrs())
+        call child_frame_border%specification_entry(display_when(), face_attributes())
         call minibuffer_prompt%define("minibuffer_prompt", "Face for minibuffer prompts.")
-        call minibuffer_prompt%spec_entry(display_when(backgrounds=[DARK]), face_attrs(foreground="cyan"))
-        call minibuffer_prompt%spec_entry(display_when(types=[character(len=3) :: "pc"]), &
-                                          face_attrs(foreground="magenta"))
-        call minibuffer_prompt%spec_entry(display_when(), face_attrs(foreground="medium blue"))
+        call minibuffer_prompt%specification_entry(display_when(backgrounds=[DARK]), face_attributes(foreground="cyan"))
+        call minibuffer_prompt%specification_entry(display_when(types=[character(len=3) :: "pc"]), &
+                                                   face_attributes(foreground="magenta"))
+        call minibuffer_prompt%specification_entry(display_when(), face_attributes(foreground="medium blue"))
         call margin%define("margin", "Basic face for window margins (both left and right).")
-        call margin%spec_entry(display_when(), face_attrs(inherit="default"))
+        call margin%specification_entry(display_when(), face_attributes(inherit="default"))
         call fringe%define("fringe", "Basic face for the fringes to the left and right of windows under X.")
-        call fringe%spec_entry(display_when(classes=[C], backgrounds=[LIGHT]), face_attrs(background="grey95"))
-        call fringe%spec_entry(display_when(classes=[C], backgrounds=[DARK]), face_attrs(background="grey10"))
-        call fringe%spec_entry(display_when(), face_attrs(background="gray"))
+        call fringe%specification_entry(display_when(classes=[C], backgrounds=[LIGHT]), face_attributes(background="grey95"))
+        call fringe%specification_entry(display_when(classes=[C], backgrounds=[DARK]), face_attributes(background="grey10"))
+        call fringe%specification_entry(display_when(), face_attributes(background="gray"))
         call scroll_bar%define("scroll_bar", "Basic face for the scroll bar colors under X.")
-        call scroll_bar%spec_entry(display_when(), face_attrs())
+        call scroll_bar%specification_entry(display_when(), face_attributes())
         call border%define("border", "Basic face for the frame border under X.")
-        call border%spec_entry(display_when(), face_attrs())
+        call border%specification_entry(display_when(), face_attributes())
         call cursor%define("cursor", "Basic face for the cursor color under X.")
-        call cursor%spec_entry(display_when(backgrounds=[LIGHT]), face_attrs(background="black"))
-        call cursor%spec_entry(display_when(backgrounds=[DARK]), face_attrs(background="white"))
+        call cursor%specification_entry(display_when(backgrounds=[LIGHT]), face_attributes(background="black"))
+        call cursor%specification_entry(display_when(backgrounds=[DARK]), face_attributes(background="white"))
         call mouse%define("mouse", "Basic face for the mouse color under X.")
-        call mouse%spec_entry(display_when(), face_attrs())
+        call mouse%specification_entry(display_when(), face_attributes())
         call tool_bar%define("tool_bar", "Basic tool-bar face.")
-        attrs = face_attrs(foreground="black")
-        attrs%box%state = FACE_PLIST
-        attrs%box%line_width = 1
-        attrs%box%line_height = 1
-        attrs%box%style = "released-button"
-        call tool_bar%spec_entry(display_when(is_default=.true.), attrs)
-        call tool_bar%spec_entry(display_when(types=[character(len=5) :: "haiku"]), &
-                                 face_attrs(foreground="B_MENU_ITEM_TEXT_COLOR", background="B_MENU_BACKGROUND_COLOR"))
-        call tool_bar%spec_entry(display_when(types=[character(len=7) :: "x", "w32", "ns", "pgtk", "android"], &
-                                              classes=[C]), face_attrs(background="grey75"))
-        call tool_bar%spec_entry(display_when(types=[character(len=1) :: "x"], classes=[M]), &
-                                 face_attrs(background="grey"))
+        attributes = face_attributes(foreground="black")
+        attributes%box%state = FACE_PLIST
+        attributes%box%line_width = 1
+        attributes%box%line_height = 1
+        attributes%box%style = "released-button"
+        call tool_bar%specification_entry(display_when(is_default=.true.), attributes)
+        call tool_bar%specification_entry(display_when(types=[character(len=5) :: "haiku"]), &
+                                         face_attributes(foreground="B_MENU_ITEM_TEXT_COLOR", background="B_MENU_BACKGROUND_COLOR"))
+        call tool_bar%specification_entry(display_when(types=[character(len=7) :: "x", "w32", "ns", "pgtk", "android"], &
+                                                       classes=[C]), face_attributes(background="grey75"))
+        call tool_bar%specification_entry(display_when(types=[character(len=1) :: "x"], classes=[M]), &
+                                          face_attributes(background="grey"))
         call tab_bar%define("tab_bar", "Tab bar face.")
-        call tab_bar%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                                face_attrs(inherit="variable_pitch", background="grey85", foreground="black"))
-        call tab_bar%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                                face_attrs(inherit="variable_pitch", background="grey20", foreground="white"))
-        call tab_bar%spec_entry(display_when(classes=[M]), face_attrs(background="grey"))
-        call tab_bar%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call tab_bar%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                         face_attributes(inherit="variable_pitch", background="grey85", foreground="black"))
+        call tab_bar%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                         face_attributes(inherit="variable_pitch", background="grey20", foreground="white"))
+        call tab_bar%specification_entry(display_when(classes=[M]), face_attributes(background="grey"))
+        call tab_bar%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call tab_line%define("tab_line", "Basic tab line face.")
-        call tab_line%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                                 face_attrs(inherit="variable_pitch", relative_height=0.9, background="grey85", &
-                                            foreground="black"))
-        call tab_line%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                                 face_attrs(inherit="variable_pitch", relative_height=0.9, background="grey20", &
-                                            foreground="white"))
-        call tab_line%spec_entry(display_when(classes=[M]), face_attrs(background="grey"))
-        call tab_line%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call tab_line%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                          face_attributes(inherit="variable_pitch", relative_height=0.9, background="grey85", &
+                                                          foreground="black"))
+        call tab_line%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                          face_attributes(inherit="variable_pitch", relative_height=0.9, background="grey20", &
+                                                          foreground="white"))
+        call tab_line%specification_entry(display_when(classes=[M]), face_attributes(background="grey"))
+        call tab_line%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call tab_line_active%define("tab_line_active", "Face for the selected tab line.")
-        call tab_line_active%spec_entry(display_when(), face_attrs(inherit="tab_line"))
+        call tab_line_active%specification_entry(display_when(), face_attributes(inherit="tab_line"))
         call tab_line_inactive%define("tab_line_inactive", "Basic tab line face for non-selected windows.")
-        call tab_line_inactive%spec_entry(display_when(), face_attrs(inherit="tab_line"))
+        call tab_line_inactive%specification_entry(display_when(), face_attributes(inherit="tab_line"))
         call menu%define("menu", "Basic face for the font and colors of the menu bar and popup menus.")
-        call menu%spec_entry(display_when(types=[character(len=3) :: "tty"]), face_attrs(inverse_video=.true.))
-        call menu%spec_entry(display_when(types=[character(len=9) :: "x-toolkit"]), face_attrs())
-        call menu%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call menu%specification_entry(display_when(types=[character(len=3) :: "tty"]), face_attributes(inverse_video=.true.))
+        call menu%specification_entry(display_when(types=[character(len=9) :: "x-toolkit"]), face_attributes())
+        call menu%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call help_argument_name%define("help_argument_name", "Face to highlight argument names in *Help* buffers.")
-        call help_argument_name%spec_entry(display_when(), face_attrs(inherit="italic"))
+        call help_argument_name%specification_entry(display_when(), face_attributes(inherit="italic"))
         call help_key_binding%define("help_key_binding", "Face for keybindings in *Help* buffers.")
-        call help_key_binding%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                                         key_box(background="grey96", foreground="DarkBlue", box_color="grey80"))
-        call help_key_binding%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                                         key_box(background="grey19", foreground="LightBlue", box_color="grey35"))
-        call help_key_binding%spec_entry(display_when(classes=[C, G], backgrounds=[LIGHT]), &
-                                         face_attrs(background="grey90", inherit="fixed_pitch"))
-        call help_key_binding%spec_entry(display_when(classes=[C, G], backgrounds=[DARK]), &
-                                         face_attrs(background="grey25", inherit="fixed_pitch"))
-        call help_key_binding%spec_entry(display_when(), face_attrs(background="grey90", inherit="fixed_pitch"))
-        call glyphless_char%define("glyphless_char", &
-                                   "Face for displaying non-graphic characters (e.g. U+202A (LRE)).")
-        call glyphless_char%spec_entry(display_when(types=[character(len=3) :: "tty"]), &
-                                       face_attrs(inherit="escape_glyph", underline=.true.))
-        call glyphless_char%spec_entry(display_when(types=[character(len=3) :: "pc"]), &
-                                       face_attrs(inherit="escape_glyph"))
-        call glyphless_char%spec_entry(display_when(), face_attrs(relative_height=0.6))
+        call help_key_binding%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                                  key_box(background="grey96", foreground="DarkBlue", box_color="grey80"))
+        call help_key_binding%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                                  key_box(background="grey19", foreground="LightBlue", box_color="grey35"))
+        call help_key_binding%specification_entry(display_when(classes=[C, G], backgrounds=[LIGHT]), &
+                                                  face_attributes(background="grey90", inherit="fixed_pitch"))
+        call help_key_binding%specification_entry(display_when(classes=[C, G], backgrounds=[DARK]), &
+                                                  face_attributes(background="grey25", inherit="fixed_pitch"))
+        call help_key_binding%specification_entry(display_when(), face_attributes(background="grey90", inherit="fixed_pitch"))
+        call glyphless_character%define("glyphless_character", &
+                                        "Face for displaying non-graphic characters (e.g. U+202A (LRE)).")
+        call glyphless_character%specification_entry(display_when(types=[character(len=3) :: "tty"]), &
+                                                     face_attributes(inherit="escape_glyph", underline=.true.))
+        call glyphless_character%specification_entry(display_when(types=[character(len=3) :: "pc"]), &
+                                                     face_attributes(inherit="escape_glyph"))
+        call glyphless_character%specification_entry(display_when(), face_attributes(relative_height=0.6))
         call error%define("error", "Basic face used to highlight errors and to denote failure.")
-        call error%spec_entry(display_when(is_default=.true.), face_attrs(weight="bold"))
-        call error%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[LIGHT]), &
-                              face_attrs(foreground="Red1"))
-        call error%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                              face_attrs(foreground="Pink"))
-        call error%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[LIGHT]), &
-                              face_attrs(foreground="Red1"))
-        call error%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[DARK]), &
-                              face_attrs(foreground="Pink"))
-        call error%spec_entry(display_when(classes=[C], min_colors=8), face_attrs(foreground="red"))
-        call error%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call error%specification_entry(display_when(is_default=.true.), face_attributes(weight="bold"))
+        call error%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[LIGHT]), &
+                                       face_attributes(foreground="Red1"))
+        call error%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                       face_attributes(foreground="Pink"))
+        call error%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[LIGHT]), &
+                                       face_attributes(foreground="Red1"))
+        call error%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[DARK]), &
+                                       face_attributes(foreground="Pink"))
+        call error%specification_entry(display_when(classes=[C], minimum_colors=8), face_attributes(foreground="red"))
+        call error%specification_entry(display_when(), face_attributes(inverse_video=.true.))
         call warning%define("warning", "Basic face used to highlight warnings.")
-        call warning%spec_entry(display_when(is_default=.true.), face_attrs(weight="bold"))
-        call warning%spec_entry(display_when(classes=[C], min_colors=16), face_attrs(foreground="DarkOrange"))
-        call warning%spec_entry(display_when(classes=[C]), face_attrs(foreground="yellow"))
+        call warning%specification_entry(display_when(is_default=.true.), face_attributes(weight="bold"))
+        call warning%specification_entry(display_when(classes=[C], minimum_colors=16), face_attributes(foreground="DarkOrange"))
+        call warning%specification_entry(display_when(classes=[C]), face_attributes(foreground="yellow"))
         call success%define("success", "Basic face used to indicate successful operation.")
-        call success%spec_entry(display_when(is_default=.true.), face_attrs(weight="bold"))
-        call success%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[LIGHT]), &
-                                face_attrs(foreground="ForestGreen"))
-        call success%spec_entry(display_when(classes=[C], min_colors=88, backgrounds=[DARK]), &
-                                face_attrs(foreground="Green1"))
-        call success%spec_entry(display_when(classes=[C], min_colors=16, backgrounds=[DARK]), &
-                                face_attrs(foreground="Green"))
-        call success%spec_entry(display_when(classes=[C]), face_attrs(foreground="green"))
+        call success%specification_entry(display_when(is_default=.true.), face_attributes(weight="bold"))
+        call success%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[LIGHT]), &
+                                         face_attributes(foreground="ForestGreen"))
+        call success%specification_entry(display_when(classes=[C], minimum_colors=88, backgrounds=[DARK]), &
+                                         face_attributes(foreground="Green1"))
+        call success%specification_entry(display_when(classes=[C], minimum_colors=16, backgrounds=[DARK]), &
+                                         face_attributes(foreground="Green"))
+        call success%specification_entry(display_when(classes=[C]), face_attributes(foreground="green"))
         call read_multiple_choice_face%define("read_multiple_choice_face", &
                                               "Face for the symbol name in `read_multiple_choice' output.")
-        call read_multiple_choice_face%spec_entry(display_when(), &
-                                                  face_attrs(inherits=[character(len=16) :: "help_key_binding", &
-                                                                       "underline"], weight="bold"))
-        call tty_menu_enabled_face%define("tty_menu_enabled_face", "Face for displaying enabled items in TTY menus.")
-        call tty_menu_enabled_face%spec_entry(display_when(classes=[C]), &
-                                              face_attrs(foreground="yellow", background="blue", weight="bold"))
-        call tty_menu_enabled_face%spec_entry(display_when(), face_attrs(weight="bold"))
-        call tty_menu_disabled_face%define("tty_menu_disabled_face", "Face for displaying disabled items in TTY menus.")
-        call tty_menu_disabled_face%spec_entry(display_when(classes=[C], min_colors=16), &
-                                               face_attrs(foreground="lightgray", background="blue"))
-        call tty_menu_disabled_face%spec_entry(display_when(classes=[C]), &
-                                               face_attrs(foreground="white", background="blue"))
-        call tty_menu_disabled_face%spec_entry(display_when(), face_attrs(inherit="shadow"))
-        call tty_menu_selected_face%define("tty_menu_selected_face", &
-                                           "Face for displaying the currently selected item in TTY menus.")
-        call tty_menu_selected_face%spec_entry(display_when(classes=[C]), face_attrs(background="red"))
-        call tty_menu_selected_face%spec_entry(display_when(), face_attrs(inverse_video=.true.))
-        call show_paren_match%define("show_paren_match", "Face used for a matching paren.")
-        call show_paren_match%spec_entry(display_when(classes=[C], backgrounds=[LIGHT]), &
-                                         face_attrs(background="turquoise"))
-        call show_paren_match%spec_entry(display_when(classes=[C], backgrounds=[DARK]), &
-                                         face_attrs(background="steelblue3"))
-        call show_paren_match%spec_entry(display_when(backgrounds=[DARK], min_colors=4), &
-                                         face_attrs(background="grey50"))
-        call show_paren_match%spec_entry(display_when(backgrounds=[LIGHT], min_colors=4), &
-                                         face_attrs(background="gray"))
-        call show_paren_match%spec_entry(display_when(), face_attrs(inherit="underline"))
-        call show_paren_match_expression%define("show_paren_match_expression", &
-                                                "Face used for a matching paren when highlighting the whole expression.")
-        call show_paren_match_expression%spec_entry(display_when(), face_attrs(inherit="show_paren_match"))
-        call show_paren_mismatch%define("show_paren_mismatch", "Face used for a mismatching paren.")
-        call show_paren_mismatch%spec_entry(display_when(classes=[C]), &
-                                            face_attrs(foreground="white", background="purple"))
-        call show_paren_mismatch%spec_entry(display_when(), face_attrs(inverse_video=.true.))
+        call read_multiple_choice_face%specification_entry(display_when(), &
+                                                           face_attributes(inherits=[character(len=16) :: "help_key_binding", &
+                                                                                     "underline"], weight="bold"))
+        call terminal_menu_enabled_face%define("terminal_menu_enabled_face", "Face for displaying enabled items in TTY menus.")
+        call terminal_menu_enabled_face%specification_entry(display_when(classes=[C]), &
+                                                            face_attributes(foreground="yellow", background="blue", weight="bold"))
+        call terminal_menu_enabled_face%specification_entry(display_when(), face_attributes(weight="bold"))
+        call terminal_menu_disabled_face%define("terminal_menu_disabled_face", "Face for displaying disabled items in TTY menus.")
+        call terminal_menu_disabled_face%specification_entry(display_when(classes=[C], minimum_colors=16), &
+                                                             face_attributes(foreground="lightgray", background="blue"))
+        call terminal_menu_disabled_face%specification_entry(display_when(classes=[C]), &
+                                                             face_attributes(foreground="white", background="blue"))
+        call terminal_menu_disabled_face%specification_entry(display_when(), face_attributes(inherit="shadow"))
+        call terminal_menu_selected_face%define("terminal_menu_selected_face", &
+                                                "Face for displaying the currently selected item in TTY menus.")
+        call terminal_menu_selected_face%specification_entry(display_when(classes=[C]), face_attributes(background="red"))
+        call terminal_menu_selected_face%specification_entry(display_when(), face_attributes(inverse_video=.true.))
+        call show_parenthesis_match%define("show_parenthesis_match", "Face used for a matching paren.")
+        call show_parenthesis_match%specification_entry(display_when(classes=[C], backgrounds=[LIGHT]), &
+                                                        face_attributes(background="turquoise"))
+        call show_parenthesis_match%specification_entry(display_when(classes=[C], backgrounds=[DARK]), &
+                                                        face_attributes(background="steelblue3"))
+        call show_parenthesis_match%specification_entry(display_when(backgrounds=[DARK], minimum_colors=4), &
+                                                        face_attributes(background="grey50"))
+        call show_parenthesis_match%specification_entry(display_when(backgrounds=[LIGHT], minimum_colors=4), &
+                                                        face_attributes(background="gray"))
+        call show_parenthesis_match%specification_entry(display_when(), face_attributes(inherit="underline"))
+        call show_parenthesis_match_expression%define("show_parenthesis_match_expression", &
+                                                      "Face used for a matching paren when highlighting the whole expression.")
+        call show_parenthesis_match_expression%specification_entry(display_when(), &
+                                                                   face_attributes(inherit="show_parenthesis_match"))
+        call show_parenthesis_mismatch%define("show_parenthesis_mismatch", "Face used for a mismatching paren.")
+        call show_parenthesis_mismatch%specification_entry(display_when(classes=[C]), &
+                                                           face_attributes(foreground="white", background="purple"))
+        call show_parenthesis_mismatch%specification_entry(display_when(), face_attributes(inverse_video=.true.))
 
     contains
 
@@ -1480,7 +1485,7 @@ contains
             character(len=*), intent(in) :: background, foreground
             type(face_attributes_type) :: a
 
-            a = face_attrs(background=background, foreground=foreground)
+            a = face_attributes(background=background, foreground=foreground)
             a%box%state = FACE_PLIST
             a%box%line_width = -1
             a%box%line_height = -1
@@ -1504,7 +1509,7 @@ contains
             character(len=*), intent(in) :: weight, box_color, foreground, background
             type(face_attributes_type) :: a
 
-            a = face_attrs(weight=weight, foreground=foreground, background=background)
+            a = face_attributes(weight=weight, foreground=foreground, background=background)
             a%box%state = FACE_PLIST
             a%box%line_width = -1
             a%box%line_height = -1
@@ -1516,13 +1521,13 @@ contains
             character(len=*), intent(in) :: background, foreground, box_color
             type(face_attributes_type) :: a
 
-            a = face_attrs(background=background, foreground=foreground, inherit="fixed_pitch")
+            a = face_attributes(background=background, foreground=foreground, inherit="fixed_pitch")
             a%box%state = FACE_PLIST
             a%box%line_width = -1
             a%box%line_height = -1
             a%box%color = box_color
         end function key_box
-    end subroutine init_faces
+    end subroutine initialize_faces
 
     ! ------------------------------------------------------------------
     ! Colors
@@ -1534,7 +1539,7 @@ contains
     !> display, the values are those of the supported color that is its
     !> best approximation.  `found' is false when the color is not defined
     !> (or is "unspecified-fg" or "unspecified-bg").  Port of
-    !> faces.el:color-values (a character terminal's `tty_color_values').
+    !> faces.el:color-values (a character terminal's `terminal_color_values').
     subroutine color_values(color, found, r, g, b)
         character(len=*), intent(in) :: color
         logical, intent(out) :: found
@@ -1545,7 +1550,7 @@ contains
         b = 0
         found = .false.
         if (color == "unspecified-fg" .or. color == "unspecified-bg") return
-        call tty_color_values(color, found, r, g, b)
+        call terminal_color_values(color, found, r, g, b)
     end subroutine color_values
 
     !> Whether RGB is more readable against white than black.
@@ -1561,7 +1566,7 @@ contains
         is_color_dark = .false.
 
         if (.not. (minval(rgb) >= 0 .and. maxval(rgb) <= 1)) then
-            call set_error(status, FM_GENERIC_ERROR, "RGB components not in [0,1]")
+            call set_error(status, GENERIC_ERROR_CODE, "RGB components not in [0,1]")
             return
         end if
 
@@ -1580,9 +1585,9 @@ contains
     !> The returned value is a string representing black or white, depending
     !> on which one provides better contrast with COLOR.  Port of
     !> faces.el:readable-foreground-color.
-    function readable_foreground_color(color) result(fg)
+    function readable_foreground_color(color) result(foreground)
         character(len=*), intent(in) :: color
-        character(len=:), allocatable :: fg
+        character(len=:), allocatable :: foreground
         type(status_type) :: st
         logical :: found
         integer :: r, g, b
@@ -1592,8 +1597,8 @@ contains
         ! possible.
         call color_values(color, found, r, g, b)
         ! ((color-dark-p nil) is an error; it is taken as black.)
-        fg = "black"
+        foreground = "black"
         if (.not. found) return
-        if (is_color_dark([r, g, b]/65535.0_real64, st)) fg = "#ffffff"
+        if (is_color_dark([r, g, b]/65535.0_real64, st)) foreground = "#ffffff"
     end function readable_foreground_color
 end module faces_mod

@@ -23,22 +23,22 @@
 
 module test_bindings_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use execute_interactively_mod, only: prefix_arg_type
+    use execute_interactively_mod, only: prefix_argument_type
     use commands_mod, only: commands
     use test_support_mod, only: show_alone
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, FM_QUIT
+    use error_mod, only: status_type, QUIT_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer
-    use editing_functions_mod, only: point, buffer_string, goto_char
-    use value_mod, only: value_type, xstring, list_elt
+    use editing_functions_mod, only: point, buffer_string, goto_character
+    use value_mod, only: value_type, xstring, list_element
     use simple_mod, only: clipboard_history
     use data_mod, only: value_eq
     use keymap_mod, only: key_binding, key_parse
-    use keyboard_mod, only: kbd_store_bytes, command_loop, command_loop_step, &
+    use keyboard_mod, only: keyboard_store_bytes, command_loop, command_loop_step, &
                             discard_input, last_message, last_command, ring_bell_hook
-    use execute_interactively_mod, only: prefix_arg, is_command_defined
-    use bindings_mod, only: init_bindings
+    use execute_interactively_mod, only: prefix_argument, is_command_defined
+    use bindings_mod, only: initialize_bindings
     implicit none(type, external)
     private
 
@@ -74,13 +74,13 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
         call get_or_make_buffer(name, buffer, st)
         call set_buffer(buffer, st)
         ! The command loop works in the selected window's buffer.
         call show_alone()
-        call kbd_store_bytes(bytes)
+        call keyboard_store_bytes(bytes)
         call command_loop(st)
     end subroutine type_into
 
@@ -104,7 +104,7 @@ contains
     subroutine test_global_map(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call init_bindings()
+        call initialize_bindings()
         call check(error, value_eq(binding_of("a"), value_type(name="self_insert_command")), "a")
         if (allocated(error)) return
         call check(error, value_eq(binding_of("TAB"), value_type(name="indent_for_tab_command")), "TAB")
@@ -112,15 +112,15 @@ contains
         ! mule-conf.el: every non-ASCII character self-inserts.
         call check(error, value_eq(binding_of("é"), value_type(name="self_insert_command")), "é")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("C-f"), value_type(name="forward_char")), "C-f")
+        call check(error, value_eq(binding_of("C-f"), value_type(name="forward_character")), "C-f")
         if (allocated(error)) return
         call check(error, value_eq(binding_of("M-5"), value_type(name="digit_argument")), "M-5")
         if (allocated(error)) return
         call check(error, value_eq(binding_of("C-M-5"), value_type(name="digit_argument")), "C-M-5")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("<right>"), value_type(name="right_char")), "<right>")
+        call check(error, value_eq(binding_of("<right>"), value_type(name="right_character")), "<right>")
         if (allocated(error)) return
-        call check(error, value_eq(binding_of("DEL"), value_type(name="delete_backward_char")), "DEL")
+        call check(error, value_eq(binding_of("DEL"), value_type(name="delete_backward_character")), "DEL")
         if (allocated(error)) return
         ! A modified character is not covered by the self-insert range.
         call check(error, value_eq(binding_of("C-é"), value_type()), "C-é")
@@ -179,22 +179,22 @@ contains
         if (allocated(error)) return
         ! C-e, then M-- 2 C-d is delete-char -2 with CUT: it kills the
         ! two characters before point.
-        call kbd_store_bytes(char(5)//char(27)//"-2"//char(4))
+        call keyboard_store_bytes(char(5)//char(27)//"-2"//char(4))
         call command_loop(st)
         call check(error, buffer_string(), "aaa"//repeat("c", 8))
         if (allocated(error)) return
-        call check(error, xstring(list_elt(clipboard_history(), 1_int64)), "cc")
+        call check(error, xstring(list_element(clipboard_history(), 1_int64)), "cc")
         if (allocated(error)) return
         ! C-a, C-u - 2 DEL: delete-backward-char -2 kills forward.
-        call kbd_store_bytes(char(1)//char(21)//"-2"//char(127))
+        call keyboard_store_bytes(char(1)//char(21)//"-2"//char(127))
         call command_loop(st)
         call check(error, buffer_string(), "a"//repeat("c", 8))
         if (allocated(error)) return
-        call check(error, xstring(list_elt(clipboard_history(), 1_int64)), "aa")
+        call check(error, xstring(list_element(clipboard_history(), 1_int64)), "aa")
         if (allocated(error)) return
         ! Without a prefix argument DEL deletes: at the beginning it
         ! signals.
-        call kbd_store_bytes(char(1)//char(127))
+        call keyboard_store_bytes(char(1)//char(127))
         call command_loop(st)
         call check(error, last_message, "Beginning of buffer")
         call done_with(buffer)
@@ -210,9 +210,9 @@ contains
         call type_into("*bindings-quoted*", char(17)//char(1)//char(21)//"2"//char(17)//char(127), buffer)
         call check(error, buffer_string(), char(1)//char(127)//char(127))
         if (allocated(error)) return
-        call kbd_store_bytes(char(7))
+        call keyboard_store_bytes(char(7))
         call command_loop_step(done, st)
-        call check(error, st%code == FM_QUIT .and. last_message == "Quit", "C-g")
+        call check(error, st%code == QUIT_CODE .and. last_message == "Quit", "C-g")
         call done_with(buffer)
     end subroutine test_quoted_insert
 
@@ -229,7 +229,7 @@ contains
                                                                                 "C-<insertchar>", "<copy>", "S-<delete>", "<cut>", &
                                                                               "<insertline>", "<deleteline>", "<undo>", "<begin>", &
                                                                                                     "<find>", "<execute>", "<menu>"]
-        character(len=24), parameter :: cmds(19) = [character(len=24) :: "move_beginning_of_line", &
+        character(len=24), parameter :: commands(19) = [character(len=24) :: "move_beginning_of_line", &
                                                                                      "move_end_of_line", "move_beginning_of_line", &
                                                                      "move_end_of_line", "paste", "paste", "paste", "copy_region", &
                                                                                        "copy_region", "copy_region", "cut_region", &
@@ -238,10 +238,10 @@ contains
                                                                              "execute_extended_command", "execute_extended_command"]
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
 
         do k = 1, size(keys)
-            call check(error, value_eq(binding_of(trim(keys(k))), value_type(name=trim(cmds(k)))), trim(keys(k)))
+            call check(error, value_eq(binding_of(trim(keys(k))), value_type(name=trim(commands(k)))), trim(keys(k)))
             if (allocated(error)) return
         end do
 
@@ -256,27 +256,27 @@ contains
         type(status_type) :: st
 
         call type_into("*bindings-lines*", "abc"//char(13)//"def"//char(13)//"ghi", buffer)
-        call goto_char(2_int64)
-        call kbd_store_bytes(char(5))
+        call goto_character(2_int64)
+        call keyboard_store_bytes(char(5))
         call command_loop(st)
         call check(error, point(), 4_int64)
         if (allocated(error)) return
         ! C-u 2 C-e: the end of the next line.
-        call kbd_store_bytes(char(21)//"2"//char(5))
+        call keyboard_store_bytes(char(21)//"2"//char(5))
         call command_loop(st)
         call check(error, point(), 8_int64)
         if (allocated(error)) return
         ! Past the last line: its end.
-        call kbd_store_bytes(char(21)//"5"//char(5))
+        call keyboard_store_bytes(char(21)//"5"//char(5))
         call command_loop(st)
         call check(error, point(), 12_int64)
         if (allocated(error)) return
-        call kbd_store_bytes(char(1))
+        call keyboard_store_bytes(char(1))
         call command_loop(st)
         call check(error, point(), 9_int64)
         if (allocated(error)) return
         ! C-u -1 C-a: the previous line's beginning.
-        call kbd_store_bytes(char(21)//"-1"//char(1))
+        call keyboard_store_bytes(char(21)//"-1"//char(1))
         call command_loop(st)
         call check(error, point(), 1_int64)
         call done_with(buffer)
@@ -294,7 +294,7 @@ contains
         call type_into("*bindings-undefined*", "", buffer)
         bells = 0
         ring_bell_hook => count_bell
-        call kbd_store_bytes(char(24)//char(8)//"a")
+        call keyboard_store_bytes(char(24)//char(8)//"a")
         call command_loop_step(done, st)
         call check(error, last_message == "C-x C-h is undefined" .and. bells == 1, last_message)
         if (allocated(error)) return
@@ -302,7 +302,7 @@ contains
         call check(error, buffer_string(), "a")
         if (allocated(error)) return
         ! C-f at the end of the buffer fails: "b" is discarded.
-        call kbd_store_bytes(char(6)//"b")
+        call keyboard_store_bytes(char(6)//"b")
         call command_loop(st)
         ring_bell_hook => null()
         call check(error, last_message == "End of buffer" .and. bells == 2 .and. buffer_string() == "a", last_message)
@@ -319,7 +319,7 @@ contains
                                                                                  "eval_buffer", "eval_region", "eval_defun", "ielm"]
         integer :: k
 
-        call init_bindings()
+        call initialize_bindings()
 
         do k = 1, size(keys)
             call check(error, value_eq(binding_of(trim(keys(k))), value_type()), trim(keys(k))//" is bound")

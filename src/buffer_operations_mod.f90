@@ -22,8 +22,8 @@
 !> Part of buffer_mod.  A submodule can use marker_mod and insert_delete_mod even
 !> though both use buffer_mod, which a module cannot.
 submodule(buffer_mod) buffer_operations_mod
-    use marker_mod, only: unchain_all_markers, clear_charpos_cache, destroy_marker, markers
-    use insert_delete_mod, only: del_range
+    use marker_mod, only: unchain_all_markers, clear_character_position_cache, destroy_marker, markers
+    use insert_delete_mod, only: delete_range
     use interval_tree_mod, only: delete_all_overlays, swap_buffer_overlays
     use hooks_mod, only: buffer_list_update_hook
     use data_mod, only: buffer_local_value
@@ -84,7 +84,7 @@ contains
         call delete_all_overlays(h)
         ! Unchain all markers of this buffer and leave them pointing nowhere.
         call unchain_all_markers(i)
-        call clear_charpos_cache(i)
+        call clear_character_position_cache(i)
         ! The mark and the mark ring belong to the buffer (upstream they are
         ! left to GC).
         if (buffers(i)%mark%index /= 0) call destroy_marker(buffers(i)%mark, ignore)
@@ -127,13 +127,13 @@ contains
 
         ! Fwiden (editfns.c), inline until editing_functions_mod exists.
         associate (b => buffers(current))
-            b%begv = BEGINNING
-            b%begv_byte = BEGINNING_BYTE
-            b%zv = b%text%z
-            b%zv_byte = b%text%z_byte
+            b%beginning_of_accessible_portion = BEGINNING
+            b%beginning_of_accessible_portion_byte = BEGINNING_BYTE
+            b%end_of_accessible_portion = b%text%z
+            b%end_of_accessible_portion_byte = b%text%z_byte
         end associate
 
-        call del_range(BEGINNING, buffers(current)%text%z, status)
+        call delete_range(BEGINNING, buffers(current)%text%z, status)
     end subroutine erase_buffer
 
     module subroutine swap_buffer_text(buffer, status)
@@ -152,7 +152,7 @@ contains
         if (current == 0) return
 
         if (.not. is_buffer_live(buffer)) then
-            call set_error(status, FM_GENERIC_ERROR, "Cannot swap a dead buffer's text")
+            call set_error(status, GENERIC_ERROR_CODE, "Cannot swap a dead buffer's text")
             return
         end if
 
@@ -168,24 +168,24 @@ contains
             b%text = text
             call move_alloc(bytes_b, a%text%beginning)
             call move_alloc(bytes_a, b%text%beginning)
-            n = a%pt
-            a%pt = b%pt
-            b%pt = n
-            n = a%pt_byte
-            a%pt_byte = b%pt_byte
-            b%pt_byte = n
-            n = a%begv
-            a%begv = b%begv
-            b%begv = n
-            n = a%begv_byte
-            a%begv_byte = b%begv_byte
-            b%begv_byte = n
-            n = a%zv
-            a%zv = b%zv
-            b%zv = n
-            n = a%zv_byte
-            a%zv_byte = b%zv_byte
-            b%zv_byte = n
+            n = a%point
+            a%point = b%point
+            b%point = n
+            n = a%point_byte
+            a%point_byte = b%point_byte
+            b%point_byte = n
+            n = a%beginning_of_accessible_portion
+            a%beginning_of_accessible_portion = b%beginning_of_accessible_portion
+            b%beginning_of_accessible_portion = n
+            n = a%beginning_of_accessible_portion_byte
+            a%beginning_of_accessible_portion_byte = b%beginning_of_accessible_portion_byte
+            b%beginning_of_accessible_portion_byte = n
+            n = a%end_of_accessible_portion
+            a%end_of_accessible_portion = b%end_of_accessible_portion
+            b%end_of_accessible_portion = n
+            n = a%end_of_accessible_portion_byte
+            a%end_of_accessible_portion_byte = b%end_of_accessible_portion_byte
+            b%end_of_accessible_portion_byte = n
             ! The undo list.
             call move_alloc(a%undo_entries, undo_entries)
             call move_alloc(b%undo_entries, a%undo_entries)
@@ -209,26 +209,26 @@ contains
             flag = a%multibyte
             a%multibyte = b%multibyte
             b%multibyte = flag
-            flag = a%bidi_display_reordering
-            a%bidi_display_reordering = b%bidi_display_reordering
-            b%bidi_display_reordering = flag
-            direction = a%bidi_paragraph_direction
-            a%bidi_paragraph_direction = b%bidi_paragraph_direction
-            b%bidi_paragraph_direction = direction
-            call modiff_incr(a%text%modiff, 1_int64)
-            call modiff_incr(b%text%modiff, 1_int64)
-            call modiff_incr(a%text%chars_modiff, 1_int64)
-            call modiff_incr(b%text%chars_modiff, 1_int64)
-            call modiff_incr(a%text%overlay_modiff, 1_int64)
-            call modiff_incr(b%text%overlay_modiff, 1_int64)
+            flag = a%bidirectional_display_reordering
+            a%bidirectional_display_reordering = b%bidirectional_display_reordering
+            b%bidirectional_display_reordering = flag
+            direction = a%bidirectional_paragraph_direction
+            a%bidirectional_paragraph_direction = b%bidirectional_paragraph_direction
+            b%bidirectional_paragraph_direction = direction
+            call modiff_increment(a%text%modiff, 1_int64)
+            call modiff_increment(b%text%modiff, 1_int64)
+            call modiff_increment(a%text%characters_modiff, 1_int64)
+            call modiff_increment(b%text%characters_modiff, 1_int64)
+            call modiff_increment(a%text%overlay_modiff, 1_int64)
+            call modiff_increment(b%text%overlay_modiff, 1_int64)
             a%text%beginning_unchanged = a%text%gpt
             a%text%end_unchanged = a%text%gpt
             b%text%beginning_unchanged = b%text%gpt
             b%text%end_unchanged = b%text%gpt
         end associate
 
-        call clear_charpos_cache(current)
-        call clear_charpos_cache(other)
+        call clear_character_position_cache(current)
+        call clear_character_position_cache(other)
         call swap_buffer_overlays(this, buffer)
         m = buffers(current)%text%markers
 
@@ -302,17 +302,17 @@ contains
         end do
     end function find_buffer
 
-    module subroutine init_buffer_commands()
-        commands%buffer_enable_undo%execute => cmd_buffer_enable_undo
-    end subroutine init_buffer_commands
+    module subroutine initialize_buffer_commands()
+        commands%buffer_enable_undo%execute => execute_buffer_enable_undo
+    end subroutine initialize_buffer_commands
 
     !> Start keeping undo information for buffer BUFFER.
     !> An absent argument means do this for the current buffer.
     !> Port of buffer.c:Fbuffer_enable_undo (the command: interactive "",
     !> the current buffer).
-    subroutine cmd_buffer_enable_undo(status)
+    subroutine execute_buffer_enable_undo(status)
         type(status_type), intent(out) :: status
 
         call buffer_enable_undo(status)
-    end subroutine cmd_buffer_enable_undo
+    end subroutine execute_buffer_enable_undo
 end submodule buffer_operations_mod

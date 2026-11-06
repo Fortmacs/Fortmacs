@@ -32,15 +32,15 @@ module test_winner_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type, null_handle
-    use value_mod, only: value_type, make_keymap_ref
+    use value_mod, only: value_type, make_keymap_reference
     use utility_functions_mod, only: value_equal
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, buffers, buffer_list
     use keymap_mod, only: key_parse, lookup_key
     use keyboard_mod, only: unread_command_events, last_message, command_loop, discard_input, this_command, &
                             last_command
-    use execute_interactively_mod, only: prefix_arg, prefix_arg_type, current_prefix_arg
+    use execute_interactively_mod, only: prefix_argument, prefix_argument_type, current_prefix_argument
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: goto_char
+    use editing_functions_mod, only: goto_character
     use frame_mod, only: selected_frame, ensure_frame_windows
     use modes_mod, only: minor_modes
     use window_mod, only: window_leaves, is_window_live, delete_other_windows, delete_window_tree, resize_window_tree, &
@@ -48,7 +48,7 @@ module test_winner_mod
                           window_configuration_type, current_window_configuration, destroy_window_configuration, &
                           is_window_configuration_equal, copy_window_configuration, set_window_configuration, &
                           execute_window_change_functions, window_configuration_change_hook
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use winner_mod, only: winner_mode_map, winner_boring_buffers
     implicit none(type, external)
     private
@@ -82,8 +82,8 @@ contains
         type(status_type) :: st
 
         call discard_input()
-        prefix_arg = prefix_arg_type()
-        call init_bindings()
+        prefix_argument = prefix_argument_type()
+        call initialize_bindings()
         selected_frame%minibuffer_selected = .false.
 
         if (.not. is_window_live(selected_frame%selected_window)) then
@@ -98,7 +98,7 @@ contains
         call get_or_make_buffer("winner-test", h, st)
         call set_buffer(h, st)
         call insert("abc"//achar(10)//"def"//achar(10)//"ghi", st)
-        call goto_char(1_int64)
+        call goto_character(1_int64)
         call set_window_buffer(selected_frame%selected_window, h, st)
         this_command => null()
         last_command => null()
@@ -111,8 +111,8 @@ contains
         integer :: k
 
         ! No prefix argument is left for the next suites.
-        current_prefix_arg = prefix_arg_type()
-        prefix_arg = prefix_arg_type()
+        current_prefix_argument = prefix_argument_type()
+        prefix_argument = prefix_argument_type()
         if (minor_modes%winner_mode%enabled()) call minor_modes%winner_mode%disable(st)
         all = buffer_list()
 
@@ -161,7 +161,7 @@ contains
 
         call enter_frame(h)
         call current_window_configuration(a)
-        call goto_char(5_int64)
+        call goto_character(5_int64)
         call current_window_configuration(b)
         call check(error, is_window_configuration_equal(a, b), "same layout")
         if (allocated(error)) return
@@ -215,16 +215,16 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: h
         type(value_type), allocatable :: evs(:)
-        type(value_type) :: val
+        type(value_type) :: value
         type(status_type) :: st
 
         call enter_frame(h)
         call execute_keys("M-x winner_mode RET")
         call key_parse("C-c <left>", evs, st)
-        call lookup_key(make_keymap_ref(winner_mode_map), evs, val, st)
-        call check(error, allocated(val%a), "C-c <left> bound")
+        call lookup_key(make_keymap_reference(winner_mode_map), evs, value, st)
+        call check(error, allocated(value%a), "C-c <left> bound")
         if (allocated(error)) return
-        call check(error, value_equal(val, value_type(name="undo_window_change")), "to undo_window_change")
+        call check(error, value_equal(value, value_type(name="undo_window_change")), "to undo_window_change")
         call leave_frame()
     end subroutine test_dont_bind_my_keys
 

@@ -29,17 +29,18 @@
 module rmail_edit_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use hooks_mod, only: hook_type
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_serial_live
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, buffer_substring, &
-                                     buffer_substring_no_properties, delete_region, narrow_to_region, widen, is_eob, &
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, buffer_substring, &
+                                     buffer_substring_no_properties, delete_region, narrow_to_region, widen, is_end_of_buffer, &
                                      save_restriction_begin, save_restriction_end, save_excursion_begin, save_excursion_end, &
                                      restriction_type, excursion_type
     use insert_delete_mod, only: insert, insert_before_markers
     use editing_commands_mod, only: forward_line, beginning_of_line
-    use search_mod, only: re_search_forward, search_forward, looking_at, match_beginning, match_end, case_fold_search, &
+    use search_mod, only: regular_expression_search_forward, search_forward, looking_at, match_beginning, match_end, &
+                          case_fold_search, &
                           SEARCH_NOERROR, SEARCH_MOVE
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use keymap_mod, only: keymap_set, use_local_map, make_sparse_keymap, set_keymap_parent
@@ -49,11 +50,11 @@ module rmail_edit_mod
     use text_mode_mod, only: text_mode_map
     use display_engine_mod, only: message
     use help_mod, only: substitute_command_keys
-    use coding_mod, only: buffer_file_coding_system, coding_system_base, coding_system_equal, coding_system_mime_charset, &
+    use coding_mod, only: buffer_file_coding_system, coding_system_base, coding_system_equal, coding_system_mime_character_set, &
                           encode_coding_string
     use multilingual_environment_mod, only: coding_system_from_name
     use file_input_output_mod, only: write_region_annotate_functions, select_safe_coding_system_function
-    use character_mod, only: str_to_multibyte, downcase_ascii
+    use character_mod, only: string_to_multibyte, downcase_ascii
     use mail_utilities_mod, only: get_mail_field, quote_mail_printable_region
     use utility_functions_mod, only: base64_encode_region
     use rmail_mod, only: rmail_states, rmail_state_index, rmail_buffer, set_up_rmail_mode_1, set_rmail_variables, &
@@ -61,13 +62,13 @@ module rmail_edit_mod
                          enable_rmail_summary_function, update_rmail_summary_line_function, rmail_message_beginning, &
                          rmail_message_end, swap_rmail_buffers_maybe, is_rmail_text, get_rmail_coding_system, &
                          ensure_rmail_blank_line, set_rmail_attribute, show_rmail_message, toggle_rmail_header, &
-                         highlight_rmail_headers, annotate_rmail_write_region, rmail_mode_hook, rmail_mime_charset_pattern, &
+                         highlight_rmail_headers, annotate_rmail_write_region, rmail_mode_hook, rmail_mime_character_set_pattern, &
                          rmail_mbox_format, RMAIL_MBOX_FORMAT_MBOXO, RMAIL_EDITED_ATTRIBUTE_INDEX
     implicit none(type, external)
     private
 
     public :: rmail_edit_mode, edit_rmail_current_message, cease_rmail_edit, abort_rmail_edit, get_rmail_edit_headers, &
-              diff_rmail_edit_headers, update_rmail_edit_headers, init_rmail_edit
+              diff_rmail_edit_headers, update_rmail_edit_headers, initialize_rmail_edit
 
     !> List of functions to call when editing an RMAIL message.  Port of
     !> rmailedit.el rmail-edit-mode-hook.
@@ -208,12 +209,12 @@ contains
         k = rmail_state_index(rmail_buffer())
 
         if (k == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No messages in this buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "No messages in this buffer")
             return
         end if
 
         if (rmail_states(k)%total_messages == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "No messages in this buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "No messages in this buffer")
             return
         end if
 
@@ -227,7 +228,7 @@ contains
         e = edit_state_index(.true.)
         call save_restriction_begin(restriction)
         call widen()
-        call buffer_substring(point_min(), point_max(), edit_states(e)%old_text, status)
+        call buffer_substring(point_minimum(), point_maximum(), edit_states(e)%old_text, status)
         call save_restriction_end(restriction)
         if (.not. status%ok()) return
         call get_rmail_edit_headers(edit_states(e)%old_headers, status, widen_first=.true.)
@@ -253,7 +254,7 @@ contains
         type(restriction_type) :: restriction
         type(handle_type) :: saved, headers_end, start, end, view
         type(status_type) :: st
-        character(len=:), allocatable :: old, edited_coding, fromline, new_coding, mime_charset, old_coding, &
+        character(len=:), allocatable :: old, edited_coding, fromline, new_coding, mime_character_set, old_coding, &
                                          content_type, character_coding, coding_system, chosen, text, encoded, &
                                          old_content_type, header
         integer(int64) :: found, limit, mime_beginning, mime_end, beginning_position, headers_end_position, length, &
@@ -266,7 +267,7 @@ contains
         k = rmail_state_index(rmail_buffer())
 
         if (k == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "There is no Rmail buffer")
+            call set_error(status, GENERIC_ERROR_CODE, "There is no Rmail buffer")
             return
         end if
 
@@ -279,7 +280,7 @@ contains
         end if
 
         call widen()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! This is far from ideal.  The edit may have inadvertently removed
         ! the blank line at the end of the headers, but there are almost
         ! certainly other blank lines.
@@ -287,13 +288,13 @@ contains
         if (.not. status%ok()) return
 
         if (found == 0) then
-            call set_error(status, FM_GENERIC_ERROR, "There must be a blank line at the end of the headers")
+            call set_error(status, GENERIC_ERROR_CODE, "There must be a blank line at the end of the headers")
             return
         end if
 
         e = edit_state_index(.true.)
         ! Disguise any "From " lines so they don't start a new message.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! This tries to skip the mbox From.
         if (.not. edit_states(e)%old_pruned) moved = forward_line(1_int64)
 
@@ -311,7 +312,7 @@ contains
         case_fold_search%value = .false.
 
         do
-            call re_search_forward(fromline, found, status, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward(fromline, found, status, noerror=SEARCH_NOERROR)
             if (found == 0 .or. .not. status%ok()) exit
             call beginning_of_line(1_int64)
             call insert(">", status)
@@ -335,7 +336,7 @@ contains
 
         ! Make sure `edited_coding' can safely encode the edited message.
         if (associated(select_safe_coding_system_function)) then
-            call select_safe_coding_system_function(point_min(), point_max(), edited_coding, .false., "", chosen, status)
+            call select_safe_coding_system_function(point_minimum(), point_maximum(), edited_coding, .false., "", chosen, status)
             if (.not. status%ok()) return
             if (len(chosen) > 0) edited_coding = chosen
         end if
@@ -349,12 +350,12 @@ contains
         if (.not. status%ok()) return
         call set_rmail_variables()
         ! If text has really changed, mark message as edited.
-        call buffer_substring(point_min(), point_max(), text, status)
+        call buffer_substring(point_minimum(), point_maximum(), text, status)
         if (.not. status%ok()) return
-        changed = .not. (len(old) == point_max() - point_min() .and. old == text)
+        changed = .not. (len(old) == point_maximum() - point_minimum() .and. old == text)
 
         if (changed) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call search_forward(LF//LF, found, status)
             if (.not. status%ok()) return
             ! First character of body.
@@ -362,7 +363,7 @@ contains
             call save_restriction_begin(restriction)
 
             header_block: block
-                call narrow_to_region(point_min(), point(), status)
+                call narrow_to_region(point_minimum(), point(), status)
                 if (.not. status%ok()) exit header_block
                 saved_inhibit = buffers(current)%read_only
                 buffers(current)%read_only = .false.
@@ -370,13 +371,13 @@ contains
                 ! charset= header for them, so that subsequent
                 ! rmail-show-message decodes it correctly.
                 new_coding = coding_system_base(edited_coding)
-                mime_charset = coding_system_mime_charset(new_coding)
+                mime_character_set = coding_system_mime_character_set(new_coding)
 
-                if (len(mime_charset) == 0) then
+                if (len(mime_character_set) == 0) then
                     if (coding_system_equal(new_coding, "undecided")) then
-                        mime_charset = "us-ascii"
+                        mime_character_set = "us-ascii"
                     else
-                        mime_charset = new_coding
+                        mime_character_set = new_coding
                     end if
                 end if
 
@@ -398,7 +399,7 @@ contains
                         call save_excursion_begin_here()
                         ! First char of body, then add header before second
                         ! newline.
-                        call goto_char(headers_end_position - 1)
+                        call goto_character(headers_end_position - 1)
                         call insert(old_content_type, status)
                         call restore_excursion_here()
                         ! Add it to the old headers as though it had been
@@ -411,11 +412,11 @@ contains
                     end if
                 end if
 
-                call goto_char(point_min())
+                call goto_character(point_minimum())
                 old_coding = ""
                 saved_fold = case_fold_search%value
                 case_fold_search%value = .true.
-                call re_search_forward(rmail_mime_charset_pattern, found, status, noerror=SEARCH_MOVE)
+                call regular_expression_search_forward(rmail_mime_character_set_pattern, found, status, noerror=SEARCH_MOVE)
                 case_fold_search%value = saved_fold
                 if (.not. status%ok()) exit header_block
 
@@ -439,12 +440,12 @@ contains
                     continue
                 else if (len(old_coding) == 0) then
                     ! If there was no charset= spec, insert one.
-                    call goto_char(point() - 1)
-                    call insert("Content-type: text/plain; charset="//mime_charset//LF, status)
+                    call goto_character(point() - 1)
+                    call insert("Content-type: text/plain; charset="//mime_character_set//LF, status)
                 else if (.not. coding_system_equal(coding_system_base(old_coding), new_coding)) then
-                    call goto_char(mime_end)
+                    call goto_character(mime_end)
                     call delete_region(mime_beginning, mime_end, status)
-                    if (status%ok()) call insert(mime_charset, status)
+                    if (status%ok()) call insert(mime_character_set, status)
                 end if
 
                 buffers(current)%read_only = saved_inhibit
@@ -459,13 +460,13 @@ contains
             call narrow_to_region(rmail_message_beginning(rmail_states(k)%current_message), &
                                   rmail_message_end(rmail_states(k)%current_message), status)
             if (.not. status%ok()) return
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call search_forward(LF//LF, limit, status)
             if (.not. status%ok()) return
             ! All 3 of the functions we call below assume the buffer was
             ! narrowed to just the headers of the message.
             call save_restriction_begin(restriction)
-            call narrow_to_region(point_min(), limit, status)
+            call narrow_to_region(point_minimum(), limit, status)
             call get_mail_field("content-transfer-encoding", character_coding, st)
             is_text_message = is_rmail_text()
 
@@ -478,7 +479,7 @@ contains
             call save_restriction_end(restriction)
             if (.not. status%ok()) return
             if (allocated(character_coding)) character_coding = downcase_ascii(character_coding)
-            call goto_char(limit)
+            call goto_character(limit)
             saved_inhibit = buffers(current)%read_only
             buffers(current)%read_only = .false.
             ! The new body will be between these two markers.
@@ -490,12 +491,12 @@ contains
             call set_buffer(view, status)
 
             if (status%ok()) then
-                call buffer_substring_no_properties(headers_end_position, point_max(), text, status)
+                call buffer_substring_no_properties(headers_end_position, point_maximum(), text, status)
                 if (status%ok()) call encode_coding_string(text, coding_system, encoded, status)
             end if
 
             call set_buffer(saved, st)
-            if (status%ok()) call insert(str_to_multibyte(encoded), status)
+            if (status%ok()) call insert(string_to_multibyte(encoded), status)
             ! Apply to the mbox buffer any changes in header fields that
             ! the user made while editing in the view buffer.
             if (status%ok()) call diff_rmail_edit_headers(old_headers, new_headers, diff)
@@ -519,13 +520,13 @@ contains
                 ! as not to run this message together with the following
                 ! one.
                 call marker_position(end, message_end, st)
-                call goto_char(message_end)
+                call goto_character(message_end)
                 call ensure_rmail_blank_line(status)
                 ! Delete previous body.  This must be after all insertions
                 ! at the end, so the marker for the beginning of the next
                 ! message isn't messed up.
                 call marker_position(end, message_end, st)
-                if (status%ok()) call delete_region(message_end, point_max(), status)
+                if (status%ok()) call delete_region(message_end, point_maximum(), status)
             end if
 
             buffers(current)%read_only = saved_inhibit
@@ -566,10 +567,10 @@ contains
         end subroutine save_excursion_begin_here
 
         subroutine restore_excursion_here()
-            integer(int64) :: pos
+            integer(int64) :: position
 
-            call marker_position(saved, pos, st)
-            call goto_char(pos)
+            call marker_position(saved, position, st)
+            call goto_character(position)
             call destroy_marker(saved, st)
         end subroutine restore_excursion_here
     end subroutine cease_rmail_edit
@@ -599,16 +600,16 @@ contains
         call narrow_to_region(message_beginning, message_end, status)
 
         if (status%ok()) then
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call search_forward(LF//LF, limit, status)
         end if
 
         if (status%ok()) then
-            call narrow_to_region(point_min(), limit, status)
-            call goto_char(point_min())
+            call narrow_to_region(point_minimum(), limit, status)
+            call goto_character(point_minimum())
             saved_fold = case_fold_search%value
             case_fold_search%value = .true.
-            call re_search_forward("^content-type:", found, status, bound=limit, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("^content-type:", found, status, bound=limit, noerror=SEARCH_NOERROR)
             case_fold_search%value = saved_fold
 
             if (found > 0 .and. status%ok()) then
@@ -662,7 +663,7 @@ contains
         integer :: e
 
         call widen()
-        call delete_region(point_min(), point_max(), status)
+        call delete_region(point_minimum(), point_maximum(), status)
         if (.not. status%ok()) return
         e = edit_state_index(.true.)
         if (allocated(edit_states(e)%old_text)) call insert(edit_states(e)%old_text, status)
@@ -703,14 +704,14 @@ contains
             if (widen_first) call widen()
         end if
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call search_forward(LF//LF, found, status)
 
         if (status%ok()) then
-            call narrow_to_region(point_min(), point() - 1, status)
-            call goto_char(point_min())
+            call narrow_to_region(point_minimum(), point() - 1, status)
+            call goto_character(point_minimum())
 
-            do while (.not. is_eob() .and. status%ok())
+            do while (.not. is_end_of_buffer() .and. status%ok())
                 start = point()
                 n = size(fields)
                 allocate (grown(n + 1))
@@ -883,7 +884,7 @@ contains
             m = find_text(diff%changed_old(i)%text)
             if (m == 0) cycle
             call marker_position(buffer_headers(m)%second, end, st)
-            call goto_char(end)
+            call goto_character(end)
             ! Insert the new, then delete the old.  That avoids collapsing
             ! markers.
             call insert_before_markers(collection_text(diff%changed_new(i)%text), status)
@@ -925,9 +926,9 @@ contains
 
             if (m > 0) then
                 call marker_position(buffer_headers(m)%second, second, st)
-                call goto_char(second)
+                call goto_character(second)
             else
-                call goto_char(point_min())
+                call goto_character(point_minimum())
             end if
 
             call insert(collection_text(diff%inserted(i)%new%text), status)
@@ -964,7 +965,7 @@ contains
     ! low byte of each character; here each such byte is an eight-bit
     ! character of the (multibyte) collection.  Not a port.
     function collection_text(text) result(bytes)
-        use character_mod, only: string_char_and_length
+        use character_mod, only: string_character_and_length
         character(len=*), intent(in) :: text
         character(len=:), allocatable :: bytes
         character(len=:), allocatable :: raw
@@ -977,28 +978,28 @@ contains
         n = 0
 
         do while (i <= len(text))
-            call string_char_and_length(text, i, c, length)
+            call string_character_and_length(text, i, c, length)
             n = n + 1
             raw(n:n) = achar(iand(c, 255))
             i = i + max(length, 1)
         end do
 
-        bytes = str_to_multibyte(raw(1:n))
+        bytes = string_to_multibyte(raw(1:n))
     end function collection_text
 
     ! ------------------------------------------------------------------
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine cmd_cease_rmail_edit(status)
+    recursive subroutine execute_cease_rmail_edit(status)
         type(status_type), intent(out) :: status
 
         call cease_rmail_edit(status)
-    end subroutine cmd_cease_rmail_edit
+    end subroutine execute_cease_rmail_edit
 
     !> Define Rmail Edit mode's keymap and commands.  Not a port: the
     !> top-level forms of rmailedit.el.
-    subroutine init_rmail_edit()
+    subroutine initialize_rmail_edit()
         type(status_type) :: st
 
         call make_sparse_keymap(rmail_edit_map)
@@ -1006,7 +1007,7 @@ contains
         call keymap_set(rmail_edit_map, "C-c C-c", "cease_rmail_edit", st)
         call keymap_set(rmail_edit_map, "C-c C-]", "abort_rmail_edit", st)
         commands%edit_rmail_current_message%execute => edit_rmail_current_message
-        commands%cease_rmail_edit%execute => cmd_cease_rmail_edit
+        commands%cease_rmail_edit%execute => execute_cease_rmail_edit
         commands%abort_rmail_edit%execute => abort_rmail_edit
-    end subroutine init_rmail_edit
+    end subroutine initialize_rmail_edit
 end module rmail_edit_mod

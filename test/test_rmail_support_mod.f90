@@ -27,9 +27,9 @@ module test_rmail_support_mod
     use buffer_mod, only: buffers, current, current_buffer, get_file_buffer, is_buffer_live, close_buffer, &
                           set_buffer_modified
     use editing_functions_mod, only: buffer_string
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use test_support_mod, only: show_alone
-    use files_mod, only: create_temp_file, delete_file
+    use files_mod, only: create_temporary_file, delete_file
     use file_input_output_mod, only: file_exists
     use rmail_mod, only: rmail, rmail_confirm_expunge, rmail_movemail_variant_in_use, rmail_file_name, &
                          rmail_state_index, rmail_states, rmail_primary_inboxes, rmail_display_summary
@@ -85,13 +85,13 @@ contains
         character(len=:), allocatable, intent(out) :: file
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         call show_alone()
         rmail_confirm_expunge = .false.
         rmail_movemail_variant_in_use = "emacs"
         rmail_display_summary = .false.
         if (allocated(rmail_primary_inboxes)) deallocate (rmail_primary_inboxes)
-        call create_temp_file("rmail-test", file, st)
+        call create_temporary_file("rmail-test", file, st)
         call delete_file(file, st)
     end subroutine set_up_rmail
 

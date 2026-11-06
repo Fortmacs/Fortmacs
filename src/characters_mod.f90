@@ -32,17 +32,17 @@
 !> katakana, l Latin), for the standard category table (category_mod).
 !> The case entries are in case_table_mod (from unicode_case_mod).
 !>
-!> Deferred: entries made through legacy charsets (`map_charset_chars'
+!> Deferred: entries made through legacy charsets (`map_character_set_characters'
 !> over GB2312, Big5, JIS X 0208/0212, KS C 5601 and so on, which need
 !> their mapping tables), the other categories, and everything else
 !> characters.el sets up.
 module characters_mod
     use unicode_category_mod, only: cased_letter_runs, cased_letter_starts, cased_letter_ends, &
                                     nonspacing_mark_runs, nonspacing_mark_starts, nonspacing_mark_ends
-    use character_set_mod, only: set_charset_attributes
+    use character_set_mod, only: set_character_set_attributes
     use, intrinsic :: iso_fortran_env, only: int32
     use error_mod, only: status_type
-    use editing_functions_mod, only: char_to_string
+    use editing_functions_mod, only: character_to_string
     implicit none(type, external)
     private
 
@@ -82,16 +82,16 @@ contains
     subroutine characters_syntax(entry)
         procedure(syntax_entry_procedure) :: entry
         ! CJK parentheses, in more than one charset.
-        integer, parameter :: cjk_parens(*) = [int(z'3008'), int(z'3009'), int(z'300A'), int(z'300B'), &
-                                               int(z'300C'), int(z'300D'), int(z'300E'), int(z'300F'), &
-                                               int(z'3010'), int(z'3011'), int(z'3014'), int(z'3015'), &
-                                               int(z'3016'), int(z'3017'), int(z'3018'), int(z'3019'), &
-                                               int(z'301A'), int(z'301B'), int(z'FE35'), int(z'FE36'), &
-                                               int(z'FE37'), int(z'FE38'), int(z'FE39'), int(z'FE3A'), &
-                                               int(z'FE3B'), int(z'FE3C'), int(z'FE3D'), int(z'FE3E'), &
-                                               int(z'FE3F'), int(z'FE40'), int(z'FE41'), int(z'FE42'), &
-                                               int(z'FE43'), int(z'FE44'), int(z'FF08'), int(z'FF09'), &
-                                               int(z'FF3B'), int(z'FF3D'), int(z'FF5B'), int(z'FF5D')]
+        integer, parameter :: cjk_parentheses(*) = [int(z'3008'), int(z'3009'), int(z'300A'), int(z'300B'), &
+                                                    int(z'300C'), int(z'300D'), int(z'300E'), int(z'300F'), &
+                                                    int(z'3010'), int(z'3011'), int(z'3014'), int(z'3015'), &
+                                                    int(z'3016'), int(z'3017'), int(z'3018'), int(z'3019'), &
+                                                    int(z'301A'), int(z'301B'), int(z'FE35'), int(z'FE36'), &
+                                                    int(z'FE37'), int(z'FE38'), int(z'FE39'), int(z'FE3A'), &
+                                                    int(z'FE3B'), int(z'FE3C'), int(z'FE3D'), int(z'FE3E'), &
+                                                    int(z'FE3F'), int(z'FE40'), int(z'FE41'), int(z'FE42'), &
+                                                    int(z'FE43'), int(z'FE44'), int(z'FF08'), int(z'FF09'), &
+                                                    int(z'FF3B'), int(z'FF3D'), int(z'FF5B'), int(z'FF5D')]
         ! Bracket pairs (the list after "Symbols and digits").
         integer, parameter :: pairs(*) = [int(z'2045'), int(z'2046'), int(z'207D'), int(z'207E'), &
                                           int(z'208D'), int(z'208E'), int(z'2329'), int(z'232A'), &
@@ -135,13 +135,13 @@ contains
         call entry(int(z'FF61'), int(z'FF61'), ".")
         call entry(int(z'FF64'), int(z'FF65'), ".")
         ! (Upstream makes both of these open parentheses.)
-        call char_to_string(int(z'FF62', int32), open_text, st)
-        call char_to_string(int(z'FF63', int32), close_text, st)
+        call character_to_string(int(z'FF62', int32), open_text, st)
+        call character_to_string(int(z'FF63', int32), close_text, st)
         call entry(int(z'FF62'), int(z'FF62'), "("//close_text)
         call entry(int(z'FF63'), int(z'FF63'), "("//open_text)
 
-        do k = 1, size(cjk_parens), 2
-            call pair(cjk_parens(k), cjk_parens(k + 1))
+        do k = 1, size(cjk_parentheses), 2
+            call pair(cjk_parentheses(k), cjk_parentheses(k + 1))
         end do
 
         ! Cyrillic: the numero sign.
@@ -242,8 +242,8 @@ contains
         subroutine pair(open, close)
             integer, intent(in) :: open, close
 
-            call char_to_string(int(open, int32), open_text, st)
-            call char_to_string(int(close, int32), close_text, st)
+            call character_to_string(int(open, int32), open_text, st)
+            call character_to_string(int(close, int32), close_text, st)
             call entry(open, open, "("//close_text)
             call entry(close, close, ")"//open_text)
         end subroutine pair
@@ -257,16 +257,16 @@ contains
     subroutine characters_categories(define, entry)
         procedure(category_define_procedure) :: define
         procedure(category_entry_procedure) :: entry
-        character(len=*), parameter :: nl = new_line("a")
+        character(len=*), parameter :: newline = new_line("a")
         integer :: k
 
         call define("l", "Latin")
-        call define("C", "2-byte han"//nl//"Chinese (Han) characters of 2-byte character sets")
-        call define("H", "2-byte Hiragana"//nl//"Japanese Hiragana characters of 2-byte character sets")
-        call define("K", "2-byte Katakana"//nl//"Japanese Katakana characters of 2-byte character sets")
-        call define("|", "line breakable"//nl//"While filling, we can break a line at this character.")
-        call define(" ", "space for indent"//nl//"This character counts as a space for indentation purposes.")
-        call define("^", "Combining"//nl//"Combining diacritic or mark (Unicode General Category M)")
+        call define("C", "2-byte han"//newline//"Chinese (Han) characters of 2-byte character sets")
+        call define("H", "2-byte Hiragana"//newline//"Japanese Hiragana characters of 2-byte character sets")
+        call define("K", "2-byte Katakana"//newline//"Japanese Katakana characters of 2-byte character sets")
+        call define("|", "line breakable"//newline//"While filling, we can break a line at this character.")
+        call define(" ", "space for indent"//newline//"This character counts as a space for indentation purposes.")
+        call define("^", "Combining"//newline//"Combining diacritic or mark (Unicode General Category M)")
         ! Combining diacritics and marks, and every nonspacing mark.
         call entry(int(z'300'), int(z'362'), "^")
         call entry(int(z'20D0'), int(z'20FF'), "^")
@@ -327,53 +327,53 @@ contains
     !> the most proper coding system to encode it.
     !> Port of characters.el (put-charset-property).
     subroutine characters_preferred_coding_systems()
-        call set_charset_attributes("latin-iso8859-1", preferred_coding_system="iso-latin-1")
-        call set_charset_attributes("latin-iso8859-2", preferred_coding_system="iso-latin-2")
-        call set_charset_attributes("latin-iso8859-3", preferred_coding_system="iso-latin-3")
-        call set_charset_attributes("latin-iso8859-4", preferred_coding_system="iso-latin-4")
-        call set_charset_attributes("thai-tis620", preferred_coding_system="thai-tis620")
-        call set_charset_attributes("greek-iso8859-7", preferred_coding_system="greek-iso-8bit")
-        call set_charset_attributes("arabic-iso8859-6", preferred_coding_system="iso-2022-7bit")
-        call set_charset_attributes("hebrew-iso8859-8", preferred_coding_system="hebrew-iso-8bit")
-        call set_charset_attributes("katakana-jisx0201", preferred_coding_system="japanese-shift-jis")
-        call set_charset_attributes("latin-jisx0201", preferred_coding_system="japanese-shift-jis")
-        call set_charset_attributes("cyrillic-iso8859-5", preferred_coding_system="cyrillic-iso-8bit")
-        call set_charset_attributes("latin-iso8859-9", preferred_coding_system="iso-latin-5")
-        call set_charset_attributes("japanese-jisx0208-1978", preferred_coding_system="iso-2022-jp")
-        call set_charset_attributes("chinese-gb2312", preferred_coding_system="chinese-iso-8bit")
-        call set_charset_attributes("chinese-gbk", preferred_coding_system="chinese-gbk")
-        call set_charset_attributes("gb18030-2-byte", preferred_coding_system="chinese-gb18030")
-        call set_charset_attributes("gb18030-4-byte-bmp", preferred_coding_system="chinese-gb18030")
-        call set_charset_attributes("gb18030-4-byte-smp", preferred_coding_system="chinese-gb18030")
-        call set_charset_attributes("gb18030-4-byte-ext-1", preferred_coding_system="chinese-gb18030")
-        call set_charset_attributes("gb18030-4-byte-ext-2", preferred_coding_system="chinese-gb18030")
-        call set_charset_attributes("japanese-jisx0208", preferred_coding_system="iso-2022-jp")
-        call set_charset_attributes("korean-ksc5601", preferred_coding_system="iso-2022-kr")
-        call set_charset_attributes("japanese-jisx0212", preferred_coding_system="iso-2022-jp")
-        call set_charset_attributes("chinese-big5-1", preferred_coding_system="chinese-big5")
-        call set_charset_attributes("chinese-big5-2", preferred_coding_system="chinese-big5")
-        call set_charset_attributes("chinese-sisheng", preferred_coding_system="iso-2022-7bit")
-        call set_charset_attributes("ipa", preferred_coding_system="iso-2022-7bit")
-        call set_charset_attributes("vietnamese-viscii-lower", preferred_coding_system="vietnamese-viscii")
-        call set_charset_attributes("vietnamese-viscii-upper", preferred_coding_system="vietnamese-viscii")
-        call set_charset_attributes("arabic-digit", preferred_coding_system="iso-2022-7bit")
-        call set_charset_attributes("arabic-1-column", preferred_coding_system="iso-2022-7bit")
-        call set_charset_attributes("lao", preferred_coding_system="lao")
-        call set_charset_attributes("arabic-2-column", preferred_coding_system="iso-2022-7bit")
-        call set_charset_attributes("indian-is13194", preferred_coding_system="devanagari")
-        call set_charset_attributes("indian-glyph", preferred_coding_system="devanagari")
-        call set_charset_attributes("tibetan-1-column", preferred_coding_system="tibetan")
-        call set_charset_attributes("ethiopic", preferred_coding_system="iso-2022-7bit")
-        call set_charset_attributes("chinese-cns11643-1", preferred_coding_system="iso-2022-cn")
-        call set_charset_attributes("chinese-cns11643-2", preferred_coding_system="iso-2022-cn")
-        call set_charset_attributes("chinese-cns11643-3", preferred_coding_system="iso-2022-cn")
-        call set_charset_attributes("chinese-cns11643-4", preferred_coding_system="iso-2022-cn")
-        call set_charset_attributes("chinese-cns11643-5", preferred_coding_system="iso-2022-cn")
-        call set_charset_attributes("chinese-cns11643-6", preferred_coding_system="iso-2022-cn")
-        call set_charset_attributes("chinese-cns11643-7", preferred_coding_system="iso-2022-cn")
-        call set_charset_attributes("indian-2-column", preferred_coding_system="devanagari")
-        call set_charset_attributes("tibetan", preferred_coding_system="tibetan")
-        call set_charset_attributes("latin-iso8859-14", preferred_coding_system="iso-latin-8")
-        call set_charset_attributes("latin-iso8859-15", preferred_coding_system="iso-latin-9")
+        call set_character_set_attributes("latin-iso8859-1", preferred_coding_system="iso-latin-1")
+        call set_character_set_attributes("latin-iso8859-2", preferred_coding_system="iso-latin-2")
+        call set_character_set_attributes("latin-iso8859-3", preferred_coding_system="iso-latin-3")
+        call set_character_set_attributes("latin-iso8859-4", preferred_coding_system="iso-latin-4")
+        call set_character_set_attributes("thai-tis620", preferred_coding_system="thai-tis620")
+        call set_character_set_attributes("greek-iso8859-7", preferred_coding_system="greek-iso-8bit")
+        call set_character_set_attributes("arabic-iso8859-6", preferred_coding_system="iso-2022-7bit")
+        call set_character_set_attributes("hebrew-iso8859-8", preferred_coding_system="hebrew-iso-8bit")
+        call set_character_set_attributes("katakana-jisx0201", preferred_coding_system="japanese-shift-jis")
+        call set_character_set_attributes("latin-jisx0201", preferred_coding_system="japanese-shift-jis")
+        call set_character_set_attributes("cyrillic-iso8859-5", preferred_coding_system="cyrillic-iso-8bit")
+        call set_character_set_attributes("latin-iso8859-9", preferred_coding_system="iso-latin-5")
+        call set_character_set_attributes("japanese-jisx0208-1978", preferred_coding_system="iso-2022-jp")
+        call set_character_set_attributes("chinese-gb2312", preferred_coding_system="chinese-iso-8bit")
+        call set_character_set_attributes("chinese-gbk", preferred_coding_system="chinese-gbk")
+        call set_character_set_attributes("gb18030-2-byte", preferred_coding_system="chinese-gb18030")
+        call set_character_set_attributes("gb18030-4-byte-bmp", preferred_coding_system="chinese-gb18030")
+        call set_character_set_attributes("gb18030-4-byte-smp", preferred_coding_system="chinese-gb18030")
+        call set_character_set_attributes("gb18030-4-byte-ext-1", preferred_coding_system="chinese-gb18030")
+        call set_character_set_attributes("gb18030-4-byte-ext-2", preferred_coding_system="chinese-gb18030")
+        call set_character_set_attributes("japanese-jisx0208", preferred_coding_system="iso-2022-jp")
+        call set_character_set_attributes("korean-ksc5601", preferred_coding_system="iso-2022-kr")
+        call set_character_set_attributes("japanese-jisx0212", preferred_coding_system="iso-2022-jp")
+        call set_character_set_attributes("chinese-big5-1", preferred_coding_system="chinese-big5")
+        call set_character_set_attributes("chinese-big5-2", preferred_coding_system="chinese-big5")
+        call set_character_set_attributes("chinese-sisheng", preferred_coding_system="iso-2022-7bit")
+        call set_character_set_attributes("ipa", preferred_coding_system="iso-2022-7bit")
+        call set_character_set_attributes("vietnamese-viscii-lower", preferred_coding_system="vietnamese-viscii")
+        call set_character_set_attributes("vietnamese-viscii-upper", preferred_coding_system="vietnamese-viscii")
+        call set_character_set_attributes("arabic-digit", preferred_coding_system="iso-2022-7bit")
+        call set_character_set_attributes("arabic-1-column", preferred_coding_system="iso-2022-7bit")
+        call set_character_set_attributes("lao", preferred_coding_system="lao")
+        call set_character_set_attributes("arabic-2-column", preferred_coding_system="iso-2022-7bit")
+        call set_character_set_attributes("indian-is13194", preferred_coding_system="devanagari")
+        call set_character_set_attributes("indian-glyph", preferred_coding_system="devanagari")
+        call set_character_set_attributes("tibetan-1-column", preferred_coding_system="tibetan")
+        call set_character_set_attributes("ethiopic", preferred_coding_system="iso-2022-7bit")
+        call set_character_set_attributes("chinese-cns11643-1", preferred_coding_system="iso-2022-cn")
+        call set_character_set_attributes("chinese-cns11643-2", preferred_coding_system="iso-2022-cn")
+        call set_character_set_attributes("chinese-cns11643-3", preferred_coding_system="iso-2022-cn")
+        call set_character_set_attributes("chinese-cns11643-4", preferred_coding_system="iso-2022-cn")
+        call set_character_set_attributes("chinese-cns11643-5", preferred_coding_system="iso-2022-cn")
+        call set_character_set_attributes("chinese-cns11643-6", preferred_coding_system="iso-2022-cn")
+        call set_character_set_attributes("chinese-cns11643-7", preferred_coding_system="iso-2022-cn")
+        call set_character_set_attributes("indian-2-column", preferred_coding_system="devanagari")
+        call set_character_set_attributes("tibetan", preferred_coding_system="tibetan")
+        call set_character_set_attributes("latin-iso8859-14", preferred_coding_system="iso-latin-8")
+        call set_character_set_attributes("latin-iso8859-15", preferred_coding_system="iso-latin-9")
     end subroutine characters_preferred_coding_systems
 end module characters_mod

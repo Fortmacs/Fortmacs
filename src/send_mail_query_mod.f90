@@ -82,7 +82,7 @@ contains
                                         "   (Fortmacs may prompt you for SMTP settings)."//LF//LF// &
                                         " Fortmacs will record your selection and will use it thereafter."//LF// &
                                         " To change it later, set `send_mail_function'."//LF), status)
-    call goto_char(point_min())
+    call goto_character(point_minimum())
     call display_buffer(help, window, status)
 
     if (status%ok()) then
@@ -106,7 +106,7 @@ contains
     case ("smtp")
         chosen => send_mail_with_smtp
     case default
-        call set_error(status, FM_VOID_FUNCTION, "mailclient_send_it")
+        call set_error(status, VOID_FUNCTION_CODE, "mailclient_send_it")
     end select
     end procedure query_sendmail_user_about_smtp
 end submodule send_mail_query_mod

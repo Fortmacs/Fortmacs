@@ -26,7 +26,7 @@ submodule(simple_mod) simple_view_mod
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
     use derived_mod, only: major_mode_type, major_mode_named
-    use editing_functions_mod, only: point_min, widen, narrow_to_region
+    use editing_functions_mod, only: point_minimum, widen, narrow_to_region
     use view_mod, only: view_mode_enabled, view_exit_and_edit, view_read_only_value, set_view_read_only_local, &
                         view_mode_enter
     implicit none(type, external)
@@ -79,32 +79,32 @@ contains
     end procedure what_line
 
     module procedure what_line_text
-    integer(int64) :: start, n, begv, zv
+    integer(int64) :: start, n, beginning_of_accessible_portion, end_of_accessible_portion
     character(len=24) :: a, b
     type(status_type) :: status
 
-    start = point_min()
-    n = line_number_at_pos()
+    start = point_minimum()
+    n = line_number_at_position()
     write (a, "(i0)") n
 
     if (start == 1) then
         text = "Line "//trim(a)
         call message(text)
     else
-        begv = buffers(current)%begv
-        zv = buffers(current)%zv
+        beginning_of_accessible_portion = buffers(current)%beginning_of_accessible_portion
+        end_of_accessible_portion = buffers(current)%end_of_accessible_portion
         call widen()
-        write (b, "(i0)") n + line_number_at_pos(start) - 1
+        write (b, "(i0)") n + line_number_at_position(start) - 1
         text = "line "//trim(b)//" (narrowed line "//trim(a)//")"
         call message(text)
-        call narrow_to_region(begv, zv, status)
+        call narrow_to_region(beginning_of_accessible_portion, end_of_accessible_portion, status)
     end if
     end procedure what_line_text
 
-    module procedure init_simple_view
+    module procedure initialize_simple_view
     call minor_modes%read_only_mode%define("read_only_mode", variable="buffer_read_only", hook=read_only_mode_hook, &
                                            body=read_only_body)
     commands%read_only_mode%execute => read_only_mode
     commands%what_line%execute => what_line
-    end procedure init_simple_view
+    end procedure initialize_simple_view
 end submodule simple_view_mod

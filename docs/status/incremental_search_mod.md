@@ -60,7 +60,7 @@ M-r,
 M-s r,
 M-s SPC,
 the `lazy-highlight` face (for Occur's current line),
-the `isearch` face (for Ispell's highlighting)
+the `incremental_search` face (for Ispell's highlighting)
 
 ## Deferred
 

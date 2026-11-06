@@ -54,19 +54,19 @@ contains
     subroutine test_sha224_known_answers(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, hex(compute_sha224("")) == &
+        call check(error, hexadecimal(compute_sha224("")) == &
                    "d14a028c2a3a2bc9476102bb288234c415a2b01f828ea62ac5b3e42f", "empty")
         if (allocated(error)) return
-        call check(error, hex(compute_sha224("abc")) == &
+        call check(error, hexadecimal(compute_sha224("abc")) == &
                    "23097d223405d8228642a477bda255b32aadbce4bda0b3f7e36c9da7", "abc")
         if (allocated(error)) return
-        call check(error, hex(compute_sha224(MESSAGE_448)) == &
+        call check(error, hexadecimal(compute_sha224(MESSAGE_448)) == &
                    "75388b16512776cc5dba5da1fd890150b0c6455cb4f58b1952522525", "the 448-bit message")
         if (allocated(error)) return
-        call check(error, hex(compute_sha224(MESSAGE_896)) == &
+        call check(error, hexadecimal(compute_sha224(MESSAGE_896)) == &
                    "c97ca9a559850ce97a04a96def6d99a9e0e0e2ab14e6b8df265fc0b3", "the 896-bit message")
         if (allocated(error)) return
-        call check(error, hex(compute_sha224(repeat("a", 1000000))) == &
+        call check(error, hexadecimal(compute_sha224(repeat("a", 1000000))) == &
                    "20794655980c91d8bbb4c1ea97618a4bf03f42581948b2ee4ee7ad67", "a million a characters")
     end subroutine test_sha224_known_answers
 
@@ -100,19 +100,19 @@ contains
     subroutine test_sha256_known_answers(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, hex(compute_sha256("")) == &
+        call check(error, hexadecimal(compute_sha256("")) == &
                    "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "empty")
         if (allocated(error)) return
-        call check(error, hex(compute_sha256("abc")) == &
+        call check(error, hexadecimal(compute_sha256("abc")) == &
                    "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "abc")
         if (allocated(error)) return
-        call check(error, hex(compute_sha256(MESSAGE_448)) == &
+        call check(error, hexadecimal(compute_sha256(MESSAGE_448)) == &
                    "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1", "the 448-bit message")
         if (allocated(error)) return
-        call check(error, hex(compute_sha256(MESSAGE_896)) == &
+        call check(error, hexadecimal(compute_sha256(MESSAGE_896)) == &
                    "cf5b16a778af8380036ce59e7b0492370b249b11e8f07a51afac45037afee9d1", "the 896-bit message")
         if (allocated(error)) return
-        call check(error, hex(compute_sha256(repeat("a", 1000000))) == &
+        call check(error, hexadecimal(compute_sha256(repeat("a", 1000000))) == &
                    "cdc76e5c9914fb9281a1c7e284d73e67f1809a48a497200e046d39ccc7112cd0", "a million a characters")
     end subroutine test_sha256_known_answers
 
@@ -143,16 +143,16 @@ contains
     end subroutine test_sha256_pieces
 
     !> The lowercase hexadecimal digits of the bytes of DIGEST.
-    pure function hex(digest) result(text)
+    pure function hexadecimal(digest) result(text)
         character(len=*), intent(in) :: digest
         character(len=2*len(digest)) :: text
-        character(len=16), parameter :: HEX_DIGITS = "0123456789abcdef"
+        character(len=16), parameter :: HEXADECIMAL_DIGITS = "0123456789abcdef"
         integer :: i, byte
 
         do i = 1, len(digest)
             byte = iachar(digest(i:i))
-            text(2*i - 1:2*i - 1) = HEX_DIGITS(byte/16 + 1:byte/16 + 1)
-            text(2*i:2*i) = HEX_DIGITS(mod(byte, 16) + 1:mod(byte, 16) + 1)
+            text(2*i - 1:2*i - 1) = HEXADECIMAL_DIGITS(byte/16 + 1:byte/16 + 1)
+            text(2*i:2*i) = HEXADECIMAL_DIGITS(mod(byte, 16) + 1:mod(byte, 16) + 1)
         end do
-    end function hex
+    end function hexadecimal
 end module test_sha256_mod

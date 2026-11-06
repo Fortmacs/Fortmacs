@@ -1,6 +1,6 @@
 # search_mod
 
-- Module: search_mod, search_regexp_mod (submodule)
+- Module: search_mod, search_regular_expression_mod (submodule)
 - Upstream: search.c
 - State: done
 
@@ -16,7 +16,7 @@
 `re-search-forward`,
 `re-search-backward`,
 `posix-search-forward`,
-`posix-search-backward` (`search_command`, `search_buffer` with `is_trivial_regexp`, `search_buffer_regexp`, `search_buffer_non_regexp`, `simple_search`, through the current buffer's case canon table with `case-fold-search`; the commands read the string in the minibuffer),
+`posix-search-backward` (`search_command`, `search_buffer` with `is_trivial_regular_expression`, `search_buffer_regular_expression`, `search_buffer_non_regexp`, `simple_search`, through the current buffer's case canon table with `case-fold-search`; the commands read the string in the minibuffer),
 `looking-at`,
 `posix-looking-at`,
 `string-match`,
@@ -27,7 +27,7 @@ the cache of compiled patterns (`compile_pattern`, `compile_pattern_1`),
 `fast_looking_at` (in strings and the buffer, up to a limit),
 `search-spaces-regexp`,
 the match data (`match-beginning`, `match-end`, `match-data` as integers, `set-match-data`, `match-data--translate`),
-saving it while a process filter or sentinel runs (`running_asynch_code`, `save_search_regs`, `restore_search_regs`, `record_unwind_save_match_data`, `unwind_set_match_data`; process_mod calls them through `begin_asynch_code`/`end_asynch_code`),
+saving it while a process filter or sentinel runs (`running_asynchronous_code`, `save_search_regs`, `restore_search_regs`, `record_unwind_save_match_data`, `unwind_set_match_data`; process_mod calls them through `begin_asynchronous_code`/`end_asynchronous_code`),
 `regexp-quote`,
 `replace-match` (in a string or the buffer, case conversion of the replacement, `\&`, `\N` and `\\`, SUBEXP; `update_search_regs`),
 `syms_of_search` (its commands)
@@ -39,7 +39,7 @@ the newline cache (region-cache.c; `newline_cache_on_off`),
 `match-data` markers and REUSE,
 `translation-table-for-input`,
 `inhibit-changing-match-data`;
-Not applicable: debugging helpers (`newline-cache-check`, `re--describe-compiled`, whose description needs a checking build),
+Not applicable: debugging helpers (`newline-cache-check`, `regular_expression--describe-compiled`, whose description needs a checking build),
 `freeze_buffer_relocation` (ralloc.c),
 `shrink_regexp_cache` (called by GC),
 `syms_of_search_for_pdumper` (the dumper);

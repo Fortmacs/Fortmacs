@@ -52,19 +52,19 @@ contains
     subroutine test_sha1_known_answers(error)
         type(error_type), allocatable, intent(out) :: error
 
-        call check(error, hex(compute_sha1("")) == &
+        call check(error, hexadecimal(compute_sha1("")) == &
                    "da39a3ee5e6b4b0d3255bfef95601890afd80709", "empty")
         if (allocated(error)) return
-        call check(error, hex(compute_sha1("abc")) == &
+        call check(error, hexadecimal(compute_sha1("abc")) == &
                    "a9993e364706816aba3e25717850c26c9cd0d89d", "abc")
         if (allocated(error)) return
-        call check(error, hex(compute_sha1(MESSAGE_448)) == &
+        call check(error, hexadecimal(compute_sha1(MESSAGE_448)) == &
                    "84983e441c3bd26ebaae4aa1f95129e5e54670f1", "the 448-bit message")
         if (allocated(error)) return
-        call check(error, hex(compute_sha1(MESSAGE_896)) == &
+        call check(error, hexadecimal(compute_sha1(MESSAGE_896)) == &
                    "a49b2446a02c645bf419f995b67091253a04a259", "the 896-bit message")
         if (allocated(error)) return
-        call check(error, hex(compute_sha1(repeat("a", 1000000))) == &
+        call check(error, hexadecimal(compute_sha1(repeat("a", 1000000))) == &
                    "34aa973cd4c4daa4f61eeb2bdbad27316534016f", "a million a characters")
     end subroutine test_sha1_known_answers
 
@@ -95,16 +95,16 @@ contains
     end subroutine test_sha1_pieces
 
     !> The lowercase hexadecimal digits of the bytes of DIGEST.
-    pure function hex(digest) result(text)
+    pure function hexadecimal(digest) result(text)
         character(len=*), intent(in) :: digest
         character(len=2*len(digest)) :: text
-        character(len=16), parameter :: HEX_DIGITS = "0123456789abcdef"
+        character(len=16), parameter :: HEXADECIMAL_DIGITS = "0123456789abcdef"
         integer :: i, byte
 
         do i = 1, len(digest)
             byte = iachar(digest(i:i))
-            text(2*i - 1:2*i - 1) = HEX_DIGITS(byte/16 + 1:byte/16 + 1)
-            text(2*i:2*i) = HEX_DIGITS(mod(byte, 16) + 1:mod(byte, 16) + 1)
+            text(2*i - 1:2*i - 1) = HEXADECIMAL_DIGITS(byte/16 + 1:byte/16 + 1)
+            text(2*i:2*i) = HEXADECIMAL_DIGITS(mod(byte, 16) + 1:mod(byte, 16) + 1)
         end do
-    end function hex
+    end function hexadecimal
 end module test_sha1_mod

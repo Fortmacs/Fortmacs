@@ -35,14 +35,14 @@ module test_autorevert_mod
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: buffer_string
     use file_input_output_mod, only: write_region, set_file_times
-    use files_mod, only: create_temp_file, delete_file, find_file_noselect, save_buffer, write_file, before_revert_hook
+    use files_mod, only: create_temporary_file, delete_file, find_file_noselect, save_buffer, write_file, before_revert_hook
     use time_functions_mod, only: current_time, time_subtract, time_type
     use keyboard_mod, only: read_event
     use modes_mod, only: minor_modes
-    use bindings_mod, only: init_bindings
+    use bindings_mod, only: initialize_bindings
     use filenotify_mod, only: file_notify_rm_all_watches
     use autorevert_mod, only: auto_revert_interval, auto_revert_lockout_interval, auto_revert_stop_on_user_input, &
-                              auto_revert_notify_exclude_dir_regexp, inhibit_auto_revert, auto_revert_use_notify
+                              auto_revert_notify_exclude_directory_regular_expression, inhibit_auto_revert, auto_revert_use_notify
     implicit none(type, external)
     private
 
@@ -54,7 +54,7 @@ module test_autorevert_mod
     type(handle_type) :: wait_buffer
     character(len=:), allocatable :: wait_text, wait_message
     !> Settings saved by `begin' (with-auto-revert-test).
-    real :: interval_orig, lockout_orig
+    real :: interval_original, lockout_original
 
     abstract interface
         logical function test_procedure()
@@ -84,19 +84,19 @@ contains
 
     !> with-auto-revert-test: short intervals.
     subroutine begin()
-        call init_bindings()
+        call initialize_bindings()
         auto_revert_stop_on_user_input = .false.
-        auto_revert_notify_exclude_dir_regexp = "nothing-to-be-excluded"
-        interval_orig = auto_revert_interval
-        lockout_orig = auto_revert_lockout_interval
+        auto_revert_notify_exclude_directory_regular_expression = "nothing-to-be-excluded"
+        interval_original = auto_revert_interval
+        lockout_original = auto_revert_lockout_interval
         auto_revert_interval = 0.1
         auto_revert_lockout_interval = 0.05
     end subroutine begin
 
     !> The end of with-auto-revert-test.
     subroutine finish()
-        auto_revert_interval = interval_orig
-        auto_revert_lockout_interval = lockout_orig
+        auto_revert_interval = interval_original
+        auto_revert_lockout_interval = lockout_original
         call file_notify_rm_all_watches()
     end subroutine finish
 
@@ -120,13 +120,13 @@ contains
         character(len=*), intent(in) :: text, file
         type(handle_type) :: old, h
         type(status_type) :: st
-        character(len=:), allocatable :: msg
+        character(len=:), allocatable :: message_text
 
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *autorevert-test*"), h, st)
         call set_buffer(h, st)
         call insert(text, st)
-        call write_region(file, .false., st, message=msg)
+        call write_region(file, .false., st, message=message_text)
         call close_buffer(h, st)
         call set_buffer(old, st)
     end subroutine write_text
@@ -187,17 +187,17 @@ contains
         buffer_text_is = text_of(wait_buffer) == wait_text .and. len(text_of(wait_buffer)) == len(wait_text)
     end function buffer_text_is
 
-    !> Wait until TEST is true, or MAX_WAIT seconds elapsed
+    !> Wait until TEST is true, or MAXIMUM_WAIT seconds elapsed
     !> (auto-revert-test--wait-for).
-    subroutine wait_for(test, max_wait)
+    subroutine wait_for(test, maximum_wait)
         procedure(test_procedure) :: test
-        real, intent(in) :: max_wait
+        real, intent(in) :: maximum_wait
         type(value_type) :: ev
         type(status_type) :: st
         logical :: have
         integer :: k
 
-        do k = 1, int(max_wait*10)
+        do k = 1, int(maximum_wait*10)
             if (test()) return
             call read_event(ev, have, st, seconds=0.1)
         end do
@@ -214,14 +214,14 @@ contains
 
     !> Wait until BUFFER has the contents TEXT
     !> (auto-revert-test--wait-for-buffer-text).
-    subroutine wait_for_buffer_text(buffer, text, max_wait)
+    subroutine wait_for_buffer_text(buffer, text, maximum_wait)
         type(handle_type), intent(in) :: buffer
         character(len=*), intent(in) :: text
-        real, intent(in) :: max_wait
+        real, intent(in) :: maximum_wait
 
         wait_buffer = buffer
         wait_text = text
-        call wait_for(buffer_text_is, max_wait)
+        call wait_for(buffer_text_is, maximum_wait)
     end subroutine wait_for_buffer_text
 
     ! ------------------------------------------------------------------
@@ -236,7 +236,7 @@ contains
         type(status_type) :: st
 
         call begin()
-        call create_temp_file("auto-revert-test", tmpfile, st)
+        call create_temporary_file("auto-revert-test", tmpfile, st)
 
         body: block
             call write_text("any text", tmpfile)
@@ -288,7 +288,7 @@ contains
         type(status_type) :: st
 
         call begin()
-        call create_temp_file("auto-revert-test", tmpfile, st)
+        call create_temporary_file("auto-revert-test", tmpfile, st)
 
         body: block
             call write_text("any text", tmpfile)
@@ -336,7 +336,7 @@ contains
         type(status_type) :: st
 
         call begin()
-        call create_temp_file("auto-revert-test", tmpfile, st)
+        call create_temporary_file("auto-revert-test", tmpfile, st)
 
         body: block
             call capture_messages()
@@ -370,9 +370,9 @@ contains
 
         call begin()
         auto_revert_use_notify%value = .true.
-        call create_temp_file("auto-revert-test", file_1, st)
-        call create_temp_file("auto-revert-test", file_2, st)
-        call create_temp_file("auto-revert-test", file_3, st)
+        call create_temporary_file("auto-revert-test", file_1, st)
+        call create_temporary_file("auto-revert-test", file_2, st)
+        call create_temporary_file("auto-revert-test", file_3, st)
         file_2b = file_2//"-b"
 
         body: block
@@ -437,7 +437,7 @@ contains
 
         call begin()
         auto_revert_use_notify%value = .true.
-        call create_temp_file("auto-revert-test", file_1, st)
+        call create_temporary_file("auto-revert-test", file_1, st)
         file_2 = file_1//"-2"
 
         body: block
@@ -480,7 +480,7 @@ contains
         type(status_type) :: st
 
         call begin()
-        call create_temp_file("auto-revert-test", tmpfile, st)
+        call create_temporary_file("auto-revert-test", tmpfile, st)
 
         body: block
             call write_text("any text", tmpfile)

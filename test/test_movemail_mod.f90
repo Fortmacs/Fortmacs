@@ -25,7 +25,7 @@
 module test_movemail_mod
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
-    use files_mod, only: create_temp_file, delete_file
+    use files_mod, only: create_temporary_file, delete_file
     use file_input_output_mod, only: file_exists
     use movemail_mod, only: move_mail
     use test_rmail_support_mod, only: write_file, read_file_text, SAMPLE_INBOX
@@ -54,7 +54,7 @@ contains
         character(len=:), allocatable, intent(out) :: inbox, tofile
         type(status_type) :: st
 
-        call create_temp_file("movemail-test", inbox, st)
+        call create_temporary_file("movemail-test", inbox, st)
         call delete_file(inbox, st)
         tofile = inbox//"-new"
     end subroutine names

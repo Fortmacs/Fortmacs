@@ -32,24 +32,26 @@
 module rmail_summary_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, prefix_numeric_value, prefix_arg_type, PREFIX_NONE, &
+    use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, prefix_argument_type, PREFIX_NONE, &
                                          PREFIX_NUMBER, PREFIX_MINUS
-    use error_mod, only: status_type, set_error, FM_GENERIC_ERROR
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use hooks_mod, only: hook_type
     use string_type_mod, only: string_type, append_string
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, is_buffer_live, buffer_name, close_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, set_buffer_modified, buffer_serial_live, erase_buffer
-    use editing_functions_mod, only: point, goto_char, point_min, point_max, is_eob, is_bob, buffer_substring, &
+    use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_end_of_buffer, &
+                                     is_beginning_of_buffer, buffer_substring, &
                                      buffer_substring_no_properties, delete_region, narrow_to_region, widen, &
                                      line_end_position, line_beginning_position, save_restriction_begin, &
                                      save_restriction_end, save_excursion_begin, save_excursion_end, restriction_type, &
-                                     excursion_type, user_login_name, char_after
+                                     excursion_type, user_login_name, character_after
     use insert_delete_mod, only: insert
     use editing_commands_mod, only: forward_line, end_of_line, beginning_of_line
-    use syntax_mod, only: skip_chars_forward, skip_chars_backward
-    use search_mod, only: re_search_forward, re_search_backward, search_forward, looking_at, match_beginning, match_end, &
-                          string_match, regexp_quote, case_fold_search, replace_match, SEARCH_NOERROR, SEARCH_MOVE
+    use syntax_mod, only: skip_characters_forward, skip_characters_backward
+    use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, search_forward, &
+                          looking_at, match_beginning, match_end, &
+                          string_match, regular_expression_quote, case_fold_search, replace_match, SEARCH_NOERROR, SEARCH_MOVE
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
     use keymap_mod, only: keymap_set, use_local_map, make_sparse_keymap, set_keymap_parent
     use modes_mod, only: major_modes
@@ -58,7 +60,7 @@ module rmail_summary_mod
     use window_mod, only: get_buffer_window, select_window, split_window, next_window, frame_first_window, &
                           MINIBUF_ACTIVE, MINIBUF_NO, &
                           delete_other_windows, delete_window, window_buffer, set_window_buffer, other_buffer, &
-                          is_pos_visible_in_window, scroll_other_window, scroll_other_window_down, recenter, &
+                          is_position_visible_in_window, scroll_other_window, scroll_other_window_down, recenter, &
                           window_body_height, switch_to_buffer, bury_buffer, pop_up_windows
     use frame_mod, only: selected_window
     use minibuffer_mod, only: read_file_name
@@ -70,8 +72,8 @@ module rmail_summary_mod
     use simple_mod, only: count_lines, beginning_of_buffer, end_of_buffer
     use files_mod, only: save_buffer
     use startup_mod, only: user_mail_address_value
-    use incremental_search_mod, only: isearch_active
-    use mail_utilities_mod, only: get_mail_field, strip_mail_quoted_names, mail_comma_list_regexp
+    use incremental_search_mod, only: incremental_search_active
+    use mail_utilities_mod, only: get_mail_field, strip_mail_quoted_names, mail_comma_list_regular_expression
     use rmail_mod, only: rmail_states, rmail_state_index, rmail_buffer, set_rmail_buffer, rmail_message_beginning, &
                          rmail_message_end, is_rmail_message_deleted, get_rmail_header, has_rmail_message_labels, &
                          apply_in_rmail_message_begin, apply_in_rmail_message_end, rmail_message_scope_type, &
@@ -80,7 +82,7 @@ module rmail_summary_mod
                          undelete_previous_rmail_message, is_rmail_expunge_confirmed, expunge_rmail_only, &
                          expunge_and_save_rmail, get_rmail_new_mail, rmail, quit_rmail, search_rmail, toggle_rmail_header, &
                          select_rmail_summary, pop_to_rmail_buffer, rmail_summary_window_size, &
-                         rmail_user_mail_address_regexp, rmail_last_multi_labels, RMAIL_ATTRIBUTE_HEADER, &
+                         rmail_user_mail_address_regular_expression, rmail_last_multi_labels, RMAIL_ATTRIBUTE_HEADER, &
                          RMAIL_KEYWORD_HEADER, RMAIL_UNSEEN_ATTRIBUTE_INDEX, goto_rmail_summary_message_function, &
                          mark_rmail_summary_deleted_function, mark_rmail_summary_undeleted_function, &
                          update_rmail_summary_line_function, update_rmail_summary_function, rmail_summary_function, &
@@ -96,7 +98,7 @@ module rmail_summary_mod
     public :: rmail_summary, rmail_summary_by_labels, rmail_summary_by_recipients, rmail_summary_by_senders, &
               update_rmail_summary, goto_rmail_summary_message, mark_rmail_summary_deleted, mark_rmail_summary_undeleted, &
               update_rmail_summary_line, rmail_summary_mode, strip_rmail_summary_recipient_quoted_names, &
-              strip_rmail_summary_sender, summarize_rmail_header, init_rmail_summary
+              strip_rmail_summary_sender, summarize_rmail_header, initialize_rmail_summary
 
     !> The kinds of summary `rmail_summary_redo' remakes: of all messages,
     !> by labels, by recipients, by senders.  Not a port.
@@ -323,9 +325,9 @@ contains
         if (allocated(summary_states(s)%displayed)) deallocate (summary_states(s)%displayed)
         allocate (summary_states(s)%displayed(0:total))
         summary_states(s)%displayed = .false.
-        call goto_char(point_min())
+        call goto_character(point_minimum())
 
-        do while (.not. is_eob())
+        do while (.not. is_end_of_buffer())
             number = line_number_at_point()
             if (number >= 0 .and. number <= total) summary_states(s)%displayed(number) = .true.
             moved = forward_line(1_int64)
@@ -358,10 +360,10 @@ contains
         if (ios /= 0) number = 0
     end function line_number_at_point
 
-    ! Whether the summary shows message MSG (when it progressively
+    ! Whether the summary shows message MESSAGE (when it progressively
     ! narrows).  Not a port.
-    logical function is_displayed(msg)
-        integer(int64), intent(in) :: msg
+    logical function is_displayed(message)
+        integer(int64), intent(in) :: message
         type(handle_type) :: saved, summary
         type(status_type) :: st
         integer :: k, s
@@ -377,8 +379,8 @@ contains
 
         if (s > 0) then
             if (allocated(summary_states(s)%displayed)) then
-                if (msg >= 0 .and. msg <= ubound(summary_states(s)%displayed, 1)) then
-                    is_displayed = summary_states(s)%displayed(msg)
+                if (message >= 0 .and. message <= ubound(summary_states(s)%displayed, 1)) then
+                    is_displayed = summary_states(s)%displayed(message)
                 end if
             end if
         end if
@@ -426,7 +428,7 @@ contains
 
         if (len(wanted) == 0) then
             if (.not. allocated(rmail_last_multi_labels)) then
-                call set_error(status, FM_GENERIC_ERROR, "No label specified")
+                call set_error(status, GENERIC_ERROR_CODE, "No label specified")
                 return
             end if
 
@@ -468,14 +470,14 @@ contains
         call make_rmail_new_summary("senders "//senders, SUMMARY_SENDERS, senders, .false., status)
     end subroutine rmail_summary_by_senders
 
-    ! Whether message MSG goes in a summary of kind KIND with TEXT and
+    ! Whether message MESSAGE goes in a summary of kind KIND with TEXT and
     ! PRIMARY_ONLY.  Port of rmailsum.el:rmail-message-labels-p's use,
     ! rmailsum.el:rmail-message-recipients-p (with
     ! rmailsum.el:rmail-message-recipients-p-1) and
     ! rmailsum.el:rmail-message-senders-p, and of the progressive
     ! narrowing lambdas.
-    logical function is_summarized(msg, kind, text, primary_only) result(included)
-        integer(int64), intent(in) :: msg
+    logical function is_summarized(message, kind, text, primary_only) result(included)
+        integer(int64), intent(in) :: message
         integer, intent(in) :: kind
         character(len=*), intent(in) :: text
         logical, intent(in) :: primary_only
@@ -488,28 +490,28 @@ contains
         if (kind == SUMMARY_ALL) return
 
         if (rmail_summary_progressively_narrow .and. summary_exists_1()) then
-            included = is_displayed(msg)
+            included = is_displayed(message)
             if (.not. included) return
         end if
 
         select case (kind)
         case (SUMMARY_LABELS)
-            included = has_rmail_message_labels(msg, " \("//mail_comma_list_regexp(text)//"\)\(,\|\'\)")
+            included = has_rmail_message_labels(message, " \("//mail_comma_list_regular_expression(text)//"\)\(,\|\'\)")
         case (SUMMARY_RECIPIENTS)
             included = .false.
-            call apply_in_rmail_message_begin(scope, st, msg)
+            call apply_in_rmail_message_begin(scope, st, message)
 
             if (scope%active) then
                 ! mail-fetch-field does not care where it starts from.
                 call search_forward(LF//LF, found, st, noerror=SEARCH_NOERROR)
-                call narrow_to_region(point_min(), point(), st)
+                call narrow_to_region(point_minimum(), point(), st)
                 included = matches("To") .or. matches("From")
                 if (.not. included .and. .not. primary_only) included = matches("Cc")
             end if
 
             call apply_in_rmail_message_end(scope)
         case (SUMMARY_SENDERS)
-            call get_rmail_header("From", value, st, msg)
+            call get_rmail_header("From", value, st, message)
             if (.not. allocated(value)) value = ""
             included = string_match(text, value, st) > 0
         case default
@@ -550,7 +552,7 @@ contains
         call message("Computing summary lines...")
 
         if (.not. is_buffer_live(rmail_buffer())) then
-            call set_error(status, FM_GENERIC_ERROR, "No RMAIL buffer found")
+            call set_error(status, GENERIC_ERROR_CODE, "No RMAIL buffer found")
             return
         end if
 
@@ -676,7 +678,7 @@ contains
         end do
 
         if (.not. status%ok()) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         ! Set up the rest of its state and local variables.
         buffers(current)%read_only = .true.
         call rmail_summary_mode(status)
@@ -776,13 +778,13 @@ contains
         call save_excursion_begin(excursion)
         call save_restriction_begin(restriction)
         call widen()
-        call goto_char(beginning)
+        call goto_character(beginning)
         call search_forward(LF//LF, found, status, bound=end, noerror=SEARCH_NOERROR)
 
         if (status%ok() .and. found > 0) then
             call narrow_to_region(beginning, point(), status)
             ! Replace rmail-message-unseen-p.
-            call goto_char(beginning)
+            call goto_character(beginning)
             call search_forward(RMAIL_ATTRIBUTE_HEADER//": ", found, st, noerror=SEARCH_NOERROR)
             if (found > 0) unseen = looking_at("......U", st)
             ! Generate a status line from the message.
@@ -841,7 +843,7 @@ contains
         character(len=20) :: linecount, prefix
         character :: state
 
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call summarize_rmail_header(basic_start, basic_end, status)
         if (.not. status%ok()) return
         labels = get_rmail_summary_labels()
@@ -895,31 +897,33 @@ contains
         type(excursion_type) :: excursion
         type(status_type) :: st
         character(len=20) :: text
-        integer(int64) :: found, beginning, pos, moved
+        integer(int64) :: found, beginning, position, moved
         integer :: width, after, before, length, mch, lo, newline, day
         logical :: saved_fold
 
         status = status_type()
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call save_excursion_begin(excursion)
         saved_fold = case_fold_search%value
         case_fold_search%value = .true.
-        call re_search_forward("^Date:", found, st, noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward("^Date:", found, st, noerror=SEARCH_NOERROR)
 
         if (found == 0) then
             date = "      "
         else
             ! Match month names case-insensitively.
-            call re_search_forward("\([^0-9:]\)\([0-3]?[0-9]\)\([- "//TAB//"_]+\)\([adfjmnos][aceopu][bcglnprtvy]\)", &
-                                   found, st, bound=line_end_position(1_int64), noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("\([^0-9:]\)\([0-3]?[0-9]\)\([- "//TAB &
+                                                   //"_]+\)\([adfjmnos][aceopu][bcglnprtvy]\)", &
+                                                   found, st, bound=line_end_position(1_int64), noerror=SEARCH_NOERROR)
 
             if (found > 0) then
                 day = int(string_number(match_text(2)))
                 write (text, '(i2, "-", a3)') day, match_text(4)
                 date = text(1:6)
             else
-                call re_search_forward("\([^a-z]\)\([adfjmnos][acepou][bcglnprtvy]\)\([-a-z "//TAB//"_]*\)\([0-9][0-9]?\)", &
-                                       found, st, bound=line_end_position(1_int64), noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("\([^a-z]\)\([adfjmnos][acepou][bcglnprtvy]\)\([-a-z "//TAB &
+                                                       //"_]*\)\([0-9][0-9]?\)", &
+                                                       found, st, bound=line_end_position(1_int64), noerror=SEARCH_NOERROR)
 
                 if (found > 0) then
                     day = int(string_number(match_text(4)))
@@ -927,8 +931,8 @@ contains
                     date = text(1:6)
                 else
                     case_fold_search%value = saved_fold
-                    call re_search_forward("\(19\|20\)\([0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)", found, st, &
-                                           bound=line_end_position(1_int64), noerror=SEARCH_NOERROR)
+                    call regular_expression_search_forward("\(19\|20\)\([0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)", found, st, &
+                                                           bound=line_end_position(1_int64), noerror=SEARCH_NOERROR)
                     case_fold_search%value = .true.
 
                     if (found > 0) then
@@ -942,7 +946,7 @@ contains
 
         call save_excursion_end(excursion)
         call save_excursion_begin(excursion)
-        call re_search_forward("^From:[ "//TAB//"]*", found, st, noerror=SEARCH_NOERROR)
+        call regular_expression_search_forward("^From:[ "//TAB//"]*", found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
             beginning = point() - 1
@@ -956,8 +960,8 @@ contains
             end do
 
             ! Back up over newline, then trailing spaces or tabs.
-            call goto_char(point() - 1)
-            moved = skip_chars_backward(" "//TAB, st)
+            call goto_character(point() - 1)
+            moved = skip_characters_backward(" "//TAB, st)
             call buffer_substring(beginning, point(), from_raw, st)
             ! FROM is used for self-detection and should be independent of
             ! display customization via `rmail_summary_sender_function'.
@@ -988,8 +992,8 @@ contains
 
         if (is_this_user(from)) then
             ! No From field, or it's this user.
-            call goto_char(point_min())
-            call re_search_forward("^To:[ "//TAB//"]*", found, st, noerror=SEARCH_NOERROR)
+            call goto_character(point_minimum())
+            call regular_expression_search_forward("^To:[ "//TAB//"]*", found, st, noerror=SEARCH_NOERROR)
 
             if (found > 0) then
                 call get_mail_field("To", to, st)
@@ -1035,14 +1039,14 @@ contains
         end if
 
         basic_start = date//"  "//from_display
-        call goto_char(point_min())
-        call re_search_forward("^Subject:", found, st, noerror=SEARCH_NOERROR)
+        call goto_character(point_minimum())
+        call regular_expression_search_forward("^Subject:", found, st, noerror=SEARCH_NOERROR)
 
         if (found > 0) then
-            moved = skip_chars_forward(" "//TAB, st)
-            pos = point()
+            moved = skip_characters_forward(" "//TAB, st)
+            position = point()
             moved = forward_line(1_int64)
-            call buffer_substring(pos, point() - 1, subject, st)
+            call buffer_substring(position, point() - 1, subject, st)
 
             do while (looking_at("[ "//TAB//"]", st))
                 call buffer_substring(match_end(0, st), line_end_position(1_int64), more, st)
@@ -1050,10 +1054,10 @@ contains
                 moved = forward_line(1_int64)
             end do
         else
-            call re_search_forward("[\n][\n]+", found, st, noerror=SEARCH_NOERROR)
-            pos = point()
+            call regular_expression_search_forward("[\n][\n]+", found, st, noerror=SEARCH_NOERROR)
+            position = point()
             call end_of_line(1_int64)
-            call buffer_substring(pos, point(), subject, st)
+            call buffer_substring(position, point(), subject, st)
         end if
 
         case_fold_search%value = saved_fold
@@ -1102,20 +1106,21 @@ contains
         ! Whether FROM is absent or this user's address.
         logical function is_this_user(from)
             character(len=:), allocatable, intent(in) :: from
-            character(len=:), allocatable :: regexp, address
+            character(len=:), allocatable :: regular_expression, address
             type(status_type) :: st2
 
             is_this_user = .true.
             if (.not. allocated(from)) return
 
-            if (allocated(rmail_user_mail_address_regexp)) then
-                regexp = rmail_user_mail_address_regexp
+            if (allocated(rmail_user_mail_address_regular_expression)) then
+                regular_expression = rmail_user_mail_address_regular_expression
             else
                 address = user_mail_address_value()
-                regexp = "^\("//regexp_quote(user_login_name())//"\($\|@\)\|"//regexp_quote(address)//"\>\)"
+                regular_expression = "^\("//regular_expression_quote(user_login_name())//"\($\|@\)\|" &
+                                     //regular_expression_quote(address)//"\>\)"
             end if
 
-            is_this_user = string_match(regexp, from, st2) > 0
+            is_this_user = string_match(regular_expression, from, st2) > 0
         end function is_this_user
     end subroutine summarize_rmail_header
 
@@ -1154,7 +1159,7 @@ contains
 
         moved = forward_line(number)
         ! It doesn't look nice to move forward past the last message line.
-        if (is_eob() .and. number > 0) moved = forward_line(-1_int64)
+        if (is_end_of_buffer() .and. number > 0) moved = forward_line(-1_int64)
         call display_rmail_buffer(status)
     end subroutine next_rmail_summary_all
 
@@ -1184,9 +1189,9 @@ contains
 
         do while (count > 0)
             if (number > 0) then
-                call re_search_forward("^.....[^D]", found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_forward("^.....[^D]", found, status, noerror=SEARCH_NOERROR)
             else
-                call re_search_backward("^.....[^D]", found, status, noerror=SEARCH_NOERROR)
+                call regular_expression_search_backward("^.....[^D]", found, status, noerror=SEARCH_NOERROR)
             end if
 
             non_deleted_message_found = found > 0 .or. non_deleted_message_found
@@ -1238,7 +1243,7 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
         type(status_type) :: st
-        integer(int64) :: msg
+        integer(int64) :: message
         logical :: found
         integer :: k
 
@@ -1247,10 +1252,10 @@ contains
         if (.not. status%ok()) return
         call next_rmail_labeled_message(n, labels, status)
         k = rmail_index()
-        msg = rmail_states(k)%current_message
+        message = rmail_states(k)%current_message
         call set_buffer(saved, st)
         if (.not. status%ok()) return
-        call goto_rmail_summary_message(status, msg, found=found)
+        call goto_rmail_summary_message(status, message, found=found)
     end subroutine move_labeled_in_rmail_buffer
 
     ! ------------------------------------------------------------------
@@ -1278,7 +1283,7 @@ contains
         do while (n /= 0)
             ! Don't waste time counting down without doing anything if we
             ! are at the beginning and trying to go backward.
-            if (backward .and. is_bob()) n = -1
+            if (backward .and. is_beginning_of_buffer()) n = -1
             call goto_rmail_summary_message(status, found=found)
             if (.not. status%ok()) return
             saved = current_buffer()
@@ -1294,9 +1299,9 @@ contains
 
             do
                 if (backward) then
-                    if (is_bob()) exit
+                    if (is_beginning_of_buffer()) exit
                 else
-                    if (is_eob()) exit
+                    if (is_end_of_buffer()) exit
                 end if
 
                 at_deleted = line_looking_at(" *[0-9]+D")
@@ -1317,23 +1322,23 @@ contains
 
             ! It looks ugly to move to the empty line at end of buffer.
             ! And don't waste time after hitting the end.
-            if (is_eob() .and. .not. backward) then
+            if (is_end_of_buffer() .and. .not. backward) then
                 n = 0
                 moved = forward_line(-1_int64)
             end if
         end do
     end subroutine delete_rmail_summary_message_forward
 
-    ! Whether the text from the beginning of the line matches REGEXP.
+    ! Whether the text from the beginning of the line matches REGULAR_EXPRESSION.
     ! Not a port.
-    logical function line_looking_at(regexp) result(matched)
-        character(len=*), intent(in) :: regexp
+    logical function line_looking_at(regular_expression) result(matched)
+        character(len=*), intent(in) :: regular_expression
         type(excursion_type) :: saved
         type(status_type) :: st
 
         call save_excursion_begin(saved)
         call beginning_of_line(1_int64)
-        matched = looking_at(regexp, st)
+        matched = looking_at(regular_expression, st)
         call save_excursion_end(saved)
     end function line_looking_at
 
@@ -1396,12 +1401,12 @@ contains
         face = value_type()
         if (s > 0) face = overlay_get(summary_states(s)%overlay, "face")
 
-        if (.not. is_eob() .and. allocated(face%a)) then
+        if (.not. is_end_of_buffer() .and. allocated(face%a)) then
             saved_read_only = buffers(current)%read_only
             buffers(current)%read_only = .false.
             call beginning_of_line(1_int64)
-            moved = skip_chars_forward(" ", st)
-            moved = skip_chars_forward("0-9", st)
+            moved = skip_characters_forward(" ", st)
+            moved = skip_characters_forward("0-9", st)
 
             if (undelete) then
                 if (looking_at("D", st)) then
@@ -1497,32 +1502,32 @@ contains
 
         call save_excursion_begin(saved)
         if (n /= 0) call goto_rmail_summary_message(st, n, .false., .true., found)
-        moved = skip_chars_forward(" ", st)
-        moved = skip_chars_forward("0-9", st)
+        moved = skip_characters_forward(" ", st)
+        moved = skip_characters_forward("0-9", st)
         deleted = looking_at("D", st)
         call save_excursion_end(saved)
     end function is_summary_message_deleted
 
     !> Undelete current message.
-    !> Optional prefix ARG means undelete ARG previous messages.  Port of
+    !> Optional prefix ARGUMENT means undelete ARGUMENT previous messages.  Port of
     !> rmailsum.el:rmail-summary-undelete.
-    recursive subroutine undelete_rmail_summary(arg, status)
-        integer(int64), intent(in) :: arg
+    recursive subroutine undelete_rmail_summary(argument, status)
+        integer(int64), intent(in) :: argument
         type(status_type), intent(out) :: status
-        integer(int64) :: opoint, found
+        integer(int64) :: original_point, found
         logical :: saved_read_only, ok
         integer :: k
 
-        if (arg /= 1) then
-            call undelete_rmail_summary_many(status, arg)
+        if (argument /= 1) then
+            call undelete_rmail_summary_many(status, argument)
             return
         end if
 
         saved_read_only = buffers(current)%read_only
         buffers(current)%read_only = .false.
-        opoint = point()
+        original_point = point()
         call end_of_line(1_int64)
-        call re_search_backward("\(^ *[0-9]*\)\(D\)", found, status, noerror=SEARCH_NOERROR)
+        call regular_expression_search_backward("\(^ *[0-9]*\)\(D\)", found, status, noerror=SEARCH_NOERROR)
         if (.not. status%ok()) return
 
         if (found > 0) then
@@ -1543,7 +1548,7 @@ contains
             call pop_to_rmail_buffer(rmail_states(k)%summary_buffer, status)
         else
             buffers(current)%read_only = saved_read_only
-            call goto_char(opoint)
+            call goto_character(original_point)
         end if
     end subroutine undelete_rmail_summary
 
@@ -1563,7 +1568,7 @@ contains
         if (present(n)) then
             count = n
 
-            do while (count > 0 .and. .not. is_eob())
+            do while (count > 0 .and. .not. is_end_of_buffer())
                 call goto_rmail_summary_message(status, found=found)
                 if (.not. status%ok()) return
 
@@ -1574,7 +1579,7 @@ contains
                     if (.not. status%ok()) return
                 end if
 
-                do while (.not. is_eob())
+                do while (.not. is_end_of_buffer())
                     if (.not. line_looking_at(" *[0-9]+ ")) exit
                     moved = forward_line(1_int64)
                 end do
@@ -1599,12 +1604,12 @@ contains
                     if (.not. status%ok()) return
                 end if
 
-                if (.not. is_eob()) moved = forward_line(1_int64)
+                if (.not. is_end_of_buffer()) moved = forward_line(1_int64)
             end do
         end if
 
         ! It looks ugly to move to the empty line at end of buffer.
-        if (is_eob()) moved = forward_line(-1_int64)
+        if (is_end_of_buffer()) moved = forward_line(-1_int64)
 
     contains
 
@@ -1727,12 +1732,12 @@ contains
 
         if (.not. present(nomove)) then
             call beginning_of_line(1_int64)
-            moved = skip_chars_forward(" ", st)
-            moved = skip_chars_forward("0-9", st)
+            moved = skip_characters_forward(" ", st)
+            moved = skip_characters_forward("0-9", st)
         else if (.not. nomove) then
             call beginning_of_line(1_int64)
-            moved = skip_chars_forward(" ", st)
-            moved = skip_chars_forward("0-9", st)
+            moved = skip_characters_forward(" ", st)
+            moved = skip_characters_forward("0-9", st)
         end if
 
         wanted = "-"
@@ -1743,7 +1748,7 @@ contains
             replacement = "-"
         end if
 
-        call char_after(c, exists)
+        call character_after(c, exists)
 
         if (exists .and. c == iachar(wanted)) then
             saved_read_only = buffers(current)%read_only
@@ -1783,13 +1788,13 @@ contains
 
         body: block
             ! If at end of buffer, pretend we are on the last text line.
-            if (is_eob()) moved = forward_line(-1_int64)
+            if (is_end_of_buffer()) moved = forward_line(-1_int64)
             call beginning_of_line(1_int64)
-            moved = skip_chars_forward(" ", st)
+            moved = skip_characters_forward(" ", st)
             ! If the summary is empty, don't do anything.
-            if (is_eob()) exit body
+            if (is_end_of_buffer()) exit body
             start = point()
-            moved = skip_chars_forward("0-9", st)
+            moved = skip_characters_forward("0-9", st)
             call buffer_substring_no_properties(start, point(), digits, st)
             message_number = 0
 
@@ -1800,7 +1805,7 @@ contains
 
             ! Always leave `unseen' removed if we get out of isearch mode.
             ! Don't let a subsequent isearch restore that `unseen'.
-            if (.not. isearch_active) put_back_unseen = 0
+            if (.not. incremental_search_active) put_back_unseen = 0
             k = rmail_index()
             if (k == 0) exit body
             rmail_buffer_handle = rmail_buffer()
@@ -1810,7 +1815,7 @@ contains
                 window = get_buffer_window(rmail_buffer_handle)
                 owin = selected_window()
 
-                if (isearch_active) then
+                if (incremental_search_active) then
                     ! If we first saw the previous message in this search,
                     ! and we have gone to a different message while
                     ! searching, put back `unseen' on the former one.
@@ -1819,9 +1824,9 @@ contains
                                                  rmail_states(k)%current_message)
                         if (.not. status%ok()) exit body
                         here = point()
-                        call goto_char(put_back_unseen)
+                        call goto_character(put_back_unseen)
                         call mark_rmail_summary_seen(rmail_states(k)%current_message, status, .true., .true.)
-                        call goto_char(here)
+                        call goto_character(here)
                     end if
 
                     ! Arrange to do that later, for the new current
@@ -1880,7 +1885,7 @@ contains
         type(status_type) :: st
 
         call buffer_substring_no_properties(line_beginning_position(1_int64), &
-                                            min(point_max(), line_beginning_position(1_int64) + 6), text, st)
+                                            min(point_maximum(), line_beginning_position(1_int64) + 6), text, st)
         number = string_number(text)
     end function rmail_summary_message_number
 
@@ -1897,7 +1902,7 @@ contains
         integer(int64), intent(in), optional :: n
         logical, intent(in), optional :: nowarn, skip_rmail
         logical, intent(out), optional :: found
-        type(handle_type) :: obuf, mail_buffer, selwin
+        type(handle_type) :: output_buffer, mail_buffer, selwin
         type(status_type) :: st
         character(len=20) :: pattern
         character(len=40) :: text
@@ -1910,9 +1915,9 @@ contains
         if (present(nowarn)) quiet = nowarn
         skip = .false.
         if (present(skip_rmail)) skip = skip_rmail
-        if (is_eob()) moved = forward_line(-1_int64)
+        if (is_end_of_buffer()) moved = forward_line(-1_int64)
         call beginning_of_line(1_int64)
-        obuf = current_buffer()
+        output_buffer = current_buffer()
         mail_buffer = rmail_buffer()
         original_point = point()
         message_not_found = .false.
@@ -1932,14 +1937,14 @@ contains
 
             if (number > total .and. total > 0) then
                 call message("No following message")
-                call goto_char(point_max())
+                call goto_character(point_maximum())
                 call goto_rmail_summary_message(status, nowarn=nowarn, skip_rmail=skip_rmail, found=sub_found)
             end if
 
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             write (pattern, "(i5)") number
             if (number > 99999) write (pattern, "(i0)") number
-            call re_search_forward("^"//trim(pattern)//"[^0-9]", at, st, noerror=SEARCH_NOERROR)
+            call regular_expression_search_forward("^"//trim(pattern)//"[^0-9]", at, st, noerror=SEARCH_NOERROR)
 
             if (at == 0) then
                 if (.not. quiet) then
@@ -1949,7 +1954,7 @@ contains
 
                 number = curmsg
                 message_not_found = .true.
-                call goto_char(original_point)
+                call goto_character(original_point)
             end if
         end if
 
@@ -1968,7 +1973,7 @@ contains
                 call select_window(selwin, st)
                 ! The actions above can alter the current buffer.
                 ! Preserve it.
-                call set_buffer(obuf, st)
+                call set_buffer(output_buffer, st)
             end if
         end if
 
@@ -2015,7 +2020,7 @@ contains
         else
             call save_excursion_begin(saved)
             call beginning_of_line(1_int64)
-            moved = skip_chars_forward(" ", st)
+            moved = skip_characters_forward(" ", st)
             beginning = point()
             call save_excursion_end(saved)
             call move_overlay(summary_states(s)%overlay, beginning, line_end_position(1_int64), status)
@@ -2029,7 +2034,7 @@ contains
     !> advance to the next message.  Port of
     !> rmailsum.el:rmail-summary-scroll-msg-up.
     recursive subroutine scroll_rmail_summary_message_up(dist, status)
-        type(prefix_arg_type), intent(in) :: dist
+        type(prefix_argument_type), intent(in) :: dist
         type(status_type), intent(out) :: status
 
         call scroll_message(dist, .true., status)
@@ -2040,7 +2045,7 @@ contains
     !> move to the previous message.  Port of
     !> rmailsum.el:rmail-summary-scroll-msg-down.
     recursive subroutine scroll_rmail_summary_message_down(dist, status)
-        type(prefix_arg_type), intent(in) :: dist
+        type(prefix_argument_type), intent(in) :: dist
         type(status_type), intent(out) :: status
 
         call scroll_message(dist, .false., status)
@@ -2051,7 +2056,7 @@ contains
     ! rmailsum.el:rmail-summary-scroll-msg-down (other-window-scroll-buffer
     ! is not ported: the Rmail window is the next window).
     recursive subroutine scroll_message(dist, up, status)
-        type(prefix_arg_type), intent(in) :: dist
+        type(prefix_argument_type), intent(in) :: dist
         logical, intent(in) :: up
         type(status_type), intent(out) :: status
         type(handle_type) :: rmail_window, summary_window, saved_buffer
@@ -2060,7 +2065,7 @@ contains
         logical :: visible
 
         if (dist%kind == PREFIX_MINUS) then
-            call scroll_message(prefix_arg_type(PREFIX_NONE, 1_int64),.not. up, status)
+            call scroll_message(prefix_argument_type(PREFIX_NONE, 1_int64),.not. up, status)
             return
         end if
 
@@ -2077,14 +2082,14 @@ contains
         call select_window(rmail_window, status)
         if (.not. status%ok()) return
 
-        ! Is EOB (BOB) visible in the buffer?
+        ! Is END_OF_BUFFER (BEGINNING_OF_BUFFER) visible in the buffer?
         if (up) then
-            edge = point_max()
+            edge = point_maximum()
         else
-            edge = point_min()
+            edge = point_minimum()
         end if
 
-        visible = is_pos_visible_in_window(edge, rmail_window)
+        visible = is_position_visible_in_window(edge, rmail_window)
         call select_window(summary_window, status)
         call set_buffer(saved_buffer, st)
         if (.not. status%ok()) return
@@ -2094,9 +2099,9 @@ contains
         if (visible) then
             if (.not. rmail_summary_scroll_between_messages) then
                 if (up) then
-                    call set_error(status, FM_GENERIC_ERROR, "End of buffer")
+                    call set_error(status, GENERIC_ERROR_CODE, "End of buffer")
                 else
-                    call set_error(status, FM_GENERIC_ERROR, "Beginning of buffer")
+                    call set_error(status, GENERIC_ERROR_CODE, "Beginning of buffer")
                 end if
             else if (up) then
                 call next_rmail_summary_message(count, status)
@@ -2159,11 +2164,11 @@ contains
         if (.not. status%ok()) return
 
         if (at_end) then
-            call goto_char(point_max())
+            call goto_character(point_maximum())
             height = window_body_height(selected_window(), status)
-            if (status%ok()) call recenter(prefix_arg_type(PREFIX_NUMBER, int(height - 1, int64)), .false., status)
+            if (status%ok()) call recenter(prefix_argument_type(PREFIX_NUMBER, int(height - 1, int64)), .false., status)
         else
-            call goto_char(point_min())
+            call goto_character(point_minimum())
             call search_forward(LF//LF, found, status)
         end if
 
@@ -2269,7 +2274,7 @@ contains
         character(len=*), intent(in), optional :: file_name
         type(handle_type) :: saved
         type(status_type) :: st
-        integer(int64) :: msg
+        integer(int64) :: message
         logical :: found
         integer :: k
 
@@ -2278,10 +2283,10 @@ contains
         if (.not. status%ok()) return
         call get_rmail_new_mail(status, file_name)
         k = rmail_index()
-        msg = rmail_states(k)%current_message
+        message = rmail_states(k)%current_message
         call set_buffer(saved, st)
         if (.not. status%ok()) return
-        if (msg /= 0) call goto_rmail_summary_message(status, msg, found=found)
+        if (message /= 0) call goto_rmail_summary_message(status, message, found=found)
     end subroutine get_rmail_summary_new_mail
 
     !> Run Rmail on file FILENAME.  Port of rmailsum.el:rmail-summary-input.
@@ -2299,7 +2304,7 @@ contains
         type(status_type), intent(out) :: status
 
         status = status_type()
-        call beginning_of_buffer(prefix_arg_type(PREFIX_NONE, 1_int64))
+        call beginning_of_buffer(prefix_argument_type(PREFIX_NONE, 1_int64))
     end subroutine show_first_rmail_summary_message
 
     !> Show last message in Rmail file from summary buffer.  Port of
@@ -2309,7 +2314,7 @@ contains
         integer(int64) :: moved
 
         status = status_type()
-        call end_of_buffer(prefix_arg_type(PREFIX_NONE, 1_int64))
+        call end_of_buffer(prefix_argument_type(PREFIX_NONE, 1_int64))
         moved = forward_line(-1_int64)
     end subroutine show_last_rmail_summary_message
 
@@ -2348,13 +2353,13 @@ contains
         call pop_to_rmail_buffer(rmail_states(k)%summary_buffer, status)
     end subroutine abort_rmail_summary_edit
 
-    !> Show message containing next match for REGEXP.
+    !> Show message containing next match for REGULAR_EXPRESSION.
     !> Prefix argument gives repeat count; negative argument means search
     !> backwards (through earlier messages).
     !> Interactively, empty argument means use same regexp used last time.
     !> Port of rmailsum.el:rmail-summary-search.
-    recursive subroutine search_rmail_summary(regexp, status, n)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine search_rmail_summary(regular_expression, status, n)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
         type(handle_type) :: buffer, selwin
@@ -2363,18 +2368,18 @@ contains
         buffer = current_buffer()
         selwin = selected_window()
         call pop_to_rmail_buffer(rmail_buffer(), status)
-        if (status%ok()) call search_rmail(regexp, status, n)
+        if (status%ok()) call search_rmail(regular_expression, status, n)
         call select_window(selwin, st)
         call set_buffer(buffer, st)
     end subroutine search_rmail_summary
 
-    !> Show message containing next match for REGEXP.
+    !> Show message containing next match for REGULAR_EXPRESSION.
     !> Prefix argument gives repeat count; negative argument means search
     !> backwards (through earlier messages).
     !> Interactively, empty argument means use same regexp used last time.
     !> Port of rmailsum.el:rmail-summary-search-backward.
-    recursive subroutine search_rmail_summary_backward(regexp, status, n)
-        character(len=*), intent(in) :: regexp
+    recursive subroutine search_rmail_summary_backward(regular_expression, status, n)
+        character(len=*), intent(in) :: regular_expression
         type(status_type), intent(out) :: status
         integer(int64), intent(in), optional :: n
         type(handle_type) :: saved
@@ -2385,7 +2390,7 @@ contains
         if (present(n)) count = n
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
-        if (status%ok()) call search_rmail(regexp, status, -count)
+        if (status%ok()) call search_rmail(regular_expression, status, -count)
         call set_buffer(saved, st)
     end subroutine search_rmail_summary_backward
 
@@ -2406,7 +2411,7 @@ contains
         if (window%index /= 0) then
             owin = selected_window()
             call select_window(window, status)
-            if (status%ok()) call goto_char(point_min())
+            if (status%ok()) call goto_character(point_minimum())
             call select_window(owin, st)
             call set_buffer(saved, st)
         end if
@@ -2416,25 +2421,25 @@ contains
     ! Commands
     ! ------------------------------------------------------------------
 
-    recursive subroutine cmd_rmail_summary_by_labels(status)
+    recursive subroutine execute_rmail_summary_by_labels(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: labels
 
         call read_string("Labels to summarize by: ", labels, status)
         if (status%ok()) call rmail_summary_by_labels(labels, status)
-    end subroutine cmd_rmail_summary_by_labels
+    end subroutine execute_rmail_summary_by_labels
 
-    recursive subroutine cmd_rmail_summary_by_recipients(status)
+    recursive subroutine execute_rmail_summary_by_recipients(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: recipients
         logical :: primary_only
 
         call read_string("Recipients to summarize by: ", recipients, status)
-        primary_only = current_prefix_arg%kind /= PREFIX_NONE
+        primary_only = current_prefix_argument%kind /= PREFIX_NONE
         if (status%ok()) call rmail_summary_by_recipients(recipients, status, primary_only)
-    end subroutine cmd_rmail_summary_by_recipients
+    end subroutine execute_rmail_summary_by_recipients
 
-    recursive subroutine cmd_rmail_summary_by_senders(status)
+    recursive subroutine execute_rmail_summary_by_senders(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: def, sender, prompt, senders
 
@@ -2443,149 +2448,149 @@ contains
         if (.not. allocated(def)) def = ""
         ! We quote the default argument, because if it contains regexp
         ! special characters (eg "?"), it can fail to match itself.
-        sender = regexp_quote(def)
+        sender = regular_expression_quote(def)
         prompt = "Senders to summarize by (regexp, default this message's sender): "
         call read_string(prompt, senders, status, default=sender)
         if (status%ok()) call rmail_summary_by_senders(senders, status)
-    end subroutine cmd_rmail_summary_by_senders
+    end subroutine execute_rmail_summary_by_senders
 
-    recursive subroutine cmd_next_rmail_summary_all(status)
+    recursive subroutine execute_next_rmail_summary_all(status)
         type(status_type), intent(out) :: status
 
-        call next_rmail_summary_all(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_next_rmail_summary_all
+        call next_rmail_summary_all(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_next_rmail_summary_all
 
-    recursive subroutine cmd_previous_rmail_summary_all(status)
+    recursive subroutine execute_previous_rmail_summary_all(status)
         type(status_type), intent(out) :: status
 
-        call previous_rmail_summary_all(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_previous_rmail_summary_all
+        call previous_rmail_summary_all(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_previous_rmail_summary_all
 
-    recursive subroutine cmd_next_rmail_summary_message(status)
+    recursive subroutine execute_next_rmail_summary_message(status)
         type(status_type), intent(out) :: status
 
-        call next_rmail_summary_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_next_rmail_summary_message
+        call next_rmail_summary_message(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_next_rmail_summary_message
 
-    recursive subroutine cmd_previous_rmail_summary_message(status)
+    recursive subroutine execute_previous_rmail_summary_message(status)
         type(status_type), intent(out) :: status
 
-        call previous_rmail_summary_message(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_previous_rmail_summary_message
+        call previous_rmail_summary_message(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_previous_rmail_summary_message
 
-    recursive subroutine cmd_next_rmail_summary_labeled_message(status)
+    recursive subroutine execute_next_rmail_summary_labeled_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: labels
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
+        n = prefix_numeric_value(current_prefix_argument)
         call read_string("Move to next msg with labels: ", labels, status)
         if (status%ok()) call next_rmail_summary_labeled_message(n, labels, status)
-    end subroutine cmd_next_rmail_summary_labeled_message
+    end subroutine execute_next_rmail_summary_labeled_message
 
-    recursive subroutine cmd_previous_rmail_summary_labeled_message(status)
+    recursive subroutine execute_previous_rmail_summary_labeled_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: labels
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
+        n = prefix_numeric_value(current_prefix_argument)
         call read_string("Move to previous msg with labels: ", labels, status)
         if (status%ok()) call previous_rmail_summary_labeled_message(n, labels, status)
-    end subroutine cmd_previous_rmail_summary_labeled_message
+    end subroutine execute_previous_rmail_summary_labeled_message
 
-    recursive subroutine cmd_delete_rmail_summary_message_forward(status)
+    recursive subroutine execute_delete_rmail_summary_message_forward(status)
         type(status_type), intent(out) :: status
 
-        call delete_rmail_summary_message_forward(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_delete_rmail_summary_message_forward
+        call delete_rmail_summary_message_forward(status, prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_delete_rmail_summary_message_forward
 
-    recursive subroutine cmd_delete_rmail_summary_message_backward(status)
+    recursive subroutine execute_delete_rmail_summary_message_backward(status)
         type(status_type), intent(out) :: status
 
-        call delete_rmail_summary_message_backward(status, prefix_numeric_value(current_prefix_arg))
-    end subroutine cmd_delete_rmail_summary_message_backward
+        call delete_rmail_summary_message_backward(status, prefix_numeric_value(current_prefix_argument))
+    end subroutine execute_delete_rmail_summary_message_backward
 
-    recursive subroutine cmd_undelete_rmail_summary(status)
+    recursive subroutine execute_undelete_rmail_summary(status)
         type(status_type), intent(out) :: status
 
-        call undelete_rmail_summary(prefix_numeric_value(current_prefix_arg), status)
-    end subroutine cmd_undelete_rmail_summary
+        call undelete_rmail_summary(prefix_numeric_value(current_prefix_argument), status)
+    end subroutine execute_undelete_rmail_summary
 
-    recursive subroutine cmd_undelete_rmail_summary_many(status)
+    recursive subroutine execute_undelete_rmail_summary_many(status)
         type(status_type), intent(out) :: status
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call undelete_rmail_summary_many(status)
         else
-            call undelete_rmail_summary_many(status, prefix_numeric_value(current_prefix_arg))
+            call undelete_rmail_summary_many(status, prefix_numeric_value(current_prefix_argument))
         end if
-    end subroutine cmd_undelete_rmail_summary_many
+    end subroutine execute_undelete_rmail_summary_many
 
-    recursive subroutine cmd_goto_rmail_summary_message(status)
+    recursive subroutine execute_goto_rmail_summary_message(status)
         type(status_type), intent(out) :: status
         logical :: found
 
-        if (current_prefix_arg%kind == PREFIX_NONE) then
+        if (current_prefix_argument%kind == PREFIX_NONE) then
             call goto_rmail_summary_message(status, found=found)
         else
-            call goto_rmail_summary_message(status, prefix_numeric_value(current_prefix_arg), found=found)
+            call goto_rmail_summary_message(status, prefix_numeric_value(current_prefix_argument), found=found)
         end if
-    end subroutine cmd_goto_rmail_summary_message
+    end subroutine execute_goto_rmail_summary_message
 
-    recursive subroutine cmd_scroll_rmail_summary_message_up(status)
+    recursive subroutine execute_scroll_rmail_summary_message_up(status)
         type(status_type), intent(out) :: status
 
-        call scroll_rmail_summary_message_up(current_prefix_arg, status)
-    end subroutine cmd_scroll_rmail_summary_message_up
+        call scroll_rmail_summary_message_up(current_prefix_argument, status)
+    end subroutine execute_scroll_rmail_summary_message_up
 
-    recursive subroutine cmd_scroll_rmail_summary_message_down(status)
+    recursive subroutine execute_scroll_rmail_summary_message_down(status)
         type(status_type), intent(out) :: status
 
-        call scroll_rmail_summary_message_down(current_prefix_arg, status)
-    end subroutine cmd_scroll_rmail_summary_message_down
+        call scroll_rmail_summary_message_down(current_prefix_argument, status)
+    end subroutine execute_scroll_rmail_summary_message_down
 
-    recursive subroutine cmd_get_rmail_summary_new_mail(status)
+    recursive subroutine execute_get_rmail_summary_new_mail(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
-        if (current_prefix_arg%kind /= PREFIX_NONE) then
+        if (current_prefix_argument%kind /= PREFIX_NONE) then
             call read_file_name("Get new mail from file: ", file, status)
             if (status%ok()) call get_rmail_summary_new_mail(status, file)
         else
             call get_rmail_summary_new_mail(status)
         end if
-    end subroutine cmd_get_rmail_summary_new_mail
+    end subroutine execute_get_rmail_summary_new_mail
 
-    recursive subroutine cmd_rmail_summary_input(status)
+    recursive subroutine execute_rmail_summary_input(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
 
         call read_file_name("Run rmail on RMAIL file: ", file, status)
         if (status%ok()) call rmail_summary_input(file, status)
-    end subroutine cmd_rmail_summary_input
+    end subroutine execute_rmail_summary_input
 
-    recursive subroutine cmd_search_rmail_summary(status)
+    recursive subroutine execute_search_rmail_summary(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer(int64) :: n
 
-        call read_rmail_search(.false., regexp, n, status)
-        if (status%ok()) call search_rmail_summary(regexp, status, n)
-    end subroutine cmd_search_rmail_summary
+        call read_rmail_search(.false., regular_expression, n, status)
+        if (status%ok()) call search_rmail_summary(regular_expression, status, n)
+    end subroutine execute_search_rmail_summary
 
-    recursive subroutine cmd_search_rmail_summary_backward(status)
+    recursive subroutine execute_search_rmail_summary_backward(status)
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: regexp
+        character(len=:), allocatable :: regular_expression
         integer(int64) :: n
 
-        call read_rmail_search(.true., regexp, n, status)
-        if (status%ok()) call search_rmail_summary_backward(regexp, status, n)
-    end subroutine cmd_search_rmail_summary_backward
+        call read_rmail_search(.true., regular_expression, n, status)
+        if (status%ok()) call search_rmail_summary_backward(regular_expression, status, n)
+    end subroutine execute_search_rmail_summary_backward
 
     !> Add LABEL to labels associated with current Rmail message.
     !> Completion is performed over known labels when reading.  Port of
     !> rmailsum.el:rmail-summary-add-label.
-    recursive subroutine cmd_add_rmail_summary_label(status)
+    recursive subroutine execute_add_rmail_summary_label(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: label
         type(handle_type) :: saved
@@ -2596,12 +2601,12 @@ contains
         if (status%ok()) call read_rmail_label("Add label", label, status)
         if (status%ok()) call add_rmail_label(label, status)
         call set_buffer(saved, st)
-    end subroutine cmd_add_rmail_summary_label
+    end subroutine execute_add_rmail_summary_label
 
     !> Remove LABEL from labels associated with current Rmail message.
     !> Completion is performed over known labels when reading.  Port of
     !> rmailsum.el:rmail-summary-kill-label.
-    recursive subroutine cmd_remove_rmail_summary_label(status)
+    recursive subroutine execute_remove_rmail_summary_label(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: label
         type(handle_type) :: saved
@@ -2612,7 +2617,7 @@ contains
         if (status%ok()) call read_rmail_label("Kill label", label, status)
         if (status%ok()) call set_rmail_label(label, .false., status)
         call set_buffer(saved, st)
-    end subroutine cmd_remove_rmail_summary_label
+    end subroutine execute_remove_rmail_summary_label
 
     ! Output N messages from the summary to FILE_NAME with output_rmail_message
     ! (or, if AS_SEEN, output_rmail_message_as_seen), moving the summary along.
@@ -2687,20 +2692,20 @@ contains
     !> This command always outputs the complete message header,
     !> even if the header display is currently pruned.  Port of
     !> rmailsum.el:rmail-summary-output.
-    recursive subroutine cmd_output_rmail_summary_message(status)
+    recursive subroutine execute_output_rmail_summary_message(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(handle_type) :: saved
         type(status_type) :: st
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
+        n = prefix_numeric_value(current_prefix_argument)
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
         if (status%ok()) call read_rmail_output_file_name(file, status)
         call set_buffer(saved, st)
         if (status%ok()) call output_from_summary(file, n, .false., status)
-    end subroutine cmd_output_rmail_summary_message
+    end subroutine execute_output_rmail_summary_message
 
     !> Append this message to mbox file named FILE_NAME.
     !> A prefix argument N says to output that many consecutive messages,
@@ -2714,25 +2719,25 @@ contains
     !> The default file name comes from `rmail_default_file',
     !> which is updated to the name you use in this command.  Port of
     !> rmailsum.el:rmail-summary-output-as-seen.
-    recursive subroutine cmd_output_rmail_summary_message_as_seen(status)
+    recursive subroutine execute_output_rmail_summary_message_as_seen(status)
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: file
         type(handle_type) :: saved
         type(status_type) :: st
         integer(int64) :: n
 
-        n = prefix_numeric_value(current_prefix_arg)
+        n = prefix_numeric_value(current_prefix_argument)
         saved = current_buffer()
         call set_buffer(rmail_buffer(), status)
         if (status%ok()) call read_rmail_output_file_name(file, status)
         call set_buffer(saved, st)
         if (status%ok()) call output_from_summary(file, n, .true., status)
-    end subroutine cmd_output_rmail_summary_message_as_seen
+    end subroutine execute_output_rmail_summary_message_as_seen
 
     !> Write this message body to the file FILE_NAME.
     !> FILE_NAME defaults, interactively, from the Subject field of the
     !> message.  Port of rmailsum.el:rmail-summary-output-body.
-    recursive subroutine cmd_output_rmail_summary_message_body(status)
+    recursive subroutine execute_output_rmail_summary_message_body(status)
         use rmail_mod, only: rmail_delete_after_output
         type(status_type), intent(out) :: status
         type(handle_type) :: saved
@@ -2748,11 +2753,11 @@ contains
         call set_buffer(saved, st)
         if (.not. status%ok()) return
         if (rmail_delete_after_output) call delete_rmail_summary_message_forward(status)
-    end subroutine cmd_output_rmail_summary_message_body
+    end subroutine execute_output_rmail_summary_message_body
 
     !> Define Rmail Summary mode, its keymap and commands.  Not a port: the
     !> top-level forms of rmailsum.el.
-    subroutine init_rmail_summary()
+    subroutine initialize_rmail_summary()
         type(status_type) :: st
         type(handle_type) :: map
 
@@ -2813,23 +2818,23 @@ contains
         call keymap_set(rmail_summary_edit_map, "C-c C-]", "abort_rmail_edit", st)
         commands%rmail_summary%execute => rmail_summary
         commands%rmail_summary_mode%execute => rmail_summary_mode
-        commands%rmail_summary_by_labels%execute => cmd_rmail_summary_by_labels
-        commands%rmail_summary_by_recipients%execute => cmd_rmail_summary_by_recipients
-        commands%rmail_summary_by_senders%execute => cmd_rmail_summary_by_senders
-        commands%next_rmail_summary_all%execute => cmd_next_rmail_summary_all
-        commands%previous_rmail_summary_all%execute => cmd_previous_rmail_summary_all
-        commands%next_rmail_summary_message%execute => cmd_next_rmail_summary_message
-        commands%previous_rmail_summary_message%execute => cmd_previous_rmail_summary_message
-        commands%next_rmail_summary_labeled_message%execute => cmd_next_rmail_summary_labeled_message
-        commands%previous_rmail_summary_labeled_message%execute => cmd_previous_rmail_summary_labeled_message
-        commands%delete_rmail_summary_message_forward%execute => cmd_delete_rmail_summary_message_forward
-        commands%delete_rmail_summary_message_backward%execute => cmd_delete_rmail_summary_message_backward
-        commands%undelete_rmail_summary%execute => cmd_undelete_rmail_summary
-        commands%undelete_rmail_summary_many%execute => cmd_undelete_rmail_summary_many
+        commands%rmail_summary_by_labels%execute => execute_rmail_summary_by_labels
+        commands%rmail_summary_by_recipients%execute => execute_rmail_summary_by_recipients
+        commands%rmail_summary_by_senders%execute => execute_rmail_summary_by_senders
+        commands%next_rmail_summary_all%execute => execute_next_rmail_summary_all
+        commands%previous_rmail_summary_all%execute => execute_previous_rmail_summary_all
+        commands%next_rmail_summary_message%execute => execute_next_rmail_summary_message
+        commands%previous_rmail_summary_message%execute => execute_previous_rmail_summary_message
+        commands%next_rmail_summary_labeled_message%execute => execute_next_rmail_summary_labeled_message
+        commands%previous_rmail_summary_labeled_message%execute => execute_previous_rmail_summary_labeled_message
+        commands%delete_rmail_summary_message_forward%execute => execute_delete_rmail_summary_message_forward
+        commands%delete_rmail_summary_message_backward%execute => execute_delete_rmail_summary_message_backward
+        commands%undelete_rmail_summary%execute => execute_undelete_rmail_summary
+        commands%undelete_rmail_summary_many%execute => execute_undelete_rmail_summary_many
         commands%save_rmail_summary_buffer%execute => save_rmail_summary_buffer
-        commands%goto_rmail_summary_message%execute => cmd_goto_rmail_summary_message
-        commands%scroll_rmail_summary_message_up%execute => cmd_scroll_rmail_summary_message_up
-        commands%scroll_rmail_summary_message_down%execute => cmd_scroll_rmail_summary_message_down
+        commands%goto_rmail_summary_message%execute => execute_goto_rmail_summary_message
+        commands%scroll_rmail_summary_message_up%execute => execute_scroll_rmail_summary_message_up
+        commands%scroll_rmail_summary_message_down%execute => execute_scroll_rmail_summary_message_down
         commands%beginning_of_rmail_summary_message%execute => beginning_of_rmail_summary_message
         commands%end_of_rmail_summary_message%execute => end_of_rmail_summary_message
         commands%bury_rmail_summary%execute => bury_rmail_summary
@@ -2837,21 +2842,21 @@ contains
         commands%wipe_rmail_summary%execute => wipe_rmail_summary
         commands%expunge_rmail_summary%execute => expunge_rmail_summary
         commands%expunge_and_save_rmail_summary%execute => expunge_and_save_rmail_summary
-        commands%get_rmail_summary_new_mail%execute => cmd_get_rmail_summary_new_mail
-        commands%rmail_summary_input%execute => cmd_rmail_summary_input
+        commands%get_rmail_summary_new_mail%execute => execute_get_rmail_summary_new_mail
+        commands%rmail_summary_input%execute => execute_rmail_summary_input
         commands%show_first_rmail_summary_message%execute => show_first_rmail_summary_message
         commands%show_last_rmail_summary_message%execute => show_last_rmail_summary_message
         commands%edit_rmail_summary_current_message%execute => edit_rmail_summary_current_message
         commands%cease_rmail_summary_edit%execute => cease_rmail_summary_edit
         commands%abort_rmail_summary_edit%execute => abort_rmail_summary_edit
-        commands%search_rmail_summary%execute => cmd_search_rmail_summary
-        commands%search_rmail_summary_backward%execute => cmd_search_rmail_summary_backward
+        commands%search_rmail_summary%execute => execute_search_rmail_summary
+        commands%search_rmail_summary_backward%execute => execute_search_rmail_summary_backward
         commands%toggle_rmail_summary_header%execute => toggle_rmail_summary_header
-        commands%add_rmail_summary_label%execute => cmd_add_rmail_summary_label
-        commands%remove_rmail_summary_label%execute => cmd_remove_rmail_summary_label
-        commands%output_rmail_summary_message%execute => cmd_output_rmail_summary_message
-        commands%output_rmail_summary_message_as_seen%execute => cmd_output_rmail_summary_message_as_seen
-        commands%output_rmail_summary_message_body%execute => cmd_output_rmail_summary_message_body
+        commands%add_rmail_summary_label%execute => execute_add_rmail_summary_label
+        commands%remove_rmail_summary_label%execute => execute_remove_rmail_summary_label
+        commands%output_rmail_summary_message%execute => execute_output_rmail_summary_message
+        commands%output_rmail_summary_message_as_seen%execute => execute_output_rmail_summary_message_as_seen
+        commands%output_rmail_summary_message_body%execute => execute_output_rmail_summary_message_body
         goto_rmail_summary_message_function => goto_message_for_rmail
         mark_rmail_summary_deleted_function => mark_rmail_summary_deleted
         mark_rmail_summary_undeleted_function => mark_rmail_summary_undeleted
@@ -2860,5 +2865,5 @@ contains
         rmail_summary_function => make_rmail_summary_for_rmail
         disable_rmail_summary_function => disable_rmail_summary
         enable_rmail_summary_function => enable_rmail_summary
-    end subroutine init_rmail_summary
+    end subroutine initialize_rmail_summary
 end module rmail_summary_mod

@@ -6,7 +6,7 @@
 
 ## Ported
 
-`shell` (M-x shell: "*shell*", `explicit-shell-file-name`, `shell-file-name`, ESHELL, `explicit-bash-args`/`explicit-csh-args`, the ~/.emacs_SHELL and ~/.emacs.d/init_SHELL.sh startup files),
+`shell` (M-x shell: "*shell*", `explicit-shell-file-name`, `shell-file-name`, ESHELL, `explicit-bash-args`/`explicit-csh-args`, the ~/.emacs_SHELL and ~/.emacs.d/initialize_SHELL.sh startup files),
 `shell-mode` (from comint-mode: prompt, delimiters, paragraphs, font-lock keywords, `shell-get-old-input`, history files with HISTFILE/HISTSIZE, `shell-dirstack-query`, the bash ^A/^B filter),
 `shell-mode-hook`,
 `shell-mode-map` (C-c C-f, C-c C-b, TAB, M-?, C-x n d),

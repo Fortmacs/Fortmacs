@@ -30,11 +30,11 @@ module test_send_mail_mod
     use buffer_mod, only: buffers, current, get_buffer, set_buffer, close_buffer, is_buffer_live, is_buffer_modified, &
                           current_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string, goto_char, point, point_min, point_max, delete_region
-    use bindings_mod, only: init_bindings
+    use editing_functions_mod, only: buffer_string, goto_character, point, point_minimum, point_maximum, delete_region
+    use bindings_mod, only: initialize_bindings
     use test_support_mod, only: show_alone
-    use file_input_output_mod, only: expand_file_name, fortmacs_wd, file_exists, init_fileio
-    use files_mod, only: create_temp_file, delete_file
+    use file_input_output_mod, only: expand_file_name, fortmacs_wd, file_exists, initialize_fileio
+    use files_mod, only: create_temporary_file, delete_file
     use environment_mod, only: setenv
     use startup_mod, only: user_mail_address
     use simple_mod, only: mail_user_agent, compose_mail
@@ -85,20 +85,20 @@ contains
         character(len=:), allocatable :: program, file
         type(status_type) :: st
 
-        call init_bindings()
+        call initialize_bindings()
         set_up_mail_with_from = .false.
         mail_signature_variable = .false.
         mail_from_style = MAIL_FROM_STYLE_SIMPLE
         user_mail_address = "king@grassland.com"
         send_mail_function => send_mail_with_sendmail
-        call init_fileio()
+        call initialize_fileio()
         call expand_file_name("test/sendmail-resources/fake-sendmail", program, st, fortmacs_wd)
         sendmail_program = program
         call setenv("FORTMACS_TEST_SENDMAIL_EXIT")
         call setenv("FORTMACS_TEST_SENDMAIL_ERROR")
 
         if (present(output)) then
-            call create_temp_file("sendmail-test", file, st)
+            call create_temporary_file("sendmail-test", file, st)
             output = file
             call setenv("FORTMACS_TEST_SENDMAIL_OUTPUT", output)
         end if
@@ -157,7 +157,7 @@ contains
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
         call show_alone()
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("Hello"//LF, st)
     end subroutine compose
 
@@ -175,10 +175,10 @@ contains
         call check(error, st%ok() .and. initialized, format_error(st))
         if (.not. allocated(error)) call check_string(error, buffer_string(), "To: joe@x"//LF//"Subject: Hi"//LF//SEPARATOR//LF)
         if (.not. allocated(error)) call check(error, buffers(current)%major_mode == "mail_mode", "not in Mail mode")
-        if (.not. allocated(error)) call check(error, point() == point_max(), "point is not after the separator")
+        if (.not. allocated(error)) call check(error, point() == point_maximum(), "point is not after the separator")
         if (.not. allocated(error)) call check(error, mail_header_end() == len("To: joe@x"//LF//"Subject: Hi"//LF) + 1, &
                                                "mail_header_end")
-        if (.not. allocated(error)) call check(error, mail_text_start() == point_max(), "mail_text_start")
+        if (.not. allocated(error)) call check(error, mail_text_start() == point_maximum(), "mail_text_start")
         call leave()
     end subroutine test_set_up_mail
 
@@ -224,7 +224,7 @@ contains
 
         call set_up()
         call mail(st)
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call insert_mail_from_field(st)
         call check(error, st%ok(), format_error(st))
         if (.not. allocated(error)) call check(error, index(buffer_string(), "From: king@grassland.com"//LF//"To: ") == 1, &
@@ -233,7 +233,7 @@ contains
         call leave()
         call mail(st)
         mail_from_style = MAIL_FROM_STYLE_ANGLES
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call insert_mail_from_field(st)
         text = buffer_string()
         call check(error, index(text, "From: ") == 1 .and. index(text, " <king@grassland.com>"//LF//"To: ") > 0, text)
@@ -319,7 +319,7 @@ contains
         character(len=:), allocatable :: output, fcc, text
 
         call set_up(output)
-        call create_temp_file("sendmail-fcc", fcc, st)
+        call create_temporary_file("sendmail-fcc", fcc, st)
         call delete_file(fcc, st)
         mail_archive_file_name = fcc
         call compose(error)
@@ -396,8 +396,8 @@ contains
         call set_up(output)
         call mail(st, MAIL_NOERASE_NO, subject="Hi")
         ! Without the To field.
-        call delete_region(point_min(), point_min() + len("To: "//LF), st)
-        call goto_char(point_max())
+        call delete_region(point_minimum(), point_minimum() + len("To: "//LF), st)
+        call goto_character(point_maximum())
         call insert("Hello"//LF, st)
         call send_mail(st)
         call check(error,.not. st%ok(), "no error")
@@ -418,7 +418,7 @@ contains
         mail_envelope_from = MAIL_ENVELOPE_FROM_HEADER
         call compose(error)
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call insert("From: ""Ann Lee"" <ann@x.org>"//LF, st)
         call send_mail(st)
         call check(error, st%ok(), format_error(st))

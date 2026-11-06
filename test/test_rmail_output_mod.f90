@@ -24,7 +24,7 @@
 module test_rmail_output_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: status_type, format_error, FM_VOID_FUNCTION
+    use error_mod, only: status_type, format_error, VOID_FUNCTION_CODE
     use files_mod, only: delete_file
     use file_input_output_mod, only: file_exists
     use rmail_mod, only: get_rmail_header
@@ -108,7 +108,7 @@ contains
         call write_file(output, "")
         call visit_rmail(file, SAMPLE_MBOX, st)
         call output_rmail_message_as_seen(output, st)
-        call check(error, st%code == FM_VOID_FUNCTION, format_error(st))
+        call check(error, st%code == VOID_FUNCTION_CODE, format_error(st))
         call leave_rmail(file, output)
     end subroutine test_output_as_seen
 end module test_rmail_output_mod

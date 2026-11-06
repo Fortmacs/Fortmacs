@@ -76,7 +76,7 @@ contains
         call expect(error, seconds_to_string(999999999.0_real64), "31.69y")
     end subroutine test_seconds_to_string
 
-    !> READABLE, ABBREV and `expanded' (Ibuffer's recency column uses the
+    !> READABLE, ABBREVIATION and `expanded' (Ibuffer's recency column uses the
     !> abbreviated readable form).
     subroutine test_readable(error)
         type(error_type), allocatable, intent(out) :: error

@@ -33,7 +33,7 @@
 !> submodules calendar_julian_mod and calendar_islamic_mod.  What is not ported yet is
 !> listed in docs/status/holidays_mod.md.
 module holidays_mod
-    use error_mod, only: status_type, set_error, FM_WRONG_TYPE_ARGUMENT
+    use error_mod, only: status_type, set_error, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type
     use buffer_mod, only: current_buffer, set_buffer, is_buffer_live
     use calendar_mod, only: calendar_date_type, operator(==), calendar_display_type, set_calendar_display, &
@@ -51,7 +51,7 @@ module holidays_mod
                             calendar_total_months_local
     use display_engine_mod, only: message
     use commands_mod, only: commands
-    use execute_interactively_mod, only: current_prefix_arg, PREFIX_NONE
+    use execute_interactively_mod, only: current_prefix_argument, PREFIX_NONE
     use keymap_mod, only: keymap_set
     use value_mod, only: value_type, make_list
     use minibuffer_reading_mod, only: completion_ignore_case
@@ -59,8 +59,8 @@ module holidays_mod
     use minibuffer_mod, only: completing_read, REQUIRE_MATCH_YES
     use casefiddle_mod, only: capitalize_string
     use simple_mod, only: read_variable
-    use frame_mod, only: selected_frame, frame_cols
-    use search_mod, only: string_chars
+    use frame_mod, only: selected_frame, frame_columns
+    use search_mod, only: string_characters
     implicit none(type, external)
     private
 
@@ -69,10 +69,10 @@ module holidays_mod
               holiday_in_range, calendar_cursor_holidays, calendar_mark_holidays, holiday_fixed, holiday_float, &
               holiday_filter_visible_calendar, holiday_expression, holiday_after, holiday_advent, holiday_easter_etc, &
               holiday_easter_etc_absolute, holiday_greek_orthodox_easter, holiday_greek_orthodox_easter_absolute, &
-              init_holidays, append_holiday
+              initialize_holidays, append_holiday
 
     !> The longest string a `holiday_entry_type' holds.
-    integer, parameter, public :: HOLIDAY_STRING_MAX = 80
+    integer, parameter, public :: HOLIDAY_STRING_MAXIMUM = 80
 
     !> The kinds of `holiday_entry_type': a fixed Gregorian date
     !> (upstream's holiday-fixed), the Nth DAYNAME after/before a Gregorian
@@ -139,7 +139,7 @@ module holidays_mod
         integer :: day = 0
         integer :: dayname = 0
         integer :: n = 0
-        character(len=HOLIDAY_STRING_MAX) :: string = ""
+        character(len=HOLIDAY_STRING_MAXIMUM) :: string = ""
         procedure(holiday_expression_procedure), pointer, nopass :: expression => null()
         procedure(holidays_procedure), pointer, nopass :: procedure => null()
     end type holiday_entry_type
@@ -541,7 +541,7 @@ contains
             end if
         case (HOLIDAY_ENTRY_EXPRESSION)
             if (.not. associated(entry%expression)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected a procedure, got no expression")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected a procedure, got no expression")
                 return
             end if
 
@@ -570,13 +570,13 @@ contains
             call holiday_islamic(entry%month, entry%day, trim(entry%string), holidays)
         case (HOLIDAY_ENTRY_PROCEDURE)
             if (.not. associated(entry%procedure)) then
-                call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected a procedure, got no procedure")
+                call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected a procedure, got no procedure")
                 return
             end if
 
             call entry%procedure(holidays, status)
         case default
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected a holiday entry kind")
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected a holiday entry kind")
         end select
 
         if (.not. allocated(holidays)) allocate (holidays(0))
@@ -644,25 +644,25 @@ contains
     end subroutine calendar_list_holidays
 
     ! The command `calendar_list_holidays'.  Not a port.
-    recursive subroutine cmd_calendar_list_holidays(status)
+    recursive subroutine execute_calendar_list_holidays(status)
         type(status_type), intent(out) :: status
 
         call calendar_list_holidays(status)
-    end subroutine cmd_calendar_list_holidays
+    end subroutine execute_calendar_list_holidays
 
     !> Display the holidays for last month, this month, and next month.
-    !> If called with an optional prefix argument ARG, prompts for month and year.
+    !> If called with an optional prefix argument ARGUMENT, prompts for month and year.
     !> This function is suitable for execution in an init file.  Port of
     !> holidays.el:holidays.
-    recursive subroutine holidays(status, arg)
+    recursive subroutine holidays(status, argument)
         type(status_type), intent(out) :: status
-        logical, intent(in), optional :: arg
+        logical, intent(in), optional :: argument
         type(calendar_date_type) :: date
         type(calendar_display_type) :: saved
         logical :: prompt
 
         prompt = .false.
-        if (present(arg)) prompt = arg
+        if (present(argument)) prompt = argument
 
         if (prompt) then
             ! (completion-ignore-case t): calendar_read_date binds it.
@@ -677,12 +677,12 @@ contains
         call restore_calendar_display(saved)
     end subroutine holidays
 
-    ! The command `holidays': ARG is the prefix argument.  Not a port.
-    recursive subroutine cmd_holidays(status)
+    ! The command `holidays': ARGUMENT is the prefix argument.  Not a port.
+    recursive subroutine execute_holidays(status)
         type(status_type), intent(out) :: status
 
-        call holidays(status, current_prefix_arg%kind /= PREFIX_NONE)
-    end subroutine cmd_holidays
+        call holidays(status, current_prefix_argument%kind /= PREFIX_NONE)
+    end subroutine execute_holidays
 
     !> Display holidays for years Y1 to Y2 (inclusive).
     !> Y2 defaults to Y1.  The optional list of holidays L defaults to
@@ -764,7 +764,7 @@ contains
 
     ! The command `list_holidays': reads the years and the list as
     ! upstream's command does.  Not a port.
-    recursive subroutine cmd_list_holidays(status)
+    recursive subroutine execute_list_holidays(status)
         type(status_type), intent(out) :: status
         type(named_holidays_type), allocatable :: lists(:)
         type(value_type), allocatable :: names(:)
@@ -831,7 +831,7 @@ contains
 
             is_at_least_start = x >= start_year
         end function is_at_least_start
-    end subroutine cmd_list_holidays
+    end subroutine execute_list_holidays
 
     !> Return a list of all holiday lists.
     !> This is used by `list_holidays'.  Port of
@@ -893,7 +893,7 @@ contains
         k = findloc(options%name == name, .true., dim=1)
 
         if (k == 0) then
-            call set_error(status, FM_WRONG_TYPE_ARGUMENT, "expected type(holidays_type), got "//name)
+            call set_error(status, WRONG_TYPE_ARGUMENT_CODE, "expected type(holidays_type), got "//name)
             return
         end if
 
@@ -972,7 +972,7 @@ contains
         type(calendar_date_type), intent(in), optional :: date
         type(calendar_date_type) :: day
         type(holiday_type), allocatable :: holiday_list(:)
-        character(len=:), allocatable :: date_string, msg, text
+        character(len=:), allocatable :: date_string, message_text, text
         integer :: k
 
         call message("Checking holidays...")
@@ -993,21 +993,21 @@ contains
             return
         end if
 
-        msg = date_string//":  "
+        message_text = date_string//":  "
         text = ""
 
         do k = 1, size(holiday_list)
             if (k > 1) then
-                msg = msg//";  "
+                message_text = message_text//";  "
                 text = text//achar(10)
             end if
 
-            msg = msg//holiday_list(k)%string
+            message_text = message_text//holiday_list(k)%string
             text = text//holiday_list(k)%string
         end do
 
-        if (string_chars(msg) <= frame_cols(selected_frame)) then
-            call message(msg)
+        if (string_characters(message_text) <= frame_columns(selected_frame)) then
+            call message(message_text)
         else
             call calendar_in_read_only_buffer(holiday_buffer, date_string, text, status)
             if (.not. status%ok()) return
@@ -1016,11 +1016,11 @@ contains
     end subroutine calendar_cursor_holidays
 
     ! The command `calendar_cursor_holidays'.  Not a port.
-    recursive subroutine cmd_calendar_cursor_holidays(status)
+    recursive subroutine execute_calendar_cursor_holidays(status)
         type(status_type), intent(out) :: status
 
         call calendar_cursor_holidays(status)
-    end subroutine cmd_calendar_cursor_holidays
+    end subroutine execute_calendar_cursor_holidays
 
     !> Mark notable days in the calendar window.  Port of
     !> holidays.el:calendar-mark-holidays (no EVENT, with the mouse;
@@ -1200,17 +1200,17 @@ contains
         call holiday_filter_visible_calendar(holidays)
     end subroutine holiday_expression
 
-    !> Holiday called STRING on the Nth day after/before REF in the calendar.
-    !> REF is a function that accepts the Year as the argument and returns the
+    !> Holiday called STRING on the Nth day after/before REFERENCE in the calendar.
+    !> REFERENCE is a function that accepts the Year as the argument and returns the
     !> absolute date of the reference day.  Negative values of N are
     !> interpreted as days before the reference day.  Port of
     !> holidays.el:holiday-after.
-    recursive subroutine holiday_after(ref, n, string, holidays)
+    recursive subroutine holiday_after(reference, n, string, holidays)
         interface
-            integer function ref(year)
+            integer function reference(year)
                 implicit none(type, external)
                 integer, intent(in) :: year
-            end function ref
+            end function reference
         end interface
         integer, intent(in) :: n
         character(len=*), intent(in) :: string
@@ -1219,8 +1219,8 @@ contains
 
         call calendar_get_month_range(m1, y1, m2, y2)
         allocate (holidays(0))
-        call append_holiday(holidays, calendar_gregorian_from_absolute(n + ref(y1)), string)
-        if (y1 /= y2) call append_holiday(holidays, calendar_gregorian_from_absolute(n + ref(y2)), string)
+        call append_holiday(holidays, calendar_gregorian_from_absolute(n + reference(y1)), string)
+        if (y1 /= y2) call append_holiday(holidays, calendar_gregorian_from_absolute(n + reference(y2)), string)
         call holiday_filter_visible_calendar(holidays)
     end subroutine holiday_after
 
@@ -1490,7 +1490,7 @@ contains
 
     !> Define the holiday lists' defaults, the holiday commands and their
     !> keys in the calendar.  Not a port.
-    subroutine init_holidays()
+    subroutine initialize_holidays()
         type(status_type) :: st
 
         call set_default_holidays()
@@ -1498,13 +1498,13 @@ contains
         call keymap_set(calendar_mode_map, "h", "calendar_cursor_holidays", st)
         call keymap_set(calendar_mode_map, "x", "calendar_mark_holidays", st)
         calendar_mark_holidays_hook => calendar_mark_holidays
-        calendar_list_holidays_hook => cmd_calendar_list_holidays
-        commands%holidays%execute => cmd_holidays
-        commands%list_holidays%execute => cmd_list_holidays
+        calendar_list_holidays_hook => execute_calendar_list_holidays
+        commands%holidays%execute => execute_holidays
+        commands%list_holidays%execute => execute_list_holidays
         ! (defalias 'holiday-list 'list-holidays)
-        commands%holiday_list%execute => cmd_list_holidays
-        commands%calendar_list_holidays%execute => cmd_calendar_list_holidays
-        commands%calendar_cursor_holidays%execute => cmd_calendar_cursor_holidays
+        commands%holiday_list%execute => execute_list_holidays
+        commands%calendar_list_holidays%execute => execute_calendar_list_holidays
+        commands%calendar_cursor_holidays%execute => execute_calendar_cursor_holidays
         commands%calendar_mark_holidays%execute => calendar_mark_holidays
-    end subroutine init_holidays
+    end subroutine initialize_holidays
 end module holidays_mod

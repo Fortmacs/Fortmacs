@@ -6,7 +6,7 @@ rmail_movemail_program
 rmail_movemail_flags
 rmail_preserve_inbox
 rmail_movemail_search_path
-rmail_user_mail_address_regexp
+rmail_user_mail_address_regular_expression
 rmail_ignored_headers
 rmail_nonignored_headers
 rmail_displayed_headers
@@ -16,7 +16,7 @@ rmail_delete_after_output
 rmail_primary_inboxes
 rmail_mail_new_frame
 rmail_secondary_file_directory
-rmail_secondary_file_regexp
+rmail_secondary_file_regular_expression
 rmail_confirm_expunge
 rmail_show_message_hook
 rmail_display_summary

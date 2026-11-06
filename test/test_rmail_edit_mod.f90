@@ -27,7 +27,7 @@ module test_rmail_edit_mod
     use error_mod, only: status_type, format_error
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current, get_or_make_buffer, set_buffer, close_buffer
-    use editing_functions_mod, only: buffer_string, goto_char, point_max, point_min, widen
+    use editing_functions_mod, only: buffer_string, goto_character, point_maximum, point_minimum, widen
     use insert_delete_mod, only: insert
     use rmail_mod, only: get_rmail_header, widen_rmail, next_rmail_undeleted_message
     use rmail_edit_mod, only: edit_rmail_current_message, cease_rmail_edit, abort_rmail_edit, get_rmail_edit_headers, &
@@ -65,7 +65,7 @@ contains
         if (allocated(error)) return
         call check(error, buffers(current)%major_mode == "rmail_edit_mode", buffers(current)%major_mode)
         if (allocated(error)) return
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("An added line."//LF, st)
         call cease_rmail_edit(st)
         call check(error, st%ok(), format_error(st))
@@ -97,7 +97,7 @@ contains
         call next_rmail_undeleted_message(1_int64, st)
         before = buffer_string()
         call edit_rmail_current_message(st)
-        call goto_char(point_max())
+        call goto_character(point_maximum())
         call insert("Not kept."//LF, st)
         call abort_rmail_edit(st)
         call check(error, st%ok(), format_error(st))
@@ -126,7 +126,7 @@ contains
         if (allocated(error)) return
         call check(error, old(3)%name == "Subject" .and. old(3)%text == "Subject: old"//LF, "the Subject field")
         if (allocated(error)) return
-        call goto_char(point_min())
+        call goto_character(point_minimum())
         call widen()
         call close_buffer(h, st)
         call get_or_make_buffer(" *rmail-edit-headers*", h, st)

@@ -9,7 +9,7 @@
 `write-region` with APPEND true ("Added to FILE"; for Fcc),
 `make-symbolic-link` (OK-IF-ALREADY-EXISTS; `file-already-exists`),
 `make-temp-name`,
-`make-temp-file-internal` (as `create_temp_file_internal`: a file of mode 600, a directory of mode 700, or only a free name, with SUFFIX),
+`make-temp-file-internal` (as `create_temporary_file_internal`: a file of mode 600, a directory of mode 700, or only a free name, with SUFFIX),
 `set-default-file-modes`,
 `unix-sync`,
 `access-file`,
