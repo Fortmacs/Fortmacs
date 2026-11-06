@@ -128,7 +128,7 @@ module compile_mod
     use modes_mod, only: major_modes, minor_modes
     use derived_mod, only: major_mode_type
     use simple_mod, only: special_mode_map, read_shell_command, shell_command_switch, next_error_last_buffer, &
-                          set_next_error_function, next_error_find_buffer, next_error_internal, next_error, push_mark
+                          next_error_function, next_error_find_buffer, next_error_internal, next_error, push_mark
     use execute_process_mod, only: shell_file_name, initialize_callproc
     use process_mod, only: make_process, get_buffer_process, process_status, &
                            process_query_on_exit_flag, interrupt_process, delete_process, process_buffer, &
@@ -3965,7 +3965,7 @@ contains
         ! Note that compilation-next-error-function is for interfacing
         ! with the next-error function in simple.el, and it's only
         ! coincidentally named similarly to compilation-next-error.
-        call set_next_error_function(compilation_next_error_function)
+        call next_error_function%set_local(compilation_next_error_function)
         ! compilation-locs.
         compilation_buffers(k)%setup = .true.
         compilation_buffers(k)%nkeys = 0

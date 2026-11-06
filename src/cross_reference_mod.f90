@@ -60,7 +60,7 @@ module cross_reference_mod
                           case_fold_search, string_index_to_offset, looking_at, SEARCH_NOERROR
     use basic_subprograms_mod, only: bounds_of_identifier_at_point, shell_quote_argument, add_to_invisibility_specification, &
                                      execute_mode_hooks
-    use simple_mod, only: push_mark, is_region_active, next_error_last_buffer, set_next_error_function, next_error_found, &
+    use simple_mod, only: push_mark, is_region_active, next_error_last_buffer, next_error_function, next_error_found, &
                           widen_automatically, shell_command_switch, back_to_indentation
     use keymap_mod, only: keymap_set, set_keymap_parent, make_sparse_keymap, use_local_map
     use keyboard_mod, only: post_command_hook
@@ -2629,7 +2629,7 @@ contains
     ! xref.el:xref--xref-buffer-mode.
     subroutine cross_reference_buffer_mode_body()
         buffers(current)%read_only = .true.
-        call set_next_error_function(cross_reference_next_error_function)
+        call next_error_function%set_local(cross_reference_next_error_function)
         next_error_last_buffer = current_buffer()
         call revert_buffer_function%set_local(revert_cross_reference_buffer)
     end subroutine cross_reference_buffer_mode_body

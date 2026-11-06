@@ -108,7 +108,7 @@ module replace_mod
                                    previous_single_property_change, propertize
     use search_mod, only: search_forward, SEARCH_MOVE
     use keyboard_mod, only: last_command
-    use simple_mod, only: cut_region, copy_region_quietly, line_number_at_position, count_lines, set_next_error_function, &
+    use simple_mod, only: cut_region, copy_region_quietly, line_number_at_position, count_lines, next_error_function, &
                           next_error_found, next_error_last_buffer, fundamental_mode
     use window_mod, only: windows, display_buffer, pop_to_buffer, switch_to_buffer_other_window, select_window, &
                           get_buffer_window, set_window_point, window_start, window_text_columns, recenter, &
@@ -2856,7 +2856,7 @@ contains
         buffers(current)%read_only = .true.
         call revert_buffer_function%set_local(occur_revert_function)
         call close_buffer_hook%prepend(occur_garbage_collect_revert_arguments, local=.true.)
-        call set_next_error_function(occur_next_error)
+        call next_error_function%set_local(occur_next_error)
     end subroutine occur_mode_body
 
     !> Major mode for editing *Occur* buffers.

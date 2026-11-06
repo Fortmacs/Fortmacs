@@ -46,14 +46,13 @@ submodule(simple_mod) simple_next_error_mod
     use error_mod, only: VOID_FUNCTION_CODE
     implicit none(type, external)
 
-    !> A buffer's own next-error-function and next-error-buffer.
-    type :: next_error_entry_type
+    !> A buffer's own next-error-buffer.
+    type :: next_error_buffer_entry_type
         integer(int64) :: serial = 0
-        procedure(next_error_function_procedure), pointer, nopass :: fn => null()
         type(handle_type) :: next_error_buffer
-    end type next_error_entry_type
+    end type next_error_buffer_entry_type
 
-    type(next_error_entry_type), allocatable :: entries(:)
+    type(next_error_buffer_entry_type), allocatable :: entries(:)
 
 contains
 
@@ -69,7 +68,7 @@ contains
     ! Find or make the current buffer's entry, its index K.  Not a port.
     subroutine make_current_entry(k)
         integer, intent(out) :: k
-        type(next_error_entry_type) :: entry
+        type(next_error_buffer_entry_type) :: entry
 
         k = entry_of(current)
         if (k /= 0) return
@@ -84,27 +83,11 @@ contains
     subroutine clear_next_error_locals()
         integer :: k
 
+        call next_error_function%clear_local()
         k = entry_of(current)
         if (k == 0) return
-        entries(k)%fn => null()
         entries(k)%next_error_buffer = null_handle()
     end subroutine clear_next_error_locals
-
-    module procedure set_next_error_function
-    integer :: k
-
-    if (current == 0) return
-    call make_current_entry(k)
-    entries(k)%fn => fn
-    end procedure set_next_error_function
-
-    module procedure has_next_error_function
-    integer :: k
-
-    has_next_error_function = .false.
-    k = entry_of(bi)
-    if (k /= 0) has_next_error_function = associated(entries(k)%fn)
-    end procedure has_next_error_function
 
     recursive module logical function is_next_error_buffer(buffer, avoid_current, extra_test_inclusive, &
                                                            extra_test_exclusive)
@@ -113,6 +96,7 @@ contains
         procedure(test_procedure), optional :: extra_test_inclusive, extra_test_exclusive
         type(handle_type) :: old
         type(status_type) :: st
+        procedure(next_error_function_procedure), pointer :: function_now
         logical :: avoid
 
         avoid = .false.
@@ -123,8 +107,9 @@ contains
         if (avoid .and. same_buffer(buffer, current_buffer())) return
         old = current_buffer()
         call set_buffer(buffer, st)
+        function_now => next_error_function%get_current()
 
-        if (has_next_error_function(current)) then
+        if (associated(function_now)) then
             ! This is the normal test.  Optionally reject some buffers.
             is_next_error_buffer = .true.
             if (present(extra_test_exclusive)) is_next_error_buffer = extra_test_exclusive()
@@ -200,9 +185,9 @@ contains
     type(handle_type) :: buffer, previous
     type(status_type) :: st
     character(len=:), allocatable :: what
+    procedure(next_error_function_procedure), pointer :: function_now
     integer(int64) :: argument
     logical :: rst
-    integer :: k
 
     argument = 1
     if (present(n)) argument = n
@@ -214,8 +199,14 @@ contains
     ! call.
     call set_buffer(buffer, status)
     if (.not. status%ok()) return
-    k = entry_of(current)
-    call entries(k)%fn(argument, rst, status)
+    function_now => next_error_function%get_current()
+
+    if (.not. associated(function_now)) then
+        call set_error(status, VOID_FUNCTION_CODE, "null()")
+        return
+    end if
+
+    call function_now(argument, rst, status)
     if (.not. status%ok()) return
     previous = next_error_last_buffer
     call next_error_found(st, buffer, current_buffer())
@@ -238,19 +229,19 @@ contains
     module procedure next_error_internal
     type(handle_type) :: buffer, previous
     type(status_type) :: st
-    integer :: k
+    procedure(next_error_function_procedure), pointer :: function_now
 
     buffer = current_buffer()
     ! We know here that next-error-function is a valid function we can
     ! call.
-    k = entry_of(current)
+    function_now => next_error_function%get_current()
 
-    if (k == 0) then
+    if (.not. associated(function_now)) then
         call set_error(status, VOID_FUNCTION_CODE, "null()")
         return
     end if
 
-    call entries(k)%fn(0_int64, .false., status)
+    call function_now(0_int64, .false., status)
     if (.not. status%ok()) return
     previous = next_error_last_buffer
     call next_error_found(st, buffer, current_buffer())
