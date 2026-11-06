@@ -105,7 +105,7 @@ names, help and internals are Fortran-first.
 - Names use underscores (`M-x find_file`, `C-h v fill_column`,
   `text_mode_hook`), and Lisp terms take Fortran names: defun, sexp and <!-- fortran-names: keep -->
   alist become subprogram, expression and table (`C-M-f` is <!-- fortran-names: keep -->
-  `forward_expression`). Keys and mode-line text are unchanged.
+  `forward_expression`). Keys and the text the mode line shows are unchanged.
   PORTING.md, "Fortran names for Lisp terms", has the full list.
 - One word per meaning. Emacs's names grew over forty years, so the same
   idea is spelled several ways; since everything is being rewritten anyway,
