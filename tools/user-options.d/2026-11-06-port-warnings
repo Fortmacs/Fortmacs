@@ -1,0 +1,6 @@
+# The user options of warnings.el.
+warning_minimum_level
+warning_minimum_log_level
+warning_suppress_log_types
+warning_suppress_types
+warning_display_at_bottom

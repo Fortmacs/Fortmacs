@@ -23,11 +23,13 @@
 
 !> The mail address options of startup.el: `user_mail_address' (its
 !> delayed initialization: computed after the init file unless that
-!> set it) and `mail_host_address'.  The rest of startup.el is in
+!> set it) and `mail_host_address', and `after_initialization_time'.
+!> The rest of startup.el is in
 !> fortmacs_mod, which uses everything; this module is for those that only
 !> need these options.
 module startup_mod
     use editing_functions_mod, only: user_login_name, system_name
+    use time_functions_mod, only: time_type
     implicit none(type, external)
     private
 
@@ -44,6 +46,11 @@ module startup_mod
     !> `system_name').  Port of startup.el user-mail-address (unallocated
     !> until initialized).
     character(len=:), allocatable, public :: user_mail_address
+
+    !> Value of `current_time' after loading the init files.
+    !> This is unallocated during initialization.  Port of emacs.c
+    !> after-init-time (set by startup.el:command-line).
+    type(time_type), allocatable, public :: after_initialization_time
 
 contains
 

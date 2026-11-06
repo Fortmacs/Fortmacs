@@ -19,7 +19,7 @@
 `-delete-backwards`,
 `-save`,
 `-not-modified`,
-`-execute`,
+`-execute` (with the warning of a failed save),
 `-select`,
 `-multi-occur`,
 `-1-window`,
@@ -48,7 +48,6 @@ the fake header line for `Buffer-menu-use-header-line` nil,
 `Buffer-menu-visit-tags-table` (etags.el),
 the menu and `Buffer-menu-mouse-select`,
 the face alias `Buffer-menu-buffer`,
-the warning of a failed save in `Buffer-menu-execute`,
 the :advertised-binding properties,
 the obsolete `Buffer-menu-sort`
 

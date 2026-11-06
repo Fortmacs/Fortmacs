@@ -56,6 +56,7 @@ module bindings_mod
     use casefiddle_mod, only: initialize_casefiddle, casefiddle_region_bounds => region_bounds, &
                               casefiddle_is_region_noncontiguous => is_region_noncontiguous
     use novice_mod, only: initialize_novice
+    use warnings_mod, only: initialize_warnings
     use utility_functions_mod, only: initialize_functions
     use indent_mod, only: initialize_indent
     use fill_mod, only: initialize_fill
@@ -370,6 +371,7 @@ contains
         call initialize_fill()
         call initialize_newcomment()
         call initialize_novice()
+        call initialize_warnings()
         call initialize_text_mode()
         call initialize_index_menu()
         call initialize_configuration_mode()

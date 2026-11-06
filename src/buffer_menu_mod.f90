@@ -36,8 +36,6 @@
 !> `Buffer-menu-isearch-buffers-regexp' (misearch.el), and
 !> `Buffer-menu-visit-tags-table' (etags.el), the menu, the mouse command
 !> `Buffer-menu-mouse-select', the face alias `Buffer-menu-buffer', the
-!> warning of a buffer that fails to save in `buffer_menu_execute'
-!> (warnings.el; the error is ignored, as upstream after warning), the
 !> obsolete `Buffer-menu-sort', the :advertised-binding of
 !> `buffer_menu_delete' and `buffer_menu_this_window'.
 module buffer_menu_mod
@@ -54,7 +52,8 @@ module buffer_menu_mod
                           buffer_list, frame_buffer_list, buffer_serial_live, close_buffer, is_buffer_modified, &
                           restore_buffer_modified
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, is_end_of_buffer, &
-                                     is_beginning_of_buffer, buffer_size, following_character
+                                     is_beginning_of_buffer, buffer_size, following_character, format_arguments_type
+    use warnings_mod, only: warn
     use editing_commands_mod, only: forward_line, beginning_of_line
     use search_mod, only: regular_expression_search_forward
     use keyboard_mod, only: read_event
@@ -857,6 +856,14 @@ contains
 
                     if (st%ok()) then
                         call set_column(3, " ", status)
+                        if (.not. status%ok()) exit
+                    else
+                        block
+                            type(format_arguments_type) :: arguments
+                            call arguments%append("#<buffer "//buffers(buffer%index)%name//">")
+                            call warn("Error saving %s", arguments, status)
+                        end block
+
                         if (.not. status%ok()) exit
                     end if
                 end if

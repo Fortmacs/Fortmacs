@@ -42,12 +42,11 @@
 !> `recent_files_filter_changer_current' in the saved file and the digit
 !> shortcuts; remote files (`recent_files_access_file'); tracking files as
 !> they are written (`write_file_functions' is not ported); a time
-!> string in `recent_files_auto_cleanup'; the warning when the list can't be
-!> saved (warnings.el); the obsolete `recent_files_load_hook',
+!> string in `recent_files_auto_cleanup'; the obsolete `recent_files_load_hook',
 !> `recent_files_trunc_list' and `recent_files_elements'.
 module recent_files_mod
     use, intrinsic :: iso_fortran_env, only: int64, real64
-    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE
+    use error_mod, only: status_type, set_error, format_error, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
     use data_mod, only: set, symbol_value, choice_setting_type
@@ -58,7 +57,8 @@ module recent_files_mod
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, generate_new_buffer_name, &
                           close_buffer
     use insert_delete_mod, only: insert
-    use editing_functions_mod, only: buffer_string
+    use editing_functions_mod, only: buffer_string, format_arguments_type
+    use warnings_mod, only: warn
     use file_input_output_mod, only: is_file_readable, expand_file_name, write_region, insert_file_contents, set_file_modes
     use files_mod, only: find_file, find_file_hook, close_buffer_hook, abbreviate_file_name, file_truename, &
                          file_name_extension
@@ -680,10 +680,19 @@ contains
         call coding_system_for_write%clear()
         call close_buffer(h, st)
         call set_buffer(old, st)
-        ! (The warning when it fails is Deferred: warnings.el is not ported.)
-        if (.not. wst%ok()) return
-        if (inter .or. recent_files_show_messages) call message(wrote)
-        if (recent_files_save_file_modes >= 0) call set_file_modes(recent_files_save_file, recent_files_save_file_modes, st)
+
+        if (wst%ok()) then
+            if (inter .or. recent_files_show_messages) call message(wrote)
+            if (recent_files_save_file_modes >= 0) call set_file_modes(recent_files_save_file, recent_files_save_file_modes, wst)
+        end if
+
+        if (.not. wst%ok()) then
+            block
+                type(format_arguments_type) :: arguments
+                call arguments%append(format_error(wst))
+                call warn("recentf mode: %s", arguments)
+            end block
+        end if
     end subroutine recent_files_save_list
 
     ! Not a port.

@@ -20,7 +20,7 @@ src/autorevert_mod.f90	name-value	7
 src/autorevert_mod.f90	set-by-name	2
 src/bindings_mod.f90	name-value	1
 src/bookmark_mod.f90	name-value	6
-src/buffer_mod.f90	intern	2
+src/buffer_mod.f90	intern	1
 src/character_set_maps_mod.f90	name-dispatch	1
 src/command_interpreter_mod.f90	get-by-name	2
 src/command_interpreter_mod.f90	name-value	57

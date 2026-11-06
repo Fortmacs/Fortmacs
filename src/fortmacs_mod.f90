@@ -50,13 +50,14 @@ module fortmacs_mod
     use face_realization_mod, only: initialize_frame_faces
     use faces_mod, only: initialize_faces
     use modes_mod, only: minor_modes
-    use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_fortmacs_hook
+    use keyboard_mod, only: set_input_fd, command_loop, redisplay_hook, ring_bell_hook, exit_fortmacs_hook, delayed_warnings_hook
     use process_mod, only: kill_buffer_processes
     use bindings_mod, only: initialize_bindings
     use terminal_xterm_mod, only: terminal_initialize_xterm
     use terminal_colors_mod, only: terminal_register_colors
     use names_mod, only: user_initialization_file
-    use startup_mod, only: initialize_user_mail_address
+    use startup_mod, only: initialize_user_mail_address, after_initialization_time
+    use time_functions_mod, only: current_time
     use configuration_mod, only: install_prefix, configure_info_directory, running_executable, recompile, &
                                  initialization_file_name, current_build_name, generation_of, current_generation, &
                                  switch_generation, rollback, list_generations
@@ -492,6 +493,11 @@ contains
                 call initialize_frame_faces(selected_frame, terminal_type)
             end if
 
+            ! startup.el:command-line: the init files are loaded; display
+            ! the warnings they accumulated.
+            after_initialization_time = current_time()
+            call delayed_warnings_hook%execute(st)
+            if (.not. st%ok()) call message(format_error(st))
             ! If the abbrevs came entirely from the init file or the
             ! abbrevs file, they do not need saving.
             abbreviations_changed = .false.

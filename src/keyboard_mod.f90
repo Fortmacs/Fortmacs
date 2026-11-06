@@ -83,6 +83,7 @@ module keyboard_mod
     use system_dependent_mod, only: fortmacs_read, input_available, interrupt_pending, inputs_available, fortmacs_write, &
                                     window_change_pending
     use hooks_mod, only: hook_type
+    use string_type_mod, only: string_type
     use text_properties_mod, only: get_character_property_and_overlay, get_property_and_range, text_property_means_invisible, &
                                    next_single_character_property_change, previous_single_character_property_change, &
                                    get_position_property
@@ -378,6 +379,33 @@ module keyboard_mod
     !> of the function are deferred.)  Port of keyboard.c
     !> post-command-hook.
     type(hook_type), target, public :: post_command_hook = hook_type(name="post_command_hook")
+
+    !> A warning waiting in `delayed_warnings': the arguments of
+    !> `display_warning'.  TYPES holds the warning type's names, one for a
+    !> type given as one name (IS_LIST false) or the names of a type given
+    !> as a list; LEVEL is 0 and BUFFER_NAME unallocated when not given.
+    type, public :: delayed_warning_type
+        type(string_type), allocatable :: types(:)
+        logical :: is_list = .false.
+        character(len=:), allocatable :: message
+        integer :: level = 0
+        character(len=:), allocatable :: buffer_name
+    end type delayed_warning_type
+
+    !> List of warnings to be displayed after this command.
+    !> Each element holds the arguments of `display_warning' (which see),
+    !> the newest first.
+    !> If this list is not empty, `delayed_warnings_hook' will be run
+    !> immediately after running `post_command_hook'.  Port of keyboard.c
+    !> delayed-warnings-list.
+    type(delayed_warning_type), allocatable, public :: delayed_warnings(:)
+
+    !> Normal hook run to process and display delayed warnings.
+    !> By default, this hook contains functions to consolidate the
+    !> warnings listed in `delayed_warnings', display them, and set
+    !> `delayed_warnings' back to empty (warnings_mod adds them).  Port of
+    !> subr.el delayed-warnings-hook.
+    type(hook_type), target, public :: delayed_warnings_hook = hook_type(name="delayed_warnings_hook")
 
     !> Normal hook run before each command is executed.  (An error in one
     !> of its functions ends the run; safe_execute_hooks's message and removal
@@ -2540,6 +2568,7 @@ contains
             call set_command_key_count(0)
             this_single_command_key_start = 0
             call safe_execute_hooks_maybe_narrowed(post_command_hook)
+            call execute_delayed_warnings_hook()
             last_command => this_command
             real_last_command => real_this_command
             if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command => real_this_command
@@ -2549,6 +2578,7 @@ contains
 
         last_prefix_argument = current_prefix_argument
         call safe_execute_hooks_maybe_narrowed(post_command_hook)
+        call execute_delayed_warnings_hook()
         last_command => this_command
         real_last_command => real_this_command
         if (vtag(last_command_event) /= V_ARRAY) last_repeatable_command => real_this_command
@@ -3901,6 +3931,14 @@ contains
         call hook%execute_safe(report_hook_error)
     end subroutine safe_execute_hooks
 
+    !> If there are warnings waiting, process them: run
+    !> `delayed_warnings_hook' when `delayed_warnings' is not empty.
+    !> Port of keyboard.c:command_loop_1 (its delayed-warnings test).
+    recursive subroutine execute_delayed_warnings_hook()
+        if (.not. allocated(delayed_warnings)) return
+        if (size(delayed_warnings) > 0) call safe_execute_hooks(delayed_warnings_hook)
+    end subroutine execute_delayed_warnings_hook
+
     !> Execute HOOK as `safe_execute_hooks' does, for pre-command-hook and
     !> post-command-hook.  Port of keyboard.c:safe_run_hooks_maybe_narrowed
     !> (no long-line optimizations: their narrowing is Deferred with
@@ -4062,6 +4100,7 @@ contains
         ! Make sure this hook runs after commands that get errors and throw
         ! to top level.
         call safe_execute_hooks_maybe_narrowed(post_command_hook)
+        call execute_delayed_warnings_hook()
         ! Do this after running Vpost_command_hook, for consistency.
         last_command => this_command
         real_last_command => real_this_command

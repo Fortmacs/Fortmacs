@@ -12,6 +12,7 @@ terminal setup (incl. xterm init),
 windows (the root window shows `*scratch*`, as frame.c:make_frame) and faces,
 raw mode,
 visiting command-line files (`+LINE`, `--`, `-file`/`-find-file`/`-visit`) and displaying them (the first in the selected window, a second in another window, more as the other window's previous buffers),
+`after-init-time` set after the init file and `delayed-warnings-hook` run (startup.el `command-line`),
 the command loop,
 restoring the terminal;
 `sort_arguments` (the whole standard_arguments table of a GNU/Linux build) and `argmatch` for `--version`,

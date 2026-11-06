@@ -1,0 +1,15 @@
+# Port of warnings.el (and subr.el's delayed warnings).
+# warning-suppress-p is a predicate: is_* (CLAUDE.md; rule-decided).
+name	warning_suppress_p	is_warning_suppressed
+# delayed-warnings-list is an array: a plain plural name, no _list
+# (CLAUDE.md; rule-decided).
+name	delayed_warnings_list	delayed_warnings
+# after-init-time spells init out, as init-file is initialization_file (no
+# abbreviations in any name, owner 2026-11-05; rule-decided).
+name	after_init_time	after_initialization_time
+# warning--display-buffer is verb first (R6-17, R6-40; rule-decided).
+name	warning_display_buffer	display_warning_buffer
+# lwarn spells out its abbreviation and is verb first (no abbreviations,
+# owner 2026-11-05; R6-17): what it does is display a warning whose message
+# is formatted.  The spelling is open (owner question).
+name	lwarn	display_formatted_warning

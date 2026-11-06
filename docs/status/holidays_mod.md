@@ -12,6 +12,7 @@ the holiday lists as `holidays_type` lists of `holiday_entry_type` records (keyw
 `holiday-christian-holidays`,
 `holiday-islamic-holidays`,
 `calendar-holidays` (made from them when first used);
+`calendar-holiday-list` warns of a failing entry (display-warning; the entry is shown as its keyword constructor and the error as `format_error` gives it);
 the entry kinds `holiday-fixed`,
 `holiday-float`,
 `holiday-sexp` (`holiday_expression`, a procedure pointer),
@@ -49,7 +50,7 @@ cal-islam.el: `calendar-islamic-leap-year-p`,
 `holiday-oriental-holidays` (cal-china.el, which needs solar.el and lunar.el),
 `holiday-solar-holidays` and `solar-equinoxes-solstices` (solar.el, cal-dst.el),
 the choices "Equinoxes/Solstices", "Hebrew", "Bahá’í", "Oriental" and "Solar" of `list-holidays`,
-the warning for a failing entry (warnings.el's display-warning; the entry gives no holidays) and `calendar-debug-sexp`,
+`calendar-debug-sexp`,
 the EVENT arguments and the menu of `calendar-cursor-holidays` (cal-menu.el, the mouse),
 `calendar-holiday-marker` (a face or a single-character string, with `calendar-today-marker`; dates are marked with the `holiday` face),
 the :set function of the lists (`holidays--set-calendar-holidays`),
@@ -59,4 +60,4 @@ Not applicable: customizing `holiday-available-holiday-lists` with add-function
 
 ## Tests
 
-test_holidays_mod (ports holidays-test-holiday-easter-etc and holidays-test-more-months; own tests of Easter and Pascha dates, the Julian and Islamic conversions, the holidays of a calendar window, M-x list_holidays for 2026 and, with all Christian and Islamic holidays, 2024 (expected text made by GNU Emacs from upstream's 31.1 sources), an expression entry, `calendar_list_holidays` and its mode line, `calendar_check_holidays` and h, x and u)
+test_holidays_mod (ports holidays-test-holiday-easter-etc and holidays-test-more-months; own tests of Easter and Pascha dates, the Julian and Islamic conversions, the holidays of a calendar window, M-x list_holidays for 2026 and, with all Christian and Islamic holidays, 2024 (expected text made by GNU Emacs from upstream's 31.1 sources), an expression entry, `calendar_list_holidays` and its mode line, `calendar_check_holidays`, h, x and u, and the warning of a failing entry)

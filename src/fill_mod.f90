@@ -360,7 +360,7 @@ contains
         logical :: found
 
         ! Upstream's nil fill-column (obsolete): the largest fixnum (its
-        ! warning, through lwarn, is Deferred).
+        ! warning, warnings.el:lwarn, is Deferred).
         if (fill_column%value == FILL_COLUMN_NONE) then
             fc = 2_int64**61 - 1
             return
