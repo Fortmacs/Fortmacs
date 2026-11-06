@@ -56,7 +56,8 @@ submodule(directory_editor_mode_mod) directory_editor_auxiliary_mod
     use data_mod, only: choice_setting_type, choice_state, string_to_number
     use error_mod, only: FILE_ERROR_CODE, FILE_DATE_ERROR_CODE
     use system_dependent_mod, only: S_IFMT, S_IFDIR, S_IFLNK
-    use time_functions_mod, only: format_time_string, time_type, TIMESPEC_COUNT_RATE
+    use time_functions_mod, only: format_date, date_format_type, time_type, TIMESPEC_COUNT_RATE, DATE_YEAR, DATE_MONTH, DATE_DAY, &
+                                  DATE_HOUR, DATE_MINUTE, DATE_SECOND
     use buffer_mod, only: buffer_list, rename_buffer
     use file_input_output_mod, only: rename_file, copy_file, add_name_to_file, create_symbolic_link, file_symlink_target, &
                                      is_file_executable, file_modes, set_file_modes, is_directory_name
@@ -1055,10 +1056,14 @@ contains
             select case (op_symbol)
             case ("touch")
                 call file_attributes(default_file, attributes, has_default, nofollow=.true.)
-                if (has_default) default = format_time_string("%Y%m%d%H%M.%S", &
-                                                              time_type(attributes%mtime_second, int(attributes%mtime_nsec, &
-                                                                                                     int64), &
-                                                                        TIMESPEC_COUNT_RATE))
+
+                if (has_default) then
+                    default = format_date(date_format_type('(i4.4, 4i2.2, ".", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY, &
+                                                                                        DATE_HOUR, DATE_MINUTE, DATE_SECOND]), &
+                                          time_type(attributes%mtime_second, int(attributes%mtime_nsec, int64), &
+                                                    TIMESPEC_COUNT_RATE), status=status)
+                    if (.not. status%ok()) return
+                end if
             case ("chown")
                 call file_attribute_names(default_file, user, group, has_default)
                 if (has_default) default = user

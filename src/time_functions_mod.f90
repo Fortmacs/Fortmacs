@@ -1,6 +1,6 @@
 ! time_functions_mod.f90 -- time values, time zones and the formatting of times.
 ! Ported from GNU Emacs 31.1 src/timefns.c and lib/strftime.c (in part:
-! the C locale's names and formats).
+! the C locale's names and the values of its conversions).
 !
 ! Copyright (C) 1985-1987, 1989, 1993-2026 Free Software Foundation, Inc.
 ! Copyright (C) 1991-2026 Free Software Foundation, Inc.
@@ -24,8 +24,8 @@
 !> Time values and what Fortmacs does with them: the clock (`current_time'),
 !> arithmetic and comparison (`time_add', `is_time_less'), conversion
 !> (`time_convert', `real'), the calendar in a time zone
-!> (`decode_time', `encode_time') and text (`format_time_string',
-!> `current_time_string').
+!> (`decode_time', `encode_time') and text (`format_date' with a
+!> `date_format_type', `current_time_string').
 !>
 !> Upstream's several shapes of a time value (an integer, a float,
 !> (TICKS . HZ), (HIGH LOW USEC PSEC)) are one `time_type' (R6-3): whole
@@ -43,8 +43,10 @@
 !> abbreviation, into one, and TIME_ZONE_SYSTEM stands for the system's
 !> wall clock time (upstream's `wall').  The calendar comes from the C
 !> library (localtime_r, mktime) under that rule, as upstream's
-!> localtime_rz and mktime_z do on GNU/Linux; `format_time_string' is a
-!> port of Gnulib's nstrftime in the C locale.
+!> localtime_rz and mktime_z do on GNU/Linux.  A date format is a Fortran
+!> format and the parts of the date it writes (`date_format_type', owner,
+!> 2026-11-06), not upstream's strftime string; `format_date' takes the
+!> parts' values and names from Gnulib's nstrftime in the C locale.
 module time_functions_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use, intrinsic :: ieee_arithmetic, only: ieee_is_finite
@@ -55,7 +57,7 @@ module time_functions_mod
     private
 
     public :: current_time, current_cpu_time, time_add, time_subtract, is_time_less, is_time_equal, real, &
-              time_convert, decode_time, encode_time, format_time_string, current_time_string, current_time_zone, &
+              time_convert, decode_time, encode_time, format_date, current_time_string, current_time_zone, &
               set_time_zone_rule, time_zone_rule
 
     !> The count rate of file and clock times: nanoseconds (timespec.h
@@ -107,6 +109,150 @@ module time_functions_mod
         character(len=:), allocatable :: name
     end type time_zone_type
 
+    !> The most parts a `date_format_type' writes.
+    integer, parameter, public :: DATE_FORMAT_MAXIMUM_PARTS = 16
+    !> The longest Fortran format a `date_format_type' holds.
+    integer, parameter, public :: DATE_FORMAT_LENGTH = 256
+
+    !> No part: the unused entries of a date format's `parts'.
+    integer, parameter, public :: DATE_NONE = 0
+    !> The year, a number (strftime's %Y; i4.4 for four digits).
+    integer, parameter, public :: DATE_YEAR = 1
+    !> The century, a number: the year divided by 100, rounded down (%C).
+    integer, parameter, public :: DATE_CENTURY = 2
+    !> The year without its century, a number 0-99 (%y; i2.2).
+    integer, parameter, public :: DATE_YEAR_OF_CENTURY = 3
+    !> The year of the ISO 8601 week, a number (%G).
+    integer, parameter, public :: DATE_ISO_WEEK_YEAR = 4
+    !> The year of the ISO 8601 week without its century, a number 0-99
+    !> (%g).
+    integer, parameter, public :: DATE_ISO_WEEK_YEAR_OF_CENTURY = 5
+    !> The ISO 8601 week, a number 1-53: weeks start on Monday, and week 1
+    !> has the year's first Thursday (%V).
+    integer, parameter, public :: DATE_ISO_WEEK = 6
+    !> The quarter of the year, a number 1-4 (%q).
+    integer, parameter, public :: DATE_QUARTER = 7
+    !> The month, a number 1-12 (%m; i2.2, or i0 without the zero).
+    integer, parameter, public :: DATE_MONTH = 8
+    !> The week of the year, a number 0-53, with weeks starting on Sunday
+    !> and week 1 at the year's first Sunday (%U).
+    integer, parameter, public :: DATE_WEEK_OF_YEAR_SUNDAY = 9
+    !> The week of the year, a number 0-53, with weeks starting on Monday
+    !> and week 1 at the year's first Monday (%W).
+    integer, parameter, public :: DATE_WEEK_OF_YEAR_MONDAY = 10
+    !> The day of the month, a number 1-31 (%d with i2.2, %e with i2).
+    integer, parameter, public :: DATE_DAY = 11
+    !> The day of the year, a number 1-366 (%j; i3.3).
+    integer, parameter, public :: DATE_DAY_OF_YEAR = 12
+    !> The day of the week, a number 0-6, 0 for Sunday (%w).
+    integer, parameter, public :: DATE_WEEKDAY = 13
+    !> The day of the week, a number 1-7, 1 for Monday (%u).
+    integer, parameter, public :: DATE_ISO_WEEKDAY = 14
+    !> The hour on a 24-hour clock, a number 0-23 (%H with i2.2, %k with
+    !> i2).
+    integer, parameter, public :: DATE_HOUR = 15
+    !> The hour on a 12-hour clock, a number 1-12 (%I with i2.2, %l with
+    !> i2).
+    integer, parameter, public :: DATE_TWELVE_HOUR = 16
+    !> The minute, a number 0-59 (%M; i2.2).
+    integer, parameter, public :: DATE_MINUTE = 17
+    !> The second, a number 0-60, 60 for a leap second (%S; i2.2).
+    integer, parameter, public :: DATE_SECOND = 18
+    !> The millisecond of the second, a number 0-999 (%3N; i3.3).
+    integer, parameter, public :: DATE_MILLISECOND = 19
+    !> The microsecond of the second, a number 0-999999 (%6N; i6.6).
+    integer, parameter, public :: DATE_MICROSECOND = 20
+    !> The nanosecond of the second, a number 0-999999999 (%N; i9.9).
+    integer, parameter, public :: DATE_NANOSECOND = 21
+    !> The seconds since 1970-01-01 00:00:00 UTC, a number (%s).
+    integer, parameter, public :: DATE_SECONDS_SINCE_EPOCH = 22
+    !> The offset of the time zone from UTC as hours and minutes, a number
+    !> (+0530 is 530; %z with sp, i5.4).  A zero offset that the zone
+    !> writes as -0000 needs DATE_ZONE_OFFSET_SIGN.
+    integer, parameter, public :: DATE_ZONE_OFFSET = 23
+    !> The whole hours of the time zone's offset from UTC, a number
+    !> without its sign (%:z is a, i2.2, ":", i2.2 of DATE_ZONE_OFFSET_SIGN,
+    !> DATE_ZONE_OFFSET_HOURS and DATE_ZONE_OFFSET_MINUTES).
+    integer, parameter, public :: DATE_ZONE_OFFSET_HOURS = 24
+    !> The minutes of the time zone's offset beyond its hours, a number
+    !> 0-59 without its sign.
+    integer, parameter, public :: DATE_ZONE_OFFSET_MINUTES = 25
+    !> The seconds of the time zone's offset beyond its minutes, a number
+    !> 0-59 without its sign (the last field of %::z).
+    integer, parameter, public :: DATE_ZONE_OFFSET_SECONDS = 26
+    !> The name of the day of the week, text: "Sunday" (%A).
+    integer, parameter, public :: DATE_WEEKDAY_NAME = 41
+    !> The abbreviated name of the day of the week, text: "Sun" (%a).
+    integer, parameter, public :: DATE_WEEKDAY_ABBREVIATION = 42
+    !> The name of the day of the week in upper case, text: "SUNDAY" (%^A).
+    integer, parameter, public :: DATE_WEEKDAY_NAME_UPPER_CASE = 43
+    !> The abbreviated name of the day of the week in upper case, text:
+    !> "SUN" (%^a).
+    integer, parameter, public :: DATE_WEEKDAY_ABBREVIATION_UPPER_CASE = 44
+    !> The name of the month, text: "December" (%B).
+    integer, parameter, public :: DATE_MONTH_NAME = 45
+    !> The abbreviated name of the month, text: "Dec" (%b, %h).
+    integer, parameter, public :: DATE_MONTH_ABBREVIATION = 46
+    !> The name of the month in upper case, text: "DECEMBER" (%^B).
+    integer, parameter, public :: DATE_MONTH_NAME_UPPER_CASE = 47
+    !> The abbreviated name of the month in upper case, text: "DEC" (%^b).
+    integer, parameter, public :: DATE_MONTH_ABBREVIATION_UPPER_CASE = 48
+    !> Before or after noon, text: "AM" or "PM" (%p).
+    integer, parameter, public :: DATE_MERIDIEM = 49
+    !> Before or after noon in lower case, text: "am" or "pm" (%P).
+    integer, parameter, public :: DATE_MERIDIEM_LOWER_CASE = 50
+    !> The abbreviation of the time zone, text: "CET" (%Z).
+    integer, parameter, public :: DATE_ZONE_ABBREVIATION = 51
+    !> The abbreviation of the time zone in lower case, text: "cet" (%#Z).
+    integer, parameter, public :: DATE_ZONE_ABBREVIATION_LOWER_CASE = 52
+    !> The sign of the time zone's offset from UTC, text: "+" east of
+    !> Greenwich and for UTC, "-" west of it and for a zone that writes
+    !> itself as "-00".
+    integer, parameter, public :: DATE_ZONE_OFFSET_SIGN = 53
+
+    ! The ranges of the number parts and of the text parts.
+    integer, parameter :: FIRST_NUMBER_PART = DATE_YEAR, LAST_NUMBER_PART = DATE_ZONE_OFFSET_SECONDS, &
+                          FIRST_TEXT_PART = DATE_WEEKDAY_NAME, LAST_TEXT_PART = DATE_ZONE_OFFSET_SIGN
+
+    !> A date and time format: `format', a Fortran format with edit
+    !> descriptors, and `parts', the DATE_ constants of the parts of the
+    !> date it writes, in order, one for each data edit descriptor: I, B,
+    !> O, Z or G for a number, A or G for text.  `format_date' writes a
+    !> time with it:
+    !>
+    !>     date_format_type('(i4.4, "-", i2.2, "-", i2.2)', [DATE_YEAR, DATE_MONTH, DATE_DAY])
+    !>
+    !> gives "2026-11-06".  `format' has at most DATE_FORMAT_LENGTH
+    !> characters and `parts' at most DATE_FORMAT_MAXIMUM_PARTS entries;
+    !> the entries after the last part are DATE_NONE.  A named constant
+    !> (a `parameter') gives `parts' in full, with
+    !> reshape([...], [DATE_FORMAT_MAXIMUM_PARTS], pad=[DATE_NONE]), as
+    !> MAIL_DATE does.  Not a port: upstream writes a date format as a
+    !> strftime string (owner, 2026-11-06).
+    type, public :: date_format_type
+        character(len=DATE_FORMAT_LENGTH) :: format = "()"
+        integer :: parts(DATE_FORMAT_MAXIMUM_PARTS) = DATE_NONE
+        ! The format or the parts given to the constructor did not fit.
+        logical, private :: is_truncated = .false.
+    end type date_format_type
+
+    !> date_format_type(format, parts): the date format of FORMAT, a
+    !> Fortran format, and PARTS, the parts it writes in order (any number
+    !> of them up to DATE_FORMAT_MAXIMUM_PARTS).
+    interface date_format_type
+        module procedure date_format_of_parts
+    end interface date_format_type
+
+    !> The date of a mail message's Date field, as RFC 822 writes it:
+    !> "Fri, 06 Nov 2026 14:03:09 +0100" (upstream's "%a, %d %b %Y %T %z"
+    !> of message-make-date).
+    type(date_format_type), parameter, public :: MAIL_DATE = &
+                         date_format_type(format='(a, ", ", i2.2, 1x, a, 1x, i4.4, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4)', &
+                                parts=reshape([DATE_WEEKDAY_ABBREVIATION, DATE_DAY, DATE_MONTH_ABBREVIATION, DATE_YEAR, DATE_HOUR, &
+                                                         DATE_MINUTE, DATE_SECOND, DATE_ZONE_OFFSET], [DATE_FORMAT_MAXIMUM_PARTS], &
+                                                                                pad=[DATE_NONE]), &
+                                                                  is_truncated=.false.)
+
     !> Convert a time value to another count rate, or a real number of
     !> seconds to a time value.
     interface time_convert
@@ -119,7 +265,7 @@ module time_functions_mod
     !> correctly rounded.
     !> WARNING: Since the result is floating point, it may not be exact.
     !> If precise time stamps are required, use either `time_convert', or
-    !> (if you need time as a string) `format_time_string'.
+    !> (if you need time as a string) `format_date'.
     interface real
         module procedure time_to_real
     end interface real
@@ -150,8 +296,35 @@ module time_functions_mod
         character(len=:), allocatable :: rule
     end type saved_time_zone_type
 
-    ! strftime.c enum pad_style.
-    integer, parameter :: ZERO_PAD = 0, ALWAYS_ZERO_PAD = 1, SIGN_PAD = 2, SPACE_PAD = 3, NO_PAD = 4
+    ! The kinds of the tokens of a Fortran format that `split_date_format'
+    ! keeps: a data edit descriptor, an opening and a closing parenthesis,
+    ! and a sign edit descriptor (S, SP, SS).
+    integer, parameter :: TOKEN_DATA = 1, TOKEN_OPEN = 2, TOKEN_CLOSE = 3, TOKEN_SIGN = 4
+
+    ! The longest data edit descriptor of a date format, without its
+    ! repeat count.
+    integer, parameter :: DESCRIPTOR_LENGTH = 32
+
+    ! One token of a Fortran format: its kind, its repeat count, for an
+    ! opening parenthesis the index of its closing one (`partner'), and
+    ! for a data edit descriptor its `letters' (I, A, EN, ...), its field
+    ! `width' (-1 for none) and the whole descriptor without the repeat
+    ! count (for a sign edit descriptor, the descriptor).
+    type :: format_token_type
+        integer :: kind = 0
+        integer :: repeat = 1
+        integer :: partner = 0
+        integer :: width = -1
+        character(len=2) :: letters = ""
+        character(len=DESCRIPTOR_LENGTH) :: descriptor = ""
+    end type format_token_type
+
+    ! The longest text one part, and a whole date, can be written as.
+    integer, parameter :: PART_TEXT_LENGTH = 256, DATE_TEXT_LENGTH = 4096
+
+    ! The character `format_date' writes after the date to find where the
+    ! text ends (a blank at its end is part of it).
+    character(len=*), parameter :: END_OF_DATE = achar(1)
 
     character(len=*), parameter :: WEEKDAY_NAMES(0:6) = [character(len=9) :: "Sunday", "Monday", "Tuesday", &
                                                                                       "Wednesday", "Thursday", "Friday", "Saturday"]
@@ -317,7 +490,7 @@ contains
     !> epoch; real(current_time()) is the current time.
     !> WARNING: Since the result is floating point, it may not be exact.
     !> If precise time stamps are required, use either `time_convert', or
-    !> (if you need time as a string) `format_time_string'.
+    !> (if you need time as a string) `format_date'.
     !> Port of timefns.c:Ffloat_time (and float_time).
     real(real64) function time_to_real(time) result(seconds)
         type(time_type), intent(in) :: time
@@ -463,7 +636,7 @@ contains
     !> The TZ rule for a UTC offset of OFFSET seconds east of Greenwich
     !> (negative west of it), applied without consideration for daylight
     !> saving time, for the ZONE argument of `decode_time',
-    !> `encode_time', `format_time_string', `current_time_string' and
+    !> `encode_time', `format_date', `current_time_string' and
     !> `current_time_zone'.  ABBREVIATION is the zone's name (as from
     !> `current_time_zone'); absent, the name is the numeric offset (as
     !> `decode_time' gives it).  time_zone_rule(-28800, "PST") is
@@ -596,7 +769,7 @@ contains
     !>
     !> Instead of calling this subroutine, you typically want something
     !> else.  To temporarily use a different time zone rule for just one
-    !> invocation of `decode_time', `encode_time', or `format_time_string',
+    !> invocation of `decode_time', `encode_time', or `format_date',
     !> pass the function a ZONE argument.  Port of
     !> timefns.c:Fset_time_zone_rule (and emacs_setenv_TZ).
     subroutine set_time_zone_rule(tz)
@@ -753,9 +926,27 @@ contains
     ! Text
     ! ------------------------------------------------------------------
 
-    !> Use FORMAT_STRING to format the time value TIME.  A time value that
-    !> is absent stands for the current time.  This function treats
-    !> seconds as time since the epoch of 1970-01-01 00:00:00 UTC.
+    !> The date format of FORMAT, a Fortran format with edit descriptors,
+    !> and PARTS, the DATE_ constants of the parts it writes, in order: the
+    !> constructor date_format_type(format, parts).  A FORMAT longer than
+    !> DATE_FORMAT_LENGTH or more than DATE_FORMAT_MAXIMUM_PARTS parts make
+    !> a date format that `format_date' reports as an error.  Not a port.
+    pure function date_format_of_parts(format, parts) result(date_format)
+        character(len=*), intent(in) :: format
+        integer, intent(in) :: parts(:)
+        type(date_format_type) :: date_format
+        integer :: n
+
+        n = min(size(parts), DATE_FORMAT_MAXIMUM_PARTS)
+        date_format%format = format
+        date_format%parts(:n) = parts(:n)
+        date_format%is_truncated = len(format) > DATE_FORMAT_LENGTH .or. size(parts) > DATE_FORMAT_MAXIMUM_PARTS
+    end function date_format_of_parts
+
+    !> Return the time value TIME as text written with DATE_FORMAT, a
+    !> Fortran format and the parts of the date it writes (see
+    !> `date_format_type').  A time value that is absent stands for the
+    !> current time.
     !>
     !> The optional ZONE is absent for Fortmacs local time, "UTC0" for
     !> Universal Time, TIME_ZONE_SYSTEM for system wall clock time, or a
@@ -764,78 +955,72 @@ contains
     !> `current_time_zone' or `decode_time') applied without consideration
     !> for daylight saving time.
     !>
-    !> The value is a copy of FORMAT_STRING, but with certain constructs
-    !> replaced by text that describes the specified date and time in TIME:
+    !> Names are the English ones (the C locale).  Blanks at the end of the
+    !> text are kept, except in a format that moves left (T or TL).  An
+    !> error condition occurs, and a check of STATUS finds it, when the
+    !> format is not a Fortran format, when its data edit descriptors and
+    !> the parts differ in number or kind (an I descriptor for a name),
+    !> when a format reversion or an unlimited repeat (*) would be needed,
+    !> and when the time does not fit ("Specified time is not
+    !> representable").
     !>
-    !> %Y is the year, %y year without century, %C the century.
-    !> %G is the year corresponding to the ISO week, %g year corresponding
-    !>  to the ISO week, without century.
-    !> %m is the numeric month.
-    !> %b and %h are the locale's abbreviated month name, %B the full name.
-    !> %d is the day of the month, zero-padded, %e is blank-padded.
-    !> %u is the numeric day of week from 1 (Monday) to 7, %w from 0 (Sunday) to 6.
-    !> %a is the locale's abbreviated name of the day of week, %A the full name.
-    !> %U is the week number starting on Sunday, %W starting on Monday,
-    !>  %V the week number according to ISO 8601.
-    !> %j is the day of the year.
-    !>
-    !> %H is the hour on a 24-hour clock, %I is on a 12-hour clock, %k is like %H
-    !>  only blank-padded, %l is like %I blank-padded.
-    !> %p is the locale's equivalent of either AM or PM.
-    !> %q is the calendar quarter (1-4).
-    !> %M is the minute (00-59).
-    !> %S is the second (00-59; 00-60 on platforms with leap seconds)
-    !> %s is the number of seconds since 1970-01-01 00:00:00 +0000.
-    !> %N is the nanosecond, %6N the microsecond, %3N the millisecond, etc.
-    !> %Z is the time zone abbreviation, %z is the numeric form.
-    !>
-    !> %c is the locale's date and time format.
-    !> %x is the locale's "preferred" date format.
-    !> %D is like "%m/%d/%y".
-    !> %F is the ISO 8601 date format (like "%+4Y-%m-%d").
-    !>
-    !> %R is like "%H:%M", %T is like "%H:%M:%S", %r is like "%I:%M:%S %p".
-    !> %X is the locale's "preferred" time format.
-    !>
-    !> Finally, %n is a newline, %t is a tab, %% is a literal %, and
-    !> unrecognized %-sequences stand for themselves.
-    !>
-    !> A %-sequence can contain optional flags, field width, and a modifier
-    !> (in that order) after the `%'.  The flags are:
-    !>
-    !> `-' Do not pad the field.
-    !> `_' Pad with spaces.
-    !> `0' Pad with zeros.
-    !> `+' Pad with zeros and put `+' before nonnegative year numbers with >4 digits.
-    !> `^' Use upper case characters if possible.
-    !> `#' Use opposite case characters if possible.
-    !>
-    !> A field width N is an unsigned decimal integer with a leading digit
-    !> nonzero.  %NX is like %X, but takes up at least N positions.  The
-    !> field width is measured in bytes, not characters.  It depends on the
-    !> locale what the width (in characters) %NX will end up being,
-    !> especially when there are non-ASCII characters in %X.
-    !>
-    !> The modifiers are:
-    !>
-    !> `E' Use the locale's alternative version.
-    !> `O' Use the locale's number symbols.
-    !>
-    !> For example, to produce full ISO 8601 format, use "%FT%T%z".
-    !> Port of timefns.c:Fformat_time_string (and format_time_string,
-    !> emacs_nmemftime).
-    function format_time_string(format_string, time, zone, status) result(text)
-        character(len=*), intent(in) :: format_string
+    !> The format is applied in two steps, since one `write' cannot take a
+    !> list of items whose types are chosen at run time: each part is
+    !> written alone with its own data edit descriptor (and the sign mode in
+    !> effect there), then one `write' of the whole format, with every data
+    !> edit descriptor turned into A, writes those pieces with the
+    !> character string and control edit descriptors between them.
+    !> Not a port: upstream's format-time-string takes a strftime string
+    !> (owner, 2026-11-06).
+    function format_date(date_format, time, zone, status) result(text)
+        type(date_format_type), intent(in) :: date_format
         type(time_type), intent(in), optional :: time
         character(len=*), intent(in), optional :: zone
-        type(status_type), intent(out), optional :: status
+        type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
+        character(len=DESCRIPTOR_LENGTH + 3) :: descriptors(DATE_FORMAT_MAXIMUM_PARTS)
+        character(len=2) :: letters(DATE_FORMAT_MAXIMUM_PARTS)
+        character(len=PART_TEXT_LENGTH) :: pieces(DATE_FORMAT_MAXIMUM_PARTS)
+        character(len=DATE_TEXT_LENGTH) :: buffer
+        character(len=256) :: message
+        character(len=:), allocatable :: items_format, name
+        integer :: widths(DATE_FORMAT_MAXIMUM_PARTS), lengths(DATE_FORMAT_MAXIMUM_PARTS)
+        integer :: part_count, item_count, k, part, iostat, last
+        logical :: moves_left, ok
         type(time_type) :: t
         type(broken_down_time_type) :: tm
-        logical :: ok
 
-        if (present(status)) status = status_type()
+        status = status_type()
         text = ""
+
+        if (date_format%is_truncated) then
+            write (message, '("Invalid date format: more than ", i0, " characters or ", i0, " parts")') DATE_FORMAT_LENGTH, &
+                DATE_FORMAT_MAXIMUM_PARTS
+            call set_error(status, GENERIC_ERROR_CODE, trim(message))
+            return
+        end if
+
+        part_count = findloc(date_format%parts /= DATE_NONE, .true., dim=1, back=.true.)
+
+        do k = 1, part_count
+            part = date_format%parts(k)
+
+            if (.not. (is_date_number_part(part) .or. is_date_text_part(part))) then
+                write (message, '("Invalid date format: part ", i0, " is not a date part")') k
+                call set_error(status, GENERIC_ERROR_CODE, trim(message))
+                return
+            end if
+        end do
+
+        call split_date_format(trim(date_format%format), items_format, descriptors, letters, widths, item_count, moves_left, &
+                               status)
+        if (.not. status%ok()) return
+
+        if (item_count /= part_count) then
+            write (message, '("Invalid date format: ", i0, " data edit descriptors for ", i0, " parts")') item_count, part_count
+            call set_error(status, GENERIC_ERROR_CODE, trim(message))
+            return
+        end if
 
         if (present(time)) then
             t = time
@@ -850,570 +1035,627 @@ contains
             return
         end if
 
-        text = nstrftime(format_string, tm, .false., ZERO_PAD, -1)
-    end function format_time_string
+        do k = 1, part_count
+            part = date_format%parts(k)
 
-    ! FORMAT with its %-sequences replaced from TM, upper case if UPCASE,
-    ! the first sequence FIRST_WIDTH wide (-1 for its own width) and
-    ! years padded by YEAR_PAD where the sequence says nothing (the
-    ! subformat of %F).  Port of strftime.c:__strftime_internal (the C
-    ! locale; a NUL byte is copied like any other).
-    recursive function nstrftime(format, tm, upcase, year_pad, first_width) result(out)
-        character(len=*), intent(in) :: format
-        type(broken_down_time_type), intent(in) :: tm
-        logical, intent(in) :: upcase
-        integer, intent(in) :: year_pad, first_width
-        character(len=:), allocatable :: out
-        character(len=:), allocatable :: piece
-        integer :: f, percent, pad, width, modifier, colons, hour12, subwidth, diff, hour_diff, minute_diff, &
-                   second_diff, year, year_adjust, days, d, two_digit_year, digit_count, nanosecond_digits, n, j
-        logical :: to_lower_case, to_upper_case, change_case, negative, done
-        character :: format_character
+            if (is_date_text_part(part)) then
+                if (letters(k) /= "A" .and. letters(k) /= "G") then
+                    write (message, '("Invalid date format: ", a, " cannot write part ", i0, ", a text")') &
+                        trim(descriptors(k)), k
+                    call set_error(status, GENERIC_ERROR_CODE, trim(message))
+                    return
+                end if
 
-        out = ""
-        hour12 = tm%hour
+                name = date_part_text(part, tm)
+                write (pieces(k), "("//trim(descriptors(k))//")", iostat=iostat, iomsg=message) name
+            else
+                if (verify(trim(letters(k)), "IBOZG") /= 0) then
+                    write (message, '("Invalid date format: ", a, " cannot write part ", i0, ", a number")') &
+                        trim(descriptors(k)), k
+                    call set_error(status, GENERIC_ERROR_CODE, trim(message))
+                    return
+                end if
 
-        if (hour12 > 12) then
-            hour12 = hour12 - 12
-        else if (hour12 == 0) then
-            hour12 = 12
+                write (pieces(k), "("//trim(descriptors(k))//")", iostat=iostat, iomsg=message) date_part_number(part, tm)
+            end if
+
+            if (iostat /= 0) then
+                call set_error(status, GENERIC_ERROR_CODE, "Invalid date format: "//trim(message))
+                return
+            end if
+
+            if (widths(k) > 0) then
+                lengths(k) = widths(k)
+            else if (is_date_text_part(part)) then
+                lengths(k) = len(name)
+            else
+                lengths(k) = len_trim(pieces(k))
+            end if
+        end do
+
+        if (moves_left) then
+            write (buffer, "("//items_format//")", iostat=iostat, iomsg=message) (pieces(k) (1:lengths(k)), k=1, part_count)
+        else if (len_trim(items_format) == 0) then
+            write (buffer, '("'//END_OF_DATE//'")', iostat=iostat, iomsg=message)
+        else
+            write (buffer, "("//items_format//', "'//END_OF_DATE//'")', iostat=iostat, iomsg=message) &
+                (pieces(k) (1:lengths(k)), k=1, part_count)
         end if
 
-        width = first_width
-        f = 1
+        if (iostat /= 0) then
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid date format: "//trim(message))
+            return
+        end if
 
-        do while (f <= len(format))
-            if (format(f:f) /= "%") then
-                out = out//format(f:f)
-                width = -1
-                f = f + 1
+        last = index(buffer, END_OF_DATE, back=.true.)
+
+        if (last > 0) then
+            text = buffer(:last - 1)
+        else
+            text = trim(buffer)
+        end if
+    end function format_date
+
+    ! Split FORMAT, a Fortran format, for `format_date': ITEMS_FORMAT is
+    ! what is between its outer parentheses with each data edit descriptor
+    ! turned into A (its repeat count kept), and DESCRIPTORS, LETTERS and
+    ! WIDTHS give, for each of the ITEM_COUNT items the format writes in
+    ! order, its data edit descriptor (after the sign edit descriptor in
+    ! effect, as "SP,I5.4"), the descriptor's letters and its field width
+    ! (-1 for none); MOVES_LEFT tells whether the format has T or TL.  An
+    ! error condition occurs when FORMAT is not a Fortran format, or when
+    ! it uses a Hollerith constant, an unlimited repeat or a derived-type
+    ! descriptor.  Not a port.
+    subroutine split_date_format(format, items_format, descriptors, letters, widths, item_count, moves_left, status)
+        character(len=*), intent(in) :: format
+        character(len=:), allocatable, intent(out) :: items_format
+        character(len=DESCRIPTOR_LENGTH + 3), intent(out) :: descriptors(:)
+        character(len=2), intent(out) :: letters(:)
+        integer, intent(out) :: widths(:), item_count
+        logical, intent(out) :: moves_left
+        type(status_type), intent(out) :: status
+        character(len=*), parameter :: LOWER = "abcdefghijklmnopqrstuvwxyz", UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", &
+                                       DIGITS = "0123456789"
+        type(format_token_type), allocatable :: tokens(:)
+        character(len=:), allocatable :: inner, upper_inner
+        character(len=2) :: sign
+        integer, allocatable :: open_tokens(:)
+        integer :: first, last, n, i, j, k, start, token_count, depth, repeat, width
+        logical :: has_number
+
+        status = status_type()
+        items_format = ""
+        item_count = 0
+        moves_left = .false.
+        descriptors = ""
+        letters = ""
+        widths = -1
+        first = verify(format, " ")
+        last = verify(format, " ", back=.true.)
+
+        if (first == 0) then
+            call fail("not a Fortran format")
+            return
+        end if
+
+        if (format(first:first) /= "(" .or. format(last:last) /= ")" .or. first == last) then
+            call fail("not a Fortran format")
+            return
+        end if
+
+        inner = format(first + 1:last - 1)
+        upper_inner = inner
+
+        do i = 1, len(inner)
+            k = index(LOWER, inner(i:i))
+            if (k > 0) upper_inner(i:i) = UPPER(k:k)
+        end do
+
+        n = len(inner)
+        allocate (tokens(max(n, 1)), open_tokens(max(n, 1)))
+        token_count = 0
+        depth = 0
+        i = 1
+
+        do while (i <= n)
+            ! Separators.
+            if (inner(i:i) == " " .or. inner(i:i) == ",") then
+                items_format = items_format//inner(i:i)
+                i = i + 1
                 cycle
             end if
 
-            percent = f
-            pad = ZERO_PAD
-            to_lower_case = .false.
-            to_upper_case = upcase
-            change_case = .false.
+            ! A character string edit descriptor, its delimiter doubled inside.
+            if (inner(i:i) == "'" .or. inner(i:i) == '"') then
+                j = i + 1
 
-            ! Check for flags that can modify a format.
-            do
-                f = f + 1
-                if (f > len(format)) exit
+                do
+                    if (j > n) then
+                        call fail("unterminated character string")
+                        return
+                    end if
 
-                select case (format(f:f))
-                case ("_")
-                    pad = SPACE_PAD
-                case ("-")
-                    pad = NO_PAD
-                case ("+")
-                    pad = SIGN_PAD
-                case ("0")
-                    pad = ALWAYS_ZERO_PAD
-                case ("^")
-                    to_upper_case = .true.
-                case ("#")
-                    change_case = .true.
-                case default
-                    exit
-                end select
+                    if (inner(j:j) == inner(i:i)) then
+                        if (j == n) exit
+                        if (inner(j + 1:j + 1) /= inner(i:i)) exit
+                        j = j + 1
+                    end if
+
+                    j = j + 1
+                end do
+
+                items_format = items_format//inner(i:j)
+                i = j + 1
+                cycle
+            end if
+
+            ! A repeat count, a position or a scale factor.
+            start = i
+            if (inner(i:i) == "+" .or. inner(i:i) == "-") i = i + 1
+            repeat = 0
+            has_number = .false.
+
+            do while (i <= n)
+                if (index(DIGITS, inner(i:i)) == 0) exit
+                if (repeat < 100000) repeat = 10*repeat + index(DIGITS, inner(i:i)) - 1
+                has_number = .true.
+                i = i + 1
             end do
 
-            if (f <= len(format)) then
-                if (verify(format(f:f), "0123456789") == 0) then
-                    width = 0
+            if (i > n) then
+                call fail("a number at the end")
+                return
+            end if
 
-                    do while (f <= len(format))
-                        if (verify(format(f:f), "0123456789") /= 0) exit
-                        if (width < 100000000) width = 10*width + (iachar(format(f:f)) - iachar("0"))
-                        f = f + 1
-                    end do
+            if (inner(start:start) == "+" .or. inner(start:start) == "-") then
+                if (upper_inner(i:i) /= "P" .or. .not. has_number) then
+                    call fail("a sign before "//inner(i:i))
+                    return
                 end if
             end if
 
-            ! Check for modifiers.
-            modifier = 0
-
-            if (f <= len(format)) then
-                if (format(f:f) == "E" .or. format(f:f) == "O") then
-                    modifier = iachar(format(f:f))
-                    f = f + 1
-                end if
+            if (has_number .and. repeat == 0 .and. upper_inner(i:i) /= "P") then
+                call fail("a repeat count of 0")
+                return
             end if
 
-            ! % at the end of the format (or before a NUL) stands for itself.
-            format_character = achar(0)
-            if (f <= len(format)) format_character = format(f:f)
-            done = .true.
+            if (.not. has_number) repeat = 1
 
-            select case (format_character)
-            case ("%")
-                if (f - 1 /= percent) then
-                    f = f - 1
-                    call bad_format()
-                else
-                    out = out//"%"
-                end if
-            case ("a", "A")
-                if (modifier /= 0) then
-                    call bad_format()
-                else
-                    if (change_case) call upper_case()
-
-                    if (format_character == "a") then
-                        call add_cased(WEEKDAY_NAMES(tm%weekday) (1:3))
-                    else
-                        call add_cased(trim(WEEKDAY_NAMES(tm%weekday)))
-                    end if
-                end if
-            case ("b", "h", "B")
-                if (change_case) call upper_case()
-
-                if (modifier == iachar("E")) then
-                    call bad_format()
-                else if (format_character == "B") then
-                    call add_cased(trim(MONTH_NAMES(tm%month)))
-                else
-                    call add_cased(MONTH_NAMES(tm%month) (1:3))
-                end if
-            case ("c")
-                if (modifier == iachar("O")) then
-                    call bad_format()
-                else
-                    call do_subformat("%a %b %e %H:%M:%S %Y", -1)
-                end if
-            case ("C")
-                ! The century: (tm_year - 99 * zero_thru_1899) / 100 + 19.
-                negative = tm%year < -1900
-                n = tm%year
-                if (.not. negative .and. tm%year < 0) n = n - 99
-                call do_yearish(2, negative, n/100 + 19)
-            case ("x")
-                if (modifier == iachar("O")) then
-                    call bad_format()
-                else
-                    call do_subformat("%m/%d/%y", -1)
-                end if
-            case ("D")
-                if (modifier /= 0) then
-                    call bad_format()
-                else
-                    call do_subformat("%m/%d/%y", -1)
-                end if
-            case ("d")
-                call do_number_unless_e(2, tm%day)
-            case ("e")
-                if (modifier == iachar("E")) then
-                    call bad_format()
-                else
-                    call do_number_spacepad(2, tm%day)
-                end if
-            case ("F")
-                if (modifier /= 0) then
-                    call bad_format()
-                else
-                    if (pad == ZERO_PAD .and. width < 0) then
-                        pad = SIGN_PAD
-                        subwidth = 4
-                    else
-                        subwidth = max(width - 6, 0)
-                    end if
-
-                    call do_subformat("%Y-%m-%d", subwidth)
-                end if
-            case ("H")
-                call do_number_unless_e(2, tm%hour)
-            case ("I")
-                call do_number_unless_e(2, hour12)
-            case ("k")
-                if (modifier == iachar("E")) then
-                    call bad_format()
-                else
-                    call do_number_spacepad(2, tm%hour)
-                end if
-            case ("l")
-                if (modifier == iachar("E")) then
-                    call bad_format()
-                else
-                    call do_number_spacepad(2, hour12)
-                end if
-            case ("j")
-                if (modifier == iachar("E")) then
-                    call bad_format()
-                else
-                    call do_signed_number(3, tm%year_day < -1, int(tm%year_day + 1, int64))
-                end if
-            case ("M")
-                call do_number_unless_e(2, tm%minute)
-            case ("m")
-                if (modifier == iachar("E")) then
-                    call bad_format()
-                else
-                    call do_signed_number(2, tm%month < -1, int(tm%month + 1, int64))
-                end if
-            case ("N")
-                if (modifier == iachar("E")) then
-                    call bad_format()
-                else
-                    n = tm%nanoseconds
-                    if (width <= 0) width = 9
-                    nanosecond_digits = 9
-
-                    do while (width < nanosecond_digits .or. (1 < nanosecond_digits .and. mod(n, 10) == 0))
-                        nanosecond_digits = nanosecond_digits - 1
-                        n = n/10
-                    end do
-
-                    piece = repeat("0", nanosecond_digits)
-
-                    do j = nanosecond_digits, 1, -1
-                        piece(j:j) = achar(mod(n, 10) + iachar("0"))
-                        n = n/10
-                    end do
-
-                    if (pad == ZERO_PAD) pad = ALWAYS_ZERO_PAD
-                    out = out//piece
-                    width = width - nanosecond_digits
-                    call add("")
-                end if
-            case ("n")
-                out = out//new_line("a")
-            case ("P", "p")
-                if (format_character == "P") to_lower_case = .true.
-
-                if (change_case) then
-                    to_upper_case = .false.
-                    to_lower_case = .true.
+            select case (upper_inner(i:i))
+            case ("(")
+                token_count = token_count + 1
+                tokens(token_count) = format_token_type(kind=TOKEN_OPEN, repeat=repeat)
+                depth = depth + 1
+                open_tokens(depth) = token_count
+                items_format = items_format//inner(start:i)
+                i = i + 1
+            case (")")
+                if (has_number .or. depth == 0) then
+                    call fail("unbalanced parentheses")
+                    return
                 end if
 
-                call add_cased(merge("PM", "AM", 12 <= tm%hour))
-            case ("q")
-                call do_signed_number(1, .false., int(shiftr(tm%month*11, 5) + 1, int64))
-            case ("R")
-                call do_subformat("%H:%M", -1)
-            case ("r")
-                call do_subformat("%I:%M:%S %p", -1)
-            case ("S")
-                call do_number_unless_e(2, tm%second)
-            case ("s")
-                ! (strftime.c regenerates the count with mktime_z; it is
-                ! the time that was broken down.)
-                call number_sign_and_padding(1, tm%seconds < 0, abs(tm%seconds), .false., 0, .true.)
-            case ("X")
-                if (modifier == iachar("O")) then
-                    call bad_format()
-                else
-                    call do_subformat("%H:%M:%S", -1)
+                token_count = token_count + 1
+                tokens(token_count) = format_token_type(kind=TOKEN_CLOSE)
+                tokens(open_tokens(depth))%partner = token_count
+                depth = depth - 1
+                items_format = items_format//inner(i:i)
+                i = i + 1
+            case ("/", "X", "P")
+                if (upper_inner(i:i) == "P" .and. .not. has_number) then
+                    call fail("P without a scale factor")
+                    return
                 end if
+
+                items_format = items_format//inner(start:i)
+                i = i + 1
+            case (":")
+                if (has_number) then
+                    call fail("a number before :")
+                    return
+                end if
+
+                items_format = items_format//inner(i:i)
+                i = i + 1
             case ("T")
-                call do_subformat("%H:%M:%S", -1)
-            case ("t")
-                out = out//achar(9)
-            case ("u")
-                call do_number(1, mod(tm%weekday - 1 + 7, 7) + 1)
-            case ("U")
-                call do_number_unless_e(2, (tm%year_day - tm%weekday + 7)/7)
-            case ("V", "g", "G")
-                if (modifier == iachar("E")) then
-                    call bad_format()
+                j = i + 1
+
+                if (j <= n) then
+                    if (upper_inner(j:j) == "L" .or. upper_inner(j:j) == "R") j = j + 1
+                end if
+
+                if (upper_inner(j - 1:j - 1) /= "R") moves_left = .true.
+                k = j
+
+                do while (j <= n)
+                    if (index(DIGITS, inner(j:j)) == 0) exit
+                    j = j + 1
+                end do
+
+                if (has_number .or. j == k) then
+                    call fail("T, TL or TR without a position")
+                    return
+                end if
+
+                items_format = items_format//inner(i:j - 1)
+                i = j
+            case ("S")
+                j = i + 1
+
+                if (j <= n) then
+                    if (upper_inner(j:j) == "P" .or. upper_inner(j:j) == "S") j = j + 1
+                end if
+
+                if (has_number) then
+                    call fail("a number before "//inner(i:j - 1))
+                    return
+                end if
+
+                token_count = token_count + 1
+                tokens(token_count) = format_token_type(kind=TOKEN_SIGN, descriptor=upper_inner(i:j - 1))
+                items_format = items_format//inner(i:j - 1)
+                i = j
+            case ("B", "R", "D")
+                j = i + 1
+                k = 0
+
+                if (j <= n) then
+                    select case (upper_inner(i:j))
+                    case ("BN", "BZ", "RU", "RD", "RZ", "RN", "RC", "RP", "DC", "DP")
+                        k = 1
+                    case ("DT")
+                        call fail("a derived-type edit descriptor")
+                        return
+                    case default
+                        k = 0
+                    end select
+                end if
+
+                if (k == 1) then
+                    if (has_number) then
+                        call fail("a number before "//inner(i:j))
+                        return
+                    end if
+
+                    items_format = items_format//inner(i:j)
+                    i = j + 1
+                else if (upper_inner(i:i) == "R") then
+                    call fail("unknown edit descriptor "//inner(i:i))
+                    return
                 else
-                    ! YEAR is a leap year if and only if tm_year + 1900 is.
-                    year = tm%year + merge(300, -100, tm%year < 0)
-                    year_adjust = 0
-                    days = iso_week_days(tm%year_day, tm%weekday)
-
-                    if (days < 0) then
-                        ! This ISO week belongs to the previous year.
-                        year_adjust = -1
-                        days = iso_week_days(tm%year_day + (365 + merge(1, 0, is_leap_year(year - 1))), tm%weekday)
-                    else
-                        d = iso_week_days(tm%year_day - (365 + merge(1, 0, is_leap_year(year))), tm%weekday)
-
-                        if (0 <= d) then
-                            ! This ISO week belongs to the next year.
-                            year_adjust = 1
-                            days = d
-                        end if
-                    end if
-
-                    select case (format_character)
-                    case ("g")
-                        two_digit_year = mod(mod(tm%year, 100) + year_adjust, 100)
-
-                        if (two_digit_year < 0) then
-                            if (tm%year < -1900 - year_adjust) then
-                                two_digit_year = -two_digit_year
-                            else
-                                two_digit_year = two_digit_year + 100
-                            end if
-                        end if
-
-                        call do_yearish(2, .false., two_digit_year)
-                    case ("G")
-                        call do_yearish(4, tm%year < -1900 - year_adjust, tm%year + 1900 + year_adjust)
-                    case default
-                        call do_number(2, days/7 + 1)
-                    end select
+                    call add_data_descriptor()
+                    if (.not. status%ok()) return
                 end if
-            case ("W")
-                call do_number_unless_e(2, (tm%year_day - mod(tm%weekday - 1 + 7, 7) + 7)/7)
-            case ("w")
-                call do_number_unless_e(1, tm%weekday)
-            case ("Y")
-                ! (%EY: the C locale has no era.)
-                call do_yearish(4, tm%year < -1900, tm%year + 1900)
-            case ("y")
-                two_digit_year = mod(tm%year, 100)
-
-                if (two_digit_year < 0) then
-                    if (tm%year < -1900) then
-                        two_digit_year = -two_digit_year
-                    else
-                        two_digit_year = two_digit_year + 100
-                    end if
-                end if
-
-                call do_yearish(2, .false., two_digit_year)
-            case ("Z")
-                if (change_case) then
-                    to_upper_case = .false.
-                    to_lower_case = .true.
-                end if
-
-                call add_cased(tm%abbreviation)
-            case (":", "z")
-                ! :, ::, and ::: are valid only just before 'z'.
-                colons = 0
-
-                if (format_character == ":") then
-                    do while (f + colons <= len(format))
-                        if (format(f + colons:f + colons) /= ":") exit
-                        colons = colons + 1
-                    end do
-
-                    if (f + colons > len(format)) then
-                        call bad_format()
-                        done = .false.
-                    else if (format(f + colons:f + colons) /= "z") then
-                        call bad_format()
-                        done = .false.
-                    else
-                        f = f + colons
-                    end if
-                end if
-
-                if (done .and. tm%daylight_saving_time >= 0) then
-                    diff = int(tm%offset)
-                    negative = diff < 0
-
-                    if (diff == 0 .and. len(tm%abbreviation) > 0) then
-                        negative = tm%abbreviation(1:1) == "-"
-                    end if
-
-                    hour_diff = abs(diff)/60/60
-                    minute_diff = mod(abs(diff)/60, 60)
-                    second_diff = mod(abs(diff), 60)
-
-                    select case (colons)
-                    case (0)
-                        ! +hhmm
-                        call do_zone_offset(5, 0, hour_diff*100 + minute_diff)
-                    case (1)
-                        ! +hh:mm
-                        call do_zone_offset(6, int(o'04'), hour_diff*100 + minute_diff)
-                    case (2)
-                        ! +hh:mm:ss
-                        call do_zone_offset(9, int(o'024'), hour_diff*10000 + minute_diff*100 + second_diff)
-                    case (3)
-                        ! +hh if possible, else +hh:mm, else +hh:mm:ss
-                        if (second_diff /= 0) then
-                            call do_zone_offset(9, int(o'024'), hour_diff*10000 + minute_diff*100 + second_diff)
-                        else if (minute_diff /= 0) then
-                            call do_zone_offset(6, int(o'04'), hour_diff*100 + minute_diff)
-                        else
-                            call do_zone_offset(3, 0, hour_diff)
-                        end if
-                    case default
-                        call bad_format()
-                    end select
-                end if
-            case (achar(0))
-                ! % at the end of the format: it stands for itself.
-                f = f - 1
-                call bad_format()
+            case ("I", "O", "Z", "F", "E", "G", "L", "A")
+                call add_data_descriptor()
+                if (.not. status%ok()) return
+            case ("*")
+                call fail("an unlimited repeat")
+                return
+            case ("H")
+                call fail("a Hollerith constant")
+                return
             case default
-                call bad_format()
+                call fail("unknown edit descriptor "//inner(i:i))
+                return
             end select
-
-            width = -1
-            f = f + 1
         end do
+
+        if (depth /= 0) then
+            call fail("unbalanced parentheses")
+            return
+        end if
+
+        sign = ""
+        call expand_format_tokens(tokens, 1, token_count, sign, descriptors, letters, widths, item_count)
 
     contains
 
-        ! Upper case for the names (the `#' flag).
-        subroutine upper_case()
-            to_upper_case = .true.
-            to_lower_case = .false.
-        end subroutine upper_case
+        ! The data edit descriptor at I, with the repeat count REPEAT
+        ! written from START: a token, and A in ITEMS_FORMAT.
+        subroutine add_data_descriptor()
+            character(len=2) :: name
 
-        ! An unknown format: output it, including the `%'.
-        subroutine bad_format()
-            call add_cased(format(percent:min(f, len(format))))
-        end subroutine bad_format
+            j = i + 1
 
-        ! TEXT, padded to WIDTH (strftime.c add).
-        subroutine add(text)
-            character(len=*), intent(in) :: text
-            integer :: w
+            if (upper_inner(i:i) == "E" .and. j <= n) then
+                if (index("NSX", upper_inner(j:j)) > 0) j = j + 1
+            end if
 
-            w = width
-            if (pad == NO_PAD .or. width < 0) w = 0
+            name = upper_inner(i:j - 1)
+            width = -1
 
-            if (len(text) < w) then
-                if (pad == ALWAYS_ZERO_PAD .or. pad == SIGN_PAD) then
-                    out = out//repeat("0", w - len(text))
-                else
-                    out = out//repeat(" ", w - len(text))
+            do while (j <= n)
+                if (index(DIGITS, inner(j:j)) == 0) exit
+                if (width < 0) width = 0
+                if (width < 100000) width = 10*width + index(DIGITS, inner(j:j)) - 1
+                j = j + 1
+            end do
+
+            do while (j <= n)
+                if (index(DIGITS//".", inner(j:j)) == 0) exit
+                j = j + 1
+            end do
+
+            ! The exponent width of E, EN, ES, EX, D and G.
+            if (j < n .and. index("EDG", name(1:1)) > 0) then
+                if (upper_inner(j:j) == "E" .and. index(DIGITS, inner(j + 1:j + 1)) > 0) then
+                    j = j + 1
+
+                    do while (j <= n)
+                        if (index(DIGITS, inner(j:j)) == 0) exit
+                        j = j + 1
+                    end do
                 end if
             end if
 
-            out = out//text
-        end subroutine add
+            if (j - i > DESCRIPTOR_LENGTH) then
+                call fail("a data edit descriptor too long")
+                return
+            end if
 
-        ! TEXT in the case asked for, padded to WIDTH (strftime.c cpy).
-        subroutine add_cased(text)
-            character(len=*), intent(in) :: text
-            character(len=len(text)) :: cased
-            integer :: i, c
+            token_count = token_count + 1
+            tokens(token_count) = format_token_type(kind=TOKEN_DATA, repeat=repeat, width=width, letters=name, &
+                                                    descriptor=upper_inner(i:j - 1))
+            items_format = items_format//inner(start:i - 1)//"a"
+            i = j
+        end subroutine add_data_descriptor
 
-            cased = text
+        ! The error condition "Invalid date format `FORMAT': WHAT".
+        subroutine fail(what)
+            character(len=*), intent(in) :: what
 
-            do i = 1, len(text)
-                c = iachar(text(i:i))
+            call set_error(status, GENERIC_ERROR_CODE, "Invalid date format `"//format//"': "//what)
+        end subroutine fail
+    end subroutine split_date_format
 
-                if (to_lower_case .and. c >= iachar("A") .and. c <= iachar("Z")) then
-                    cased(i:i) = achar(c + 32)
-                else if (to_upper_case .and. c >= iachar("a") .and. c <= iachar("z")) then
-                    cased(i:i) = achar(c - 32)
-                end if
-            end do
+    ! Add to DESCRIPTORS, LETTERS and WIDTHS, after their ITEM_COUNT
+    ! entries, the data edit descriptors that TOKENS(FIRST:LAST) use for
+    ! one item after another, each after the sign edit descriptor SIGN in
+    ! effect (which they change); stop counting past the size of
+    ! DESCRIPTORS.  Not a port.
+    recursive subroutine expand_format_tokens(tokens, first, last, sign, descriptors, letters, widths, item_count)
+        type(format_token_type), intent(in) :: tokens(:)
+        integer, intent(in) :: first, last
+        character(len=2), intent(inout) :: sign
+        character(len=DESCRIPTOR_LENGTH + 3), intent(inout) :: descriptors(:)
+        character(len=2), intent(inout) :: letters(:)
+        integer, intent(inout) :: widths(:), item_count
+        integer :: i, r
 
-            call add(cased)
-        end subroutine add_cased
+        i = first
 
-        ! SUBFMT formatted with this sequence's case and padding, its
-        ! first sequence SUB_WIDTH wide (strftime.c subformat).
-        recursive subroutine do_subformat(sub_format, sub_width)
-            character(len=*), intent(in) :: sub_format
-            integer, intent(in) :: sub_width
+        do while (i <= last)
+            select case (tokens(i)%kind)
+            case (TOKEN_DATA)
+                do r = 1, tokens(i)%repeat
+                    item_count = item_count + 1
+                    if (item_count > size(descriptors)) return
 
-            call add(nstrftime(sub_format, tm, to_upper_case, pad, sub_width))
-        end subroutine do_subformat
+                    if (len_trim(sign) > 0) then
+                        descriptors(item_count) = trim(sign)//","//tokens(i)%descriptor
+                    else
+                        descriptors(item_count) = tokens(i)%descriptor
+                    end if
 
-        ! DO_NUMBER, except that the E modifier makes a bad format.
-        subroutine do_number_unless_e(digits_wanted, value)
-            integer, intent(in) :: digits_wanted, value
+                    letters(item_count) = tokens(i)%letters
+                    widths(item_count) = tokens(i)%width
+                end do
+            case (TOKEN_SIGN)
+                sign = tokens(i)%descriptor(1:2)
+            case (TOKEN_OPEN)
+                do r = 1, tokens(i)%repeat
+                    call expand_format_tokens(tokens, i + 1, tokens(i)%partner - 1, sign, descriptors, letters, widths, &
+                                              item_count)
+                    if (item_count > size(descriptors)) return
+                end do
 
-            if (modifier == iachar("E")) then
-                call bad_format()
+                i = tokens(i)%partner
+            case default
+                ! A closing parenthesis: its group ends at LAST.
+                continue
+            end select
+
+            i = i + 1
+        end do
+    end subroutine expand_format_tokens
+
+    ! Whether PART is a number part of a date (DATE_YEAR to
+    ! DATE_ZONE_OFFSET_SECONDS).  Not a port.
+    elemental logical function is_date_number_part(part)
+        integer, intent(in) :: part
+
+        is_date_number_part = part >= FIRST_NUMBER_PART .and. part <= LAST_NUMBER_PART
+    end function is_date_number_part
+
+    ! Whether PART is a text part of a date (DATE_WEEKDAY_NAME to
+    ! DATE_ZONE_OFFSET_SIGN).  Not a port.
+    elemental logical function is_date_text_part(part)
+        integer, intent(in) :: part
+
+        is_date_text_part = part >= FIRST_TEXT_PART .and. part <= LAST_TEXT_PART
+    end function is_date_text_part
+
+    ! The number part PART of the broken-down time TM, as the strftime
+    ! conversion it stands for gives it.  Port of
+    ! strftime.c:__strftime_internal (the numbers of %Y, %C, %y, %G, %g,
+    ! %V, %q, %m, %U, %W, %d, %j, %w, %u, %H, %I, %M, %S, %N, %s, %z).
+    pure integer(int64) function date_part_number(part, tm) result(value)
+        integer, intent(in) :: part
+        type(broken_down_time_type), intent(in) :: tm
+        integer :: n, year, year_adjust, days, d, offset
+
+        offset = int(tm%offset)
+
+        select case (part)
+        case (DATE_YEAR)
+            value = int(tm%year, int64) + 1900
+        case (DATE_CENTURY)
+            ! (tm_year - 99 * zero_thru_1899) / 100 + 19.
+            n = tm%year
+            if (tm%year >= -1900 .and. tm%year < 0) n = n - 99
+            value = n/100 + 19
+        case (DATE_YEAR_OF_CENTURY)
+            value = year_of_century(tm%year, 0)
+        case (DATE_ISO_WEEK_YEAR, DATE_ISO_WEEK_YEAR_OF_CENTURY, DATE_ISO_WEEK)
+            ! YEAR is a leap year if and only if tm_year + 1900 is.
+            year = tm%year + merge(300, -100, tm%year < 0)
+            year_adjust = 0
+            days = iso_week_days(tm%year_day, tm%weekday)
+
+            if (days < 0) then
+                ! This ISO week belongs to the previous year.
+                year_adjust = -1
+                days = iso_week_days(tm%year_day + (365 + merge(1, 0, is_leap_year(year - 1))), tm%weekday)
             else
-                call do_number(digits_wanted, value)
-            end if
-        end subroutine do_number_unless_e
+                d = iso_week_days(tm%year_day - (365 + merge(1, 0, is_leap_year(year))), tm%weekday)
 
-        ! strftime.c DO_NUMBER.
-        subroutine do_number(digits_wanted, value)
-            integer, intent(in) :: digits_wanted, value
-
-            call number_sign_and_padding(digits_wanted, value < 0, abs(int(value, int64)), .false., 0, .false.)
-        end subroutine do_number
-
-        ! strftime.c DO_NUMBER_SPACEPAD.
-        subroutine do_number_spacepad(digits_wanted, value)
-            integer, intent(in) :: digits_wanted, value
-
-            if (pad == ZERO_PAD) pad = SPACE_PAD
-            call do_number(digits_wanted, value)
-        end subroutine do_number_spacepad
-
-        ! strftime.c DO_SIGNED_NUMBER.
-        subroutine do_signed_number(digits_wanted, is_negative, value)
-            integer, intent(in) :: digits_wanted
-            logical, intent(in) :: is_negative
-            integer(int64), intent(in) :: value
-
-            call number_sign_and_padding(digits_wanted, is_negative, abs(value), .false., 0, .false.)
-        end subroutine do_signed_number
-
-        ! strftime.c DO_YEARISH.
-        subroutine do_yearish(digits_wanted, is_negative, value)
-            integer, intent(in) :: digits_wanted, value
-            logical, intent(in) :: is_negative
-            logical :: always_sign
-
-            if (pad == ZERO_PAD) pad = year_pad
-            always_sign = pad == SIGN_PAD .and. (merge(99, 9999, digits_wanted == 2) < abs(value) .or. &
-                                                 digits_wanted < width)
-            call number_sign_and_padding(digits_wanted, is_negative, abs(int(value, int64)), always_sign, 0, .false.)
-        end subroutine do_yearish
-
-        ! strftime.c DO_TZ_OFFSET.
-        subroutine do_zone_offset(digits_wanted, mask, value)
-            integer, intent(in) :: digits_wanted, mask, value
-
-            call number_sign_and_padding(digits_wanted, negative, int(value, int64), .true., mask, .false.)
-        end subroutine do_zone_offset
-
-        ! MAGNITUDE's digits, with a colon before the i'th digit where
-        ! the i'th bit of COLON_MASK is set, then the sign and padding
-        ! (strftime.c do_number_body and do_number_sign_and_padding; with
-        ! RAW, only the latter).
-        subroutine number_sign_and_padding(digits_wanted, is_negative, magnitude, always_sign, colon_mask, raw)
-            integer, intent(in) :: digits_wanted, colon_mask
-            logical, intent(in) :: is_negative, always_sign, raw
-            integer(int64), intent(in) :: magnitude
-            character(len=:), allocatable :: number
-            integer(int64) :: u
-            integer :: mask, shortage, padding
-            character(len=1) :: sign_character
-
-            number = ""
-            u = magnitude
-            mask = colon_mask
-            if (raw) mask = 0
-
-            do
-                if (iand(mask, 1) /= 0) number = ":"//number
-                mask = shiftr(mask, 1)
-                number = achar(int(mod(u, 10_int64)) + iachar("0"))//number
-                u = u/10
-                if (u == 0 .and. mask == 0) exit
-            end do
-
-            if (pad == ZERO_PAD) pad = ALWAYS_ZERO_PAD
-            if (width < 0) width = digits_wanted
-            sign_character = " "
-            if (always_sign) sign_character = "+"
-            if (is_negative) sign_character = "-"
-            digit_count = len(number)
-            shortage = width - merge(1, 0, sign_character /= " ") - digit_count
-            padding = 0
-            if (pad /= NO_PAD .and. shortage > 0) padding = shortage
-
-            if (sign_character /= " ") then
-                if (pad == SPACE_PAD) then
-                    out = out//repeat(" ", padding)
-                    width = width - padding
+                if (0 <= d) then
+                    ! This ISO week belongs to the next year.
+                    year_adjust = 1
+                    days = d
                 end if
-
-                out = out//sign_character
-                width = width - 1
             end if
 
-            call add_cased(number)
-        end subroutine number_sign_and_padding
-    end function nstrftime
+            select case (part)
+            case (DATE_ISO_WEEK_YEAR)
+                value = int(tm%year, int64) + 1900 + year_adjust
+            case (DATE_ISO_WEEK_YEAR_OF_CENTURY)
+                value = year_of_century(tm%year, year_adjust)
+            case default
+                value = days/7 + 1
+            end select
+        case (DATE_QUARTER)
+            value = tm%month/3 + 1
+        case (DATE_MONTH)
+            value = tm%month + 1
+        case (DATE_WEEK_OF_YEAR_SUNDAY)
+            value = (tm%year_day - tm%weekday + 7)/7
+        case (DATE_WEEK_OF_YEAR_MONDAY)
+            value = (tm%year_day - mod(tm%weekday - 1 + 7, 7) + 7)/7
+        case (DATE_DAY)
+            value = tm%day
+        case (DATE_DAY_OF_YEAR)
+            value = tm%year_day + 1
+        case (DATE_WEEKDAY)
+            value = tm%weekday
+        case (DATE_ISO_WEEKDAY)
+            value = mod(tm%weekday - 1 + 7, 7) + 1
+        case (DATE_HOUR)
+            value = tm%hour
+        case (DATE_TWELVE_HOUR)
+            value = mod(tm%hour + 11, 12) + 1
+        case (DATE_MINUTE)
+            value = tm%minute
+        case (DATE_SECOND)
+            value = tm%second
+        case (DATE_MILLISECOND)
+            value = tm%nanoseconds/1000000
+        case (DATE_MICROSECOND)
+            value = tm%nanoseconds/1000
+        case (DATE_NANOSECOND)
+            value = tm%nanoseconds
+        case (DATE_SECONDS_SINCE_EPOCH)
+            ! (strftime.c regenerates the count with mktime_z; it is the
+            ! time that was broken down.)
+            value = tm%seconds
+        case (DATE_ZONE_OFFSET)
+            value = sign(abs(offset)/3600*100 + mod(abs(offset)/60, 60), offset)
+        case (DATE_ZONE_OFFSET_HOURS)
+            value = abs(offset)/3600
+        case (DATE_ZONE_OFFSET_MINUTES)
+            value = mod(abs(offset)/60, 60)
+        case (DATE_ZONE_OFFSET_SECONDS)
+            value = mod(abs(offset), 60)
+        case default
+            value = 0
+        end select
+    end function date_part_number
+
+    ! The last two digits of the year TM_YEAR + 1900 + YEAR_ADJUST, as %y
+    ! and %g write them.  Port of strftime.c:__strftime_internal (%y, %g).
+    pure integer function year_of_century(tm_year, year_adjust)
+        integer, intent(in) :: tm_year, year_adjust
+
+        year_of_century = mod(mod(tm_year, 100) + year_adjust, 100)
+
+        if (year_of_century < 0) then
+            if (tm_year < -1900 - year_adjust) then
+                year_of_century = -year_of_century
+            else
+                year_of_century = year_of_century + 100
+            end if
+        end if
+    end function year_of_century
+
+    ! The text part PART of the broken-down time TM, as the strftime
+    ! conversion it stands for gives it in the C locale.  Port of
+    ! strftime.c:__strftime_internal (%A, %a, %B, %b, %p, %P, %Z, the
+    ! flags ^ and #, and the sign of %z).
+    pure function date_part_text(part, tm) result(text)
+        integer, intent(in) :: part
+        type(broken_down_time_type), intent(in) :: tm
+        character(len=:), allocatable :: text
+
+        select case (part)
+        case (DATE_WEEKDAY_NAME)
+            text = trim(WEEKDAY_NAMES(tm%weekday))
+        case (DATE_WEEKDAY_ABBREVIATION)
+            text = WEEKDAY_NAMES(tm%weekday) (1:3)
+        case (DATE_WEEKDAY_NAME_UPPER_CASE)
+            text = changed_case(trim(WEEKDAY_NAMES(tm%weekday)), .true.)
+        case (DATE_WEEKDAY_ABBREVIATION_UPPER_CASE)
+            text = changed_case(WEEKDAY_NAMES(tm%weekday) (1:3), .true.)
+        case (DATE_MONTH_NAME)
+            text = trim(MONTH_NAMES(tm%month))
+        case (DATE_MONTH_ABBREVIATION)
+            text = MONTH_NAMES(tm%month) (1:3)
+        case (DATE_MONTH_NAME_UPPER_CASE)
+            text = changed_case(trim(MONTH_NAMES(tm%month)), .true.)
+        case (DATE_MONTH_ABBREVIATION_UPPER_CASE)
+            text = changed_case(MONTH_NAMES(tm%month) (1:3), .true.)
+        case (DATE_MERIDIEM)
+            text = merge("PM", "AM", 12 <= tm%hour)
+        case (DATE_MERIDIEM_LOWER_CASE)
+            text = merge("pm", "am", 12 <= tm%hour)
+        case (DATE_ZONE_ABBREVIATION)
+            text = tm%abbreviation
+        case (DATE_ZONE_ABBREVIATION_LOWER_CASE)
+            text = changed_case(tm%abbreviation, .false.)
+        case (DATE_ZONE_OFFSET_SIGN)
+            text = "+"
+            if (tm%offset < 0) text = "-"
+
+            if (tm%offset == 0 .and. len(tm%abbreviation) > 0) then
+                if (tm%abbreviation(1:1) == "-") text = "-"
+            end if
+        case default
+            text = ""
+        end select
+    end function date_part_text
+
+    ! TEXT with its ASCII letters in upper case (UPPER_CASE true) or in
+    ! lower case.  Port of strftime.c:__strftime_internal (cpy, the ^ and
+    ! # flags in the C locale).
+    pure function changed_case(text, upper_case) result(changed)
+        character(len=*), intent(in) :: text
+        logical, intent(in) :: upper_case
+        character(len=len(text)) :: changed
+        character(len=*), parameter :: LOWER = "abcdefghijklmnopqrstuvwxyz", UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+        integer :: i, k
+
+        changed = text
+
+        do i = 1, len(text)
+            if (upper_case) then
+                k = index(LOWER, text(i:i))
+                if (k > 0) changed(i:i) = UPPER(k:k)
+            else
+                k = index(UPPER, text(i:i))
+                if (k > 0) changed(i:i) = LOWER(k:k)
+            end if
+        end do
+    end function changed_case
 
     ! The number of days from the first day of the first ISO week of this
     ! year to the year day YEAR_DAY with week day WEEKDAY.  ISO weeks start on
@@ -1446,7 +1688,7 @@ contains
     !> of columns in each field is fixed if the year is in the range
     !> 1000-9999.  The format is `Sun Sep 16 01:03:52 1973'.
     !> However, see also the functions `decode_time' and
-    !> `format_time_string' which provide a much more powerful and general
+    !> `format_date' which provide a much more powerful and general
     !> facility.
     !>
     !> If TIME is given, it is the time value to format instead of the

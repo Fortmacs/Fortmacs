@@ -51,7 +51,8 @@ module mail_utilities_mod
     use utility_functions_mod, only: count_characters
     use file_input_output_mod, only: insert_file_contents
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use time_functions_mod, only: format_time_string, current_time_string, time_type
+    use time_functions_mod, only: format_date, date_format_type, current_time_string, time_type, DATE_DAY, &
+                                  DATE_MONTH_ABBREVIATION, DATE_YEAR, DATE_HOUR, DATE_MINUTE, DATE_SECOND, DATE_ZONE_OFFSET
     use time_date_mod, only: date_to_time
     use startup_mod, only: user_mail_address_value
     implicit none(type, external)
@@ -774,12 +775,15 @@ contains
         end do
     end function mail_comma_list_regular_expression
 
-    !> The current date as an RFC 822 date ("7 Feb 2021 22:46:37 -0500").
-    !> Port of mail-utils.el:mail-rfc822-date.
-    function mail_rfc822_date() result(date)
+    !> The current date as an RFC 822 date ("7 Feb 2021 22:46:37 -0500"),
+    !> or an error condition in STATUS.  Port of mail-utils.el:mail-rfc822-date.
+    function mail_rfc822_date(status) result(date)
+        type(status_type), intent(out) :: status
         character(len=:), allocatable :: date
 
-        date = format_time_string("%-d %b %Y %T %z")
+        date = format_date(date_format_type('(i0, 1x, a, 1x, i4.4, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4)', &
+                                            [DATE_DAY, DATE_MONTH_ABBREVIATION, DATE_YEAR, DATE_HOUR, DATE_MINUTE, &
+                                             DATE_SECOND, DATE_ZONE_OFFSET]), status=status)
     end function mail_rfc822_date
 
     !> Return an mbox "From " line for the current message.  The buffer

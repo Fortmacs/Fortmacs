@@ -342,8 +342,19 @@ module fortmacs
                                   DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, &
                                   DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN, current_time, current_cpu_time, time_add, &
                                   time_subtract, is_time_less, is_time_equal, real, time_convert, decode_time, encode_time, &
-                                  format_time_string, current_time_string, current_time_zone, set_time_zone_rule, time_zone_rule, &
-                                  TIME_ZONE_SYSTEM
+                                  format_date, date_format_type, MAIL_DATE, current_time_string, current_time_zone, &
+                                  set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM, DATE_FORMAT_MAXIMUM_PARTS, &
+                                  DATE_FORMAT_LENGTH, DATE_NONE, DATE_YEAR, DATE_CENTURY, DATE_YEAR_OF_CENTURY, &
+                                  DATE_ISO_WEEK_YEAR, DATE_ISO_WEEK_YEAR_OF_CENTURY, DATE_ISO_WEEK, DATE_QUARTER, DATE_MONTH, &
+                                  DATE_WEEK_OF_YEAR_SUNDAY, DATE_WEEK_OF_YEAR_MONDAY, DATE_DAY, DATE_DAY_OF_YEAR, DATE_WEEKDAY, &
+                                  DATE_ISO_WEEKDAY, DATE_HOUR, DATE_TWELVE_HOUR, DATE_MINUTE, DATE_SECOND, DATE_MILLISECOND, &
+                                  DATE_MICROSECOND, DATE_NANOSECOND, DATE_SECONDS_SINCE_EPOCH, DATE_ZONE_OFFSET, &
+                                  DATE_ZONE_OFFSET_HOURS, DATE_ZONE_OFFSET_MINUTES, DATE_ZONE_OFFSET_SECONDS, &
+                                  DATE_WEEKDAY_NAME, DATE_WEEKDAY_ABBREVIATION, DATE_WEEKDAY_NAME_UPPER_CASE, &
+                                  DATE_WEEKDAY_ABBREVIATION_UPPER_CASE, DATE_MONTH_NAME, DATE_MONTH_ABBREVIATION, &
+                                  DATE_MONTH_NAME_UPPER_CASE, DATE_MONTH_ABBREVIATION_UPPER_CASE, DATE_MERIDIEM, &
+                                  DATE_MERIDIEM_LOWER_CASE, DATE_ZONE_ABBREVIATION, DATE_ZONE_ABBREVIATION_LOWER_CASE, &
+                                  DATE_ZONE_OFFSET_SIGN
     use file_input_output_mod, only: visited_file_modtime, set_visited_file_modtime
     use simple_mod, only: read_only_mode, read_only_mode_hook, what_line
     use view_mod, only: view_mode, view_mode_map, view_mode_hook, view_file, view_file_other_window, view_buffer, &
@@ -836,8 +847,17 @@ module fortmacs
     public :: time_type, decoded_time_type, time_zone_type, TIMESPEC_COUNT_RATE, DECODED_TIME_DAYLIGHT_SAVING_TIME_YES, &
               DECODED_TIME_DAYLIGHT_SAVING_TIME_NO, DECODED_TIME_DAYLIGHT_SAVING_TIME_UNKNOWN, current_time, current_cpu_time, &
               time_add, time_subtract, &
-              is_time_less, is_time_equal, real, time_convert, decode_time, encode_time, format_time_string, &
-              current_time_string, current_time_zone, set_time_zone_rule, time_zone_rule, TIME_ZONE_SYSTEM, &
+              is_time_less, is_time_equal, real, time_convert, decode_time, encode_time, format_date, &
+              date_format_type, MAIL_DATE, current_time_string, current_time_zone, set_time_zone_rule, time_zone_rule, &
+              TIME_ZONE_SYSTEM, DATE_FORMAT_MAXIMUM_PARTS, DATE_FORMAT_LENGTH, DATE_NONE, DATE_YEAR, DATE_CENTURY, &
+              DATE_YEAR_OF_CENTURY, DATE_ISO_WEEK_YEAR, DATE_ISO_WEEK_YEAR_OF_CENTURY, DATE_ISO_WEEK, DATE_QUARTER, DATE_MONTH, &
+              DATE_WEEK_OF_YEAR_SUNDAY, DATE_WEEK_OF_YEAR_MONDAY, DATE_DAY, DATE_DAY_OF_YEAR, DATE_WEEKDAY, DATE_ISO_WEEKDAY, &
+              DATE_HOUR, DATE_TWELVE_HOUR, DATE_MINUTE, DATE_SECOND, DATE_MILLISECOND, DATE_MICROSECOND, DATE_NANOSECOND, &
+              DATE_SECONDS_SINCE_EPOCH, DATE_ZONE_OFFSET, DATE_ZONE_OFFSET_HOURS, DATE_ZONE_OFFSET_MINUTES, &
+              DATE_ZONE_OFFSET_SECONDS, DATE_WEEKDAY_NAME, DATE_WEEKDAY_ABBREVIATION, DATE_WEEKDAY_NAME_UPPER_CASE, &
+              DATE_WEEKDAY_ABBREVIATION_UPPER_CASE, DATE_MONTH_NAME, DATE_MONTH_ABBREVIATION, DATE_MONTH_NAME_UPPER_CASE, &
+              DATE_MONTH_ABBREVIATION_UPPER_CASE, DATE_MERIDIEM, DATE_MERIDIEM_LOWER_CASE, DATE_ZONE_ABBREVIATION, &
+              DATE_ZONE_ABBREVIATION_LOWER_CASE, DATE_ZONE_OFFSET_SIGN, &
               visited_file_modtime, set_visited_file_modtime
     public :: process_filter_procedure, process_sentinel_procedure, make_process, start_process, &
               delete_process, destroy_process, is_process, is_process_live, get_process, get_buffer_process, process_list, &

@@ -1823,8 +1823,10 @@ contains
     end subroutine log_edit_changelog_entry
 
     !> See if ChangeLog entry at point is for the current user, today.
-    !> Return true if it is.  Port of log-edit.el:log-edit-changelog-ours-p.
-    recursive logical function is_log_edit_changelog_ours() result(ours)
+    !> Return true if it is; a check of STATUS finds an error condition of
+    !> `add_log_time_format'.  Port of log-edit.el:log-edit-changelog-ours-p.
+    recursive logical function is_log_edit_changelog_ours(status) result(ours)
+        type(status_type), intent(out) :: status
         character(len=:), allocatable :: name, mail, time, author
         type(status_type) :: st
         logical :: tiny
@@ -1842,7 +1844,9 @@ contains
             mail = user_mail_address_value()
         end if
 
-        call add_log_time_format(time)
+        ours = .false.
+        call add_log_time_format(time, status)
+        if (.not. status%ok()) return
 
         if (.not. changelog_use_first) then
             ours = looking_at(regular_expression_quote(time//"  "//name//"  <"//mail//">"), st)
@@ -1975,7 +1979,7 @@ contains
 
             call goto_character(point_minimum())
             if (looking_at("\s-*"//achar(10), status)) call goto_character(match_end(0, status))
-            if (.not. is_log_edit_changelog_ours()) exit body
+            if (.not. is_log_edit_changelog_ours(status)) exit body
             saved_beginning_of_accessible_portion = point_minimum()
             saved_end_of_accessible_portion = point_maximum()
             call log_edit_narrow_changelog(status)

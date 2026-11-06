@@ -125,9 +125,11 @@ contains
     end subroutine temporary_buffer
 
     !> The date of the headers of the tests.
-    subroutine fixed_date(s)
+    subroutine fixed_date(s, status)
         character(len=:), allocatable, intent(out) :: s
+        type(status_type), intent(out) :: status
 
+        status = status_type()
         s = "2026-11-03"
     end subroutine fixed_date
 

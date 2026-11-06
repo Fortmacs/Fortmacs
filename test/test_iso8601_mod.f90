@@ -26,7 +26,8 @@ module test_iso8601_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type, format_error
-    use time_functions_mod, only: time_type, format_time_string, time_zone_rule
+    use time_functions_mod, only: time_type, format_date, date_format_type, time_zone_rule, DATE_ZONE_OFFSET, &
+                                  DATE_ZONE_OFFSET_SIGN, DATE_ZONE_OFFSET_HOURS, DATE_ZONE_OFFSET_MINUTES
     use time_date_mod, only: partial_decoded_time_type
     use iso8601_mod, only: parse_iso8601, parse_iso8601_date, parse_iso8601_time, parse_iso8601_zone, &
                            parse_iso8601_duration, parse_iso8601_interval, is_iso8601_valid
@@ -441,24 +442,30 @@ contains
                              "second=0 minute=0 hour=12 day=15 month=2 year=1 daylight_saving_time=-1")
     end subroutine test_standard_test_interval
 
-    !> Round trip zone offsets through format_time_string and
-    !> parse_iso8601_zone.  Passing a time zone created by
-    !> format_time_string %z to parse_iso8601_zone should yield the
-    !> original offset.
+    !> Round trip zone offsets through format_date and
+    !> parse_iso8601_zone.  Passing a time zone created by format_date
+    !> as +hhmm or +hh:mm (upstream's %z and %:z; its %:::z, +hh where the
+    !> minutes are 0, has no date format) to parse_iso8601_zone should yield
+    !> the original offset.
     subroutine test_zone_round_trip(error)
         type(error_type), allocatable, intent(out) :: error
         integer, parameter :: OFFSETS(13) = [5*60, 11*60, 5, 11, 5*60 + 30, 11*60 + 30, 0, &
                                              -5*60, -11*60, -5, -11, -5*60 - 30, -11*60 - 30]
-        character(len=*), parameter :: FORMATS(3) = [character(len=5) :: "%z", "%:z", "%:::z"]
+        type(date_format_type) :: formats(2)
         character(len=:), allocatable :: zone_string
         type(status_type) :: st
         integer :: k, f, offset
 
+        formats(1) = date_format_type("(sp, i5.4)", [DATE_ZONE_OFFSET])
+        formats(2) = date_format_type('(a, i2.2, ":", i2.2)', [DATE_ZONE_OFFSET_SIGN, DATE_ZONE_OFFSET_HOURS, &
+                                                               DATE_ZONE_OFFSET_MINUTES])
+
         do k = 1, size(OFFSETS)
-            do f = 1, size(FORMATS)
-                zone_string = format_time_string(trim(FORMATS(f)), time_type(), time_zone_rule(60*OFFSETS(k)))
-                offset = parse_iso8601_zone(zone_string, st)
-                call check(error, st%ok() .and. offset == OFFSETS(k), trim(FORMATS(f))//" -> "//zone_string)
+            do f = 1, size(formats)
+                offset = 0
+                zone_string = format_date(formats(f), time_type(), time_zone_rule(60*OFFSETS(k)), st)
+                if (st%ok()) offset = parse_iso8601_zone(zone_string, st)
+                call check(error, st%ok() .and. offset == OFFSETS(k), trim(formats(f)%format)//" -> "//zone_string)
                 if (allocated(error)) return
             end do
         end do

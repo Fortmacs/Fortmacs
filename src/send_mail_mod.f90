@@ -84,7 +84,9 @@ module send_mail_mod
     use minibuffer_reading_tables_mod, only: completion_table_type, TABLE_LIST
     use coding_mod, only: buffer_file_coding_system, coding_system_mime_character_set
     use regular_expression_optimization_mod, only: regular_expression_optimization, REGULAR_EXPRESSION_OPTIMIZATION_GROUP
-    use time_functions_mod, only: format_time_string
+    use time_functions_mod, only: format_date, date_format_type, MAIL_DATE, DATE_WEEKDAY_ABBREVIATION, &
+                                  DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_HOUR, DATE_MINUTE, DATE_SECOND, &
+                                  DATE_ZONE_OFFSET, DATE_YEAR
     use editing_functions_mod, only: user_full_name, user_login_name
     use startup_mod, only: user_mail_address_value
     use execute_process_mod, only: execute_process_region
@@ -571,14 +573,6 @@ contains
         call narrow_to_region(point_minimum(), e, status)
         call goto_character(point_minimum())
     end subroutine narrow_to_mail_headers
-
-    ! The date as a Date field gives it (message-make-date, of the
-    ! current time).  Port of message.el:message-make-date.
-    function make_message_date() result(date)
-        character(len=:), allocatable :: date
-
-        date = format_time_string("%a, %d %b %Y %T %z")
-    end function make_message_date
 
     ! A buffer named NAME that did not exist.  Not a port.
     subroutine generate_new_buffer(name, buffer, status)
@@ -1936,7 +1930,7 @@ contains
     recursive subroutine do_mail_fcc(header_end, status)
         type(handle_type), intent(in) :: header_end
         type(status_type), intent(out) :: status
-        character(len=:), allocatable :: fcc_list(:), fcc, text
+        character(len=:), allocatable :: fcc_list(:), fcc, text, from_date, date
         type(handle_type) :: mailbuf, temporary, buffer, curbuf
         integer(int64) :: beginning, end, beginning2, moved, fcc_start, k
         logical :: dont_write_the_file, buffer_matches_file, modified, babyl, saved_fold, save, read_only
@@ -1972,8 +1966,14 @@ contains
         body: block
             ! This initial newline is not written out if we create a new
             ! file (see below).
-            call insert(LF//"From "//user_login_name()//" "//format_time_string("%a %b %e %T %z %Y")//LF// &
-                        "Date: "//make_message_date()//LF, status)
+            from_date = format_date(date_format_type( &
+                                    '(a, 1x, a, 1x, i2, 1x, i2.2, ":", i2.2, ":", i2.2, 1x, sp, i5.4, 1x, ss, i4.4)', &
+                                    [DATE_WEEKDAY_ABBREVIATION, DATE_MONTH_ABBREVIATION, DATE_DAY, DATE_HOUR, &
+                                     DATE_MINUTE, DATE_SECOND, DATE_ZONE_OFFSET, DATE_YEAR]), status=status)
+            if (.not. status%ok()) exit body
+            date = format_date(MAIL_DATE, status=status)
+            if (.not. status%ok()) exit body
+            call insert(LF//"From "//user_login_name()//" "//from_date//LF//"Date: "//date//LF, status)
             if (.not. status%ok()) exit body
             call insert_buffer_substring(mailbuf, status)
             if (.not. status%ok()) exit body
@@ -2106,12 +2106,15 @@ contains
         type(status_type), intent(out) :: status
         type(handle_type) :: old, temporary
         type(status_type) :: st
+        character(len=:), allocatable :: date
 
+        date = mail_rfc822_date(status)
+        if (.not. status%ok()) return
         old = current_buffer()
         call get_or_make_buffer(generate_new_buffer_name(" *temp*"), temporary, status)
         if (.not. status%ok()) return
         call set_buffer(temporary, status)
-        call insert(achar(12)//LF//"0, unseen,,"//LF//"*** EOOH ***"//LF//"Date: "//mail_rfc822_date()//LF//text// &
+        call insert(achar(12)//LF//"0, unseen,,"//LF//"*** EOOH ***"//LF//"Date: "//date//LF//text// &
                     LF//achar(31), status)
         if (status%ok()) call write_region(file, .false., status, point_minimum(), point_maximum(), append=.true.)
         call close_buffer(temporary, st)
