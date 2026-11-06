@@ -66,6 +66,7 @@ module abbreviation_mod
     use handle_mod, only: handle_type
     use data_mod, only: logical_setting_type, choice_setting_type
     use hooks_mod, only: hook_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -79,7 +80,7 @@ module abbreviation_mod
               abbreviation_expansion, &
               abbreviation_insert, expand_abbreviation, abbreviation_default_expand, unexpand_abbreviation, &
               insert_abbreviation_table_description, &
-              abbreviation_table_names, abbreviation_possibly_save, local_abbreviation_table, abbreviation_table_set_local, &
+              abbreviation_table_names, abbreviation_possibly_save, &
               edit_abbreviations_mode, is_abbreviation_mode, abbreviation_no_self_insert, initialize_abbreviation
 
     !> The values of `save_abbreviations': never save, ask or save
@@ -228,6 +229,32 @@ module abbreviation_mod
     !> Port of abbrev.el fundamental-mode-abbrev-table.
     type(abbreviation_table_type), target, public :: fundamental_mode_abbreviation_table = &
                                                      abbreviation_table_type(name="fundamental_mode_abbreviation_table")
+
+    !> One buffer's own `local_abbreviation_table'.
+    type :: local_abbreviation_table_entry_type
+        type(abbreviation_table_type), pointer :: table => null()
+    end type local_abbreviation_table_entry_type
+
+    !> The type of `local_abbreviation_table': the global value `table'
+    !> (set with `=>'; null for `fundamental_mode_abbreviation_table')
+    !> and the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: local_abbreviation_table_setting_type
+        type(abbreviation_table_type), pointer :: table => null()
+        type(local_abbreviation_table_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value, TABLE.
+        procedure :: set_local => set_local_abbreviation_table_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_local_abbreviation_table_current
+        procedure :: append_local_entry => append_local_abbreviation_table_entry
+        procedure :: clear_local_entry => clear_local_abbreviation_table_entry
+    end type local_abbreviation_table_setting_type
+
+    !> Local (mode-specific) abbrev table of current buffer.  Port of
+    !> buffer.c local-abbrev-table (a major mode gives its buffer its own
+    !> with `%set_local'; kill-all-local-variables makes it use the global
+    !> value again).
+    type(local_abbreviation_table_setting_type), public :: local_abbreviation_table
 
     !> True if any word abbrevs were defined or altered.
     !> This causes `save_some_buffers' to offer to save the abbrevs.  Port
@@ -748,19 +775,35 @@ module abbreviation_mod
             type(status_type), intent(out) :: status
         end subroutine abbreviation_possibly_save
 
-        !> Local (mode-specific) abbrev table of current buffer (null for
-        !> none).  Port of buffer.c local-abbrev-table.
-        module function local_abbreviation_table() result(table)
+        !> Give the current buffer its own `local_abbreviation_table', TABLE.
+        !> Not a port.
+        module subroutine set_local_abbreviation_table_local(self, table)
             implicit none(type, external)
-            type(abbreviation_table_type), pointer :: table
-        end function local_abbreviation_table
-
-        !> Make TABLE the local abbrev table of the current buffer, as
-        !> assigning TABLE to `local_abbreviation_table' does.  Not a port.
-        module subroutine abbreviation_table_set_local(table)
-            implicit none(type, external)
+            class(local_abbreviation_table_setting_type), intent(inout) :: self
             type(abbreviation_table_type), intent(in), target :: table
-        end subroutine abbreviation_table_set_local
+        end subroutine set_local_abbreviation_table_local
+
+        !> The current buffer's `local_abbreviation_table': its own value,
+        !> else the global one (`fundamental_mode_abbreviation_table' when
+        !> null).  Not a port.
+        module function get_local_abbreviation_table_current(self) result(table)
+            implicit none(type, external)
+            class(local_abbreviation_table_setting_type), intent(in) :: self
+            type(abbreviation_table_type), pointer :: table
+        end function get_local_abbreviation_table_current
+
+        !> Grow `locals' by one entry.  Not a port.
+        module subroutine append_local_abbreviation_table_entry(self)
+            implicit none(type, external)
+            class(local_abbreviation_table_setting_type), intent(inout) :: self
+        end subroutine append_local_abbreviation_table_entry
+
+        !> Reset entry K of `locals'.  Not a port.
+        module subroutine clear_local_abbreviation_table_entry(self, k)
+            implicit none(type, external)
+            class(local_abbreviation_table_setting_type), intent(inout) :: self
+            integer, intent(in) :: k
+        end subroutine clear_local_abbreviation_table_entry
 
         !> Major mode for editing the list of abbrev definitions.
         !> This mode is for editing abbrevs in a buffer prepared by `edit_abbreviations',

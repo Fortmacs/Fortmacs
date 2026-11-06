@@ -112,7 +112,7 @@ module shell_script_mod
     use files_mod, only: locate_file_completion_table
     use expression_motion_mod, only: subprogram_prompt_regular_expression
     use basic_subprograms_mod, only: read_y_or_n
-    use abbreviation_mod, only: abbreviation_table_type, abbreviation_table_set_local
+    use abbreviation_mod, only: abbreviation_table_type, local_abbreviation_table
     use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use file_input_output_mod, only: file_name_nondirectory
@@ -3562,7 +3562,7 @@ contains
         call paragraph_separate%set_local(paragraph_start%value//"\|#!/")
         call comment_start%set_local("# ")
         call comment_start_skip%set_local("#+["//TAB//" ]*")
-        call abbreviation_table_set_local(shell_script_mode_abbreviation_table)
+        call local_abbreviation_table%set_local(shell_script_mode_abbreviation_table)
         ! (setq-local comint-dynamic-complete-functions
         ! sh-dynamic-complete-functions)
         functions = shell_script_dynamic_complete_functions%functions()

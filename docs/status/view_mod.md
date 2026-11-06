@@ -15,7 +15,7 @@
 `view-buffer-other-window`,
 `kill-buffer-if-not-modified`,
 the View- commands (named view_*: `View-quit` q, `View-quit-all` Q, `View-kill-and-leave` C, `View-leave` c, `View-exit` e, `View-exit-and-edit` E, `View-scroll-page-forward` SPC, `-backward` DEL and S-SPC, `-set-page-size` z and w, `View-scroll-half-page-forward` d, `-backward` u, `View-scroll-line-forward` RET and y, `-backward`, `View-goto-percent` %, `View-goto-line` g, `View-back-to-mark` x, `View-scroll-to-buffer-end`, `View-beginning-of-buffer` <, `View-end-of-buffer` >, `View-search-regexp-forward` / and s, `-backward` \ and r, `View-search-last-regexp-forward` n, `-backward` p, the ! and @ prefixes, `View-revert-buffer-scroll-page-forward` excepted),
-`view-read-only`,
+`view-read-only` (a forwarded `logical_setting_type` of files_mod: `read_only_mode` gives the buffer its own with `%set_local`),
 `view-scroll-auto-exit`,
 `view-exits-all-viewing-windows`,
 `view-inhibit-help-message`,

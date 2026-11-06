@@ -27,7 +27,8 @@ submodule(simple_mod) simple_view_mod
     use modes_mod, only: minor_modes
     use derived_mod, only: major_mode_type, major_mode_named
     use editing_functions_mod, only: point_minimum, widen, narrow_to_region
-    use view_mod, only: view_mode_enabled, view_exit_and_edit, view_read_only_value, set_view_read_only_local, &
+    use files_mod, only: view_read_only
+    use view_mod, only: view_mode_enabled, view_exit_and_edit, &
                         view_mode_enter
     implicit none(type, external)
 
@@ -53,8 +54,8 @@ contains
         if (.not. buffers(current)%read_only .and. view_mode_enabled()) then
             call view_exit_and_edit(status)
             ! Must leave view mode.
-            call set_view_read_only_local(.true.)
-        else if (buffers(current)%read_only .and. view_read_only_value() .and. .not. view_mode_enabled()) then
+            call view_read_only%set_local(.true.)
+        else if (buffers(current)%read_only .and. view_read_only%value .and. .not. view_mode_enabled()) then
             ! If view-mode is already active, `view_mode_enter' is a nop.
             special = .false.
 

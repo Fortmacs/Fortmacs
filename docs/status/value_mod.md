@@ -26,7 +26,7 @@ fns.c `yes-or-no-p` (submodule utility_functions_ask_mod; ASCII downcase);
 buffer-local variables in data_buffer_mod: `make-local-variable`,
 `make-variable-buffer-local`,
 `kill-local-variable`,
-`kill-all-local-variables` (running `change-major-mode-hook`, keeping `permanent-local` ones),
+`kill-all-local-variables` (running `change-major-mode-hook`, keeping `permanent-local` ones: a setting whose `permanent_local` component is true, else the symbol property),
 `local-variable-p`,
 `local-variable-if-set-p`,
 `default-value`,

@@ -3,3 +3,5 @@ sample.f90:42: command-component: an allocatable component of command_type: gfor
 sample.f90:45: command-component: command_type component of type value_type, which has allocatable components: gfortran makes the hundreds of generated commands slow to compile at -O3; use an integer handle into a registry
 sample.f90:46: command-component: command_type component of type holder_type, which has allocatable components: gfortran makes the hundreds of generated commands slow to compile at -O3; use an integer handle into a registry
 sample.f90:58: truncated-literal: a string of 5 characters in an array constructor of character(len=4): size the length from the longest string
+sample.f90:99: allocatable-result-inquiry: make_values(...) inside an inquiry intrinsic: its result is an allocatable array of a type with allocatable components (gfortran leaks it); return it through an intent(out) argument
+sample.f90:100: allocatable-result-inquiry: get(...) inside an inquiry intrinsic: its result is an allocatable array of a type with allocatable components (gfortran leaks it); return it through an intent(out) argument

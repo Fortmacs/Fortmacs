@@ -22,7 +22,8 @@
 !> `is_local' and `clear_local' in two buffers, on a procedure setting
 !> (`blink_matching_check_function') and on an array setting
 !> (`electric_indent_characters'), and the reuse of a closed buffer's
-!> entry.  Not a port.
+!> entry; also `local_abbreviation_table', `command_interpreter_completion_fignore'
+!> and `syntax_parser_state_table'.  Not a port.
 module test_buffer_local_setting_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
@@ -31,6 +32,11 @@ module test_buffer_local_setting_mod
     use buffer_mod, only: get_or_make_buffer, set_buffer, close_buffer, current_buffer
     use simple_mod, only: blink_matching_check_function, blink_matching_check_procedure
     use electric_mod, only: electric_indent_characters
+    use abbreviation_mod, only: local_abbreviation_table, global_abbreviation_table, fundamental_mode_abbreviation_table, &
+                                abbreviation_table_type
+    use command_interpreter_mod, only: command_interpreter_completion_fignore
+    use syntax_mod, only: syntax_table
+    use syntax_propertize_mod, only: syntax_parser_state_table
     implicit none(type, external)
     private
 
@@ -47,7 +53,10 @@ contains
                     new_unittest("set-local-without-procedure", test_set_local_null), &
                     new_unittest("clear-local", test_clear_local), &
                     new_unittest("closed-buffer-entry-reused", test_entry_reused), &
-                    new_unittest("array-setting-per-buffer", test_array_setting) &
+                    new_unittest("array-setting-per-buffer", test_array_setting), &
+                    new_unittest("abbreviation-table-per-buffer", test_abbreviation_table), &
+                    new_unittest("completion-fignore-per-buffer", test_completion_fignore), &
+                    new_unittest("parser-state-table-per-buffer", test_parser_state_table) &
                     ]
     end subroutine collect_buffer_local_setting_mod
 
@@ -242,4 +251,84 @@ contains
         if (had_global) electric_indent_characters = global
         call close_buffers(b1, b2, saved)
     end subroutine test_array_setting
+
+    !> `local_abbreviation_table': a buffer's own table is seen only in
+    !> that buffer; the others use `fundamental_mode_abbreviation_table'.
+    subroutine test_abbreviation_table(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: b1, b2, saved
+        type(status_type) :: st
+        type(abbreviation_table_type), pointer :: table
+
+        call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
+        call set_buffer(b1, st)
+        call local_abbreviation_table%set_local(global_abbreviation_table)
+        table => local_abbreviation_table%get_current()
+        call check(error, associated(table, global_abbreviation_table), "b1")
+
+        if (.not. allocated(error)) then
+            call set_buffer(b2, st)
+            table => local_abbreviation_table%get_current()
+            call check(error, associated(table, fundamental_mode_abbreviation_table), "b2")
+        end if
+
+        if (.not. allocated(error)) then
+            call set_buffer(b1, st)
+            call local_abbreviation_table%clear_local()
+            table => local_abbreviation_table%get_current()
+            call check(error, associated(table, fundamental_mode_abbreviation_table), "cleared")
+        end if
+
+        call close_buffers(b1, b2, saved)
+    end subroutine test_abbreviation_table
+
+    !> `command_interpreter_completion_fignore': `=' sets the global
+    !> value, which a buffer's own value hides only in that buffer.
+    subroutine test_completion_fignore(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: b1, b2, saved
+        type(status_type) :: st
+        character(len=8), allocatable :: global(:), suffixes(:)
+
+        global = command_interpreter_completion_fignore%get_current()
+        command_interpreter_completion_fignore = [character(len=8) :: ".o"]
+        call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
+        call set_buffer(b1, st)
+        call command_interpreter_completion_fignore%set_local([character(len=8) :: ".a", ".b"])
+        suffixes = command_interpreter_completion_fignore%get_current()
+        call check(error, size(suffixes), 2, "b1")
+
+        if (.not. allocated(error)) then
+            call set_buffer(b2, st)
+            suffixes = command_interpreter_completion_fignore%get_current()
+            call check(error, size(suffixes), 1, "b2 size")
+            if (.not. allocated(error)) call check(error, suffixes(1) == ".o", "b2")
+        end if
+
+        call set_buffer(saved, st)
+        command_interpreter_completion_fignore = global
+        call close_buffers(b1, b2, saved)
+    end subroutine test_completion_fignore
+
+    !> `syntax_parser_state_table': no table unless the buffer has its own.
+    subroutine test_parser_state_table(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: b1, b2, saved, table
+        type(status_type) :: st
+        logical :: found
+
+        call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
+        call set_buffer(b1, st)
+        call syntax_parser_state_table%set_local(syntax_table())
+        call syntax_parser_state_table%get_current(table, found)
+        call check(error, found, "b1")
+
+        if (.not. allocated(error)) then
+            call set_buffer(b2, st)
+            call syntax_parser_state_table%get_current(table, found)
+            call check(error,.not. found, "b2")
+        end if
+
+        call close_buffers(b1, b2, saved)
+    end subroutine test_parser_state_table
 end module test_buffer_local_setting_mod

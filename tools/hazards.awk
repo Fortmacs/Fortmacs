@@ -41,6 +41,11 @@
 #                       a function result or structure constructor of a
 #                       type with allocatable components inside an array
 #                       constructor (gfortran leaks it).
+#   allocatable-result-inquiry
+#                       size, lbound, ubound or shape of the result of a
+#                       function (or binding) returning an allocatable
+#                       array of a type with allocatable components
+#                       (gfortran leaks it).
 #   recursive-allocatable-type
 #                       a type with an allocatable component of its own
 #                       type (gfortran copies it shallowly).
@@ -333,6 +338,32 @@ function check_constructor(s, code,    rest, inner, depth, i, c, start, call, na
 # specification gives (`[character(len=N) :: ...]`), which the constructor
 # silently truncates, in the statement S whose code is CODE (slits[S]
 # holds the lengths of its strings).
+# Report an inquiry intrinsic applied to the result of a function whose
+# result is an allocatable array of a type with allocatable components.
+function check_inquiry_result(s, code,    rest, name, binding) {
+    rest = code
+    while (match(rest, /(^|[^a-z0-9_%])(size|lbound|ubound|shape)[ \t]*\([ \t]*[a-z_][a-z0-9_%]*[ \t]*\(/)) {
+        name = substr(rest, RSTART, RLENGTH)
+        rest = substr(rest, RSTART + RLENGTH)
+        sub(/^[^a-z]*[a-z]+[ \t]*\([ \t]*/, "", name)
+        sub(/[ \t]*\($/, "", name)
+        if (index(name, "%") > 0) {
+            binding = name
+            sub(/.*%/, "", binding)
+            if (binding in bindalloc) {
+                report(s, "allocatable-result-inquiry", binding "(...) inside an inquiry intrinsic: its result is an allocatable array of a type with allocatable components (gfortran leaks it); return it through an intent(out) argument")
+                return
+            }
+            continue
+        }
+        if (name in localvar || name in modvar) continue
+        if ((name in fres) && hasalloc[fres[name]] && fdeferred[name]) {
+            report(s, "allocatable-result-inquiry", name "(...) inside an inquiry intrinsic: its result is an allocatable array of a type with allocatable components (gfortran leaks it); return it through an intent(out) argument")
+            return
+        }
+    }
+}
+
 function check_truncated(s, code,    rest, before, width, start, i, c, depth, k, first, n, prefix, lens) {
     split(slits[s], lens, " ")
     rest = code
@@ -485,6 +516,21 @@ END {
         }
     }
 
+    # Bindings to functions whose results are allocatable and of types
+    # with allocatable components.
+    for (s = 1; s <= ns; s++) {
+        code = scode[s]
+        if (code ~ /^procedure[^:]*::[ \t]*[a-z_][a-z0-9_]*[ \t]*=>[ \t]*[a-z_]/) {
+            b = code
+            sub(/^procedure[^:]*::[ \t]*/, "", b)
+            t = b
+            sub(/[ \t]*=>.*/, "", b)
+            sub(/.*=>[ \t]*/, "", t)
+            sub(/[^a-z0-9_].*/, "", t)
+            if ((t in fres) && hasalloc[fres[t]] && fdeferred[t]) bindalloc[b] = 1
+        }
+    }
+
     # command_type: no component of a type with allocatable components.
     intype = ""
     for (s = 1; s <= ns; s++) {
@@ -571,6 +617,7 @@ END {
         if (scont[s] > 255)
             report(s, "continuation-limit", scont[s] " continuation lines: the standard allows 255 (gfortran warns with -std=f2018); split the statement")
         if (s in slits) check_truncated(s, code)
+        if (index(code, "(") > 0) check_inquiry_result(s, code)
     }
     exit hits > 0
 }

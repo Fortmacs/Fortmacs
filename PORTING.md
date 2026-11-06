@@ -1768,6 +1768,13 @@ statement or the comment line above it.  Checked:
 - `allocatable-constructor`: a function result or structure constructor
   of a type with allocatable components inside an array constructor
   leaks: use `list(...)`, a variable or element assignment.
+- `allocatable-result-inquiry`: `size` (or `lbound`, `ubound`, `shape`)
+  of the result of a function or binding returning an allocatable array
+  of a type with allocatable components leaks the elements' components
+  (valgrind on `size(tabulated_list_entries%get_current())`, #304): a
+  getter of such an array is a subroutine with an `intent(out)` argument
+  (`call tabulated_list_entries%get_current(entries)`), or the result is
+  assigned to a variable first.
 - `recursive-allocatable-type`: an allocatable component of its own type
   is copied shallowly.
 - `command-component`: any allocatable component of `command_type`, a
@@ -2182,12 +2189,35 @@ scroll = .not. compilation_scroll_output%is_off()
   `call x%get_current(f)`, for `incremental_search_search_function_function`
   (gfortran rejects a function returning a pointer to a procedure that
   returns a procedure pointer) and the pcomplete function variables
-  (whose callers took it that way).  A value of another type is the same
+  (whose callers took it that way), and for an array of a type with
+  allocatable components (`tabulated_list_format`, `tabulated_list_entries`:
+  the `allocatable-result-inquiry` hazard).  A value of another type is the same
   parent with a component named for it: `electric_indent_characters`
   (`characters`, set with `=`), `skeleton_pairs` and
   `skeleton_default_pairs` (`pairs`, grown with `%append`).  The free
   procedures `X_set_local`, `current_X` and `X_clear_local` this replaced
-  are gone.
+  are gone.  The per-buffer variables once kept in a module's private
+  record behind free setters follow it too, for values that aren't plain
+  data: tabulated-list.el's format, entries, sort key and printer
+  (`tabulated_list_entries%set_local` takes an array or a procedure,
+  R6-37; the permanent-local ones are not cleared by `clear_X_locals`),
+  comint.el's procedure variables and `command_interpreter_completion_fignore`,
+  `local_abbreviation_table` and `syntax_parser_state_table`.  Plain data
+  (an integer, a logical, a string, a choice) is a forwarded setting
+  (`tabulated_list_padding`, `tabulated_list_use_header_line`,
+  `view_read_only`: `call view_read_only%set_local(.true.)`).  What only
+  the module reads stays private: comint's markers and input ring in its
+  record, tabulated-list--original-order in the entry of
+  `tabulated_list_entries`.
+
+- Permanently local settings (owner, #261): upstream's `permanent-local`
+  property is the `permanent_local` component of `setting_type`, set in
+  the declaration as hooks do
+  (`integer_setting_type(name="tabulated_list_padding", permanent_local=.true.)`;
+  a minor mode's `%state%permanent_local`, `auto_revert_mode`).
+  `clear_all_local_variables` keeps the buffer's value of a forwarded
+  setting whose `permanent_local` is true; only a variable of no setting
+  still carries the symbol property.
 
 - Shell-dependent settings (sh-script.el's tables read by `sh-feature`)
   are typed feature tables, one per kind of value (`shell_strings_feature_type`,

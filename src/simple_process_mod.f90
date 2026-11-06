@@ -34,8 +34,8 @@ submodule(simple_mod) simple_process_mod
     use process_mod, only: process_list, process_status, process_id, process_name, process_terminal_name, &
                            process_buffer, process_command, process_query_on_exit_flag, &
                            delete_process, get_process
-    use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
-                                  set_tabulated_list_entries, set_tabulated_list_sort_key, tabulated_list_initialize_header, &
+    use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, tabulated_list_format, &
+                                  tabulated_list_entries, tabulated_list_sort_key, tabulated_list_initialize_header, &
                                   tabulated_list_print, tabulated_list_get_id, tabulated_list_revert_hook
     use files_mod, only: revert_buffer
     use window_mod, only: display_buffer
@@ -99,9 +99,9 @@ contains
         format(5) = column("TTY", 12)
         format(6) = column("Thread", 12)
         format(7) = column("Command", 0)
-        call set_tabulated_list_format(format)
+        call tabulated_list_format%set_local(format)
         call set_menu_query_only(menu_query_only())
-        call set_tabulated_list_sort_key("Process", .false.)
+        call tabulated_list_sort_key%set_local("Process", .false.)
         call tabulated_list_revert_hook%prepend(refresh_hook, local=.true.)
         call major_modes%process_menu_mode%end(saved, status)
 
@@ -217,7 +217,7 @@ contains
         end do
 
         ! (push ... tabulated-list-entries): the newest first.
-        call set_tabulated_list_entries(entries(n:1:-1))
+        call tabulated_list_entries%set_local(entries(n:1:-1))
         call tabulated_list_initialize_header()
     end subroutine list_processes_refresh
 

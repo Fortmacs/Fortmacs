@@ -39,6 +39,7 @@ module test_autorevert_mod
     use time_functions_mod, only: current_time, time_subtract, time_type
     use keyboard_mod, only: read_event
     use modes_mod, only: minor_modes
+    use data_mod, only: clear_all_local_variables
     use bindings_mod, only: initialize_bindings
     use filenotify_mod, only: file_notify_rm_all_watches
     use autorevert_mod, only: auto_revert_interval, auto_revert_lockout_interval, auto_revert_stop_on_user_input, &
@@ -74,7 +75,8 @@ contains
                     new_unittest("auto-revert-test03-auto-revert-tail-mode", test03_tail_mode), &
                     new_unittest("auto-revert-test05-global-notify", test05_global_notify), &
                     new_unittest("auto-revert-test06-write-file", test06_write_file), &
-                    new_unittest("auto-revert-test08-auto-revert-inhibit-auto-revert", test08_inhibit) &
+                    new_unittest("auto-revert-test08-auto-revert-inhibit-auto-revert", test08_inhibit), &
+                    new_unittest("auto-revert-mode-permanent-local", test_permanent_local) &
                     ]
     end subroutine collect_autorevert_mod
 
@@ -501,4 +503,23 @@ contains
         call close_and_delete(buffer, tmpfile)
         call finish()
     end subroutine test08_inhibit
+
+    !> `auto_revert_mode' is permanently local: killing the local
+    !> variables (a major mode change) leaves it on.  Not a port.
+    subroutine test_permanent_local(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: buffer, saved
+        type(status_type) :: st
+
+        call initialize_bindings()
+        saved = current_buffer()
+        call get_or_make_buffer(" *auto-revert-permanent*", buffer, st)
+        call set_buffer(buffer, st)
+        call minor_modes%auto_revert_mode%enable(st)
+        call clear_all_local_variables()
+        call check(error, minor_modes%auto_revert_mode%enabled(), "kept")
+        call minor_modes%auto_revert_mode%disable(st)
+        call set_buffer(saved, st)
+        call close_buffer(buffer, st)
+    end subroutine test_permanent_local
 end module test_autorevert_mod
