@@ -75,7 +75,7 @@ module keyboard_macros_mod
     use register_mod, only: register_read_with_preview, get_register, set_register, register_contents_type, REGISTER_EMPTY, &
                             REGISTER_MARKER, REGISTER_TEXT, REGISTER_RECTANGLE, REGISTER_NUMBER, &
                             REGISTER_WINDOW_CONFIGURATION, REGISTER_FILE, REGISTER_FILE_QUERY, REGISTER_BUFFER
-    use editing_functions_mod, only: format_text, format_arguments_type
+    use editing_functions_mod, only: write_with_format
     use keyboard_macro_editor_mod, only: format_keyboard_macro
     use simple_mod, only: keyboard_macro_keyboard_quit_hook
     implicit none(type, external)
@@ -170,7 +170,8 @@ module keyboard_macros_mod
     !> kmacro.el kmacro-default-counter-format.
     character(len=:), allocatable, public :: keyboard_macro_default_counter_format
 
-    !> Current keyboard macro counter format.
+    !> Current keyboard macro counter format: a Fortran format with edit
+    !> descriptors that writes one integer, "(i0)" by default.
     !>
     !> Can be set directly via `keyboard_macro_set_format', which see.  Port of
     !> kmacro.el kmacro-counter-format.
@@ -230,11 +231,11 @@ contains
     ! The macro counter
     ! ------------------------------------------------------------------
 
-    !> Give the format variables their standard values ("%d") the first
+    !> Give the format variables their standard values ("(i0)") the first
     !> time.  Not a port.
     subroutine ensure_formats()
-        if (.not. allocated(keyboard_macro_default_counter_format)) keyboard_macro_default_counter_format = "%d"
-        if (.not. allocated(keyboard_macro_counter_format)) keyboard_macro_counter_format = "%d"
+        if (.not. allocated(keyboard_macro_default_counter_format)) keyboard_macro_default_counter_format = "(i0)"
+        if (.not. allocated(keyboard_macro_counter_format)) keyboard_macro_counter_format = "(i0)"
         if (.not. allocated(keyboard_macro_counter_format_start)) keyboard_macro_counter_format_start = &
             keyboard_macro_counter_format
     end subroutine ensure_formats
@@ -260,18 +261,15 @@ contains
         type(prefix_argument_type), intent(in) :: argument
         type(status_type), intent(out) :: status
         character(len=:), allocatable :: text
-        type(format_arguments_type) :: arguments
 
         call ensure_formats()
         call take_initial_counter_value()
 
         if (argument%kind == PREFIX_RAW) then
-            call arguments%append(keyboard_macro_last_counter)
-            call format_text(keyboard_macro_counter_format, arguments, text, status)
+            call write_with_format(keyboard_macro_counter_format, keyboard_macro_last_counter, text, status)
             if (status%ok()) call insert(text, status)
         else
-            call arguments%append(keyboard_macro_counter)
-            call format_text(keyboard_macro_counter_format, arguments, text, status)
+            call write_with_format(keyboard_macro_counter_format, keyboard_macro_counter, text, status)
             if (status%ok()) call insert(text, status)
             if (status%ok()) call keyboard_macro_add_counter(prefix_numeric_value(argument), status)
         end if
@@ -279,10 +277,10 @@ contains
 
     !> Set the format of `keyboard_macro_counter' to FORMAT.
     !>
-    !> The default format is "%d", which means to insert the number in
-    !> decimal without any padding.  You can specify any format string
-    !> that the `format_text' function accepts and that makes sense with a
-    !> single integer extra argument.
+    !> The default format is "(i0)", which means to insert the number in
+    !> decimal without any padding.  You can specify any Fortran format
+    !> with edit descriptors that writes one integer: "(i3.3)" pads it
+    !> with zeros to three digits, "(z0)" writes it in hexadecimal.
     !>
     !> If you run this command while no keyboard macro is being defined,
     !> the new format affects all subsequent macro definitions.
@@ -298,7 +296,7 @@ contains
         call ensure_formats()
 
         if (len(format) == 0) then
-            keyboard_macro_counter_format = "%d"
+            keyboard_macro_counter_format = "(i0)"
         else
             keyboard_macro_counter_format = format
         end if
@@ -317,13 +315,11 @@ contains
         character(len=:), allocatable :: text
         character(len=24) :: value_text
         integer(int64) :: v
-        type(format_arguments_type) :: arguments
 
         call ensure_formats()
         v = keyboard_macro_counter
         if (present(value)) v = value
-        call arguments%append(v)
-        call format_text(keyboard_macro_counter_format, arguments, text, status)
+        call write_with_format(keyboard_macro_counter_format, v, text, status)
         write (value_text, '(" (", i0, ")")') v
         if (status%ok()) call message("New macro counter value: "//text//trim(value_text))
     end subroutine keyboard_macro_display_counter
@@ -535,7 +531,7 @@ contains
 
     !> Create a `keyboard_macro_type' for macro bound to name or key.
     !> KEYS is an array of events; COUNTER defaults to 0 and FORMAT to
-    !> "%d".  Port of kmacro.el:kmacro (KEYS a vector).
+    !> "(i0)".  Port of kmacro.el:kmacro (KEYS a vector).
     function keyboard_macro(keys, counter, format) result(m)
         type(value_type), intent(in) :: keys(:)
         integer(int64), intent(in), optional :: counter
@@ -545,7 +541,7 @@ contains
         m%keys = keys
         m%counter = 0
         if (present(counter)) m%counter = counter
-        m%format = "%d"
+        m%format = "(i0)"
         if (present(format)) m%format = format
         last_keyboard_macro_id = last_keyboard_macro_id + 1
         m%id = last_keyboard_macro_id
@@ -703,7 +699,7 @@ contains
                 ! (kmacro-split-ring-element nil) sets the head to nil.
                 if (allocated(last_keyboard_macro)) deallocate (last_keyboard_macro)
                 keyboard_macro_counter = 0
-                keyboard_macro_counter_format_start = "%d"
+                keyboard_macro_counter_format_start = "(i0)"
             end if
 
             return
@@ -761,7 +757,6 @@ contains
         character(len=:), allocatable :: m, d, counter_part
         integer, parameter :: x = 60
         logical :: z
-        type(format_arguments_type) :: arguments
 
         status = status_type()
         call ensure_formats()
@@ -775,8 +770,7 @@ contains
             counter_part = ""
 
             if (keyboard_macro_counter /= 0) then
-                call arguments%append(keyboard_macro_counter)
-                call format_text(keyboard_macro_counter_format_start, arguments, counter_part, status)
+                call write_with_format(keyboard_macro_counter_format_start, keyboard_macro_counter, counter_part, status)
                 if (.not. status%ok()) return
                 counter_part = " ["//counter_part//"]"
             end if
@@ -1656,10 +1650,10 @@ contains
 
     !> Set the format of `keyboard_macro_counter' to FORMAT.
     !>
-    !> The default format is "%d", which means to insert the number in
-    !> decimal without any padding.  You can specify any format string
-    !> that the `format_text' function accepts and that makes sense with a
-    !> single integer extra argument.
+    !> The default format is "(i0)", which means to insert the number in
+    !> decimal without any padding.  You can specify any Fortran format
+    !> with edit descriptors that writes one integer: "(i3.3)" pads it
+    !> with zeros to three digits, "(z0)" writes it in hexadecimal.
     !>
     !> If you run this command while no keyboard macro is being defined,
     !> the new format affects all subsequent macro definitions.

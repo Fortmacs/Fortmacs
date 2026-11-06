@@ -74,6 +74,7 @@ contains
                     new_unittest("kmacro-tests-test-insert-counter-03-list", test_insert_counter_03), &
                     new_unittest("kmacro-tests-test-insert-counter-04-neg", test_insert_counter_04), &
                     new_unittest("kmacro-tests-test-start-format-counter", test_start_format_counter), &
+                    new_unittest("fortran-counter-format", test_fortran_counter_format), &
                     new_unittest("kmacro-tests-test-start-macro-when-defining-macro", test_start_when_defining), &
                     new_unittest("kmacro-tests-set-macro-counter-while-defining", test_counter_while_defining), &
                     new_unittest("kmacro-tests-start-insert-counter-appends-to-macro", test_appends_to_macro), &
@@ -126,9 +127,9 @@ contains
         if (allocated(last_keyboard_macro)) deallocate (last_keyboard_macro)
         if (allocated(keyboard_macro_ring)) deallocate (keyboard_macro_ring)
         keyboard_macro_counter = 0
-        keyboard_macro_default_counter_format = "%d"
-        keyboard_macro_counter_format = "%d"
-        keyboard_macro_counter_format_start = "%d"
+        keyboard_macro_default_counter_format = "(i0)"
+        keyboard_macro_counter_format = "(i0)"
+        keyboard_macro_counter_format_start = "(i0)"
         keyboard_macro_counter_value_start = 0
         keyboard_macro_last_counter = 0
         if (allocated(keyboard_macro_initial_counter_value)) deallocate (keyboard_macro_initial_counter_value)
@@ -314,12 +315,34 @@ contains
         call set_counter(10_int64)
         call insert_counter(prefix_argument_type())
         call insert_counter(prefix_argument_type())
-        call keyboard_macro_set_format("c=%s")
+        call keyboard_macro_set_format('("c=", i0)')
         call set_counter(50_int64)
         call insert_counter(prefix_argument_type())
         call check(error, text(), "1011c=50")
         call close_buffer(h, st)
     end subroutine test_start_format_counter
+
+    !> The counter format is a Fortran format: a padded one keeps its
+    !> blanks, and a malformed one (an Emacs %-format) is an error that
+    !> inserts nothing.  Not a port.
+    subroutine test_fortran_counter_format(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(handle_type) :: h
+        type(status_type) :: st
+
+        call fresh(h)
+        call set_counter(7_int64)
+        call keyboard_macro_set_format("(i3.3, 1x)")
+        call insert_counter(prefix_argument_type())
+        call check(error, text(), "007 ")
+        if (allocated(error)) return
+        call keyboard_macro_set_format("%d")
+        call keyboard_macro_insert_counter(prefix_argument_type(), st)
+        call check(error, format_error(st), "Invalid format string: %d")
+        if (allocated(error)) return
+        call check(error, text(), "007 ")
+        call close_buffer(h, st)
+    end subroutine test_fortran_counter_format
 
     !> Starting a macro while defining a macro does not start a second macro.
     subroutine test_start_when_defining(error)
@@ -606,7 +629,7 @@ contains
         call check(error, last_message, "Only one keyboard macro defined.")
         if (allocated(error)) return
         ! Record another one, with format.
-        call keyboard_macro_set_format("=%d=")
+        call keyboard_macro_set_format('("=", i0, "=")')
         call define_macro(chars("bar"))
         ! Execute the first one; should get default format.
         call keyboard_macro_execute_ring_2nd(prefix_argument_type(), st)

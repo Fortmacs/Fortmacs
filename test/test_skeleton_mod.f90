@@ -175,7 +175,7 @@ contains
 
         call temporary_buffer("")
         call keyboard_store_bytes("a"//CR//"b"//CR//CR)
-        call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("("), skeleton_prompt("item, %s: "), &
+        call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("("), skeleton_prompt(format='("item, ", a, ": ")'), &
                               skeleton_text("["), SKELETON_STRING, skeleton_text("]"), SKELETON_END, skeleton_text(")")], st)
         call check(error, st%ok(), format_error(st))
         if (allocated(error)) return
@@ -189,7 +189,7 @@ contains
 
         call temporary_buffer("")
         call keyboard_store_bytes("a"//CR//achar(7))
-        call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("("), skeleton_prompt("item, %s: "), &
+        call skeleton_insert([SKELETON_NO_INTERACTOR, skeleton_text("("), skeleton_prompt(format='("item, ", a, ": ")'), &
                               skeleton_text("["), SKELETON_STRING, skeleton_text("]"), SKELETON_END, skeleton_text("x"), &
                               SKELETON_RESUME, skeleton_text(")")], st)
         call check(error, st%code == QUIT_CODE, "the quit is passed on")

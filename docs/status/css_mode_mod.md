@@ -17,7 +17,7 @@ the color parsers (`css--rgb-color`, `css--hsl-color`, `css--hex-color`, `css--h
 `css-adaptive-fill`,
 `css-current-defun-name` (with `css--prev-index-position`, `css--extract-index-name`, `css--join-nested-selectors`; CSS mode's `add-log-current-defun-function`),
 `css--mdn-find-symbol`,
-`css-lookup-url-format`;
+`css-lookup-url-format` (a Fortran format with one `a` edit descriptor, owner, 2026-11-06);
 auto-mode-alist entries;
 Imenu (`css--prev-index-position` and `css--extract-index-name` as the buffer's functions, `imenu-space-replacement` " ") (step 49c),
 `css-class-list-function` and `css-id-list-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
