@@ -1,0 +1,1 @@
+2026-11-06 — README: "Why Fortran?" is a bulleted list like the other lists, and gets back the point that Fortran is a fully-fledged, general-purpose language while Elisp exists only inside GNU Emacs (`readme-language-of-its-own`, owner).
