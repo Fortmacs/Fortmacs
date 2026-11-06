@@ -137,8 +137,9 @@ names, help and internals are Fortran-first.
     - `make_directory`→`create_directory` <!-- fortran-names: keep -->
   - Arrays grow with append and prepend:
     - `add_auto_mode`→`prepend_auto_mode` <!-- fortran-names: keep -->
-  - Predicates are `is_*`:
+  - Predicates are `is_*` or `has_*`:
     - `process_live_p`→`is_process_live` <!-- fortran-names: keep -->
+    - `diff_some_hunks_p`→`has_diff_hunks` <!-- fortran-names: keep -->
   - Other helpers use one word each: get, not fetch; make, not new.
   - Where Emacs gives two words two behaviors, both stay: cut saves to
     the clipboard history, delete does not; read prompts, get looks up.
