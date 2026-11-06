@@ -48,7 +48,7 @@ submodule(window_mod) window_display_mod
     use handle_mod, only: has_handle
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: set_error, format_message, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
+    use error_mod, only: set_error, substitute_quotes, GENERIC_ERROR_CODE, USER_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use buffer_mod, only: current, current_buffer, set_buffer, is_buffer_live, record_buffer, bury_buffer_internal, &
                           frame_buffer_list, get_buffer, get_or_make_buffer, close_buffer, &
                           set_buffer_read_only, restore_buffer_modified, replace_buffer_in_windows_hook, &
@@ -313,8 +313,8 @@ contains
                 if (.not. same_handle(w%buffer, buffer)) then
                     if (w%dedicated == DEDICATED_STRONG) then
                         ! WINDOW is strongly dedicated to its buffer.
-                        call set_error(status, GENERIC_ERROR_CODE, format_message("Window is dedicated to `")// &
-                                       buffer_name_of(w%buffer)//format_message("'"))
+                        call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Window is dedicated to `")// &
+                                       buffer_name_of(w%buffer)//substitute_quotes("'"))
                         return
                     end if
 

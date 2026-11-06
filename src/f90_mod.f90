@@ -41,7 +41,7 @@ module f90_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use character_mod, only: downcase_ascii
     use execute_interactively_mod, only: PREFIX_NONE
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_procedure, vtag, V_INTEGER
     use data_mod, only: integer_setting_type, logical_setting_type, string_setting_type, forward_setting, &
@@ -2255,16 +2255,16 @@ contains
                         start_blocks = start_blocks(2:)
 
                         if (.not. f90_equal_names(start_this%kind, end_type)) then
-                            call set_error(status, GENERIC_ERROR_CODE, format_message("End type `"//or_false(end_type)// &
-                                                                                      "' does not match start type `"// &
-                                                                                      or_false(start_this%kind)//"'"))
+                            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("End type `"//or_false(end_type)// &
+                                                                                         "' does not match start type `"// &
+                                                                                         or_false(start_this%kind)//"'"))
                             exit
                         end if
 
                         if (.not. f90_equal_names(start_this%name, end_label)) then
-                            call set_error(status, GENERIC_ERROR_CODE, format_message("End label `"//or_false(end_label)// &
-                                                                                      "' does not match start label `"// &
-                                                                                      or_false(start_this%name)//"'"))
+                            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("End label `"//or_false(end_label)// &
+                                                                                         "' does not match start label `"// &
+                                                                                         or_false(start_this%name)//"'"))
                             exit
                         end if
                     end if
@@ -2359,18 +2359,18 @@ contains
                         end_blocks = end_blocks(2:)
 
                         if (.not. f90_equal_names(start_this%kind, end_this%kind)) then
-                            call set_error(status, GENERIC_ERROR_CODE, format_message("Start type `"// &
-                                                                                      or_false(start_this%kind)// &
-                                                                                      "' does not match end type `"// &
-                                                                                      or_false(end_this%kind)//"'"))
+                            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Start type `"// &
+                                                                                         or_false(start_this%kind)// &
+                                                                                         "' does not match end type `"// &
+                                                                                         or_false(end_this%kind)//"'"))
                             exit
                         end if
 
                         if (.not. f90_equal_names(start_this%name, end_this%name)) then
-                            call set_error(status, GENERIC_ERROR_CODE, format_message("Start label `"// &
-                                                                                      or_false(start_this%name)// &
-                                                                                      "' does not match end label `"// &
-                                                                                      or_false(end_this%name)//"'"))
+                            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Start label `"// &
+                                                                                         or_false(start_this%name)// &
+                                                                                         "' does not match end label `"// &
+                                                                                         or_false(end_this%name)//"'"))
                             exit
                         end if
                     end if

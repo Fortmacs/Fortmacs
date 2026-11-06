@@ -71,8 +71,8 @@ module buffer_menu_mod
     use replace_mod, only: multi_occur, occur_read_primary_arguments
     use keymap_mod, only: keymap_set
     use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_description_type, tabulated_list_entry_type, &
-                                  set_tabulated_list_format, set_tabulated_list_entries, &
-                                  set_tabulated_list_use_header_line, tabulated_list_get_id, tabulated_list_get_entry, &
+                                  tabulated_list_format, tabulated_list_entries, &
+                                  tabulated_list_use_header_line, tabulated_list_get_id, tabulated_list_get_entry, &
                                   tabulated_list_set_column, tabulated_list_delete_entry, tabulated_list_print, &
                                   tabulated_list_print_entry, tabulated_list_initialize_header, tabulated_list_revert_hook
     use faces_mod, only: named_face_type, display_when, face_attributes
@@ -1343,9 +1343,9 @@ contains
         format(5)%right_align = .true.
         format(6) = column("Mode", buffer_menu_mode_width, 1)
         format(7) = column("File", 1, 1)
-        call set_tabulated_list_format(format)
-        call set_tabulated_list_use_header_line(buffer_menu_use_header_line)
-        call set_tabulated_list_entries(entries(1:n))
+        call tabulated_list_format%set_local(format)
+        call tabulated_list_use_header_line%set_local(buffer_menu_use_header_line)
+        call tabulated_list_entries%set_local(entries(1:n))
         call tabulated_list_initialize_header()
     end subroutine list_buffers_refresh
 

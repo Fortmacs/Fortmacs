@@ -42,7 +42,6 @@ module autorevert_mod
     use handle_mod, only: handle_type, null_handle, has_handle
     use value_mod, only: value_type
     use data_mod, only: logical_setting_type, forward_setting, append_locals_clearer, set, symbol_value
-    use utility_functions_mod, only: put
     use hooks_mod, only: hook_type
     use commands_mod, only: commands
     use modes_mod, only: minor_modes
@@ -1490,8 +1489,6 @@ contains
 
     !> Define the Auto-Revert modes, hooks and commands.  Not a port.
     subroutine initialize_autorevert()
-        type(status_type) :: st
-
         if (.not. allocated(auto_revert_mode_text)) auto_revert_mode_text = " ARev"
         if (.not. allocated(auto_revert_tail_mode_text)) auto_revert_tail_mode_text = " Tail"
         if (.not. allocated(global_auto_revert_mode_text)) global_auto_revert_mode_text = ""
@@ -1517,8 +1514,8 @@ contains
                                                         body=global_auto_revert_mode_body)
         ! (put 'auto-revert-mode 'permanent-local t), and the same for
         ! auto-revert-tail-mode.
-        call put(value_type(name="auto_revert_mode"), value_type(name="permanent_local"), value_type(.true.), st)
-        call put(value_type(name="auto_revert_tail_mode"), value_type(name="permanent_local"), value_type(.true.), st)
+        minor_modes%auto_revert_mode%state%permanent_local = .true.
+        minor_modes%auto_revert_tail_mode%state%permanent_local = .true.
         call append_locals_clearer(clear_autorevert_locals)
         call find_file_hook%prepend(auto_revert_find_file_function)
         call after_set_visited_file_name_hook%prepend(auto_revert_set_visited_file_name)

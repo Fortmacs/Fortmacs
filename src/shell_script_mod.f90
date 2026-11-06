@@ -112,7 +112,7 @@ module shell_script_mod
     use files_mod, only: locate_file_completion_table
     use expression_motion_mod, only: subprogram_prompt_regular_expression
     use basic_subprograms_mod, only: read_y_or_n
-    use abbreviation_mod, only: abbreviation_table_type, abbreviation_table_set_local
+    use abbreviation_mod, only: abbreviation_table_type, local_abbreviation_table
     use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use file_input_output_mod, only: file_name_nondirectory
@@ -3562,7 +3562,7 @@ contains
         call paragraph_separate%set_local(paragraph_start%value//"\|#!/")
         call comment_start%set_local("# ")
         call comment_start_skip%set_local("#+["//TAB//" ]*")
-        call abbreviation_table_set_local(shell_script_mode_abbreviation_table)
+        call local_abbreviation_table%set_local(shell_script_mode_abbreviation_table)
         ! (setq-local comint-dynamic-complete-functions
         ! sh-dynamic-complete-functions)
         functions = shell_script_dynamic_complete_functions%functions()
@@ -5545,14 +5545,17 @@ contains
         ! sh-case
         call shell_case_skeletons%append("csh", [skeleton_prompt("expression: "), text("switch( "), S, text(" )"), N, I, &
                                                  text("case "), pattern, text(":"), N, I, P, N, text("breaksw"), N, &
-                                              skeleton_prompt("other pattern, %s: "), lt, text("case "), S, text(":"), N, I, P, N, &
+                                                 skeleton_prompt(format='("other pattern, ", a, ": ")'), lt, text("case "), S, &
+                                                 text(":"), N, I, P, N, &
                                               text("breaksw"), N, E, lt, text("default:"), N, I, P, N, R, lt, lt, text("endsw"), N])
         call shell_case_skeletons%append("es", empty)
         call shell_case_skeletons%append("rc", [skeleton_prompt("expression: "), I, text("switch( "), S, text(" ) {"), N, I, &
-                                                text("case "), pattern, N, I, P, N, skeleton_prompt("other pattern, %s: "), &
+                                                text("case "), pattern, N, I, P, N, &
+                                                skeleton_prompt(format='("other pattern, ", a, ": ")'), &
                                              text("case "), S, I, N, I, P, N, E, text("case *"), I, N, I, P, N, R, text("}"), I, N])
         call shell_case_skeletons%append("sh", [skeleton_prompt("expression: "), I, text("case "), S, text(" in"), N, &
-                                                skeleton_prompt("pattern, %s: "), I, S, ncp, N, I, P, N, text(";;"), N, E, I, &
+                                                skeleton_prompt(format='("pattern, ", a, ": ")'), I, S, ncp, N, I, P, N, &
+                                                text(";;"), N, E, I, &
                                                 text("*"), ncp, N, I, P, N, R, text("esac"), I, N])
         ! sh-for
         shell_name = [skeleton_prompt("Index variable: "), I, text("for "), S, text(" in "), P, text("; do"), N, I, P, &
@@ -5593,16 +5596,19 @@ contains
         call shell_function_skeletons%append("sh", [SKELETON_NO_INTERACTOR, text("() {"), N, I, P, N, lt, text("}"), N])
         ! sh-if
         call shell_if_skeletons%append("csh", [skeleton_prompt("condition: "), text("if( "), S, text(" ) then"), N, I, P, N, &
-                                               skeleton_prompt("other condition, %s: "), lt, text("else if( "), S, &
+                                               skeleton_prompt(format='("other condition, ", a, ": ")'), lt, text("else if( "), S, &
                                              text(" ) then"), N, I, P, N, E, lt, text("else"), N, I, P, N, R, lt, text("endif"), N])
         call shell_if_skeletons%append("es", [skeleton_prompt("condition: "), I, text("if { "), S, text(" } {"), N, I, P, N, &
-                                              skeleton_prompt("other condition, %s: "), text("} { "), S, text(" } {"), I, N, I, P, &
+                                              skeleton_prompt(format='("other condition, ", a, ": ")'), text("} { "), S, &
+                                              text(" } {"), I, N, I, P, &
                                               N, E, text("} {"), I, N, I, P, N, R, text("}"), I, N])
         call shell_if_skeletons%append("rc", [skeleton_prompt("condition: "), I, text("if( "), S, text(" ) {"), N, I, P, N, &
-                                             skeleton_prompt("other condition, %s: "), text("} else if( "), S, text(" ) {"), I, N, &
+                                              skeleton_prompt(format='("other condition, ", a, ": ")'), text("} else if( "), S, &
+                                              text(" ) {"), I, N, &
                                               I, P, N, E, text("} else {"), I, N, I, P, N, R, text("}"), I, N])
         call shell_if_skeletons%append("sh", [skeleton_prompt("condition: "), test_input, I, text("if "), S, text("; then"), N, &
-                                              I, P, N, skeleton_prompt("other condition, %s: "), I, text("elif "), S, &
+                                              I, P, N, skeleton_prompt(format='("other condition, ", a, ": ")'), I, &
+                                              text("elif "), S, &
                                               text("; then"), I, N, I, N, E, text("else"), I, N, I, N, R, text("fi"), I, N])
         ! sh-repeat
         call shell_repeat_skeletons%append("es", [SKELETON_NO_INTERACTOR, I, text("forever {"), N, I, P, N, text("}"), I, N])
@@ -5661,7 +5667,7 @@ contains
         call shell_while_getopts_skeletons%append("bash", shell_modify(shell_name, [18], [text("${0##*/}")]))
         call shell_while_getopts_skeletons%append("csh", [SKELETON_NO_INTERACTOR, text("while( 1 )"), N, I, &
                                                           text('switch( "$1" )'), N, skeleton_action(csh_option_input_action), I, &
-                                                          I, skeleton_prompt("option, %s: "), lt, text("case "), &
+                                                          I, skeleton_prompt(format='("option, ", a, ": ")'), lt, text("case "), &
                                                           skeleton_action(read_string_action), &
                                                           skeleton_action(csh_option_split_action), S, text(":"), N, I, &
                                                           text("set "), SKELETON_V1, SKELETON_IF_MOVED, text(" = $2"), &

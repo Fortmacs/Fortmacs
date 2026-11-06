@@ -9,11 +9,11 @@ back to, as in Guix.
 **Progress:** early porting. Fortmacs runs as a bare-bones terminal editor; most of Emacs is still
 missing. See [PORTING.md](PORTING.md) for the roadmap and what works so far.
 
-**Time on the project:** 2 weeks, 2 days, 13 hours, 11 minutes.
+**Time on the project:** 2 weeks, 2 days, 20 hours, 42 minutes.
 
 <picture>
 <source media="(prefers-color-scheme: dark)" srcset="docs/progress/pie-dark.svg">
-<img src="docs/progress/pie.svg" width="875" height="236" alt="Ported: ≈10.02% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 230,414 of the about 10,392,596 lines of Emacs and its packages translated">
+<img src="docs/progress/pie.svg" width="877" height="236" alt="Ported: ≈10.08% of Emacs's C functions and Elisp definitions and the packages in GNU ELPA, NonGNU ELPA and MELPA; about 230,838 of the about 10,392,596 lines of Emacs and its packages translated">
 </picture>
 <!-- progress:end -->
 
@@ -88,7 +88,7 @@ running. Each generation is kept with the `init.f90` it was built from in
   editor at all. Elisp exists only inside GNU Emacs.
 - **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
   ending where parentheses balance.
-  [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).
+  [Compare the two side by side](https://end-program.github.io/Fortmacs/syntax.html).
   That's a preference, not a verdict on Elisp.
 - **Help that speaks Fortran.** Emacs is at its best as an environment for
   the language it's written in: it documents every function and variable,
@@ -109,22 +109,25 @@ names, help and internals are Fortran-first.
     - `fill-column`→`fill_column` <!-- fortran-names: keep -->
     - `text-mode-hook`→`text_mode_hook` <!-- fortran-names: keep -->
   - Lisp terms take Fortran names:
-    - defun→subprogram <!-- fortran-names: keep -->
-    - sexp→expression <!-- fortran-names: keep -->
-    - alist→table <!-- fortran-names: keep -->
+    - `defun`→`subprogram` <!-- fortran-names: keep -->
+    - `sexp`→`expression` <!-- fortran-names: keep -->
+    - `alist`→`table` <!-- fortran-names: keep -->
 - **The same keys and mode line.** Keys and the text the mode line shows
   are unchanged; mode-line formats are written in Fortran, never with
   Emacs's %-constructs.
-- **One word per meaning.** Emacs's names grew over forty years, so the
-  same idea is spelled several ways; since everything is being rewritten
-  anyway, Fortmacs unifies the wording. PORTING.md, "One word per
-  meaning", has the full list.
+- **Names that read like plain English.** A name says what you want done,
+  verb first, in everyday words, with one word for each idea: `close_buffer`,
+  `cut_region`, `execute_with_timer`. Emacs's names grew over forty years,
+  so the same idea is spelled several ways; Fortmacs picks one: get, not
+  fetch; make, not new. Where Emacs's two words mean two behaviors, both
+  stay: cut saves to the clipboard history, delete does not; read prompts,
+  get looks up. PORTING.md, "One word per meaning", has the full list.
   - Running anything is `execute`:
     - `call_interactively`→`execute_interactively` <!-- fortran-names: keep -->
     - `run_mode_hooks`→`execute_mode_hooks` <!-- fortran-names: keep -->
     - `run_with_timer`→`execute_with_timer` <!-- fortran-names: keep -->
   - Text is cut, copied and pasted, and the copies are kept in the
-    clipboard history (C-w, M-w and C-y stay):
+    clipboard history:
     - `kill_region`→`cut_region` <!-- fortran-names: keep -->
     - `kill_ring_save`→`copy_region` <!-- fortran-names: keep -->
     - `yank`→`paste` <!-- fortran-names: keep -->
@@ -137,11 +140,9 @@ names, help and internals are Fortran-first.
     - `make_directory`→`create_directory` <!-- fortran-names: keep -->
   - Arrays grow with append and prepend:
     - `add_auto_mode`→`prepend_auto_mode` <!-- fortran-names: keep -->
-  - Predicates are `is_*`:
+  - Predicates are `is_*` or `has_*`:
     - `process_live_p`→`is_process_live` <!-- fortran-names: keep -->
-  - Other helpers use one word each: get, not fetch; make, not new.
-  - Where Emacs gives two words two behaviors, both stay: cut saves to
-    the clipboard history, delete does not; read prompts, get looks up.
+    - `diff_some_hunks_p`→`has_diff_hunks` <!-- fortran-names: keep -->
 - **Fortran in help.** Help shows Fortran values (`.true.`, `8`,
   `"text"`, named constants) and names the Fortran file a definition
   lives in.

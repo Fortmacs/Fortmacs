@@ -27,7 +27,7 @@ submodule(abbreviation_mod) abbreviation_commands_mod
     use utility_functions_mod, only: count_characters, is_string_less
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: set_error, format_message, GENERIC_ERROR_CODE
+    use error_mod, only: set_error, substitute_quotes, GENERIC_ERROR_CODE
     use data_mod, only: append_locals_clearer, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, set_buffer, get_or_make_buffer, erase_buffer, close_buffer, &
                           restore_buffer_modified, generate_new_buffer_name
@@ -61,16 +61,6 @@ submodule(abbreviation_mod) abbreviation_commands_mod
     use display_engine_mod, only: message
     use modes_mod, only: major_modes, minor_modes
     implicit none(type, external)
-
-    !> The local abbrev table of a buffer slot (`serial' tells buffers
-    !> apart), when it has its own.
-    type :: local_table_type
-        integer(int64) :: serial = 0
-        type(abbreviation_table_type), pointer :: table => null()
-    end type local_table_type
-
-    !> Buffers' local abbrev tables, by buffer slot.
-    type(local_table_type), allocatable :: local_tables(:)
 
     character(len=*), parameter :: LF = achar(10)
 
@@ -379,41 +369,38 @@ contains
     ! Local tables (buffer.c's BVAR abbreviation_table)
     ! ------------------------------------------------------------------
 
-    module procedure local_abbreviation_table
-    table => fundamental_mode_abbreviation_table
-    if (current == 0) return
-    if (.not. allocated(local_tables)) return
-    if (current > size(local_tables, kind=int64)) return
-    if (local_tables(current)%serial /= buffers(current)%serial) return
-    if (associated(local_tables(current)%table)) table => local_tables(current)%table
-    end procedure local_abbreviation_table
+    module procedure set_local_abbreviation_table_local
+    integer :: k
 
-    module procedure abbreviation_table_set_local
-    type(local_table_type), allocatable :: grown(:)
+    call self%make_local_entry(k)
+    if (k > 0) self%locals(k)%table => table
+    end procedure set_local_abbreviation_table_local
 
-    if (current == 0) return
-    if (.not. allocated(local_tables)) allocate (local_tables(max(16_int64, current)))
+    module procedure get_local_abbreviation_table_current
+    integer :: k
 
-    if (current > size(local_tables, kind=int64)) then
-        allocate (grown(max(2*size(local_tables, kind=int64), current)))
-        grown(1:size(local_tables)) = local_tables
-        call move_alloc(grown, local_tables)
-    end if
+    table => self%table
+    k = self%get_local_index()
+    if (k > 0) table => self%locals(k)%table
+    if (.not. associated(table)) table => fundamental_mode_abbreviation_table
+    end procedure get_local_abbreviation_table_current
 
-    local_tables(current)%serial = buffers(current)%serial
-    local_tables(current)%table => table
-    end procedure abbreviation_table_set_local
+    module procedure append_local_abbreviation_table_entry
+    type(local_abbreviation_table_entry_type) :: entry
 
-    !> Forget the current buffer's local abbrev table, as
-    !> kill-all-local-variables resets BVAR abbreviation_table to its default.
-    !> Not a port.
-    subroutine abbreviation_table_clear_local()
-        if (current == 0) return
-        if (.not. allocated(local_tables)) return
-        if (current > size(local_tables, kind=int64)) return
-        local_tables(current)%serial = 0
-        local_tables(current)%table => null()
-    end subroutine abbreviation_table_clear_local
+    if (.not. allocated(self%locals)) allocate (self%locals(0))
+    self%locals = [self%locals, entry]
+    end procedure append_local_abbreviation_table_entry
+
+    module procedure clear_local_abbreviation_table_entry
+    self%locals(k)%table => null()
+    end procedure clear_local_abbreviation_table_entry
+
+    ! kill-all-local-variables: the current buffer uses the global
+    ! `local_abbreviation_table' again.  Not a port.
+    subroutine clear_abbreviation_locals()
+        call local_abbreviation_table%clear_local()
+    end subroutine clear_abbreviation_locals
 
     module procedure abbreviation_no_self_insert
     integer :: k
@@ -448,7 +435,7 @@ contains
         end if
 
         allocate (tables(2))
-        tables(1)%p => local_abbreviation_table()
+        tables(1)%p => local_abbreviation_table%get_current()
         tables(2)%p => global_abbreviation_table
     end subroutine active_tables
 
@@ -1029,7 +1016,7 @@ contains
     call ensure_tables()
     only_local = .false.
     if (present(local)) only_local = local
-    local_table => local_abbreviation_table()
+    local_table => local_abbreviation_table%get_current()
     old = current_buffer()
     call get_or_make_buffer("*Abbrevs*", buffer, status)
     if (.not. status%ok()) return
@@ -1085,7 +1072,7 @@ contains
     type(status_type) :: st
     type(abbreviation_table_type), pointer :: local_table
 
-    local_table => local_abbreviation_table()
+    local_table => local_abbreviation_table%get_current()
     local_name = abbreviation_table_name(local_table)
     call prepare_abbreviation_list_buffer(buffer, status)
     if (.not. status%ok()) return
@@ -1207,7 +1194,7 @@ contains
             call search_forward("end subroutine configure", found, st, noerror=SEARCH_NOERROR)
 
             if (found == 0) then
-                call set_error(status, GENERIC_ERROR_CODE, format_message("No `end subroutine configure' in ")//target_file)
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("No `end subroutine configure' in ")//target_file)
             else
                 call goto_character(line_beginning_position())
             end if
@@ -1282,7 +1269,7 @@ contains
         if (only_global_abbreviations) then
             table => global_abbreviation_table
         else
-            table => local_abbreviation_table()
+            table => local_abbreviation_table%get_current()
         end if
     end function mode_table
 
@@ -1441,7 +1428,7 @@ contains
         if (allocated(exp)) then
             deallocate (exp)
             yes = .true.
-            if (query) call read_y_or_n(format_message("Expand `")//string//format_message("'? "), yes, status)
+            if (query) call read_y_or_n(substitute_quotes("Expand `")//string//substitute_quotes("'? "), yes, status)
             if (.not. status%ok()) exit
             if (yes) call expand_abbreviation(status)
             if (.not. status%ok()) exit
@@ -1531,7 +1518,7 @@ contains
     module procedure define_mode_abbreviation
     type(abbreviation_table_type), pointer :: table
 
-    table => local_abbreviation_table()
+    table => local_abbreviation_table%get_current()
 
     if (.not. associated(table)) then
         call set_error(status, GENERIC_ERROR_CODE, "Major mode has no abbrev table")
@@ -1695,7 +1682,7 @@ contains
     commands%define_mode_abbreviation%execute => execute_define_mode_abbreviation
     commands%expand_abbreviation%execute => execute_expand_abbreviation
     commands%unexpand_abbreviation%execute => execute_unexpand_abbreviation
-    call append_locals_clearer(abbreviation_table_clear_local)
+    call append_locals_clearer(clear_abbreviation_locals)
     call append_save_some_buffers_function(abbreviation_possibly_save)
     end procedure initialize_abbreviation
 end submodule abbreviation_commands_mod

@@ -7,7 +7,7 @@
 # tools/check.sh runs tools/fortran-prose.awk, which fails with
 # FILE:LINE on a rejected term in a `!>' docstring or in a message or
 # error string (the string literals of a line that calls set_error,
-# message, user_error, format_message or minibuffer_message), and
+# message, user_error, substitute_quotes or minibuffer_message), and
 # tools/test-fortran-prose.sh, which runs it on the fixture in
 # tools/fortran-prose-test.
 #

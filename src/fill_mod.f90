@@ -34,7 +34,7 @@ module fill_mod
     use utility_functions_mod, only: count_characters
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
-    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
+    use error_mod, only: substitute_quotes, status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, xfixnum, xstring, vtag, V_NULL, V_INTEGER, V_NAME, V_STRING
     use data_mod, only: value_eq, symbol_name, logical_setting_type, append_locals_clearer, choice_setting_type
@@ -1536,7 +1536,7 @@ contains
             e = end
         else
             if (argument == 0) then
-                call set_error(status, USER_ERROR_CODE, format_message("Invalid numeric argument to `unfill_paragraph'"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("Invalid numeric argument to `unfill_paragraph'"))
                 return
             end if
 

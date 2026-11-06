@@ -60,8 +60,8 @@ contains
         if (present(copy_contents)) contents = copy_contents
 
         if (is_file_in_directory(newname, directory)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot copy `")//directory// &
-                           format_message("' into its subdirectory `")//newname//format_message("'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Cannot copy `")//directory// &
+                           substitute_quotes("' into its subdirectory `")//newname//substitute_quotes("'"))
             return
         end if
 
@@ -312,7 +312,7 @@ contains
         case ("a")
             mask = int(o'7777', int32)
         case default
-            call set_error(status, GENERIC_ERROR_CODE, c//format_message(": Bad `who' character"))
+            call set_error(status, GENERIC_ERROR_CODE, c//substitute_quotes(": Bad `who' character"))
         end select
     end subroutine file_modes_character_to_who
 
@@ -452,8 +452,8 @@ contains
             end do
 
             if (.not. matched) then
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Parse error in modes near `")//rest// &
-                               format_message("'"))
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Parse error in modes near `")//rest// &
+                               substitute_quotes("'"))
                 return
             end if
 

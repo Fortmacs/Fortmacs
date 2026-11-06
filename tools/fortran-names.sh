@@ -19,14 +19,17 @@
 # You should have received a copy of the GNU General Public License
 # along with Fortmacs.  If not, see <https://www.gnu.org/licenses/>.
 
-# Usage: tools/fortran-names.sh [--table FILE-OR-DIRECTORY] [--merge] [PATH...]
+# Usage: tools/fortran-names.sh [--table FILE-OR-DIRECTORY] [--merge] [--check] [PATH...]
 #
 # Applies the table to each PATH (a file, or every file under a
 # directory), relative to the current directory; with no PATH, to the
-# repository's src, test, app and tools, docs/init.f90, docs/status,
-# fpm.toml, PORTING.md and README.md.  A file of an old name is renamed (with
-# `git mv' when git tracks it), then its contents are.  Citations and
-# other upstream names are kept (see the table's header).  Running it
+# repository's code: src, test, app and tools (their Markdown files
+# excepted), docs/init.f90 and fpm.toml.  Prose (PORTING.md, README.md,
+# docs/status, any Markdown) is never in the default: the renames would
+# mangle it (GUI, PT), so prose is renamed by hand, or by naming its
+# file as a PATH and reviewing the diff.  A file of an old name is
+# renamed (with `git mv' when git tracks it), then its contents are.
+# Citations and other upstream names are kept (see the table's header).  Running it
 # again changes nothing.  Afterwards run the generators (tools/gen-*.sh)
 # and tools/check.sh --fix: generated files and line lengths follow.
 # A Fortran line the renames push past 132 columns is reported as
@@ -38,6 +41,12 @@
 # With --merge (after merging a renamed branch with an unrenamed one, so a
 # file holds both an old name and its new one for the same entity), the
 # clash check is skipped.
+# With --check, nothing is changed: each file the run would rename or
+# change is listed ("would rename OLD -> NEW", "would change FILE (N
+# lines)"), and the exit status is 1 if there is one, 0 otherwise.  To
+# check, run `tools/fortran-names.sh --check' (or tools/check.sh, which
+# checks the Fortran files); never run the script bare to check: a bare
+# run rewrites the tree.
 #
 # Use it on this tree when the table gains an entry, on a branch written
 # before an entry (after merging main), and on code freshly ported from a
@@ -53,22 +62,34 @@ here=$(cd "$(dirname "$0")" && pwd)
 table=$here/fortran-names.d
 engine=$here/fortran-names.awk
 lib=$here/fortran-names-lib.awk
-if [ "${1:-}" = --table ]; then
-    table=$2
-    shift 2
-fi
 merge=false
-if [ "${1:-}" = --merge ]; then
-    merge=true
-    shift
-fi
+check=false
+while [ $# -gt 0 ]; do
+    case $1 in
+    --table)
+        table=$2
+        shift 2
+        ;;
+    --merge)
+        merge=true
+        shift
+        ;;
+    --check)
+        check=true
+        shift
+        ;;
+    *) break ;;
+    esac
+done
 
 if [ $# -eq 0 ]; then
     cd "$here/.."
-    set -- src test app tools docs/init.f90 docs/status fpm.toml PORTING.md README.md
+    set -- src test app tools docs/init.f90 fpm.toml
+    prose='\.md$'
 fi
 
-# The files under the PATHs, one per line, without the table's own.
+# The files under the PATHs, one per line, without the table's own (and,
+# for the default PATHs, without Markdown: prose is renamed by hand).
 list_files() {
     for p in "$@"; do
         if [ -d "$p" ]; then
@@ -80,7 +101,8 @@ list_files() {
             exit 1
         fi
     done | grep -v -e '/fortran-names\.d/' -e '/fortran-names\.awk$' -e '/fortran-names-lib\.awk$' -e '/fortran-names-clash\.awk$' -e '/fortran-names\.sh$' \
-        -e '/test-fortran-names\.sh$' -e '/fortran-names-test/' -e '\.\(svg\|png\|jpg\|ico\)$' || true
+        -e '/test-fortran-names\.sh$' -e '/fortran-names-test/' -e '/module-renames$' -e '/fortran-prose-test/' -e '\.\(svg\|png\|jpg\|ico\)$' \
+        -e "${prose:-^$}" || true
 }
 
 tmp=${TMPDIR:-/tmp}/fortran-names.$$
@@ -93,7 +115,10 @@ nclash=0
 
 while IFS= read -r f; do
     new=$(printf '%s\n' "$f" | awk -v mode=path -v table="$table" -f "$lib" -f "$engine" -)
-    if [ "$new" != "$f" ]; then
+    if [ "$new" != "$f" ] && $check; then
+        echo "would rename $f -> $new"
+        nrenamed=$((nrenamed + 1))
+    elif [ "$new" != "$f" ]; then
         if [ -e "$new" ]; then
             echo "fortran-names.sh: $f: $new exists; not renamed" >&2
             exit 1
@@ -112,6 +137,13 @@ while IFS= read -r f; do
         awk -v mode=apply -v table="$table" -f "$lib" -f "$engine" "$f" >"$tmp"
         if ! awk 'NR == FNR { a[NR] = $0; n = NR; next } a[FNR] != $0 { exit 1 } { m = FNR } END { exit m != n }' \
             "$f" "$tmp"; then
+            if $check; then
+                n=$(awk 'NR == FNR { a[FNR] = $0; n = FNR; next } a[FNR] != $0 { d++ } { m = FNR }
+                    END { if (m < n) d += n - m; print d + 0 }' "$f" "$tmp")
+                echo "would change $f ($n line(s))"
+                nchanged=$((nchanged + 1))
+                continue
+            fi
             # A new name that the file already has (an import renamed onto a
             # local procedure of that name): the file is left as it is.
             case $merge:$f in
@@ -142,6 +174,14 @@ while IFS= read -r f; do
     fi
 done <"$tmp.paths"
 
+if $check; then
+    echo "fortran-names.sh: $nrenamed file(s) would be renamed, $nchanged changed"
+    if [ $((nrenamed + nchanged)) -gt 0 ]; then
+        echo "fortran-names.sh: old names found; run tools/fortran-names.sh (PORTING.md, \"Fortran names for Lisp terms\")" >&2
+        exit 1
+    fi
+    exit 0
+fi
 echo "fortran-names.sh: $nrenamed file(s) renamed, $nchanged changed"
 if [ "$nclash" -gt 0 ]; then
     echo "fortran-names.sh: $nclash file(s) left as they were: a new name clashes; rename the local one first" >&2

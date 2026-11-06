@@ -101,7 +101,7 @@ contains
     call user_option_info(variable, kind, setting)
 
     if (kind == OPTION_NONE) then
-        call set_error(status, USER_ERROR_CODE, format_message("`"//variable//"' is not a user option"))
+        call set_error(status, USER_ERROR_CODE, substitute_quotes("`"//variable//"' is not a user option"))
         return
     end if
 
@@ -192,8 +192,8 @@ contains
     end select
 
     if (.not. ok) then
-        call set_error(status, USER_ERROR_CODE, format_message("Value `"//v//"' does not match type "//typename// &
-                                                               " of "//variable))
+        call set_error(status, USER_ERROR_CODE, substitute_quotes("Value `"//v//"' does not match type "//typename// &
+                                                                  " of "//variable))
         return
     end if
     end procedure set_variable
@@ -423,7 +423,7 @@ contains
     if (.not. status%ok()) return
 
     if (len(name) == 0) then
-        call set_error(status, USER_ERROR_CODE, format_message("You didn't specify a variable"))
+        call set_error(status, USER_ERROR_CODE, substitute_quotes("You didn't specify a variable"))
         return
     end if
 

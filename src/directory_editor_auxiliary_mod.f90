@@ -73,7 +73,7 @@ submodule(directory_editor_mode_mod) directory_editor_auxiliary_mod
     use print_mod, only: fortran_text
     use diff_mod, only: diff, diff_backup, diff_latest_backup_file, diff_operand_type, diff_switches
     use minibuffer_mod, only: REQUIRE_MATCH_YES
-    use editing_functions_mod, only: mark_position, ngettext
+    use editing_functions_mod, only: mark_position, ngettext, write_with_format
     use buffer_mod, only: transient_mark_mode
     use files_mod, only: file_name_sans_versions
     use string_type_mod, only: string_type, append_string, prepend_string
@@ -731,22 +731,9 @@ contains
         call read_y_or_n(pop_prompt, pop_answer, status)
     end subroutine pop_read_y_or_n
 
-    !> PROMPT with its "%s" replaced by WHAT.  Not a port.
-    function format_s(prompt, what) result(s)
-        character(len=*), intent(in) :: prompt, what
-        character(len=:), allocatable :: s
-        integer :: k
-
-        k = index(prompt, "%s")
-
-        if (k == 0) then
-            s = prompt
-        else
-            s = prompt(1:k - 1)//what//prompt(k + 2:)
-        end if
-    end function format_s
-
-    !> Read args for a Dired marked-files command, prompting with PROMPT.
+    !> Read args for a Dired marked-files command, prompting with
+    !> PROMPT_BEGINNING, the marked files (`directory_editor_marker_prompt')
+    !> and PROMPT_END (the text around the files in upstream's PROMPT).
     !> RESULT is the user input (a string).
     !>
     !> OP_SYMBOL is an operation name (see `directory_editor_no_confirm').
@@ -760,10 +747,11 @@ contains
     !>
     !> COLLECTION, if present, is a list of possible completions.
     !> Port of dired-aux.el:dired-mark-read-string (no INITIAL).
-    recursive subroutine directory_editor_mark_read_string(prompt, op_symbol, argument_kind, argument_n, files, result, &
+    recursive subroutine directory_editor_mark_read_string(prompt_beginning, prompt_end, op_symbol, argument_kind, argument_n, &
+                                                           files, result, &
                                                            used_default, &
                                                            status, default_value, collection)
-        character(len=*), intent(in) :: prompt, op_symbol
+        character(len=*), intent(in) :: prompt_beginning, prompt_end, op_symbol
         integer, intent(in) :: argument_kind
         integer(int64), intent(in) :: argument_n
         type(string_type), intent(in) :: files(:)
@@ -773,7 +761,7 @@ contains
         character(len=*), intent(in), optional :: default_value
         type(value_type), intent(in), optional :: collection
 
-        pop_prompt = format_s(prompt, directory_editor_marker_prompt(argument_kind, argument_n, files))
+        pop_prompt = prompt_beginning//directory_editor_marker_prompt(argument_kind, argument_n, files)//prompt_end
         pop_has_default = present(default_value)
         if (pop_has_default) pop_default = default_value
 
@@ -802,11 +790,14 @@ contains
     !> list of marked files.  ARGUMENT is the prefix arg and indicates whether
     !> the files came from marks (DIRECTORY_EDITOR_ARGUMENT_NONE) or a repeat factor.
     !> DEFAULT is the default value to return if the user just hits RET.
+    !> The prompt is PROMPT_BEGINNING, the marked files and PROMPT_END
+    !> (the text around the files in upstream's PROMPT).
     !> Port of dired-aux.el:dired-mark-read-file-name.
-    recursive subroutine directory_editor_mark_read_file_name(prompt, directory, op_symbol, argument_kind, argument_n, files, &
+    recursive subroutine directory_editor_mark_read_file_name(prompt_beginning, prompt_end, directory, op_symbol, argument_kind, &
+                                                              argument_n, files, &
                                                               result, status, &
                                                               default)
-        character(len=*), intent(in) :: prompt, directory, op_symbol
+        character(len=*), intent(in) :: prompt_beginning, prompt_end, directory, op_symbol
         integer, intent(in) :: argument_kind
         integer(int64), intent(in) :: argument_n
         type(string_type), intent(in) :: files(:)
@@ -814,7 +805,7 @@ contains
         type(status_type), intent(out) :: status
         character(len=*), intent(in), optional :: default
 
-        pop_prompt = format_s(prompt, directory_editor_marker_prompt(argument_kind, argument_n, files))
+        pop_prompt = prompt_beginning//directory_editor_marker_prompt(argument_kind, argument_n, files)//prompt_end
         pop_directory = directory
         pop_has_default = present(default)
         if (pop_has_default) pop_default = default
@@ -1079,11 +1070,12 @@ contains
             end select
         end if
 
-        ! (format-prompt "Change %s of %%s to" (when touch "now") ATTRIBUTE-NAME)
+        ! (format-prompt "Change %s of %%s to" (when touch "now") ATTRIBUTE-NAME):
+        ! the text after the marked files.
         if (op_symbol == "touch") then
-            prompt = "Change "//attribute_name//" of %s to (default now): "
+            prompt = " to (default now): "
         else
-            prompt = "Change "//attribute_name//" of %s to: "
+            prompt = " to: "
         end if
 
         if (op_symbol == "chown") then
@@ -1095,11 +1087,13 @@ contains
         end if
 
         if (has_default) then
-            call directory_editor_mark_read_string(prompt, op_symbol, argument_kind, argument_n, files, new_attribute, &
+            call directory_editor_mark_read_string("Change "//attribute_name//" of ", prompt, op_symbol, argument_kind, &
+                                                   argument_n, files, new_attribute, &
                                                    used_default, &
                                                    status, default_value=default, collection=collection)
         else
-            call directory_editor_mark_read_string(prompt, op_symbol, argument_kind, argument_n, files, new_attribute, &
+            call directory_editor_mark_read_string("Change "//attribute_name//" of ", prompt, op_symbol, argument_kind, &
+                                                   argument_n, files, new_attribute, &
                                                    used_default, &
                                                    status, collection=collection)
         end if
@@ -1159,11 +1153,11 @@ contains
     end if
 
     if (has_default) then
-        call directory_editor_mark_read_string("Change mode of %s to: ", "chmod", argument_kind, argument_n, files, modes, &
+        call directory_editor_mark_read_string("Change mode of ", " to: ", "chmod", argument_kind, argument_n, files, modes, &
                                                used_default, &
                                                status, default_value=default)
     else
-        call directory_editor_mark_read_string("Change mode of %s to: ", "chmod", argument_kind, argument_n, files, modes, &
+        call directory_editor_mark_read_string("Change mode of ", " to: ", "chmod", argument_kind, argument_n, files, modes, &
                                                used_default, &
                                                status)
     end if
@@ -1375,45 +1369,19 @@ contains
 
     call aux_inhibit_read_only_end(saved_ro)
     call goto_character(min(original_point, point_maximum()))
-
-    if (present(fmt)) then
-        if (len(fmt) > 0) call message(format_d(fmt, n))
-    else
-        if (n == 1) then
-            write (text, '("Killed ", i0, " line.")') n
-        else
-            write (text, '("Killed ", i0, " lines.")') n
-        end if
-
-        call message(trim(text))
-    end if
-
     if (present(count)) count = n
 
-contains
+    if (present(quiet)) then
+        if (quiet) return
+    end if
 
-    !> FMT with its "%d" replaced by N and its "%s" by the plural s.
-    function format_d(fmt, n) result(s)
-        character(len=*), intent(in) :: fmt
-        integer(int64), intent(in) :: n
-        character(len=:), allocatable :: s
-        character(len=20) :: digits
-        integer :: k
+    if (n == 1) then
+        write (text, '("Killed ", i0, " line.")') n
+    else
+        write (text, '("Killed ", i0, " lines.")') n
+    end if
 
-        s = fmt
-        k = index(s, "%d")
-        write (digits, "(i0)") n
-        if (k > 0) s = s(1:k - 1)//trim(digits)//s(k + 2:)
-        k = index(s, "%s")
-
-        if (k > 0) then
-            if (n == 1) then
-                s = s(1:k - 1)//s(k + 2:)
-            else
-                s = s(1:k - 1)//"s"//s(k + 2:)
-            end if
-        end if
-    end function format_d
+    call message(trim(text))
     end procedure directory_editor_do_remove_lines
 
     !> Remove all marked lines, or the next ARGUMENT lines.
@@ -1494,16 +1462,36 @@ contains
         end if
     end function aux_shell_file_name
 
-    !> COMMAND with every %i replaced by I and every %o by O, literally
-    !> (the replace-regexp-in-string calls of dired-compress-file).
-    !> Not a port.
-    function replace_input_output(command, i, o) result(s)
-        character(len=*), intent(in) :: command, i, o
-        character(len=:), allocatable :: s, t
+    !> COMMAND, the Fortran format of a compression rule, written with the
+    !> files ITEMS name in order: INPUT for DIRECTORY_EDITOR_COMPRESS_INPUT,
+    !> OUTPUT for DIRECTORY_EDITOR_COMPRESS_OUTPUT (upstream's %i and %o).
+    !> Not a port: the replace-regexp-in-string calls of dired-compress-file
+    !> and the format-spec of dired-do-compress-to (panel and owner,
+    !> 2026-11-06).
+    subroutine write_compress_command(command, items, input, output, text, status)
+        character(len=*), intent(in) :: command, input, output
+        integer, allocatable, intent(in) :: items(:)
+        character(len=:), allocatable, intent(out) :: text
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: files(:)
+        integer :: k
 
-        t = replace_all(command, "%i", i)
-        s = replace_all(t, "%o", o)
-    end function replace_input_output
+        if (allocated(items)) then
+            allocate (files(size(items)))
+        else
+            allocate (files(0))
+        end if
+
+        do k = 1, size(files)
+            if (items(k) == DIRECTORY_EDITOR_COMPRESS_INPUT) then
+                files(k)%text = input
+            else
+                files(k)%text = output
+            end if
+        end do
+
+        call write_with_format(command, files, text, status)
+    end subroutine write_compress_command
 
     !> TEXT with every occurrence of FROM replaced by TO, left to right.
     !> Not a port.
@@ -1526,7 +1514,7 @@ contains
     end function replace_all
 
     module procedure directory_editor_compress_file
-    character(len=:), allocatable :: command, suffix, out_name, directory_saved, message
+    character(len=:), allocatable :: command, suffix, out_name, directory_saved, message, written
     type(string_type), allocatable :: arguments(:)
     type(value_type) :: res
     type(status_type) :: st
@@ -1563,14 +1551,19 @@ contains
     if (rule > 0) then
         if (len(directory_editor_compress_file_suffixes(rule)%program) > 0) then
             command = directory_editor_compress_file_suffixes(rule)%program
-            matched = index(command, "%i") > 0 .or. index(command, "%o") > 0
+            matched = .false.
+
+            if (allocated(directory_editor_compress_file_suffixes(rule)%items)) then
+                matched = size(directory_editor_compress_file_suffixes(rule)%items) > 0
+            end if
 
             if (matched) then
                 newname = file_name_as_directory(newname)
                 found = .true.
-                call directory_editor_shell_command(replace_input_output(command, shell_quote_argument(file), &
-                                                                         shell_quote_argument(newname)), &
-                                                    res, status)
+                call write_compress_command(command, directory_editor_compress_file_suffixes(rule)%items, &
+                                            shell_quote_argument(file), shell_quote_argument(newname), written, status)
+                if (.not. status%ok()) return
+                call directory_editor_shell_command(written, res, status)
                 return
             end if
 
@@ -1600,19 +1593,21 @@ contains
         k = rule_for(directory_editor_compress_files_commands, suffix)
 
         if (k == 0) then
-            call set_error(status, USER_ERROR_CODE, format_message("No compression rule found for "// &
-                                                                   "`directory_editor_compress_directory_default_suffix' ") &
+            call set_error(status, USER_ERROR_CODE, substitute_quotes("No compression rule found for "// &
+                                                                      "`directory_editor_compress_directory_default_suffix' ") &
                            //suffix// &
-                           format_message(", see `directory_editor_compress_files_commands' for the supported suffixes list"))
+                           substitute_quotes(", see `directory_editor_compress_files_commands' for the supported suffixes list"))
             return
         end if
 
         out_name = file//suffix
         directory_saved = aux_default_directory()
         buffers(current)%directory = file_name_directory(file)
-        call directory_editor_shell_command(replace_input_output(directory_editor_compress_files_commands(k)%command, &
-                                                                 shell_quote_argument(file_name_nondirectory(file)), &
-                                                                 shell_quote_argument(out_name)), res, status)
+        call write_compress_command(directory_editor_compress_files_commands(k)%command, &
+                                    directory_editor_compress_files_commands(k)%items, &
+                                    shell_quote_argument(file_name_nondirectory(file)), shell_quote_argument(out_name), written, &
+                                    status)
+        if (status%ok()) call directory_editor_shell_command(written, res, status)
         buffers(current)%directory = directory_saved
 
         if (.not. status%ok()) then
@@ -1633,7 +1628,7 @@ contains
     if (k == 0) then
         call set_error(status, USER_ERROR_CODE, &
                        "No compression rule found for suffix "//directory_editor_compress_file_default_suffix// &
-                       format_message(", see `directory_editor_compress_file_commands' for the supported suffixes list"))
+                       substitute_quotes(", see `directory_editor_compress_file_commands' for the supported suffixes list"))
         return
     end if
 
@@ -1645,9 +1640,11 @@ contains
         if (.not. answer) return
     end if
 
-    call directory_editor_shell_command(replace_input_output(directory_editor_compress_file_commands(k)%command, &
-                                                             shell_quote_argument(file), &
-                                                             shell_quote_argument(out_name)), res, status)
+    call write_compress_command(directory_editor_compress_file_commands(k)%command, &
+                                directory_editor_compress_file_commands(k)%items, &
+                                shell_quote_argument(file), shell_quote_argument(out_name), written, status)
+    if (.not. status%ok()) return
+    call directory_editor_shell_command(written, res, status)
 
     if (.not. status%ok()) then
         if (condition_matches(status%code, FILE_ERROR_CODE)) call compress_with_compress()
@@ -1865,113 +1862,6 @@ contains
         call directory_editor_do_compress(kind, n, status)
     end subroutine execute_directory_editor_do_compress
 
-    !> FMT with %o replaced by O and %i by I, as format-spec does with
-    !> the specification ((?o . O) (?i . I)): flags, width and precision
-    !> are honored, %% is a %.  Port of format-spec.el:format-spec (no
-    !> IGNORE-MISSING or SPLIT).
-    subroutine format_specification_input_output(fmt, o, i, result, status)
-        character(len=*), intent(in) :: fmt, o, i
-        character(len=:), allocatable, intent(out) :: result
-        type(status_type), intent(out) :: status
-        character(len=:), allocatable :: flags, value
-        integer :: k, j, width, precision
-
-        status = status_type()
-        result = ""
-        k = 1
-
-        do while (k <= len(fmt))
-            if (fmt(k:k) /= "%") then
-                result = result//fmt(k:k)
-                k = k + 1
-                cycle
-            end if
-
-            j = k + 1
-
-            if (j <= len(fmt)) then
-                if (fmt(j:j) == "%") then
-                    result = result//"%"
-                    k = j + 1
-                    cycle
-                end if
-            end if
-
-            flags = ""
-
-            do while (j <= len(fmt))
-                if (index("-0 ^_<>", fmt(j:j)) == 0) exit
-                flags = flags//fmt(j:j)
-                j = j + 1
-            end do
-
-            width = -1
-
-            do while (j <= len(fmt))
-                if (index("0123456789", fmt(j:j)) == 0) exit
-                if (width < 0) width = 0
-                width = width*10 + iachar(fmt(j:j)) - iachar("0")
-                j = j + 1
-            end do
-
-            precision = -1
-
-            if (j <= len(fmt)) then
-                if (fmt(j:j) == ".") then
-                    j = j + 1
-                    precision = 0
-
-                    do while (j <= len(fmt))
-                        if (index("0123456789", fmt(j:j)) == 0) exit
-                        precision = precision*10 + iachar(fmt(j:j)) - iachar("0")
-                        j = j + 1
-                    end do
-                end if
-            end if
-
-            if (j > len(fmt)) then
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid format string"))
-                return
-            end if
-
-            select case (fmt(j:j))
-            case ("o")
-                value = o
-            case ("i")
-                value = i
-            case default
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid format character: `%")//fmt(j:j)// &
-                               format_message("'"))
-                return
-            end select
-
-            if (precision >= 0 .and. len(value) > precision) value = value(1:precision)
-            if (index(flags, "^") > 0) value = upcase_string(value)
-            if (index(flags, "_") > 0) value = downcase_string(value)
-
-            if (width >= 0 .and. len(value) > width) then
-                if (index(flags, "<") > 0) then
-                    value = value(len(value) - width + 1:)
-                else if (index(flags, ">") > 0) then
-                    value = value(1:width)
-                end if
-            end if
-
-            if (width > len(value)) then
-                if (index(flags, "-") > 0) then
-                    value = value//repeat(" ", width - len(value))
-                else if (index(flags, "0") > 0) then
-                    value = repeat("0", width - len(value))//value
-                else
-                    value = repeat(" ", width - len(value))//value
-                end if
-            end if
-
-            result = result//value
-            k = j + 1
-        end do
-    end subroutine format_specification_input_output
-
     module procedure directory_editor_do_compress_to
     type(string_type), allocatable :: in_files(:)
     character(len=:), allocatable :: out_file, input, ins, command
@@ -1997,7 +1887,7 @@ contains
 
     if (rule == 0) then
         call set_error(status, GENERIC_ERROR_CODE, "No compression rule found for "//out_file// &
-                       format_message(", see `directory_editor_compress_files_commands'"))
+                       substitute_quotes(", see `directory_editor_compress_files_commands'"))
         return
     end if
 
@@ -2018,8 +1908,10 @@ contains
         ins = ins//shell_quote_argument(file_relative_name(in_files(k)%text))
     end do
 
-    call format_specification_input_output(directory_editor_compress_files_commands(rule)%command, shell_quote_argument(out_file), &
-                                           ins, command, status)
+    call write_compress_command(directory_editor_compress_files_commands(rule)%command, &
+                                directory_editor_compress_files_commands(rule)%items, ins, shell_quote_argument(out_file), &
+                                command, &
+                                status)
     if (.not. status%ok()) return
     call directory_editor_shell_command(command, res, status)
     if (.not. status%ok()) return
@@ -2241,8 +2133,8 @@ contains
 
     if (is_directory) then
         if (is_file_in_directory(to, from)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot copy `")//from// &
-                           format_message("' into its subdirectory `")//to//format_message("'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Cannot copy `")//from// &
+                           substitute_quotes("' into its subdirectory `")//to//substitute_quotes("'"))
             return
         end if
     end if
@@ -2278,7 +2170,7 @@ contains
 
     if (status%code == FILE_DATE_ERROR_CODE) then
         call prepend_create_files_failure(directory_editor_make_relative(from))
-        call directory_editor_log(format_message("Can't set date on ")//from//":"//LF//format_error(status)//LF)
+        call directory_editor_log(substitute_quotes("Can't set date on ")//from//":"//LF//format_error(status)//LF)
         status = status_type()
     end if
     end procedure directory_editor_copy_file_recursive
@@ -2470,8 +2362,8 @@ contains
             if (st%ok() .and. found /= 0) then
                 call replace_match(newtext, st, fixedcase=.true., literal=.true.)
             else
-                call set_error(status, GENERIC_ERROR_CODE, format_message("Expected to find `")//directory// &
-                               format_message("' in headerline of ")//element_directory)
+                call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Expected to find `")//directory// &
+                               substitute_quotes("' in headerline of ")//element_directory)
             end if
         end if
 
@@ -2626,7 +2518,7 @@ contains
                                                "\`ESC' or \`q' to not overwrite any of the remaining "// &
                                                "files,"//LF//"\`!' to overwrite all remaining files "// &
                                                "with no more questions.")
-                call directory_editor_query(overwrite_query, format_message("Overwrite `")//to//format_message("'?"), &
+                call directory_editor_query(overwrite_query, substitute_quotes("Overwrite `")//to//substitute_quotes("'?"), &
                                             overwrite_confirmed, status, help_procedure=help)
                 if (.not. status%ok()) return
             end if
@@ -2655,8 +2547,8 @@ contains
             if (found .and. creator_kind == DIRECTORY_EDITOR_CREATOR_COPY) then
                 if (iand(dattrs%mode, S_IFMT) == S_IFDIR) then
                     if (is_file_in_directory(destname, from)) then
-                        call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot copy `")//from// &
-                                       format_message("' into its subdirectory `")//to//format_message("'"))
+                        call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Cannot copy `")//from// &
+                                       substitute_quotes("' into its subdirectory `")//to//substitute_quotes("'"))
                         return
                     end if
                 end if
@@ -2683,8 +2575,9 @@ contains
             else if (condition_matches(st%code, FILE_ERROR_CODE)) then
                 ! FILE-CREATOR aborted
                 call prepend_string(failures, directory_editor_make_relative(from))
-                call directory_editor_log(operation//format_message(": `")//from//format_message("' to `")//to// &
-                                          format_message("' failed:")//LF//"("//error_name(st%code)//" "//format_error(st)//")"//LF)
+                call directory_editor_log(operation//substitute_quotes(": `")//from//substitute_quotes("' to `")//to// &
+                                          substitute_quotes("' failed:")//LF//"("//error_name(st%code)//" "// &
+                                          format_error(st)//")"//LF)
             else
                 status = st
                 return
@@ -2879,12 +2772,12 @@ contains
         if (op_symbol == "symlink" .or. op_symbol == "hardlink") then
             ! Linking operations create links from the prompted file name;
             ! the other operations copy (etc) to the prompted file name.
-            prompt = op//" %s from: "
+            prompt = " from: "
         else
-            prompt = op//" %s to: "
+            prompt = " to: "
         end if
 
-        call directory_editor_mark_read_file_name(prompt, target_directory, op_symbol, argument_kind, argument_n, &
+        call directory_editor_mark_read_file_name(op//" ", prompt, target_directory, op_symbol, argument_kind, argument_n, &
                                                   relative_file_names, input, &
                                                   status, default)
         if (.not. status%ok()) return
@@ -3205,8 +3098,8 @@ contains
 
             if (found) then
                 to = new
-                prompt = regular_expression_operation//format_message(" `")//from//format_message("' to `")//to// &
-                         format_message("'?")
+                prompt = regular_expression_operation//substitute_quotes(" `")//from//substitute_quotes("' to `")//to// &
+                         substitute_quotes("'?")
                 call directory_editor_query(regular_expression_query, prompt, answer, status, &
                                             help_procedure=regular_expression_help)
                 if (.not. status%ok()) return
@@ -3225,8 +3118,8 @@ contains
             if (found) then
                 ! nil means there was no match
                 to = aux_expand_in(new, file_name_directory(from))
-                prompt = regular_expression_operation//format_message(" `")//directory_editor_make_relative(from)// &
-                         format_message("' to `")//directory_editor_make_relative(to)//format_message("'?")
+                prompt = regular_expression_operation//substitute_quotes(" `")//directory_editor_make_relative(from)// &
+                         substitute_quotes("' to `")//directory_editor_make_relative(to)//substitute_quotes("'?")
                 call directory_editor_query(regular_expression_query, prompt, answer, status, &
                                             help_procedure=regular_expression_help)
                 if (.not. status%ok()) return
@@ -3463,8 +3356,9 @@ contains
             to = file_name_directory(from)//downcase_string(file_name_nondirectory(from))
         end if
 
-        prompt = non_directory_operation//format_message(" `")//directory_editor_make_relative(from)//format_message("' to `")// &
-                 directory_editor_make_relative(to)//format_message("'")
+        prompt = non_directory_operation//substitute_quotes(" `")//directory_editor_make_relative(from)// &
+                 substitute_quotes("' to `")// &
+                 directory_editor_make_relative(to)//substitute_quotes("'")
         call directory_editor_query(non_directory_query, prompt, answer, status, help_procedure=non_directory_help)
         skip = .not. (status%ok() .and. answer)
     end subroutine non_directory_constructor
@@ -3870,31 +3764,39 @@ contains
         end do
     end function find_on_path
 
-    !> Add a rule to `directory_editor_compress_file_suffixes'.  Not a port.
-    subroutine append_compress_suffix(regular_expression, new_suffix, program)
+    !> Add a rule to `directory_editor_compress_file_suffixes'; with ITEMS,
+    !> PROGRAM is a Fortran format writing those files.  Not a port.
+    subroutine append_compress_suffix(regular_expression, new_suffix, program, items)
         character(len=*), intent(in) :: regular_expression, new_suffix, program
+        integer, intent(in), optional :: items(:)
         type(directory_editor_compress_suffix_type) :: suffix
 
         suffix%regular_expression = regular_expression
         suffix%new_suffix = new_suffix
         suffix%program = program
+        if (present(items)) suffix%items = items
         directory_editor_compress_file_suffixes = [directory_editor_compress_file_suffixes, suffix]
     end subroutine append_compress_suffix
 
-    !> Add a rule with REGULAR_EXPRESSION and COMMAND to TABLE.  Not a port.
-    subroutine append_compress_rule(table, regular_expression, command)
+    !> Add a rule with REGULAR_EXPRESSION, COMMAND (a Fortran format) and
+    !> ITEMS (the files it writes) to TABLE.  Not a port.
+    subroutine append_compress_rule(table, regular_expression, command, items)
         type(directory_editor_compress_rule_type), allocatable, intent(inout) :: table(:)
         character(len=*), intent(in) :: regular_expression, command
+        integer, intent(in) :: items(:)
         type(directory_editor_compress_rule_type) :: rule
 
         rule%regular_expression = regular_expression
         rule%command = command
+        rule%items = items
         table = [table, rule]
     end subroutine append_compress_rule
 
     !> Give the dired-aux.el options that are not set yet their standard
     !> values.  Not a port.
     subroutine initialize_directory_editor_aux_options()
+        integer, parameter :: INPUT = DIRECTORY_EDITOR_COMPRESS_INPUT, OUTPUT = DIRECTORY_EDITOR_COMPRESS_OUTPUT
+
         if (.not. allocated(directory_editor_chown_program)) then
             ! (cond ((executable-find "chown") "chown") ...)
             if (len(find_on_path("chown")) > 0) then
@@ -3920,9 +3822,9 @@ contains
             ! "tar -zxf" isn't used because it's not available on the
             ! Solaris 10 version of tar (obsolete in 2024?).
             ! Same thing on AIX 7.1 (obsolete 2023?) and 7.2 (obsolete 2022?).
-            call append_compress_suffix("\.tar\.gz\'", "", "gzip -dc %i | tar -xf -")
-            call append_compress_suffix("\.tar\.xz\'", "", "xz -dc %i | tar -xf -")
-            call append_compress_suffix("\.tgz\'", "", "gzip -dc %i | tar -xf -")
+            call append_compress_suffix("\.tar\.gz\'", "", '("gzip -dc ", a, " | tar -xf -")', [INPUT])
+            call append_compress_suffix("\.tar\.xz\'", "", '("xz -dc ", a, " | tar -xf -")', [INPUT])
+            call append_compress_suffix("\.tgz\'", "", '("gzip -dc ", a, " | tar -xf -")', [INPUT])
             call append_compress_suffix("\.gz\'", "", "gzip -d")
             call append_compress_suffix("\.lz\'", "", "lzip -d")
             call append_compress_suffix("\.Z\'", "", "uncompress")
@@ -3933,33 +3835,42 @@ contains
             call append_compress_suffix("\.tbz\'", ".tar", "bunzip2")
             call append_compress_suffix("\.bz2\'", "", "bunzip2")
             call append_compress_suffix("\.xz\'", "", "unxz")
-            call append_compress_suffix("\.zip\'", "", "unzip -o -d %o %i")
-            call append_compress_suffix("\.tar\.zst\'", "", "unzstd -c %i | tar -xf -")
-            call append_compress_suffix("\.tzst\'", "", "unzstd -c %i | tar -xf -")
+            call append_compress_suffix("\.zip\'", "", '("unzip -o -d ", a, " ", a)', [OUTPUT, INPUT])
+            call append_compress_suffix("\.tar\.zst\'", "", '("unzstd -c ", a, " | tar -xf -")', [INPUT])
+            call append_compress_suffix("\.tzst\'", "", '("unzstd -c ", a, " | tar -xf -")', [INPUT])
             call append_compress_suffix("\.zst\'", "", "unzstd --rm")
-            call append_compress_suffix("\.7z\'", "", "7z x -aoa -o%o %i")
+            call append_compress_suffix("\.7z\'", "", '("7z x -aoa -o", a, " ", a)', [OUTPUT, INPUT])
             ! This item controls naming for compression.
             call append_compress_suffix("\.tar\'", ".tgz", "")
         end if
 
         if (.not. allocated(directory_editor_compress_file_commands)) then
             allocate (directory_editor_compress_file_commands(0))
-            call append_compress_rule(directory_editor_compress_file_commands, "\.gz\'", "gzip -9f %i")
-            call append_compress_rule(directory_editor_compress_file_commands, "\.bz2\'", "bzip2 -9f %i")
-            call append_compress_rule(directory_editor_compress_file_commands, "\.xz\'", "xz -9f %i")
-            call append_compress_rule(directory_editor_compress_file_commands, "\.zst\'", "zstd -qf -19 --rm -o %o %i")
+            call append_compress_rule(directory_editor_compress_file_commands, "\.gz\'", '("gzip -9f ", a)', [INPUT])
+            call append_compress_rule(directory_editor_compress_file_commands, "\.bz2\'", '("bzip2 -9f ", a)', [INPUT])
+            call append_compress_rule(directory_editor_compress_file_commands, "\.xz\'", '("xz -9f ", a)', [INPUT])
+            call append_compress_rule(directory_editor_compress_file_commands, "\.zst\'", &
+                                      '("zstd -qf -19 --rm -o ", a, " ", a)', [OUTPUT, INPUT])
         end if
 
         if (.not. allocated(directory_editor_compress_files_commands)) then
             allocate (directory_editor_compress_files_commands(0))
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.gz\'", "tar -cf - %i | gzip -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.bz2\'", "tar -cf - %i | bzip2 -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.xz\'", "tar -cf - %i | xz -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.zst\'", "tar -cf - %i | zstd -19 -o %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.lz\'", "tar -cf - %i | lzip -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.lzo\'", "tar -cf - %i | lzop -c9 > %o")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.zip\'", "zip %o -r --filesync %i")
-            call append_compress_rule(directory_editor_compress_files_commands, "\.pax\'", "pax -wf %o %i")
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.gz\'", &
+                                      '("tar -cf - ", a, " | gzip -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.bz2\'", &
+                                      '("tar -cf - ", a, " | bzip2 -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.xz\'", &
+                                      '("tar -cf - ", a, " | xz -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.zst\'", &
+                                      '("tar -cf - ", a, " | zstd -19 -o ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.lz\'", &
+                                      '("tar -cf - ", a, " | lzip -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.tar\.lzo\'", &
+                                      '("tar -cf - ", a, " | lzop -c9 > ", a)', [INPUT, OUTPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.zip\'", &
+                                      '("zip ", a, " -r --filesync ", a)', [OUTPUT, INPUT])
+            call append_compress_rule(directory_editor_compress_files_commands, "\.pax\'", '("pax -wf ", a, " ", a)', [OUTPUT, &
+                                                                                                                       INPUT])
         end if
     end subroutine initialize_directory_editor_aux_options
 

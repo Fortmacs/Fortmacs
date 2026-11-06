@@ -332,7 +332,8 @@ module fortmacs
                                          directory_editor_compress_directory_default_suffix, &
                                          directory_editor_compress_suffix_type, directory_editor_compress_rule_type, &
                                          directory_editor_compress_file_suffixes, directory_editor_compress_file_commands, &
-                                         directory_editor_compress_files_commands
+                                         directory_editor_compress_files_commands, &
+                                         DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT
     use files_mod, only: copy_directory, copy_directory_create_symlink, view_read_only, find_file_read_only, &
                          find_file_read_only_other_window, create_empty_file, file_modes_symbolic_to_number, &
                          file_modes_number_to_symbolic
@@ -469,7 +470,7 @@ module fortmacs
                                 expand_region_abbreviations, define_global_abbreviation, define_mode_abbreviation, &
                                 abbreviation_name, abbreviation_expansion, abbreviation_insert, expand_abbreviation, &
                                 abbreviation_default_expand, unexpand_abbreviation, insert_abbreviation_table_description, &
-                                local_abbreviation_table, abbreviation_table_set_local
+                                local_abbreviation_table
     use text_mode_mod, only: text_mode_abbreviation_table
     use programming_mode_mod, only: programming_mode_abbreviation_table
     use simple_mod, only: special_mode_abbreviation_table
@@ -646,7 +647,9 @@ module fortmacs
                             warning_suppress_types, warning_display_at_bottom, warning_prefix_function, warning_series, &
                             warning_fill_prefix, warning_fill_column, warning_type_format, warning_inhibit_types
     use completing_read_multiple_mod, only: completing_read_multiple, completing_read_multiple_separator, &
-                                            completing_read_multiple_prompt, completing_read_multiple_local_completion_map, &
+                                            completing_read_multiple_prompt, COMPLETING_READ_MULTIPLE_PROMPT_DESCRIPTION, &
+                                            COMPLETING_READ_MULTIPLE_PROMPT_SEPARATOR, COMPLETING_READ_MULTIPLE_PROMPT_ORIGINAL, &
+                                            completing_read_multiple_local_completion_map, &
                                             completing_read_multiple_local_must_match_map
     use buffer_menu_mod, only: buffer_menu_marker_character, buffer_menu_delete_character, buffer_menu_use_header_line, &
                                buffer_menu_name_width, buffer_menu_name_width_procedure, &
@@ -1085,7 +1088,7 @@ module fortmacs
               define_mode_abbreviation, &
               abbreviation_name, abbreviation_expansion, abbreviation_insert, expand_abbreviation, abbreviation_default_expand, &
               unexpand_abbreviation, &
-              insert_abbreviation_table_description, local_abbreviation_table, abbreviation_table_set_local, &
+              insert_abbreviation_table_description, local_abbreviation_table, &
               text_mode_abbreviation_table, &
               programming_mode_abbreviation_table, special_mode_abbreviation_table, help_mode_abbreviation_table, &
               save_some_buffers_procedure, &
@@ -1242,6 +1245,8 @@ module fortmacs
               warning_prefix_function, warning_series, warning_fill_prefix, warning_fill_column, warning_type_format, &
               warning_inhibit_types
     public :: completing_read_multiple, completing_read_multiple_separator, completing_read_multiple_prompt, &
+              COMPLETING_READ_MULTIPLE_PROMPT_DESCRIPTION, COMPLETING_READ_MULTIPLE_PROMPT_SEPARATOR, &
+              COMPLETING_READ_MULTIPLE_PROMPT_ORIGINAL, &
               completing_read_multiple_local_completion_map, completing_read_multiple_local_must_match_map
     public :: buffer_menu_marker_character, buffer_menu_delete_character, buffer_menu_use_header_line, buffer_menu_name_width, &
               buffer_menu_name_width_procedure, buffer_menu_dynamic_name_width, &
@@ -1333,7 +1338,7 @@ module fortmacs
               directory_editor_compress_suffix_type, &
               directory_editor_compress_rule_type, directory_editor_compress_file_suffixes, &
               directory_editor_compress_file_commands, &
-              directory_editor_compress_files_commands
+              directory_editor_compress_files_commands, DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT
     public :: copy_directory, copy_directory_create_symlink, view_read_only, find_file_read_only, &
               find_file_read_only_other_window, create_empty_file, file_modes_symbolic_to_number, &
               file_modes_number_to_symbolic, copy_file, rename_file, add_name_to_file, create_symbolic_link, &

@@ -63,7 +63,11 @@
 `rmail-no-mail-p`,
 `rmail-show-message`,
 `rmail-is-text-p`,
-`rmail-show-message-1` (the header pruned or full, the body decoded by its charset and content transfer encoding, quoted-printable and base64, ">From " lines unquoted as `rmail_mbox_format` says),
+`rmail-show-message-1` (MIME messages through `rmail_show_mime_function`; other messages with the header pruned or full, RFC 2047 encoded words in it decoded, the body decoded by its charset and content transfer encoding, quoted-printable and base64, ">From " lines unquoted as `rmail_mbox_format` says),
+`rmail-mime-message-p` (`is_rmail_mime_message`),
+`rmail-mime-decoded`,
+`rmail-show-mime-function`,
+`rmail-search-mime-message-function`,
 `rmail-copy-headers`,
 `rmail-highlight-headers` (overlays in the face `rmail_highlight`),
 `rmail-next-message`,
@@ -73,7 +77,7 @@
 `rmail-first-message`,
 `rmail-last-message`,
 `rmail-what-message`,
-`rmail-search-message`,
+`rmail-search-message` (MIME messages through `rmail_search_mime_message_function`),
 `rmail-search`,
 `rmail-search-backwards`,
 `rmail-first-unseen-message`,
@@ -101,10 +105,8 @@ Rmail mode's keymap for the ported commands
 
 ## Deferred
 
-MIME (rmailmm.el: `rmail-require-mime-maybe`, `rmail-show-mime-function`, `rmail-mime`, the MIME search functions): `rmail_enable_mime` is .true. as upstream but,
-with no MIME support,
-messages with a MIME-Version field are shown as other messages,
-RFC 2047 decoding of the header shown (rfc2047.el's `rfc2047-decode-region`),
+`rmail-insert-mime-forwarded-message-function` and `rmail-insert-mime-resent-message-function` (with forwarding and resending),
+`rmail-search-mime-header-function` (rmailmm.el leaves it unset, so rmailsum.el never calls it),
 sending mail from Rmail (`rmail-mail`, `rmail-continue`, `rmail-reply`, `rmail-forward`, `rmail-resend`, `rmail-retry-failure`, `rmail-start-mail`, `rmail-mail-return`, `rmail-yank-current-message`, `rmail-mark-message`, `rmail-make-in-reply-to-field`, `rmail-delete-headers`, the `rmail-reply-*` and `mail-unsent-*` variables): they need compose-mail's OTHER-HEADERS,
 YANK-ACTION,
 SEND-ACTIONS and RETURN-ACTION and message.el (step 52c),
@@ -140,7 +142,7 @@ tool bar and I/O menus (`rmail-construct-io-menu`, `rmail-list-to-menu`, `rmail-
 speedbar (`rmail-speedbar-*`),
 desktop (`rmail-restore-desktop-buffer`),
 resizing the summary window with `rmail_summary_window_size` (window-resize-no-error);
-Not applicable: `rmail-mime-feature` (no packages are loaded at run time)
+Not applicable: `rmail-mime-feature` and `rmail-require-mime-maybe` (rmail_mime_mod is built in: no packages are loaded at run time)
 
 ## Tests
 

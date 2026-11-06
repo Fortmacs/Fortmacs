@@ -24,7 +24,7 @@ module test_keymap_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use value_mod, only: V_NULL, V_INTEGER, value_type
     use testdrive, only: new_unittest, unittest_type, error_type, check
-    use error_mod, only: format_message
+    use error_mod, only: substitute_quotes
     use error_mod, only: status_type, GENERIC_ERROR_CODE, WRONG_TYPE_ARGUMENT_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: list, make_keymap_reference, V_ARRAY, value_type, vtag, xfixnum, xhandle, xstring, list_elements
@@ -804,7 +804,7 @@ contains
                    "a command name")
         if (allocated(error)) return
         call keymap_set(k, "b", value_type(text="C-xx"), st)
-        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
+        call check(error, st%detail, """C-xx"""//substitute_quotes(" is not a valid key definition; see `is_key_valid'"))
         call free(k)
     end subroutine test_keymap_set
 
@@ -822,7 +822,7 @@ contains
         call check(error, vtag(lookup(global, keyboard("C-c x"))) == V_NULL, "unbound with nil")
         if (allocated(error)) return
         call keymap_global_set("C-xx", "forward_character", st)
-        call check(error, st%detail, """C-xx"""//format_message(" is not a valid key definition; see `is_key_valid'"))
+        call check(error, st%detail, """C-xx"""//substitute_quotes(" is not a valid key definition; see `is_key_valid'"))
         if (allocated(error)) return
         call global_set_key(keyboard("C-c y"), "backward_character", st)
         call check(error, st%ok() .and. value_eq(lookup(global, keyboard("C-c y")), value_type(name="backward_character")), &

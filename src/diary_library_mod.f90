@@ -47,7 +47,7 @@ module diary_library_mod
                                      is_beginning_of_line, &
                                      is_end_of_buffer, line_end_position, save_excursion_begin, save_excursion_end, &
                                      save_restriction_begin, save_restriction_end, excursion_type, restriction_type, &
-                                     format_message, preceding_character
+                                     substitute_quotes, preceding_character
     use editing_commands_mod, only: forward_line
     use indent_mod, only: current_column
     use simple_mod, only: count_lines, special_mode, fundamental_mode
@@ -443,9 +443,9 @@ contains
         file = diary_file
 
         if (.not. file_exists(diary_file)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Diary file `"//diary_file//"' does not exist"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Diary file `"//diary_file//"' does not exist"))
         else if (.not. is_file_readable(diary_file)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Diary file `"//diary_file//"' is not readable"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Diary file `"//diary_file//"' is not readable"))
         end if
     end subroutine check_diary_file
 
@@ -1102,7 +1102,7 @@ contains
             file = match_string_no_properties(1)
 
             if (.not. file_exists(file)) then
-                call display_warning("diary", format_message("Can't find included diary file ")//file//achar(10), &
+                call display_warning("diary", substitute_quotes("Can't find included diary file ")//file//achar(10), &
                                      WARNING_LEVEL_ERROR, status=status)
                 if (.not. status%ok()) return
                 call goto_character(after)
@@ -1110,7 +1110,7 @@ contains
             end if
 
             if (.not. is_file_readable(file)) then
-                call display_warning("diary", format_message("Can't read included diary file ")//file//achar(10), &
+                call display_warning("diary", substitute_quotes("Can't read included diary file ")//file//achar(10), &
                                      WARNING_LEVEL_ERROR, status=status)
                 if (.not. status%ok()) return
                 call goto_character(after)

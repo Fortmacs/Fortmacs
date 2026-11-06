@@ -1,0 +1,74 @@
+# port-rmailmm (rmailmm.el, rfc2231.el and ietf-drums.el in part).
+# Verb first, the package word after the verb (R6-17, R6-40; as Step 52d's
+# rmail-add-label is add_rmail_label).  rmail-show-mime (the value of
+# rmail-show-mime-function) is show_rmail_mime; rmail-mime-show, whose verb
+# first name is the same, shows the current buffer as a MIME message:
+# show_rmail_mime_buffer (panel 18, #272).  rfc2231.el's parsed values are
+# mime_header_value_type and mime_header_parameter_type (panel 18).
+name	rmail_show_mime	show_rmail_mime
+name	rmail_mime_show	show_rmail_mime_buffer
+name	rmail_mime_save	save_rmail_mime
+name	rmail_mime_entity_segment	get_rmail_mime_entity_segment
+name	rmail_mime_shown_mode	set_rmail_mime_shown_mode
+name	rmail_mime_hidden_mode	set_rmail_mime_hidden_mode
+name	rmail_mime_raw_mode	set_rmail_mime_raw_mode
+name	rmail_mime_toggle_raw	toggle_rmail_mime_raw
+name	rmail_mime_toggle_hidden	toggle_rmail_mime_hidden
+name	rmail_mime_insert_tagline	insert_rmail_mime_tagline
+name	rmail_mime_update_tagline	update_rmail_mime_tagline
+name	rmail_mime_insert_header	insert_rmail_mime_header
+name	rmail_mime_find_header_encoding	find_rmail_mime_header_encoding
+name	rmail_mime_text_handler	handle_rmail_mime_text
+name	rmail_mime_insert_decoded_text	insert_rmail_mime_decoded_text
+name	rmail_mime_insert_text	insert_rmail_mime_text
+name	rmail_mime_insert_html	insert_rmail_mime_html
+name	rmail_mime_render_html_lynx	render_rmail_mime_html_lynx
+name	rmail_mime_fix_inserted_faces	fix_rmail_mime_inserted_faces
+name	rmail_mime_bulk_handler	handle_rmail_mime_bulk
+name	rmail_mime_set_bulk_data	set_rmail_mime_bulk_data
+name	rmail_mime_insert_bulk	insert_rmail_mime_bulk
+name	rmail_mime_multipart_handler	handle_rmail_mime_multipart
+name	rmail_mime_process_multipart	process_rmail_mime_multipart
+name	rmail_mime_insert_multipart	insert_rmail_mime_multipart
+name	rmail_mime_handle	handle_rmail_mime
+name	rmail_mime_process	process_rmail_mime
+name	rmail_mime_parse	parse_rmail_mime
+name	rmail_mime_insert	insert_rmail_mime
+name	rmail_search_mime_message	search_rmail_mime_message
+# A command without a verb takes one from what it does (R6-40): rmail-mime
+# toggles the display of a MIME message, toggle_rmail_mime.  It has no entry:
+# its old name is the start of every rmail_mime_ name.
+# mm is MIME (as mm-util.el's mm_ is mime_, mail-headers-dates); the
+# function reports an error, so its verb is set_, as rmail-error-bad-format
+# is set_rmail_bad_format_error (Step 52d).
+name	rmail_mm_get_boundary_error_message	set_rmail_mime_boundary_error
+# Predicates are is_* (CLAUDE.md; rule-decided).
+name	rmail_mime_message_p	is_rmail_mime_message
+# An alist is a plural name (R2-Q8; rule-decided); dirs is directories
+# (spell-out-words).
+name	rmail_mime_media_type_handlers_alist	rmail_mime_media_type_handlers
+name	rmail_mime_attachment_dirs_alist	rmail_mime_attachment_directories
+# rfc2231.el and ietf-drums.el: verb first, the package word after the
+# verb (as rfc2047-decode-string is decode_rfc2047_string); qp is
+# quoted_printable (as qp.el's functions); fws is folding whitespace (the
+# RFC's term).
+name	rfc2231_parse_string	parse_rfc2231_string
+name	rfc2231_parse_qp_string	parse_rfc2231_quoted_printable_string
+name	rfc2231_get_value	get_rfc2231_value
+name	rfc2231_decode_encoded_string	decode_rfc2231_encoded_string
+name	ietf_drums_remove_comments	remove_ietf_drums_comments
+name	ietf_drums_remove_whitespace	remove_ietf_drums_whitespace
+name	ietf_drums_unfold_fws	unfold_ietf_drums_folding_whitespace
+# New names that contain an entry's old name as a run of parts: kept, so
+# that applying the table again changes nothing.  The button type of
+# rmail-mime-save is rmail_mime_save_button (as button.el's button is
+# default_button), and rmail-mime-toggle-button is toggle_rmail_mime_button.
+keep	set_rmail_mime_shown_mode
+keep	set_rmail_mime_hidden_mode
+keep	set_rmail_mime_raw_mode
+keep	get_rmail_mime_entity_segment
+keep	rmail_mime_save_button
+keep	rmail_show_mime_function
+keep	rmail_show_mime_procedure
+keep	rmail_search_mime_message_function
+keep	rmail_search_mime_message_procedure

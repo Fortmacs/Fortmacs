@@ -60,7 +60,7 @@ module replace_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64
     use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW, PREFIX_MINUS
     use commands_mod, only: commands
-    use error_mod, only: format_message, status_type, set_error, QUIT_CODE, USER_ERROR_CODE, GENERIC_ERROR_CODE
+    use error_mod, only: substitute_quotes, status_type, set_error, QUIT_CODE, USER_ERROR_CODE, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list, xstring, list_elements, list_length, list_element, vtag, V_INTEGER, &
                          V_STRING
@@ -885,9 +885,9 @@ contains
 
             if (at > 0) then
                 if (from(at + 1:at + 1) == "n") then
-                    call message(format_message("Note: `\n' here doesn't match a newline; to do that, type C-q C-j instead"))
+                    call message(substitute_quotes("Note: `\n' here doesn't match a newline; to do that, type C-q C-j instead"))
                 else
-                    call message(format_message("Note: `\t' here doesn't match a tab; to do that, just type TAB"))
+                    call message(substitute_quotes("Note: `\t' here doesn't match a tab; to do that, just type TAB"))
                 end if
 
                 call sit_for(2000)

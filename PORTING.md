@@ -372,9 +372,11 @@ Design decisions).
    test-drive (`test/test_<name>_mod.f90`) where they exist; add our own for
    uncovered behavior. Name each ported test after its ERT test.
 3. **Implement.** One module per upstream file, named after it with an `_mod` suffix
-   (buffer.c → `buffer_mod`) and spelled out (cal-move.el →
-   `calendar_movement_mod`; see "Module names" below). Cite the
-   upstream file/function in a comment on every ported procedure, e.g.
+   and spelled out (see "Module names" below):
+   - `buffer.c`→`buffer_mod`
+   - `cal-move.el`→`calendar_movement_mod`
+
+   Cite the upstream file/function in a comment on every ported procedure, e.g.
    `!> Port of insdel.c:insert_1_both.` Run `tools/fortran-names.sh` on
    the new files (see "Fortran names for Lisp terms").
 4. **Headers.** Ported files carry the upstream FSF notice plus ours
@@ -388,7 +390,7 @@ Design decisions).
    each merge.
 7. **Merge.** The owner merges, or clears a PR by number for Claude to
    merge once CI is green. Claude polls the open PR
-   (`gh api repos/Fortmacs/Fortmacs/pulls/N --jq .merged`) and, once it
+   (`gh api repos/end-program/Fortmacs/pulls/N --jq .merged`) and, once it
    is merged, starts the next step on a fresh branch from main; work done
    while waiting is rebased onto main before its PR is opened.
 
@@ -629,8 +631,10 @@ in names written in text, never in plain prose, prompts or messages; a
 that name: `part len length` renames `old_len`, not `len(x)`); a `prefix`
 renames the first part of a name of two or more parts (`cmd_x` is
 `execute_x`).
-tools/fortran-names.sh applies it, by default to src, test, app, tools,
-docs/init.f90, fpm.toml, PORTING.md and README.md, or to the paths given:
+tools/fortran-names.sh applies it, by default to the code (src, test,
+app and tools without their Markdown files, docs/init.f90, fpm.toml;
+prose such as PORTING.md, README.md and docs/status is renamed by hand,
+since the renames would mangle it: GUI, PT), or to the paths given:
 it renames files (with `git mv`) and contents, protects citations
 (`FILE.el:NAME`, `FILE.c:NAME`, `FILE.h:NAME`), hyphenated and C names
 (`forward-sexp`, `Fscan_lists`), the word after "upstream" or
@@ -640,15 +644,22 @@ renamed word; an entry's new name that holds another entry's old word is renamed
 tools/fortran-names.awk, which fails with FILE:LINE on an old name in
 Fortran code or in a `!>` docstring, or on a file of an old name, and
 tools/test-fortran-names.sh, which runs the script on the fixture in
-tools/fortran-names-test.  tools/gen-docstrings.sh gives the names it
+tools/fortran-names-test.  To check without changing anything, run
+`tools/fortran-names.sh --check` (it lists what it would rename or
+change and exits 1 if anything would), or tools/check.sh; never run the
+script bare to check, since a bare run rewrites the tree.
+tools/gen-docstrings.sh gives the names it
 derives from citations their Fortran names too.
-The table also holds the names R6-21 gives this program (below): the
-`file` entry `emacs_mod` → `fortmacs_mod`, one `name` entry for each
-identifier that means this program (`exit_emacs`, `emacs_read`, ...), a
-`keep` of the word `emacs` alone, so that the file entry's stem leaves
-prose ("GNU Emacs", "Emacs Lisp") to be changed by hand, the `file`
-entry `regex_emacs_mod` → `regular_expression_mod` (R6-24), and `name` entries for
-the commands and settings R6-25 names for this program.
+The table also holds the names R6-21 gives this program (below):
+
+- the `file` entry `emacs_mod`→`fortmacs_mod`;
+- one `name` entry for each identifier that means this program
+  (`exit_emacs`, `emacs_read`, ...);
+- a `keep` of the word `emacs` alone, so that the file entry's stem
+  leaves prose ("GNU Emacs", "Emacs Lisp") to be changed by hand;
+- the `file` entry `regex_emacs_mod`→`regular_expression_mod` (R6-24);
+- `name` entries for the commands and settings R6-25 names for this
+  program.
 
 **Lisp that stays Lisp.**  `keep` entries leave what is genuinely Lisp
 as it is: the commands of the Lisp modes and of run-time evaluation
@@ -783,7 +794,7 @@ Elisp.  tools/check.sh runs
 tools/fortran-prose.awk, which fails with FILE:LINE on one of them in a
 `!>` docstring or in a message or error string (the string literals of
 a line that calls `set_error`, `message`, `user_error`,
-`format_message` or `minibuffer_message`), and
+`substitute_quotes` or `minibuffer_message`), and
 tools/test-fortran-prose.sh on its fixture (tools/fortran-prose-test).
 Citations, identifiers (a quoted `name`, a name with an underscore, an
 argument in capitals), the tests, the Lisp language modes and the
@@ -831,9 +842,11 @@ named with it.
   with `memq_p` in text_properties_mod (text properties, C4).
 - C3: the name table holds only names that exist at run time;
   compile-time things are reached only through their typed objects;
-  `intern` becomes `add_name`, `intern_soft` `find_name`, and
-  `symbol_type` `name_entry_type`; plain IF (no Fortran 2023 conditional
-  expressions: gfortran 13, -std=f2018).
+  plain IF (no Fortran 2023 conditional expressions: gfortran 13,
+  -std=f2018).  Renamed:
+  - `intern`→`add_name`
+  - `intern_soft`→`find_name`
+  - `symbol_type`→`name_entry_type`
 - C4: `put`, `get` and the `plist_*` procedures are removed:
   `history_length` becomes a component of the history objects, and text
   properties an array of `text_property_type` (name, value) searched with
@@ -850,7 +863,7 @@ named with it.
 
 Settled by the owner later the same day and applied in PR 2b:
 
-- `TAB_WIDTH_NONE` is `TAB_WIDTH_DEFAULT` (upstream sanitizes tab-width's
+- `TAB_WIDTH_NONE`→`TAB_WIDTH_DEFAULT` (upstream sanitizes tab-width's
   nil to the default width, 8); `FILL_COLUMN_NONE` is confirmed.
 - Q3: a function upstream names `*-p` that returns more than a logical
   takes the name of what it returns: `window_dedication` and
@@ -1002,12 +1015,15 @@ tools/intrinsics.awk, run by tools/check.sh, reports these patterns:
 - **write-wrapper**: a function or subroutine whose executable part is a
   `write` into a local buffer followed by `trim` of it (`write (buffer,
   "(i0)") n` then `text = trim(buffer)`), or one `write` into its result
-  (R6-44, see "Numbers to text" below); the generated docstrings_mod
+  (R6-44, see "Text from a format" below); the generated docstrings_mod
   writes an integer setting's value inline (tools/gen-docstrings.sh), its
   `value_text` generic keeps only the other types.
 - **number-text**: a reference to a procedure named `number_to_string`,
   `int_text`, `integer_text`, `itoa`, `int_str`, `int2str` or
   `to_string` (R6-44, R6-45).
+- **percent-format**: a call of `format_text`, `styled_format` or
+  `format_message`, or a use of `format_arguments_type`: Emacs's
+  %-directive formats (owner, 2026-11-06, see "Text from a format").
 - **char-loop**: a `do K = 1, min(len(A), len(B))` loop that orders the
   characters `A(K:K)` and `B(K:K)` with `<` or `>` (also through `ichar`
   or `iachar`): string-lessp by hand, whose port is utility_functions_mod's
@@ -1036,9 +1052,27 @@ check fails on a finding the baseline does not list and on a baseline
 line that no longer occurs, so the baseline only shrinks; once it is
 empty the check stays, with the empty baseline.
 
-**Numbers to text (R6-44, R6-45).**  Text built from a format fixed in
-the source is one internal `write` with edit descriptors, never Emacs's
-`format`, a wrapper function, or a concatenation of converted numbers.
+**Text from a format (R6-44, R6-45; owner, 2026-11-06).**  Text built
+from a format fixed in the source, numbers or strings, is one internal
+`write` with edit descriptors (strings alone may be concatenated), never
+a wrapper function or a concatenation of converted numbers.  Emacs's
+%-directive formats are never used: no `format`, `format-message`,
+`%s`, `%d` or `%S`, no `format_arguments_type`, and no hand-made `%s`
+substitution; the parts around a variable piece are passed as separate
+strings (dired-aux.el's `"Change mode of %s to: "` is
+`"Change mode of ", " to: "`).  Quotes are curved with error_mod's
+`substitute_quotes` (help.el:substitute-quotes) and `message` shows its
+text as it is.  tools/intrinsics.awk's percent-format rule checks.  A format the
+user types (C-x C-k C-f, C-u C-x r N) is a Fortran format with edit
+descriptors, written with editing_functions_mod's `write_with_format`
+(`"(i0)"`, `"(i3.3, 1x)"`; a malformed one is an error through STATUS;
+panel, 2026-11-06).  So are the string templates of settings (owner,
+2026-11-06): skeleton prompts (`skeleton_prompt(format='("pattern, ", a,
+": ")')`), `css_lookup_url_format`, and, where upstream's items vary in
+order or repeat, a format with an `items` component naming what its `a`
+edit descriptors write in order (`completing_read_multiple_prompt`, the
+dired compression rules).  Mode-line %-constructs and time formats
+(format-time-string) are separate (decided by rule).
 data_mod's `number_to_string`, a port of data.c `Fnumber_to_string`
 that stood in about 150 places for `write (text, "(i0)") n`, is gone
 (`write-not-number-to-string`, 2026-11-04), with the private copies
@@ -1282,7 +1316,7 @@ deleted.
 | `create_file_buffer`, `get_buffer_create`, `ewoc_create` | `make_file_buffer`, `get_or_make_buffer`, `make_fortmacs_widget_for_object_collections` |
 
 **Lists of records (R2-Q8, R2-Q14).**  An alist, or an array named
-`_list`, has a plural name without a suffix (replacing alist → `_table`);
+`_list`, has a plural name without a suffix (replacing `alist`→`_table`);
 a `_list` naming a listing (`list_buffers`, a tabulated list) or a
 function returning one (`buffer_list`) stays.
 
@@ -1638,9 +1672,13 @@ text are unchanged.
 
 ### When the answer is not clear: ask
 
-Cases one existing rule or pattern covers unambiguously (e.g. upstream
-nil/t → `.false.`/`.true.` of a choice setting, `_p` → `is_*`) are
-decided by Claude and reported, not asked.  The report names each case
+Cases one existing rule or pattern covers unambiguously are decided by
+Claude and reported, not asked, for example:
+
+- upstream `nil`/`t`→`.false.`/`.true.` of a choice setting
+- `_p`→`is_*`
+
+The report names each case
 and the rule it follows, so the owner can still overrule it.
 
 A Lisp-derived term with no line in tools/fortran-names.d, a case where
@@ -1768,6 +1806,13 @@ statement or the comment line above it.  Checked:
 - `allocatable-constructor`: a function result or structure constructor
   of a type with allocatable components inside an array constructor
   leaks: use `list(...)`, a variable or element assignment.
+- `allocatable-result-inquiry`: `size` (or `lbound`, `ubound`, `shape`)
+  of the result of a function or binding returning an allocatable array
+  of a type with allocatable components leaks the elements' components
+  (valgrind on `size(tabulated_list_entries%get_current())`, #304): a
+  getter of such an array is a subroutine with an `intent(out)` argument
+  (`call tabulated_list_entries%get_current(entries)`), or the result is
+  assigned to a variable first.
 - `recursive-allocatable-type`: an allocatable component of its own type
   is copied shallowly.
 - `command-component`: any allocatable component of `command_type`, a
@@ -2041,11 +2086,13 @@ scroll = .not. compilation_scroll_output%is_off()
   (a fixed-length string included) is `findloc`, `any`, `count` or `where`,
   not a loop; a deferred-length component can't be searched that way and
   keeps its loop.  An integer's decimal text, and any text built from a
-  format fixed in the source, is an internal write with edit descriptors
+  format fixed in the source (numbers or strings), is an internal write
+  with edit descriptors or a concatenation of strings
   (`write (text, "(i0)") n`) where it is used ("Intrinsics first",
-  "Numbers to text"), never `number_to_string` (data_mod's generic one,
+  "Text from a format"), never `number_to_string` (data_mod's generic one,
   which `simplify-a2` had made the one copy, is gone since R6-44),
-  `format` or a private wrapper (R6-44, R6-45); a string's character
+  a private wrapper or an Emacs %-directive format (R6-44, R6-45; owner,
+  2026-11-06); a string's character
   count utility_functions_mod's `count_characters`, the ASCII lowercase of a string
   character_mod's
   `downcase_ascii` (R6-16): no module keeps its own copy (`simplify-a2`,
@@ -2189,12 +2236,35 @@ scroll = .not. compilation_scroll_output%is_off()
   `call x%get_current(f)`, for `incremental_search_search_function_function`
   (gfortran rejects a function returning a pointer to a procedure that
   returns a procedure pointer) and the pcomplete function variables
-  (whose callers took it that way).  A value of another type is the same
+  (whose callers took it that way), and for an array of a type with
+  allocatable components (`tabulated_list_format`, `tabulated_list_entries`:
+  the `allocatable-result-inquiry` hazard).  A value of another type is the same
   parent with a component named for it: `electric_indent_characters`
   (`characters`, set with `=`), `skeleton_pairs` and
   `skeleton_default_pairs` (`pairs`, grown with `%append`).  The free
   procedures `X_set_local`, `current_X` and `X_clear_local` this replaced
-  are gone.
+  are gone.  The per-buffer variables once kept in a module's private
+  record behind free setters follow it too, for values that aren't plain
+  data: tabulated-list.el's format, entries, sort key and printer
+  (`tabulated_list_entries%set_local` takes an array or a procedure,
+  R6-37; the permanent-local ones are not cleared by `clear_X_locals`),
+  comint.el's procedure variables and `command_interpreter_completion_fignore`,
+  `local_abbreviation_table` and `syntax_parser_state_table`.  Plain data
+  (an integer, a logical, a string, a choice) is a forwarded setting
+  (`tabulated_list_padding`, `tabulated_list_use_header_line`,
+  `view_read_only`: `call view_read_only%set_local(.true.)`).  What only
+  the module reads stays private: comint's markers and input ring in its
+  record, tabulated-list--original-order in the entry of
+  `tabulated_list_entries`.
+
+- Permanently local settings (owner, #261): upstream's `permanent-local`
+  property is the `permanent_local` component of `setting_type`, set in
+  the declaration as hooks do
+  (`integer_setting_type(name="tabulated_list_padding", permanent_local=.true.)`;
+  a minor mode's `%state%permanent_local`, `auto_revert_mode`).
+  `clear_all_local_variables` keeps the buffer's value of a forwarded
+  setting whose `permanent_local` is true; only a variable of no setting
+  still carries the symbol property.
 
 - Shell-dependent settings (sh-script.el's tables read by `sh-feature`)
   are typed feature tables, one per kind of value (`shell_strings_feature_type`,
@@ -2355,9 +2425,13 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
   upstream's init_X never names a different Fortmacs procedure.
   Module names are spelled out (2026-11-05, decided by the owner):
   they follow the no-abbreviations rule even where upstream's file
-  name is abbreviated (cal-move.el → `calendar_movement_mod`, xdisp.c →
-  `display_engine_mod`, fns.c → `utility_functions_mod`), and the file
-  header keeps citing the upstream file.  tools/module-renames lists the
+  name is abbreviated, and the file header keeps citing the upstream
+  file:
+  - `cal-move.el`→`calendar_movement_mod`
+  - `xdisp.c`→`display_engine_mod`
+  - `fns.c`→`utility_functions_mod`
+
+  tools/module-renames lists the
   renames made then; tools/rename-modules.sh applies them (file names,
   `use` lines, test suites, status files), and a branch begun before
   them runs it after merging main, then tools/check.sh --fix, and
@@ -2427,17 +2501,18 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
   names become the same Fortran name, the plain Emacs name keeps its name
   unchanged and the other gets a spelled-out suffix saying what it is:
   - a function and a variable with the same name: the variable gets
-    `_variable` (`user-full-name` → `user_full_name_variable`);
+    `_variable`:
+    - `user-full-name`→`user_full_name_variable`
   - names that differ only in case (Fortran names are case-insensitive):
-    the capitalized one, a mode's command, gets `_command`
-    (`Buffer-menu-other-window` → `buffer_menu_other_window_command`, the
-    Buffer Menu's `o`).
+    the capitalized one, a mode's command, gets `_command`:
+    - `Buffer-menu-other-window`→`buffer_menu_other_window_command` (the
+      Buffer Menu's `o`)
 
   The renamed entity's docstring cites the upstream name and says why it
   was renamed, and the table below lists every rename. Aliases
   (`LaTeX-mode` of `latex-mode`) collapse to one name. A capitalized name
-  without a twin is only lowercased (`Buffer-menu-mark` →
-  `buffer_menu_mark`). Upstream C variables that are not Lisp variables
+  without a twin is only lowercased
+  (`Buffer-menu-mark`→`buffer_menu_mark`). Upstream C variables that are not Lisp variables
   keep their `V` prefix lowercased (editing_functions_mod's `vuser_login_name`).
 
   | Upstream | Fortmacs |

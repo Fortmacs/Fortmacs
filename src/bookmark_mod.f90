@@ -65,7 +65,7 @@ module bookmark_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_RAW
     use error_mod, only: status_type, set_error, condition_matches, GENERIC_ERROR_CODE, USER_ERROR_CODE, &
-                         FILE_ERROR_CODE, BOOKMARK_ERROR_NO_FILENAME_CODE, format_message
+                         FILE_ERROR_CODE, BOOKMARK_ERROR_NO_FILENAME_CODE, substitute_quotes
     use handle_mod, only: handle_type
     use value_mod, only: value_type, make_list
     use data_mod, only: append_locals_clearer, history_setting_type, forward_setting, choice_setting_type
@@ -89,9 +89,9 @@ module bookmark_mod
     use system_dependent_mod, only: file_status_type, fortmacs_clock_realtime
     use files_mod, only: find_file_noselect, abbreviate_file_name, write_file, revert_buffer_function
     use frame_mod, only: selected_frame, selected_window
-    use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, set_tabulated_list_format, &
-                                  set_tabulated_list_entries, set_tabulated_list_padding, set_tabulated_list_sort_key, &
-                                  clear_tabulated_list_sort_key, tabulated_list_initialize_header, tabulated_list_print, &
+    use tabulated_list_mod, only: tabulated_list_column_type, tabulated_list_entry_type, tabulated_list_format, &
+                                  tabulated_list_entries, tabulated_list_padding, tabulated_list_sort_key, &
+                                  tabulated_list_initialize_header, tabulated_list_print, &
                                   tabulated_list_get_id, tabulated_list_put_tag, tabulated_list_revert_hook
     use directory_editor_mode_mod, only: directory_editor_directory_of
     use derived_mod, only: is_derived_mode
@@ -1467,7 +1467,7 @@ contains
             case default
                 write (buffer, "(i0)") overwrite_or_push
                 call set_error(status, GENERIC_ERROR_CODE, &
-                               format_message("Unrecognized value for `overwrite_or_push': ")//trim(buffer))
+                               substitute_quotes("Unrecognized value for `overwrite_or_push': ")//trim(buffer))
                 return
             end select
 
@@ -1604,8 +1604,8 @@ contains
         character(len=:), allocatable :: text
         character(len=*), parameter :: LF = achar(10)
 
-        text = format_message("#  Type the annotation for bookmark `")//bookmark_name//format_message("' here.")//LF// &
-               format_message("#  All lines which start with a `#' will be deleted.")//LF// &
+        text = substitute_quotes("#  Type the annotation for bookmark `")//bookmark_name//substitute_quotes("' here.")//LF// &
+               substitute_quotes("#  All lines which start with a `#' will be deleted.")//LF// &
                substitute_command_keys("#  Type \[bookmark_edit_annotation_confirm] when done.  Type "// &
                                        "\[bookmark_edit_annotation_cancel] to cancel."//LF//"#"//LF)// &
                "#  Author: "//user_full_name()//" <"//user_login_name()//"@"//system_name()//">"//LF// &
@@ -2279,7 +2279,7 @@ contains
         if (present(new_name)) then
             final_new_name = new_name
         else
-            call read_from_minibuffer(format_message("Rename """//old_name//""" to: "), final_new_name, status, &
+            call read_from_minibuffer(substitute_quotes("Rename """//old_name//""" to: "), final_new_name, status, &
                                       keymap=bookmark_minibuffer_read_name_map, history="bookmark_history")
             if (.not. status%ok()) return
         end if
@@ -2943,15 +2943,15 @@ contains
         ! The value of `bookmark_sort_flag' might have changed since the
         ! last time the buffer contents were generated, so re-check it.
         if (bookmark_sort_flag%value) then
-            call set_tabulated_list_sort_key("Bookmark Name")
-            call set_tabulated_list_entries(entries)
+            call tabulated_list_sort_key%set_local("Bookmark Name")
+            call tabulated_list_entries%set_local(entries)
         else
-            call clear_tabulated_list_sort_key()
+            call tabulated_list_sort_key%set_local()
             ! And since we're not sorting by bookmark name, show bookmarks
             ! according to order of creation, with the most recently
             ! created bookmarks at the top and the least recently created
             ! at the bottom.
-            call set_tabulated_list_entries(entries(n:1:-1))
+            call tabulated_list_entries%set_local(entries(n:1:-1))
         end if
 
         ! Generate the header only after `tabulated_list_sort_key' is
@@ -3125,9 +3125,9 @@ contains
             format(4)%test => bookmark_bookmark_menu_file_test
         end if
 
-        call set_tabulated_list_format(format)
-        call set_tabulated_list_padding(BOOKMARK_BOOKMARK_MENU_MARKS_WIDTH)
-        if (bookmark_sort_flag%value) call set_tabulated_list_sort_key("Bookmark Name")
+        call tabulated_list_format%set_local(format)
+        call tabulated_list_padding%set_local(BOOKMARK_BOOKMARK_MENU_MARKS_WIDTH)
+        if (bookmark_sort_flag%value) call tabulated_list_sort_key%set_local("Bookmark Name")
         call tabulated_list_revert_hook%prepend(bookmark_menu_revert_hook, local=.true.)
         call revert_buffer_function%set_local(bookmark_menu_revert_function)
         call tabulated_list_initialize_header()

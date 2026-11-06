@@ -34,7 +34,7 @@
 !> `repeat-mode' customization setter for `repeat-keep-prefix'.
 module repeat_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
-    use error_mod, only: status_type, set_error, format_message, GENERIC_ERROR_CODE
+    use error_mod, only: status_type, set_error, substitute_quotes, GENERIC_ERROR_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, command_type, REPEAT_CHECK_KEY_DEFAULT, V_INTEGER, V_NAME, vtag, xfixnum, &
                          make_keymap_reference
@@ -312,8 +312,8 @@ contains
         call count_repeat_maps(commands_count, maps_count)
         write (ncmd, "(i0)") commands_count
         write (nmap, "(i0)") maps_count
-        call message(format_message("Repeat mode is enabled for "//trim(ncmd)//" commands and "//trim(nmap)// &
-                                    " keymaps; see `describe_repeat_maps'"))
+        call message(substitute_quotes("Repeat mode is enabled for "//trim(ncmd)//" commands and "//trim(nmap)// &
+                                       " keymaps; see `describe_repeat_maps'"))
     end subroutine repeat_mode
 
     !> The body of Repeat mode.  Port of repeat.el:repeat-mode in part.
@@ -600,8 +600,8 @@ contains
         allocate (prefix(0))
         keys_text = ""
         call collect(keymap, prefix)
-        text = format_message("Repeat with "//keys_text)
-        if (allocated(repeat_exit_key)) text = text//format_message(", or exit with `"//repeat_exit_key//"'")
+        text = substitute_quotes("Repeat with "//keys_text)
+        if (allocated(repeat_exit_key)) text = text//substitute_quotes(", or exit with `"//repeat_exit_key//"'")
 
     contains
 

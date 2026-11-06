@@ -47,7 +47,7 @@
 module ibuffer_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
-    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, QUIT_CODE, format_message
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, QUIT_CODE, substitute_quotes, format_error
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, xfixnum, xstring, list, vtag, V_INTEGER, V_STRING
     use hooks_mod, only: hook_type, change_major_mode_hook
@@ -1978,7 +1978,7 @@ contains
             r = IBUFFER_OP_DONE
         end if
 
-        if (.not. st%ok()) call message(format_message_of(st))
+        if (.not. st%ok()) call message(format_error(st))
 
         if (current_op%modifier_p == IBUFFER_MODIFIER_MAYBE .and. is_buffer_live(buffer)) then
             call is_buffer_modified(buffer, after, ignore)
@@ -1989,15 +1989,6 @@ contains
             end if
         end if
     end function op_line
-
-    ! Not a port.
-    function format_message_of(st) result(text)
-        use error_mod, only: format_error
-        type(status_type), intent(in) :: st
-        character(len=:), allocatable :: text
-
-        text = format_error(st)
-    end function format_message_of
 
     !> Save marked buffers as with `save_buffer'.  Port of
     !> ibuffer.el:ibuffer-do-save.

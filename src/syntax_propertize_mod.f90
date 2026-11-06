@@ -40,7 +40,7 @@ module syntax_propertize_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use utility_functions_mod, only: count_characters
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE
-    use handle_mod, only: handle_type
+    use handle_mod, only: handle_type, null_handle
     use buffer_mod, only: buffers, current, buffer_serial_live
     use value_mod, only: value_type, list, make_syntax_table_reference, vtag, V_NULL, V_NAME
     use data_mod, only: value_eq, append_locals_clearer
@@ -206,28 +206,35 @@ module syntax_propertize_mod
     end type parser_state_cell_type
 
     ! A buffer's own variables: `syntax_parser_state_wide', `syntax_parser_state_narrow',
-    ! `syntax_parser_state_narrow_start' (0 is nil), `syntax_parser_state__updated_cache'
-    ! and `syntax_parser_state_table'.
+    ! `syntax_parser_state_narrow_start' (0 is nil) and
+    ! `syntax_parser_state__updated_cache'.
     type :: parser_state_data_type
         integer(int64) :: serial = 0
         type(parser_state_cell_type) :: wide, narrow
         integer(int64) :: narrow_start = 0
         logical :: updated_cache = .false.
-        logical :: has_table = .false.
-        type(handle_type) :: table
     end type parser_state_data_type
 
-    !> The type of `syntax_parser_state_table': buffers' own syntax tables
-    !> (`set_local'; no table when unset).
-    type, public :: syntax_parser_state_table_type
+    !> One buffer's own `syntax_parser_state_table'.
+    type :: syntax_parser_state_table_entry_type
+        type(handle_type) :: table
+    end type syntax_parser_state_table_entry_type
+
+    !> The type of `syntax_parser_state_table': the global value `table'
+    !> (the null handle for none) and the buffers' own values
+    !> (`set_local').
+    type, extends(buffer_local_setting_type), public :: syntax_parser_state_table_setting_type
+        type(handle_type) :: table
+        type(syntax_parser_state_table_entry_type), allocatable :: locals(:)
     contains
-        !> Make H the current buffer's table (set_local).
-        procedure, nopass :: set_local => parser_state_table_set_local
-        !> Whether the current buffer has a table, and which (FOUND).
-        procedure, nopass :: get_current => current_parser_state_table
-        !> Make the current buffer's value unset again.
-        procedure, nopass :: clear_local => parser_state_table_clear_local
-    end type syntax_parser_state_table_type
+        !> Give the current buffer its own value, the syntax table TABLE.
+        procedure :: set_local => set_syntax_parser_state_table_local
+        !> The current buffer's value (its own, else the global one) and
+        !> whether it is a table (FOUND).
+        procedure :: get_current => get_syntax_parser_state_table_current
+        procedure :: append_local_entry => append_syntax_parser_state_table_entry
+        procedure :: clear_local_entry => clear_syntax_parser_state_table_entry
+    end type syntax_parser_state_table_setting_type
 
     !> Mode-specific function to apply `syntax_table' text properties.
     !> It is the work horse of `syntax_propertize', which is called by things like
@@ -279,7 +286,7 @@ module syntax_propertize_mod
 
     !> Syntax-table to use during `syntax_parser_state', if any.  Port of
     !> syntax.el syntax-ppss-table.
-    type(syntax_parser_state_table_type), public :: syntax_parser_state_table
+    type(syntax_parser_state_table_setting_type), public :: syntax_parser_state_table
 
     !> How far ahead of the position the syntax scanner needs
     !> `internal_syntax_propertize_function' propertizes.  Port of
@@ -375,38 +382,47 @@ contains
         self%locals(k)%procedure => null()
     end subroutine clear_syntax_propertize_entry
 
-    ! Not a port.
-    subroutine parser_state_table_set_local(h)
-        type(handle_type), intent(in) :: h
+    !> Give the current buffer its own `syntax_parser_state_table', TABLE.
+    !> Not a port.
+    subroutine set_syntax_parser_state_table_local(self, table)
+        class(syntax_parser_state_table_setting_type), intent(inout) :: self
+        type(handle_type), intent(in) :: table
         integer :: k
 
-        if (current == 0) return
-        call make_data_entry(k)
-        data(k)%has_table = .true.
-        data(k)%table = h
-    end subroutine parser_state_table_set_local
+        call self%make_local_entry(k)
+        if (k > 0) self%locals(k)%table = table
+    end subroutine set_syntax_parser_state_table_local
 
-    ! Not a port.
-    subroutine current_parser_state_table(h, found)
-        type(handle_type), intent(out) :: h
+    !> The current buffer's `syntax_parser_state_table', TABLE: its own
+    !> value, else the global one; FOUND .false. for none.  Not a port.
+    subroutine get_syntax_parser_state_table_current(self, table, found)
+        class(syntax_parser_state_table_setting_type), intent(in) :: self
+        type(handle_type), intent(out) :: table
         logical, intent(out) :: found
         integer :: k
 
-        found = .false.
-        if (current == 0) return
-        call make_data_entry(k)
-        found = data(k)%has_table
-        if (found) h = data(k)%table
-    end subroutine current_parser_state_table
+        table = self%table
+        k = self%get_local_index()
+        if (k > 0) table = self%locals(k)%table
+        found = table%index /= 0
+    end subroutine get_syntax_parser_state_table_current
 
-    ! Not a port.
-    subroutine parser_state_table_clear_local()
-        integer :: k
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_syntax_parser_state_table_entry(self)
+        class(syntax_parser_state_table_setting_type), intent(inout) :: self
+        type(syntax_parser_state_table_entry_type) :: entry
 
-        if (current == 0) return
-        call make_data_entry(k)
-        data(k)%has_table = .false.
-    end subroutine parser_state_table_clear_local
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_syntax_parser_state_table_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_syntax_parser_state_table_entry(self, k)
+        class(syntax_parser_state_table_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%table = null_handle()
+    end subroutine clear_syntax_parser_state_table_entry
 
     ! kill-all-local-variables: forget the current buffer's values.
     ! Not a port.
@@ -414,6 +430,7 @@ contains
         integer :: k
 
         call syntax_propertize_function%clear_local()
+        call syntax_parser_state_table%clear_local()
         if (current == 0) return
         call make_data_entry(k)
         data(k) = parser_state_data_type(serial=buffers(current)%serial)
@@ -425,7 +442,7 @@ contains
         type(handle_type) :: h
         logical :: found
 
-        call current_parser_state_table(h, found)
+        call syntax_parser_state_table%get_current(h, found)
 
         if (found) then
             if (is_syntax_table_live(h)) return

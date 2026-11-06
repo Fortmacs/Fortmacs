@@ -53,7 +53,7 @@ module rectangle_mod
     use execute_interactively_mod, only: PREFIX_NONE
     use value_mod, only: vtag, V_NULL, V_STRING, value_type
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, format_message, condition_matches, GENERIC_ERROR_CODE, &
+    use error_mod, only: status_type, set_error, substitute_quotes, condition_matches, GENERIC_ERROR_CODE, &
                          BUFFER_READ_ONLY_CODE, TEXT_READ_ONLY_CODE, WRONG_TYPE_ARGUMENT_CODE, END_OF_BUFFER_CODE, &
                          BEGINNING_OF_BUFFER_CODE
     use handle_mod, only: handle_type
@@ -86,7 +86,7 @@ module rectangle_mod
     use insert_delete_mod, only: insert
     use editing_functions_mod, only: point, goto_character, line_beginning_position, line_end_position, is_beginning_of_line, &
                                      buffer_substring, delete_region, delete_and_extract_region, region_beginning, region_end, &
-                                     character_after, interactive_region, character_before, styled_format, format_arguments_type
+                                     character_after, interactive_region, character_before, write_with_format
     use editing_commands_mod, only: forward_line
     use indent_mod, only: current_column, move_to_column, indent_to, indent_tabs_mode
     use syntax_mod, only: skip_syntax_forward
@@ -596,7 +596,7 @@ contains
 
         if (cut_read_only_ok) then
             status = status_type()
-            call message(format_message("Read only text copied to `last_cut_rectangle'"))
+            call message(substitute_quotes("Read only text copied to `last_cut_rectangle'"))
             return
         end if
 
@@ -858,36 +858,36 @@ contains
         type(status_type), intent(out) :: status
         integer(int64) :: column
         character(len=:), allocatable :: text
-        type(format_arguments_type) :: arguments
 
         call move_to_column(startcol, column, force=.true., status=status)
         if (.not. status%ok()) return
-        call arguments%append(self%counter)
-        call styled_format(self%format, arguments, .false., text, status)
+        call write_with_format(self%format, self%counter, text, status)
         if (.not. status%ok()) return
         call insert(text, status)
         if (.not. status%ok()) return
         self%counter = self%counter + 1
     end subroutine number_line
 
-    !> Port of rect.el:rectangle--default-line-number-format.
+    !> The default line-number format: "(iN, 1x)", N the digits of the
+    !> last line number.  Port of rect.el:rectangle--default-line-number-format.
     function default_line_number_format(start, end, start_at) result(format)
         integer(int64), intent(in) :: start, end, start_at
         character(len=:), allocatable :: format
         character(len=20) :: digits
-        character(len=8) :: text
+        character(len=16) :: text
 
         write (digits, "(i0)") count_lines(start, end) + start_at
-        write (text, '("%", i0, "d")') len_trim(digits)
-        format = trim(text)//" "
+        write (text, '("(i", i0, ", 1x)")') len_trim(digits)
+        format = trim(text)
     end function default_line_number_format
 
     !> Insert numbers in front of the region-rectangle.
     !>
     !> START_AT, if present, should be a number from which to begin
-    !> counting.  FORMAT, if present, should be a format string to pass
-    !> to `format_text' along with the line count.  When called interactively
-    !> with a prefix argument, prompt for START_AT and FORMAT.  Port of
+    !> counting.  FORMAT, if present, should be a Fortran format with edit
+    !> descriptors that writes the line count, one integer ("(i2, 1x)").
+    !> When called interactively with a prefix argument, prompt for
+    !> START_AT and FORMAT.  Port of
     !> rect.el:rectangle-number-lines.
     recursive subroutine rectangle_number_lines(start, end, start_at, status, format)
         integer(int64), intent(in) :: start, end, start_at

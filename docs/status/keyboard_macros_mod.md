@@ -7,7 +7,7 @@
 ## Ported
 
 macros as `keyboard_macro_type` (keys, counter, format; upstream's `kmacro` oclosure) run with their own counter (`keyboard_macro`, funcall on one),
-the counter (`kmacro-counter`, `kmacro-insert-counter` C-x C-k TAB, `kmacro-set-counter` C-x C-k C-c, `kmacro-add-counter` C-x C-k C-a, `kmacro-set-format` C-x C-k C-f, `kmacro-display-counter`, the initial value, value at start and last counter, `kmacro-loop-setup-function`),
+the counter (`kmacro-counter`, `kmacro-insert-counter` C-x C-k TAB, `kmacro-set-counter` C-x C-k C-c, `kmacro-add-counter` C-x C-k C-a, `kmacro-set-format` C-x C-k C-f (the counter formats are Fortran formats, "(i0)" by default, written with editing_functions_mod's `write_with_format`; panel, 2026-11-06), `kmacro-display-counter`, the initial value, value at start and last counter, `kmacro-loop-setup-function`),
 the register counters (`kmacro-reg-load-counter`, `kmacro-reg-save-counter`, `kmacro-reg-add-counter-equal`/`-less`/`-greater` on C-x C-k C-r),
 `kmacro-quit-counter-equal`/`-less`/`-greater` (C-x C-k C-q),
 the ring (`kmacro-ring`, `kmacro-ring-max`, `kmacro-ring-head`, `kmacro-push-ring`, `kmacro-pop-ring(1)`, `kmacro-split-ring-element`, `kmacro-ring-empty-p`, `kmacro-display`, `kmacro-call-ring-2nd(-repeat)` C-x C-k C-l, `kmacro-view-ring-2nd`, `kmacro-cycle-ring-next`/`-previous` C-x C-k C-n/C-p, `kmacro-swap-ring` C-x C-k C-t, `kmacro-delete-ring-head` C-x C-k C-d, `kmacro-view-macro(-repeat)` C-x C-k C-v),

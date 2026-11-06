@@ -188,6 +188,9 @@ program tester
     use test_rmail_edit_mod, only: collect_rmail_edit_mod
     use test_rmail_output_mod, only: collect_rmail_output_mod
     use test_rmail_summary_mod, only: collect_rmail_summary_mod
+    use test_rmail_mime_mod, only: collect_rmail_mime_mod
+    use test_rfc2231_mod, only: collect_rfc2231_mod
+    use test_ietf_drums_mod, only: collect_ietf_drums_mod
     use test_ansi_color_mod, only: collect_ansi_color_mod
     use test_buffer_menu_mod, only: collect_buffer_menu_mod
     use test_calendar_mod, only: collect_calendar_mod
@@ -392,7 +395,10 @@ program tester
                  new_testsuite("rmail_keywords_mod", collect_rmail_keywords_mod), &
                  new_testsuite("rmail_edit_mod", collect_rmail_edit_mod), &
                  new_testsuite("rmail_output_mod", collect_rmail_output_mod), &
-                 new_testsuite("rmail_summary_mod", collect_rmail_summary_mod) &
+                 new_testsuite("rmail_summary_mod", collect_rmail_summary_mod), &
+                 new_testsuite("rmail_mime_mod", collect_rmail_mime_mod), &
+                 new_testsuite("rfc2231_mod", collect_rfc2231_mod), &
+                 new_testsuite("ietf_drums_mod", collect_ietf_drums_mod) &
                  ]
     call get_argument(1, suite_name)
     call get_argument(2, test_name)

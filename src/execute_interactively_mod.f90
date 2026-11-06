@@ -30,7 +30,7 @@
 !>     commands%forward_character%execute => execute_forward_character
 module execute_interactively_mod
     use, intrinsic :: iso_fortran_env, only: int64
-    use error_mod, only: format_message, status_type, set_error, GENERIC_ERROR_CODE, &
+    use error_mod, only: substitute_quotes, status_type, set_error, GENERIC_ERROR_CODE, &
                          VOID_FUNCTION_CODE, WRONG_TYPE_ARGUMENT_CODE
     use value_mod, only: value_type, V_ARRAY, V_STRING, vtag, xsymbol, symbols, V_NULL, &
                          V_NAME
@@ -200,7 +200,7 @@ contains
         if (.not. associated(p)) p => builtin_command(name)
 
         if (.not. associated(p)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Invalid command name `")//name//format_message("'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Invalid command name `")//name//substitute_quotes("'"))
             return
         end if
 

@@ -35,12 +35,12 @@ module files_mod
     use execute_interactively_mod, only: PREFIX_NONE
     use commands_mod, only: commands
     use hooks_mod, only: hook_type
-    use error_mod, only: format_message, status_type, set_error, condition_matches, format_error, GENERIC_ERROR_CODE, &
+    use error_mod, only: substitute_quotes, status_type, set_error, condition_matches, format_error, GENERIC_ERROR_CODE, &
                          USER_ERROR_CODE, FILE_ERROR_CODE
     use handle_mod, only: handle_type
     use value_mod, only: value_type
     use minibuffer_reading_tables_mod, only: completion_test_procedure
-    use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type
+    use data_mod, only: integer_setting_type, logical_setting_type, choice_setting_type, forward_setting
     use buffer_mod, only: buffers, current, current_buffer, resolve_buffer, set_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, get_file_buffer, &
                           buffer_list, close_buffer, erase_buffer, set_buffer_read_only, &
@@ -59,7 +59,7 @@ module files_mod
     use keyboard_mod, only: request_exit
     use display_engine_mod, only: message
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, character_after, widen, &
-                                     narrow_to_region, format_message
+                                     narrow_to_region, substitute_quotes
     use insert_delete_mod, only: insert
     use basic_subprograms_mod, only: read_y_or_n
     use utility_functions_mod, only: read_yes_or_no
@@ -146,9 +146,8 @@ module files_mod
     !> In fact, this means that all read-only buffers normally have
     !> View mode enabled, including buffers that are read-only because
     !> you visit a file you cannot alter, and buffers you make read-only
-    !> using \[read_only_mode].  Port of files.el view-read-only (the
-    !> buffer-local values `read_only_mode' gives it are kept by view_mod).
-    logical, public :: view_read_only = .false.
+    !> using \[read_only_mode].  Port of files.el view-read-only.
+    type(logical_setting_type), target, public :: view_read_only = logical_setting_type(name="view_read_only", value=.false.)
 
     interface
         !> Copy DIRECTORY to NEWNAME.  Both args must be strings.
@@ -1706,7 +1705,7 @@ contains
                     return
                 end if
 
-                call read_y_or_n(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
+                call read_y_or_n(substitute_quotes("File `")//file//substitute_quotes("' exists; overwrite? "), ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -1733,7 +1732,7 @@ contains
             directory = file_name_directory(directory)
 
             if (.not. file_exists(file) .and. .not. file_exists(directory)) then
-                call read_y_or_n(format_message("Directory `")//directory//format_message("' does not exist; create? "), &
+                call read_y_or_n(substitute_quotes("Directory `")//directory//substitute_quotes("' does not exist; create? "), &
                                  ok, status)
                 if (.not. status%ok()) return
 
@@ -1771,7 +1770,7 @@ contains
 
                 if (.not. ok) then
                     call set_error(status, GENERIC_ERROR_CODE, &
-                                   format_message("Attempt to save to a file that you aren't allowed to write"))
+                                   substitute_quotes("Attempt to save to a file that you aren't allowed to write"))
                     return
                 end if
 
@@ -2169,7 +2168,7 @@ contains
             end if
 
             if (confirm .and. file_exists(file)) then
-                call read_y_or_n(format_message("File `")//file//format_message("' exists; overwrite? "), ok, status)
+                call read_y_or_n(substitute_quotes("File `")//file//substitute_quotes("' exists; overwrite? "), ok, status)
                 if (.not. status%ok()) return
 
                 if (.not. ok) then
@@ -2534,6 +2533,7 @@ contains
         type(value_type) :: key(1)
         type(status_type) :: status
 
+        call forward_setting(view_read_only)
         if (.not. allocated(insert_directory_program)) insert_directory_program = "ls"
 
         if (.not. allocated(locate_dominating_stop_directory_regular_expression)) then

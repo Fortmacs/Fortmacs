@@ -56,7 +56,7 @@
 module directory_editor_mode_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
-    use error_mod, only: status_type, set_error, format_error, format_message, condition_matches, error_name, &
+    use error_mod, only: status_type, set_error, format_error, substitute_quotes, condition_matches, error_name, &
                          GENERIC_ERROR_CODE, USER_ERROR_CODE, QUIT_CODE
     use handle_mod, only: handle_type, null_handle
     use value_mod, only: value_type, list, list_elements, xfixnum, xstring, command_procedure, vtag, V_INTEGER, &
@@ -614,16 +614,28 @@ module directory_editor_mode_mod
     !> dired-compress-directory-default-suffix.
     character(len=:), allocatable, public :: directory_editor_compress_directory_default_suffix
 
+    !> The files a compression command's Fortran format writes, as the
+    !> elements of a rule's `items': the input file(s) (upstream's %i) and
+    !> the output file (%o).  Not a port.
+    integer, parameter, public :: DIRECTORY_EDITOR_COMPRESS_INPUT = 1, DIRECTORY_EDITOR_COMPRESS_OUTPUT = 2
+
     !> A rule of `directory_editor_compress_file_suffixes': (REGULAR_EXPRESSION NEW-SUFFIX
-    !> PROGRAM), PROGRAM empty for none.
+    !> PROGRAM), PROGRAM empty for none.  With `items', PROGRAM is a
+    !> Fortran format writing the files `items' names in order
+    !> (DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT;
+    !> a file twice is in it twice); without, a command and its switches.
     type, public :: directory_editor_compress_suffix_type
         character(len=:), allocatable :: regular_expression, new_suffix, program
+        integer, allocatable :: items(:)
     end type directory_editor_compress_suffix_type
 
-    !> A rule, with `regular_expression' and `command', of `directory_editor_compress_file_commands' and
-    !> `directory_editor_compress_files_commands'.
+    !> A rule, with `regular_expression', `command' and `items', of
+    !> `directory_editor_compress_file_commands' and
+    !> `directory_editor_compress_files_commands': COMMAND is a Fortran
+    !> format writing the files `items' names in order.
     type, public :: directory_editor_compress_rule_type
         character(len=:), allocatable :: regular_expression, command
+        integer, allocatable :: items(:)
     end type directory_editor_compress_rule_type
 
     !> Control changes in file name suffixes for compression and uncompression.
@@ -635,8 +647,9 @@ module directory_editor_mode_mod
     !> If PROGRAM is not empty, the rule is an uncompression rule,
     !> and uncompression is done by running PROGRAM.
     !>
-    !> Within PROGRAM, %i denotes the input file, and %o denotes the
-    !> output file.
+    !> PROGRAM with `items' is a Fortran format writing the input and
+    !> output files in the order `items' gives
+    !> (DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT).
     !>
     !> Otherwise, the rule is a compression rule, and compression is done with gzip.
     !> ARGUMENTS are command switches passed to PROGRAM.  Port of dired-aux.el
@@ -649,8 +662,10 @@ module directory_editor_mode_mod
     !> archive to which you want to compress, and COMMAND is the
     !> corresponding command.
     !>
-    !> Within COMMAND, %i denotes the input file(s), and %o denotes the
-    !> output file.  %i path(s) are relative, while %o is absolute.
+    !> COMMAND is a Fortran format writing, with `a' edit descriptors, the
+    !> input file(s) and the output file in the order `items' gives
+    !> (DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT).
+    !> The input path(s) are relative, while the output is absolute.
     !> Port of dired-aux.el dired-compress-file-alist.
     type(directory_editor_compress_rule_type), allocatable, public :: directory_editor_compress_file_commands(:)
 
@@ -660,8 +675,10 @@ module directory_editor_mode_mod
     !> archive to which you want to compress, and COMMAND is the
     !> corresponding command.
     !>
-    !> Within COMMAND, %i denotes the input file(s), and %o denotes the
-    !> output file.  %i path(s) are relative, while %o is absolute.
+    !> COMMAND is a Fortran format writing, with `a' edit descriptors, the
+    !> input file(s) and the output file in the order `items' gives
+    !> (DIRECTORY_EDITOR_COMPRESS_INPUT, DIRECTORY_EDITOR_COMPRESS_OUTPUT).
+    !> The input path(s) are relative, while the output is absolute.
     !> Port of dired-aux.el dired-compress-files-alist.
     type(directory_editor_compress_rule_type), allocatable, public :: directory_editor_compress_files_commands(:)
 
@@ -1094,15 +1111,17 @@ module directory_editor_mode_mod
         !> INITIALIZE_COUNT is added to the number of lines removed by this
         !> invocation, for the reporting message; COUNT is that number.
         !>
-        !> A FMT of "" will suppress the messaging.  Port of
+        !> QUIET true suppresses the message (upstream's FMT of ""; a caller
+        !> with a message of its own, upstream's other FMT, writes it from
+        !> COUNT).  Port of
         !> dired-aux.el:dired-do-kill-lines.  (In directory_editor_auxiliary_mod.)
-        recursive module subroutine directory_editor_do_remove_lines(argument_kind, argument_n, status, fmt, initialize_count, &
+        recursive module subroutine directory_editor_do_remove_lines(argument_kind, argument_n, status, quiet, initialize_count, &
                                                                      count)
             implicit none(type, external)
             integer, intent(in) :: argument_kind
             integer(int64), intent(in) :: argument_n
             type(status_type), intent(out) :: status
-            character(len=*), intent(in), optional :: fmt
+            logical, intent(in), optional :: quiet
             integer(int64), intent(in), optional :: initialize_count
             integer(int64), intent(out), optional :: count
         end subroutine directory_editor_do_remove_lines
@@ -1953,8 +1972,8 @@ contains
                 directory_editor_use_ls_directory_editor = .true.
             else
                 directory_editor_use_ls_directory_editor = .false.
-                call message(format_message("ls does not support --dired -N; see `directory_editor_use_ls_directory_editor' "// &
-                                            "for more details."))
+                call message(substitute_quotes("ls does not support --dired -N; see `directory_editor_use_ls_directory_editor' "// &
+                                               "for more details."))
             end if
 
             use_ls_directory_editor = directory_editor_use_ls_directory_editor%value
@@ -3118,7 +3137,7 @@ contains
         if (lp == DIRECTORY_EDITOR_LOCALP_VERBATIM) then
             return
         else if (.not. noerr .and. (file == "." .or. file == "..")) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("Cannot operate on `.' or `..'"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("Cannot operate on `.' or `..'"))
             found = .false.
         else if (lp == DIRECTORY_EDITOR_LOCALP_NO_DIRECTORY .and. already_absolute) then
             file = file_name_nondirectory(file)
@@ -4116,8 +4135,8 @@ contains
         found = 0
 
         if (.not. is_file_name_absolute(file_in)) then
-            call set_error(status, GENERIC_ERROR_CODE, format_message("File name `")//file_in// &
-                           format_message("' is not absolute"))
+            call set_error(status, GENERIC_ERROR_CODE, substitute_quotes("File name `")//file_in// &
+                           substitute_quotes("' is not absolute"))
             return
         end if
 
@@ -5836,11 +5855,11 @@ contains
 
         if (new == achar(13) .or. old == achar(13)) then
             if (new == achar(13)) then
-                call set_error(status, USER_ERROR_CODE, format_message("Invalid mark character: `")//new// &
-                               format_message("'"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("Invalid mark character: `")//new// &
+                               substitute_quotes("'"))
             else
-                call set_error(status, USER_ERROR_CODE, format_message("Invalid mark character: `")//old// &
-                               format_message("'"))
+                call set_error(status, USER_ERROR_CODE, substitute_quotes("Invalid mark character: `")//old// &
+                               substitute_quotes("'"))
             end if
 
             return
@@ -5928,7 +5947,8 @@ contains
                 call directory_editor_get_filename(file, file_found, st, DIRECTORY_EDITOR_LOCALP_RELATIVE, .true.)
                 call goto_character(found_position)
                 if (.not. (st%ok() .and. file_found)) cycle
-                call directory_editor_query(query, format_message("Unmark file `")//file//format_message("'? "), answer, status, &
+                call directory_editor_query(query, substitute_quotes("Unmark file `")//file// &
+                                            substitute_quotes("'? "), answer, status, &
                                             help_procedure=help)
                 call goto_character(found_position)
                 if (.not. status%ok()) exit
@@ -6613,7 +6633,7 @@ contains
         call inhibit_read_only_begin(saved_ro)
         call backward_page()
         if (.not. is_beginning_of_line()) call insert(LF, st)
-        call insert(current_time_string()//format_message(TAB//"Buffer `")//output_buffer_name//format_message("'")//LF, st)
+        call insert(current_time_string()//substitute_quotes(TAB//"Buffer `")//output_buffer_name//substitute_quotes("'")//LF, st)
         call goto_character(point_maximum())
         call insert(achar(12)//LF, st)
         call inhibit_read_only_end(saved_ro)

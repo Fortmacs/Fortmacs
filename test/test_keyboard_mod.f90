@@ -986,7 +986,7 @@ contains
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: global, decode
         type(status_type) :: st
-        type(value_type), allocatable :: keys(:)
+        type(value_type), allocatable :: keys(:), events(:)
         type(value_type) :: binding
         logical :: eof
 
@@ -1006,7 +1006,8 @@ contains
         call check(error, seen_raw_keys, "C-c M-[ A")
         if (allocated(error)) return
         ! After the command, the keys are cleared.
-        call check(error, size(this_command_key_events()) == 0, "cleared")
+        events = this_command_key_events()
+        call check(error, size(events) == 0, "cleared")
         if (allocated(error)) return
         ! read-key-sequence: the last key sequence read.
         call keyboard_store_bytes(char(3)//char(27)//"[A")
@@ -1015,7 +1016,8 @@ contains
                    value_eq(binding, value_type(name="cmd-keys")), "read-key-sequence")
         if (allocated(error)) return
         call clear_this_command_keys(keep_record=.true.)
-        call check(error, size(this_command_key_events()) == 0, "clear")
+        events = this_command_key_events()
+        call check(error, size(events) == 0, "clear")
         if (allocated(error)) return
         call set_this_command_keys(char(195)//char(184)//"y")
         call check(error, key_description(this_command_key_events()), "M-x y")

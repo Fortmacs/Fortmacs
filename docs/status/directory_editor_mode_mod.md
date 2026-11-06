@@ -61,7 +61,7 @@ Y (`dired-do-copy`, `-rename`, `-hardlink`, `-symlink`, `-relsymlink` through `d
 M (symbolic and octal modes),
 G and O (through `chgrp` and `dired-chown-program`),
 T (`dired-touch-program`, with the date read),
-Z (`dired-compress-file` with `dired-compress-file-suffixes` and directories as archives),
+Z (`dired-compress-file` with `dired-compress-file-suffixes` and directories as archives; the commands of the compression rules are Fortran formats with `items`, the input and output files they write in order, DIRECTORY_EDITOR_COMPRESS_INPUT and _OUTPUT, owner, 2026-11-06),
 c (`dired-do-compress-to` with `dired-compress-files-alist`),
 k (`dired-do-kill-lines`, with a prefix the subdirectory lines),
 `dired-create-empty-file`,
@@ -75,7 +75,7 @@ the listing updates `dired-add-file`,
 `dired-unadvertise`,
 `dired-check-process`,
 `dired-bunch-files`,
-`dired-mark-read-file-name`,
+`dired-mark-read-file-name` (and `dired-mark-read-string`: the prompt as PROMPT_BEGINNING and PROMPT_END around the marked files, no %s format; `dired-do-kill-lines`' FMT as QUIET, a caller with a message of its own writing it from COUNT; 2026-11-06),
 `dired-mark-confirm`,
 `dired-log-summary`;
 `=` (`dired-diff`) and `dired-backup-diff`;

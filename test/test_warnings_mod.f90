@@ -29,7 +29,7 @@ module test_warnings_mod
     use, intrinsic :: iso_fortran_env, only: int64
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use test_support_mod, only: show_alone
-    use error_mod, only: status_type, format_message
+    use error_mod, only: status_type, substitute_quotes
     use handle_mod, only: handle_type
     use string_type_mod, only: string_type, append_string
     use buffer_mod, only: buffers, get_buffer, get_or_make_buffer, set_buffer, close_buffer, current_buffer
@@ -261,7 +261,7 @@ contains
     end subroutine test_warnings_buffer
 
     !> `warn' (finished text, type fortmacs; its literal quotes curved with
-    !> `format_message', as upstream's format-message does), a message built
+    !> `substitute_quotes', as upstream's format-message does), a message built
     !> with an internal write, and a level whose Fortran format leaves the
     !> type out.
     subroutine test_warn(error)
@@ -270,7 +270,7 @@ contains
         character(len=40) :: message
 
         call enter()
-        call warn(format_message("Can't find `x'"), status=st)
+        call warn(substitute_quotes("Can't find `x'"), status=st)
         write (message, "(a, i0)") "Bad file at line ", 3
         call display_warning("diary", trim(message), WARNING_LEVEL_ERROR, status=st)
         warning_levels(4)%string = "(""Debug: "")"

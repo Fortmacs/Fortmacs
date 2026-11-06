@@ -33,7 +33,7 @@ module completing_read_multiple_mod
     use error_mod, only: status_type
     use handle_mod, only: handle_type
     use buffer_mod, only: buffers, current
-    use editing_functions_mod, only: point, goto_character, point_maximum, is_end_of_buffer, buffer_string
+    use editing_functions_mod, only: point, goto_character, point_maximum, is_end_of_buffer, buffer_string, write_with_format
     use search_mod, only: regular_expression_search_forward, regular_expression_search_backward, looking_at, match_beginning, &
                           match_end, string_match, string_index_to_offset, string_characters
     use keymap_mod, only: make_sparse_keymap, set_keymap_parent, define_key, use_local_map, is_keymap_live, destroy_keymap
@@ -69,11 +69,29 @@ module completing_read_multiple_mod
     !> The `description' property of `completing_read_multiple_separator'.
     character(len=:), allocatable, public :: completing_read_multiple_separator_description
 
+    !> What the `a' edit descriptors of `completing_read_multiple_prompt'
+    !> write, as the elements of its `items': the separator description,
+    !> the separator itself and the original prompt (upstream's %d, %s and
+    !> %p).  Not a port.
+    integer, parameter, public :: COMPLETING_READ_MULTIPLE_PROMPT_DESCRIPTION = 1, &
+                                  COMPLETING_READ_MULTIPLE_PROMPT_SEPARATOR = 2, COMPLETING_READ_MULTIPLE_PROMPT_ORIGINAL = 3
+
+    !> A prompt format of `completing_read_multiple': FORMAT, a Fortran
+    !> format, writes ITEMS in order, each with an `a' edit descriptor (an
+    !> item used twice is in ITEMS twice).  Not a port.
+    type, public :: completing_read_multiple_prompt_type
+        character(len=:), allocatable :: format
+        integer, allocatable :: items(:)
+    end type completing_read_multiple_prompt_type
+
     !> Prompt format for `completing_read_multiple'.
-    !> The prompt is formatted with the keys %d, %s and %p standing for the
-    !> separator description, the separator itself and the original prompt
-    !> respectively.  Port of crm.el crm-prompt.
-    character(len=:), allocatable, public :: completing_read_multiple_prompt
+    !> Its `format' is a Fortran format writing its `items' in order:
+    !> COMPLETING_READ_MULTIPLE_PROMPT_DESCRIPTION (the separator
+    !> description), COMPLETING_READ_MULTIPLE_PROMPT_SEPARATOR (the
+    !> separator itself) and COMPLETING_READ_MULTIPLE_PROMPT_ORIGINAL (the
+    !> original prompt); by default `'("[", a, "] ", a)'' with the
+    !> description and the original prompt.  Port of crm.el crm-prompt.
+    type(completing_read_multiple_prompt_type), public :: completing_read_multiple_prompt
 
     !> Local keymap for minibuffer multiple input with completion.
     !> Analog of `minibuffer_local_completion_map'.  Port of crm.el
@@ -289,9 +307,11 @@ contains
         character(len=*), intent(in), optional :: initial_input, history, default
         type(completion_table_type) :: saved_table, fn_table
         type(handle_type) :: saved_map
-        character(len=:), allocatable :: input
+        character(len=:), allocatable :: input, prompt_text
         integer :: match
 
+        call write_prompt(prompt, prompt_text, status)
+        if (.not. status%ok()) return
         match = REQUIRE_MATCH_NO
         if (present(require_match)) match = require_match
         saved_table = completing_read_multiple_completion_table
@@ -308,7 +328,7 @@ contains
         fn_table%fn => completing_read_multiple_collection_fn
         completing_read_multiple_outer_setup => minibuffer_setup_function
         minibuffer_setup_function => completing_read_multiple_setup
-        call completing_read(format_prompt(prompt), fn_table, input, status, test, require_match, initial_input, &
+        call completing_read(prompt_text, fn_table, input, status, test, require_match, initial_input, &
                              history, default)
         minibuffer_setup_function => null()
         completing_read_multiple_completion_table = saved_table
@@ -323,38 +343,34 @@ contains
         call split_string(input, results)
     end subroutine completing_read_multiple
 
-    ! (format-spec crm-prompt ...): %s the separator, %d its description,
-    ! %p the PROMPT.  Not a port.
-    function format_prompt(prompt) result(s)
+    ! TEXT, the prompt `completing_read_multiple_prompt' writes for PROMPT
+    ! (format-spec crm-prompt ...).  Not a port.
+    subroutine write_prompt(prompt, text, status)
         character(len=*), intent(in) :: prompt
-        character(len=:), allocatable :: s
+        character(len=:), allocatable, intent(out) :: text
+        type(status_type), intent(out) :: status
+        type(string_type), allocatable :: items(:)
         integer :: k
 
-        s = ""
-        k = 1
+        if (allocated(completing_read_multiple_prompt%items)) then
+            allocate (items(size(completing_read_multiple_prompt%items)))
+        else
+            allocate (items(0))
+        end if
 
-        do while (k <= len(completing_read_multiple_prompt))
-            if (completing_read_multiple_prompt(k:k) == "%" .and. k < len(completing_read_multiple_prompt)) then
-                select case (completing_read_multiple_prompt(k + 1:k + 1))
-                case ("s")
-                    s = s//completing_read_multiple_separator_string
-                case ("d")
-                    s = s//completing_read_multiple_separator_description
-                case ("p")
-                    s = s//prompt
-                case ("%")
-                    s = s//"%"
-                case default
-                    s = s//completing_read_multiple_prompt(k:k + 1)
-                end select
-
-                k = k + 2
-            else
-                s = s//completing_read_multiple_prompt(k:k)
-                k = k + 1
-            end if
+        do k = 1, size(items)
+            select case (completing_read_multiple_prompt%items(k))
+            case (COMPLETING_READ_MULTIPLE_PROMPT_DESCRIPTION)
+                items(k)%text = completing_read_multiple_separator_description
+            case (COMPLETING_READ_MULTIPLE_PROMPT_SEPARATOR)
+                items(k)%text = completing_read_multiple_separator_string
+            case default
+                items(k)%text = prompt
+            end select
         end do
-    end function format_prompt
+
+        call write_with_format(completing_read_multiple_prompt%format, items, text, status)
+    end subroutine write_prompt
 
     ! (split-string STRING crm-separator t): the parts of STRING between
     ! matches of `completing_read_multiple_separator', without the empty ones.  Not a port.
@@ -443,7 +459,13 @@ contains
         if (.not. allocated(completing_read_multiple_separator_string)) completing_read_multiple_separator_string = ","
         if (.not. allocated(completing_read_multiple_separator_description)) completing_read_multiple_separator_description = &
             "comma-separated list"
-        if (.not. allocated(completing_read_multiple_prompt)) completing_read_multiple_prompt = "[%d] %p"
+
+        if (.not. allocated(completing_read_multiple_prompt%format)) then
+            completing_read_multiple_prompt%format = '("[", a, "] ", a)'
+            completing_read_multiple_prompt%items = [COMPLETING_READ_MULTIPLE_PROMPT_DESCRIPTION, &
+                                                     COMPLETING_READ_MULTIPLE_PROMPT_ORIGINAL]
+        end if
+
         commands%completing_read_multiple_complete%execute => completing_read_multiple_complete
         commands%completing_read_multiple_complete_word%execute => completing_read_multiple_complete_word
         commands%completing_read_multiple_completion_help%execute => completing_read_multiple_completion_help

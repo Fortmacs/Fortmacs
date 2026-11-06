@@ -27,7 +27,7 @@
 !> names are not case-sensitive, so here they are `view_quit',
 !> `view_scroll_page_forward' and so on.  The buffer-local variables
 !> (`view_exit_action', the page sizes, the old read-only state, the last
-!> regexp, the local value of `view_read_only') are kept per buffer here.
+!> regexp) are kept per buffer here.
 !>
 !> Deferred: highlighting the match of a search (`view_highlight_face',
 !> `view_overlay': overlays), `F' (View-revert-buffer-scroll-page-forward)
@@ -40,7 +40,7 @@ module view_mod
     use, intrinsic :: iso_fortran_env, only: int32, int64, real64
     use execute_interactively_mod, only: prefix_argument_type, PREFIX_NONE, PREFIX_NUMBER, PREFIX_RAW
     use commands_mod, only: commands
-    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE, format_message
+    use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, ARGUMENTS_OUT_OF_RANGE_CODE, substitute_quotes
     use handle_mod, only: handle_type
     use value_mod, only: list
     use data_mod, only: append_locals_clearer
@@ -74,7 +74,7 @@ module view_mod
 
     public :: initialize_view, view_mode, view_mode_enter, view_mode_exit, view_file, view_file_other_window, &
               view_buffer, view_buffer_other_window, close_buffer_if_not_modified, view_exit_action_procedure, &
-              view_mode_enabled, view_exit_and_edit, view_read_only_value, set_view_read_only_local, view_search
+              view_mode_enabled, view_exit_and_edit, view_search
 
     abstract interface
         !> A `view_exit_action': called with the viewed BUFFER when finished
@@ -136,8 +136,6 @@ module view_mod
         character(len=:), allocatable :: last_regular_expression
         !> view-exit-action
         procedure(view_exit_action_procedure), pointer, nopass :: exit_action => null()
-        !> The buffer-local value of `view_read_only'.
-        logical :: has_view_read_only = .false., view_read_only = .false.
     end type view_local_type
 
     type(view_local_type), allocatable :: locals(:)
@@ -188,28 +186,6 @@ contains
         k = local_index()
         if (k > 0) locals(k) = view_local_type()
     end subroutine clear_view_locals
-
-    !> The value of `view_read_only' in the current buffer: its
-    !> buffer-local value if it has one.  Not a port.
-    logical function view_read_only_value()
-        integer :: k
-
-        view_read_only_value = view_read_only
-        k = local_index()
-        if (k == 0) return
-        if (locals(k)%has_view_read_only) view_read_only_value = locals(k)%view_read_only
-    end function view_read_only_value
-
-    !> Give the current buffer its own `view_read_only', VALUE (set_local).  Not a port.
-    subroutine set_view_read_only_local(value)
-        logical, intent(in) :: value
-        integer :: k
-
-        call make_local_entry(k)
-        if (k == 0) return
-        locals(k)%has_view_read_only = .true.
-        locals(k)%view_read_only = value
-    end subroutine set_view_read_only_local
 
     !> Whether View mode is on in the current buffer (the variable
     !> `view_mode').  Not a port.
@@ -621,8 +597,8 @@ contains
         ! will reenable View mode.
         ! Canceling View mode in any other way should cancel that, too,
         ! so that View mode stays off if read-only-mode is called.
+        call view_read_only%clear_local()
         k = local_index()
-        if (k > 0) locals(k)%has_view_read_only = .false.
         ! Reset the read-only state memory as well, so that `revert_buffer'
         ! won't make the buffer read-only again.
         if (buffers(current)%read_only_mode_state_set) buffers(current)%read_only_mode_state = .false.
@@ -705,7 +681,7 @@ contains
 
         ! When `view_read_only' is true, we don't want to leave a buffer
         ! read-only but not in `view_mode'.
-        if (.not. (view_no_disable_on_exit .or. (view_read_only_value() .and. old_read_only))) then
+        if (.not. (view_no_disable_on_exit .or. (view_read_only%value .and. old_read_only))) then
             call minor_modes%view_mode%disable(status)
             if (.not. status%ok()) return
         end if
@@ -764,41 +740,18 @@ contains
     !> view.el:View-exit.
     recursive subroutine view_exit(status)
         type(status_type), intent(out) :: status
-        logical :: saved_no_disable, saved_global, had_local, saved_local
-        integer :: k
+        logical :: saved_no_disable, saved, had_local
 
         ! (let ((view-read-only nil) (view-no-disable-on-exit nil)) ...)
         saved_no_disable = view_no_disable_on_exit
         view_no_disable_on_exit = .false.
-        k = local_index()
-        had_local = .false.
-        saved_local = .false.
-
-        if (k > 0) then
-            had_local = locals(k)%has_view_read_only
-            saved_local = locals(k)%view_read_only
-        end if
-
-        saved_global = view_read_only
-
-        if (had_local) then
-            locals(k)%view_read_only = .false.
-        else
-            view_read_only = .false.
-        end if
-
+        had_local = view_read_only%is_local()
+        saved = view_read_only%value
+        view_read_only%value = .false.
         call view_mode_exit(status, exit_only=.true.)
         view_no_disable_on_exit = saved_no_disable
-
-        if (had_local) then
-            k = local_index()
-
-            if (k > 0) then
-                if (locals(k)%has_view_read_only) locals(k)%view_read_only = saved_local
-            end if
-        else
-            view_read_only = saved_global
-        end if
+        ! (The binding it changed: the buffer's own value, or the global one.)
+        if (view_read_only%is_local() .eqv. had_local) view_read_only%value = saved
     end subroutine view_exit
 
     !> Exit View mode and make the current buffer editable.  Port of
