@@ -1,1 +1,1 @@
-2026-11-06 — README: the Lisp-term renames are in code style like the other renames (`defun`→`subprogram`) (`readme-terms-code`, owner).
+2026-11-06 — README: the Lisp-term renames are in code style like the other renames (`defun`→`subprogram`), and the "(C-w, M-w and C-y stay)" aside is dropped, since the keys item already says keys stay (`readme-terms-code`, owner).

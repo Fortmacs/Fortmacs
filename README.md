@@ -124,7 +124,7 @@ names, help and internals are Fortran-first.
     - `run_mode_hooks`→`execute_mode_hooks` <!-- fortran-names: keep -->
     - `run_with_timer`→`execute_with_timer` <!-- fortran-names: keep -->
   - Text is cut, copied and pasted, and the copies are kept in the
-    clipboard history (C-w, M-w and C-y stay):
+    clipboard history:
     - `kill_region`→`cut_region` <!-- fortran-names: keep -->
     - `kill_ring_save`→`copy_region` <!-- fortran-names: keep -->
     - `yank`→`paste` <!-- fortran-names: keep -->
