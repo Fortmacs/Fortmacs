@@ -161,7 +161,7 @@ contains
     subroutine pop_entry()
         type(tabulated_list_entry_type), allocatable :: entries(:)
 
-        entries = tabulated_list_entries%get_current()
+        call tabulated_list_entries%get_current(entries)
         call tabulated_list_entries%set_local(entries(2:))
     end subroutine pop_entry
 
@@ -197,7 +197,7 @@ contains
             if (allocated(error)) exit steps
             ! Check the UPDATE argument
             call pop_entry()
-            entries = tabulated_list_entries%get_current()
+            call tabulated_list_entries%get_current(entries)
             entries(1)%columns(1)%text = "x"
             entries(1)%columns(2)%text = "x"
             entries(1)%columns(3)%text = "944"
@@ -344,7 +344,8 @@ contains
         steps: block
             call tabulated_list_entries%set_local(first_two_entries)
             call tabulated_list_print(st)
-            call check(error, size(tabulated_list_entries%get_current()), 2, "made by the procedure")
+            call tabulated_list_entries%get_current(entries)
+            call check(error, size(entries), 2, "made by the procedure")
             if (allocated(error)) exit steps
             call check(error, buffer_string(), &
                        "       zzzz-game  zzzz-game  2113      installed   play zzzz in Emacs"//LF// &
@@ -366,6 +367,8 @@ contains
     subroutine test_permanent_locals(error)
         type(error_type), allocatable, intent(out) :: error
         type(handle_type) :: old
+        type(tabulated_list_entry_type), allocatable :: entries(:)
+        type(tabulated_list_column_type), allocatable :: format(:)
         procedure(tabulated_list_printer_procedure), pointer :: printer
         type(status_type) :: st
 
@@ -380,9 +383,11 @@ contains
             call clear_all_local_variables()
             call check(error, tabulated_list_padding%get_current(), 7, "padding")
             if (allocated(error)) exit steps
-            call check(error, size(tabulated_list_format%get_current()), 5, "format")
+            call tabulated_list_format%get_current(format)
+            call check(error, size(format), 5, "format")
             if (allocated(error)) exit steps
-            call check(error, size(tabulated_list_entries%get_current()), 4, "entries")
+            call tabulated_list_entries%get_current(entries)
+            call check(error, size(entries), 4, "entries")
             if (allocated(error)) exit steps
             call check(error, tabulated_list_use_header_line%get_current(), "use_header_line")
             if (allocated(error)) exit steps

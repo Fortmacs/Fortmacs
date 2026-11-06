@@ -1754,6 +1754,13 @@ statement or the comment line above it.  Checked:
 - `allocatable-constructor`: a function result or structure constructor
   of a type with allocatable components inside an array constructor
   leaks: use `list(...)`, a variable or element assignment.
+- `allocatable-result-inquiry`: `size` (or `lbound`, `ubound`, `shape`)
+  of the result of a function or binding returning an allocatable array
+  of a type with allocatable components leaks the elements' components
+  (valgrind on `size(tabulated_list_entries%get_current())`, #304): a
+  getter of such an array is a subroutine with an `intent(out)` argument
+  (`call tabulated_list_entries%get_current(entries)`), or the result is
+  assigned to a variable first.
 - `recursive-allocatable-type`: an allocatable component of its own type
   is copied shallowly.
 - `command-component`: any allocatable component of `command_type`, a
@@ -2168,7 +2175,9 @@ scroll = .not. compilation_scroll_output%is_off()
   `call x%get_current(f)`, for `incremental_search_search_function_function`
   (gfortran rejects a function returning a pointer to a procedure that
   returns a procedure pointer) and the pcomplete function variables
-  (whose callers took it that way).  A value of another type is the same
+  (whose callers took it that way), and for an array of a type with
+  allocatable components (`tabulated_list_format`, `tabulated_list_entries`:
+  the `allocatable-result-inquiry` hazard).  A value of another type is the same
   parent with a component named for it: `electric_indent_characters`
   (`characters`, set with `=`), `skeleton_pairs` and
   `skeleton_default_pairs` (`pairs`, grown with `%append`).  The free

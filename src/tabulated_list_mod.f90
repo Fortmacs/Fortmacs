@@ -408,11 +408,11 @@ contains
         call copy_columns(columns, self%locals(k)%columns)
     end subroutine set_tabulated_list_format_local
 
-    !> The current buffer's `tabulated_list_format': its own value, else
+    !> The current buffer's `tabulated_list_format', COLUMNS: its own value, else
     !> the global one (empty when unset).  Not a port.
-    function get_tabulated_list_format_current(self) result(columns)
+    subroutine get_tabulated_list_format_current(self, columns)
         class(tabulated_list_format_setting_type), intent(in) :: self
-        type(tabulated_list_column_type), allocatable :: columns(:)
+        type(tabulated_list_column_type), allocatable, intent(out) :: columns(:)
         integer :: k
 
         k = self%get_local_index()
@@ -428,7 +428,7 @@ contains
         end if
 
         allocate (columns(0))
-    end function get_tabulated_list_format_current
+    end subroutine get_tabulated_list_format_current
 
     ! Grow `locals' by one entry.  Not a port.
     subroutine append_tabulated_list_format_entry(self)
@@ -472,11 +472,11 @@ contains
         self%locals(k)%procedure => local_procedure
     end subroutine set_tabulated_list_entries_procedure_local
 
-    !> The current buffer's `tabulated_list_entries' as last printed (or
+    !> The current buffer's `tabulated_list_entries', ENTRIES, as last printed (or
     !> set): its own, else the global array.  Not a port.
-    function get_tabulated_list_entries_current(self) result(entries)
+    subroutine get_tabulated_list_entries_current(self, entries)
         class(tabulated_list_entries_setting_type), intent(in) :: self
-        type(tabulated_list_entry_type), allocatable :: entries(:)
+        type(tabulated_list_entry_type), allocatable, intent(out) :: entries(:)
         integer :: k
 
         k = self%get_local_index()
@@ -492,7 +492,7 @@ contains
         end if
 
         allocate (entries(0))
-    end function get_tabulated_list_entries_current
+    end subroutine get_tabulated_list_entries_current
 
     ! Grow `locals' by one entry.  Not a port.
     subroutine append_tabulated_list_entries_entry(self)
@@ -889,7 +889,7 @@ contains
         integer :: x, n, length_fmt, lablen, next_x, available_space, shift, width
         logical :: not_last_column, flip
 
-        format = tabulated_list_format%get_current()
+        call tabulated_list_format%get_current(format)
         call tabulated_list_sort_key%get_current(sort_name, flip)
         x = max(tabulated_list_padding%get_current(), 0)
         length_fmt = size(format)
@@ -1184,7 +1184,7 @@ contains
             call copy_entries(tabulated_list_entries%locals(k)%entries, entries)
         end if
 
-        format = tabulated_list_format%get_current()
+        call tabulated_list_format%get_current(format)
         n = sort_column(format, flip, status)
         if (.not. status%ok()) return
         has_id = .false.
@@ -1338,7 +1338,7 @@ contains
         logical :: ro, saved_near, changed
 
         beginning = point()
-        format = tabulated_list_format%get_current()
+        call tabulated_list_format%get_current(format)
         padding = tabulated_list_padding%get_current()
         x = max(padding, 0)
         ro = buffers(current)%read_only
@@ -1421,7 +1421,7 @@ contains
         logical :: not_last_column, right_align
 
         status = status_type()
-        format = tabulated_list_format%get_current()
+        call tabulated_list_format%get_current(format)
         x = x_in
         width = format(n)%width
         pad_right = format(n)%pad_right
@@ -1570,7 +1570,7 @@ contains
         original_point = point()
         end_of_line = position_end_of_line()
         position = position_beginning_of_line()
-        format = tabulated_list_format%get_current()
+        call tabulated_list_format%get_current(format)
 
         if (present(column)) then
             c = column
@@ -1676,7 +1676,7 @@ contains
         integer :: k, c
 
         status = status_type()
-        format = tabulated_list_format%get_current()
+        call tabulated_list_format%get_current(format)
 
         if (present(n)) then
             if (n >= size(format) .or. n < -1) then
@@ -1811,7 +1811,7 @@ contains
         start = current_column()
         call tabulated_list_get_entry(entry, found)
         if (.not. found) return
-        format = tabulated_list_format%get_current()
+        call tabulated_list_format%get_current(format)
         column_nb = 1
         total_width = 0
 

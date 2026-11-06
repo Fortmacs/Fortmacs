@@ -59,4 +59,47 @@ module sample
     ! Not reported: strings that fit (a doubled quote is one character).
     character(len=4), parameter :: fit(3) = [character(len=4) :: "ab""c", 'abcd', &
                                              "a"]
+
+    type, public :: store_type
+        type(value_type), allocatable :: values(:)
+    contains
+        procedure :: get => get_values
+    end type store_type
+
+contains
+
+    ! An allocatable array of a type with allocatable components.
+    function make_values() result(values)
+        type(value_type), allocatable :: values(:)
+
+        allocate (values(2))
+    end function make_values
+
+    ! The same through a binding.
+    function get_values(self) result(values)
+        class(store_type), intent(in) :: self
+        type(value_type), allocatable :: values(:)
+
+        values = self%values
+    end function get_values
+
+    ! An allocatable array of a type without allocatable components.
+    function make_flats() result(flats)
+        type(flat_type), allocatable :: flats(:)
+
+        allocate (flats(2))
+    end function make_flats
+
+    subroutine inquire(store, n)
+        type(store_type), intent(in) :: store
+        integer, intent(out) :: n
+        type(value_type), allocatable :: kept(:)
+
+        ! Reported: the size of such results, by name and by binding.
+        n = size(make_values())
+        n = size(store%get())
+        ! Not reported: the result assigned first, a flat type.
+        kept = make_values()
+        n = size(kept) + size(make_flats())
+    end subroutine inquire
 end module sample
