@@ -1,0 +1,54 @@
+# mail-headers-dates (rfc2047.el, mail-prsvr.el, qp.el, mm-util.el in part,
+# parse-time.el, iso8601.el, time-date.el, mail-utils.el mail-mbox-from).
+# Verb first (R6-17, R6-40; as mail-unquote-printable-region is
+# unquote_mail_printable_region), the package word after the verb
+# (rule-decided).
+name	iso8601_parse	parse_iso8601
+name	iso8601_parse_date	parse_iso8601_date
+name	iso8601_parse_time	parse_iso8601_time
+name	iso8601_parse_zone	parse_iso8601_zone
+name	iso8601_parse_duration	parse_iso8601_duration
+name	iso8601_parse_interval	parse_iso8601_interval
+name	decoded_time_set_defaults	set_decoded_time_defaults
+# decoded-time-add is verb first too (R6-17, the owner's newer rule; main's
+# time_add waits for the pending verb-first rename; coordinator, 2026-11-05).
+name	decoded_time_add	add_decoded_time
+name	quoted_printable_decode_region	decode_quoted_printable_region
+name	quoted_printable_decode_string	decode_quoted_printable_string
+name	quoted_printable_encode_region	encode_quoted_printable_region
+name	quoted_printable_encode_string	encode_quoted_printable_string
+name	rfc2047_encode_message_header	encode_rfc2047_message_header
+name	rfc2047_encode_region	encode_rfc2047_region
+name	rfc2047_encode_string	encode_rfc2047_string
+name	rfc2047_narrow_to_field	narrow_to_rfc2047_field
+name	rfc2047_fold_field	fold_rfc2047_field
+name	rfc2047_fold_region	fold_rfc2047_region
+name	rfc2047_unfold_field	unfold_rfc2047_field
+name	rfc2047_unfold_region	unfold_rfc2047_region
+name	rfc2047_decode_region	decode_rfc2047_region
+name	rfc2047_decode_address_region	decode_rfc2047_address_region
+name	rfc2047_decode_string	decode_rfc2047_string
+name	rfc2047_decode_address_string	decode_rfc2047_address_string
+name	rfc2047_pad_base64	pad_rfc2047_base64
+name	rfc2047_strip_backslashes_in_quoted_strings	strip_rfc2047_backslashes_in_quoted_strings
+# Predicates are is_* (B1; rule-decided).
+name	iso8601_valid_p	is_iso8601_valid
+name	date_leap_year_p	is_date_leap_year
+# An alist is a plural name (R2-Q8; rule-decided).
+name	rfc2047_header_encoding_alist	rfc2047_header_encodings
+name	rfc2047_charset_encoding_alist	rfc2047_character_set_encodings
+# mm-util.el: the package prefix mm spelled out as mime, the word for
+# what the file holds (no abbreviations, owner 2026-11-05; decided by
+# rule, open to challenge), and its alists plural.
+name	mm_charset_to_coding_system	mime_character_set_to_coding_system
+name	mm_find_mime_charset_region	find_mime_character_set_region
+name	mm_coding_system_priorities	mime_coding_system_priorities
+name	mm_use_find_coding_systems_region	mime_use_find_coding_systems_region
+name	mm_charset_override_alist	mime_character_set_overrides
+name	mm_charset_synonym_alist	mime_character_set_synonyms
+# rfc2047-encodable-p moves point, so it is a subroutine (R3-8), named as
+# check_region_skip is (coordinator, 2026-11-05).
+name	rfc2047_encodable_p	check_rfc2047_encodable
+# A decoded time's dst is daylight_saving_time here too, as in
+# time_functions_mod (spell-out-words), not the word rule's destination.
+name	dst	daylight_saving_time	src/iso8601_mod.f90 src/parse_time_mod.f90 src/time_date_mod.f90 test/test_time_date_mod.f90 test/test_time_support_mod.f90

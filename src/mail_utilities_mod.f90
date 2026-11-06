@@ -23,8 +23,9 @@
 !> header parsing (`get_mail_field', `strip_mail_quoted_names',
 !> `mail_dont_reply_to', `parse_mail_comma_list'), the "quoted
 !> printable" Q encoding (`quote_mail_printable',
-!> `unquote_mail_printable' and their region commands), and the dates
-!> of mail headers (`mail_rfc822_date').
+!> `unquote_mail_printable' and their region commands), the dates of
+!> mail headers (`mail_rfc822_date') and mbox "From " lines
+!> (`mail_mbox_from').
 !>
 !> String indices are 1-based character indices, as `string_match'
 !> gives them.
@@ -50,7 +51,8 @@ module mail_utilities_mod
     use utility_functions_mod, only: count_characters
     use file_input_output_mod, only: insert_file_contents
     use marker_mod, only: copy_marker_at, marker_position, destroy_marker
-    use time_functions_mod, only: format_time_string
+    use time_functions_mod, only: format_time_string, current_time_string, time_type
+    use time_date_mod, only: date_to_time
     use startup_mod, only: user_mail_address_value
     implicit none(type, external)
     private
@@ -58,7 +60,7 @@ module mail_utilities_mod
     public :: is_mail_file_babyl, quote_mail_printable, quote_mail_printable_region, unquote_mail_printable, &
               unquote_mail_printable_region, strip_mail_quoted_names, mail_dont_reply_to, get_mail_field, &
               parse_mail_comma_list, mail_comma_list_regular_expression, mail_rfc822_date, wrap_mail_re_regular_expression, &
-              initialize_mail_utilities
+              mail_mbox_from, initialize_mail_utilities
 
     !> Regexp specifying addresses to prune from a reply message.
     !> If this is unallocated, it is set the first time you compose a reply, to
@@ -779,6 +781,48 @@ contains
 
         date = format_time_string("%-d %b %Y %T %z")
     end function mail_rfc822_date
+
+    !> Return an mbox "From " line for the current message.  The buffer
+    !> should be narrowed to just the headers.  Port of
+    !> mail-utils.el:mail-mbox-from.
+    function mail_mbox_from(status) result(line)
+        type(status_type), intent(out) :: status
+        character(len=:), allocatable :: line
+        character(len=*), parameter :: FIELDS(4) = [character(len=11) :: "from", "really-from", "sender", "return-path"]
+        character(len=:), allocatable :: from, date, time_string
+        type(status_type) :: st
+        type(time_type) :: time
+        integer(int64) :: end
+        integer :: k
+
+        line = ""
+
+        do k = 1, size(FIELDS)
+            call get_mail_field(trim(FIELDS(k)), from, status)
+            if (.not. status%ok()) return
+            if (allocated(from)) exit
+        end do
+
+        if (.not. allocated(from)) from = "unknown"
+        from = strip_mail_quoted_names(from)
+        call get_mail_field("date", date, status)
+        if (.not. status%ok()) return
+        ! A From: header can contain multiple addresses, a "From " line must
+        ! contain only one.  (Bug#7760) See, e.g., RFC 5322, 3.6.2.
+        ! Originator Fields.
+        end = string_match("[ "//TAB//"]*[,"//LF//"]", from, st)
+        if (end > 0) from = chars(from, 1_int64, end)
+        time_string = ""
+
+        if (allocated(date)) then
+            time = date_to_time(date, st)
+            if (st%ok()) time_string = current_time_string(time, status=st)
+            if (.not. st%ok()) time_string = ""
+        end if
+
+        if (len(time_string) == 0) time_string = current_time_string()
+        line = "From "//from//" "//time_string//LF
+    end function mail_mbox_from
 
     ! ------------------------------------------------------------------
     ! Commands

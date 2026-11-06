@@ -1,7 +1,6 @@
 ! message_mod.f90 -- composing and sending mail messages (Message mode).
 ! Ported from GNU Emacs 31.1 lisp/gnus/message.el (in part: Message mode,
-! composing and sending mail), with lisp/mail/rfc2047.el (in part:
-! rfc2047-fold-field), lisp/gnus/gnus-util.el (in part:
+! composing and sending mail), with lisp/gnus/gnus-util.el (in part:
 ! gnus-output-to-mail) and lisp/mail/mailheader.el (in part:
 ! mail-header-format).
 !
@@ -37,6 +36,7 @@ module message_mod
     use commands_mod, only: commands
     use execute_interactively_mod, only: current_prefix_argument, prefix_numeric_value, PREFIX_NONE, PREFIX_RAW, PREFIX_NUMBER
     use error_mod, only: status_type, set_error, GENERIC_ERROR_CODE, USER_ERROR_CODE, VOID_FUNCTION_CODE, QUIT_CODE
+    use rfc2047_mod, only: encode_rfc2047_message_header, fold_rfc2047_field
     use casefiddle_mod, only: downcase_string, capitalize_string
     use handle_mod, only: handle_type
     use value_mod, only: value_type, command_procedure, make_buffer_reference, make_list, vtag, V_INTEGER, V_STRING
@@ -113,7 +113,7 @@ module message_mod
               position_message_on_field, get_message_all_recipients, get_message_buffers, generate_message_buffer_name, &
               pop_to_message_buffer, sort_message_headers, insert_message_signature, insert_message_headers, &
               goto_message_body, goto_message_end_of_headers, goto_message_signature, is_message_point_in_header, &
-              is_message_in_body, cleanup_message_headers, encode_message_body, fold_message_field, &
+              is_message_in_body, cleanup_message_headers, encode_message_body, &
               append_message_to_mail_file, rename_sent_message_buffer, set_message_reply_headers, &
               set_message_reply_buffer, initialize_message
 
@@ -2629,150 +2629,6 @@ contains
         end do
     end subroutine check_idna
 
-    !> Fold the current header field (that point is on) at 76 columns.
-    !> Return the new end point in E.  Port of rfc2047.el:rfc2047-fold-field
-    !> (with rfc2047-narrow-to-field and rfc2047-fold-region; upstream's
-    !> mail-header-fold-field).
-    recursive subroutine fold_message_field(e, status)
-        integer(int64), intent(out) :: e
-        type(status_type), intent(out) :: status
-        type(excursion_type) :: excursion
-        type(restriction_type) :: restriction
-        integer(int64) :: start, moved, b, line_beginning, brk, qword_break
-        logical :: first
-
-        call save_excursion_begin(excursion)
-        call save_restriction_begin(restriction)
-
-        body: block
-            ! rfc2047-narrow-to-field
-            call beginning_of_line()
-            start = point()
-            moved = forward_line(1_int64)
-
-            if (search_regular_expression("^[^ "//LF//TAB//"]", status)) then
-                e = line_beginning_position()
-            else
-                e = point_maximum()
-            end if
-
-            if (.not. status%ok()) exit body
-            call narrow_to_region(start, e, status)
-            if (.not. status%ok()) exit body
-            call goto_character(point_minimum())
-            ! rfc2047-fold-region
-            b = point_minimum()
-            brk = 0
-            qword_break = 0
-            line_beginning = point()
-            ! The region starts with the header name, so the first
-            ! whitespace is just after it.
-            first = .true.
-
-            do while (.not. is_end_of_buffer())
-                if ((brk > 0 .or. qword_break > 0) .and. point() - line_beginning > 76) then
-                    ! We have a line longer than 76 characters, so break the
-                    ! line.
-                    call break_line(brk, qword_break, line_beginning, status)
-                    if (.not. status%ok()) exit body
-                    brk = 0
-                    qword_break = 0
-                end if
-
-                ! See whether we're at a point where we can break the line
-                ! (if it turns out to be too long).
-                select case (following_character())
-                case (10)
-                    ! New line, so there's nothing to break.
-                    call forward_character(status)
-                    line_beginning = point()
-                    brk = 0
-                    qword_break = 0
-                    moved = skip_characters_forward(" "//TAB, status)
-                    if (.not. (is_end_of_buffer() .or. following_character() == 10)) call forward_character(status)
-                case (13)
-                    ! CR in CRLF.
-                    call forward_character(status)
-                case (32, 9)
-                    ! Whitespace -- possible break point.
-                    moved = skip_characters_forward(" "//TAB, status)
-
-                    ! Don't break just after the header name.
-                    if (first) then
-                        first = .false.
-                    else
-                        brk = point()
-                    end if
-                case default
-                    if (brk == 0) then
-                        ! If the header has been encoded (with RFC2047
-                        ! encoding, which looks like "=?utf-8?Q?F=C3=B3?=".
-                        if (.not. looking_at("=\?[^=]", status)) then
-                            if (following_character() == iachar("=")) then
-                                call forward_character(status)
-                            else
-                                moved = skip_characters_forward("^ "//TAB//LF//achar(13)//"=", status)
-                            end if
-                        else
-                            ! Don't break at the start of the field.
-                            if (point() /= b) qword_break = point()
-                            moved = skip_characters_forward("^ "//TAB//LF//achar(13), status)
-                        end if
-                    else
-                        ! Look for the next LWSP (i.e., whitespace character).
-                        moved = skip_characters_forward("^ "//TAB//LF//achar(13), status)
-                    end if
-                end select
-
-                if (.not. status%ok()) exit body
-            end do
-
-            if ((brk > 0 .or. qword_break > 0) .and. point() - line_beginning > 76) then
-                ! Finally, after the loop, we have a line longer than 76
-                ! characters, so break the line.
-                call break_line(brk, qword_break, line_beginning, status)
-                if (.not. status%ok()) exit body
-            end if
-
-            e = point_maximum()
-        end block body
-
-        call save_restriction_end(restriction)
-        call save_excursion_end(excursion)
-
-    contains
-
-        ! Break the line at BRK (or QWORD_BREAK); BEGINNING_OF_LINE becomes the beginning
-        ! of the new line.  Port of rfc2047.el:rfc2047--break-line.
-        recursive subroutine break_line(brk, qword_break, line_beginning, status)
-            integer(int64), intent(in) :: brk, qword_break
-            integer(int64), intent(out) :: line_beginning
-            type(status_type), intent(out) :: status
-            integer(int64) :: moved
-
-            if (brk > 0) then
-                call goto_character(brk)
-            else
-                call goto_character(qword_break)
-            end if
-
-            moved = skip_characters_backward(" "//TAB, status)
-
-            if (looking_at("[ "//TAB//"]", status)) then
-                call insert(LF, status)
-            else
-                call insert(LF//" ", status)
-            end if
-
-            if (.not. status%ok()) return
-            ! Return beginning-of-line.
-            line_beginning = point() - 1
-            ! Don't break before the first non-LWSP characters.
-            moved = skip_characters_forward(" "//TAB, status)
-            if (.not. is_end_of_buffer()) call forward_character(status)
-        end subroutine break_line
-    end subroutine fold_message_field
-
     ! Fold too-long header lines.
     ! Each line should be no more than 79 characters long.  Port of
     ! message.el:message--fold-long-headers.
@@ -2785,7 +2641,7 @@ contains
 
         do while (.not. is_end_of_buffer())
             if (looking_at("[^:]+:", status) .and. line_end_position() - point() > 79) then
-                call fold_message_field(e, status)
+                call fold_rfc2047_field(e, status)
                 if (.not. status%ok()) return
                 call goto_character(e)
             else
@@ -2981,21 +2837,6 @@ contains
 
         case_fold_search%value = saved_fold
     end subroutine encode_message_body
-
-    ! Whether the header of the message holds non-ASCII text, which needs
-    ! RFC 2047 encoding (rfc2047.el's mail-encode-encoded-word-buffer, not
-    ! ported): a `void_function' error condition.  The buffer is narrowed
-    ! to the header.  Port of the call of mail-encode-encoded-word-buffer
-    ! in message.el:message-send-mail.
-    recursive subroutine encode_message_header(status)
-        type(status_type), intent(out) :: status
-        integer(int64) :: moved
-
-        call goto_character(point_minimum())
-        moved = skip_characters_forward(achar(0)//"-"//achar(127), status)
-        if (status%ok() .and. .not. is_end_of_buffer()) call set_error(status, VOID_FUNCTION_CODE, &
-                                                                       "mail_encode_encoded_word_buffer")
-    end subroutine encode_message_header
 
     ! ------------------------------------------------------------------
     ! Moving in the message
@@ -4364,7 +4205,7 @@ contains
 
             ! Remove some headers.
             if (status%ok()) call remove_message_header(message_ignored_mail_headers, status, is_regular_expression=.true.)
-            if (status%ok()) call encode_message_header(status)
+            if (status%ok()) call encode_rfc2047_message_header(status)
             call save_restriction_end(restriction)
             if (.not. status%ok()) exit body
             call goto_character(point_maximum())
@@ -4686,7 +4527,7 @@ contains
                 call remove_message_header("fcc", status, first=.true.)
             end do
 
-            if (status%ok()) call encode_message_header(status)
+            if (status%ok()) call encode_rfc2047_message_header(status)
             call save_restriction_end(restriction)
             if (.not. status%ok()) exit body
             call goto_character(point_minimum())

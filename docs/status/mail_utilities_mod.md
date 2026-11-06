@@ -20,15 +20,15 @@
 `mail-comma-list-regexp`,
 `mail-rfc822-date`,
 `mail-re-regexps`,
-`mail--wrap-re-regexp` (`wrap_mail_re_regular_expression`)
+`mail--wrap-re-regexp` (`wrap_mail_re_regular_expression`),
+`mail-mbox-from`
 
 ## Deferred
 
 `mail-use-rfc822` (with rfc822.el's `rfc822-addresses`),
 the LIST argument of `mail-fetch-field`,
-`mail-mbox-from` (needs time-date.el's `date-to-time`),
 the obsolete `mail-string-delete` and `mail-rfc822-time-zone`
 
 ## Tests
 
-test_mail_utilities_mod (ports mail-utils-tests.el but mail-utils-tests-mail-rfc822-time-zone and mail-utils-test-mail-mbox-from; own tests of the field options and of comments in addresses)
+test_mail_utilities_mod (ports mail-utils-tests.el but mail-utils-tests-mail-rfc822-time-zone; own tests of the field options and of comments in addresses)

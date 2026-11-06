@@ -40,7 +40,7 @@ the user options of sendmail.el
 
 the actions (`mail-reply-action` as an action, `mail-send-actions`, `mail-return-action`, YANK-ACTION, SEND-ACTIONS and RETURN-ACTION and returning to Rmail in `mail-bury`; `mail-bury-selects-summary`) with Rmail;
 mail aliases on sending (mailalias.el: `mail-aliases`, `mail-alias-modtime`, `sendmail-sync-aliases`, `build-mail-aliases`, `expand-mail-aliases`, `mail-completion-at-point-function`);
-RFC 2047 encoding of the header (`mail-encode-header`, rfc2047.el);
+RFC 2047 encoding of the header (`mail-encode-header`; rfc2047_mod has the encoder, not yet called from send_mail_mod);
 checking for suspicious addresses (textsec.el);
 MML (`mail-encode-mml`, `mail-add-attachment`, long lines);
 `mail-recover`,

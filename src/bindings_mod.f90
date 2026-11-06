@@ -151,6 +151,8 @@ module bindings_mod
     use electric_pair_mod, only: initialize_electric_pair
     use newcomment_mod, only: initialize_newcomment
     use mail_utilities_mod, only: initialize_mail_utilities
+    use quoted_printable_mod, only: initialize_quoted_printable
+    use rfc2047_mod, only: initialize_rfc2047
     use mail_extract_mod, only: initialize_mail_extract
     use send_mail_mod, only: initialize_sendmail, mail_mode_map
     use smtpmail_mod, only: initialize_smtpmail
@@ -809,6 +811,8 @@ contains
         ! Mail: mail-utils.el, mail-extr.el, sendmail.el, smtpmail.el, mailabbrev.el, message.el and
         ! simple.el's compose-mail, with their keys from bindings.el.
         call initialize_mail_utilities()
+        call initialize_quoted_printable()
+        call initialize_rfc2047()
         call initialize_mail_extract()
         call initialize_sendmail()
         call initialize_smtpmail()
