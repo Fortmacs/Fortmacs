@@ -1,0 +1,1 @@
+2026-11-06 — README: the "Differences from Emacs" list gets bold lead-ins like the other lists, and its long "one word per meaning" item is split into sub-items (`readme-differences-bold`, owner).  Keys and the mode line get their own item; no wording changes beyond the lead-ins and the split.
