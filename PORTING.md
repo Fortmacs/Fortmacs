@@ -372,9 +372,11 @@ Design decisions).
    test-drive (`test/test_<name>_mod.f90`) where they exist; add our own for
    uncovered behavior. Name each ported test after its ERT test.
 3. **Implement.** One module per upstream file, named after it with an `_mod` suffix
-   (buffer.c → `buffer_mod`) and spelled out (cal-move.el →
-   `calendar_movement_mod`; see "Module names" below). Cite the
-   upstream file/function in a comment on every ported procedure, e.g.
+   and spelled out (see "Module names" below):
+   - `buffer.c`→`buffer_mod`
+   - `cal-move.el`→`calendar_movement_mod`
+
+   Cite the upstream file/function in a comment on every ported procedure, e.g.
    `!> Port of insdel.c:insert_1_both.` Run `tools/fortran-names.sh` on
    the new files (see "Fortran names for Lisp terms").
 4. **Headers.** Ported files carry the upstream FSF notice plus ours
@@ -642,13 +644,16 @@ Fortran code or in a `!>` docstring, or on a file of an old name, and
 tools/test-fortran-names.sh, which runs the script on the fixture in
 tools/fortran-names-test.  tools/gen-docstrings.sh gives the names it
 derives from citations their Fortran names too.
-The table also holds the names R6-21 gives this program (below): the
-`file` entry `emacs_mod` → `fortmacs_mod`, one `name` entry for each
-identifier that means this program (`exit_emacs`, `emacs_read`, ...), a
-`keep` of the word `emacs` alone, so that the file entry's stem leaves
-prose ("GNU Emacs", "Emacs Lisp") to be changed by hand, the `file`
-entry `regex_emacs_mod` → `regular_expression_mod` (R6-24), and `name` entries for
-the commands and settings R6-25 names for this program.
+The table also holds the names R6-21 gives this program (below):
+
+- the `file` entry `emacs_mod`→`fortmacs_mod`;
+- one `name` entry for each identifier that means this program
+  (`exit_emacs`, `emacs_read`, ...);
+- a `keep` of the word `emacs` alone, so that the file entry's stem
+  leaves prose ("GNU Emacs", "Emacs Lisp") to be changed by hand;
+- the `file` entry `regex_emacs_mod`→`regular_expression_mod` (R6-24);
+- `name` entries for the commands and settings R6-25 names for this
+  program.
 
 **Lisp that stays Lisp.**  `keep` entries leave what is genuinely Lisp
 as it is: the commands of the Lisp modes and of run-time evaluation
@@ -831,9 +836,11 @@ named with it.
   with `memq_p` in text_properties_mod (text properties, C4).
 - C3: the name table holds only names that exist at run time;
   compile-time things are reached only through their typed objects;
-  `intern` becomes `add_name`, `intern_soft` `find_name`, and
-  `symbol_type` `name_entry_type`; plain IF (no Fortran 2023 conditional
-  expressions: gfortran 13, -std=f2018).
+  plain IF (no Fortran 2023 conditional expressions: gfortran 13,
+  -std=f2018).  Renamed:
+  - `intern`→`add_name`
+  - `intern_soft`→`find_name`
+  - `symbol_type`→`name_entry_type`
 - C4: `put`, `get` and the `plist_*` procedures are removed:
   `history_length` becomes a component of the history objects, and text
   properties an array of `text_property_type` (name, value) searched with
@@ -850,7 +857,7 @@ named with it.
 
 Settled by the owner later the same day and applied in PR 2b:
 
-- `TAB_WIDTH_NONE` is `TAB_WIDTH_DEFAULT` (upstream sanitizes tab-width's
+- `TAB_WIDTH_NONE`→`TAB_WIDTH_DEFAULT` (upstream sanitizes tab-width's
   nil to the default width, 8); `FILL_COLUMN_NONE` is confirmed.
 - Q3: a function upstream names `*-p` that returns more than a logical
   takes the name of what it returns: `window_dedication` and
@@ -1282,7 +1289,7 @@ deleted.
 | `create_file_buffer`, `get_buffer_create`, `ewoc_create` | `make_file_buffer`, `get_or_make_buffer`, `make_fortmacs_widget_for_object_collections` |
 
 **Lists of records (R2-Q8, R2-Q14).**  An alist, or an array named
-`_list`, has a plural name without a suffix (replacing alist → `_table`);
+`_list`, has a plural name without a suffix (replacing `alist`→`_table`);
 a `_list` naming a listing (`list_buffers`, a tabulated list) or a
 function returning one (`buffer_list`) stays.
 
@@ -1638,9 +1645,13 @@ text are unchanged.
 
 ### When the answer is not clear: ask
 
-Cases one existing rule or pattern covers unambiguously (e.g. upstream
-nil/t → `.false.`/`.true.` of a choice setting, `_p` → `is_*`) are
-decided by Claude and reported, not asked.  The report names each case
+Cases one existing rule or pattern covers unambiguously are decided by
+Claude and reported, not asked, for example:
+
+- upstream `nil`/`t`→`.false.`/`.true.` of a choice setting
+- `_p`→`is_*`
+
+The report names each case
 and the rule it follows, so the owner can still overrule it.
 
 A Lisp-derived term with no line in tools/fortran-names.d, a case where
@@ -2348,9 +2359,13 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
   upstream's init_X never names a different Fortmacs procedure.
   Module names are spelled out (2026-11-05, decided by the owner):
   they follow the no-abbreviations rule even where upstream's file
-  name is abbreviated (cal-move.el → `calendar_movement_mod`, xdisp.c →
-  `display_engine_mod`, fns.c → `utility_functions_mod`), and the file
-  header keeps citing the upstream file.  tools/module-renames lists the
+  name is abbreviated, and the file header keeps citing the upstream
+  file:
+  - `cal-move.el`→`calendar_movement_mod`
+  - `xdisp.c`→`display_engine_mod`
+  - `fns.c`→`utility_functions_mod`
+
+  tools/module-renames lists the
   renames made then; tools/rename-modules.sh applies them (file names,
   `use` lines, test suites, status files), and a branch begun before
   them runs it after merging main, then tools/check.sh --fix, and
@@ -2420,17 +2435,18 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
   names become the same Fortran name, the plain Emacs name keeps its name
   unchanged and the other gets a spelled-out suffix saying what it is:
   - a function and a variable with the same name: the variable gets
-    `_variable` (`user-full-name` → `user_full_name_variable`);
+    `_variable`:
+    - `user-full-name`→`user_full_name_variable`
   - names that differ only in case (Fortran names are case-insensitive):
-    the capitalized one, a mode's command, gets `_command`
-    (`Buffer-menu-other-window` → `buffer_menu_other_window_command`, the
-    Buffer Menu's `o`).
+    the capitalized one, a mode's command, gets `_command`:
+    - `Buffer-menu-other-window`→`buffer_menu_other_window_command` (the
+      Buffer Menu's `o`)
 
   The renamed entity's docstring cites the upstream name and says why it
   was renamed, and the table below lists every rename. Aliases
   (`LaTeX-mode` of `latex-mode`) collapse to one name. A capitalized name
-  without a twin is only lowercased (`Buffer-menu-mark` →
-  `buffer_menu_mark`). Upstream C variables that are not Lisp variables
+  without a twin is only lowercased
+  (`Buffer-menu-mark`→`buffer_menu_mark`). Upstream C variables that are not Lisp variables
   keep their `V` prefix lowercased (editing_functions_mod's `vuser_login_name`).
 
   | Upstream | Fortmacs |
