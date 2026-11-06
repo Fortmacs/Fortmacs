@@ -390,7 +390,7 @@ Design decisions).
    each merge.
 7. **Merge.** The owner merges, or clears a PR by number for Claude to
    merge once CI is green. Claude polls the open PR
-   (`gh api repos/Fortmacs/Fortmacs/pulls/N --jq .merged`) and, once it
+   (`gh api repos/end-program/Fortmacs/pulls/N --jq .merged`) and, once it
    is merged, starts the next step on a fresh branch from main; work done
    while waiting is rebased onto main before its PR is opened.
 

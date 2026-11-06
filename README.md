@@ -88,7 +88,7 @@ running. Each generation is kept with the `init.f90` it was built from in
   editor at all. Elisp exists only inside GNU Emacs.
 - **Syntax.** Blocks say where they end (`end if`, `end do`) instead of
   ending where parentheses balance.
-  [Compare the two side by side](https://fortmacs.github.io/Fortmacs/syntax.html).
+  [Compare the two side by side](https://end-program.github.io/Fortmacs/syntax.html).
   That's a preference, not a verdict on Elisp.
 - **Help that speaks Fortran.** Emacs is at its best as an environment for
   the language it's written in: it documents every function and variable,
