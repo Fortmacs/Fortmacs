@@ -27,6 +27,7 @@
 !> vc-dispatcher.el, log-edit.el and diff-mode.el.  Not a port.
 module test_buffer_local_setting_mod
     use, intrinsic :: iso_fortran_env, only: int64
+    use faces_mod, only: initialize_faces
     use testdrive, only: new_unittest, unittest_type, error_type, check
     use error_mod, only: status_type
     use handle_mod, only: handle_type
@@ -356,6 +357,9 @@ contains
         type(status_type) :: st
         type(string_type), allocatable :: files(:), got(:)
 
+        ! The standard faces first, as at startup (vc-dir defines faces too).
+        call initialize_faces()
+
         if (.not. associated(major_modes%version_control_directory_mode%execute)) then
             call initialize_version_control_directory()
         end if
@@ -426,6 +430,7 @@ contains
         type(status_type) :: st
         procedure(command_procedure), pointer :: callback_now, diff_now
 
+        call initialize_faces()
         if (.not. associated(major_modes%log_edit_mode%execute)) call initialize_log_edit()
         call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
         call set_buffer(b1, st)
@@ -466,6 +471,7 @@ contains
         type(handle_type) :: b1, b2, saved
         type(status_type) :: st
 
+        call initialize_faces()
         if (.not. associated(major_modes%diff_mode%execute)) call initialize_diff_mode()
         call make_buffers(" *local-1*", " *local-2*", b1, b2, saved)
         call set_buffer(b1, st)
