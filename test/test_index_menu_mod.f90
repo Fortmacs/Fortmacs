@@ -106,7 +106,7 @@ contains
         type(status_type), intent(out) :: status
         procedure(index_menu_create_index_procedure), pointer :: create
 
-        create => index_menu_create_index_function%current()
+        create => index_menu_create_index_function%get_current()
         call create(index, status)
     end subroutine create_index
 

@@ -791,7 +791,7 @@ $1 == "V" {
         mods[$8] = mods[$8] (mods[$8] == "" ? "" : ", ") $7
     }
     # The procedures naming the value of a procedure setting.
-    if ($5 ~ /function_setting_type\)/ && !named_cmd++)
+    if ($5 ~ /\(function_setting_type\)/ && !named_cmd++)
         mods["execute_interactively_mod.f90"] = mods["execute_interactively_mod.f90"] (mods["execute_interactively_mod.f90"] == "" ? "" : ", ") "command_name_of"
     # A prefix argument is shown as its structure constructor.
     if ($5 ~ /prefix_argument_type\)/ && !named_prefix++)
@@ -1079,7 +1079,7 @@ END {
                 print "            else"
                 print "                entry%value = \"unallocated\""
                 print "            end if"
-            } else if (vtype[i] ~ /function_setting_type\)/) {
+            } else if (vtype[i] ~ /\(function_setting_type\)/) {
                 print "            if (associated(" vfort[i] "%value)) then"
                 print "                entry%value = command_name_of(" vfort[i] "%value)"
                 print "            else"

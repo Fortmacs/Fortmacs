@@ -152,7 +152,7 @@ module shell_script_mod
                                                     simple_minded_indentation_engine_indent_calculate, &
                                                     simple_minded_indentation_engine_indent_keyword, &
                                                     simple_minded_indentation_engine_indent_functions, &
-                                                    set_simple_minded_indentation_engine_hanging_line_test, &
+                                                    simple_minded_indentation_engine_hanging_line_test_function, &
                                                     is_simple_minded_indentation_engine_default_hanging_end_of_line, &
                                                     SIMPLE_MINDED_INDENTATION_ENGINE_ASSOC, &
                                                     SIMPLE_MINDED_INDENTATION_ENGINE_AFTER, &
@@ -170,8 +170,8 @@ module shell_script_mod
     use skeleton_mod, only: skeleton_element_type, skeleton_variants_type, skeleton_pairs_type, skeleton_state, skeleton_text, &
                             skeleton_literal, skeleton_delete, skeleton_prompt, skeleton_interactor, skeleton_action, &
                             skeleton_value, skeleton_variants_command, skeleton_next_element, skeleton_read_string, &
-                            skeleton_default_pairs_set_local, skeleton_pairs_set_local, skeleton_pair_filter_function_set_local, &
-                            skeleton_filter_function_set_local, skeleton_newline_indent_rigidly, SKELETON_NEWLINE, &
+                            skeleton_default_pairs, skeleton_pairs, skeleton_pair_filter_function, &
+                            skeleton_filter_function, skeleton_newline_indent_rigidly, SKELETON_NEWLINE, &
                             SKELETON_INDENT, SKELETON_POINT, SKELETON_STRING, SKELETON_END, SKELETON_RESUME, SKELETON_V1, &
                             SKELETON_V2, SKELETON_IF_MOVED, SKELETON_IF_NOT_MOVED, SKELETON_NO_INTERACTOR
     use execute_interactively_mod, only: prefix_argument_type
@@ -280,7 +280,7 @@ module shell_script_mod
         !> Set SHELL's entry to STRINGS (after them APPEND's value, if given).
         procedure :: append => strings_feature_append
         !> The value for the current shell.
-        procedure :: current => current_strings_feature
+        procedure :: get_current => current_strings_feature
     end type shell_strings_feature_type
 
     !> One shell's entry of a feature table of font-lock keywords.
@@ -296,7 +296,7 @@ module shell_script_mod
         !> Set SHELL's entry to KEYWORDS (after them APPEND's value).
         procedure :: append => keywords_feature_append
         !> The value for the current shell.
-        procedure :: current => current_keywords_feature
+        procedure :: get_current => current_keywords_feature
     end type shell_keywords_feature_type
 
     !> One shell's entry of a feature table of strings: `value'
@@ -313,7 +313,7 @@ module shell_script_mod
         !> Set SHELL's entry to VALUE (absent for none).
         procedure :: append => string_feature_append
         !> The value for the current shell (unallocated for none).
-        procedure :: current => current_string_feature
+        procedure :: get_current => current_string_feature
     end type shell_string_feature_type
 
     !> One shell's entry of `shell_index_menu_patterns'.
@@ -329,7 +329,7 @@ module shell_script_mod
         !> Set SHELL's entry to MATCHERS.
         procedure :: append => index_menu_feature_append
         !> The value for the current shell.
-        procedure :: current => current_index_menu_feature
+        procedure :: get_current => current_index_menu_feature
     end type shell_index_menu_feature_type
 
     !> A syntax modification: CHAR gets SYNTAX.
@@ -1406,7 +1406,7 @@ contains
         type(font_lock_keyword_type) :: assignment(1)
         character(len=:), allocatable :: regular_expression
 
-        call shell_script_font_lock_keywords_variable%current(list)
+        call shell_script_font_lock_keywords_variable%get_current(list)
         call string_feature_value(shell_assignment_regular_expression, regular_expression)
 
         if (.not. allocated(regular_expression)) then
@@ -1448,13 +1448,13 @@ contains
                                                                                      REGULAR_EXPRESSION_OPTIMIZATION_GROUP)//"\>", &
                                        highlights=h2)
             call append_keywords(keywords, one)
-            call shell_script_font_lock_keywords_variable_2%current(more)
+            call shell_script_font_lock_keywords_variable_2%get_current(more)
             call append_keywords(keywords, more)
         end if
 
         one(1) = font_lock_keyword(regular_expression//"\)\>", face="font_lock_keyword_face", subexp=2)
         call append_keywords(keywords, one)
-        call shell_script_font_lock_keywords_variable_1%current(more)
+        call shell_script_font_lock_keywords_variable_1%get_current(more)
         call append_keywords(keywords, more)
         call shell_script_font_lock_keywords(result, keywords)
     end subroutine shell_script_font_lock_keywords_1
@@ -1488,7 +1488,7 @@ contains
         character(len=:), allocatable :: a(:)
         type(string_type), allocatable :: s(:)
 
-        call feature%current(s)
+        call feature%get_current(s)
         a = to_characters(s)
     end function strings_of
 
@@ -1499,8 +1499,8 @@ contains
         type(string_type), allocatable :: s1(:), s2(:), s(:)
         integer :: i
 
-        call shell_leading_keywords%current(s1)
-        call shell_other_keywords%current(s2)
+        call shell_leading_keywords%get_current(s1)
+        call shell_other_keywords%get_current(s2)
         allocate (s(size(s1) + size(s2)))
 
         do i = 1, size(s1)
@@ -3557,7 +3557,7 @@ contains
         if (.not. status%ok()) return
         call shell_shell_file%make_local()
         call shell_shell%make_local()
-        call skeleton_default_pairs_set_local(shell_skeleton_default_pairs)
+        call skeleton_default_pairs%set_local(shell_skeleton_default_pairs)
         call paragraph_start%set_local(page_delimiter%value//"\|$")
         call paragraph_separate%set_local(paragraph_start%value//"\|#!/")
         call comment_start%set_local("# ")
@@ -3580,9 +3580,9 @@ contains
         call syntax_propertize_extend_region_functions%append(syntax_propertize_multiline, local=.true.)
         backquote_pairs = skeleton_pairs_type()
         call backquote_pairs%append(96, [text("`"), SKELETON_POINT, text("`")])
-        call skeleton_pairs_set_local(backquote_pairs)
-        call skeleton_pair_filter_function_set_local(is_shell_quoted)
-        call skeleton_filter_function_set_local(shell_skeleton_feature)
+        call skeleton_pairs%set_local(backquote_pairs)
+        call skeleton_pair_filter_function%set_local(is_shell_quoted)
+        call skeleton_filter_function%set_local(shell_skeleton_feature)
         call skeleton_newline_indent_rigidly%set_local(.true.)
         call subprogram_prompt_regular_expression%set_local("^\(\(function[ "//TAB//"]\)?[ "//TAB//"]*[[:alnum:]_]+[ "//TAB// &
                                                             "]*([ "//TAB//"]*)\|function[ "//TAB//"]+[[:alnum:]_]+[ "//TAB// &
@@ -3729,7 +3729,7 @@ contains
         if (allocated(locals(k)%variables)) deallocate (locals(k)%variables)
         allocate (locals(k)%variables(0))
         locals(k)%variables_initialized = .false.
-        call index_menu_patterns%set_local(shell_index_menu_patterns%current())
+        call index_menu_patterns%set_local(shell_index_menu_patterns%get_current())
         e = syntax_input_index()
 
         if (e > 0) then
@@ -3749,7 +3749,7 @@ contains
             end if
         end if
 
-        call shell_variables%current(variables)
+        call shell_variables%get_current(variables)
 
         do i = 1, size(variables)
             call shell_remember_variable(variables(i)%text)
@@ -3762,7 +3762,7 @@ contains
         if (allocated(supported)) then
             locals(k)%indent_supported = supported
             call message("Setting up indent for shell type "//shell_shell%value)
-            call set_simple_minded_indentation_engine_hanging_line_test(is_shell_hanging_end_of_line)
+            call simple_minded_indentation_engine_hanging_line_test_function%set_local(is_shell_hanging_end_of_line)
             call simple_minded_indentation_engine_indent_functions%prepend(shell_indentation_engine_indent_continuation, &
                                                                            local=.true.)
 
@@ -4235,7 +4235,7 @@ contains
         end if
 
         write (digits, "(i0)") abs(delta)
-        call insert(before%current()//variable//op//trim(digits)//after%current(), status)
+        call insert(before%get_current()//variable//op//trim(digits)//after%get_current(), status)
     end subroutine shell_add
 
     ! `shell_add' as a command.

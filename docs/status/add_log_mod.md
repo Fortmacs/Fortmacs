@@ -36,7 +36,8 @@
 `change-log-read-defuns`,
 `change-log-insert-entries`,
 `change-log-unindented-file-names-re`,
-`change-log-tag-re`
+`change-log-tag-re`,
+`add-log-current-defun-function` and `add-log-buffer-file-name-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`, `%clear_local`)
 
 ## Deferred
 

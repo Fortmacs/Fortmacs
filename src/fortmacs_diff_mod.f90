@@ -401,7 +401,7 @@ contains
 
         status = status_type()
         this = current_buffer()
-        fn => revert_buffer_function%current()
+        fn => revert_buffer_function%get_current()
         revertible = associated(fn)
 
         if (.not. revertible .and. allocated(buffers(current)%filename)) then

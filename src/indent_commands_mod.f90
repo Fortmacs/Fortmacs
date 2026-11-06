@@ -644,7 +644,7 @@ contains
         savedb = buffers(current)%beginning_of_accessible_portion
         savedz = buffers(current)%text%z - buffers(current)%end_of_accessible_portion
         call widen()
-        region_fn => indent_region_function%current()
+        region_fn => indent_region_function%get_current()
 
         if (associated(region_fn)) then
             call region_fn(start, end, status)

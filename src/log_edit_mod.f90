@@ -1940,7 +1940,7 @@ contains
             old = current_buffer()
             call set_buffer(visiting, st)
 
-            if (change_log_default_name%local_p() .and. allocated(change_log_default_name%value)) then
+            if (change_log_default_name%is_local() .and. allocated(change_log_default_name%value)) then
                 changelog_file_name = change_log_default_name%value
             end if
 

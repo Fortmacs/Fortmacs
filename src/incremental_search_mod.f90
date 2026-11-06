@@ -75,6 +75,7 @@ module incremental_search_mod
     use faces_mod, only: named_face_type, display_when, face_attributes, FACE_CLASS_COLOR, FACE_BACKGROUND_LIGHT, &
                          FACE_BACKGROUND_DARK
     use data_mod, only: choice_setting_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -286,18 +287,126 @@ module incremental_search_mod
         character(len=:), allocatable :: pop_data
     end type incremental_search_state_type
 
-    !> One buffer's values of the Isearch function variables.
-    type :: local_functions_type
-        integer(int64) :: serial = 0
-        procedure(incremental_search_search_function_procedure), pointer, nopass :: search_function => null()
-        procedure(incremental_search_wrap_procedure), pointer, nopass :: wrap => null()
-        procedure(incremental_search_push_state_procedure), pointer, nopass :: push_state => null()
-        procedure(incremental_search_filter_procedure), pointer, nopass :: filter => null()
-        procedure(incremental_search_message_procedure), pointer, nopass :: message => null()
-    end type local_functions_type
+    !> One buffer's own value of
+    !> `incremental_search_search_function_function'.
+    type :: incremental_search_search_function_entry_type
+        procedure(incremental_search_search_function_procedure), pointer, nopass :: procedure => null()
+    end type incremental_search_search_function_entry_type
 
-    !> The buffers' values of the Isearch function variables.
-    type(local_functions_type), allocatable :: local_functions(:)
+    !> The type of
+    !> `incremental_search_search_function_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: incremental_search_search_function_setting_type
+        procedure(incremental_search_search_function_procedure), pointer, nopass :: procedure => null()
+        type(incremental_search_search_function_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_incremental_search_search_function_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_incremental_search_search_function_current
+        procedure :: append_local_entry => append_incremental_search_search_function_entry
+        procedure :: clear_local_entry => clear_incremental_search_search_function_entry
+    end type incremental_search_search_function_setting_type
+
+    !> One buffer's own value of
+    !> `incremental_search_wrap_function'.
+    type :: incremental_search_wrap_entry_type
+        procedure(incremental_search_wrap_procedure), pointer, nopass :: procedure => null()
+    end type incremental_search_wrap_entry_type
+
+    !> The type of
+    !> `incremental_search_wrap_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: incremental_search_wrap_setting_type
+        procedure(incremental_search_wrap_procedure), pointer, nopass :: procedure => null()
+        type(incremental_search_wrap_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_incremental_search_wrap_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_incremental_search_wrap_current
+        procedure :: append_local_entry => append_incremental_search_wrap_entry
+        procedure :: clear_local_entry => clear_incremental_search_wrap_entry
+    end type incremental_search_wrap_setting_type
+
+    !> One buffer's own value of
+    !> `incremental_search_push_state_function'.
+    type :: incremental_search_push_state_entry_type
+        procedure(incremental_search_push_state_procedure), pointer, nopass :: procedure => null()
+    end type incremental_search_push_state_entry_type
+
+    !> The type of
+    !> `incremental_search_push_state_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: incremental_search_push_state_setting_type
+        procedure(incremental_search_push_state_procedure), pointer, nopass :: procedure => null()
+        type(incremental_search_push_state_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_incremental_search_push_state_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_incremental_search_push_state_current
+        procedure :: append_local_entry => append_incremental_search_push_state_entry
+        procedure :: clear_local_entry => clear_incremental_search_push_state_entry
+    end type incremental_search_push_state_setting_type
+
+    !> One buffer's own value of
+    !> `incremental_search_filter_test_function'.
+    type :: incremental_search_filter_test_entry_type
+        procedure(incremental_search_filter_procedure), pointer, nopass :: procedure => null()
+    end type incremental_search_filter_test_entry_type
+
+    !> The type of
+    !> `incremental_search_filter_test_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: incremental_search_filter_test_setting_type
+        procedure(incremental_search_filter_procedure), pointer, nopass :: procedure => null()
+        type(incremental_search_filter_test_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_incremental_search_filter_test_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_incremental_search_filter_test_current
+        procedure :: append_local_entry => append_incremental_search_filter_test_entry
+        procedure :: clear_local_entry => clear_incremental_search_filter_test_entry
+    end type incremental_search_filter_test_setting_type
+
+    !> One buffer's own value of
+    !> `incremental_search_message_function'.
+    type :: incremental_search_message_entry_type
+        procedure(incremental_search_message_procedure), pointer, nopass :: procedure => null()
+    end type incremental_search_message_entry_type
+
+    !> The type of
+    !> `incremental_search_message_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: incremental_search_message_setting_type
+        procedure(incremental_search_message_procedure), pointer, nopass :: procedure => null()
+        type(incremental_search_message_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_incremental_search_message_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_incremental_search_message_current
+        procedure :: append_local_entry => append_incremental_search_message_entry
+        procedure :: clear_local_entry => clear_incremental_search_message_entry
+    end type incremental_search_message_setting_type
+
+    !> Function to call to display the search prompt.
+    !> If null, use function `incremental_search_message'.  Port of isearch.el
+    !> isearch-message-function (`%procedure' is the global
+    !> value; `%set_local' gives a buffer its own).
+    type(incremental_search_message_setting_type), public :: incremental_search_message_function
+
+    !> A string added to the Isearch prompt (unallocated for none), as
+    !> "history " when searching a comint's input history.  Port of
+    !> isearch.el isearch-message-prefix-add.
+    character(len=:), allocatable, public :: incremental_search_message_prefix_add
 
     !> Non-default value overrides the behavior of
     !> `incremental_search_search_function_default'.  This variable's value should be a
@@ -309,51 +418,24 @@ module incremental_search_mod
     !>
     !> This returned function will be used by `incremental_search_search_string' to
     !> search for the first occurrence of STRING.  Port of isearch.el
-    !> isearch-search-fun-function (set with `set_local'; null for
-    !> `incremental_search_search_function_default').
-    type, public :: incremental_search_search_function_function_type
-        character(len=32) :: name = "incremental_search_search_function_function"
-    contains
-        !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => search_function_clear_local
-        !> Make FN the current buffer's value (set_local).
-        procedure, nopass :: set_local => search_function_set_local
-        !> Set FN to the current buffer's value (null for the default).
-        procedure, nopass :: current => current_search_function
-    end type incremental_search_search_function_function_type
-
+    !> isearch-search-fun-function (`%procedure' is the global value, null
+    !> for `incremental_search_search_function_default'; `%set_local' gives
+    !> a buffer its own).
+    type(incremental_search_search_function_setting_type), public :: incremental_search_search_function_function
     !> Function to call to wrap the search when search is failed.
     !> The function is called with no parameters, and would typically
     !> move point.
     !>
     !> If null, move point to the beginning of the buffer for a forward
     !> search, or to the end of the buffer for a backward search.  Port
-    !> of isearch.el isearch-wrap-function (set with `set_local').
-    type, public :: incremental_search_wrap_function_type
-        character(len=32) :: name = "incremental_search_wrap_function"
-    contains
-        !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => wrap_clear_local
-        !> Make FN the current buffer's value (set_local).
-        procedure, nopass :: set_local => wrap_set_local
-        !> The current buffer's value (null when unset).
-        procedure, nopass :: current => current_wrap
-    end type incremental_search_wrap_function_type
-
+    !> of isearch.el isearch-wrap-function (`%procedure' is the global
+    !> value; `%set_local' gives a buffer its own).
+    type(incremental_search_wrap_setting_type), public :: incremental_search_wrap_function
     !> Function to save a function restoring the mode-specific Isearch
     !> state to the search status stack.  Port of isearch.el
-    !> isearch-push-state-function (set with `set_local').
-    type, public :: incremental_search_push_state_function_type
-        character(len=32) :: name = "incremental_search_push_state_function"
-    contains
-        !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => push_state_clear_local
-        !> Make FN the current buffer's value (set_local).
-        procedure, nopass :: set_local => push_state_set_local
-        !> The current buffer's value (null when unset).
-        procedure, nopass :: current => current_push_state
-    end type incremental_search_push_state_function_type
-
+    !> isearch-push-state-function (`%procedure' is the global
+    !> value; `%set_local' gives a buffer its own).
+    type(incremental_search_push_state_setting_type), public :: incremental_search_push_state_function
     !> Test to filter hits of Isearch and replace commands.
     !> Isearch hits that don't satisfy the test will be skipped.
     !> The value should be a function of two arguments; it will be
@@ -361,50 +443,11 @@ module incremental_search_mod
     !> matched by Isearch and replace commands.  If this function
     !> returns false, Isearch and replace commands will continue
     !> searching without stopping at resp. replacing this match.  Port
-    !> of isearch.el isearch-filter-predicate (set with `set_local'; the
-    !> default `incremental_search_filter_visible' is Deferred with search through
+    !> of isearch.el isearch-filter-predicate (`%procedure' is the global
+    !> value; `%set_local' gives a buffer its own; the default
+    !> `incremental_search_filter_visible' is Deferred with search through
     !> invisible text, so null stops at every match).
-    type, public :: incremental_search_filter_test_function_type
-        character(len=32) :: name = "incremental_search_filter_test_function"
-    contains
-        !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => filter_clear_local
-        !> Make FN the current buffer's value (set_local).
-        procedure, nopass :: set_local => filter_set_local
-        !> The current buffer's value (null for the default).
-        procedure, nopass :: current => current_filter
-    end type incremental_search_filter_test_function_type
-
-    !> Function to call to display the search prompt.
-    !> If null, use function `incremental_search_message'.  Port of isearch.el
-    !> isearch-message-function (set with `set_local').
-    type, public :: incremental_search_message_function_type
-        character(len=32) :: name = "incremental_search_message_function"
-    contains
-        !> Set the current buffer's value to null (unset).
-        procedure, nopass :: clear_local => message_clear_local
-        !> Make FN the current buffer's value (set_local).
-        procedure, nopass :: set_local => message_set_local
-        !> The current buffer's value (null when unset).
-        procedure, nopass :: current => current_message_function
-    end type incremental_search_message_function_type
-
-    !> See the type.  Port of isearch.el isearch-message-function.
-    type(incremental_search_message_function_type), public :: incremental_search_message_function
-
-    !> A string added to the Isearch prompt (unallocated for none), as
-    !> "history " when searching a comint's input history.  Port of
-    !> isearch.el isearch-message-prefix-add.
-    character(len=:), allocatable, public :: incremental_search_message_prefix_add
-
-    !> See the type.  Port of isearch.el isearch-search-fun-function.
-    type(incremental_search_search_function_function_type), public :: incremental_search_search_function_function
-    !> See the type.  Port of isearch.el isearch-wrap-function.
-    type(incremental_search_wrap_function_type), public :: incremental_search_wrap_function
-    !> See the type.  Port of isearch.el isearch-push-state-function.
-    type(incremental_search_push_state_function_type), public :: incremental_search_push_state_function
-    !> See the type.  Port of isearch.el isearch-filter-predicate.
-    type(incremental_search_filter_test_function_type), public :: incremental_search_filter_test_function
+    type(incremental_search_filter_test_setting_type), public :: incremental_search_filter_test_function
 
     !> Function(s) to call after starting up an incremental search.
     !> Port of isearch.el isearch-mode-hook.
@@ -754,7 +797,7 @@ contains
 
         block
             procedure(incremental_search_push_state_procedure), pointer :: push
-            push => incremental_search_push_state_function%current()
+            push => incremental_search_push_state_function%get_current()
             if (associated(push)) call push(s%pop_data, s%pop_function)
         end block
     end function get_state
@@ -1098,7 +1141,7 @@ contains
         logical, intent(in), optional :: c_q_hack, ellipsis
         procedure(incremental_search_message_procedure), pointer :: f
 
-        f => current_message_function()
+        f => incremental_search_message_function%get_current()
 
         if (associated(f)) then
             call f(flag(c_q_hack), flag(ellipsis))
@@ -1270,7 +1313,7 @@ contains
         procedure(incremental_search_search_procedure), pointer :: fn
         procedure(incremental_search_search_function_procedure), pointer :: f
 
-        call incremental_search_search_function_function%current(f)
+        call incremental_search_search_function_function%get_current(f)
 
         if (associated(f)) then
             call f(fn)
@@ -1362,7 +1405,7 @@ contains
         integer(int64), intent(in) :: beginning, end
         procedure(incremental_search_filter_procedure), pointer :: f
 
-        f => incremental_search_filter_test_function%current()
+        f => incremental_search_filter_test_function%get_current()
         accepts = .true.
         if (associated(f)) accepts = f(beginning, end)
     end function filter_accepts
@@ -1621,7 +1664,7 @@ contains
                 ! If already have what to search for, repeat it.
                 ! Set isearch-wrapped before calling isearch-wrap-function
                 incremental_search_wrapped = .true.
-                wrap => incremental_search_wrap_function%current()
+                wrap => incremental_search_wrap_function%get_current()
 
                 if (associated(wrap)) then
                     call wrap()
@@ -2523,176 +2566,235 @@ contains
     ! The buffer-local function variables
     ! ------------------------------------------------------------------
 
-    !> The index of the current buffer's entry in `local_functions' (0 if none).  Not a port.
-    integer function local_slot() result(k)
-        k = 0
-        if (current == 0) return
-        if (.not. allocated(local_functions)) return
-        k = findloc(local_functions%serial, buffers(current)%serial, dim=1)
-    end function local_slot
-
-    !> Find or make the current buffer's entry in `local_functions' (reusing a free one), its
-    !> index K (0 without a current buffer).  Not a port.
-    subroutine make_local_slot(k)
-        integer, intent(out) :: k
-        type(local_functions_type) :: entry
-
-        k = local_slot()
-        if (k > 0 .or. current == 0) return
-        if (.not. allocated(local_functions)) allocate (local_functions(0))
-        k = findloc(local_functions%serial, 0_int64, dim=1)
-
-        if (k == 0) then
-            local_functions = [local_functions, entry]
-            k = size(local_functions)
-        end if
-
-        local_functions(k)%serial = buffers(current)%serial
-    end subroutine make_local_slot
-
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
     subroutine clear_incremental_search_locals()
-        integer :: k
-
-        k = local_slot()
-        if (k > 0) local_functions(k) = local_functions_type()
+        call incremental_search_search_function_function%clear_local()
+        call incremental_search_wrap_function%clear_local()
+        call incremental_search_push_state_function%clear_local()
+        call incremental_search_filter_test_function%clear_local()
+        call incremental_search_message_function%clear_local()
     end subroutine clear_incremental_search_locals
 
-    ! Not a port.
-    subroutine search_function_set_local(fn)
-        procedure(incremental_search_search_function_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `incremental_search_search_function_function'.  Not a port.
+    subroutine set_incremental_search_search_function_local(self, local_procedure)
+        class(incremental_search_search_function_setting_type), intent(inout) :: self
+        procedure(incremental_search_search_function_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_slot(k)
-        if (k > 0) local_functions(k)%search_function => fn
-    end subroutine search_function_set_local
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_incremental_search_search_function_local
 
-    ! Not a port.
-    subroutine current_search_function(fn)
-        procedure(incremental_search_search_function_procedure), pointer, intent(out) :: fn
+    !> Set CURRENT_PROCEDURE to the current buffer's value of
+    !> `incremental_search_search_function_function':
+    !> its own, else the global one.  Not a port.
+    subroutine get_incremental_search_search_function_current(self, current_procedure)
+        class(incremental_search_search_function_setting_type), intent(in) :: self
+        procedure(incremental_search_search_function_procedure), pointer, intent(out) :: current_procedure
         integer :: k
 
-        fn => null()
-        k = local_slot()
-        if (k > 0) fn => local_functions(k)%search_function
-    end subroutine current_search_function
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end subroutine get_incremental_search_search_function_current
 
-    ! Not a port.
-    subroutine wrap_set_local(fn)
-        procedure(incremental_search_wrap_procedure) :: fn
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_incremental_search_search_function_entry(self)
+        class(incremental_search_search_function_setting_type), intent(inout) :: self
+        type(incremental_search_search_function_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_incremental_search_search_function_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_incremental_search_search_function_entry(self, k)
+        class(incremental_search_search_function_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_incremental_search_search_function_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `incremental_search_wrap_function'.  Not a port.
+    subroutine set_incremental_search_wrap_local(self, local_procedure)
+        class(incremental_search_wrap_setting_type), intent(inout) :: self
+        procedure(incremental_search_wrap_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_slot(k)
-        if (k > 0) local_functions(k)%wrap => fn
-    end subroutine wrap_set_local
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_incremental_search_wrap_local
 
-    ! Not a port.
-    function current_wrap() result(fn)
-        procedure(incremental_search_wrap_procedure), pointer :: fn
+    !> The current buffer's value of
+    !> `incremental_search_wrap_function':
+    !> its own, else the global one.  Not a port.
+    function get_incremental_search_wrap_current(self) result(current_procedure)
+        class(incremental_search_wrap_setting_type), intent(in) :: self
+        procedure(incremental_search_wrap_procedure), pointer :: current_procedure
         integer :: k
 
-        fn => null()
-        k = local_slot()
-        if (k > 0) fn => local_functions(k)%wrap
-    end function current_wrap
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_incremental_search_wrap_current
 
-    ! Not a port.
-    subroutine push_state_set_local(fn)
-        procedure(incremental_search_push_state_procedure) :: fn
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_incremental_search_wrap_entry(self)
+        class(incremental_search_wrap_setting_type), intent(inout) :: self
+        type(incremental_search_wrap_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_incremental_search_wrap_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_incremental_search_wrap_entry(self, k)
+        class(incremental_search_wrap_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_incremental_search_wrap_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `incremental_search_push_state_function'.  Not a port.
+    subroutine set_incremental_search_push_state_local(self, local_procedure)
+        class(incremental_search_push_state_setting_type), intent(inout) :: self
+        procedure(incremental_search_push_state_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_slot(k)
-        if (k > 0) local_functions(k)%push_state => fn
-    end subroutine push_state_set_local
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_incremental_search_push_state_local
 
-    ! Not a port.
-    function current_push_state() result(fn)
-        procedure(incremental_search_push_state_procedure), pointer :: fn
+    !> The current buffer's value of
+    !> `incremental_search_push_state_function':
+    !> its own, else the global one.  Not a port.
+    function get_incremental_search_push_state_current(self) result(current_procedure)
+        class(incremental_search_push_state_setting_type), intent(in) :: self
+        procedure(incremental_search_push_state_procedure), pointer :: current_procedure
         integer :: k
 
-        fn => null()
-        k = local_slot()
-        if (k > 0) fn => local_functions(k)%push_state
-    end function current_push_state
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_incremental_search_push_state_current
 
-    ! Not a port.
-    subroutine message_set_local(fn)
-        procedure(incremental_search_message_procedure) :: fn
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_incremental_search_push_state_entry(self)
+        class(incremental_search_push_state_setting_type), intent(inout) :: self
+        type(incremental_search_push_state_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_incremental_search_push_state_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_incremental_search_push_state_entry(self, k)
+        class(incremental_search_push_state_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_incremental_search_push_state_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `incremental_search_message_function'.  Not a port.
+    subroutine set_incremental_search_message_local(self, local_procedure)
+        class(incremental_search_message_setting_type), intent(inout) :: self
+        procedure(incremental_search_message_procedure), optional :: local_procedure
         integer :: k
 
-        call make_local_slot(k)
-        if (k > 0) local_functions(k)%message => fn
-    end subroutine message_set_local
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_incremental_search_message_local
 
-    ! Not a port.
-    function current_message_function() result(fn)
-        procedure(incremental_search_message_procedure), pointer :: fn
+    !> The current buffer's value of
+    !> `incremental_search_message_function':
+    !> its own, else the global one.  Not a port.
+    function get_incremental_search_message_current(self) result(current_procedure)
+        class(incremental_search_message_setting_type), intent(in) :: self
+        procedure(incremental_search_message_procedure), pointer :: current_procedure
         integer :: k
 
-        fn => null()
-        k = local_slot()
-        if (k > 0) fn => local_functions(k)%message
-    end function current_message_function
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_incremental_search_message_current
 
-    ! Not a port.
-    subroutine search_function_clear_local()
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_incremental_search_message_entry(self)
+        class(incremental_search_message_setting_type), intent(inout) :: self
+        type(incremental_search_message_entry_type) :: entry
+
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_incremental_search_message_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_incremental_search_message_entry(self, k)
+        class(incremental_search_message_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_incremental_search_message_entry
+
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `incremental_search_filter_test_function'.  Not a port.
+    subroutine set_incremental_search_filter_test_local(self, local_procedure)
+        class(incremental_search_filter_test_setting_type), intent(inout) :: self
+        procedure(incremental_search_filter_procedure), optional :: local_procedure
         integer :: k
 
-        k = local_slot()
-        if (k > 0) local_functions(k)%search_function => null()
-    end subroutine search_function_clear_local
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_incremental_search_filter_test_local
 
-    ! Not a port.
-    subroutine wrap_clear_local()
+    !> The current buffer's value of
+    !> `incremental_search_filter_test_function':
+    !> its own, else the global one.  Not a port.
+    function get_incremental_search_filter_test_current(self) result(current_procedure)
+        class(incremental_search_filter_test_setting_type), intent(in) :: self
+        procedure(incremental_search_filter_procedure), pointer :: current_procedure
         integer :: k
 
-        k = local_slot()
-        if (k > 0) local_functions(k)%wrap => null()
-    end subroutine wrap_clear_local
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_incremental_search_filter_test_current
 
-    ! Not a port.
-    subroutine push_state_clear_local()
-        integer :: k
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_incremental_search_filter_test_entry(self)
+        class(incremental_search_filter_test_setting_type), intent(inout) :: self
+        type(incremental_search_filter_test_entry_type) :: entry
 
-        k = local_slot()
-        if (k > 0) local_functions(k)%push_state => null()
-    end subroutine push_state_clear_local
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_incremental_search_filter_test_entry
 
-    ! Not a port.
-    subroutine filter_clear_local()
-        integer :: k
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_incremental_search_filter_test_entry(self, k)
+        class(incremental_search_filter_test_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-        k = local_slot()
-        if (k > 0) local_functions(k)%filter => null()
-    end subroutine filter_clear_local
-
-    ! Not a port.
-    subroutine message_clear_local()
-        integer :: k
-
-        k = local_slot()
-        if (k > 0) local_functions(k)%message => null()
-    end subroutine message_clear_local
-
-    ! Not a port.
-    subroutine filter_set_local(fn)
-        procedure(incremental_search_filter_procedure) :: fn
-        integer :: k
-
-        call make_local_slot(k)
-        if (k > 0) local_functions(k)%filter => fn
-    end subroutine filter_set_local
-
-    ! Not a port.
-    function current_filter() result(fn)
-        procedure(incremental_search_filter_procedure), pointer :: fn
-        integer :: k
-
-        fn => null()
-        k = local_slot()
-        if (k > 0) fn => local_functions(k)%filter
-    end function current_filter
+        self%locals(k)%procedure => null()
+    end subroutine clear_incremental_search_filter_test_entry
 
     !> isearch-mode-map and global bindings.  Not a port.
     subroutine initialize_incremental_search(global_map)

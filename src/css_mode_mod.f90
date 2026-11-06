@@ -65,13 +65,13 @@ module css_mode_mod
     use font_core_mod, only: font_lock_defaults, font_lock_keyword_type, font_lock_highlight_type, &
                              FONT_LOCK_OVERRIDE_REPLACE, FONT_LOCK_OVERRIDE_KEEP
     use font_lock_mod, only: font_lock_keyword, font_lock_highlight, font_lock_default_fontify_region, &
-                             font_lock_fontify_region_function_set_local
+                             font_lock_fontify_region_function
     use expression_motion_mod, only: forward_expression, backward_expression, down_group, cut_expression
     use newcomment_mod, only: comment_start, comment_start_skip, comment_end, comment_end_skip, comment_continue, &
                               comment_normalize_variables, comment_search_forward, comment_beginning
     use paragraphs_mod, only: paragraph_start, paragraph_separate
     use fill_mod, only: fill_paragraph, fill_paragraph_function, adaptive_fill_function
-    use electric_mod, only: electric_indent_characters_value, electric_indent_characters_set_local
+    use electric_mod, only: electric_indent_characters
     use syntax_propertize_mod, only: syntax_propertize_function, syntax_propertize_rules_type, syntax_highlight_type
     use simple_minded_indentation_engine_mod, only: simple_minded_indentation_engine_prec_type, &
                                                     simple_minded_indentation_engine_precs_type, &
@@ -108,6 +108,7 @@ module css_mode_mod
     use regular_expression_optimization_mod, only: regular_expression_optimization
     use index_menu_mod, only: index_menu_previous_index_position_function, index_menu_extract_index_name_function, &
                               index_menu_space_replacement
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -135,38 +136,39 @@ module css_mode_mod
         end subroutine css_list_procedure
     end interface
 
-    ! One buffer's own value of a `css_list_function_type'.
+    !> One buffer's own value of
+    !> `css_class_list_function' or `css_id_list_function'.
     type :: css_list_entry_type
-        integer(int64) :: serial = 0
-        procedure(css_list_procedure), pointer, nopass :: fn => null()
+        procedure(css_list_procedure), pointer, nopass :: procedure => null()
     end type css_list_entry_type
 
-    !> The type of `css_class_list_function' and `css_id_list_function': a
-    !> default `value' (assign with `=>'; null is `ignore') and buffers' own
-    !> values (`set_local').
-    type, public :: css_list_function_type
-        procedure(css_list_procedure), pointer, nopass :: value => null()
-        type(css_list_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `css_class_list_function' or `css_id_list_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: css_list_setting_type
+        procedure(css_list_procedure), pointer, nopass :: procedure => null()
+        type(css_list_entry_type), allocatable :: locals(:)
     contains
-        !> Make FN the current buffer's function (set_local).
-        procedure :: set_local => list_function_set_local
-        !> The current buffer's function (null for `ignore').
-        procedure :: current => current_list_function
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => list_function_clear_local
-    end type css_list_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_css_list_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_css_list_current
+        procedure :: append_local_entry => append_css_list_entry
+        procedure :: clear_local_entry => clear_css_list_entry
+    end type css_list_setting_type
 
     !> Called to provide completions of class names.
     !> This can be bound by buffers that are able to suggest class name
     !> completions, such as HTML mode buffers.  Port of css-mode.el
     !> css-class-list-function.
-    type(css_list_function_type), public :: css_class_list_function
+    type(css_list_setting_type), public :: css_class_list_function
 
     !> Called to provide completions of IDs.
     !> This can be bound by buffers that are able to suggest ID
     !> completions, such as HTML mode buffers.  Port of css-mode.el
     !> css-id-list-function.
-    type(css_list_function_type), public :: css_id_list_function
+    type(css_list_setting_type), public :: css_id_list_function
 
     !> Self inserting keys which should trigger re-indentation.  Port of
     !> css-mode.el css-electric-keys (characters).
@@ -1101,56 +1103,49 @@ contains
     ! Buffer-local values
     ! ------------------------------------------------------------------
 
-    ! Not a port.
-    subroutine list_function_set_local(self, fn)
-        class(css_list_function_type), intent(inout) :: self
-        procedure(css_list_procedure) :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `css_class_list_function' or `css_id_list_function'.  Not a port.
+    subroutine set_css_list_local(self, local_procedure)
+        class(css_list_setting_type), intent(inout) :: self
+        procedure(css_list_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_css_list_local
+
+    !> The current buffer's value of
+    !> `css_class_list_function' or `css_id_list_function':
+    !> its own, else the global one.  Not a port.
+    function get_css_list_current(self) result(current_procedure)
+        class(css_list_setting_type), intent(in) :: self
+        procedure(css_list_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_css_list_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_css_list_entry(self)
+        class(css_list_setting_type), intent(inout) :: self
         type(css_list_entry_type) :: entry
-        integer :: i
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_css_list_entry
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_css_list_entry(self, k)
+        class(css_list_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
-
-        self%entries(i)%fn => fn
-    end subroutine list_function_set_local
-
-    ! Not a port.
-    function current_list_function(self) result(fn)
-        class(css_list_function_type), intent(in) :: self
-        procedure(css_list_procedure), pointer :: fn
-        integer :: i
-
-        fn => self%value
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1, back=.true.)
-        if (i == 0) return
-        if (associated(self%entries(i)%fn)) fn => self%entries(i)%fn
-    end function current_list_function
-
-    ! Not a port.
-    subroutine list_function_clear_local(self)
-        class(css_list_function_type), intent(inout) :: self
-        integer :: i
-
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-        if (i == 0) return
-        self%entries(i)%serial = 0
-        self%entries(i)%fn => null()
-    end subroutine list_function_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_css_list_entry
 
     ! The index of the current buffer's entry in `locals', 0 if none.
     ! Not a port.
@@ -1539,7 +1534,7 @@ contains
     !> EXTRACTOR is called and the results are accumulated into a list of
     !> completions.  Port of css-mode.el:css--foreign-completions.
     subroutine css_foreign_completions(extractor, completions)
-        type(css_list_function_type), intent(in) :: extractor
+        type(css_list_setting_type), intent(in) :: extractor
         character(len=:), allocatable, intent(out) :: completions(:)
         type(handle_type), allocatable :: buffers(:)
         type(handle_type) :: saved
@@ -1556,7 +1551,7 @@ contains
         do i = 1, size(buffers)
             if (.not. is_buffer_live(buffers(i))) cycle
             call set_buffer(buffers(i), st)
-            fn => extractor%current()
+            fn => extractor%get_current()
 
             if (associated(fn)) then
                 call fn(names)
@@ -3412,7 +3407,7 @@ contains
         call comment_start_skip%set_local("/\*+[ "//TAB//"]*")
         call comment_end%set_local("*/")
         call comment_end_skip%set_local("[ "//TAB//"]*\*+/")
-        call electric_indent_characters_set_local([css_electric_keys, electric_indent_characters_value()])
+        call electric_indent_characters%set_local([css_electric_keys, electric_indent_characters%get_current()])
         ! The default "." creates ambiguity with class selectors.
         call index_menu_space_replacement%set_local(" ")
         call major_modes%css_base_mode%end(saved, status)
@@ -3443,7 +3438,7 @@ contains
         call simple_minded_indentation_engine_setup(css_simple_minded_indentation_engine_grammar, &
                                    css_simple_minded_indentation_engine_rules, css_simple_minded_indentation_engine_forward_token, &
                                                     css_simple_minded_indentation_engine_backward_token)
-        call font_lock_fontify_region_function_set_local(css_fontify_region)
+        call font_lock_fontify_region_function%set_local(css_fontify_region)
         call completion_at_point_functions%prepend(css_completion_at_point, local=.true.)
         call index_menu_previous_index_position_function%set_local(css_previous_index_position)
         call index_menu_extract_index_name_function%set_local(extract_css_index_name)

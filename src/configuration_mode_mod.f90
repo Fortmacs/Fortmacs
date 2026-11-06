@@ -1030,7 +1030,7 @@ contains
         ! conf-assignment-regexp.
         if (font_lock_mode_enabled()) call font_lock_refresh_defaults(status)
         ! Get rid of any existing Parameters element.
-        old = index_menu_patterns%current()
+        old = index_menu_patterns%get_current()
         allocate (patterns(size(old) + 1))
         n = 1
 
@@ -1091,7 +1091,7 @@ contains
         call configuration_assignment_column%set_local(configuration_colon_assignment_column%value)
         call configuration_assignment_sign%set_local(":")
         call configuration_assignment_regular_expression%set_local(".+?\([ "//TAB//"]*:[ "//TAB//"]*\)")
-        old = index_menu_patterns%current()
+        old = index_menu_patterns%get_current()
         allocate (patterns(max(1, size(old))))
         patterns(1) = index_menu_pattern_type(menu_title="Parameters", regular_expression="^[ "//TAB//"]*\(.+?\)[ "//TAB//"]*:", &
                                               subexpression=1)
@@ -1120,7 +1120,7 @@ contains
         if (.not. status%ok()) return
         call configuration_mode_initialize("*%")
         ! no sections, they match within PostScript code
-        patterns = index_menu_patterns%current()
+        patterns = index_menu_patterns%get_current()
         if (size(patterns) > 1) call index_menu_patterns%set_local(patterns(1:1))
         call major_modes%configuration_ppd_mode%end(saved, status)
     end subroutine configuration_ppd_mode

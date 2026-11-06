@@ -30,7 +30,7 @@
 !> delegates to `forward_expression_function' (which SIMPLE_MINDED_INDENTATION_ENGINE modes set).
 !>
 !> The subprogram commands find subprograms with `beginning_of_subprogram_function'
-!> (a `beginning_of_subprogram_function_type': buffers' own procedures),
+!> (a `beginning_of_subprogram_setting_type': buffers' own procedures),
 !> `subprogram_prompt_regular_expression' and `open_parenthesis_in_column_0_is_subprogram_start',
 !> and their ends with `end_of_subprogram_function' (a `function_setting_type').
 !> `insert_pairs' is an array of `insert_pair_type'.
@@ -46,7 +46,7 @@ module expression_motion_mod
     use execute_interactively_mod, only: PREFIX_NONE, command_type
     use commands_mod, only: commands
     use error_mod, only: status_type, set_error, USER_ERROR_CODE, SCAN_ERROR_CODE, GENERIC_ERROR_CODE
-    use buffer_mod, only: buffers, current, transient_mark_mode, buffer_serial_live
+    use buffer_mod, only: buffers, current, transient_mark_mode
     use editing_functions_mod, only: point, goto_character, point_minimum, point_maximum, narrow_to_region, widen, mark_position, &
                                      is_beginning_of_buffer, is_end_of_buffer, is_beginning_of_line, is_end_of_line, &
                                      line_beginning_position, line_end_position, region_beginning, region_end, &
@@ -67,6 +67,7 @@ module expression_motion_mod
     use search_mod, only: looking_at, regular_expression_search_forward, regular_expression_search_backward, match_end, &
                           match_data, set_match_data, SEARCH_NOERROR, SEARCH_MOVE
     use paragraphs_mod, only: page_delimiter
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -90,35 +91,33 @@ module expression_motion_mod
         end subroutine forward_expression_procedure
     end interface
 
-    ! One buffer's own `forward_expression_function' (FN null is nil).
+    !> One buffer's own value of
+    !> `forward_expression_function'.
     type :: forward_expression_entry_type
-        integer(int64) :: serial = 0
-        procedure(forward_expression_procedure), pointer, nopass :: fn => null()
+        procedure(forward_expression_procedure), pointer, nopass :: procedure => null()
     end type forward_expression_entry_type
 
-    !> The type of `forward_expression_function': the default `value' (assign
-    !> with `=>'; null when unset) and buffers' own values (`set_local',
-    !> where null means unset too).
-    type, public :: forward_expression_function_type
-        procedure(forward_expression_procedure), pointer, nopass :: value => null()
-        type(forward_expression_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `forward_expression_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: forward_expression_setting_type
+        procedure(forward_expression_procedure), pointer, nopass :: procedure => null()
+        type(forward_expression_entry_type), allocatable :: locals(:)
     contains
-        !> Give the current buffer its own value FN (set_local); absent
-        !> clears it.
-        procedure :: set_local => forward_expression_set_local
-        !> The value in the current buffer (null when unset).
-        procedure :: current => current_forward_expression
-        !> Whether the current buffer has its own value.
-        procedure :: local_p => is_forward_expression_local
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => forward_expression_clear_local
-    end type forward_expression_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_forward_expression_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_forward_expression_current
+        procedure :: append_local_entry => append_forward_expression_entry
+        procedure :: clear_local_entry => clear_forward_expression_entry
+    end type forward_expression_setting_type
 
     !> If true, `forward_expression' delegates to this function.
     !> Should take the same arguments and behave similarly to `forward_expression'.
     !> Port of lisp.el forward-sexp-function (its default,
     !> `forward_expression_default_function', is set by `initialize_expression_motion').
-    type(forward_expression_function_type), public :: forward_expression_function
+    type(forward_expression_setting_type), public :: forward_expression_function
 
     abstract interface
         !> A `beginning_of_subprogram_function': move to the beginning of the
@@ -132,27 +131,27 @@ module expression_motion_mod
         end subroutine beginning_of_subprogram_procedure
     end interface
 
-    ! One buffer's own `beginning_of_subprogram_function' (FN null is nil).
+    !> One buffer's own value of
+    !> `beginning_of_subprogram_function'.
     type :: beginning_of_subprogram_entry_type
-        integer(int64) :: serial = 0
-        procedure(beginning_of_subprogram_procedure), pointer, nopass :: fn => null()
+        procedure(beginning_of_subprogram_procedure), pointer, nopass :: procedure => null()
     end type beginning_of_subprogram_entry_type
 
-    !> The type of `beginning_of_subprogram_function': the default `value'
-    !> (assign with `=>'; null when unset) and buffers' own values
-    !> (`set_local').
-    type, public :: beginning_of_subprogram_function_type
-        procedure(beginning_of_subprogram_procedure), pointer, nopass :: value => null()
-        type(beginning_of_subprogram_entry_type), allocatable :: entries(:)
+    !> The type of
+    !> `beginning_of_subprogram_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: beginning_of_subprogram_setting_type
+        procedure(beginning_of_subprogram_procedure), pointer, nopass :: procedure => null()
+        type(beginning_of_subprogram_entry_type), allocatable :: locals(:)
     contains
-        !> Give the current buffer its own value FN (set_local); absent is
-        !> clears it.
-        procedure :: set_local => bod_set_local
-        !> The value in the current buffer (null when unset).
-        procedure :: current => current_bod
-        !> Make the current buffer use the default again.
-        procedure :: clear_local => bod_clear_local
-    end type beginning_of_subprogram_function_type
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_beginning_of_subprogram_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_beginning_of_subprogram_current
+        procedure :: append_local_entry => append_beginning_of_subprogram_entry
+        procedure :: clear_local_entry => clear_beginning_of_subprogram_entry
+    end type beginning_of_subprogram_setting_type
 
     !> If true, function for `beginning_of_subprogram_raw' to call.
     !> This is used to find the beginning of the subprogram instead of using the
@@ -164,7 +163,7 @@ module expression_motion_mod
     !> behave similarly, returning true if it found the beginning of a subprogram.
     !> Ideally it should move to a point right before an open-paren which encloses
     !> the body of the subprogram.  Port of lisp.el beginning-of-defun-function.
-    type(beginning_of_subprogram_function_type), public :: beginning_of_subprogram_function
+    type(beginning_of_subprogram_setting_type), public :: beginning_of_subprogram_function
 
     !> If true, a regexp to ignore before a subprogram.
     !> This is only necessary if the opening paren or brace is not in column 0.
@@ -237,74 +236,49 @@ module expression_motion_mod
 
 contains
 
-    ! Not a port.
-    subroutine forward_expression_set_local(self, fn)
-        class(forward_expression_function_type), intent(inout) :: self
-        procedure(forward_expression_procedure), optional :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `forward_expression_function'.  Not a port.
+    subroutine set_forward_expression_local(self, local_procedure)
+        class(forward_expression_setting_type), intent(inout) :: self
+        procedure(forward_expression_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_forward_expression_local
+
+    !> The current buffer's value of
+    !> `forward_expression_function':
+    !> its own, else the global one.  Not a port.
+    function get_forward_expression_current(self) result(current_procedure)
+        class(forward_expression_setting_type), intent(in) :: self
+        procedure(forward_expression_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_forward_expression_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_forward_expression_entry(self)
+        class(forward_expression_setting_type), intent(inout) :: self
         type(forward_expression_entry_type) :: entry
-        integer :: i
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = local_entry(self)
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_forward_expression_entry
 
-        if (i == 0) then
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_forward_expression_entry(self, k)
+        class(forward_expression_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
-
-        if (present(fn)) then
-            self%entries(i)%fn => fn
-        else
-            self%entries(i)%fn => null()
-        end if
-    end subroutine forward_expression_set_local
-
-    ! The index of the current buffer's entry, 0 if none.  Not a port.
-    integer function local_entry(self) result(i)
-        class(forward_expression_function_type), intent(in) :: self
-
-        i = 0
-        if (current == 0 .or. .not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-    end function local_entry
-
-    ! Not a port.
-    function current_forward_expression(self) result(fn)
-        class(forward_expression_function_type), intent(in) :: self
-        procedure(forward_expression_procedure), pointer :: fn
-        integer :: i
-
-        i = local_entry(self)
-
-        if (i > 0) then
-            fn => self%entries(i)%fn
-        else
-            fn => self%value
-        end if
-    end function current_forward_expression
-
-    ! Not a port.
-    logical function is_forward_expression_local(self)
-        class(forward_expression_function_type), intent(in) :: self
-
-        is_forward_expression_local = local_entry(self) > 0
-    end function is_forward_expression_local
-
-    ! Not a port.
-    subroutine forward_expression_clear_local(self)
-        class(forward_expression_function_type), intent(inout) :: self
-        integer :: i
-
-        i = local_entry(self)
-        if (i == 0) return
-        self%entries(i)%serial = 0
-        self%entries(i)%fn => null()
-    end subroutine forward_expression_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_forward_expression_entry
 
     ! kill-all-local-variables: forget the current buffer's
     ! `forward_expression_function'.  Not a port.
@@ -313,68 +287,49 @@ contains
         call beginning_of_subprogram_function%clear_local()
     end subroutine clear_expression_motion_locals
 
-    ! Not a port.
-    subroutine bod_set_local(self, fn)
-        class(beginning_of_subprogram_function_type), intent(inout) :: self
-        procedure(beginning_of_subprogram_procedure), optional :: fn
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `beginning_of_subprogram_function'.  Not a port.
+    subroutine set_beginning_of_subprogram_local(self, local_procedure)
+        class(beginning_of_subprogram_setting_type), intent(inout) :: self
+        procedure(beginning_of_subprogram_procedure), optional :: local_procedure
+        integer :: k
+
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_beginning_of_subprogram_local
+
+    !> The current buffer's value of
+    !> `beginning_of_subprogram_function':
+    !> its own, else the global one.  Not a port.
+    function get_beginning_of_subprogram_current(self) result(current_procedure)
+        class(beginning_of_subprogram_setting_type), intent(in) :: self
+        procedure(beginning_of_subprogram_procedure), pointer :: current_procedure
+        integer :: k
+
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_beginning_of_subprogram_current
+
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_beginning_of_subprogram_entry(self)
+        class(beginning_of_subprogram_setting_type), intent(inout) :: self
         type(beginning_of_subprogram_entry_type) :: entry
-        integer :: i
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = bod_entry(self)
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_beginning_of_subprogram_entry
 
-        if (i == 0) then
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_beginning_of_subprogram_entry(self, k)
+        class(beginning_of_subprogram_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
-
-        if (present(fn)) then
-            self%entries(i)%fn => fn
-        else
-            self%entries(i)%fn => null()
-        end if
-    end subroutine bod_set_local
-
-    ! The index of the current buffer's entry, 0 if none.
-    ! Not a port.
-    integer function bod_entry(self) result(i)
-        class(beginning_of_subprogram_function_type), intent(in) :: self
-
-        i = 0
-        if (current == 0 .or. .not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
-    end function bod_entry
-
-    ! Not a port.
-    function current_bod(self) result(fn)
-        class(beginning_of_subprogram_function_type), intent(in) :: self
-        procedure(beginning_of_subprogram_procedure), pointer :: fn
-        integer :: i
-
-        i = bod_entry(self)
-
-        if (i > 0) then
-            fn => self%entries(i)%fn
-        else
-            fn => self%value
-        end if
-    end function current_bod
-
-    ! Not a port.
-    subroutine bod_clear_local(self)
-        class(beginning_of_subprogram_function_type), intent(inout) :: self
-        integer :: i
-
-        i = bod_entry(self)
-        if (i == 0) return
-        self%entries(i)%serial = 0
-        self%entries(i)%fn => null()
-    end subroutine bod_clear_local
+        self%locals(k)%procedure => null()
+    end subroutine clear_beginning_of_subprogram_entry
 
     !> (buffer-end ARGUMENT): the end of the accessible region if ARGUMENT is
     !> positive, else its start.  Port of subr.el:buffer-end.
@@ -419,7 +374,7 @@ contains
         logical, intent(in), optional :: interactive
         procedure(forward_expression_procedure), pointer :: fn
 
-        fn => forward_expression_function%current()
+        fn => forward_expression_function%get_current()
 
         if (associated(fn)) then
             call fn(argument, status)
@@ -640,7 +595,7 @@ contains
                 end if
             end if
 
-            fn => forward_expression_function%current()
+            fn => forward_expression_function%get_current()
             default_fn = .not. associated(fn)
             if (.not. default_fn) default_fn = associated(fn, forward_expression_default_function)
 
@@ -943,7 +898,7 @@ contains
 
         status = status_type()
         found = .false.
-        fn => beginning_of_subprogram_function%current()
+        fn => beginning_of_subprogram_function%get_current()
 
         if (associated(fn)) then
             call fn(argument, found, status)
@@ -1924,7 +1879,7 @@ contains
     subroutine initialize_expression_motion()
         mark_subprogram_back%name = "mark_subprogram_back"
         mark_subprogram_back%is_command = .false.
-        forward_expression_function%value => forward_expression_default_function
+        forward_expression_function%procedure => forward_expression_default_function
         call append_locals_clearer(clear_expression_motion_locals)
         commands%forward_expression%execute => execute_forward_expression
         commands%backward_expression%execute => execute_backward_expression

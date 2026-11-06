@@ -44,7 +44,7 @@ module files_mod
     use buffer_mod, only: buffers, current, current_buffer, resolve_buffer, set_buffer, &
                           get_or_make_buffer, generate_new_buffer_name, get_file_buffer, &
                           buffer_list, close_buffer, erase_buffer, set_buffer_read_only, &
-                          rename_buffer, restore_buffer_modified, buffer_serial_live, execute_close_buffer_hook
+                          rename_buffer, restore_buffer_modified, execute_close_buffer_hook
     use file_input_output_mod, only: open_dribble_file
     use file_input_output_mod, only: file_status_type, expand_file_name, file_name_directory, is_directory_name, &
                                      file_name_nondirectory, directory_file_name, file_name_as_directory, &
@@ -68,6 +68,7 @@ module files_mod
     use window_mod, only: pop_to_buffer_same_window, switch_to_buffer_other_window, switch_to_buffer_other_frame
     use coding_mod, only: buffer_file_coding_system, last_coding_system_used
     use hooks_mod, only: hook_type, until_success_hook_type
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -853,11 +854,27 @@ module files_mod
         end subroutine find_directory_procedure
     end interface
 
-    !> One buffer's `revert_buffer_function'.
-    type :: revert_entry_type
-        integer(int64) :: serial = 0
-        procedure(revert_function_procedure), pointer, nopass :: fn => null()
-    end type revert_entry_type
+    !> One buffer's own value of
+    !> `revert_buffer_function'.
+    type :: revert_buffer_entry_type
+        procedure(revert_function_procedure), pointer, nopass :: procedure => null()
+    end type revert_buffer_entry_type
+
+    !> The type of
+    !> `revert_buffer_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: revert_buffer_setting_type
+        procedure(revert_function_procedure), pointer, nopass :: procedure => null()
+        type(revert_buffer_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_revert_buffer_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_revert_buffer_current
+        procedure :: append_local_entry => append_revert_buffer_entry
+        procedure :: clear_local_entry => clear_revert_buffer_entry
+    end type revert_buffer_setting_type
 
     !> Function to use to revert this buffer.
     !> The function receives two arguments IGNORE_AUTO and NOCONFIRM,
@@ -868,21 +885,10 @@ module files_mod
     !>
     !> For historical reasons, a null value means to use the default
     !> function.  This should not be relied upon.  Port of files.el
-    !> revert-buffer-function (permanently buffer-local; set with
-    !> `set_local', null for the default).
-    type, public :: revert_buffer_function_type
-        character(len=48) :: name = "revert_buffer_function"
-        type(revert_entry_type), allocatable :: entries(:)
-    contains
-        !> Make FN the current buffer's revert function (set_local).
-        procedure :: set_local => revert_set_local
-        !> The current buffer's revert function (null for the default).
-        procedure :: current => current_revert
-    end type revert_buffer_function_type
-
-    !> Function to use to revert this buffer (see the type).  Port of
-    !> files.el revert-buffer-function.
-    type(revert_buffer_function_type), public :: revert_buffer_function
+    !> revert-buffer-function (permanently buffer-local: `%set_local'
+    !> gives a buffer its own, which `clear_all_local_variables' keeps;
+    !> `%procedure' is the global value, null for the default).
+    type(revert_buffer_setting_type), public :: revert_buffer_function
 
     !> Values a `buffer_stale_function' returns: the buffer needs no
     !> reverting, it needs reverting, or the need was not checked but
@@ -899,11 +905,27 @@ module files_mod
         end function buffer_stale_procedure
     end interface
 
-    !> One buffer's `buffer_stale_function'.
-    type :: stale_entry_type
-        integer(int64) :: serial = 0
-        procedure(buffer_stale_procedure), pointer, nopass :: fn => null()
-    end type stale_entry_type
+    !> One buffer's own value of
+    !> `buffer_stale_function'.
+    type :: buffer_stale_entry_type
+        procedure(buffer_stale_procedure), pointer, nopass :: procedure => null()
+    end type buffer_stale_entry_type
+
+    !> The type of
+    !> `buffer_stale_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: buffer_stale_setting_type
+        procedure(buffer_stale_procedure), pointer, nopass :: procedure => null()
+        type(buffer_stale_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_buffer_stale_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_buffer_stale_current
+        procedure :: append_local_entry => append_buffer_stale_entry
+        procedure :: clear_local_entry => clear_buffer_stale_entry
+    end type buffer_stale_setting_type
 
     !> Function to check whether a buffer needs reverting.
     !> This should be a function with one argument NOCONFIRM.
@@ -920,21 +942,10 @@ module files_mod
     !>
     !> For historical reasons, a null value means to use the default function.
     !> This should not be relied upon.  Port of files.el
-    !> buffer-stale-function (buffer-local values set with `set_local'; the
-    !> default is null, for `buffer_stale_default_function').
-    type, public :: buffer_stale_function_type
-        character(len=48) :: name = "buffer_stale_function"
-        type(stale_entry_type), allocatable :: entries(:)
-    contains
-        !> Make FN the current buffer's function (set_local).
-        procedure :: set_local => stale_set_local
-        !> The current buffer's function (null for the default).
-        procedure :: current => current_stale
-    end type buffer_stale_function_type
-
-    !> Function to check whether a buffer needs reverting (see the type).
-    !> Port of files.el buffer-stale-function.
-    type(buffer_stale_function_type), public :: buffer_stale_function
+    !> buffer-stale-function (`%procedure' is the global value, null for
+    !> `buffer_stale_default_function'; `%set_local' gives a buffer its
+    !> own).
+    type(buffer_stale_setting_type), public :: buffer_stale_function
 
     !> Whether a buffer can rely on notification in Auto-Revert mode.
     !> If true, monitoring changes to the directory of the current
@@ -2295,79 +2306,93 @@ contains
     ! revert-buffer-function
     ! ------------------------------------------------------------------
 
-    ! Set the current buffer's `revert_buffer_function' to FN.  Not a port.
-    subroutine revert_set_local(self, fn)
-        class(revert_buffer_function_type), intent(inout) :: self
-        procedure(revert_function_procedure) :: fn
-        type(revert_entry_type) :: entry
-        integer :: i
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `revert_buffer_function'.  Not a port.
+    subroutine set_revert_buffer_local(self, local_procedure)
+        class(revert_buffer_setting_type), intent(inout) :: self
+        procedure(revert_function_procedure), optional :: local_procedure
+        integer :: k
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_revert_buffer_local
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+    !> The current buffer's value of
+    !> `revert_buffer_function':
+    !> its own, else the global one.  Not a port.
+    function get_revert_buffer_current(self) result(current_procedure)
+        class(revert_buffer_setting_type), intent(in) :: self
+        procedure(revert_function_procedure), pointer :: current_procedure
+        integer :: k
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_revert_buffer_current
 
-        self%entries(i)%fn => fn
-    end subroutine revert_set_local
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_revert_buffer_entry(self)
+        class(revert_buffer_setting_type), intent(inout) :: self
+        type(revert_buffer_entry_type) :: entry
 
-    ! The current buffer's `revert_buffer_function'.  Not a port.
-    function current_revert(self) result(fn)
-        class(revert_buffer_function_type), intent(in) :: self
-        procedure(revert_function_procedure), pointer :: fn
-        integer :: i
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_revert_buffer_entry
 
-        fn => null()
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1, back=.true.)
-        if (i > 0) fn => self%entries(i)%fn
-    end function current_revert
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_revert_buffer_entry(self, k)
+        class(revert_buffer_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
 
-    ! Set the current buffer's `buffer_stale_function' to FN.  Not a port.
-    subroutine stale_set_local(self, fn)
-        class(buffer_stale_function_type), intent(inout) :: self
-        procedure(buffer_stale_procedure) :: fn
-        type(stale_entry_type) :: entry
-        integer :: i
+        self%locals(k)%procedure => null()
+    end subroutine clear_revert_buffer_entry
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `buffer_stale_function'.  Not a port.
+    subroutine set_buffer_stale_local(self, local_procedure)
+        class(buffer_stale_setting_type), intent(inout) :: self
+        procedure(buffer_stale_procedure), optional :: local_procedure
+        integer :: k
 
-        if (i == 0) then
-            ! Reuse the entry of a dead buffer.
-            do i = 1, size(self%entries)
-                if (.not. buffer_serial_live(self%entries(i)%serial)) exit
-            end do
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_buffer_stale_local
 
-            if (i > size(self%entries)) self%entries = [self%entries, entry]
-            self%entries(i)%serial = buffers(current)%serial
-        end if
+    !> The current buffer's value of
+    !> `buffer_stale_function':
+    !> its own, else the global one.  Not a port.
+    function get_buffer_stale_current(self) result(current_procedure)
+        class(buffer_stale_setting_type), intent(in) :: self
+        procedure(buffer_stale_procedure), pointer :: current_procedure
+        integer :: k
 
-        self%entries(i)%fn => fn
-    end subroutine stale_set_local
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_buffer_stale_current
 
-    ! The current buffer's `buffer_stale_function'.  Not a port.
-    function current_stale(self) result(fn)
-        class(buffer_stale_function_type), intent(in) :: self
-        procedure(buffer_stale_procedure), pointer :: fn
-        integer :: i
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_buffer_stale_entry(self)
+        class(buffer_stale_setting_type), intent(inout) :: self
+        type(buffer_stale_entry_type) :: entry
 
-        fn => null()
-        if (current == 0) return
-        if (.not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1, back=.true.)
-        if (i > 0) fn => self%entries(i)%fn
-    end function current_stale
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_buffer_stale_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_buffer_stale_entry(self, k)
+        class(buffer_stale_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_buffer_stale_entry
 
     !> Default function to use for `buffer_stale_function'.
     !> This function ignores its argument.
