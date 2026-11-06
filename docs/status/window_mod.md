@@ -214,7 +214,8 @@ the scanner's artifacts `buffer`,
 step 44b: window.el's `window-state-get` and `window-state-put` in part (`get_window_state`, `set_window_state`, `destroy_window_state`: the selected frame's root window, markers for starts and points, put into the whole frame with new windows when the sizes are equal, as tab-bar.el uses them),
 the `tab` quit-restore type (`QR_TAB`, window.el's display-buffer-record-window) and the `tab` cases of `window-deletable-p`, `window--delete` (through `close_tab_hook`) and `quit-restore-window`,
 an ACTION function argument of `display-buffer` and `pop-to-buffer` (`action_function`),
-`set-window-configuration` resizing the windows to the frame's top margin (adjust_frame_size, when the configuration was saved with other tab bar lines)
+`set-window-configuration` resizing the windows to the frame's top margin (adjust_frame_size, when the configuration was saved with other tab bar lines);
+step 52d: `frame-first-window` public, and the window markers of buffer.c's buffer-swap-text (`reset_window_markers`)
 
 ## Deferred
 

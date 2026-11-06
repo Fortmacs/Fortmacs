@@ -38,6 +38,7 @@ module window_mod
     implicit none(type, external)
     private
 
+    public :: frame_first_window
     public :: set_window_buffer, set_window_buffer_internal, window_discard_buffer_from_window, record_window_buffer, &
               switch_to_previous_buffer, switch_to_next_buffer, quit_restore_window, bury_buffer, &
               display_buffer_record_window, display_buffer, pop_to_buffer, pop_to_buffer_same_window, fit_window_to_buffer, &
@@ -1074,6 +1075,22 @@ module window_mod
             type(status_type), intent(out) :: status
             type(handle_type), intent(in), optional :: window
         end subroutine quit_window
+
+        !> The frame's first window (the top left one).  Port of
+        !> window.c:Fframe_first_window.  (In window_display_mod.)
+        module function frame_first_window() result(h)
+            implicit none(type, external)
+            type(handle_type) :: h
+        end function frame_first_window
+
+        !> Set the start and point markers of every window showing BUFFER,
+        !> on all frames, to BUFFER's BEGINNING_OF_ACCESSIBLE_PORTION.  Port of the window loop of
+        !> buffer.c:Fbuffer_swap_text (which undoes the swap of the window
+        !> markers).
+        module subroutine reset_window_markers(buffer)
+            implicit none(type, external)
+            type(handle_type), intent(in) :: buffer
+        end subroutine reset_window_markers
 
         !> Port of window.el:replace-buffer-in-windows (and of
         !> window.c:replace_buffer_in_windows, which calls it).

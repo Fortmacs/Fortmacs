@@ -35,7 +35,8 @@ the overlay modification hooks (`report_overlay_modification`, `add_overlay_mod_
 `disable_line_numbers_overlay_at_end_of_buffer`;
 `destroy_overlay` (ours);
 `overlay_advance` (front/rear-advance),
-`overlay_get_property`
+`overlay_get_property`,
+`swap_buffer_overlays` (for buffer-swap-text)
 
 ## Deferred
 
@@ -51,4 +52,4 @@ waits for the GUI: nothing
 
 ## Tests
 
-test_interval_tree_mod (ports buffer-tests.el overlay-modification-hooks, overlay-modification-hooks-deleted-overlay, test-overlay-lists-1, test-overlay-recenter; own: bounds, advance rules, evaporation, queries, kill-buffer, faces in redisplay by priority with the region)
+test_interval_tree_mod (ports buffer-tests.el overlay-modification-hooks, overlay-modification-hooks-deleted-overlay, test-overlay-lists-1, test-overlay-recenter, test-buffer-swap-text-1, test-buffer-swap-text-2; own: bounds, advance rules, evaporation, queries, kill-buffer, faces in redisplay by priority with the region)

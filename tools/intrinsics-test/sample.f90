@@ -12,7 +12,7 @@ module sample
     !> Named constants for nil and t, and meaningful ones.
     integer, parameter, public :: SCROLL_NIL = 0, SCROLL_T = 1, SCROLL_FIRST_ERROR = 2
     integer, parameter :: CHECK_TRUE = 1, CHECK_FALSE = 0, CHECK_NO = 2
-    integer, parameter :: COMPILATION_SCROLL_NO = 0, COMPILATION_SCROLL_YES = 1
+    integer, parameter :: COMPILATION_SCROLL_NO = 0, COMPILATION_SCROLL_YES = 1, CONFIRM_READ_Y_OR_N = 2
 
     !> An array named with `_vector', and a plural one.
     integer :: colors_vector(8) = [(0, k = 1, 8)], colors(8)
@@ -47,7 +47,7 @@ module sample
     !> vocabulary (R2-Q16, R2-Q17).
     integer, parameter :: DABBREV_OFF = 0, DABBREV_ON = 1, SAVE_ABBREVS_NEVER = 2
     integer, parameter :: KMACRO_REPEAT_DISABLED = 3, RECENTF_NO_LIMIT = -1
-    integer, parameter :: DABBREV_NO = 4, RECENTF_MAX_SAVED_ITEMS_UNLIMITED = -2
+    integer, parameter :: DABBREV_NO = 4, RECENTF_MAX_SAVED_ITEMS_UNLIMITED = -2, CONFIRM_READ_YES_OR_NO = 3
 
     !> Interfaces named with _proc and predicate, and with _procedure.
     abstract interface

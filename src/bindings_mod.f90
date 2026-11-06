@@ -152,6 +152,11 @@ module bindings_mod
     use mail_extract_mod, only: initialize_mail_extract
     use send_mail_mod, only: initialize_sendmail, mail_mode_map
     use smtpmail_mod, only: initialize_smtpmail
+    use rmail_mod, only: initialize_rmail
+    use rmail_keywords_mod, only: initialize_rmail_keywords
+    use rmail_edit_mod, only: initialize_rmail_edit
+    use rmail_output_mod, only: initialize_rmail_output
+    use rmail_summary_mod, only: initialize_rmail_summary
     use message_mod, only: initialize_message
     use mail_abbreviations_mod, only: initialize_mailabbrev
     use simple_mod, only: initialize_simple_mail
@@ -805,6 +810,11 @@ contains
         call initialize_smtpmail()
         call initialize_mailabbrev()
         call initialize_message()
+        call initialize_rmail()
+        call initialize_rmail_keywords()
+        call initialize_rmail_edit()
+        call initialize_rmail_output()
+        call initialize_rmail_summary()
         call initialize_simple_mail()
         call bind(control_x_map, "m", "compose_mail")
         call bind(control_x_4_map, "m", "compose_mail_other_window")

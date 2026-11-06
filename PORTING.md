@@ -341,7 +341,13 @@ Fortran-native `init.f90` API, `fortmacs --recompile`.
        `mail-user-agent`: Message mode, composing with C-x m, sending
        with sendmail or SMTP, the generated headers and Fcc; MML, RFC 2047,
        news and replies deferred; see docs/status/message_mod.md) —
-       partial; then Rmail.
+       partial; 52d the Rmail core: reading mbox files and
+       new mail moved from local inboxes with lock files (rmail.el,
+       movemail.c in Fortran), Rmail mode with the summary, output,
+       editing and labels (rmailsum.el, rmailout.el, rmailedit.el,
+       rmailkwd.el) — partial (MIME display (rmailmm.el), RFC 2047
+       decoding, replying and forwarding, Babyl files, remote mailboxes
+       and sorting deferred; see docs/status/rmail_mod.md).
    53. The X11 GUI (the protocol over a Unix socket in Fortran, FreeType and
        HarfBuzz fonts), then Wayland.
 
