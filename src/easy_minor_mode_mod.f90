@@ -612,7 +612,7 @@ contains
         else if (len_trim(self%variable) > 0) then
             call symbol_value(value_type(name=trim(self%variable)), v, st)
             on = st%ok() .and. allocated(v%a)
-        else if (self%global .and. self%state%local_p()) then
+        else if (self%global .and. self%state%is_local()) then
             ! A global mode's state is its default value.
             call default_value(value_type(name=trim(self%name)), v, st)
             on = st%ok() .and. allocated(v%a)
@@ -644,7 +644,7 @@ contains
 
         if (self%global) then
             ! (setq-default MODE ON)
-            if (self%state%local_p()) then
+            if (self%state%is_local()) then
                 call set_default(value_type(name=trim(self%name)), bool(on), st)
             else
                 self%state = on

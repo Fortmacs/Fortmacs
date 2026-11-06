@@ -67,7 +67,7 @@ module data_mod
         procedure :: clear_local => setting_clear_local
         !> Whether the current buffer has its own value.  Port of
         !> data.c:Flocal_variable_p.
-        procedure :: local_p => is_setting_local
+        procedure :: is_local => is_setting_local
         !> Start giving the current buffer its own value.
         procedure :: make_local => setting_make_local
         !> Forget the value's other kinds that an extension adds (a

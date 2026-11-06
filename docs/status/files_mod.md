@@ -80,7 +80,8 @@ as upstream,
 the Makefile entries of `auto-mode-alist`,
 `wildcard-to-regexp`,
 `file-name-sans-extension`;
-step 44a: `find-file-other-frame` (C-x 5 f, C-x 5 C-f) and `find-file-read-only-other-frame` (C-x 5 r; `find-file--read-only` takes the visiting procedure)
+step 44a: `find-file-other-frame` (C-x 5 f, C-x 5 C-f) and `find-file-read-only-other-frame` (C-x 5 r; `find-file--read-only` takes the visiting procedure),
+`revert-buffer-function` (permanently local) and `buffer-stale-function` as buffer-local procedure settings (`%procedure`, `%set_local`, `%get_current`)
 
 ## Deferred
 

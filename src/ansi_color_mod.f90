@@ -56,6 +56,7 @@ module ansi_color_mod
     use process_mod, only: get_buffer_process, process_mark
     use command_interpreter_mod, only: command_interpreter_output_filter_functions, command_interpreter_last_output_start
     use compile_mod, only: compilation_filter_start
+    use buffer_local_setting_mod, only: buffer_local_setting_type
     implicit none(type, external)
     private
 
@@ -290,29 +291,35 @@ module ansi_color_mod
     type(choice_setting_type), public :: ansi_color_for_compilation_mode = &
                                          choice_setting_type(name="ansi_color_for_compilation_mode", value=.true.)
 
-    ! A buffer's own `ansi_color_apply_face_function'.
-    type :: face_function_entry_type
-        integer(int64) :: serial = 0
-        procedure(ansi_color_face_procedure), pointer, nopass :: fn => null()
-    end type face_function_entry_type
+    !> One buffer's own value of
+    !> `ansi_color_apply_face_function'.
+    type :: ansi_color_apply_face_entry_type
+        procedure(ansi_color_face_procedure), pointer, nopass :: procedure => null()
+    end type ansi_color_apply_face_entry_type
+
+    !> The type of
+    !> `ansi_color_apply_face_function':
+    !> the global value `procedure' (set with `=>'; null for none) and
+    !> the buffers' own values (`set_local').
+    type, extends(buffer_local_setting_type), public :: ansi_color_apply_face_setting_type
+        procedure(ansi_color_face_procedure), pointer, nopass :: procedure => null()
+        type(ansi_color_apply_face_entry_type), allocatable :: locals(:)
+    contains
+        !> Give the current buffer its own value (null when absent).
+        procedure :: set_local => set_ansi_color_apply_face_local
+        !> The current buffer's value: its own, else the global one.
+        procedure :: get_current => get_ansi_color_apply_face_current
+        procedure :: append_local_entry => append_ansi_color_apply_face_entry
+        procedure :: clear_local_entry => clear_ansi_color_apply_face_entry
+    end type ansi_color_apply_face_setting_type
 
     !> Function for applying an Ansi Color face to text in a buffer.
     !> This function should accept three arguments: BEGINNING, END, and FACE,
     !> and it should apply face FACE to the text between BEGINNING and END.
-    !> Port of ansi-color.el ansi-color-apply-face-function (set with
-    !> `set_local'; the default is `ansi_color_apply_overlay_face').
-    type, public :: ansi_color_apply_face_function_type
-        character(len=32) :: name = "ansi_color_apply_face_function"
-        type(face_function_entry_type), allocatable :: entries(:)
-    contains
-        !> Make FN the current buffer's value (set_local).
-        procedure :: set_local => face_function_set_local
-        !> The current buffer's value.
-        procedure :: current => current_face_function
-    end type ansi_color_apply_face_function_type
-
-    !> See the type.  Port of ansi-color.el ansi-color-apply-face-function.
-    type(ansi_color_apply_face_function_type), public :: ansi_color_apply_face_function
+    !> Port of ansi-color.el ansi-color-apply-face-function (`%procedure'
+    !> is the global value, `ansi_color_apply_overlay_face' by default;
+    !> `%set_local' gives a buffer its own).
+    type(ansi_color_apply_face_setting_type), public :: ansi_color_apply_face_function
 
     ! The state of the faces (FACE-VEC): the basic faces and the
     ! foreground and background color codes (-1 for nil).
@@ -384,48 +391,55 @@ contains
         contexts(k) = context_type()
     end subroutine reset_ansi_color_context
 
-    ! Set the current buffer's value of the face function to FN.
-    ! Not a port.
-    subroutine face_function_set_local(self, fn)
-        class(ansi_color_apply_face_function_type), intent(inout) :: self
-        procedure(ansi_color_face_procedure) :: fn
-        type(face_function_entry_type) :: entry
-        integer :: i
+    !> Give the current buffer its own value LOCAL_PROCEDURE (null when
+    !> absent) of
+    !> `ansi_color_apply_face_function'.  Not a port.
+    subroutine set_ansi_color_apply_face_local(self, local_procedure)
+        class(ansi_color_apply_face_setting_type), intent(inout) :: self
+        procedure(ansi_color_face_procedure), optional :: local_procedure
+        integer :: k
 
-        if (current == 0) return
-        if (.not. allocated(self%entries)) allocate (self%entries(0))
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1)
+        call self%make_local_entry(k)
+        if (k == 0) return
+        self%locals(k)%procedure => null()
+        if (present(local_procedure)) self%locals(k)%procedure => local_procedure
+    end subroutine set_ansi_color_apply_face_local
 
-        if (i == 0) then
-            self%entries = [self%entries, entry]
-            i = size(self%entries)
-            self%entries(i)%serial = buffers(current)%serial
-        end if
+    !> The current buffer's value of
+    !> `ansi_color_apply_face_function':
+    !> its own, else the global one.  Not a port.
+    function get_ansi_color_apply_face_current(self) result(current_procedure)
+        class(ansi_color_apply_face_setting_type), intent(in) :: self
+        procedure(ansi_color_face_procedure), pointer :: current_procedure
+        integer :: k
 
-        self%entries(i)%fn => fn
-    end subroutine face_function_set_local
+        current_procedure => self%procedure
+        k = self%get_local_index()
+        if (k > 0) current_procedure => self%locals(k)%procedure
+    end function get_ansi_color_apply_face_current
 
-    ! The current buffer's value of the face function.  Not a port.
-    function current_face_function(self) result(fn)
-        class(ansi_color_apply_face_function_type), intent(in) :: self
-        procedure(ansi_color_face_procedure), pointer :: fn
-        integer :: i
+    ! Grow `locals' by one entry.  Not a port.
+    subroutine append_ansi_color_apply_face_entry(self)
+        class(ansi_color_apply_face_setting_type), intent(inout) :: self
+        type(ansi_color_apply_face_entry_type) :: entry
 
-        fn => ansi_color_apply_overlay_face
-        if (current == 0 .or. .not. allocated(self%entries)) return
-        i = findloc(self%entries%serial, buffers(current)%serial, dim=1, back=.true.)
-        if (i > 0) fn => self%entries(i)%fn
-    end function current_face_function
+        if (.not. allocated(self%locals)) allocate (self%locals(0))
+        self%locals = [self%locals, entry]
+    end subroutine append_ansi_color_apply_face_entry
+
+    ! Reset entry K of `locals'.  Not a port.
+    subroutine clear_ansi_color_apply_face_entry(self, k)
+        class(ansi_color_apply_face_setting_type), intent(inout) :: self
+        integer, intent(in) :: k
+
+        self%locals(k)%procedure => null()
+    end subroutine clear_ansi_color_apply_face_entry
 
     ! Forget the current buffer's values (kill-all-local-variables).
     ! Not a port.
     subroutine clear_ansi_color_locals()
-        integer :: i
-
         call reset_ansi_color_context()
-        if (current == 0 .or. .not. allocated(ansi_color_apply_face_function%entries)) return
-        i = findloc(ansi_color_apply_face_function%entries%serial, buffers(current)%serial, dim=1)
-        if (i > 0) ansi_color_apply_face_function%entries(i) = face_function_entry_type()
+        call ansi_color_apply_face_function%clear_local()
     end subroutine clear_ansi_color_locals
 
     ! ------------------------------------------------------------------
@@ -1028,7 +1042,8 @@ contains
 
         preserve = .false.
         if (present(preserve_sequences)) preserve = preserve_sequences
-        apply => ansi_color_apply_face_function%current()
+        apply => ansi_color_apply_face_function%get_current()
+        if (.not. associated(apply)) apply => ansi_color_apply_overlay_face
         k = ensure_region_context(begin)
         face_state = contexts(k)%region_face_state
         start_marker = contexts(k)%region_marker
@@ -1378,6 +1393,11 @@ contains
         commands%ansi_color_for_command_interpreter_mode_off%execute => ansi_color_for_command_interpreter_mode_off
         commands%ansi_color_for_command_interpreter_mode_filter%execute => ansi_color_for_command_interpreter_mode_filter
         call append_locals_clearer(clear_ansi_color_locals)
+
+        if (.not. associated(ansi_color_apply_face_function%procedure)) then
+            ansi_color_apply_face_function%procedure => ansi_color_apply_overlay_face
+        end if
+
         call command_interpreter_output_filter_functions%prepend(ansi_color_process_output)
     end subroutine initialize_ansi_color
 end module ansi_color_mod

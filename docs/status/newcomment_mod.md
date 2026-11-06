@@ -33,7 +33,8 @@
 `comment-multi-line`,
 `comment-auto-fill-only-comments`,
 `comment-valid-prefix-p`,
-`comment-only-p`
+`comment-only-p`,
+`comment-indent-function` as a buffer-local procedure setting (`%procedure`, `%set_local`, `%get_current`, `%is_local`, `%clear_local`)
 
 ## Deferred
 
