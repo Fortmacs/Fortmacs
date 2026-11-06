@@ -136,6 +136,7 @@ module bindings_mod
     use buffer_menu_mod, only: initialize_buffer_menu
     use calendar_mod, only: initialize_calendar
     use holidays_mod, only: initialize_holidays
+    use diary_library_mod, only: initialize_diary_library
     use ibuffer_mod, only: initialize_ibuffer
     use completing_read_multiple_mod, only: initialize_completing_read_multiple
     use register_mod, only: initialize_register
@@ -415,6 +416,7 @@ contains
         call initialize_buffer_menu()
         call initialize_calendar()
         call initialize_holidays()
+        call initialize_diary_library()
         call initialize_ibuffer()
         call initialize_info()
         call initialize_info_look()
