@@ -80,7 +80,8 @@ module keyboard_mod
     use case_table_mod, only: downcase, is_uppercase
     use undo_mod, only: undo_auto_add_boundary, point_before_last_command_or_undo, &
                         buffer_before_last_command_or_undo
-    use system_dependent_mod, only: fortmacs_read, input_available, interrupt_pending, inputs_available, fortmacs_write, &
+    use system_dependent_mod, only: fortmacs_read, input_available, interrupt_pending, pending_fatal_signal, inputs_available, &
+                                    fortmacs_write, &
                                     window_change_pending
     use hooks_mod, only: hook_type
     use string_type_mod, only: string_type
@@ -1497,6 +1498,13 @@ contains
                 cycle reading
             end if
 
+            ! SIGHUP or SIGTERM: Fortmacs exits, as emacs.c:terminate_due_to_signal
+            ! calls kill-emacs with the signal's number (no event is read).
+            if (pending_fatal_signal() /= 0) then
+                call request_exit()
+                return
+            end if
+
             ! C-g on the terminal arrives as SIGINT; while waiting for
             ! input it reads as the quit character
             ! (keyboard.c:quit_throw_to_read_char, as handle_interrupt
@@ -1532,6 +1540,11 @@ contains
                 ! window change) and the frame is redrawn.
                 if (window_change_pending()) then
                     if (associated(redisplay_hook)) call redisplay_hook()
+                end if
+
+                if (pending_fatal_signal() /= 0) then
+                    call request_exit()
+                    return
                 end if
 
                 ! A timer or subprocess may have queued events, or C-g came.
@@ -2181,6 +2194,8 @@ contains
             next_timer = execute_timers()
             if (next_timer >= 0) timeout = min(timeout, next_timer)
             if (wait_for_input(timeout)) return
+            ! SIGHUP or SIGTERM: stop waiting, so that reading input exits Fortmacs.
+            if (pending_fatal_signal() /= 0) return
 
             ! A SIGWINCH woke the wait (process.c:wait_reading_process_output).
             if (window_change_pending()) then

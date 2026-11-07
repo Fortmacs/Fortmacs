@@ -54,7 +54,7 @@ module system_dependent_mod
                                 c_fchmod, c_fchmodat, c_fchown, c_getgrgid, c_setpwent, c_getpwent, c_endpwent, &
                                 c_setgrent, c_getgrent, c_endgrent, group_type, timespec_type, O_CREAT, O_EXCL, &
                                 O_TRUNC, O_APPEND, RENAME_NOREPLACE, UTIME_NOW, EXDEV, EINVAL, ENOSYS, ENOTSUP, &
-                                c_setsid, c_kill, c_tcgetpgrp, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, &
+                                c_setsid, c_kill, c_tcgetpgrp, c_ioctl_int, c_fcntl_int, SIGQUIT, SIGPIPE, SIGTERM, &
                                 TIOCSCTTY, F_SETFD, FD_CLOEXEC, F_GETFL, F_SETFL, O_NONBLOCK, EAGAIN, &
                                 TCSANOW, OPOST, OLCUC, NLDLY, CRDLY, BSDLY, VTDLY, FFDLY, IUCLC, CSIZE, &
                                 VERASE, VKILL, VEOF, EPIPE, F_DUPFD_CLOEXEC, c_execve, c_sched_getaffinity, c_time, c_getrandom, &
@@ -84,7 +84,8 @@ module system_dependent_mod
     public :: system_suspend, stuff_character, SIGTSTP, SIGHUP
     public :: signal_disposition_type, ignore_signal, default_signal, restore_signal, fortmacs_getpid, fortmacs_getpgrp, &
               system_setpgid
-    public :: install_interrupt_handler, interrupt_pending
+    public :: install_interrupt_handler, interrupt_pending, initialize_signals, pending_fatal_signal, clear_fatal_signal, &
+              SIGTERM, SIGINT, SIGPIPE
     public :: open_pty, close_fd, is_tabs_safe, fortmacs_isatty
     public :: file_status_type, fortmacs_open_read, fortmacs_creat, system_access, system_rename, &
               system_unlink, system_chmod, system_status, system_mkdir, system_rmdir, system_setenv, &
@@ -168,6 +169,9 @@ module system_dependent_mod
     integer(c_int), volatile :: winch_flag = 0
     !> Set by the SIGINT handler; read and cleared by `interrupt_pending'.
     integer(c_int), volatile :: sigint_flag = 0
+    !> Set (to the signal number) by the handler of the fatal signals
+    !> SIGHUP, SIGINT and SIGTERM; read by `pending_fatal_signal'.
+    integer(c_int), volatile :: fatal_signal_flag = 0
 
 contains
 
@@ -483,9 +487,10 @@ contains
         do
             r = c_poll(pfd, 1_c_long, timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
-            ! A C-g (SIGINT) must reach the command loop, and so must a
+            ! A C-g (SIGINT) must reach the command loop, and so must a fatal
+            ! signal (SIGHUP, SIGTERM) and a
             ! change of the terminal's size (SIGWINCH).
-            if (sigint_flag /= 0 .or. winch_flag /= 0) exit
+            if (sigint_flag /= 0 .or. winch_flag /= 0 .or. fatal_signal_flag /= 0) exit
         end do
 
         input_available = r > 0 .and. iand(pfd(1)%revents, POLLIN) /= 0
@@ -525,6 +530,44 @@ contains
 
         old = c_signal(SIGINT, c_funloc(handle_interrupt_signal))
     end subroutine install_interrupt_handler
+
+    !> The handler of the signals that end Fortmacs (SIGHUP and SIGTERM, and
+    !> SIGINT until the quit character's handler replaces it): only records
+    !> the signal, as the other handlers here do.  The command loop sees it
+    !> while it waits for input and exits Fortmacs as upstream's
+    !> emacs.c:terminate_due_to_signal does for these signals (exit_fortmacs
+    !> with the signal's number as the exit status).  Port of
+    !> sysdep.c:deliver_fatal_signal, in part.
+    subroutine deliver_fatal_signal(signum) bind(C)
+        integer(c_int), value :: signum
+
+        fatal_signal_flag = signum
+    end subroutine deliver_fatal_signal
+
+    !> Install the handlers of the signals that end Fortmacs: SIGHUP, SIGINT
+    !> and SIGTERM (as sysdep.c:maybe_fatal_sig does; Fortmacs always runs interactively, so
+    !> it handles them even when they were ignored, as under nohup), and
+    !> ignore SIGPIPE (Fortmacs checks for write errors).  Port of
+    !> sysdep.c:init_signals, in part: see docs/status/system_dependent_mod.md.
+    subroutine initialize_signals()
+        type(c_funptr) :: old
+
+        old = c_signal(SIGHUP, c_funloc(deliver_fatal_signal))
+        old = c_signal(SIGINT, c_funloc(deliver_fatal_signal))
+        old = c_signal(SIGTERM, c_funloc(deliver_fatal_signal))
+        old = c_signal(SIGPIPE, transfer(1_c_intptr_t, c_null_funptr))
+    end subroutine initialize_signals
+
+    !> The number of the fatal signal received (SIGHUP, SIGINT or SIGTERM),
+    !> or 0 if none was.  Not a port.
+    integer function pending_fatal_signal()
+        pending_fatal_signal = fatal_signal_flag
+    end function pending_fatal_signal
+
+    !> Forget the fatal signal received, for tests.  Not a port.
+    subroutine clear_fatal_signal()
+        fatal_signal_flag = 0
+    end subroutine clear_fatal_signal
 
     !> True if the quit character was typed (SIGINT) since the last call.
     !> Not a port.
@@ -1781,9 +1824,10 @@ contains
         do
             r = c_poll(pfd, int(size(fds), c_long), timeout_ms)
             if (r >= 0 .or. errno() /= EINTR) exit
-            ! A C-g (SIGINT) must reach the command loop, and so must a
+            ! A C-g (SIGINT) must reach the command loop, and so must a fatal
+            ! signal (SIGHUP, SIGTERM) and a
             ! change of the terminal's size (SIGWINCH).
-            if (sigint_flag /= 0 .or. winch_flag /= 0) exit
+            if (sigint_flag /= 0 .or. winch_flag /= 0 .or. fatal_signal_flag /= 0) exit
         end do
 
         do k = 1, size(fds)

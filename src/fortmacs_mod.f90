@@ -42,6 +42,7 @@ module fortmacs_mod
     use window_mod, only: delete_window_tree, delete_window_object, set_window_buffer_internal, switch_to_buffer, &
                           switch_to_buffer_other_window, other_window
     use system_dependent_mod, only: install_interrupt_handler, install_window_change_handler, fortmacs_isatty, &
+                                    initialize_signals, pending_fatal_signal, &
                                     fortmacs_execv, fortmacs_strerror
     use terminal_output_mod, only: initialize_terminal, delete_terminal, terminal_set_terminal_modes
     use terminal_state_mod, only: terminal_flush
@@ -971,6 +972,8 @@ contains
 
         allocate (character(len=arglen) :: term)
         call get_environment_variable("TERM", term)
+        ! sysdep.c:init_signals, as emacs.c:main calls it.
+        call initialize_signals()
         startup_message = reminder
         call fortmacs_main(term, 0_int32, status, arguments, configure)
 
@@ -979,6 +982,10 @@ contains
             write (error_unit, "(a)") "fortmacs: "//format_error(status)
             exit_code = 1
         end if
+
+        ! emacs.c:terminate_due_to_signal: SIGHUP or SIGTERM ended the
+        ! editor through kill-emacs, whose exit status is the signal's number.
+        if (pending_fatal_signal() /= 0) exit_code = pending_fatal_signal()
     end subroutine execute_editor
 
     !> `fortmacs --recompile': build the init file into the user's own

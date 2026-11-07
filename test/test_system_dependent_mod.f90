@@ -28,11 +28,13 @@ module test_system_dependent_mod
     use error_mod, only: status_type, FILE_ERROR_CODE
     use system_linux_mod, only: c_raise, cs8, echo, icanon, icrnl, iexten, ignbrk, inlcr, isig, istrip, &
                                 ixon, onlcr, opost, parenb, pollfd_type, sigwinch, tab3, termios_type, &
-                                vintr, vmin, vstop, vsusp, vtime, winsize_type
+                                vintr, vmin, vstop, vsusp, vtime, winsize_type, SIGHUP, SIGINT, SIGTERM, SIGPIPE
     use system_dependent_mod, only: close_fd, fortmacs_get_terminal, fortmacs_read, fortmacs_terminal_type, fortmacs_write, &
                                     get_terminal_size, initialize_system_modes, input_available, &
                                     install_window_change_handler, open_pty, reset_system_modes, set_terminal_size, &
-                                    terminal_raw_settings, window_change_pending, clear_window_change
+                                    terminal_raw_settings, window_change_pending, clear_window_change, initialize_signals, &
+                                    pending_fatal_signal, clear_fatal_signal, signal_disposition_type, default_signal, &
+                                    restore_signal
     implicit none(type, external)
     private
 
@@ -51,6 +53,7 @@ contains
                     new_unittest("pty-size", test_pty_size), &
                     new_unittest("input-available-timeout", test_poll), &
                     new_unittest("window-change-signal", test_winch), &
+                    new_unittest("fatal-signals", test_fatal_signals), &
                     new_unittest("read-bad-fd", test_bad_fd) &
                     ]
     end subroutine collect_system_dependent_mod
@@ -205,6 +208,37 @@ contains
         call clear_window_change()
         call check(error,.not. window_change_pending(), "flag not cleared")
     end subroutine test_winch
+
+    !> sysdep.c:init_signals: SIGHUP and SIGTERM are caught and recorded, the
+    !> last one received is the one pending.
+    subroutine test_fatal_signals(error)
+        type(error_type), allocatable, intent(out) :: error
+        type(signal_disposition_type) :: hangup, interrupt, terminate, pipe
+        integer(c_int) :: r
+
+        call default_signal(SIGHUP, hangup)
+        call default_signal(SIGINT, interrupt)
+        call default_signal(SIGTERM, terminate)
+        call default_signal(SIGPIPE, pipe)
+        call clear_fatal_signal()
+        call initialize_signals()
+
+        run: block
+            call check(error, pending_fatal_signal(), 0)
+            if (allocated(error)) exit run
+            r = c_raise(SIGTERM)
+            call check(error, pending_fatal_signal(), int(SIGTERM))
+            if (allocated(error)) exit run
+            r = c_raise(SIGHUP)
+            call check(error, pending_fatal_signal(), int(SIGHUP))
+        end block run
+
+        call clear_fatal_signal()
+        call restore_signal(SIGHUP, hangup)
+        call restore_signal(SIGINT, interrupt)
+        call restore_signal(SIGTERM, terminate)
+        call restore_signal(SIGPIPE, pipe)
+    end subroutine test_fatal_signals
 
     subroutine test_bad_fd(error)
         type(error_type), allocatable, intent(out) :: error
