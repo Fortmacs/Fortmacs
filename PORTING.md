@@ -1446,8 +1446,11 @@ tools/fortran-names.d/2026-11-05-spell-out-words):
   directory_name, directory_stack, elec electric, elem/elt element, env
   environment, esc escape, expr expression, fns functions, fun/func
   function, hist history, hpos/vpos horizontal_position/vertical_position,
-  bpos/mpos buffer_position/marker_position, idx index, incr increment,
-  lang language, lim limit, loc location, mid middle, misc miscellaneous,
+  bpos/mpos buffer_position/marker_position, id identification (what
+  identifies a buffer: the face mode_line_buffer_identification) or
+  identifier (a number identifying an entry, as Fortran's unit
+  identifier; owner, 2026-11-07), idx index, incr increment, lang
+  language, lim limit, loc location, mid middle, misc miscellaneous,
   msg message, nav navigation, newdir new_directory, nl newline, num
   number, obuf output_buffer, opoint original_point, opt option, orig
   original, param parameter, paren parenthesis, passwd/pw password, pat
@@ -2614,6 +2617,46 @@ Features that upstream Emacs 31.1 does not have, each an owner decision
   lighters) sees the same values. API procedures that would need a Lisp
   value (raw prefix arguments, key vectors, completion tables) are not
   exported; their commands are reached as `commands%NAME`.
+
+- **Nested objects (2026-11-07, decided by the owner).**  What the
+  configuration and the code reach is grouped as `main%sub%sub_sub`,
+  one object per package, instead of flat names that copy Emacs's
+  variables (this replaces "per-mode objects are named after their Emacs
+  variables" and the top-level `commands%` and `faces%` of "Idiomatic
+  Fortran objects" above, package by package as each is converted).
+  - Everything a package defines nests under the package's object, named
+    for its upstream prefix spelled out: settings, per-buffer variables,
+    hooks, keymaps, syntax tables, commands and faces.
+  - What has no package prefix upstream (simple.el's fill-column,
+    buffer.c's tab-width, find-file, after-save-hook) goes under one
+    object, `editor`.
+  - A further level only where the shared prefix names a part of its own
+    upstream: mode-line-position is a part of the mode line, so
+    `mode_line%position%line_format`; "error" in compilation-error-screen-columns
+    is not an object, so `compilation%error_screen_columns`.
+  - M-x, C-h f, C-h k and C-h v keep the flat names users type now (the
+    path joined with underscores, without `editor`): `M-x find_file`,
+    `M-x compile`, `C-h v compilation_scroll_output`; help shows the
+    Fortran path for init.f90 next to it.
+
+  ```fortran
+  ! before                                   ! after
+  compilation_scroll_output = .true.         compilation%scroll_output = .true.
+  call compilation_mode_hook%prepend(f)      call compilation%mode_hook%prepend(f)
+  commands%compile%disabled = .false.        compilation%commands%compile%disabled = .false.
+  faces%compilation_error%foreground = "red" compilation%faces%error%foreground = "red"
+  fill_column = 72                           editor%fill_column = 72
+  commands%find_file%disabled = .false.      editor%commands%find_file%disabled = .false.
+  ```
+
+  Packages are converted one pull request at a time, their renames as
+  entries of tools/fortran-names.d; until a package is converted its
+  flat names stand, and new code for a converted package uses the
+  nested form.  Pull requests that were open when the rule was decided
+  (#330, #331, #332) are reworked to it before they merge.  Details no
+  rule settles yet (a buffer's own value of a nested setting, how a
+  mode's hook, map and syntax table sit under its package) are decided
+  with the owner when the first package that needs them is converted.
 
 - **Modes (2026-10-23).** A major mode is a `major_mode_type` whose
   command brackets its body with `%begin`/`%end` (the expansion of
