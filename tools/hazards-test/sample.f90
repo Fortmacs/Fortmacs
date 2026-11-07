@@ -102,4 +102,17 @@ contains
         kept = make_values()
         n = size(kept) + size(make_flats())
     end subroutine inquire
+
+    subroutine lengths(name)
+        character(len=*), intent(in) :: name
+        character(len=:), allocatable :: names(:)
+
+        ! Reported: a string first, of a length known at run time.
+        call take([character(len=len(name) + 32) :: "/does/not/exist", name])
+        ! Not reported: a variable first, strings only, a constant length.
+        call take([character(len=len(name)) :: name, "a"])
+        call take([character(len=len(name)) :: "a", "b"])
+        call take([character(len=40) :: "a", name])
+        names = [character(len=len(name)) :: name]
+    end subroutine lengths
 end module sample

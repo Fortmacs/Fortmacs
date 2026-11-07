@@ -155,11 +155,17 @@ contains
     subroutine test_forget_unreadable(error)
         type(error_type), allocatable, intent(out) :: error
         type(status_type) :: st
-        character(len=:), allocatable :: tmpfile
+        character(len=:), allocatable :: tmpfile, files(:)
 
         call start(.true.)
         call create_temporary_file("saveplace-test", tmpfile, st)
-        call set_table([character(len=len(tmpfile) + 32) :: "/this/file/does/not/exist", tmpfile], [10_int64, 1917_int64])
+        ! Not an array constructor with a type specification: gfortran's
+        ! -fcheck=all compares its items' lengths, which differ unless the
+        ! temporary file's name has 25 characters (a TMPDIR of /tmp).
+        allocate (character(len=len(tmpfile) + 32) :: files(2))
+        files(1) = "/this/file/does/not/exist"
+        files(2) = tmpfile
+        call set_table(files, [10_int64, 1917_int64])
         call save_place_forget_unreadable_files()
         call check(error, size(save_places) == 1, "one place left")
         if (allocated(error)) return

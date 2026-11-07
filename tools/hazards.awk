@@ -57,6 +57,10 @@
 #   stop                `stop' outside a main program.
 #   obsolete            `common', `equivalence' or `goto'.
 #   continuation-limit  a statement of more than 255 continuation lines.
+#   variable-length-constructor  a string first in an array constructor
+#                       whose length is known only at run time, with
+#                       other items (gfortran -fcheck=all compares their
+#                       lengths when it is an actual argument).
 #   truncated-literal   a string longer than the length its array
 #                       constructor's type specification gives
 #                       (`[character(len=N) :: ...]` truncates it).
@@ -364,6 +368,35 @@ function check_inquiry_result(s, code,    rest, name, binding) {
     }
 }
 
+# A string literal first in an array constructor whose type specification
+# has a length known only at run time, with other items after it: passed
+# as an actual argument, gfortran 13's -fcheck=all compares the items'
+# lengths ("Different CHARACTER lengths (25/276) in array constructor").
+function check_variable_length(s, code,    rest, start, spec, i, c, depth, inner, items) {
+    rest = code
+    while (match(rest, /\[[ \t]*character[ \t]*\([^:]*\)[ \t]*::/)) {
+        start = RSTART
+        spec = substr(rest, RSTART, RLENGTH)
+        inner = substr(rest, RSTART + RLENGTH)
+        depth = 1
+        for (i = 1; i <= length(inner); i++) {
+            c = substr(inner, i, 1)
+            if (c == "[") depth++
+            if (c == "]") depth--
+            if (depth == 0) break
+        }
+        rest = substr(inner, i + 1)
+        inner = substr(inner, 1, i - 1)
+        sub(/^\[[ \t]*character[ \t]*\([ \t]*(len[ \t]*=)?/, "", spec)
+        if (spec !~ /[a-z]/) continue
+        items = inner
+        gsub(/""|''/, "", items)
+        gsub(/[ \t,&]/, "", items)
+        if (inner ~ /^[ \t]*["']/ && items != "")
+            report(s, "variable-length-constructor", "a string first in an array constructor of a length known at run time, with other items: as an actual argument, gfortran's -fcheck=all compares their lengths; fill an allocated array instead")
+    }
+}
+
 function check_truncated(s, code,    rest, before, width, start, i, c, depth, k, first, n, prefix, lens) {
     split(slits[s], lens, " ")
     rest = code
@@ -617,6 +650,7 @@ END {
         if (scont[s] > 255)
             report(s, "continuation-limit", scont[s] " continuation lines: the standard allows 255 (gfortran warns with -std=f2018); split the statement")
         if (s in slits) check_truncated(s, code)
+        if (index(code, "[") > 0) check_variable_length(s, code)
         if (index(code, "(") > 0) check_inquiry_result(s, code)
     }
     exit hits > 0
